@@ -51,7 +51,8 @@ Quality Gate darf erst nach Wiederherstellung und Prüfung dieser Dateien gemeld
 - [x] 1: Gemeinsame semantische Designauflösung, ohne Defaultansichten zu verändern.
 - [x] 2: Vorlagenbezogene Overrides und vollständiger Reset.
 - [x] 3: Profildaten und Darstellung kompatibel trennen.
-- [ ] 4–5: Eigene Abschnitte normalisieren und Vorlagenstile vererben.
+- [x] 4: Eigene Abschnitte normalisieren.
+- [ ] 5: Vorlagenstile für eigene Abschnitte vererben.
 - [ ] 6–7: Gemeinsame Spalten, Platzierung, Reihenfolge und Sichtbarkeit.
 - [ ] 8–9: Abstände und Metadatenlayout.
 - [ ] 10–11: Bestehende Stärken-/Icon-Lösung gegen gemeinsame Anforderungen prüfen.
@@ -123,3 +124,22 @@ Validierung: Typecheck erfolgreich; vollständiger Lauf 542 bestanden und die se
 bekannten Fehler wegen fehlender Word-Assets. Anschließend 14 zusätzliche
 PDF-Regressionen für alle aktiven Vorlagen ergänzt: gezielter Lauf 149 bestanden.
 Diese prüfen auch, dass CV-Einstellungen das Anschreiben nicht verändern.
+
+### Phase 4 – Custom Section Normalization
+
+`specialSections` bleibt das bestehende Datenmodell und erhält einen optionalen
+`contentType` (Text, Liste, Einträge, Skills, Timeline). Beide Profileditoren bieten
+diese Auswahl an. Ohne explizite Auswahl löst der gemeinsame Normalizer alte Daten
+anhand ihrer Inhalte und Metadaten auf, ohne gespeicherte Daten umzuschreiben oder
+Überschriften als Sonderfälle zu behandeln. Hauptabschnitte und Unterabschnitte
+werden semantisch getrennt; einfache Inhalte werden nicht mehr als Titel gerendert.
+
+React-Vorschau und Electron-PDF nutzen dieselbe escaped Inhaltsausgabe. Eigene
+Abschnitte werden anhand ihrer ID zugeordnet, sodass gleiche Überschriften nicht
+zusammenfallen. Leere Einträge erzeugen keine leeren Abschnitte. Vorhandene Metadaten,
+Beschreibung, Details und URLs bleiben bei jeder Typauswahl erhalten.
+
+Validierung: Build inklusive Typecheck erfolgreich. 578 Tests bestanden; weiterhin
+sechs bekannte Word-Asset-Fehler. Die neue Regression prüft alle fünf Inhaltstypen in
+allen 14 aktiven Vorlagen auf identisches Preview-/PDF-Markup und eindeutige IDs.
+Visuelle Stil-Vererbung und vorlagenspezifische Abstände folgen in Phase 5.

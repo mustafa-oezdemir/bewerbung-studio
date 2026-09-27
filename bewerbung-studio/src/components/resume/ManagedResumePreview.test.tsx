@@ -39,6 +39,31 @@ const components = {
   "zweispaltig": ZweispaltigResume
 };
 describe("managed template previews", () => {
+  it.each(Object.entries(components))("normalizes custom content equally in preview and PDF for %s", (templateId, component) => {
+    const now = new Date().toISOString();
+    const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: now,
+      specialSections: ["text", "list", "entries", "skills", "timeline"].map((contentType, index) => ({
+        id: crypto.randomUUID(), kind: "custom", title: index === 0 ? "Projekt-Highlight" : "Gleicher Titel", contentType,
+        entries: [{ id: crypto.randomUUID(), title: `Inhalt ${index}`, description: "Beschreibung", bullets: ["Detail"] }],
+      })),
+    });
+    const plan = createResumePagePlan(profile, "", {}, templateId)[0];
+    const child = createElement(component as unknown as ComponentType<Record<string, unknown>>, { profile, templateId, name: "Mina Kaya", atsMode: false, plan, totalPages: 1, accentColor: "#123456", secondaryColor: "#234567", photoSource: null, resumeProfile: "", sections: profile.resumeSections, backgroundId: "white" });
+    const preview = renderToStaticMarkup(<ManagedResumePreview profile={profile} templateId={templateId} pageNumber={1} totalPages={1}>{child}</ManagedResumePreview>);
+    const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test", company: { name: "Test", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" }, status: "Entwurf", templateId, accentColor: "#123456", secondaryColor: "#234567", documents: {}, statusHistory: [], createdAt: now, updatedAt: now });
+    const outputs = [preview, buildDocumentHtml(application, profile, "lebenslauf")].map(html => parseHTML(html).document);
+    for (const section of profile.specialSections) {
+      const selector = `[data-managed-section="special:${section.id}"]`;
+      for (const document of outputs) {
+        expect(document.querySelectorAll(selector)).toHaveLength(1);
+        const node = document.querySelector(selector)!;
+        expect(node.getAttribute("data-section-type")).toBe("main-section");
+        expect(node.querySelector("[data-content-type]")?.getAttribute("data-content-type")).toBe(section.contentType);
+        expect(node.querySelectorAll('[data-section-type="subsection"]')).toHaveLength(["entries", "timeline"].includes(section.contentType!) ? 1 : 0);
+      }
+      expect(outputs[0].querySelector(`${selector} [data-content-type]`)?.outerHTML).toBe(outputs[1].querySelector(`${selector} [data-content-type]`)?.outerHTML);
+    }
+  });
   it("keeps only the lower Einspaltig section rule in preview and PDF, including custom sections", () => {
     const now = new Date().toISOString();
     const profile = profileSchema.parse({

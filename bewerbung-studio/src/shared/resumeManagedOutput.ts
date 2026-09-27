@@ -1,3 +1,4 @@
+import { renderCustomSectionContent } from "./resumeCustomSections";
 import { parseHTML } from "linkedom";
 import type { ApplicantProfile } from "./schema";
 import {
@@ -146,7 +147,7 @@ export const applyManagedResumeOutput = (
             elementId === `special.${entry.id.slice(8)}`,
         ) ??
         entries.find(
-          (entry) => !entry.fixed && normalize(entry.title) === title,
+          (entry) => !entry.fixed && !entry.id.startsWith("special:") && normalize(entry.title) === title,
         ) ??
         entries.find((entry) =>
           (aliases[entry.id] ?? []).some((alias) => normalize(alias) === title),
@@ -156,6 +157,7 @@ export const applyManagedResumeOutput = (
         );
       if (entry) {
         node.setAttribute("data-managed-section", entry.id);
+        if (entry.id.startsWith("special:")) node.setAttribute("data-section-type", "main-section");
         nodes.set(entry.id, [...(nodes.get(entry.id) ?? []), node]);
       }
     }
@@ -293,22 +295,21 @@ export const applyManagedResumeOutput = (
                 ? itemHtml.map((item) => `<p>${item}</p>`).join("")
                 : `<ul>${itemHtml.map((item) => `<li>${item}</li>`).join("")}</ul>`;
         }
-      } else if (entry.id.startsWith("special:") && last && !existing.length) {
-        const special = profile.specialSections.find(
-          (item) => item.id === entry.id.slice(8),
-        );
-        content =
-          special?.entries
-            .map(
-              (item) =>
-                `<article><strong>${escape(item.title)}</strong><p>${[item.subtitle, item.location, item.date || [item.from, item.to].filter(Boolean).join(" – ")].filter(Boolean).map(escape).join(" · ")}</p><p>${escape(item.description)}</p>${item.bullets.length ? `<ul>${item.bullets.map((bullet) => `<li>${escape(bullet)}</li>`).join("")}</ul>` : ""}${item.url ? `<p>${escape(item.url)}</p>` : ""}</article>`,
-            )
-            .join("") ?? "";
+      } else if (entry.id.startsWith("special:") && (last || existing.length)) {
+        const special = profile.specialSections.find(item => item.id === entry.id.slice(8));
+        content = special ? renderCustomSectionContent(special) : "";
+        if (!content) {
+          existing.forEach(node => node.remove());
+          nodes.delete(entry.id);
+          continue;
+        }
       }
-      if (content && entry.id === "knowledge" && existing.length) {
+
+      if (content && (entry.id === "knowledge" || entry.id.startsWith("special:")) && existing.length) {
         const node = existing[0];
         const heading = node.querySelector("h2,h3")?.outerHTML ?? `<h3>${escape(entry.title)}</h3>`;
         node.innerHTML = heading + content;
+        if (entry.id.startsWith("special:")) node.setAttribute("data-section-type", "main-section");
         node.querySelector("h2,h3")!.textContent = entry.title;
         if (isAts) node.classList.add("managed-ats");
         existing.slice(1).forEach((duplicate) => duplicate.remove());
@@ -318,6 +319,7 @@ export const applyManagedResumeOutput = (
         const node = document.createElement("section");
         node.className = `managed-extra${isAts ? " managed-ats" : ""}`;
         node.setAttribute("data-managed-section", entry.id);
+        if (entry.id.startsWith("special:")) node.setAttribute("data-section-type", "main-section");
         node.innerHTML = `<h3>${escape(entry.title)}</h3>${content}`;
         if (group?.pageBreakBefore) node.style.breakBefore = "page";
         container(entry).appendChild(node);

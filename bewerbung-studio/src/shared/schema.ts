@@ -1,3 +1,4 @@
+import { resumeCustomContentTypes } from "./resumeCustomSectionTypes";
 import { z } from "zod";
 import { cvDesignOverridesSchema } from "./cvDesignSchema";
 import { resumePresentationSchema } from "./resumePresentationSchema";
@@ -136,6 +137,7 @@ const resumeSpecialSectionEntrySchema = z.object({
 const resumeSpecialSectionSchema = z.object({
   id: z.uuid(),
   kind: z.enum(resumeSpecialSectionKinds),
+  contentType: z.enum(resumeCustomContentTypes).optional(),
   title: z.string().trim().min(1),
   isVisible: z.boolean().default(true),
   entries: z.array(resumeSpecialSectionEntrySchema).default([]),

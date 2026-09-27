@@ -1,3 +1,4 @@
+import { resumeCustomContentLabels, type ResumeCustomContentType } from "../../shared/resumeCustomSectionTypes";
 import { ChevronDown, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { addTechnologyStrengths } from "../../shared/strengthPresets";
@@ -1208,6 +1209,13 @@ export function ResumeSpecialSectionsEditor({
                 value={section.title}
                 onChange={(title) => updateSection(section.id, { title })}
               />
+              <label className="field">
+                <span>Inhaltstyp</span>
+                <select value={section.contentType ?? ""} onChange={(event) => updateSection(section.id, { contentType: (event.target.value || undefined) as ResumeCustomContentType | undefined })}>
+                  <option value="">Automatisch</option>
+                  {Object.entries(resumeCustomContentLabels).map(([type, label]) => <option key={type} value={type}>{label}</option>)}
+                </select>
+              </label>
               <label className="field">
                 <span>Bereichstyp</span>
                 <select

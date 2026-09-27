@@ -1,3 +1,4 @@
+import { resumeCustomContentLabels, type ResumeCustomContentType } from "../shared/resumeCustomSectionTypes";
 import {
   ArrowDown,
   ArrowUp,
@@ -1747,6 +1748,13 @@ function SpecialSectionsEditor({
                 value={section.title}
                 onChange={(title) => updateSection(section.id, { title })}
               />
+              <label className="field">
+                <span>Inhaltstyp</span>
+                <select value={section.contentType ?? ""} onChange={(event) => updateSection(section.id, { contentType: (event.target.value || undefined) as ResumeCustomContentType | undefined })}>
+                  <option value="">Automatisch</option>
+                  {Object.entries(resumeCustomContentLabels).map(([type, label]) => <option key={type} value={type}>{label}</option>)}
+                </select>
+              </label>
               <label className="field">
                 <span>Bereichstyp</span>
                 <select

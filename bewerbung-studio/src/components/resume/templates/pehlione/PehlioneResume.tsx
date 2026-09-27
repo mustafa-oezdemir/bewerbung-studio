@@ -203,7 +203,7 @@ export function PehlioneResume({
         {lastPage && knowledgeSection.visible && mainKnowledgeGroups.map((group) => visibleBlockItems(group).length ? <section className={`pehlione-main-section pehlione-flex-block renderer-${group.rendererType}`} key={group.id} style={{ breakBefore: group.pageBreakBefore ? "page" : "auto" }}>{heading(group.semanticType === "training" || group.semanticType === "certificates" ? <GraduationCap /> : <Lightbulb />, group.title)}{blockContent(group)}</section> : null)}
         {lastPage && sections.certifications && profile?.certifications.length && !mainKnowledgeGroups.some((group) => ["training", "certificates"].includes(group.semanticType)) ? <section className="pehlione-main-section pehlione-training">{heading(<GraduationCap />, "Weiterbildungen")}<ul>{profile.certifications.map((item) => <li key={item}>{item}</li>)}</ul></section> : null}
         {lastPage && interestsSection.visible && profile?.specialSections.filter((section) => section.kind === "interests" && section.isVisible).map((section) => (
-          <section className="pehlione-main-section pehlione-training" key={section.id}>{heading(<Lightbulb />, section.title)}<ul>{section.entries.map((entry) => <li key={entry.id}>{entry.title || entry.description}</li>)}</ul></section>
+          <section className="pehlione-main-section pehlione-training" data-element-id={`special.${section.id}`} key={section.id}>{heading(<Lightbulb />, section.title)}<ul>{section.entries.map((entry) => <li key={entry.id}>{entry.title || entry.description}</li>)}</ul></section>
         ))}
         {lastPage && closingSection.visible && (closing.showPlace || closing.showDate || closing.showSignature) ? (
           <footer className="pehlione-closing">
