@@ -240,4 +240,40 @@ describe("managed template previews", () => {
       expect(html, templateId).toContain("data-resume-spacing-entry-following");
     }
   });
+  it.each(Object.entries(components))("uses the same optional career metadata layout in preview and PDF for %s", (templateId, component) => {
+    const now = new Date().toISOString();
+    const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: now,
+      experiences: [{ id: crypto.randomUUID(), from: "11/2024", to: "06/2025", role: "Praktikum", company: "Universitätsstadt Marburg", city: "Marburg", achievements: ["Prozesse geplant"] }],
+      education: [{ id: crypto.randomUUID(), from: "2020", to: "2023", degree: "Fachinformatiker", institution: "IAD GmbH", city: "Berlin" }],
+    });
+    const plan = createResumePagePlan(profile, "", {}, templateId)[0];
+    const child = createElement(component as unknown as ComponentType<Record<string, unknown>>, { profile, templateId, name: "Mina Kaya",
+      atsMode: false, plan, totalPages: 1, accentColor: "#123456", secondaryColor: "#234567", photoSource: null,
+      resumeProfile: "", sections: profile.resumeSections, backgroundId: "white" });
+    const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test", company: { name: "Test", city: "Berlin" }, contact: {},
+      job: { title: "Entwicklung" }, status: "Entwurf", templateId, accentColor: "#123456", secondaryColor: "#234567",
+      documents: {}, statusHistory: [], createdAt: now, updatedAt: now });
+    const native = renderToStaticMarkup(<ManagedResumePreview profile={profile} templateId={templateId} pageNumber={1} totalPages={1}>{child}</ManagedResumePreview>);
+    expect(parseHTML(native).document.querySelector("[data-resume-metadata-grid]")).toBeNull();
+    for (const [layout, order] of [["side-by-side", "details-first"], ["side-by-side", "dates-first"], ["stacked", "details-first"]] as const) {
+      const settings = { ...defaultDocumentDesign, metadataLayout: layout, metadataOrder: order };
+      const preview = renderToStaticMarkup(<ManagedResumePreview profile={profile} templateId={templateId} pageNumber={1} totalPages={1} designSettings={settings}>{child}</ManagedResumePreview>);
+      const pdf = buildDocumentHtml({ ...application, designSettings: settings }, profile, "lebenslauf");
+      for (const html of [preview, pdf]) {
+        const document = parseHTML(html).document;
+        for (const [kind, role, company] of [["experience", "Praktikum", "Universitätsstadt Marburg"], ["education", "Fachinformatiker", "IAD GmbH"]]) {
+          const entry = document.querySelector(`[data-managed-section="${kind}"] [data-resume-metadata-entry]`);
+          expect(entry, `${templateId} ${kind} ${layout} ${order}`).not.toBeNull();
+          const grid = entry!.querySelector("[data-resume-metadata-grid]")!;
+          expect(grid.getAttribute("data-resume-metadata-grid")).toBe(layout);
+          expect(grid.getAttribute("data-resume-metadata-order")).toBe(order);
+          expect(grid.querySelector("[data-resume-metadata-role]")?.textContent).toBe(role);
+          expect(grid.querySelector("[data-resume-metadata-organization]")?.textContent).toBe(company);
+          expect(grid.querySelector("[data-resume-metadata-date]")?.textContent).toBe(kind === "experience" ? "11/2024 – 06/2025" : "2020 – 2023");
+          expect(grid.querySelector("[data-resume-metadata-location]")?.textContent).toBe(kind === "experience" ? "Marburg" : "Berlin");
+        }
+        expect(document.querySelector('[data-managed-section="experience"] [data-resume-metadata-entry]')?.textContent).toContain("Prozesse geplant");
+      }
+    }
+  });
 });

@@ -28,6 +28,19 @@ describe("document editor persistence", () => {
     expect(selectDocumentTemplate(base, "kompakt").templateDesigns).toEqual({});
   });
 
+  it("keeps metadata layout per template and restores native defaults on reset", () => {
+    const base = createDocumentDesignDraft(application);
+    const changed = { ...base, settings: { ...base.settings, metadataLayout: "side-by-side" as const, metadataOrder: "dates-first" as const } };
+    const other = selectDocumentTemplate(changed, "kompakt");
+    expect(other.settings.metadataLayout).toBeUndefined();
+    expect(other.templateDesigns.modern.settings).toMatchObject({ metadataLayout: "side-by-side", metadataOrder: "dates-first" });
+    const restored = selectDocumentTemplate(other, "modern");
+    const saved = applicationSchema.parse({ ...application, designSettings: restored.settings, templateDesigns: restored.templateDesigns });
+    expect(saved.designSettings.metadataLayout).toBe("side-by-side");
+    expect(saved.designSettings.metadataOrder).toBe("dates-first");
+    expect(resetDocumentDesign(createDocumentDesignDraft(saved)).settings.metadataLayout).toBeUndefined();
+  });
+
   it("resets colors and semantic overrides without resetting other templates", () => {
     let current = resetDocumentDesign(createDocumentDesignDraft(application));
     current = updateCvDesignField(current, "spacing", "entryGapMm", 8);

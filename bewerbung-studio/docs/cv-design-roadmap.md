@@ -244,3 +244,16 @@ verwenden denselben HTML-/CSS-Adapter.
 Validierung: `npm run release:check`; 28 Electron-Geometrieprüfungen
 (14 Vorlagen × Vorschau/PDF) für Abschnitts-, Titel- und Eintragsabstand,
 Seitenrand sowie gemeinsame Innen-/Spalten-/Zeilenvariablen.
+
+### Phase 9 – Gemeinsames Metadatenlayout (27.09.2026)
+
+Für Berufserfahrung und Ausbildung kann das Designpanel Position/Abschluss,
+Firma/Institution, Zeitraum und Ort nun „Nebeneinander“ oder „Untereinander“
+anordnen. Bei nebeneinanderstehenden Angaben ist auch „Datum links“ wählbar.
+Ohne Auswahl bleiben die nativen Vorlagenlayouts erhalten. Der gemeinsame
+HTML-Adapter verwendet in Vorschau und PDF dieselben Daten und lässt
+Leistungslisten bestehen. Die Einstellung wird je Vorlage sparsam gespeichert;
+„Template-Standard“ bzw. Design-Reset entfernt die Anpassung.
+
+Validierung: HTML-Regressionen für 14 Vorlagen × Vorschau/PDF × drei
+Anordnungen und 84 Chromium-Geometrieprüfungen für Zeilen-/Spaltenpositionen.

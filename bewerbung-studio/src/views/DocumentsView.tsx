@@ -1718,6 +1718,31 @@ export function DocumentsView({
                       </details>
                     </div>
                     <div className="advanced-design-grid">
+                      <label className="field">
+                        <span>Metadatenlayout · Berufserfahrung / Ausbildung</span>
+                        <select aria-label="Metadatenlayout" value={design.settings.metadataLayout ?? "template"}
+                          onChange={(event) => {
+                            if (event.target.value === "template") setDesign((current) => {
+                              const { metadataLayout: _layout, metadataOrder: _order, ...settings } = current.settings;
+                              return { ...current, settings: settings as DocumentDesignSettings };
+                            });
+                            else updateDesignSetting("metadataLayout", event.target.value as "side-by-side" | "stacked");
+                          }}>
+                          <option value="template">Template-Standard</option>
+                          <option value="side-by-side">Nebeneinander</option>
+                          <option value="stacked">Untereinander</option>
+                        </select>
+                      </label>
+                      {design.settings.metadataLayout === "side-by-side" && <label className="field">
+                        <span>Reihenfolge</span>
+                        <select aria-label="Metadaten-Reihenfolge" value={design.settings.metadataOrder ?? "details-first"}
+                          onChange={(event) => updateDesignSetting("metadataOrder", event.target.value as "details-first" | "dates-first")}>
+                          <option value="details-first">Position links · Datum rechts</option>
+                          <option value="dates-first">Datum links · Position rechts</option>
+                        </select>
+                      </label>}
+                    </div>
+                    <div className="advanced-design-grid">
                       {(["strengthsColumns", "knowledgeColumns"] as const).map((key) => (
                         <label className="field" key={key}>
                           <span>{key === "strengthsColumns" ? "Stärken – Darstellung" : "Kenntnisse / Programmiersprachen – Darstellung"}</span>

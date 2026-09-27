@@ -76,6 +76,9 @@ export type DocumentDesignSettings = {
   /** Sparse semantic CV fields; omitted on legacy documents and after reset. */
   cvOverrides?: CvDesignOverrides;
   resumePresentation?: ResumePresentation;
+  /** Optional career metadata arrangement; absence preserves each template. */
+  metadataLayout?: "side-by-side" | "stacked";
+  metadataOrder?: "details-first" | "dates-first";
   strengthsColumns: SectionColumnMode;
   knowledgeColumns: SectionColumnMode;
   marginLevel: DesignLevel;

@@ -296,6 +296,8 @@ const sectionColumnSchema = z.union([z.literal("auto"), z.literal(1), z.literal(
 const documentDesignValuesSchema = z.object({
   cvOverrides: cvDesignOverridesSchema.optional(),
   resumePresentation: resumePresentationSchema.optional(),
+  metadataLayout: z.enum(["side-by-side", "stacked"]).optional(),
+  metadataOrder: z.enum(["details-first", "dates-first"]).optional(),
   strengthsColumns: sectionColumnSchema,
   knowledgeColumns: sectionColumnSchema,
   marginLevel: designLevelSchema,

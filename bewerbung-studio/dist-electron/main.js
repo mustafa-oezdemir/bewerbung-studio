@@ -2,6 +2,7 @@ import path from "node:path";
 import { access, appendFile, copyFile, lstat, mkdir, open, readFile, readdir, rename, rm, rmdir, stat, writeFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { BrowserWindow, Notification, app, dialog, ipcMain, nativeImage, shell } from "electron";
+import postcss from "postcss";
 import { createHash, randomUUID } from "node:crypto";
 import { PDFDocument } from "pdf-lib";
 import { constants, createReadStream, watch } from "node:fs";
@@ -47,6 +48,15 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 	enumerable: true
 }) : target, mod));
 var __toCommonJS = (mod) => __hasOwnProp.call(mod, "module.exports") ? mod["module.exports"] : __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+//#endregion
+//#region src/shared/resumeCustomSectionTypes.ts
+var resumeCustomContentTypes = [
+	"text",
+	"list",
+	"entries",
+	"skills",
+	"timeline"
+];
 //#endregion
 //#region node_modules/zod/v4/core/core.js
 var _a$2;
@@ -4044,6 +4054,16 @@ function record(keyType, valueType, params) {
 		...normalizeParams(params)
 	});
 }
+function partialRecord(keyType, valueType, params) {
+	const k = clone(keyType);
+	k._zod.values = void 0;
+	return new ZodRecord({
+		type: "record",
+		keyType: k,
+		valueType,
+		...normalizeParams(params)
+	});
+}
 var ZodEnum = /*@__PURE__*/ $constructor("ZodEnum", (inst, def) => {
 	$ZodEnum.init(inst, def);
 	ZodType.init(inst, def);
@@ -4337,6 +4357,8 @@ var documentBackgroundIds = [
 	"classic-soft-blue-waves"
 ];
 var defaultDocumentDesign = {
+	strengthsColumns: "auto",
+	knowledgeColumns: "auto",
 	marginLevel: 5,
 	paddingLevel: 5,
 	sectionSpacingLevel: 5,
@@ -4614,6 +4636,69 @@ var fontSizeToPt = {
 	large: 10
 };
 var getDocumentFont = (id) => documentFonts.find((font) => font.id === id) ?? documentFonts.find((font) => font.id === "source-sans") ?? documentFonts[0];
+//#endregion
+//#region src/shared/cvDesignSchema.ts
+var color$1 = string().regex(/^#[0-9a-f]{6}$/i);
+var cvColorsSchema = object({
+	text: color$1,
+	paragraph: color$1,
+	heading: color$1,
+	subheading: color$1,
+	sectionHeading: color$1,
+	entryHeading: color$1,
+	divider: color$1,
+	background: color$1,
+	accent: color$1,
+	surface: color$1,
+	muted: color$1,
+	icon: color$1
+});
+/** Physical units are shared by controls, validation and both output adapters. */
+var cvDesignLimits = {
+	bodySizePt: [7, 14],
+	headingSizePt: [14, 36],
+	subheadingSizePt: [8, 20],
+	sectionHeadingSizePt: [8, 22],
+	entryHeadingSizePt: [8, 18],
+	lineHeight: [1, 1.8],
+	pageMarginMm: [8, 30],
+	innerPaddingMm: [0, 12],
+	sectionGapMm: [0, 16],
+	entryGapMm: [0, 12],
+	sectionTitleGapMm: [0, 8],
+	entryContentGapMm: [0, 8],
+	columnGapMm: [3, 18]
+};
+var bounded = (key) => number().min(cvDesignLimits[key][0]).max(cvDesignLimits[key][1]);
+var cvTypographySchema = object({
+	fontId: _enum(documentFontIds),
+	headingFontId: _enum(documentFontIds),
+	bodySizePt: bounded("bodySizePt"),
+	headingSizePt: bounded("headingSizePt"),
+	subheadingSizePt: bounded("subheadingSizePt"),
+	sectionHeadingSizePt: bounded("sectionHeadingSizePt"),
+	entryHeadingSizePt: bounded("entryHeadingSizePt"),
+	lineHeight: bounded("lineHeight")
+});
+var cvSpacingSchema = object({
+	pageMarginMm: bounded("pageMarginMm"),
+	innerPaddingMm: bounded("innerPaddingMm"),
+	sectionGapMm: bounded("sectionGapMm"),
+	entryGapMm: bounded("entryGapMm"),
+	sectionTitleGapMm: bounded("sectionTitleGapMm"),
+	entryContentGapMm: bounded("entryContentGapMm"),
+	columnGapMm: bounded("columnGapMm")
+});
+object({
+	colors: cvColorsSchema,
+	typography: cvTypographySchema,
+	spacing: cvSpacingSchema
+});
+var cvDesignOverridesSchema = object({
+	colors: cvColorsSchema.partial().optional(),
+	typography: cvTypographySchema.partial().optional(),
+	spacing: cvSpacingSchema.partial().optional()
+});
 //#endregion
 //#region src/features/resume-sections/knowledge-block-registry.ts
 var resumeBlockRendererTypes = [
@@ -5070,6 +5155,37 @@ var resolveKnowledgeGroups = (templateId, saved) => {
 	return getDefaultKnowledgeGroups(templateId);
 };
 //#endregion
+//#region src/shared/resumePresentationSchema.ts
+var resumePresentationSchema = object({
+	sections: record(string(), object({
+		title: string().trim().min(1).optional(),
+		visible: boolean().optional(),
+		zone: _enum(["main", "sidebar"]).optional(),
+		order: number().int().nonnegative().optional()
+	})).optional(),
+	personalFields: partialRecord(_enum(resumePersonalFieldKeys), boolean()).optional(),
+	closing: object({
+		showPlace: boolean().optional(),
+		showDate: boolean().optional(),
+		showSignature: boolean().optional()
+	}).optional(),
+	blocks: record(string(), object({
+		rendererType: _enum(resumeBlockRendererTypes).optional(),
+		slot: _enum(resumeKnowledgeSlots).optional(),
+		pageBreakBefore: boolean().optional()
+	})).optional(),
+	showKnowledgeTitle: boolean().optional(),
+	layoutMode: _enum(["single", "two-column"]).optional(),
+	sidebarSide: _enum(["left", "right"]).optional(),
+	sidebarWidthPercent: union([
+		literal(20),
+		literal(25),
+		literal(30),
+		literal(35),
+		literal(40)
+	]).optional()
+});
+//#endregion
 //#region src/features/knowledge/knowledge.constants.ts
 var knowledgeLevelLabels = {
 	none: "",
@@ -5122,6 +5238,7 @@ var knowledgeCategoryTypes = [
 //#region src/features/knowledge/knowledge.validation.ts
 var optionalNumber = number().nonnegative().optional();
 var knowledgeItemSchema = object({
+	iconId: string().trim().optional(),
 	id: uuid(),
 	name: string().trim(),
 	description: string().trim().optional(),
@@ -5445,6 +5562,7 @@ var resumeSpecialSectionEntrySchema = object({
 var resumeSpecialSectionSchema = object({
 	id: uuid(),
 	kind: _enum(resumeSpecialSectionKinds),
+	contentType: _enum(resumeCustomContentTypes).optional(),
 	title: string().trim().min(1),
 	isVisible: boolean().default(true),
 	entries: array(resumeSpecialSectionEntrySchema).default([])
@@ -5559,24 +5677,54 @@ var designLevelSchema = union([
 	literal(10)
 ]);
 var hexColorSchema = string().regex(/^#[0-9a-fA-F]{6}$/);
-var documentDesignSchema = object({
-	marginLevel: designLevelSchema.default(defaultDocumentDesign.marginLevel),
-	paddingLevel: designLevelSchema.default(defaultDocumentDesign.paddingLevel),
-	sectionSpacingLevel: designLevelSchema.default(defaultDocumentDesign.sectionSpacingLevel),
+var sectionColumnSchema = union([
+	literal("auto"),
+	literal(1),
+	literal(2),
+	literal(3),
+	literal(4)
+]);
+var documentDesignValuesSchema = object({
+	cvOverrides: cvDesignOverridesSchema.optional(),
+	resumePresentation: resumePresentationSchema.optional(),
+	metadataLayout: _enum(["side-by-side", "stacked"]).optional(),
+	metadataOrder: _enum(["details-first", "dates-first"]).optional(),
+	strengthsColumns: sectionColumnSchema,
+	knowledgeColumns: sectionColumnSchema,
+	marginLevel: designLevelSchema,
+	paddingLevel: designLevelSchema,
+	sectionSpacingLevel: designLevelSchema,
 	fontSize: _enum(fontSizeIds),
-	lineHeightLevel: designLevelSchema.default(defaultDocumentDesign.lineHeightLevel),
-	backgroundShadeLevel: designLevelSchema.default(defaultDocumentDesign.backgroundShadeLevel),
+	lineHeightLevel: designLevelSchema,
+	backgroundShadeLevel: designLevelSchema,
 	fontId: _enum(documentFontIds),
 	headingFontId: _enum(documentFontIds),
 	columnLayout: _enum(columnLayoutIds),
-	resumeOutputMode: _enum(resumeOutputModes).default(defaultDocumentDesign.resumeOutputMode),
+	resumeOutputMode: _enum(resumeOutputModes),
 	backgroundId: _enum(documentBackgroundIds),
+	backgroundScope: _enum(documentBackgroundScopes),
+	textColor: hexColorSchema,
+	headingColor: hexColorSchema,
+	lineColor: hexColorSchema,
+	backgroundColor: hexColorSchema,
+	showBackgroundInPrint: boolean(),
+	syncAcrossDocuments: boolean()
+});
+var documentDesignOverridesSchema = documentDesignValuesSchema.partial();
+var documentDesignSchema = documentDesignValuesSchema.extend({
+	strengthsColumns: sectionColumnSchema.default("auto"),
+	knowledgeColumns: sectionColumnSchema.default("auto"),
+	marginLevel: designLevelSchema.default(defaultDocumentDesign.marginLevel),
+	paddingLevel: designLevelSchema.default(defaultDocumentDesign.paddingLevel),
+	sectionSpacingLevel: designLevelSchema.default(defaultDocumentDesign.sectionSpacingLevel),
+	lineHeightLevel: designLevelSchema.default(defaultDocumentDesign.lineHeightLevel),
+	backgroundShadeLevel: designLevelSchema.default(defaultDocumentDesign.backgroundShadeLevel),
+	resumeOutputMode: _enum(resumeOutputModes).default(defaultDocumentDesign.resumeOutputMode),
 	backgroundScope: _enum(documentBackgroundScopes).default(defaultDocumentDesign.backgroundScope),
 	textColor: hexColorSchema.default(defaultDocumentDesign.textColor),
 	headingColor: hexColorSchema.default(defaultDocumentDesign.headingColor),
 	lineColor: hexColorSchema.default(defaultDocumentDesign.lineColor),
 	backgroundColor: hexColorSchema.default(defaultDocumentDesign.backgroundColor),
-	showBackgroundInPrint: boolean(),
 	syncAcrossDocuments: boolean().default(true)
 });
 var applicationSchema = object({
@@ -5593,9 +5741,9 @@ var applicationSchema = object({
 	secondaryColor: string().regex(/^#[0-9a-fA-F]{6}$/).default("#244766"),
 	designSettings: documentDesignSchema.default(defaultDocumentDesign),
 	templateDesigns: record(string(), object({
-		accentColor: hexColorSchema,
-		secondaryColor: hexColorSchema,
-		settings: documentDesignSchema
+		accentColor: hexColorSchema.optional(),
+		secondaryColor: hexColorSchema.optional(),
+		settings: documentDesignOverridesSchema
 	})).default({}),
 	profileId: uuid().optional(),
 	notes: optionalText,
@@ -5813,6 +5961,7 @@ var profileSchema = object({
 	})).default([]),
 	resumeKnowledgeContainer: object({ showTitle: boolean().default(false) }).default({ showTitle: false }),
 	resumeColumnRatio: union([
+		literal(20),
 		literal(25),
 		literal(30),
 		literal(35),
@@ -6535,8 +6684,9 @@ var enabledTemplateIds = /* @__PURE__ */ new Set([
 /** Templates exposed to the resume editor. Legacy definitions remain readable for old documents. */
 var templates = allTemplates.filter((template) => enabledTemplateIds.has(template.id));
 var templateIdAliases = { einfach: "einspaltig" };
+var resolveTemplateId = (id) => templateIdAliases[id] ?? id;
 var getTemplate = (id) => {
-	const resolvedId = templateIdAliases[id] ?? id;
+	const resolvedId = resolveTemplateId(id);
 	return allTemplates.find((template) => template.id === resolvedId) ?? templates[0];
 };
 var getReadableTextColor = (hex) => {
@@ -6970,6 +7120,1635 @@ var getCefrLanguageLevel = (level) => {
 	return defaultCefrLevel;
 };
 var getLanguageLevelScore = (level) => cefrLanguageLevels.findIndex((entry) => entry.value === getCefrLanguageLevel(level)) + 1;
+//#endregion
+//#region src/shared/resumeSectionStyleInheritance.ts
+var roles = [
+	"section",
+	"heading",
+	"entry-title",
+	"supporting",
+	"metadata",
+	"entries",
+	"entry"
+];
+var resumeSectionStyleSources = {
+	"preview": {
+		"modern": [
+			".modern-section",
+			".modern-section__title",
+			".modern-experience-entry__role",
+			".modern-experience-entry__company",
+			".modern-experience-entry__date",
+			".modern-experience-list",
+			".modern-experience-entry"
+		],
+		"elegant": [
+			".elegant-section",
+			".elegant-section__title",
+			".elegant-career-entry__heading h3",
+			".elegant-career-entry__heading > div > p",
+			".elegant-career-entry__meta",
+			".elegant-career__list",
+			".elegant-career-entry"
+		],
+		"zweispaltig": [
+			".zweispaltig-section",
+			".zweispaltig-section__title",
+			".zweispaltig-career-entry h3",
+			".zweispaltig-career-entry__organization",
+			".zweispaltig-career-entry__meta",
+			".zweispaltig-career__list",
+			".zweispaltig-career-entry"
+		],
+		"zeitgenoessisch": [
+			".zeitgenoessisch-section",
+			".zeitgenoessisch-section-heading__title",
+			".zeitgenoessisch-career-entry__role-row h4",
+			".zeitgenoessisch-career-entry__top h3",
+			".zeitgenoessisch-career-entry__role-row span",
+			".zeitgenoessisch-career__list",
+			".zeitgenoessisch-career-entry"
+		],
+		"kreativ": [
+			".kreativ-section",
+			".kreativ-section__title",
+			".kreativ-career-entry h3",
+			".kreativ-career-entry h4",
+			".kreativ-career-entry__meta",
+			".kreativ-career__list",
+			".kreativ-career-entry"
+		],
+		"gepflegt": [
+			".gepflegt-section",
+			".gepflegt-section__title",
+			".gepflegt-entry__heading h3",
+			".gepflegt-entry__subheading strong",
+			".gepflegt-entry__heading span",
+			".gepflegt-entry-list",
+			".gepflegt-entry"
+		],
+		"kompakt": [
+			".kompakt-section",
+			".kompakt-section__title",
+			".kompakt-career-entry h3",
+			".kompakt-career-entry__meta strong",
+			".kompakt-career-entry__heading time",
+			".kompakt-career__list",
+			".kompakt-career-entry"
+		],
+		"stilvoll": [
+			".stilvoll-section",
+			".stilvoll-section__title",
+			".stilvoll-career h3",
+			".stilvoll-career__meta strong",
+			".stilvoll-career__heading time",
+			".stilvoll-career__list",
+			".stilvoll-career article"
+		],
+		"einspaltig": [
+			".einfach-section",
+			".einfach-section__title",
+			".einfach-career h3",
+			".einfach-career h4",
+			".einfach-career__heading time",
+			".einfach-career > div",
+			".einfach-career article"
+		],
+		"klassisch": [
+			".klassisch-section",
+			".klassisch-section__title",
+			".klassisch-career h3",
+			".klassisch-career h4",
+			".klassisch-career__heading > p",
+			".klassisch-career > div",
+			".klassisch-career article"
+		],
+		"tabellarisch": [
+			".tabellarisch-section",
+			".tabellarisch-section__title",
+			".tabellarisch-timeline-entry__role",
+			".tabellarisch-timeline-entry__organization",
+			".tabellarisch-timeline-entry__date",
+			".tabellarisch-timeline",
+			".tabellarisch-timeline-entry"
+		],
+		"ivy-league": [
+			".ivy-league-section",
+			".ivy-league-section__title",
+			".ivy-league-career-entry__role h4",
+			".ivy-league-career-entry__top h3",
+			".ivy-league-career-entry__role time",
+			".ivy-league-career__list",
+			".ivy-league-career-entry"
+		],
+		"pehlione_white": [
+			".pehlione-main-section",
+			".pehlione-section-heading",
+			".pehlione-career-entry h3",
+			".pehlione-career-entry__organisation",
+			".pehlione-career-entry__period",
+			".pehlione-career-list",
+			".pehlione-career-entry"
+		],
+		"pehlione_white_blue": [
+			".pehlione-main-section",
+			".pehlione-section-heading",
+			".pehlione-career-entry h3",
+			".pehlione-career-entry__organisation",
+			".pehlione-career-entry__period",
+			".pehlione-career-list",
+			".pehlione-career-entry"
+		]
+	},
+	"pdf": {
+		"modern": [
+			".modern-pdf-section",
+			".modern-pdf-title",
+			".modern-pdf-entry h3",
+			".modern-pdf-entry-meta strong",
+			".modern-pdf-entry-meta",
+			".modern-pdf-list",
+			".modern-pdf-entry"
+		],
+		"elegant": [
+			".elegant-pdf-section",
+			".elegant-pdf-section>h3",
+			".elegant-pdf-entry-head h4",
+			".elegant-pdf-entry-head p",
+			".elegant-pdf-entry-meta",
+			".elegant-pdf-list",
+			".elegant-pdf-entry"
+		],
+		"zweispaltig": [
+			".zweispaltig-pdf-section",
+			".zweispaltig-pdf-section>h3",
+			".zweispaltig-pdf-entry h4",
+			".zweispaltig-pdf-entry-organization",
+			".zweispaltig-pdf-entry-meta",
+			".zweispaltig-pdf-list",
+			".zweispaltig-pdf-entry"
+		],
+		"zeitgenoessisch": [
+			".zeit-pdf-section",
+			".zeit-pdf-heading h3",
+			".zeit-pdf-entry-role h5",
+			".zeit-pdf-entry-top h4",
+			".zeit-pdf-entry-role span",
+			".zeit-pdf-list",
+			".zeit-pdf-entry"
+		],
+		"kreativ": [
+			".kreativ-pdf-section",
+			".kreativ-pdf-title",
+			".kreativ-pdf-entry h4",
+			".kreativ-pdf-entry h5",
+			".kreativ-pdf-entry-meta",
+			".kreativ-pdf-list",
+			".kreativ-pdf-entry"
+		],
+		"gepflegt": [
+			".gepflegt-pdf-section",
+			".gepflegt-pdf-title",
+			".gepflegt-pdf-entry-heading h4",
+			".gepflegt-pdf-entry-subheading strong",
+			".gepflegt-pdf-entry-heading span",
+			".gepflegt-pdf-list",
+			".gepflegt-pdf-entry"
+		],
+		"kompakt": [
+			".managed-pdf-section",
+			".managed-pdf-title",
+			".kompakt-pdf-entry h3",
+			".kompakt-pdf-meta strong",
+			".kompakt-pdf-entry-heading time",
+			".managed-pdf-list",
+			".kompakt-pdf-entry"
+		],
+		"stilvoll": [
+			".managed-pdf-section",
+			".managed-pdf-title",
+			".stilvoll-pdf-entry h3",
+			".stilvoll-pdf-meta strong",
+			".stilvoll-pdf-heading span",
+			".managed-pdf-list",
+			".stilvoll-pdf-entry"
+		],
+		"einspaltig": [
+			".managed-pdf-section",
+			".managed-pdf-title",
+			".einfach-pdf-entry h3",
+			".einfach-pdf-entry h4",
+			".einfach-pdf-entry-heading time",
+			".managed-pdf-list",
+			".einfach-pdf-entry"
+		],
+		"klassisch": [
+			".klassisch-pdf-section",
+			".klassisch-pdf-title",
+			".klassisch-pdf-entry h3",
+			".klassisch-pdf-entry h4",
+			".klassisch-pdf-entry-meta",
+			".klassisch-pdf-list",
+			".klassisch-pdf-entry"
+		],
+		"tabellarisch": [
+			".tabellarisch-pdf-section",
+			".tabellarisch-pdf-title",
+			".tabellarisch-pdf-entry h3",
+			".tabellarisch-pdf-organization",
+			".tabellarisch-pdf-date",
+			".tabellarisch-pdf-timeline",
+			".tabellarisch-pdf-entry"
+		],
+		"ivy-league": [
+			".ivy-pdf-section",
+			".ivy-pdf-title",
+			".ivy-pdf-entry-role h4",
+			".ivy-pdf-entry-top h3",
+			".ivy-pdf-entry-role span",
+			".ivy-pdf-list",
+			".ivy-pdf-entry"
+		],
+		"pehlione_white": [
+			".pehlione-pdf-section",
+			".pehlione-pdf-section h3",
+			".pehlione-pdf-entry h4",
+			".pehlione-pdf-entry strong",
+			".pehlione-pdf-entry>p",
+			"",
+			".pehlione-pdf-entry"
+		],
+		"pehlione_white_blue": [
+			".pehlione-pdf-section",
+			".pehlione-pdf-section h3",
+			".pehlione-pdf-entry h4",
+			".pehlione-pdf-entry strong",
+			".pehlione-pdf-entry>p",
+			"",
+			".pehlione-pdf-entry"
+		]
+	}
+};
+var inheritResumeSectionStyles = (css, templateId, surface, aliasesOnly = false) => {
+	const id = resolveTemplateId(templateId);
+	const sources = resumeSectionStyleSources[surface][id];
+	if (!sources) return aliasesOnly ? "" : css;
+	const scope = `[data-custom-template="${id}"]`;
+	const roleSelector = (role) => `:where(${scope}) [data-custom-role="${role}"]`;
+	const defaults = /(?:h[1-6]|strong)$/.test(sources[3]) ? `${roleSelector("supporting")}{font-weight:bold}` : "";
+	const contexts = id === "modern" ? [[surface === "preview" ? ".modern-experience-entry__meta" : ".modern-pdf-entry-meta", "supporting"], [surface === "preview" ? ".modern-experience-entry__meta" : ".modern-pdf-entry-meta", "metadata"]] : [];
+	if (id === "kompakt") contexts.push([surface === "preview" ? ".kompakt-career-entry__meta" : ".kompakt-pdf-meta", "supporting"], [surface === "preview" ? ".kompakt-career-entry__meta" : ".kompakt-pdf-meta", "metadata"]);
+	if (id.startsWith("pehlione_") && surface === "pdf") contexts.push([".pehlione-pdf-entry p", "supporting"]);
+	const contracts = [...sources.map((source, index) => id === "tabellarisch" && roles[index] === "metadata" ? [
+		source,
+		roles[index],
+		surface === "preview" ? ".tabellarisch-template:not([data-ats-mode=\"true\"])" : ".tabellarisch-pdf:not(.tabellarisch-pdf-ats)"
+	] : [source, roles[index]]), ...contexts];
+	for (const [source, role] of [...contracts]) {
+		const tag = source.match(/(?:^|[ >])([a-z][a-z0-9]*)$/)?.[1];
+		if (tag && [
+			"entry-title",
+			"supporting",
+			"metadata"
+		].includes(role)) contracts.push([`${sources[6]} ${tag}`, role]);
+	}
+	if (id.startsWith("pehlione_") && surface === "preview") contracts.push([".pehlione-summary", "body"]);
+	if (id.startsWith("pehlione_")) contracts.push([surface === "preview" ? ".pehlione-section-heading b" : ".pehlione-pdf-section h3 span", "heading-label"]);
+	if (id === "zeitgenoessisch") contracts.push([surface === "preview" ? ".zeitgenoessisch-section-heading" : ".zeit-pdf-heading", "heading-wrapper"]);
+	if (id === "tabellarisch") contracts.push(surface === "preview" ? [
+		".tabellarisch-timeline-entry__ats-meta",
+		"metadata",
+		".tabellarisch-template[data-ats-mode=\"true\"]"
+	] : [
+		".tabellarisch-pdf-ats-meta",
+		"metadata",
+		".tabellarisch-pdf-ats"
+	]);
+	const sidebar = (surface === "preview" ? {
+		elegant: [".elegant-sidebar__title", ".elegant-sidebar"],
+		gepflegt: [".gepflegt-sidebar__title", ".gepflegt-sidebar"]
+	} : {
+		elegant: [".elegant-pdf-sidebar section>h3", ".elegant-pdf-sidebar"],
+		gepflegt: [".gepflegt-pdf-sidebar h3", ".gepflegt-pdf-sidebar"],
+		pehlione_white: [".pehlione-pdf-sidebar h3", ".pehlione-pdf-sidebar"],
+		pehlione_white_blue: [".pehlione-pdf-sidebar h3", ".pehlione-pdf-sidebar"]
+	})[id];
+	if (sidebar) contracts.push([
+		sidebar[0],
+		"heading",
+		sidebar[1]
+	]);
+	const root = postcss.parse(css);
+	const inheritedRules = [];
+	root.walkRules((rule) => {
+		const byDeclarations = /* @__PURE__ */ new Map();
+		for (const selector of postcss.list.comma(rule.selector)) for (const [source, role, context] of contracts) {
+			if (!source) continue;
+			const pseudo = selector.endsWith(source + ":last-child") ? ":last-child" : "";
+			if (!selector.endsWith(source + pseudo)) continue;
+			const prefix = selector.slice(0, -(source + pseudo).length) + (context ? context + " " : "");
+			const tagCount = (source.match(/(?:^|[ >+~])(?:h[1-6]|p|div|span|strong|time|article|section)(?=$|[ >+~])/g) ?? []).length;
+			const tags = ":is(h2,h3,h4,h5,p,div,span,strong,time,article,section)".repeat(tagCount);
+			const target = role === "section" ? scope : roleSelector(role) + tags;
+			const declarations = role === "entry" ? rule.nodes?.filter((node) => node.type === "decl" && /^(?:margin|padding|border|break-|page-break|min-width|position)/.test(node.prop)).map((node) => node.toString()).join(";") ?? "" : void 0;
+			if (declarations === "") continue;
+			let firstEntry = true;
+			const alias = role === "entry" ? selector.replaceAll(source, () => {
+				const replacement = firstEntry ? target : "[data-custom-role=\"entry\"]";
+				firstEntry = false;
+				return replacement;
+			}) : prefix + target + pseudo;
+			const key = declarations ?? "*";
+			const selectors = byDeclarations.get(key) ?? /* @__PURE__ */ new Set();
+			selectors.add(alias);
+			byDeclarations.set(key, selectors);
+		}
+		for (const [declarations, selectors] of byDeclarations) inheritedRules.push({
+			rule,
+			selectors: [...selectors],
+			declarations: declarations === "*" ? void 0 : declarations
+		});
+	});
+	for (const { rule, selectors, declarations } of inheritedRules) {
+		const clone = rule.clone({ selector: selectors.join(",") });
+		if (declarations !== void 0) {
+			clone.removeAll();
+			for (const node of rule.nodes ?? []) if (node.type === "decl" && /^(?:margin|padding|border|break-|page-break|min-width|position)/.test(node.prop)) clone.append(node.clone());
+		}
+		rule.after(clone);
+	}
+	if (aliasesOnly) {
+		const originals = new Set(inheritedRules.map(({ rule }) => rule));
+		root.walkRules((rule) => {
+			if (originals.has(rule) || !rule.selector.includes("data-custom-")) rule.remove();
+		});
+		root.walkAtRules((rule) => {
+			if (!rule.nodes?.length) rule.remove();
+		});
+	}
+	return defaults + root.toString();
+};
+//#endregion
+//#region src/shared/contactIcons.ts
+var contactIconPaths = {
+	phone: "<path d=\"M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13 1 .37 1.98.72 2.9a2 2 0 0 1-.45 2.11L8.1 10a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.92.35 1.9.59 2.9.72A2 2 0 0 1 22 16.92z\"/>",
+	email: "<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8\"/>",
+	linkedin: "<path d=\"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71\"/><path d=\"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71\"/>",
+	location: "<path d=\"M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0z\"/><circle cx=\"12\" cy=\"10\" r=\"2.5\"/>",
+	birth: "<path d=\"M4 12h16v8H4zM7 12V9h10v3M8 6V4M12 6V4M16 6V4\"/>",
+	github: "<path d=\"M15 22v-4a4.8 4.8 0 0 0-1-3.5c3.28-.36 6.72-1.61 6.72-7.25A5.7 5.7 0 0 0 19.22 3.3 5.3 5.3 0 0 0 19.07.1S17.88-.3 15 1.6a13.4 13.4 0 0 0-7 0C5.12-.3 3.93.1 3.93.1a5.3 5.3 0 0 0-.15 3.2 5.7 5.7 0 0 0-1.5 3.95c0 5.63 3.44 6.88 6.72 7.25A4.8 4.8 0 0 0 8 18v4\"/><path d=\"M8 19c-3 .92-3-1.5-4-2\"/>",
+	portfolio: "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M2 12h20M12 2a15.3 15.3 0 0 1 0 20M12 2a15.3 15.3 0 0 0 0 20\"/>",
+	calendar: "<rect x=\"3\" y=\"5\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M16 3v4M8 3v4M3 11h18\"/>"
+};
+function resolveContactIcon({ kind, href = "", value = "", icon = "" }) {
+	if (/^tel:/i.test(href)) return "phone";
+	if (/^mailto:/i.test(href)) return "email";
+	if (/^https?:\/\/(?:www\.)?github\.com(?:\/|$)/i.test(href)) return "github";
+	if (/^https?:\/\/(?:www\.)?linkedin\.com(?:\/|$)/i.test(href)) return "linkedin";
+	if (kind === "website" || kind === "portfolio") return "portfolio";
+	if (kind && Object.hasOwn(contactIconPaths, kind)) return kind;
+	if (/^https?:/i.test(href)) return "portfolio";
+	if ([
+		"☆",
+		"★",
+		"G"
+	].includes(icon) || /^Geb\.|^\d{2}[./]\d{2}[./]/.test(value)) return "birth";
+	return "location";
+}
+function renderContactIcon(contact) {
+	const kind = resolveContactIcon(contact);
+	return `<svg data-contact-icon="${kind === "portfolio" ? "website" : kind}" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0">${contactIconPaths[kind]}</svg>`;
+}
+//#endregion
+//#region src/shared/resumeCustomSections.ts
+var hasMetadata = (entry) => Boolean(entry.subtitle.trim() || entry.location.trim() || entry.date.trim() || entry.from.trim() || entry.to.trim());
+var hasContent = (entry) => Boolean(entry.title.trim() || entry.description.trim() || entry.url.trim() || hasMetadata(entry) || entry.bullets.some((value) => value.trim()));
+/** Legacy sections are resolved without modifying stored data or inspecting headings. */
+var normalizeCustomSection = (section) => {
+	const entries = section.entries.filter(hasContent);
+	const contentType = section.contentType ?? (entries.some(hasMetadata) ? "entries" : entries.length > 1 || entries.some((entry) => entry.bullets.some((value) => value.trim())) ? "list" : "text");
+	return {
+		...section,
+		sectionType: "main-section",
+		contentType,
+		entries: entries.map((entry) => ({
+			...entry,
+			sectionType: contentType === "entries" || contentType === "timeline" ? "subsection" : "text"
+		}))
+	};
+};
+var escape$3 = (value) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;");
+/** Shared escaped markup for React preview and Electron PDF output. */
+var renderCustomSectionContent = (section) => {
+	const normalized = normalizeCustomSection(section);
+	const items = normalized.entries.map((entry) => {
+		const period = entry.date.trim() || [entry.from, entry.to].filter((value) => value.trim()).join(" – ");
+		const metadata = [entry.location, period].filter((value) => value.trim()).join(" · ");
+		const titleTag = entry.sectionType === "subsection" ? "h3" : "p";
+		const details = `${entry.title.trim() ? `<${titleTag} data-custom-role="${entry.sectionType === "subsection" ? "entry-title" : "body"}" data-section-type="${entry.sectionType}">${escape$3(entry.title)}</${titleTag}>` : ""}${entry.subtitle.trim() ? `<p data-custom-role="supporting">${escape$3(entry.subtitle)}</p>` : ""}${metadata ? `<p data-custom-role="metadata" class="resume-special-output__meta">${escape$3(metadata)}</p>` : ""}${entry.description.trim() ? `<p data-custom-role="body">${escape$3(entry.description)}</p>` : ""}${entry.bullets.some((value) => value.trim()) ? `<ul>${entry.bullets.filter((value) => value.trim()).map((value) => `<li>${escape$3(value)}</li>`).join("")}</ul>` : ""}${entry.url.trim() ? `<p class="resume-special-output__url">${escape$3(entry.url)}</p>` : ""}`;
+		const tag = [
+			"list",
+			"skills",
+			"timeline"
+		].includes(normalized.contentType) ? "li" : "article";
+		return `<${tag} data-custom-role="entry" class="resume-special-output__entry" data-entry-id="${escape$3(entry.id)}">${details}</${tag}>`;
+	}).join("");
+	if (!items) return "";
+	const tag = normalized.contentType === "list" || normalized.contentType === "skills" ? "ul" : normalized.contentType === "timeline" ? "ol" : "div";
+	return `<${tag} data-custom-role="entries" class="resume-special-output__entries" data-content-type="${normalized.contentType}">${items}</${tag}>`;
+};
+//#endregion
+//#region src/shared/resumeLayoutEngine.ts
+var nativeLayout = {
+	pehlione_white: {
+		mode: "two-column",
+		side: "left"
+	},
+	pehlione_white_blue: {
+		mode: "two-column",
+		side: "left"
+	},
+	zweispaltig: {
+		mode: "two-column",
+		side: "right"
+	},
+	zeitgenoessisch: {
+		mode: "two-column",
+		side: "left"
+	},
+	kreativ: {
+		mode: "two-column",
+		side: "right"
+	},
+	stilvoll: {
+		mode: "two-column",
+		side: "left"
+	},
+	kompakt: {
+		mode: "two-column",
+		side: "right"
+	},
+	gepflegt: {
+		mode: "two-column",
+		side: "left"
+	},
+	elegant: {
+		mode: "two-column",
+		side: "right"
+	},
+	modern: {
+		mode: "two-column",
+		side: "right"
+	}
+};
+/** Missing overrides leave each native template and its exact CSS widths intact. */
+var resolveResumeLayout = (templateId, presentation, ats = false, legacySidebarPercent) => {
+	const id = resolveTemplateId(templateId);
+	const native = nativeLayout[id] ?? {
+		mode: "single",
+		side: "right"
+	};
+	const mode = ats ? "single" : presentation?.layoutMode ?? native.mode;
+	const sidebarSide = presentation?.sidebarSide ?? native.side;
+	const fallback = id.startsWith("pehlione_") && legacySidebarPercent !== void 0 ? legacySidebarPercent : Math.round((getTemplate(id).sidebarWidthRatio ?? .3) * 100);
+	return {
+		mode,
+		sidebarSide,
+		sidebarWidthPercent: presentation?.sidebarWidthPercent ?? fallback,
+		overridden: !ats && (presentation?.layoutMode !== void 0 || presentation?.sidebarSide !== void 0 || presentation?.sidebarWidthPercent !== void 0)
+	};
+};
+var nativeHosts = {
+	pehlione_white: {
+		preview: ".pehlione-resume",
+		pdf: ".pehlione-pdf"
+	},
+	pehlione_white_blue: {
+		preview: ".pehlione-resume",
+		pdf: ".pehlione-pdf"
+	},
+	zweispaltig: {
+		preview: ".zweispaltig-columns",
+		pdf: ".zweispaltig-pdf-columns"
+	},
+	zeitgenoessisch: {
+		preview: ".zeitgenoessisch-columns",
+		pdf: ".zeit-pdf-columns"
+	},
+	kreativ: {
+		preview: ".kreativ-content",
+		pdf: ".kreativ-pdf-content"
+	},
+	stilvoll: {
+		preview: ".stilvoll-content",
+		pdf: ".stilvoll-pdf-columns"
+	},
+	kompakt: {
+		preview: ".kompakt-content",
+		pdf: ".kompakt-pdf-columns"
+	},
+	gepflegt: {
+		preview: ".gepflegt-layout",
+		pdf: ".gepflegt-pdf"
+	},
+	elegant: {
+		preview: ".elegant-page__visual",
+		pdf: ".elegant-pdf"
+	},
+	modern: {
+		preview: ".modern-resume-main",
+		pdf: ".modern-pdf-columns"
+	}
+};
+var singleHosts = {
+	einspaltig: {
+		preview: ".einfach-content",
+		pdf: ".einfach-pdf-inner"
+	},
+	"ivy-league": {
+		preview: ".ivy-league-content",
+		pdf: ".ivy-pdf-content"
+	},
+	klassisch: {
+		preview: ".klassisch-content",
+		pdf: ".klassisch-pdf-content"
+	},
+	tabellarisch: {
+		preview: ".tabellarisch-page__content",
+		pdf: ".tabellarisch-pdf-content"
+	}
+};
+var getResumeLayoutHost = (page, templateId, surface) => {
+	const id = resolveTemplateId(templateId);
+	const selector = nativeHosts[id]?.[surface] ?? singleHosts[id]?.[surface];
+	return selector ? page.matches(selector) ? page : page.querySelector(selector) : null;
+};
+var sidebarDefaults = /* @__PURE__ */ new Set([
+	"summary",
+	"strengths",
+	"knowledge",
+	"languages",
+	"certifications"
+]);
+/** One DOM projection is used by both React preview and Electron PDF. */
+var applyResumePageLayout = (page, templateId, surface, settings, legacySidebarPercent, sectionZones) => {
+	const id = resolveTemplateId(templateId);
+	const presentation = settings.resumePresentation;
+	const layout = resolveResumeLayout(id, presentation, settings.resumeOutputMode === "ats" || settings.columnLayout === "compact-ats", legacySidebarPercent);
+	if (!layout.overridden) return;
+	const descriptor = nativeHosts[id];
+	const host = getResumeLayoutHost(page, id, surface);
+	if (!host) return;
+	const nativeMain = descriptor ? Array.from(host.children).find((child) => child.matches("main,[class*='-content'],[class*='-left-column'],[class*='-main-column'],[class*='-pdf-main'],[class*='-pdf-left'],[class*='-resume-left-column']") && !child.matches("aside")) : void 0;
+	const nativeSidebar = descriptor ? Array.from(host.children).find((child) => child.matches("aside,[class*='-sidebar'],[class*='-right-column'],[class*='-pdf-right'],[class*='-pdf-left'],[class*='-resume-right-column']") && child !== nativeMain) : void 0;
+	let main = nativeMain;
+	let sidebar = nativeSidebar;
+	if (!descriptor && layout.mode === "two-column") {
+		const document = host.ownerDocument;
+		main = document.createElement("div");
+		sidebar = document.createElement("aside");
+		main.setAttribute("data-resume-layout-zone", "main");
+		sidebar.setAttribute("data-resume-layout-zone", "sidebar");
+		const sections = Array.from(host.children).filter((child) => child.hasAttribute("data-managed-section") || child.classList.contains("resume-special-output-list"));
+		if (!sections.length) return;
+		host.insertBefore(main, sections[0]);
+		host.insertBefore(sidebar, main.nextSibling);
+		for (const section of sections) {
+			const id = section.getAttribute("data-managed-section") ?? "";
+			const explicit = sectionZones?.get(id) ?? presentation?.sections?.[id]?.zone;
+			(explicit === "sidebar" || !explicit && sidebarDefaults.has(id) ? sidebar : main).appendChild(section);
+		}
+		for (const child of Array.from(host.children)) if (child !== main && child !== sidebar) child.style.gridColumn = "1 / -1";
+	}
+	if (!main || !sidebar) return;
+	host.setAttribute("data-resume-layout", layout.mode);
+	host.setAttribute("data-resume-sidebar-side", layout.sidebarSide);
+	host.style.display = "grid";
+	if (layout.mode === "single") {
+		host.style.gridTemplateColumns = "minmax(0, 1fr)";
+		host.style.height = "auto";
+		host.style.minHeight = "0";
+		main.style.gridColumn = "1";
+		sidebar.style.gridColumn = "1";
+		main.style.gridRow = "1";
+		sidebar.style.gridRow = "2";
+		main.style.height = "auto";
+		sidebar.style.minHeight = "0";
+		sidebar.style.height = "auto";
+		sidebar.style.width = "auto";
+		const closing = main.querySelector("footer,[class*='closing']");
+		if (closing && closing.parentElement === main) {
+			host.appendChild(closing);
+			closing.style.gridColumn = "1";
+			closing.style.gridRow = "3";
+		}
+		return;
+	}
+	const sidebarTrack = `minmax(0, ${layout.sidebarWidthPercent}fr)`;
+	const mainTrack = `minmax(0, ${100 - layout.sidebarWidthPercent}fr)`;
+	host.style.gridTemplateColumns = layout.sidebarSide === "left" ? `${sidebarTrack} ${mainTrack}` : `${mainTrack} ${sidebarTrack}`;
+	main.style.gridColumn = layout.sidebarSide === "left" ? "2" : "1";
+	sidebar.style.gridColumn = layout.sidebarSide === "left" ? "1" : "2";
+	main.style.gridRow = descriptor ? "1" : "2";
+	sidebar.style.gridRow = descriptor ? "1" : "2";
+	main.style.minWidth = "0";
+	sidebar.style.minWidth = "0";
+	main.style.width = "auto";
+	sidebar.style.width = "auto";
+};
+//#endregion
+//#region src/shared/cvTemplateDefaults/einfach.defaults.ts
+var einspaltigDefaults = {
+	page: {
+		widthMm: 210,
+		heightMm: 297,
+		marginTopMm: 14,
+		marginRightMm: 15,
+		marginBottomMm: 12,
+		marginLeftMm: 15
+	},
+	layout: {
+		headerHeightMm: 35,
+		sectionGapMm: 7,
+		entryGapMm: 4.5,
+		strengthsColumnGapMm: 15,
+		photoDiameterMm: 34
+	},
+	colors: {
+		primary: "#0B3485",
+		accent: "#4AAAF4",
+		text: "#3E484E",
+		muted: "#68747A",
+		pattern: "#EAF5FD",
+		inactive: "#E3E7EA"
+	}
+};
+//#endregion
+//#region src/shared/cvTemplateDefaults/elegant.defaults.ts
+var elegantDefaults = {
+	page: {
+		widthMm: 210,
+		heightMm: 297
+	},
+	layout: {
+		mainWidthMm: 140,
+		sidebarWidthMm: 70,
+		mainTopMm: 14,
+		mainRightMm: 10,
+		mainBottomMm: 13,
+		mainLeftMm: 17,
+		sidebarTopMm: 13,
+		sidebarRightMm: 12,
+		sidebarBottomMm: 13,
+		sidebarLeftMm: 12,
+		headerMinHeightMm: 38,
+		sectionGapMm: 7,
+		entryGapMm: 5
+	},
+	colors: {
+		primary: "#FE6201",
+		sidebarBackground: "#8A0202",
+		sidebarText: "#FFFFFF",
+		sidebarMutedText: "#F6EAEA",
+		heading: "#3B4247",
+		text: "#4B5359",
+		mutedText: "#6D757A",
+		divider: "#B9BFC3",
+		pageBackground: "#FFFFFF"
+	},
+	typography: {
+		fontFamily: "\"Source Sans 3\", \"Segoe UI\", Arial, Helvetica, sans-serif",
+		nameSizePt: 22,
+		professionSizePt: 12,
+		sectionTitleSizePt: 12,
+		sidebarSectionTitleSizePt: 11.5,
+		entryTitleSizePt: 11,
+		bodySizePt: 8.7,
+		smallSizePt: 8,
+		lineHeight: 1.3
+	},
+	multipage: { sidebarContinuationMode: "compact" }
+};
+//#endregion
+//#region src/shared/cvTemplateDefaults/gepflegt.defaults.ts
+var gepflegtDefaults = {
+	page: {
+		widthMm: 210,
+		heightMm: 297
+	},
+	layout: {
+		sidebarWidthMm: 72,
+		topBarHeightMm: 3.5
+	},
+	sidebar: {
+		paddingTopMm: 9,
+		paddingRightMm: 10,
+		paddingBottomMm: 13,
+		paddingLeftMm: 10,
+		photoSizeMm: 26
+	},
+	main: {
+		paddingTopMm: 9,
+		paddingRightMm: 10,
+		paddingBottomMm: 13,
+		paddingLeftMm: 9
+	},
+	spacing: {
+		sectionGapMm: 7,
+		entryGapMm: 4.5
+	},
+	colors: {
+		sidebarBackground: "#087875",
+		sidebarTopBar: "#005B59",
+		sidebarText: "#FFFFFF",
+		sidebarMutedText: "#D8F0EF",
+		accent: "#00B8B5",
+		heading: "#354147",
+		text: "#3F494E",
+		mutedText: "#657075",
+		divider: "#C7CED1",
+		pageBackground: "#FFFFFF"
+	},
+	typography: {
+		fontFamily: "\"Source Sans 3\", \"Segoe UI\", Arial, sans-serif",
+		nameSizePt: 24,
+		nameWeight: 750,
+		jobTitleSizePt: 13.5,
+		sectionTitleSizePt: 14.5,
+		sidebarTitleSizePt: 12.5,
+		entryTitleSizePt: 11.5,
+		bodySizePt: 8.8,
+		smallSizePt: 8,
+		bodyLineHeight: 1.28
+	},
+	output: {
+		supportsAtsMode: true,
+		supportsVisualMode: true,
+		supportsFreeform: true
+	}
+};
+//#endregion
+//#region src/shared/cvTemplateDefaults/ivy-league.defaults.ts
+var ivyLeagueDefaults = {
+	page: {
+		widthMm: 210,
+		heightMm: 297,
+		marginTopMm: 13,
+		marginRightMm: 14,
+		marginBottomMm: 12,
+		marginLeftMm: 14
+	},
+	layout: {
+		contentWidthMm: 182,
+		headerHeightMm: 19,
+		sectionGapMm: 6.5,
+		entryGapMm: 4.5,
+		titleRuleGapMm: 1.5,
+		strengthsColumnGapMm: 8
+	},
+	colors: {
+		primary: "#073C8C",
+		accent: "#FF6A00",
+		heading: "#073C8C",
+		text: "#3F4B50",
+		mutedText: "#667177",
+		divider: "#0B459A",
+		activeLevel: "#073C8C",
+		inactiveLevel: "#DCE9E8",
+		pageBackground: "#F8FBF8"
+	},
+	typography: {
+		headingFontFamily: "\"Georgia\", \"Times New Roman\", Times, serif",
+		bodyFontFamily: "\"Source Sans 3\", \"Segoe UI\", Arial, Helvetica, sans-serif",
+		nameSizePt: 17.5,
+		professionSizePt: 11.5,
+		sectionTitleSizePt: 13.5,
+		entryTitleSizePt: 10.5,
+		bodySizePt: 8.5,
+		smallSizePt: 7.8,
+		lineHeight: 1.34
+	},
+	background: { opacity: .58 }
+};
+//#endregion
+//#region src/shared/cvTemplateDefaults/klassisch.defaults.ts
+var klassischDefaults = {
+	page: {
+		widthMm: 210,
+		heightMm: 297,
+		marginTopMm: 16,
+		marginRightMm: 15,
+		marginBottomMm: 17,
+		marginLeftMm: 15
+	},
+	layout: {
+		headerHeightMm: 31,
+		sectionGapMm: 6,
+		entryGapMm: 4.2,
+		strengthGapMm: 9
+	},
+	colors: {
+		primary: "#2B2F32",
+		accent: "#00AFC5",
+		heading: "#5A6267",
+		text: "#3F484D",
+		muted: "#68747A",
+		softBackground: "#CDEFF3",
+		border: "#D5DBDE",
+		inactive: "#E4E8EA"
+	}
+};
+//#endregion
+//#region src/shared/cvTemplateDefaults/kompakt.defaults.ts
+var kompaktDefaults = {
+	page: {
+		widthMm: 210,
+		heightMm: 297,
+		marginTopMm: 13,
+		marginRightMm: 13,
+		marginBottomMm: 12,
+		marginLeftMm: 13
+	},
+	layout: {
+		headerHeightMm: 22,
+		contentTopMm: 33,
+		leftColumnWidthMm: 108,
+		columnGapMm: 10,
+		rightColumnWidthMm: 66,
+		sectionGapMm: 5.5,
+		entryGapMm: 4
+	},
+	colors: {
+		primary: "#073D96",
+		accent: "#FF6200",
+		text: "#3F494F",
+		muted: "#6D757A",
+		divider: "#AEB6BA",
+		pattern: "#FFD7BC",
+		inactive: "#E1E5E7"
+	}
+};
+//#endregion
+//#region src/shared/cvTemplateDefaults/kreativ.defaults.ts
+var kreativDefaults = {
+	page: {
+		widthMm: 210,
+		heightMm: 297,
+		marginLeftMm: 15,
+		marginRightMm: 15,
+		marginBottomMm: 13
+	},
+	layout: {
+		headerHeightMm: 46,
+		contentTopMm: 56,
+		leftColumnWidthMm: 105,
+		columnGapMm: 11,
+		rightColumnWidthMm: 64,
+		sectionGapMm: 7,
+		entryGapMm: 4.5,
+		photoWidthMm: 28,
+		photoHeightMm: 28
+	},
+	colors: {
+		primary: "#37B978",
+		primaryDark: "#075D4E",
+		primarySoft: "#D9F2E5",
+		heading: "#075D4E",
+		text: "#465156",
+		mutedText: "#687277",
+		divider: "#B8C4C0",
+		lightDivider: "#D7DFDC",
+		pageBackground: "#FFFFFF",
+		headerText: "#FFFFFF",
+		inactiveLevel: "#E1E5E3"
+	},
+	typography: {
+		fontFamily: "\"Source Sans 3\", \"Segoe UI\", Arial, Helvetica, sans-serif",
+		nameSizePt: 23,
+		professionSizePt: 11.5,
+		sectionTitleSizePt: 14,
+		entryTitleSizePt: 11,
+		bodySizePt: 8.5,
+		smallSizePt: 7.8,
+		lineHeight: 1.3
+	}
+};
+//#endregion
+//#region src/shared/cvTemplateDefaults/modern.defaults.ts
+/**
+* Modern template default values and design tokens
+* Based on z_Modern.md specifications
+*/
+var modernTemplateDefaults = {
+	page: {
+		widthMm: 210,
+		heightMm: 297,
+		marginTopMm: 15,
+		marginRightMm: 15,
+		marginBottomMm: 14,
+		marginLeftMm: 15
+	},
+	layout: {
+		headerHeightMm: 25,
+		photoSizeMm: 25,
+		photoTopMm: 6,
+		photoRightMm: 15,
+		contentStartMm: 44,
+		columnGapMm: 11,
+		leftColumnWidthMm: 102,
+		rightColumnWidthMm: 67,
+		sectionGapMm: 7,
+		entryGapMm: 4,
+		footerTopMm: 280,
+		footerHeightMm: 10
+	},
+	waves: {
+		topWaveHeightMm: 55,
+		topWaveAscentRightMm: 48,
+		bottomWaveHeightMm: 65,
+		bottomWaveWidthMm: 55
+	},
+	colors: {
+		primary: "#06B6C9",
+		primarySoft: "#C7F1F5",
+		secondary: "#E8FAFB",
+		heading: "#303437",
+		text: "#444B4F",
+		mutedText: "#686F73",
+		divider: "#AEB4B6",
+		iconBackground: "#F2F3F3",
+		pageBackground: "#FFFFFF",
+		waveColor: "#06B6C9"
+	},
+	typography: {
+		fontFamily: "\"Source Sans 3\", \"Segoe UI\", Arial, sans-serif",
+		nameSizePt: 24,
+		nameWeight: 700,
+		professionSizePt: 12.5,
+		professionWeight: 500,
+		sectionTitleSizePt: 9.2,
+		sectionTitleWeight: 500,
+		entryTitleSizePt: 11,
+		entryTitleWeight: 500,
+		companySizePt: 9.2,
+		companyWeight: 600,
+		bodySizePt: 8.4,
+		smallSizePt: 7.9,
+		lineHeight: 1.27,
+		smallLineHeight: 1.2
+	},
+	header: {
+		nameBelowProfessionGapMm: 1,
+		photoAlignmentRightMm: 0
+	},
+	contact: {
+		iconSizeMm: 8.5,
+		iconGapMm: 3,
+		itemGapMm: 3.2
+	},
+	sections: {
+		titleBelowGapMm: 3.2,
+		titleUnderlineHeightMm: .35
+	},
+	experience: {
+		roleBottomGapMm: 1,
+		metaBottomGapMm: 1.5,
+		summaryBottomGapMm: 1
+	}
+};
+//#endregion
+//#region src/shared/cvTemplateDefaults/stilvoll.defaults.ts
+var stilvollDefaults = {
+	page: {
+		widthMm: 210,
+		heightMm: 297,
+		marginTopMm: 14,
+		marginRightMm: 15,
+		marginBottomMm: 13,
+		marginLeftMm: 15
+	},
+	layout: {
+		headerHeightMm: 36,
+		contentTopMm: 50,
+		leftColumnWidthMm: 54,
+		columnGapMm: 11,
+		rightColumnWidthMm: 115,
+		sectionGapMm: 7,
+		entryGapMm: 5
+	},
+	colors: {
+		primary: "#36B873",
+		primaryDark: "#075E50",
+		primarySoft: "#D9F2E5",
+		text: "#465156",
+		muted: "#6D777C",
+		divider: "#AEB8B5",
+		pattern: "#DCE2DF",
+		inactive: "#DDE2E0"
+	}
+};
+//#endregion
+//#region src/shared/cvTemplateDefaults/tabellarisch.defaults.ts
+/**
+* Tabellarisch Template - Design Defaults & Tokens
+* Modern timeline-based CV template for experienced professionals
+*/
+var tabellarischDefaults = {
+	page: {
+		widthMm: 210,
+		heightMm: 297
+	},
+	margins: {
+		topMm: 16,
+		rightMm: 17,
+		bottomMm: 14,
+		leftMm: 17
+	},
+	header: {
+		heightMm: 30,
+		photoSizeMm: 30,
+		photoCircular: true,
+		gridGapMm: 10,
+		marginBottomMm: 6
+	},
+	background: {
+		heightMm: 58,
+		opacity: .2,
+		geometricPattern: true
+	},
+	timeline: {
+		dateColumnMinMm: 30,
+		dateColumnMaxMm: 35,
+		railWidthMm: 7,
+		railGapMm: 4,
+		dotSizeMm: 2.3,
+		lineWidthMm: .35
+	},
+	spacing: {
+		sectionGapMm: 6.3,
+		entryGapMm: 4.4,
+		itemGapMm: 1.2
+	},
+	colors: {
+		primary: "#17263d",
+		accent: "#c78300",
+		text: "#3f4850",
+		muted: "#6d747a",
+		line: "#c8cdd1",
+		background: "#ffffff"
+	},
+	typography: {
+		fontFamily: "\"Source Sans 3\", \"Segoe UI\", Arial, sans-serif",
+		headingFontFamily: "\"Source Sans 3\", \"Segoe UI\", Arial, sans-serif",
+		nameSizePt: 25,
+		nameWeight: 700,
+		jobTitleSizePt: 13.5,
+		jobTitleWeight: 600,
+		sectionTitleSizePt: 15,
+		sectionTitleWeight: 700,
+		entryTitleSizePt: 12,
+		entryTitleWeight: 600,
+		bodySizePt: 9.2,
+		bodyWeight: 400,
+		bodyLineHeight: 1.4,
+		smallSizePt: 8.2,
+		smallLineHeight: 1.3
+	},
+	strengths: {
+		columnsCount: 2,
+		gapRowMm: 5,
+		gapColMm: 12,
+		iconSizeMm: 8,
+		iconGapMm: 2.5
+	},
+	footer: {
+		heightMm: 3,
+		bottomMm: 6
+	}
+};
+//#endregion
+//#region src/shared/cvTemplateDefaults/zeitgenoessisch.defaults.ts
+var zeitgenoessischDefaults = {
+	page: {
+		widthMm: 210,
+		heightMm: 297,
+		marginTopMm: 15,
+		marginRightMm: 17,
+		marginBottomMm: 14,
+		marginLeftMm: 17
+	},
+	layout: {
+		leftColumnWidthMm: 50,
+		columnGapMm: 11,
+		rightColumnWidthMm: 115,
+		headerMinHeightMm: 42,
+		sectionGapMm: 7,
+		entryGapMm: 5,
+		photoSizeMm: 36
+	},
+	colors: {
+		primary: "#2FB478",
+		primaryDark: "#075E4E",
+		primarySoft: "#CBECDD",
+		primaryPale: "#E5F5EC",
+		heading: "#374247",
+		text: "#434D52",
+		mutedText: "#687277",
+		divider: "#D5DEDA",
+		pageBackground: "#FFFFFF"
+	},
+	typography: {
+		fontFamily: "\"Source Sans 3\", \"Segoe UI\", Arial, Helvetica, sans-serif",
+		nameSizePt: 25,
+		professionSizePt: 12.5,
+		sectionTitleSizePt: 11,
+		entryTitleSizePt: 10.5,
+		bodySizePt: 8.5,
+		smallSizePt: 7.8,
+		lineHeight: 1.32
+	}
+};
+//#endregion
+//#region src/shared/cvTemplateDefaults/zweispaltig.defaults.ts
+var zweispaltigDefaults = {
+	page: {
+		widthMm: 210,
+		heightMm: 297
+	},
+	layout: {
+		marginTopMm: 16,
+		marginRightMm: 17,
+		marginBottomMm: 13,
+		marginLeftMm: 17,
+		leftColumnRatio: .62,
+		rightColumnRatio: .38,
+		columnGapMm: 11,
+		headerGapMm: 6.5,
+		sectionGapMm: 6.5,
+		entryGapMm: 3.5,
+		photoSizeMm: 30
+	},
+	colors: {
+		primary: "#0B3D86",
+		accent: "#58B5F7",
+		primaryDark: "#082F6D",
+		primarySoft: "#EAF5FD",
+		heading: "#0B3D86",
+		text: "#4A555C",
+		mutedText: "#667178",
+		divider: "#D6DCE0",
+		pageBackground: "#FFFFFF"
+	},
+	typography: {
+		fontFamily: "\"Source Sans 3\", \"Segoe UI\", Arial, Helvetica, sans-serif",
+		nameSizePt: 24,
+		professionSizePt: 10.5,
+		sectionTitleSizePt: 14,
+		entryTitleSizePt: 11.5,
+		bodySizePt: 8.4,
+		smallSizePt: 7.5,
+		lineHeight: 1.3
+	}
+};
+//#endregion
+//#region src/shared/cvTemplateTokens.ts
+var adapt = (source) => {
+	const { colors, typography, layout } = source;
+	const heading = colors.heading ?? colors.primary;
+	const accent = colors.accent ?? colors.primary;
+	const defined = (values) => Object.fromEntries(Object.entries(values).filter(([, value]) => value !== void 0));
+	return {
+		colors: defined({
+			text: colors.text,
+			paragraph: colors.text,
+			heading,
+			subheading: accent,
+			sectionHeading: heading,
+			entryHeading: heading,
+			accent,
+			icon: accent,
+			muted: colors.muted ?? colors.mutedText,
+			divider: colors.divider ?? colors.line ?? colors.border,
+			background: colors.pageBackground ?? colors.background
+		}),
+		typography: defined({
+			bodySizePt: typography?.bodySizePt,
+			headingSizePt: typography?.nameSizePt,
+			subheadingSizePt: typography?.professionSizePt ?? typography?.jobTitleSizePt,
+			sectionHeadingSizePt: typography?.sectionTitleSizePt,
+			entryHeadingSizePt: typography?.entryTitleSizePt,
+			lineHeight: typography?.lineHeight ?? typography?.bodyLineHeight
+		}),
+		spacing: defined({
+			pageMarginMm: source.page?.marginLeftMm ?? source.margins?.leftMm ?? layout?.marginLeftMm,
+			sectionGapMm: source.spacing?.sectionGapMm ?? layout?.sectionGapMm,
+			entryGapMm: source.spacing?.entryGapMm ?? layout?.entryGapMm,
+			columnGapMm: layout?.columnGapMm
+		})
+	};
+};
+/** Native visual defaults; density/ATS variations remain in their template adapters. */
+var cvTemplateTokens = {
+	modern: adapt(modernTemplateDefaults),
+	elegant: adapt(elegantDefaults),
+	gepflegt: adapt(gepflegtDefaults),
+	"ivy-league": adapt(ivyLeagueDefaults),
+	zweispaltig: adapt(zweispaltigDefaults),
+	zeitgenoessisch: adapt(zeitgenoessischDefaults),
+	kreativ: adapt(kreativDefaults),
+	tabellarisch: adapt(tabellarischDefaults),
+	einspaltig: {
+		...adapt(einspaltigDefaults),
+		typography: {
+			headingSizePt: 24,
+			subheadingSizePt: 11.5,
+			sectionHeadingSizePt: 13.5,
+			entryHeadingSizePt: 11.5,
+			bodySizePt: 10.4,
+			lineHeight: 1.12
+		}
+	},
+	klassisch: {
+		...adapt(klassischDefaults),
+		typography: {
+			headingSizePt: 26,
+			subheadingSizePt: 12.2,
+			sectionHeadingSizePt: 10.4,
+			entryHeadingSizePt: 12.2,
+			bodySizePt: 8.5,
+			lineHeight: 1.25
+		}
+	},
+	kompakt: {
+		...adapt(kompaktDefaults),
+		typography: {
+			headingSizePt: 20,
+			subheadingSizePt: 8.5,
+			sectionHeadingSizePt: 8.5,
+			entryHeadingSizePt: 10.5,
+			bodySizePt: 8,
+			lineHeight: 1.25
+		}
+	},
+	stilvoll: {
+		...adapt(stilvollDefaults),
+		colors: {
+			...adapt(stilvollDefaults).colors,
+			heading: stilvollDefaults.colors.primaryDark,
+			entryHeading: stilvollDefaults.colors.primaryDark,
+			sectionHeading: stilvollDefaults.colors.muted
+		},
+		typography: {
+			headingSizePt: 23,
+			subheadingSizePt: 12,
+			sectionHeadingSizePt: 9.5,
+			entryHeadingSizePt: 11,
+			bodySizePt: 8.5,
+			lineHeight: 1.32
+		}
+	},
+	pehlione_white_blue: {
+		colors: {
+			text: "#142235",
+			paragraph: "#142235",
+			heading: "#0B3D86",
+			subheading: "#12294E",
+			sectionHeading: "#0B3D86",
+			entryHeading: "#0B3D86",
+			divider: "#B8C3D0",
+			background: "#FFFFFF",
+			accent: "#0B3D86",
+			surface: "#F1F6FC",
+			muted: "#526272",
+			icon: "#0B3D86"
+		},
+		typography: {
+			headingSizePt: 29,
+			subheadingSizePt: 13,
+			sectionHeadingSizePt: 13,
+			entryHeadingSizePt: 10.4,
+			bodySizePt: 9.7,
+			lineHeight: 1.42
+		},
+		spacing: {
+			pageMarginMm: 10,
+			sectionGapMm: 6,
+			entryGapMm: 4,
+			sectionTitleGapMm: 3
+		}
+	},
+	pehlione_white: {
+		colors: {
+			text: "#142235",
+			paragraph: "#142235",
+			heading: "#08245C",
+			subheading: "#12294E",
+			sectionHeading: "#08245C",
+			entryHeading: "#08245C",
+			divider: "#B8C3D0",
+			background: "#FFFFFF",
+			accent: "#08245C",
+			surface: "#F1F6FC",
+			muted: "#526272",
+			icon: "#08245C"
+		},
+		typography: {
+			headingSizePt: 29,
+			subheadingSizePt: 13,
+			sectionHeadingSizePt: 13,
+			entryHeadingSizePt: 10.4,
+			bodySizePt: 9.7,
+			lineHeight: 1.42
+		},
+		spacing: {
+			pageMarginMm: 10,
+			sectionGapMm: 6,
+			entryGapMm: 4,
+			sectionTitleGapMm: 3
+		}
+	}
+};
+//#endregion
+//#region src/shared/cvDesign.ts
+/** Fresh values on every call: callers must never mutate registry defaults. */
+var getTemplateDocumentDesignDefaults = (templateId) => ({
+	...defaultDocumentDesign,
+	...getTemplate(templateId).designDefaults
+});
+var definedFields = (fields) => Object.fromEntries(Object.entries(fields ?? {}).filter(([, value]) => value !== void 0));
+var mergeTokens = (base, changes) => ({
+	colors: {
+		...base.colors,
+		...definedFields(changes.colors)
+	},
+	typography: {
+		...base.typography,
+		...definedFields(changes.typography)
+	},
+	spacing: {
+		...base.spacing,
+		...definedFields(changes.spacing)
+	}
+});
+var resolveTemplateCvDesign = (templateId) => {
+	const template = getTemplate(templateId);
+	const settings = getTemplateDocumentDesignDefaults(template.id);
+	return mergeTokens({
+		colors: {
+			text: settings.textColor,
+			paragraph: settings.textColor,
+			heading: settings.headingColor,
+			subheading: template.secondary,
+			sectionHeading: settings.headingColor,
+			entryHeading: settings.headingColor,
+			divider: settings.lineColor,
+			background: settings.backgroundColor,
+			accent: template.accent,
+			surface: settings.backgroundColor,
+			muted: settings.textColor,
+			icon: template.accent
+		},
+		typography: {
+			fontId: settings.fontId,
+			headingFontId: settings.headingFontId,
+			bodySizePt: fontSizeToPt[settings.fontSize],
+			headingSizePt: 24,
+			subheadingSizePt: 12,
+			sectionHeadingSizePt: 12,
+			entryHeadingSizePt: 11,
+			lineHeight: lineHeightLevelToValue[settings.lineHeightLevel]
+		},
+		spacing: {
+			pageMarginMm: marginLevelToMm[settings.marginLevel],
+			innerPaddingMm: paddingLevelToMm[settings.paddingLevel],
+			sectionGapMm: sectionSpacingLevelToMm[settings.sectionSpacingLevel],
+			entryGapMm: 4,
+			sectionTitleGapMm: 2,
+			entryContentGapMm: 1.5,
+			columnGapMm: 10
+		}
+	}, cvTemplateTokens[template.id] ?? {});
+};
+/** Validation keeps CSS injection and unsafe physical dimensions out of both renderers. */
+var resolveCvDesign = (templateId, overrides = {}) => mergeTokens(resolveTemplateCvDesign(templateId), cvDesignOverridesSchema.parse(overrides));
+/** One unit conversion for preview and PDF; consumers choose when to apply overrides. */
+var getCvDesignVariables = (design) => {
+	const variables = {};
+	const kebab = (key) => key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+	for (const [name, value] of Object.entries(design.colors)) variables[`--doc-${kebab(name)}-color`] = value;
+	for (const [name, value] of Object.entries(design.spacing)) variables[`--doc-${kebab(name.replace(/Mm$/, ""))}`] = `${value}mm`;
+	for (const [name, value] of Object.entries(design.typography)) {
+		if (name === "fontId" || name === "headingFontId") continue;
+		variables[`--doc-${kebab(name.replace(/Pt$/, ""))}`] = `${value}${name.endsWith("Pt") ? "pt" : ""}`;
+	}
+	variables["--doc-font"] = getDocumentFont(design.typography.fontId).family;
+	variables["--doc-heading-font"] = getDocumentFont(design.typography.headingFontId).family;
+	variables["--doc-margin"] = variables["--doc-page-margin"];
+	variables["--doc-padding"] = variables["--doc-inner-padding"];
+	variables["--doc-accent"] = variables["--doc-accent-color"];
+	variables["--doc-line-color"] = variables["--doc-divider-color"];
+	return variables;
+};
+//#endregion
+//#region src/shared/resumeSpacing.ts
+var resumeSpacingFields = [
+	{
+		key: "pageMarginMm",
+		label: "Seitenränder"
+	},
+	{
+		key: "innerPaddingMm",
+		label: "Innenabstand"
+	},
+	{
+		key: "sectionGapMm",
+		label: "Abschnittsabstand"
+	},
+	{
+		key: "entryGapMm",
+		label: "Eintragsabstand"
+	},
+	{
+		key: "sectionTitleGapMm",
+		label: "Abstand nach Abschnittstitel"
+	},
+	{
+		key: "entryContentGapMm",
+		label: "Abstand nach Eintragstitel"
+	},
+	{
+		key: "columnGapMm",
+		label: "Spaltenabstand"
+	}
+];
+var resumeSpacingCss = `
+[data-resume-spacing-section-gap] [data-resume-spacing-section]{margin-block-end:0!important}
+[data-resume-spacing-section-gap] [data-resume-spacing-section-following]{margin-block-start:var(--doc-section-gap)!important}
+[data-resume-spacing-entry-gap] [data-resume-spacing-list]{row-gap:0!important}
+[data-resume-spacing-entry-gap] [data-resume-spacing-entry]{margin-block-end:0!important}
+[data-resume-spacing-entry-gap] [data-resume-spacing-entry-following]{margin-block-start:var(--doc-entry-gap)!important}
+[data-resume-spacing-title-gap] [data-resume-spacing-title]{margin-block-end:var(--doc-section-title-gap)!important}
+[data-resume-spacing-content-gap] [data-resume-spacing-entry-title]{margin-block-end:var(--doc-entry-content-gap)!important}
+[data-resume-spacing-line-height] :is(p,li){line-height:var(--doc-line-height)!important}
+`;
+/** Annotate only explicitly changed fields; untouched templates keep native CSS. */
+var applyResumeSpacingOutput = (page, templateId, surface, settings) => {
+	const overrides = settings.cvOverrides;
+	const spacing = overrides?.spacing;
+	const lineHeight = overrides?.typography?.lineHeight;
+	if (!spacing && lineHeight === void 0) return;
+	const scope = surface === "pdf" ? page.querySelector(".page-content") : page.firstElementChild;
+	if (!scope) return;
+	const id = resolveTemplateId(templateId);
+	const variables = getCvDesignVariables(resolveCvDesign(id, overrides));
+	for (const { key } of resumeSpacingFields) if (spacing?.[key] !== void 0) {
+		const name = `--doc-${key.replace(/Mm$/, "").replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`;
+		scope.style.setProperty(name, variables[name]);
+	}
+	if (spacing?.pageMarginMm !== void 0) {
+		scope.style.setProperty("--doc-margin", variables["--doc-page-margin"]);
+		scope.style.padding = variables["--doc-page-margin"];
+	}
+	if (spacing?.innerPaddingMm !== void 0) scope.style.setProperty("--doc-padding", variables["--doc-inner-padding"]);
+	if (spacing?.sectionGapMm !== void 0) scope.setAttribute("data-resume-spacing-section-gap", "");
+	if (spacing?.entryGapMm !== void 0) scope.setAttribute("data-resume-spacing-entry-gap", "");
+	if (spacing?.sectionTitleGapMm !== void 0) scope.setAttribute("data-resume-spacing-title-gap", "");
+	if (spacing?.entryContentGapMm !== void 0) scope.setAttribute("data-resume-spacing-content-gap", "");
+	if (lineHeight !== void 0) {
+		scope.style.setProperty("--doc-line-height", String(lineHeight));
+		scope.style.setProperty("--body-line", String(lineHeight));
+		scope.setAttribute("data-resume-spacing-line-height", "");
+	}
+	const sections = Array.from(scope.querySelectorAll("[data-managed-section]"));
+	if (spacing?.sectionGapMm !== void 0) for (const section of sections) {
+		section.setAttribute("data-resume-spacing-section", "");
+		if (section.previousElementSibling?.hasAttribute("data-managed-section")) section.setAttribute("data-resume-spacing-section-following", "");
+	}
+	const sources = resumeSectionStyleSources[surface][id];
+	if (sources) {
+		if (spacing?.sectionTitleGapMm !== void 0) scope.querySelectorAll(sources[1]).forEach((node) => node.setAttribute("data-resume-spacing-title", ""));
+		if (spacing?.entryContentGapMm !== void 0) scope.querySelectorAll(sources[2]).forEach((node) => node.setAttribute("data-resume-spacing-entry-title", ""));
+		if (spacing?.entryGapMm !== void 0) {
+			const entries = Array.from(scope.querySelectorAll(sources[6]));
+			const wrappers = sources[5] ? Array.from(scope.querySelectorAll(sources[5])).filter((node) => entries.some((entry) => node.contains(entry))) : [];
+			const items = wrappers.some((node) => node.previousElementSibling && wrappers.includes(node.previousElementSibling)) ? wrappers : entries;
+			for (const item of items) {
+				item.setAttribute("data-resume-spacing-entry", "");
+				if (item.previousElementSibling && items.includes(item.previousElementSibling)) item.setAttribute("data-resume-spacing-entry-following", "");
+				item.parentElement?.setAttribute("data-resume-spacing-list", "");
+			}
+		}
+	}
+	const host = getResumeLayoutHost(scope, id, surface);
+	if (spacing?.columnGapMm !== void 0 && host) host.style.columnGap = variables["--doc-column-gap"];
+	if (spacing?.innerPaddingMm !== void 0) {
+		const zones = host ? Array.from(host.children).filter((child) => child.matches("main,aside,[data-resume-layout-zone],[class*=\"-content\"],[class*=\"-column\"],[class*=\"-sidebar\"]")) : [];
+		if (zones.length) for (const zone of zones) zone.style.paddingInline = variables["--doc-inner-padding"];
+		else if (host && host !== scope) host.style.paddingInline = variables["--doc-inner-padding"];
+	}
+};
+//#endregion
+//#region src/shared/resumeMetadataLayout.ts
+var resumeMetadataCss = `
+[data-resume-metadata-entry]{display:block!important;min-width:0;break-inside:avoid}
+[data-resume-metadata-grid]{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,42%)!important;gap:.6mm 3mm;margin-bottom:var(--doc-entry-content-gap,1.5mm);min-width:0;align-items:start}
+[data-resume-metadata-grid="stacked"]{grid-template-columns:minmax(0,1fr)!important}
+[data-resume-metadata-grid="side-by-side"][data-resume-metadata-order="dates-first"]{grid-template-columns:minmax(0,42%) minmax(0,1fr)!important}
+[data-resume-metadata-grid="stacked"] [data-resume-metadata-role]{grid-row:1}
+[data-resume-metadata-grid="stacked"] [data-resume-metadata-organization]{grid-row:2}
+[data-resume-metadata-grid="stacked"] [data-resume-metadata-date]{grid-row:3}
+[data-resume-metadata-grid="stacked"] [data-resume-metadata-location]{grid-row:4}
+[data-resume-metadata-grid="side-by-side"] [data-resume-metadata-role]{grid-column:1;grid-row:1}
+[data-resume-metadata-grid="side-by-side"] [data-resume-metadata-organization]{grid-column:1;grid-row:2}
+[data-resume-metadata-grid="side-by-side"] [data-resume-metadata-date]{grid-column:2;grid-row:1}
+[data-resume-metadata-grid="side-by-side"] [data-resume-metadata-location]{grid-column:2;grid-row:2}
+[data-resume-metadata-grid="side-by-side"][data-resume-metadata-order="dates-first"] [data-resume-metadata-role],
+[data-resume-metadata-grid="side-by-side"][data-resume-metadata-order="dates-first"] [data-resume-metadata-organization]{grid-column:2}
+[data-resume-metadata-grid="side-by-side"][data-resume-metadata-order="dates-first"] [data-resume-metadata-date],
+[data-resume-metadata-grid="side-by-side"][data-resume-metadata-order="dates-first"] [data-resume-metadata-location]{grid-column:1}
+[data-resume-metadata-grid]>*{display:block!important;margin:0!important;padding:0!important;min-width:0;overflow-wrap:anywhere;align-self:start!important}
+[data-resume-metadata-role]{color:var(--doc-entry-heading-color,currentColor);font-size:var(--doc-entry-heading-size,1.08em);font-weight:700;line-height:1.2}
+[data-resume-metadata-organization]{color:var(--doc-accent-color,currentColor);font-weight:600}
+[data-resume-metadata-date],[data-resume-metadata-location]{color:var(--doc-muted-color,currentColor);font-size:.92em}
+[data-resume-metadata-grid="side-by-side"] :is([data-resume-metadata-date],[data-resume-metadata-location]){text-align:right}
+[data-resume-metadata-grid="side-by-side"][data-resume-metadata-order="dates-first"] :is([data-resume-metadata-date],[data-resume-metadata-location]){text-align:left}
+[data-resume-metadata-grid="side-by-side"][data-resume-metadata-order="dates-first"] :is([data-resume-metadata-role],[data-resume-metadata-organization]){text-align:right}
+`;
+var normalized = (value) => value.replace(/\s+/g, " ").trim().toLocaleLowerCase("de-DE");
+/** Project the same career metadata for the React preview and the PDF HTML. */
+var applyResumeMetadataLayout = (page, profile, templateId, surface, settings) => {
+	if (!settings.metadataLayout) return;
+	const id = resolveTemplateId(templateId);
+	const entrySelector = resumeSectionStyleSources[surface][id]?.[6];
+	if (!entrySelector) return;
+	const variables = getCvDesignVariables(resolveCvDesign(id, settings.cvOverrides));
+	const records = {
+		experience: profile.experiences.map((item) => ({
+			role: item.role,
+			company: item.company,
+			city: item.city,
+			from: item.from,
+			to: item.to
+		})),
+		education: profile.education.map((item) => ({
+			role: item.degree,
+			company: item.institution,
+			city: item.city,
+			from: item.from,
+			to: item.to
+		}))
+	};
+	for (const kind of ["experience", "education"]) {
+		const sections = page.querySelectorAll(`[data-managed-section="${kind}"]`);
+		for (const section of sections) {
+			const used = /* @__PURE__ */ new Set();
+			const kindSelector = id === "modern" && kind === "education" ? entrySelector.replaceAll("experience", "education") : entrySelector;
+			for (const entry of Array.from(section.querySelectorAll(kindSelector))) {
+				if (entry.hasAttribute("data-resume-metadata-entry")) continue;
+				const text = normalized(entry.textContent ?? "");
+				const index = records[kind].findIndex((item, position) => !used.has(position) && text.includes(normalized(item.role)) && text.includes(normalized(item.company)));
+				if (index < 0) continue;
+				used.add(index);
+				const item = records[kind][index];
+				const body = Array.from(entry.querySelectorAll("ul,ol")).filter((node) => {
+					const parentList = node.parentElement?.closest("ul,ol");
+					return !parentList || !entry.contains(parentList);
+				});
+				const details = Array.from(entry.querySelectorAll("p")).filter((node) => !node.closest("ul,ol") && !node.querySelector("p,ul,ol") && ![
+					item.role,
+					item.company,
+					item.city ?? "",
+					item.from,
+					item.to
+				].filter(Boolean).some((value) => normalized(node.textContent ?? "").includes(normalized(value))));
+				const grid = entry.ownerDocument.createElement("div");
+				grid.setAttribute("data-resume-metadata-grid", settings.metadataLayout);
+				grid.setAttribute("data-resume-metadata-order", settings.metadataOrder ?? "details-first");
+				for (const key of [
+					"--doc-entry-heading-color",
+					"--doc-entry-heading-size",
+					"--doc-accent-color",
+					"--doc-muted-color"
+				]) grid.style.setProperty(key, variables[key]);
+				const values = {
+					role: item.role,
+					organization: item.company,
+					date: [item.from, item.to].filter(Boolean).join(" – "),
+					location: item.city ?? ""
+				};
+				for (const [key, value] of Object.entries(values)) {
+					if (!value) continue;
+					const element = entry.ownerDocument.createElement(key === "role" ? "strong" : "span");
+					element.setAttribute(`data-resume-metadata-${key}`, "");
+					element.textContent = value;
+					grid.appendChild(element);
+				}
+				entry.replaceChildren(grid, ...body.map((node) => node.cloneNode(true)), ...details.map((node) => node.cloneNode(true)));
+				entry.setAttribute("data-resume-metadata-entry", kind);
+			}
+		}
+	}
+};
 //#endregion
 //#region node_modules/linkedom/esm/shared/symbols.js
 var CHANGED = Symbol("changed");
@@ -19178,12 +20957,20 @@ var legacyKeys = {
 	languages: "languages",
 	certifications: "certifications"
 };
-var managerZones = (templateId) => [
+var nativeSingleTemplates = /* @__PURE__ */ new Set([
 	"ivy-league",
 	"einspaltig",
 	"klassisch",
 	"tabellarisch"
-].includes(templateId) ? ["main"] : ["main", "sidebar"];
+]);
+var defaultSidebarSections = /* @__PURE__ */ new Set([
+	"summary",
+	"strengths",
+	"knowledge",
+	"languages",
+	"certifications"
+]);
+var managerZones = (_templateId) => ["main", "sidebar"];
 var baseGroupType = (type) => ({
 	"core-competencies": "strengths",
 	"technical-focus": "knowledge",
@@ -19222,7 +21009,7 @@ var getManagerSections = (profile, templateId) => {
 			"summary",
 			"strengths",
 			"knowledge"
-		].includes(type)) ? "sidebar" : "main"
+		].includes(type) || nativeSingleTemplates.has(templateId) && defaultSidebarSections.has(type)) ? "sidebar" : "main"
 	}));
 	if (pehlione) legacy.find((item) => item.id === "summary").zone = "main";
 	const entries = [...legacy];
@@ -19272,6 +21059,58 @@ var getManagerSections = (profile, templateId) => {
 		...entry,
 		...profile.resumeManagerOverrides?.[entry.id]
 	}));
+};
+var updateManagerSection = (profile, templateId, id, change) => {
+	let next = {
+		...profile,
+		resumeManagerOverrides: {
+			...profile.resumeManagerOverrides,
+			[id]: {
+				...profile.resumeManagerOverrides?.[id],
+				...change
+			}
+		}
+	};
+	const semantic = managerSemanticTypes[id];
+	if (semantic) next.resumeSemanticSections = resolveResumeSectionInstances(profile.resumeSemanticSections).map((item) => item.semanticType === semantic ? {
+		...item,
+		...change.title !== void 0 ? { customTitle: change.title } : {},
+		...change.visible !== void 0 ? {
+			visible: change.visible,
+			enabled: change.visible
+		} : {}
+	} : item);
+	if (id === "knowledge") next.resumeSemanticSections = resolveResumeSectionInstances(next.resumeSemanticSections).map((item) => item.semanticType === "knowledge" ? {
+		...item,
+		visible: true,
+		enabled: true
+	} : item);
+	const key = legacyKeys[id];
+	if (key && change.visible !== void 0) next.resumeSections = {
+		...profile.resumeSections,
+		[key]: change.visible
+	};
+	if (change.title !== void 0) {
+		if (id === "knowledge") next.knowledgeSection = {
+			...profile.knowledgeSection,
+			title: change.title
+		};
+		else if (id in profile.resumeSectionTitles) next.resumeSectionTitles = {
+			...profile.resumeSectionTitles,
+			[id]: change.title
+		};
+	}
+	const entry = getManagerSections(profile, templateId).find((item) => item.id === id);
+	if (entry?.groupId) next.resumeKnowledgeGroups = resolveKnowledgeGroups(templateId, profile.resumeKnowledgeGroups).map((group) => group.id === entry.groupId ? {
+		...group,
+		...change
+	} : group);
+	if (id.startsWith("special:")) next.specialSections = profile.specialSections.map((item) => item.id === id.slice(8) ? {
+		...item,
+		...change.title !== void 0 ? { title: change.title } : {},
+		...change.visible !== void 0 ? { isVisible: change.visible } : {}
+	} : item);
+	return next;
 };
 //#endregion
 //#region src/shared/profileMedia.ts
@@ -23182,6 +25021,21 @@ Array.from(iconMarkup.keys()).sort((left, right) => left.localeCompare(right, "e
 var getDeviconMarkup = (iconId) => iconMarkup.get(iconId.trim().toLocaleLowerCase("en-US"));
 //#endregion
 //#region src/shared/technologyBrand.ts
+var technologyAliases = {
+	golang: "go",
+	"go language": "go",
+	js: "javascript",
+	ts: "typescript",
+	"spring boot": "spring",
+	springboot: "spring",
+	"react.js": "react",
+	reactjs: "react"
+};
+var normalizeTechnologyName = (name) => {
+	const normalized = name.trim().toLocaleLowerCase("en-US").replace(/^(?:programming|programmiersprache)\s*[:–-]?\s*/i, "");
+	return technologyAliases[normalized] ?? normalized;
+};
+var escapeIconText = (value) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;");
 var svg = (content, brand = "generic", viewBox = "0 0 32 32") => `<svg class="technology-brand-svg" data-brand="${brand}" viewBox="${viewBox}" focusable="false" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">${content}</svg>`;
 var letterMark = (text, shape = "rounded") => svg(`${shape === "hexagon" ? "<path d=\"M16 2 28 9v14l-12 7L4 23V9z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/>" : shape === "oval" ? "<ellipse cx=\"16\" cy=\"16\" rx=\"14\" ry=\"9\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/>" : "<rect x=\"3\" y=\"3\" width=\"26\" height=\"26\" rx=\"5\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/>"}<text x="16" y="19" text-anchor="middle" fill="currentColor" font-family="Arial,sans-serif" font-size="${text.length > 3 ? 7 : 10}" font-weight="700">${text}</text>`);
 var shieldBrand = (brand, color, insetColor, glyph) => svg(`<path d="M3 2h26l-2.4 25L16 30 5.4 27z" fill="${color}"/><path d="M16 4v23.2l8.1-2.2 2-21z" fill="${insetColor}"/><path d="${glyph}" fill="#fff"/>`, brand);
@@ -23195,7 +25049,7 @@ var getTechnologyBrandIconMarkup = (technology, iconId = "") => {
 	if (symbol) return symbol;
 	const selectedIcon = getDeviconMarkup(iconId);
 	if (selectedIcon) return selectedIcon;
-	const normalized = technology.trim().toLocaleLowerCase("en-US").replace(/^(?:programming|programmiersprache)\s*[:–-]?\s*/i, "");
+	const normalized = normalizeTechnologyName(technology);
 	if (normalized === "react" || normalized === "react.js" || normalized === "reactjs") return svg("<circle cx=\"16\" cy=\"16\" r=\"2.3\" fill=\"#61dafb\"/><ellipse cx=\"16\" cy=\"16\" rx=\"13\" ry=\"5.2\" fill=\"none\" stroke=\"#61dafb\" stroke-width=\"1.6\"/><ellipse cx=\"16\" cy=\"16\" rx=\"13\" ry=\"5.2\" transform=\"rotate(60 16 16)\" fill=\"none\" stroke=\"#61dafb\" stroke-width=\"1.6\"/><ellipse cx=\"16\" cy=\"16\" rx=\"13\" ry=\"5.2\" transform=\"rotate(120 16 16)\" fill=\"none\" stroke=\"#61dafb\" stroke-width=\"1.6\"/>", "react");
 	if (normalized === "electron") return svg("<circle cx=\"16\" cy=\"16\" r=\"2\" fill=\"currentColor\"/><path d=\"M8 8c7-4 16 0 18 8M5 18c1 8 10 12 17 8M21 5c-7 0-14 7-14 15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><circle cx=\"7\" cy=\"9\" r=\"1.6\" fill=\"currentColor\"/><circle cx=\"25\" cy=\"17\" r=\"1.6\" fill=\"currentColor\"/><circle cx=\"21\" cy=\"26\" r=\"1.6\" fill=\"currentColor\"/>");
 	if (normalized === "java") return svg("<path d=\"M10 20h13v2.5c0 3-2.5 5.5-5.5 5.5h-2A5.5 5.5 0 0 1 10 22.5zM23 21h2a3 3 0 0 1 0 6h-3\" fill=\"none\" stroke=\"#5382a1\" stroke-width=\"2\"/><path d=\"M14 17c-4-4 5-5 1-9M19 17c-3-3 4-4 1-8M18 7c1-2 3-3 5-4\" fill=\"none\" stroke=\"#e76f00\" stroke-width=\"1.8\" stroke-linecap=\"round\"/>", "java");
@@ -23271,8 +25125,34 @@ var getTechnologyBrandIconMarkup = (technology, iconId = "") => {
 	if (normalized === "cobol") return letterMark("COB");
 	const automaticDevicon = getDeviconMarkup(normalized.replace(/[^a-z0-9]/g, ""));
 	if (automaticDevicon) return automaticDevicon;
-	return letterMark(technology.slice(0, 3).toLocaleUpperCase("en-US"));
+	return letterMark(escapeIconText(technology.slice(0, 3).toLocaleUpperCase("en-US")));
 };
+/** Preserve the existing icon catalogue and manual priority, with CV theme colors. */
+var getThemedTechnologyIconMarkup = (title, iconId = "") => getTechnologyBrandIconMarkup(title, iconId).replace(/(fill|stroke|stop-color)="(?!none"|currentColor"|white"|#fff"|#ffffff"|url\()[^"]+"/gi, "$1=\"currentColor\"").replace(/(fill|stroke|stop-color):\s*(#[0-9a-f]{3,8}|rgb\([^)]*\))/gi, "$1:currentColor");
+//#endregion
+//#region src/shared/resumeSectionLayout.ts
+/** A4 dimensions, not viewport width: the editor and PDF make the same decision. */
+function resolveSectionColumns(mode, templateId, zone, items, settings = defaultDocumentDesign, hasSidebar) {
+	if (mode && mode !== "auto") return mode;
+	const template = getTemplate(templateId);
+	const layout = resolveResumeLayout(templateId, settings.resumePresentation, settings.resumeOutputMode === "ats" || settings.columnLayout === "compact-ats");
+	const single = [
+		"single",
+		"compact-ats",
+		"timeline"
+	].includes(settings.columnLayout);
+	const split = layout.overridden ? layout.mode === "two-column" : !single && (hasSidebar ?? ![
+		"centered",
+		"minimal",
+		"timeline"
+	].includes(template.layout));
+	if (split && zone === "sidebar") return 1;
+	const width = (210 - 2 * marginLevelToMm[settings.marginLevel]) * (split ? layout.overridden ? (100 - layout.sidebarWidthPercent) / 100 : .62 : 1);
+	const longest = Math.max(0, ...items.map((item) => item.title.length));
+	const detailed = items.some((item) => (item.description?.length ?? 0) > 90);
+	const minWidth = (longest > 45 || detailed ? 80 : longest > 25 ? 65 : 48) * (settings.fontSize === "large" ? 1.15 : 1);
+	return Math.max(1, Math.min(3, items.length || 1, Math.floor(width / minWidth)));
+}
 //#endregion
 //#region src/shared/resumeManagedOutput.ts
 var escape$1 = (value) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;");
@@ -23305,23 +25185,50 @@ var aliases = {
 	projects: ["Projekt-Highlight"]
 };
 var normalize = (value) => value.replace(/\s*·\s*Fortsetzung/i, "").trim().toLocaleLowerCase("de-DE");
+var setHeadingText = (heading, title) => {
+	if (heading.textContent?.trim() === title.trim()) return;
+	const label = heading.querySelector("b") ?? Array.from(heading.children).find((child) => child.tagName === "SPAN" && !child.querySelector("svg")) ?? heading;
+	label.textContent = title;
+};
 var managedResumeCss = `
-.managed-extra{margin:0 0 4mm;break-inside:avoid;color:inherit;font:inherit}
-.managed-extra h3{margin:0 0 2mm;font-size:1.08em;color:inherit}
+.managed-item-grid{display:grid!important;grid-template-columns:repeat(var(--section-columns,1),minmax(0,1fr))!important;gap:2mm 3mm;min-width:0;padding:0;list-style:none}
+.managed-item-grid>*,.managed-item-text{min-width:0;overflow-wrap:anywhere;break-inside:avoid}
+.managed-item{display:grid;grid-template-columns:4mm minmax(0,1fr);align-items:start;gap:1.5mm;margin:0;min-width:0}
+.managed-item>svg{width:4mm;height:4mm;color:var(--doc-accent,var(--accent,currentColor))}
+.managed-item-text{display:block;white-space:pre-line}
+.managed-knowledge-category{margin-bottom:3mm;min-width:0}
+.managed-knowledge-category h4,.managed-knowledge-category h5{margin:1.5mm 0;font:inherit;font-weight:700}
+.managed-item-level{display:block;width:100%;height:1mm;margin-top:1mm;background:var(--doc-line-color,var(--line-color,currentColor))}
+.managed-item-level b{display:block;height:100%;background:var(--doc-accent,var(--accent,currentColor))}
+.managed-ats .managed-strength-card,.managed-ats .managed-item{grid-template-columns:minmax(0,1fr)}
+.managed-ats .managed-strength-card strong,.managed-ats .managed-strength-card p{grid-column:1}
+
+.managed-extra:not([data-custom-template]){margin:0 0 4mm;break-inside:avoid;color:inherit;font:inherit}
+.managed-extra:not([data-custom-template]) h3{margin:0 0 2mm;font-size:1.08em;color:inherit}
 .managed-extra ul{padding-left:4mm;margin:0}.managed-extra li{margin-bottom:1mm}
-.managed-extra small{display:block;font-size:.92em}.managed-extra p{margin:1mm 0}
+.managed-extra:not([data-custom-template]) small{display:block;font-size:.92em}.managed-extra:not([data-custom-template]) p{margin:1mm 0}
 .managed-extra .managed-tags{display:flex;flex-wrap:wrap;gap:1.5mm}
 .managed-extra .managed-tags span{border:1px solid currentColor;border-radius:2mm;padding:.7mm 1.5mm}
 .managed-extra .managed-columns{display:grid;grid-template-columns:1fr 1fr;gap:2mm}
+:where([data-custom-template]){min-width:0}
+:where([data-custom-template]) [data-custom-role="heading"]{margin:0 0 2mm;break-after:avoid;page-break-after:avoid}
+:where([data-custom-template]) [data-custom-role="heading-label"]{grid-column:1 / -1}
+:where([data-custom-template]) [data-custom-role="entries"]{display:grid;gap:3mm;margin:0;padding:0;min-width:0}
+:where([data-custom-template]) :is(ul,ol)[data-custom-role="entries"]{padding-left:4mm}
+:where([data-custom-template]) [data-custom-role="entry"]{display:block;min-width:0;break-inside:avoid;overflow-wrap:anywhere}
+:where([data-custom-template]) :is(p,h3,h4,h5){margin:0}
+:where([data-custom-template]) .resume-special-output__meta{opacity:1}
 [data-managed-section]{break-inside:avoid}
+[data-managed-section][data-custom-template]{break-inside:avoid}
 [data-managed-moved], [data-managed-moved] :is(h2,h3,p,li,small){color:inherit!important}
-[data-managed-section="strengths"] .managed-strengths-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3mm;list-style:none;margin:0;padding:0}
-[data-managed-section="strengths"] .managed-strength-card{display:flex;flex-direction:column;align-items:flex-start;gap:1mm;min-width:0;margin:0;padding:0;border:0;break-inside:avoid;overflow-wrap:anywhere}
-[data-managed-section="strengths"] .managed-strength-card>svg{width:6mm;height:6mm;flex:none}
-[data-managed-section="strengths"] .managed-strength-card strong{font-size:1em;line-height:1.3}
-[data-managed-section="strengths"] .managed-strength-card p{margin:0;white-space:pre-line;font-size:.92em;line-height:1.4;color:inherit}
-`;
-var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, totalPages = 1) => {
+[data-managed-section="strengths"] .managed-strengths-grid{display:grid;grid-template-columns:repeat(var(--section-columns,1),minmax(0,1fr));gap:3mm;list-style:none;margin:0;padding:0}
+[data-managed-section="strengths"] .managed-strength-card{display:grid;grid-template-columns:4mm minmax(0,1fr);align-items:start;gap:1mm 1.5mm;min-width:0;margin:0;padding:0;border:0;break-inside:avoid;overflow-wrap:anywhere}
+[data-managed-section="strengths"] .managed-strength-card>svg{width:4mm;height:4mm;grid-column:1;grid-row:1 / span 2;color:var(--doc-accent,var(--accent,currentColor))}
+[data-managed-section="strengths"] .managed-strength-card strong{grid-column:2;min-width:0;font-size:1em;line-height:1.3}
+[data-managed-section="strengths"] .managed-strength-card p{grid-column:2;min-width:0;margin:0;white-space:pre-line;font-size:.92em;line-height:1.4;color:inherit}
+${resumeSpacingCss}
+${resumeMetadataCss}`;
+var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, totalPages = 1, designSettings = defaultDocumentDesign) => {
 	if (!profile) return html;
 	const { document } = parseHTML(`<html><body>${html}</body></html>`);
 	const entries = getManagerSections(profile, templateId);
@@ -23346,16 +25253,45 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 			if (!heading || heading.closest("section") !== node || heading.closest("article") && node.contains(heading.closest("article"))) continue;
 			const title = normalize(heading.textContent ?? "");
 			const elementId = node.getAttribute("data-element-id") ?? "";
-			const entry = entries.find((entry) => entry.id.startsWith("special:") && elementId === `special.${entry.id.slice(8)}`) ?? entries.find((entry) => !entry.fixed && normalize(entry.title) === title) ?? entries.find((entry) => (aliases[entry.id] ?? []).some((alias) => normalize(alias) === title)) ?? entries.find((entry) => !entry.fixed && elementId.endsWith(`.${entry.id}`));
+			const entry = entries.find((entry) => entry.id.startsWith("special:") && elementId === `special.${entry.id.slice(8)}`) ?? entries.find((entry) => !entry.fixed && !entry.id.startsWith("special:") && normalize(entry.title) === title) ?? entries.find((entry) => (aliases[entry.id] ?? []).some((alias) => normalize(alias) === title)) ?? entries.find((entry) => !entry.fixed && elementId.endsWith(`.${entry.id}`));
 			if (entry) {
 				node.setAttribute("data-managed-section", entry.id);
+				if (entry.id.startsWith("special:")) node.setAttribute("data-section-type", "main-section");
 				nodes.set(entry.id, [...nodes.get(entry.id) ?? [], node]);
 			}
 		}
-		const isAts = Boolean(root.querySelector("[data-renderer=\"ats\"], [class*=\"-ats\"]"));
+		const isAts = designSettings.resumeOutputMode === "ats" || designSettings.columnLayout === "compact-ats" || Boolean(root.querySelector("[data-renderer=\"ats\"], [class*=\"-ats\"]"));
 		const main = root.querySelector(".pehlione-main,.pehlione-pdf-main,.elegant-main,.elegant-pdf-main,.modern-resume-left-column,.modern-pdf-left,.zweispaltig-main,.zweispaltig-pdf-main,.zeitgenoessisch-main,.zeit-pdf-main,.kreativ-main,.kreativ-pdf-main,.gepflegt-main,.gepflegt-pdf-main,.kompakt-left,.kompakt-pdf-columns>main,main") ?? nodes.get("experience")?.[0]?.parentElement ?? root.querySelector(".page-content") ?? root;
 		const sidebar = isAts ? main : root.querySelector("aside,.modern-resume-right-column,.modern-pdf-right,.elegant-sidebar,.elegant-pdf-sidebar,.zeitgenoessisch-sidebar,.zeit-pdf-sidebar,.kreativ-sidebar,.kreativ-pdf-sidebar,.zweispaltig-sidebar,.zweispaltig-pdf-sidebar,.gepflegt-sidebar,.gepflegt-pdf-sidebar,.kompakt-right") ?? main;
+		const columnsFor = (entry, values, strengths = false) => resolveSectionColumns(strengths ? designSettings.strengthsColumns : designSettings.knowledgeColumns, templateId, entry.zone, values, designSettings, sidebar !== main && !isAts);
+		const grid = (entry, values, content, strengths = false) => {
+			const columns = columnsFor(entry, values, strengths);
+			return `<div class="${strengths ? "managed-strengths-grid" : "managed-item-grid"}" data-columns="${columns}" style="--section-columns:${columns}">${content}</div>`;
+		};
+		const renderKnowledge = (entry) => {
+			const knowledge = ensureKnowledgeSection(profile.knowledgeSection, profile.skills);
+			if (!knowledge.isVisible) return "";
+			const list = (items, category, mode) => {
+				const visible = visibleKnowledgeItems(items);
+				if (isAts) return `<p>${visible.map((item) => escape$1(formatKnowledgeItem(item, category.showLevels, category.showYearsOfExperience, "comma-separated"))).join(", ")}</p>`;
+				const content = visible.map((item) => {
+					const text = escape$1(formatKnowledgeItem(item, category.showLevels, category.showYearsOfExperience, mode));
+					const bar = !isAts && category.showLevels && mode === "level-bars" ? `<i class="managed-item-level" aria-hidden="true"><b style="width:${knowledgeLevelScores[item.level] * 20}%"></b></i>` : "";
+					return `<div class="managed-item">${isAts ? "" : getThemedTechnologyIconMarkup(item.name, item.iconId)}<span class="managed-item-text">${text}${bar}</span></div>`;
+				}).join("");
+				return grid(entry, visible.map((item) => ({
+					title: item.name,
+					description: item.description
+				})), content);
+			};
+			return knowledge.categories.filter((item) => item.isVisible).sort((a, b) => a.sortOrder - b.sortOrder).map((category) => `<div class="managed-knowledge-category"><h4>${escape$1(category.title)}</h4>${category.subtitle ? `<small>${escape$1(category.subtitle)}</small>` : ""}${list(category.items, category, category.displayMode)}${category.subcategories.filter((sub) => sub.isVisible).sort((a, b) => a.sortOrder - b.sortOrder).map((sub) => `<h5>${escape$1(sub.title)}</h5>${list(sub.items, category, sub.displayMode ?? category.displayMode)}`).join("")}</div>`).join("");
+		};
 		const container = (entry) => entry.zone === "sidebar" ? sidebar : main;
+		const appendSection = (entry, node) => {
+			const destination = container(entry);
+			const closing = Array.from(destination.children).find((child) => child.matches("footer,[class*='closing']"));
+			destination.insertBefore(node, closing ?? null);
+		};
 		for (const entry of entries.filter((item) => !item.fixed)) {
 			const existing = nodes.get(entry.id) ?? [];
 			const group = groups.find((group) => group.id === entry.groupId);
@@ -23377,7 +25313,7 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 				const strengths = items.length ? items.map((item) => ({
 					title: item.text,
 					description: item.description ?? "",
-					iconId: ""
+					iconId: item.icon || explicit.find((strength) => strength.title === item.text)?.iconId || ""
 				})) : explicit.length ? explicit : [...new Set(profile.skills.map((value) => value.trim()).filter(Boolean))].map((value) => {
 					const [title, ...description] = value.split(/\s+(?:–|—|:)\s+/);
 					return {
@@ -23391,30 +25327,63 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 					const heading = node.querySelector("h2,h3")?.outerHTML ?? `<h3>${escape$1(entry.title)}</h3>`;
 					node.setAttribute("data-managed-section", "strengths");
 					if (!existing.length) node.className = "managed-extra";
-					node.innerHTML = `${heading}<div class="managed-strengths-grid">${strengths.map((item) => `<article class="managed-strength-card">${isAts ? "" : getTechnologyBrandIconMarkup(item.title, item.iconId)}<strong>${escape$1(item.title)}</strong>${item.description ? `<p>${escape$1(item.description)}</p>` : ""}</article>`).join("")}</div>`;
-					node.querySelector("h2,h3").textContent = entry.title;
+					if (isAts) node.classList.add("managed-ats");
+					node.innerHTML = `${heading}${grid(entry, strengths, strengths.map((item) => `<article class="managed-strength-card">${isAts ? "" : getThemedTechnologyIconMarkup(item.title, item.iconId)}<strong>${escape$1(item.title)}</strong>${item.description ? `<p>${escape$1(item.description)}</p>` : ""}</article>`).join(""), true)}`;
+					setHeadingText(node.querySelector("h2,h3"), entry.title);
 					existing.slice(1).forEach((duplicate) => duplicate.remove());
-					if (!existing.length) container(entry).appendChild(node);
+					if (!existing.length) appendSection(entry, node);
 					nodes.set(entry.id, [node]);
 				}
 				continue;
 			}
-			if (items.length && last) {
+			if (entry.id === "knowledge" && !items.length) {
+				if (!last) {
+					existing.forEach((node) => node.remove());
+					nodes.delete(entry.id);
+					continue;
+				}
+				content = renderKnowledge(entry);
+				if (!content) {
+					existing.forEach((node) => node.remove());
+					nodes.delete(entry.id);
+					continue;
+				}
+			} else if (items.length && last) if (entry.id === "knowledge" || /knowledge|skills|technologies|tools|methods|technical/.test(group?.semanticType ?? "")) {
+				const itemHtml = items.map((item) => `<div class="managed-item">${isAts ? "" : item.icon ? `<span aria-hidden="true">${escape$1(item.icon)}</span>` : getThemedTechnologyIconMarkup(item.text)}<span class="managed-item-text">${escape$1(item.text)}${item.level ? ` <small>${escape$1(item.level)}</small>` : ""}${item.description ? `<small>${escape$1(item.description)}</small>` : ""}</span></div>`);
+				content = grid(entry, items.map((item) => ({
+					title: item.text,
+					description: item.description
+				})), itemHtml.join(""));
+			} else {
 				const itemHtml = items.map((item) => `${group?.rendererType === "icon-list" && item.icon ? `<span aria-hidden="true">${escape$1(item.icon)}</span> ` : ""}${escape$1(item.text)}${item.level ? ` <small>${escape$1(item.level)}</small>` : ""}${item.description ? `<small>${escape$1(item.description)}</small>` : ""}`);
 				content = group?.rendererType === "tag-list" ? `<div class="managed-tags">${itemHtml.map((item) => `<span>${item}</span>`).join("")}</div>` : ["two-column-list", "compact-grid"].includes(group?.rendererType ?? "") ? `<div class="managed-columns">${itemHtml.map((item) => `<div>${item}</div>`).join("")}</div>` : group?.rendererType === "text-list" ? itemHtml.map((item) => `<p>${item}</p>`).join("") : `<ul>${itemHtml.map((item) => `<li>${item}</li>`).join("")}</ul>`;
-			} else if (entry.id.startsWith("special:") && last && !existing.length) content = profile.specialSections.find((item) => item.id === entry.id.slice(8))?.entries.map((item) => `<article><strong>${escape$1(item.title)}</strong><p>${[
-				item.subtitle,
-				item.location,
-				item.date || [item.from, item.to].filter(Boolean).join(" – ")
-			].filter(Boolean).map(escape$1).join(" · ")}</p><p>${escape$1(item.description)}</p>${item.bullets.length ? `<ul>${item.bullets.map((bullet) => `<li>${escape$1(bullet)}</li>`).join("")}</ul>` : ""}${item.url ? `<p>${escape$1(item.url)}</p>` : ""}</article>`).join("") ?? "";
-			if (content) {
+			}
+			else if (entry.id.startsWith("special:") && (last || existing.length)) {
+				const special = profile.specialSections.find((item) => item.id === entry.id.slice(8));
+				content = special ? renderCustomSectionContent(special) : "";
+				if (!content) {
+					existing.forEach((node) => node.remove());
+					nodes.delete(entry.id);
+					continue;
+				}
+			}
+			if (content && (entry.id === "knowledge" || entry.id.startsWith("special:")) && existing.length) {
+				const node = existing[0];
+				node.innerHTML = (node.querySelector("h2,h3")?.outerHTML ?? `<h3>${escape$1(entry.title)}</h3>`) + content;
+				if (entry.id.startsWith("special:")) node.setAttribute("data-section-type", "main-section");
+				setHeadingText(node.querySelector("h2,h3"), entry.title);
+				if (isAts) node.classList.add("managed-ats");
+				existing.slice(1).forEach((duplicate) => duplicate.remove());
+				nodes.set(entry.id, [node]);
+			} else if (content) {
 				existing.forEach((node) => node.remove());
 				const node = document.createElement("section");
-				node.className = "managed-extra";
+				node.className = `managed-extra${isAts ? " managed-ats" : ""}`;
 				node.setAttribute("data-managed-section", entry.id);
+				if (entry.id.startsWith("special:")) node.setAttribute("data-section-type", "main-section");
 				node.innerHTML = `<h3>${escape$1(entry.title)}</h3>${content}`;
 				if (group?.pageBreakBefore) node.style.breakBefore = "page";
-				container(entry).appendChild(node);
+				appendSection(entry, node);
 				nodes.set(entry.id, [node]);
 			} else if (items.length && !last) {
 				existing.forEach((node) => node.remove());
@@ -23423,12 +25392,49 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 				const heading = node.querySelector("h2,h3");
 				if (heading) {
 					const continuation = /·\s*Fortsetzung/i.test(heading.textContent ?? "") ? " · Fortsetzung" : "";
-					heading.textContent = entry.title + continuation;
+					setHeadingText(heading, entry.title + continuation);
 				}
 			}
 		}
+		for (const [id, sections] of nodes) for (const node of sections) {
+			if (!id.startsWith("special:") && !node.classList.contains("managed-extra")) continue;
+			const resolvedId = resolveTemplateId(templateId);
+			const surface = root.matches(".cv-sheet") ? "pdf" : "preview";
+			const sources = resumeSectionStyleSources[surface][resolvedId];
+			node.setAttribute("data-custom-template", resolvedId);
+			node.classList.remove("managed-extra");
+			for (const [role, index] of [["entry-title", 2], ["supporting", 3]]) {
+				const source = sources?.[index];
+				if (!source) continue;
+				const tag = Array.from(root.querySelectorAll(source)).find((element) => !element.closest("[data-custom-template]"))?.tagName.toLowerCase() ?? source.match(/(?:^|[ >])([a-z][a-z0-9]*)$/)?.[1];
+				if (!tag) continue;
+				node.querySelectorAll(`[data-custom-role="${role}"]`).forEach((element) => {
+					if (element.tagName.toLowerCase() === tag) return;
+					const replacement = document.createElement(tag);
+					for (const attribute of Array.from(element.attributes)) replacement.setAttribute(attribute.name, attribute.value);
+					replacement.innerHTML = element.innerHTML;
+					element.replaceWith(replacement);
+				});
+			}
+			const heading = node.querySelector("h2,h3");
+			if (!heading) continue;
+			heading.setAttribute("data-custom-role", "heading");
+			if (resolvedId.startsWith("pehlione_")) {
+				const label = document.createElement(surface === "pdf" ? "span" : "b");
+				label.setAttribute("data-custom-role", "heading-label");
+				label.textContent = heading.textContent;
+				heading.replaceChildren(label);
+			}
+			if (resolveTemplateId(templateId) === "zeitgenoessisch") {
+				const wrapper = document.createElement("header");
+				wrapper.setAttribute("data-custom-role", "heading-wrapper");
+				heading.replaceWith(wrapper);
+				wrapper.appendChild(heading);
+			}
+		}
+		const placementOrder = main === sidebar && profile.resumeManagerLayouts?.[templateId]?.length ? [...entries.filter((entry) => entry.zone === "main"), ...entries.filter((entry) => entry.zone === "sidebar")] : entries;
 		for (const destination of profile.resumeManagerLayouts?.[templateId]?.length ? /* @__PURE__ */ new Set([main, sidebar]) : []) {
-			const moving = entries.filter((entry) => !entry.fixed && entry.visible && container(entry) === destination).flatMap((entry) => nodes.get(entry.id) ?? []);
+			const moving = placementOrder.filter((entry) => !entry.fixed && entry.visible && container(entry) === destination).flatMap((entry) => nodes.get(entry.id) ?? []);
 			if (!moving.length) continue;
 			const anchor = document.createComment("managed-sections");
 			const first = Array.from(destination.children).find((child) => moving.includes(child) || child.matches("footer,[class*='closing']"));
@@ -23439,6 +25445,9 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 			}
 			anchor.remove();
 		}
+		applyResumePageLayout(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings, profile.resumeColumnRatio, new Map(entries.map((entry) => [entry.id, entry.zone])));
+		applyResumeSpacingOutput(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
+		applyResumeMetadataLayout(root, profile, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
 	});
 	return document.body.innerHTML;
 };
@@ -23467,6 +25476,54 @@ var getResumeDisplayProfile = (profile) => {
 		photoPath: getResumeSemanticSection(profile.resumeSemanticSections, "photo").visible ? profile.photoPath : "",
 		onlineProfiles: profile.onlineProfiles.filter((entry) => /xing/i.test(entry.label) ? visible.xing : visible.website)
 	};
+};
+//#endregion
+//#region src/shared/resumePresentation.ts
+/** Compatibility projection: old renderers receive their established profile shape.
+* The returned object is never the object saved as profile content. */
+var resolveResumePresentation = (profile, templateId, overrides) => {
+	if (!profile || !overrides) return profile;
+	const id = resolveTemplateId(templateId);
+	const presentation = resumePresentationSchema.parse(overrides);
+	let projected = {
+		...profile,
+		resumePersonalFieldVisibility: {
+			...profile.resumePersonalFieldVisibility,
+			...presentation.personalFields
+		},
+		resumeClosing: {
+			...profile.resumeClosing,
+			...presentation.closing
+		},
+		resumeColumnRatio: presentation.sidebarWidthPercent ?? profile.resumeColumnRatio,
+		resumeKnowledgeContainer: { showTitle: presentation.showKnowledgeTitle ?? profile.resumeKnowledgeContainer.showTitle }
+	};
+	if (presentation.blocks) projected.resumeKnowledgeGroups = resolveKnowledgeGroups(id, profile.resumeKnowledgeGroups).map((block) => ({
+		...block,
+		...presentation.blocks?.[block.id]
+	}));
+	for (const [sectionId, settings] of Object.entries(presentation.sections ?? {})) {
+		const change = {
+			...settings.title !== void 0 ? { title: settings.title } : {},
+			...settings.visible !== void 0 ? { visible: settings.visible } : {}
+		};
+		if (Object.keys(change).length) projected = updateManagerSection(projected, id, sectionId, change);
+	}
+	if (Object.values(presentation.sections ?? {}).some((settings) => settings.order !== void 0 || settings.zone !== void 0)) {
+		const ordered = getManagerSections(projected, id).filter((section) => !section.fixed).map((section, index) => ({
+			...section,
+			order: index,
+			...presentation.sections?.[section.id]
+		})).sort((left, right) => left.order - right.order);
+		projected.resumeManagerLayouts = {
+			...profile.resumeManagerLayouts,
+			[id]: ordered.map((section) => ({
+				id: section.id,
+				zone: section.zone
+			}))
+		};
+	}
+	return projected;
 };
 //#endregion
 //#region src/shared/resumeIdentityVisibility.ts
@@ -23650,16 +25707,7 @@ var externalUrl = (value = "") => {
 var formatUrlForDisplay = (value = "") => externalUrl(value).replace(/^https?:\/\//i, "").replace(/\/$/, "");
 //#endregion
 //#region src/shared/pehlioneContacts.ts
-var iconPaths = {
-	person: "<circle cx=\"12\" cy=\"7\" r=\"4\"/><path d=\"M4 21a8 8 0 0 1 16 0\"/>",
-	location: "<path d=\"M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z\"/><circle cx=\"12\" cy=\"10\" r=\"2.5\"/>",
-	phone: "<path d=\"M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .3 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.8.7a2 2 0 0 1 1.8 2.1Z\"/>",
-	email: "<rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"2\"/><path d=\"m3 6 9 7 9-7\"/>",
-	linkedin: "<rect x=\"3\" y=\"9\" width=\"4\" height=\"12\"/><circle cx=\"5\" cy=\"4\" r=\"2\"/><path d=\"M11 21V9h4v2c3-4 7-1 7 3v7h-4v-7c0-2-3-2-3 0v7Z\"/>",
-	github: "<path d=\"M9 19c-4.3 1.3-4.3-2.5-6-3m12 6v-3.9c0-1.1-.4-1.9-.8-2.3 2.7-.3 5.5-1.3 5.5-6A4.7 4.7 0 0 0 18.4 6a4.3 4.3 0 0 0-.1-3.8S17.2 1.9 14.4 3.7a13.4 13.4 0 0 0-6.8 0C4.8 1.9 3.7 2.2 3.7 2.2A4.3 4.3 0 0 0 3.6 6a4.7 4.7 0 0 0-1.3 3.3c0 4.7 2.8 5.7 5.5 6-.4.4-.8 1.1-.8 2.3V22\"/>",
-	website: "<circle cx=\"12\" cy=\"12\" r=\"9\"/><ellipse cx=\"12\" cy=\"12\" rx=\"4\" ry=\"9\"/><path d=\"M3 12h18M5 6h14M5 18h14\"/>"
-};
-var icon = (kind) => `<svg data-contact-icon="${kind}" viewBox="0 0 24 24" aria-hidden="true">${iconPaths[kind]}</svg>`;
+var icon = (_kind) => "<svg data-contact-icon=\"person\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"7\" r=\"4\"/><path d=\"M4 21a8 8 0 0 1 16 0\"/></svg>";
 var escape = (value) => value.replace(/[&<>"']/g, (char) => ({
 	"&": "&amp;",
 	"<": "&lt;",
@@ -23720,7 +25768,7 @@ var getPehlioneContacts = (profile) => {
 var renderPehlioneContacts = (profile) => {
 	const contacts = getPehlioneContacts(profile);
 	if (!contacts.length) return "";
-	return `<section class="pehlione-contacts"><h3>${icon("person")}<span>Kontakt</span></h3><ul>${contacts.map((item) => `<li data-contact-kind="${item.key}">${icon(item.key)}<div><strong>${item.label}</strong>${item.href ? `<a href="${escape(item.href)}">${escape(item.value)}</a>` : `<span>${escape(item.value)}</span>`}</div></li>`).join("")}</ul></section>`;
+	return `<section class="pehlione-contacts"><h3>${icon("person")}<span>Kontakt</span></h3><ul>${contacts.map((item) => `<li data-contact-kind="${item.key}">${renderContactIcon({ kind: item.key })}<div><strong>${item.label}</strong>${item.href ? `<a href="${escape(item.href)}">${escape(item.value)}</a>` : `<span>${escape(item.value)}</span>`}</div></li>`).join("")}</ul></section>`;
 };
 var pehlioneContactsCss = `
 .pehlione-contacts.pehlione-contacts{--contact-heading:#fff;--contact-text:#fff;margin:0 0 4.5mm;color:var(--contact-text);font-family:var(--doc-font,var(--body-font,"Source Sans 3",Arial,sans-serif));font-size:7.8pt;line-height:1.2;break-inside:avoid}
@@ -24191,7 +26239,7 @@ var extendedResumeDocumentCss = `
   .managed-pdf *{box-sizing:border-box}.managed-pdf a{color:inherit;text-decoration:none}.managed-pdf-content{position:relative;z-index:2;height:100%}.managed-pdf-background{position:absolute;inset:0;z-index:0;width:100%;height:100%;pointer-events:none}.managed-pdf-section{min-width:0;margin:0 0 var(--managed-section-gap);break-inside:avoid}.managed-pdf-title{margin:0 0 3mm;color:var(--managed-muted);font-size:9pt;font-weight:500;line-height:1;text-transform:uppercase;break-after:avoid}.managed-pdf-list{display:flex;flex-direction:column;gap:var(--managed-entry-gap)}.managed-pdf-entry{break-inside:avoid}.managed-pdf-entry h3,.managed-pdf-entry h4{margin:0;overflow-wrap:anywhere}.managed-pdf-entry ul,.managed-pdf-ats ul{margin:1mm 0 0;padding-left:4mm}.managed-pdf-entry li,.managed-pdf-ats li{margin:.25mm 0;padding-left:.4mm;hyphens:auto;overflow-wrap:break-word}.managed-pdf-footer{position:absolute;right:var(--managed-margin);bottom:6mm;left:var(--managed-margin);z-index:3;display:flex;justify-content:space-between;gap:8mm;color:var(--managed-muted);font-size:7pt}.managed-pdf-footer span:last-child{margin-left:auto;white-space:nowrap}
   .stilvoll-pdf{--managed-primary:var(--accent);--managed-dark:var(--secondary);--managed-text:#465156;--managed-muted:#6d777c;--managed-divider:#aeb8b5;--managed-pattern:#dce2df;--managed-margin:max(15mm,var(--doc-margin));--managed-section-gap:var(--section-gap);--managed-entry-gap:5mm}.stilvoll-pdf .managed-pdf-background{color:var(--managed-pattern);opacity:.62}.stilvoll-pdf .managed-pdf-background path{fill:none;stroke:currentColor;stroke-width:.45}.stilvoll-pdf-header{position:relative;z-index:2;display:grid;grid-template-columns:minmax(0,1fr) 28mm;gap:10mm;min-height:36mm;padding:14mm var(--managed-margin) 0}.stilvoll-pdf-header.no-photo{grid-template-columns:1fr}.stilvoll-pdf-header h1{margin:0;color:var(--managed-dark);font-size:23pt;font-weight:400;line-height:1;letter-spacing:.015em;text-transform:uppercase;overflow-wrap:anywhere}.stilvoll-pdf-header h2{margin:2mm 0 2.5mm;color:var(--managed-primary);font-size:12pt;font-weight:400;line-height:1.2}.stilvoll-pdf-contacts{display:flex;flex-wrap:wrap;gap:1mm 3.5mm;margin:0;color:var(--managed-text);font-size:7.8pt;font-style:normal}.stilvoll-pdf-contacts span{display:inline-flex;gap:1mm}.stilvoll-pdf-contacts i{color:var(--managed-muted);font-style:normal}.stilvoll-pdf-photo{width:26mm;height:26mm;overflow:hidden;border-radius:1.5mm;object-fit:cover}.stilvoll-pdf-header.compact{display:flex;flex-wrap:wrap;align-items:baseline;gap:1mm 5mm;min-height:24mm;padding-top:11mm;padding-bottom:3mm;border-bottom:.3mm solid var(--managed-divider)}.stilvoll-pdf-header.compact .kicker{flex-basis:100%;margin:0;color:var(--managed-primary);font-size:7pt;text-transform:uppercase}.stilvoll-pdf-header.compact h1{font-size:15pt}.stilvoll-pdf-header.compact h2{margin:0;font-size:8.5pt}.stilvoll-pdf-columns{display:grid;grid-template-columns:54mm minmax(0,115mm);gap:11mm;padding:10mm var(--managed-margin) 16mm}.stilvoll-pdf-columns.continuation{display:block;padding-top:6mm}.stilvoll-pdf .managed-pdf-title{padding-bottom:1mm;border-bottom:.3mm solid var(--managed-divider)}.stilvoll-pdf-strength{display:grid;grid-template-columns:9mm minmax(0,1fr);gap:3mm;margin-bottom:5mm}.stilvoll-pdf-strength i{display:grid;place-items:center;width:8mm;height:8mm;border-radius:50%;color:var(--managed-primary);background:#f1f3f2;font-style:normal}.stilvoll-pdf-strength h3{margin:0 0 1mm;color:var(--managed-dark);font-size:9.5pt;font-weight:500}.stilvoll-pdf-strength p{margin:0}.stilvoll-pdf-language{display:grid;grid-template-columns:auto minmax(0,1fr) 11mm;gap:2mm;align-items:center;margin-bottom:3mm}.managed-pdf-dots{display:flex;gap:.6mm}.managed-pdf-dots i{display:block;width:1.5mm;height:1.5mm;border-radius:50%;background:#dde2e0}.managed-pdf-dots i.filled{background:var(--managed-dark)}.stilvoll-pdf-entry h3{color:var(--managed-dark);font-size:11pt;font-weight:400}.stilvoll-pdf-heading,.stilvoll-pdf-meta{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:1mm 4mm}.stilvoll-pdf-heading span,.stilvoll-pdf-meta span{color:var(--managed-muted);font-size:7.8pt;text-align:right}.stilvoll-pdf-heading span{white-space:nowrap}.stilvoll-pdf-meta{margin:1mm 0 1.5mm}.stilvoll-pdf-meta strong{color:var(--managed-primary);font-size:9.8pt;font-weight:400}
   .kompakt-pdf{isolation:isolate;--managed-primary:var(--accent);--managed-accent:var(--secondary);--managed-text:#3f494f;--managed-muted:#6d757a;--managed-divider:#aeb6ba;--managed-pattern:#ffd7bc;--managed-margin:max(13mm,calc(var(--doc-margin) - 1mm));--managed-section-gap:max(3.5mm,calc(var(--section-gap) - 1mm));--managed-entry-gap:4mm}.kompakt-pdf .managed-pdf-background{z-index:-1;color:var(--managed-pattern);opacity:.72}.kompakt-pdf .managed-pdf-background path,.kompakt-pdf .managed-pdf-background circle{fill:none;stroke:currentColor;stroke-width:.7}.kompakt-pdf-header{position:relative;z-index:2;min-height:22mm;padding:13mm var(--managed-margin) 0}.kompakt-pdf-header h1{max-width:112mm;margin:0;color:var(--managed-primary);font-size:20pt;font-weight:450;line-height:1}.kompakt-pdf-header.compact{display:flex;flex-wrap:wrap;align-items:baseline;gap:1mm 4mm;padding-top:10mm;border-bottom:.25mm solid var(--managed-divider)}.kompakt-pdf-header.compact .kicker{flex-basis:100%;margin:0;color:var(--managed-accent);font-size:7pt;text-transform:uppercase}.kompakt-pdf-header.compact h1{font-size:14pt}.kompakt-pdf-header h2{margin:1mm 0 0;color:var(--managed-muted);font-size:8.5pt}.kompakt-pdf .managed-pdf-title{padding-bottom:1mm;border-bottom:.3mm solid var(--managed-divider)}.kompakt-pdf-columns{display:grid;grid-template-columns:108mm 66mm;gap:10mm;padding:9mm var(--managed-margin) 15mm}.kompakt-pdf-columns.continuation{display:block;padding-top:6mm}.kompakt-pdf-entry h3{color:var(--managed-primary);font-size:10.5pt;font-weight:550}.kompakt-pdf-entry-heading,.kompakt-pdf-meta{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:.7mm 4mm}.kompakt-pdf-entry-heading time,.kompakt-pdf-meta{color:var(--managed-muted);font-size:7.4pt}.kompakt-pdf-entry-heading time{white-space:nowrap;text-align:right}.kompakt-pdf-meta{margin:.7mm 0 1mm}.kompakt-pdf-meta strong{color:var(--managed-accent);font-size:8.4pt}.kompakt-pdf-meta span{text-align:right}.kompakt-pdf-contacts{display:grid;gap:3.5mm;margin:0;font-style:normal}.kompakt-pdf-contact{display:grid;grid-template-columns:5mm minmax(0,1fr);gap:1.5mm;align-items:center;color:var(--managed-primary);font-size:8.8pt}.kompakt-pdf-contact i{color:var(--managed-accent);font-size:11pt;font-style:normal}.kompakt-pdf-strength{display:grid;grid-template-columns:5mm minmax(0,1fr);gap:1.5mm;margin-bottom:4mm}.kompakt-pdf-strength i{color:var(--managed-accent);font-size:11pt;font-style:normal}.kompakt-pdf-strength h3{margin:0 0 1mm;color:var(--managed-primary);font-size:9pt}.kompakt-pdf-strength p{margin:0}.kompakt-pdf-skills{display:flex;flex-wrap:wrap;gap:2mm 3mm}.kompakt-pdf-skill{padding:0 1.5mm 1mm;border-bottom:.3mm solid var(--managed-divider);color:var(--managed-primary);font-size:7.8pt;font-weight:700}.kompakt-pdf-languages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3mm 8mm}.kompakt-pdf-language{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:1.5mm;align-items:center}.kompakt-pdf-language strong{color:var(--managed-primary)}.kompakt-pdf-language .managed-pdf-dots i{width:2.2mm;height:2.2mm}.kompakt-pdf-language .managed-pdf-dots i.filled{background:var(--managed-accent)}
-  .einfach-pdf{isolation:isolate;--managed-primary:var(--accent);--managed-accent:var(--secondary);--managed-text:#3e484e;--managed-muted:#68747a;--managed-divider:var(--accent);--managed-pattern:#eaf5fd;--managed-margin:max(15mm,var(--doc-margin));--managed-section-gap:calc(var(--section-gap) + .5mm);--managed-entry-gap:4.5mm;font-size:calc(var(--body-size) + 1.2pt);line-height:clamp(1.1,calc(var(--body-line) - .25),1.12)}.einfach-pdf p,.einfach-pdf li{font-size:inherit;line-height:inherit}.einfach-pdf .managed-pdf-background{z-index:-1;color:var(--managed-pattern);opacity:.78}.einfach-pdf .managed-pdf-background path{fill:none;stroke:currentColor;stroke-width:4.2}.einfach-pdf-inner{position:relative;z-index:2;height:100%;padding:max(14mm,calc(var(--managed-margin) - 1mm)) var(--managed-margin) 16mm}.einfach-pdf-header{display:grid;grid-template-columns:minmax(0,1fr) 36mm;gap:8mm;min-height:35mm;margin-bottom:3.5mm}.einfach-pdf-header.no-photo{grid-template-columns:1fr}.einfach-pdf-header h1{margin:0;color:var(--managed-primary);font-size:24pt;font-weight:750;line-height:1;text-transform:uppercase}.einfach-pdf-header h2{margin:2mm 0;color:var(--managed-accent);font-size:11.5pt;line-height:1.2}.einfach-pdf-contacts{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:1mm 8mm;width:100%;max-width:132mm;margin:0;font-size:8.2pt;font-style:normal;line-height:1.18}.einfach-pdf-contact{display:grid;grid-template-columns:4mm minmax(0,1fr);gap:1mm;min-width:0}.einfach-pdf-contact i{color:var(--managed-accent);font-style:normal;font-weight:700}.einfach-pdf-contact a,.einfach-pdf-contact span{min-width:0;overflow-wrap:anywhere}.einfach-pdf-contact[data-contact-kind="linkedin"] a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal}.einfach-pdf-photo{width:34mm;height:34mm;border-radius:50%;object-fit:cover}.einfach-pdf-header.compact{display:flex;flex-wrap:wrap;align-items:baseline;gap:1mm 5mm;min-height:auto;margin-bottom:6mm;padding-bottom:3mm;border-bottom:.5mm solid var(--managed-primary)}.einfach-pdf-header.compact .kicker{flex-basis:100%;margin:0;color:var(--managed-accent);font-size:7pt;text-transform:uppercase}.einfach-pdf-header.compact h1{font-size:16pt}.einfach-pdf-header.compact h2{margin:0;font-size:9pt}.einfach-pdf .managed-pdf-section>p{margin:0;hyphens:auto;overflow-wrap:break-word}  .einfach-pdf .managed-pdf-section:first-of-type{margin-top:-1mm}.einfach-pdf .managed-pdf-title{margin-bottom:2mm;padding:1mm 0;border-block:.3mm solid var(--managed-primary);color:var(--managed-primary);font-size:13.5pt;font-weight:750}.einfach-pdf-summary>p{font-size:9pt!important;text-align:justify;text-justify:inter-word}.einfach-pdf-strengths{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4mm 15mm}.einfach-pdf-strength{display:grid;grid-template-columns:7mm minmax(0,1fr);gap:2mm}.einfach-pdf-strength i{color:var(--managed-accent);font-size:14pt;font-style:normal}.einfach-pdf-strength h3{margin:0 0 1.5mm;color:var(--managed-primary);font-size:9.5pt}.einfach-pdf-strength p{margin:0}.einfach-pdf-entry{padding-bottom:3mm;border-bottom:.25mm dashed #d4d9dc}.einfach-pdf-entry:last-child{padding-bottom:0;border-bottom:0}.einfach-pdf-entry h3{color:var(--managed-primary);font-size:11.5pt;font-weight:500;line-height:1.15}.einfach-pdf-entry h4{margin-top:1mm;color:var(--managed-accent);font-size:10pt;line-height:1.15}.einfach-pdf-meta{display:flex;flex-wrap:wrap;gap:1mm 4mm;margin:1mm 0 1.5mm;color:var(--managed-muted);font-size:8.1pt}.einfach-pdf-meta span:first-child:before{margin-right:1.5mm;color:var(--managed-accent);content:"▦"}.einfach-pdf-meta span+span:before{margin-right:1.5mm;color:var(--managed-accent);content:"⌖"}.einfach-pdf-entry li{margin:.3mm 0}.einfach-pdf-languages{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3mm 8mm}.einfach-pdf-language{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:3mm;align-items:center}.einfach-pdf-language strong{color:var(--managed-primary);font-size:9.5pt}.einfach-pdf-language .managed-pdf-dots{gap:1mm}.einfach-pdf-language .managed-pdf-dots i{width:2.8mm;height:2.8mm}.einfach-pdf-language .managed-pdf-dots i.filled{background:var(--managed-accent)}
+  .einfach-pdf{isolation:isolate;--managed-primary:var(--accent);--managed-accent:var(--secondary);--managed-text:#3e484e;--managed-muted:#68747a;--managed-divider:var(--accent);--managed-pattern:#eaf5fd;--managed-margin:max(15mm,var(--doc-margin));--managed-section-gap:calc(var(--section-gap) + .5mm);--managed-entry-gap:4.5mm;font-size:calc(var(--body-size) + 1.2pt);line-height:clamp(1.1,calc(var(--body-line) - .25),1.12)}.einfach-pdf p,.einfach-pdf li{font-size:inherit;line-height:inherit}.einfach-pdf .managed-pdf-background{z-index:-1;color:var(--managed-pattern);opacity:.78}.einfach-pdf .managed-pdf-background path{fill:none;stroke:currentColor;stroke-width:4.2}.einfach-pdf-inner{position:relative;z-index:2;height:100%;padding:max(14mm,calc(var(--managed-margin) - 1mm)) var(--managed-margin) 16mm}.einfach-pdf-header{display:grid;grid-template-columns:minmax(0,1fr) 36mm;gap:8mm;min-height:35mm;margin-bottom:3.5mm}.einfach-pdf-header.no-photo{grid-template-columns:1fr}.einfach-pdf-header h1{margin:0;color:var(--managed-primary);font-size:24pt;font-weight:750;line-height:1;text-transform:uppercase}.einfach-pdf-header h2{margin:2mm 0;color:var(--managed-accent);font-size:11.5pt;line-height:1.2}.einfach-pdf-contacts{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:1mm 8mm;width:100%;max-width:132mm;margin:0;font-size:8.2pt;font-style:normal;line-height:1.18}.einfach-pdf-contact{display:grid;grid-template-columns:4mm minmax(0,1fr);gap:1mm;min-width:0}.einfach-pdf-contact i{color:var(--managed-accent);font-style:normal;font-weight:700}.einfach-pdf-contact a,.einfach-pdf-contact span{min-width:0;overflow-wrap:anywhere}.einfach-pdf-contact[data-contact-kind="linkedin"] a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal}.einfach-pdf-photo{width:34mm;height:34mm;border-radius:50%;object-fit:cover}.einfach-pdf-header.compact{display:flex;flex-wrap:wrap;align-items:baseline;gap:1mm 5mm;min-height:auto;margin-bottom:6mm;padding-bottom:3mm;border-bottom:.5mm solid var(--managed-primary)}.einfach-pdf-header.compact .kicker{flex-basis:100%;margin:0;color:var(--managed-accent);font-size:7pt;text-transform:uppercase}.einfach-pdf-header.compact h1{font-size:16pt}.einfach-pdf-header.compact h2{margin:0;font-size:9pt}.einfach-pdf .managed-pdf-section>p{margin:0;hyphens:auto;overflow-wrap:break-word}  .einfach-pdf .managed-pdf-section:first-of-type{margin-top:-1mm}.einfach-pdf .managed-pdf-title,.einfach-pdf .managed-extra>h3{margin-bottom:2mm;padding:1mm 0;border-top:0;border-bottom:.3mm solid var(--managed-primary);color:var(--managed-primary);font-size:13.5pt;font-weight:750;text-transform:uppercase}.einfach-pdf-summary>p{font-size:9pt!important;text-align:justify;text-justify:inter-word}.einfach-pdf-strengths{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4mm 15mm}.einfach-pdf-strength{display:grid;grid-template-columns:7mm minmax(0,1fr);gap:2mm}.einfach-pdf-strength i{color:var(--managed-accent);font-size:14pt;font-style:normal}.einfach-pdf-strength h3{margin:0 0 1.5mm;color:var(--managed-primary);font-size:9.5pt}.einfach-pdf-strength p{margin:0}.einfach-pdf-entry{padding-bottom:3mm;border-bottom:.25mm dashed #d4d9dc}.einfach-pdf-entry:last-child{padding-bottom:0;border-bottom:0}.einfach-pdf-entry h3{color:var(--managed-primary);font-size:11.5pt;font-weight:500;line-height:1.15}.einfach-pdf-entry h4{margin-top:1mm;color:var(--managed-accent);font-size:10pt;line-height:1.15}.einfach-pdf-meta{display:flex;flex-wrap:wrap;gap:1mm 4mm;margin:1mm 0 1.5mm;color:var(--managed-muted);font-size:8.1pt}.einfach-pdf-meta span:first-child:before{margin-right:1.5mm;color:var(--managed-accent);content:"▦"}.einfach-pdf-meta span+span:before{margin-right:1.5mm;color:var(--managed-accent);content:"⌖"}.einfach-pdf-entry li{margin:.3mm 0}.einfach-pdf-languages{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3mm 8mm}.einfach-pdf-language{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:3mm;align-items:center}.einfach-pdf-language strong{color:var(--managed-primary);font-size:9.5pt}.einfach-pdf-language .managed-pdf-dots{gap:1mm}.einfach-pdf-language .managed-pdf-dots i{width:2.8mm;height:2.8mm}.einfach-pdf-language .managed-pdf-dots i.filled{background:var(--managed-accent)}
   .managed-pdf[data-density="compact"]{--managed-entry-gap:max(3.2mm,calc(var(--managed-entry-gap) - 1mm));--managed-section-gap:max(4mm,calc(var(--managed-section-gap) - 1mm))}.managed-pdf[data-density="dense"]{--managed-entry-gap:3mm;--managed-section-gap:4mm}.kompakt-pdf[data-density="dense"]{--managed-entry-gap:2.5mm;--managed-section-gap:3.5mm;font-size:max(7.5pt,calc(var(--body-size) - .5pt));line-height:max(1.18,calc(var(--body-line) - .07))}.einfach-pdf[data-density="compact"]{--managed-section-gap:max(5mm,var(--section-gap));--managed-entry-gap:3.8mm}.einfach-pdf[data-density="dense"]{--managed-section-gap:max(4.5mm,calc(var(--section-gap) - .5mm));--managed-entry-gap:3mm}
   .managed-pdf-ats{--managed-primary:#173b63;--managed-dark:#173b63;--managed-accent:#173b63;--managed-text:#303b42;--managed-muted:#626e75;--managed-divider:#aeb8bf;padding:14mm var(--managed-margin) 16mm;background:#fff;font-family:Arial,sans-serif}.managed-pdf-ats .managed-pdf-header{display:block;min-height:auto;margin:0;padding:0 0 4mm;border-bottom:.3mm solid var(--managed-divider)}.managed-pdf-ats .managed-pdf-header h1{max-width:none;font-size:19pt}.managed-pdf-ats .managed-pdf-header h2{margin-top:1mm;color:var(--managed-primary);font-size:10pt}.managed-pdf-ats .managed-pdf-section{margin-top:var(--managed-section-gap);margin-bottom:0}.managed-pdf-ats .managed-pdf-title{margin-bottom:2mm;padding-bottom:1mm;border-bottom:.3mm solid var(--managed-divider);color:var(--managed-primary);font-size:10.5pt;font-weight:700}.managed-pdf-ats .managed-pdf-list{gap:var(--managed-entry-gap)}
   .einfach-pdf-strengths{grid-template-columns:repeat(3,minmax(0,1fr));gap:4mm 8mm}
@@ -24254,6 +26302,7 @@ var gepflegtDocumentCss = `
   .gepflegt-pdf-ats{display:block;padding:14mm 16mm 16mm;background:#fff;font-family:Arial,sans-serif}.gepflegt-pdf-ats:before{display:none}.gepflegt-pdf-ats .gepflegt-pdf-header{margin-bottom:6mm;padding-bottom:3mm;border-bottom:.35mm solid var(--gepflegt-divider)}.gepflegt-pdf-ats .gepflegt-pdf-header h1{font-size:20pt}.gepflegt-pdf-ats .gepflegt-pdf-header h2{color:var(--gepflegt-heading);font-size:10.5pt}.gepflegt-pdf-ats .gepflegt-pdf-contacts{gap:1mm 5mm;margin-top:2mm}.gepflegt-pdf-ats .gepflegt-pdf-contact{max-width:none}.gepflegt-pdf-ats-summary{margin-bottom:var(--gepflegt-section-gap)}.gepflegt-pdf-ats-summary p{margin:0}.gepflegt-pdf-ats-extra{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5mm 10mm;margin-top:var(--gepflegt-section-gap)}.gepflegt-pdf-ats-extra section{margin:0}.gepflegt-pdf-ats-extra h3{margin:0 0 2mm;padding-bottom:1.5mm;border-bottom:.35mm solid var(--gepflegt-divider);color:var(--gepflegt-heading);font-size:10.5pt;text-transform:uppercase}.gepflegt-pdf-ats-extra p,.gepflegt-pdf-ats-extra li{font-size:8.5pt}.gepflegt-pdf-ats-extra ul{margin:0;padding-left:4mm}
 `;
 var tabellarischDocumentCss = `
+  .tabellarisch-pdf-contact[data-contact-kind="github"]{grid-column:1}.tabellarisch-pdf-contact[data-contact-kind="website"]{grid-column:2}
   .tabellarisch-pdf{--tab-primary:var(--secondary);--tab-accent:var(--accent);--tab-text:#3f4850;--tab-muted:#6d747a;--tab-line:#c8cdd1;--tab-margin:max(15mm,var(--doc-margin));--tab-section-gap:max(6.3mm,var(--section-gap));--tab-entry-gap:4.4mm;position:relative;width:100%;height:100%;overflow:hidden;color:var(--tab-text);background:#fff;font-family:var(--body-font);font-size:max(8.7pt,var(--body-size));line-height:max(1.28,var(--body-line))}
   .tabellarisch-pdf *{box-sizing:border-box}.tabellarisch-pdf a{color:inherit;text-decoration:none}.tabellarisch-pdf-content{position:relative;z-index:2;height:100%;padding:max(15mm,var(--doc-margin)) var(--tab-margin) max(19mm,calc(var(--doc-margin) + 5mm))}
   .tabellarisch-pdf-background{position:absolute;top:0;right:0;z-index:0;width:100%;height:58mm;fill:none;stroke:var(--tab-line);stroke-width:1.15;opacity:.62;pointer-events:none}
@@ -24294,9 +26343,14 @@ var pageFitScript = `
       document.querySelectorAll(".page").forEach(fit);
     })();
   <\/script>`;
+var inheritedPdfSectionStyles = /* @__PURE__ */ new Map();
+var getInheritedPdfSectionStyles = (templateId) => {
+	if (!inheritedPdfSectionStyles.has(templateId)) inheritedPdfSectionStyles.set(templateId, inheritResumeSectionStyles(elegantDocumentCss + zweispaltigDocumentCss + zeitgenoessischDocumentCss + kreativDocumentCss + ivyLeagueDocumentCss + extendedResumeDocumentCss + klassischDocumentCss + modernDocumentCss + pehlioneDocumentCss + pehlionePdfLayoutFixes + gepflegtDocumentCss + tabellarischDocumentCss, templateId, "pdf", true));
+	return inheritedPdfSectionStyles.get(templateId);
+};
 var buildDocumentHtml = (application, profile, target, attachments = []) => {
 	if (target === "deckblatt" || target === "mappe") validateDeckblattData(application, profile);
-	if (target === "lebenslauf") profile = getResumeDisplayProfile(profile);
+	if (target === "lebenslauf") profile = getResumeDisplayProfile(resolveResumePresentation(profile, application.templateId, application.designSettings.resumePresentation));
 	const template = getTemplate(application.templateId);
 	const accent = application.accentColor || template.accent;
 	const secondary = application.secondaryColor || template.secondary;
@@ -24323,12 +26377,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 	const photoSource = getProfileMediaSource(profile?.photoPath);
 	const signatureSource = getProfileMediaSource(profile?.signaturePath);
 	const avatarMarkup = (side = false) => atsMode ? "" : photoSource ? `<span class="cv-avatar${side ? " side-avatar" : ""} has-image"><img class="cv-avatar-image" src="${escapeHtml(photoSource)}" alt=""></span>` : `<span class="cv-avatar${side ? " side-avatar" : ""}">${escapeHtml(initials)}</span>`;
-	const resumeContacts = profile ? [
-		profile.phone,
-		profile.email,
-		profile.city,
-		profile.linkedin
-	].filter(Boolean).map(escapeHtml).join(" · ") : "Telefon · E-Mail · Ort";
+	const resumeContacts = getPehlioneContacts(profile).map((contact) => `<span style="display:inline-flex;align-items:center;gap:1mm;margin-right:3mm">${atsMode ? "" : renderContactIcon({ kind: contact.key })}${contact.href ? `<a href="${escapeHtml(contact.href)}">${escapeHtml(contact.value)}</a>` : escapeHtml(contact.value)}</span>`).join("");
 	const applicationDate = formatApplicationDate(application);
 	const applicationPlace = profile?.city || application.company.city;
 	const longApplicationDate = `${applicationPlace ? `${applicationPlace}, ` : ""}den ${formatApplicationDateLong(application)}`;
@@ -24445,7 +26494,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 		].filter((contact) => contact.value?.trim());
 		if (!contacts.length) return "";
 		return `<address class="elegant-pdf-contacts">${contacts.map((contact) => {
-			const content = `<i aria-hidden="true">${contact.icon}</i><span>${escapeHtml(contact.value)}</span>`;
+			const content = `<i aria-hidden="true">${renderContactIcon(contact)}</i><span>${escapeHtml(contact.value)}</span>`;
 			return contact.href ? `<a href="${escapeHtml(contact.href)}">${content}</a>` : `<span>${content}</span>`;
 		}).join("")}</address>`;
 	};
@@ -24575,16 +26624,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
       </section>`;
 	};
 	const zweispaltigIconMarkup = (kind) => {
-		return `<svg aria-hidden="true" viewBox="0 0 24 24">${{
-			phone: "<path d=\"M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13 1 .37 1.98.72 2.9a2 2 0 0 1-.45 2.11L8.1 10a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.92.35 1.9.59 2.9.72A2 2 0 0 1 22 16.92z\"/>",
-			email: "<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8\"/>",
-			linkedin: "<path d=\"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71\"/><path d=\"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71\"/>",
-			location: "<path d=\"M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0z\"/><circle cx=\"12\" cy=\"10\" r=\"2.5\"/>",
-			birth: "<path d=\"M4 12h16v8H4zM7 12V9h10v3M8 6V4M12 6V4M16 6V4\"/>",
-			github: "<path d=\"M15 22v-4a4.8 4.8 0 0 0-1-3.5c3.28-.36 6.72-1.61 6.72-7.25A5.7 5.7 0 0 0 19.22 3.3 5.3 5.3 0 0 0 19.07.1S17.88-.3 15 1.6a13.4 13.4 0 0 0-7 0C5.12-.3 3.93.1 3.93.1a5.3 5.3 0 0 0-.15 3.2 5.7 5.7 0 0 0-1.5 3.95c0 5.63 3.44 6.88 6.72 7.25A4.8 4.8 0 0 0 8 18v4\"/><path d=\"M8 19c-3 .92-3-1.5-4-2\"/>",
-			portfolio: "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M2 12h20M12 2a15.3 15.3 0 0 1 0 20M12 2a15.3 15.3 0 0 0 0 20\"/>",
-			calendar: "<rect x=\"3\" y=\"5\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M16 3v4M8 3v4M3 11h18\"/>"
-		}[kind]}</svg>`;
+		return renderContactIcon({ kind });
 	};
 	const zweispaltigContactMarkup = () => {
 		if (!profile) return "";
@@ -24640,7 +26680,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 		].filter((contact) => contact.value?.trim());
 		if (!contacts.length) return "";
 		return `<address class="zweispaltig-pdf-contacts">${contacts.map((contact) => {
-			const content = atsMode ? `<strong>${escapeHtml(contact.label)}</strong><span>${escapeHtml(contact.value)}</span>` : `${zweispaltigIconMarkup(contact.kind)}<span>${escapeHtml(contact.value)}</span>`;
+			const content = atsMode ? `<strong>${escapeHtml(contact.label)}</strong><span>${escapeHtml(contact.value)}</span>` : `${renderContactIcon(contact)}<span>${escapeHtml(contact.value)}</span>`;
 			return contact.href ? `<a data-contact-kind="${contact.kind}" href="${escapeHtml(contact.href)}">${content}</a>` : `<span data-contact-kind="${contact.kind}">${content}</span>`;
 		}).join("")}</address>`;
 	};
@@ -24838,7 +26878,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 			const breakMarker = contact.label === "LinkedIn" ? "/in/" : contact.label === "GitHub" ? "github.com/" : "";
 			const breakIndex = breakMarker ? contactValue.indexOf(breakMarker) + breakMarker.length : 0;
 			const visibleValue = breakIndex > breakMarker.length ? `${escapeHtml(contactValue.slice(0, breakIndex))}<br>${escapeHtml(contactValue.slice(breakIndex))}` : escapeHtml(contactValue);
-			const content = `<i aria-hidden="true">${zeitIconMarkup(contact.icon)}</i><span>${visibleValue}</span>`;
+			const content = `<i aria-hidden="true">${renderContactIcon(contact)}</i><span>${visibleValue}</span>`;
 			return contact.href ? `<a class="zeit-pdf-contact" href="${escapeHtml(contact.href)}">${content}</a>` : `<span class="zeit-pdf-contact">${content}</span>`;
 		}).join("")}</div></section>`;
 	};
@@ -25016,7 +27056,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 	const kreativContactMarkup = () => {
 		if (!kreativContacts.length) return "";
 		return `<address class="kreativ-pdf-contacts">${kreativContacts.map((contact) => {
-			const content = `${contact.icon}<i>${escapeHtml(contact.value)}</i>`;
+			const content = `${renderContactIcon(contact)}<i>${escapeHtml(contact.value)}</i>`;
 			return contact.href ? `<a aria-label="${escapeHtml(contact.label)}" data-contact-kind="${contact.kind}" href="${escapeHtml(contact.href)}">${content}</a>` : `<span aria-label="${escapeHtml(contact.label)}" data-contact-kind="${contact.kind}">${content}</span>`;
 		}).join("")}</address>`;
 	};
@@ -25169,9 +27209,9 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 	].filter((contact) => contact.value.trim());
 	const ivySpecializations = uniqueValues(profile?.skills ?? []).slice(0, 3).map((value) => value.split(/\s+(?:–|—|:)\s+/)[0]).join(" | ");
 	const ivyProfession = [profile?.title || role, ivySpecializations].filter(Boolean).join(" | ");
-	const ivyContacts = ivyContactValues.length ? `<address class="ivy-pdf-contacts">${ivyContactValues.map((contact, index) => {
+	const ivyContacts = ivyContactValues.length ? `<address class="ivy-pdf-contacts">${ivyContactValues.map((contact) => {
 		const value = contact.href ? `<a href="${escapeHtml(contact.href)}">${escapeHtml(contact.value)}</a>` : `<span>${escapeHtml(contact.value)}</span>`;
-		return `${index ? "<i aria-hidden=\"true\">•</i>" : ""}${value}`;
+		return `${renderContactIcon(contact)}${value}`;
 	}).join("")}</address>` : "";
 	const renderIvyHeader = (compact) => `
     <header class="ivy-pdf-header${compact ? " compact" : ""}">
@@ -25410,7 +27450,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 		const contactClass = variant === "stilvoll" ? "" : "einfach-pdf-contact";
 		const contacts = managedContactValues.map((contact) => {
 			const content = contact.href ? `<a href="${escapeHtml(contact.href)}">${escapeHtml(contact.value)}</a>` : `<span>${escapeHtml(contact.value)}</span>`;
-			return `<span class="${contactClass}" data-contact-kind="${contact.kind}"><i aria-hidden="true">${contact.icon}</i>${content}</span>`;
+			return `<span class="${contactClass}" data-contact-kind="${contact.kind}"><i aria-hidden="true">${renderContactIcon(contact)}</i>${content}</span>`;
 		}).join("");
 		const photo = !isContinuation && photoSource ? `<img class="${variant === "stilvoll" ? "stilvoll-pdf-photo" : "einfach-pdf-photo"}" src="${escapeHtml(photoSource)}" alt="">` : "";
 		return `<header class="managed-pdf-header ${variant}-pdf-header${isContinuation ? " compact" : ""}${!photo ? " no-photo" : ""}">
@@ -25436,7 +27476,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 		const education = plan.items.filter((item) => item.kind === "education").map((item) => renderManagedCareerEntry(item.id, "education", "kompakt")).join("");
 		const contacts = managedContactValues.map((contact) => {
 			const content = contact.href ? `<a href="${escapeHtml(contact.href)}">${escapeHtml(contact.value)}</a>` : escapeHtml(contact.value);
-			return `<span class="kompakt-pdf-contact"><i aria-hidden="true">${contact.icon}</i>${content}</span>`;
+			return `<span class="kompakt-pdf-contact"><i aria-hidden="true">${renderContactIcon(contact)}</i>${content}</span>`;
 		}).join("");
 		const kompaktStrengths = sections.strengths ? managedStrengthCards("kompakt") : "";
 		const kompaktAchievements = sections.certifications ? managedAchievementCards("kompakt") : "";
@@ -25484,7 +27524,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 	const klassischProfession = (profile?.title || role).trim();
 	const klassischContacts = managedContactValues.map((contact) => {
 		const value = escapeHtml(contact.value);
-		return `<span data-contact-kind="${contact.kind}">${contact.href ? `<a href="${escapeHtml(contact.href)}">${value}</a>` : value}</span>`;
+		return `<span data-contact-kind="${contact.kind}">${renderContactIcon(contact)}${contact.href ? `<a href="${escapeHtml(contact.href)}">${value}</a>` : value}</span>`;
 	}).join("");
 	const klassischStrengths = managedStrengths.length ? `<div class="klassisch-pdf-strengths">${managedStrengths.slice(0, 3).slice(0, 6).map((strength) => `<article class="klassisch-pdf-strength">${getTechnologyBrandIconMarkup(strength.title, profile?.strengths.find((entry) => entry.title.trim() === strength.title)?.iconId)}<div><h3>${escapeHtml(strength.title)}</h3>${strength.description ? `<p>${escapeHtml(strength.description)}</p>` : ""}</div></article>`).join("")}</div>` : "";
 	const klassischAtsStrengths = managedStrengths.length ? `<ul>${managedStrengths.slice(0, 3).map((strength) => `<li><strong>${escapeHtml(strength.title)}</strong>${strength.description ? ` – ${escapeHtml(strength.description)}` : ""}</li>`).join("")}</ul>` : "";
@@ -25556,7 +27596,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 		return `<address class="modern-pdf-contacts${inline ? " inline" : ""}">${items.map((item) => {
 			const value = escapeHtml(item.value);
 			const content = item.href ? `<a href="${escapeHtml(item.href)}">${value}</a>` : `<span>${value}</span>`;
-			return `<span class="modern-pdf-contact" data-contact-kind="${item.kind}">${ats ? "" : `<i aria-hidden="true">${item.icon}</i>`}${content}</span>`;
+			return `<span class="modern-pdf-contact" data-contact-kind="${item.kind}">${ats ? "" : `<i aria-hidden="true">${renderContactIcon(item)}</i>`}${content}</span>`;
 		}).join("")}</address>`;
 	};
 	const renderModernHeader = (compact, ats = false) => {
@@ -25719,10 +27759,10 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 		},
 		{
 			kind: "linkedin",
-			label: "Profil",
+			label: "LinkedIn",
 			icon: tabellarischExtraIcon("profile"),
-			value: profile?.linkedin || profile?.portfolio || profile?.github || "",
-			href: externalHref(profile?.linkedin || profile?.portfolio || profile?.github)
+			value: profile?.linkedin || "",
+			href: externalHref(profile?.linkedin)
 		},
 		{
 			kind: "location",
@@ -25730,6 +27770,20 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 			icon: kreativIconMarkup("location"),
 			value: [profile?.city, profile?.country].filter(Boolean).join(", "),
 			href: ""
+		},
+		{
+			kind: "github",
+			label: "GitHub",
+			icon: tabellarischExtraIcon("profile"),
+			value: profile?.github || "",
+			href: externalHref(profile?.github)
+		},
+		{
+			kind: "website",
+			label: "Portfolio",
+			icon: tabellarischExtraIcon("profile"),
+			value: profile?.portfolio || "",
+			href: externalHref(profile?.portfolio)
 		},
 		{
 			kind: "birth",
@@ -25741,7 +27795,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 	].filter((contact) => contact.value.trim());
 	const renderTabellarischContacts = (ats = false) => `<address class="tabellarisch-pdf-contacts">${tabellarischContacts.map((contact) => {
 		const value = contact.href ? `<a href="${escapeHtml(contact.href)}">${escapeHtml(contact.value)}</a>` : `<span>${escapeHtml(contact.value)}</span>`;
-		return `<span class="tabellarisch-pdf-contact" data-contact-kind="${contact.kind}">${ats ? `<strong>${escapeHtml(contact.label)}:</strong>` : contact.icon}${value}</span>`;
+		return `<span class="tabellarisch-pdf-contact" data-contact-kind="${contact.kind}">${ats ? `<strong>${escapeHtml(contact.label)}:</strong>` : renderContactIcon(contact)}${value}</span>`;
 	}).join("")}</address>`;
 	const tabellarischBackground = `<svg class="tabellarisch-pdf-background" viewBox="0 0 1000 260" preserveAspectRatio="xMidYMin slice" aria-hidden="true"><defs><pattern id="tabellarisch-pdf-cubes" width="144" height="84" patternUnits="userSpaceOnUse"><path d="M72 0 144 42 72 84 0 42 72 0v84M0 42l72 42 72-42"/></pattern><linearGradient id="tabellarisch-pdf-fade" x1="0" x2="1"><stop offset="0" stop-color="white" stop-opacity="0"/><stop offset=".25" stop-color="white" stop-opacity=".45"/><stop offset=".48" stop-color="white" stop-opacity="1"/></linearGradient><mask id="tabellarisch-pdf-mask"><rect width="1000" height="260" fill="url(#tabellarisch-pdf-fade)"/></mask></defs><rect x="210" y="-44" width="850" height="310" fill="url(#tabellarisch-pdf-cubes)" mask="url(#tabellarisch-pdf-mask)"/></svg>`;
 	const tabellarischSection = (title, content, extraClass = "", continuation = false) => content ? `<section class="tabellarisch-pdf-section ${extraClass}"><h2 class="tabellarisch-pdf-title">${escapeHtml(title)}${continuation ? "<small>Fortsetzung</small>" : ""}</h2>${content}</section>` : "";
@@ -25836,7 +27890,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 	].filter((contact) => contact.value.trim());
 	const gepflegtContactMarkup = (ats = false) => gepflegtContacts.length ? `<address class="gepflegt-pdf-contacts">${gepflegtContacts.map((contact) => {
 		const value = `<span>${escapeHtml(contact.value)}</span>`;
-		const content = `${ats ? "" : contact.icon}${value}`;
+		const content = `${ats ? "" : renderContactIcon(contact)}${value}`;
 		return contact.href ? `<a class="gepflegt-pdf-contact" href="${escapeHtml(contact.href)}">${content}</a>` : `<span class="gepflegt-pdf-contact">${content}</span>`;
 	}).join("")}</address>` : "";
 	const gepflegtSummary = docs.resumeProfile || profile?.summary || "Kurzprofil im Dokumenteditor ergänzen.";
@@ -25964,13 +28018,13 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 	};
 	const resume = resumePlan.map(template.id === "pehlione_white_blue" || template.id === "pehlione_white" ? renderPehlioneResumePage : template.id === "modern" ? renderModernResumePage : template.id === "stilvoll" ? renderStilvollResumePage : template.id === "kompakt" ? renderKompaktResumePage : template.id === "einspaltig" ? renderEinspaltigResumePage : template.id === "klassisch" ? (plan) => renderKlassischResumePage(plan) : template.id === "elegant" ? renderElegantResumePage : template.id === "gepflegt" ? renderGepflegtResumePage : template.id === "ivy-league" ? renderIvyLeagueResumePage : template.id === "kreativ" ? renderKreativResumePage : template.id === "zeitgenoessisch" ? renderZeitgenoessischResumePage : template.id === "zweispaltig" ? renderZweispaltigResumePage : template.id === "tabellarisch" ? renderTabellarischResumePage : renderResumePage).join("");
 	const cvHtml = target === "mappe" ? buildDocumentHtml(application, profile, "lebenslauf", attachments) : "";
-	const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id);
+	const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings);
 	const selected = target === "mappe" ? [
 		letter,
 		cover,
 		managedResume
 	] : target === "deckblatt" ? [cover] : target === "anschreiben" ? [letter] : [managedResume];
-	return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${zweispaltigDocumentCss}${zeitgenoessischDocumentCss}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}</style></head><body>${selected.join("")}${pageFitScript}</body></html>`;
+	return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${zweispaltigDocumentCss}${zeitgenoessischDocumentCss}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}</style></head><body>${selected.join("")}${pageFitScript}</body></html>`;
 };
 //#endregion
 //#region electron/file-management.ts
