@@ -50,7 +50,7 @@ Quality Gate darf erst nach Wiederherstellung und Prüfung dieser Dateien gemeld
 - [x] 0: Architektur und Baseline dokumentieren.
 - [x] 1: Gemeinsame semantische Designauflösung, ohne Defaultansichten zu verändern.
 - [x] 2: Vorlagenbezogene Overrides und vollständiger Reset.
-- [ ] 3: Profildaten und Darstellung kompatibel trennen.
+- [x] 3: Profildaten und Darstellung kompatibel trennen.
 - [ ] 4–5: Eigene Abschnitte normalisieren und Vorlagenstile vererben.
 - [ ] 6–7: Gemeinsame Spalten, Platzierung, Reihenfolge und Sichtbarkeit.
 - [ ] 8–9: Abstände und Metadatenlayout.
@@ -108,3 +108,18 @@ Alias-Kompatibilität sowie Speichern/Neustart/Reset über den realen DataStore.
 Zusätzlich wurde eine echte Einspaltig-A4-PDF nach Reset erzeugt und gerendert:
 Vorlagenfarben, Hintergrund, eigene Überschrift und gestrichelte Trenner korrekt;
 Vorschau und PDF haben dieselben berechneten Überschriftsrahmen.
+
+### Phase 3 – Inhalt und Darstellung
+
+Neue Änderungen an Sichtbarkeit, Abschnittstiteln, Reihenfolge, Spaltenzuordnung,
+Kontaktfeldern und Abschlussoptionen werden als sparse `resumePresentation` in den
+vorlagenspezifischen Dokumenteinstellungen gespeichert. Bestehende Profile bleiben
+kompatibel; eine gemeinsame Projektion versorgt Vorschau und PDF mit ihrer bisherigen
+Profilstruktur. Der Editor speichert den Inhalt getrennt und behält ungespeicherte
+Inhaltsänderungen beim Vorlagenwechsel. Zurücksetzen entfernt die neuen Overrides,
+ohne Profilinhalte zu löschen.
+
+Validierung: Typecheck erfolgreich; vollständiger Lauf 542 bestanden und die sechs
+bekannten Fehler wegen fehlender Word-Assets. Anschließend 14 zusätzliche
+PDF-Regressionen für alle aktiven Vorlagen ergänzt: gezielter Lauf 149 bestanden.
+Diese prüfen auch, dass CV-Einstellungen das Anschreiben nicht verändern.

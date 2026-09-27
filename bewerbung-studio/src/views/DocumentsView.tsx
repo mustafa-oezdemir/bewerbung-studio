@@ -1,3 +1,4 @@
+import { resolveResumePresentation, separateResumeDraft } from "../shared/resumePresentation";
 import { ContactIcon } from "../components/resume/templates/ContactIcon";
 import { getPehlioneContacts } from "../shared/pehlioneContacts";
 import { getResumeDisplayProfile } from "../shared/resumeDisplayProfile";
@@ -433,17 +434,31 @@ export function DocumentsView({
     templateId: string;
     profile: ApplicantProfile;
   } | null>(null);
+  const [resumeContentDraft, setResumeContentDraft] = useState<ApplicantProfile | null>(null);
+  const [resumeEditorRevision, setResumeEditorRevision] = useState(0);
   const [documentPreview, setDocumentPreview] = useState<{
     applicationId: string;
     documents: DocumentDraft;
   } | null>(null);
   const handleResumeSectionPreview = useCallback(
     (templateId: string, previewProfile: ApplicantProfile | null) => {
-      setResumeSectionPreview(
-        previewProfile ? { templateId, profile: previewProfile } : null,
-      );
+      if (!previewProfile) {
+        setResumeSectionPreview((current) => current?.templateId === templateId ? null : current);
+        return;
+      }
+      const original = profiles.find((item) => item.id === previewProfile.id);
+      if (!original) return;
+      const separated = separateResumeDraft(original, previewProfile, templateId);
+      setResumeContentDraft(separated.profile);
+      setResumeSectionPreview({ templateId, profile: previewProfile });
+      setDesign((current) => {
+        if (current.templateId !== templateId) return current;
+        const resumePresentation = Object.keys(separated.presentation).length ? separated.presentation : undefined;
+        if (JSON.stringify(current.settings.resumePresentation) === JSON.stringify(resumePresentation)) return current;
+        return { ...current, settings: { ...current.settings, resumePresentation } };
+      });
     },
-    [],
+    [profiles],
   );
   const [designDraft, setDesign] = useState<DocumentDesignDraft>(() =>
     application
@@ -597,11 +612,13 @@ export function DocumentsView({
     docs.documentListSettings,
   );
   const template = getTemplate(design.templateId);
+  const contentProfile = resumeContentDraft?.id === profile?.id ? resumeContentDraft : profile;
+  const editorProfile = resolveResumePresentation(contentProfile, template.id, design.settings.resumePresentation);
   const renderProfile =
     resumeSectionPreview?.templateId === template.id &&
     resumeSectionPreview.profile.id === profile?.id
       ? resumeSectionPreview.profile
-      : profile;
+      : editorProfile;
   const resumeRenderProfile = getResumeDisplayProfile(renderProfile);
   const emailAttachments = resolveApplicationEmailAttachments(
     docs,
@@ -798,10 +815,13 @@ export function DocumentsView({
   };
 
   const saveResumeSections = async (changedProfile: ApplicantProfile) => {
-    await saveProfile({
-      ...changedProfile,
-      updatedAt: new Date().toISOString(),
-    });
+    if (!profile) return;
+    const separated = separateResumeDraft(profile, changedProfile, template.id);
+    const savedProfile = { ...separated.profile, updatedAt: new Date().toISOString() };
+    const snapshot = applicationSnapshot(formRef.current);
+    snapshot.designSettings = { ...snapshot.designSettings, resumePresentation: separated.presentation };
+    await persistDocumentDraft(snapshot, savedProfile, saveProfile, saveApplication);
+    setResumeContentDraft(savedProfile);
   };
 
   const pickProfileMedia = async (kind: ProfileMediaKind) => {
@@ -809,10 +829,10 @@ export function DocumentsView({
     const selected =
       await window.bewerbungsManager.media.pickProfileImage(kind);
     if (!selected) return;
-    await saveProfile({
+    await saveResumeSections({
       ...(resumeSectionPreview?.profile.id === profile.id
         ? resumeSectionPreview.profile
-        : profile),
+        : editorProfile ?? profile),
       [kind === "photo" ? "photoPath" : "signaturePath"]: selected.dataUrl,
       updatedAt: new Date().toISOString(),
     });
@@ -820,10 +840,10 @@ export function DocumentsView({
 
   const removeProfileMedia = async (kind: ProfileMediaKind) => {
     if (!profile) return;
-    await saveProfile({
+    await saveResumeSections({
       ...(resumeSectionPreview?.profile.id === profile.id
         ? resumeSectionPreview.profile
-        : profile),
+        : editorProfile ?? profile),
       [kind === "photo" ? "photoPath" : "signaturePath"]: "",
       updatedAt: new Date().toISOString(),
     });
@@ -934,8 +954,8 @@ export function DocumentsView({
   };
 
   const currentProfileDraft = () =>
-    resumeSectionPreview?.profile.id === profile?.id
-      ? normalizeResumeDataDraft(resumeSectionPreview.profile)
+    resumeContentDraft?.id === profile?.id && resumeContentDraft
+      ? normalizeResumeDataDraft(resumeContentDraft)
       : undefined;
 
   const exportCurrentPdf = async (
@@ -1493,8 +1513,8 @@ export function DocumentsView({
                   {profile ? (
                     <>
                       <ResumeSectionsPanel
-                        key={`${application.id}:${profile.id}`}
-                        profile={profile}
+                        key={`${application.id}:${profile.id}:${template.id}:${resumeEditorRevision}`}
+                        profile={editorProfile ?? profile}
                         singlePageExceeded={
                           template.id === "kompakt" && resumePlan.length > 1
                         }
@@ -1937,7 +1957,7 @@ export function DocumentsView({
                     <button
                       className="button secondary design-reset-button"
                       type="button"
-                      onClick={() => setDesign(resetDocumentDesign)}>
+                      onClick={() => { setDesign(resetDocumentDesign); setResumeSectionPreview(null); setResumeEditorRevision((value) => value + 1); }}>
                       Auf Standard zurücksetzen
                     </button>
                   </section>

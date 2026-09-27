@@ -25,6 +25,7 @@
     "src/features/languages/language-levels.ts",
     "src/features/resume-sections/resume-sections.ts",
     "src/features/resume-sections/resume-manager.ts",
+    "src/features/resume-sections/resume-editor-settings.ts",
     "src/features/resume-sections/resume-section-system.ts",
     "src/features/resume-sections/knowledge-block-registry.ts",
     "vite.config.ts"

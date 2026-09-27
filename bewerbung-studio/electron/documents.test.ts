@@ -63,6 +63,15 @@ const profile = profileSchema.parse({
 });
 
 describe("Lebenslauf-Dokumente", () => {
+  it.each(templates)("applies stored presentation only to the CV in $name", (template) => {
+    const original = { ...application, templateId: template.id };
+    const edited = { ...original, designSettings: { ...original.designSettings, resumePresentation: { sections: { summary: { visible: false } }, personalFields: { email: false } } } };
+    const html = buildDocumentHtml(edited, profile, "lebenslauf");
+    expect(html).not.toContain(application.documents.resumeProfile);
+    expect(html).not.toContain(profile.email);
+    expect(buildDocumentHtml(edited, profile, "anschreiben")).toBe(buildDocumentHtml(original, profile, "anschreiben"));
+    expect(profile.email).toBe("mina@example.com");
+  });
   it.each(templates)("restores the original PDF after resetting $name", (template) => {
     const original = {
       ...application, templateId: template.id, accentColor: template.accent,

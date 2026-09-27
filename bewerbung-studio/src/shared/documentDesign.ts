@@ -1,4 +1,5 @@
 import type { CvDesignOverrides } from "./cvDesignSchema";
+import type { ResumePresentation } from "./resumePresentationSchema";
 
 export const documentFontIds = [
   "rubik",
@@ -74,6 +75,7 @@ export type SectionColumnMode = "auto" | 1 | 2 | 3 | 4;
 export type DocumentDesignSettings = {
   /** Sparse semantic CV fields; omitted on legacy documents and after reset. */
   cvOverrides?: CvDesignOverrides;
+  resumePresentation?: ResumePresentation;
   strengthsColumns: SectionColumnMode;
   knowledgeColumns: SectionColumnMode;
   marginLevel: DesignLevel;

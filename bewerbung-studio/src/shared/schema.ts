@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { cvDesignOverridesSchema } from "./cvDesignSchema";
+import { resumePresentationSchema } from "./resumePresentationSchema";
 import {
   columnLayoutIds,
   defaultDocumentDesign,
@@ -292,6 +293,7 @@ const sectionColumnSchema = z.union([z.literal("auto"), z.literal(1), z.literal(
 // .default() still materializes that default when loading an empty object.
 const documentDesignValuesSchema = z.object({
   cvOverrides: cvDesignOverridesSchema.optional(),
+  resumePresentation: resumePresentationSchema.optional(),
   strengthsColumns: sectionColumnSchema,
   knowledgeColumns: sectionColumnSchema,
   marginLevel: designLevelSchema,

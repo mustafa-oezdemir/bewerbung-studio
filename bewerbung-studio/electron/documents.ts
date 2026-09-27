@@ -1,6 +1,7 @@
 import { renderContactIcon } from "../src/shared/contactIcons";
 import { applyManagedResumeOutput, managedResumeCss } from "../src/shared/resumeManagedOutput";
 import { getResumeDisplayProfile } from "../src/shared/resumeDisplayProfile";
+import { resolveResumePresentation } from "../src/shared/resumePresentation";
 import { getResumeIdentityVisibilityCss } from "../src/shared/resumeIdentityVisibility";
 import type {
   ApplicantProfile,
@@ -701,7 +702,7 @@ export const buildDocumentHtml = (
   if (target === "deckblatt" || target === "mappe") {
     validateDeckblattData(application, profile);
   }
-  if (target === "lebenslauf") profile = getResumeDisplayProfile(profile);
+  if (target === "lebenslauf") profile = getResumeDisplayProfile(resolveResumePresentation(profile, application.templateId, application.designSettings.resumePresentation));
   const template = getTemplate(application.templateId);
   const accent = application.accentColor || template.accent;
   const secondary = application.secondaryColor || template.secondary;
