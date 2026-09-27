@@ -48,7 +48,7 @@ Quality Gate darf erst nach Wiederherstellung und Prüfung dieser Dateien gemeld
 ## Weitere Schritte
 
 - [x] 0: Architektur und Baseline dokumentieren.
-- [ ] 1: Gemeinsame semantische Designauflösung, ohne Defaultansichten zu verändern.
+- [x] 1: Gemeinsame semantische Designauflösung, ohne Defaultansichten zu verändern.
 - [ ] 2: Vorlagenbezogene Overrides und vollständiger Reset.
 - [ ] 3: Profildaten und Darstellung kompatibel trennen.
 - [ ] 4–5: Eigene Abschnitte normalisieren und Vorlagenstile vererben.
@@ -63,3 +63,25 @@ Quality Gate darf erst nach Wiederherstellung und Prüfung dieser Dateien gemeld
 
 Einspaltigs doppelte Überschriftslinie wurde vor dieser Reihenfolge bereits mit
 `1ce2cc8` korrigiert. Das ersetzt nicht die spätere gemeinsame Stilprüfung.
+
+## Schritt 1: Designgrundlage
+
+`cvDesignSchema.ts` definiert zwölf semantische Farben sowie getrennte Typografie-
+und Abstandswerte mit validierten Grenzen. `cvDesign.ts` löst native Vorlagenwerte
+und ausschließlich explizite Overrides auf; gleiche Werte werden vor dem Speichern
+entfernt. Fehlende und explizit undefinierte Werte erben ihren Default.
+
+Die vorhandenen zwölf `*.defaults.ts`-Module liegen nun unter
+`src/shared/cvTemplateDefaults`; bisherige React-Importpfade exportieren dieselben
+Konstanten weiter. `cvTemplateTokens.ts` adaptiert diese Konstanten sowie Pehliones
+CSS-Werte. Die Tokens beschreiben die normale visuelle Vorlage; bestehende
+ATS-/Dichtevarianten werden in der späteren Renderer-Anbindung berücksichtigt.
+
+Dieser Schritt stellt die gemeinsame Auflösung und CSS-Einheiten bereit. Er
+ändert keine Stylesheets, keine Rendererausgabe und keine gespeicherten Daten.
+Persistenz folgt in Schritt 2, semantische Stilzuordnung und Ausgabeadapter in
+Schritt 5 bzw. 13. Die neue Grundlage allein ist noch kein fertiges Designpanel.
+
+Prüfung: 204 Resolver-/Preview-/PDF-Tests erfolgreich. Alle aktiven Vorlagen sind
+abgedeckt; Farben, Einheiten, Grenzen, Alias, isolierte Defaults und sparse
+Overrides werden geprüft. Vorhandene Vorschau-/PDF-Renderer bleiben unverändert.
