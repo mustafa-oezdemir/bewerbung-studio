@@ -20,6 +20,17 @@ describe("CV section columns and icons", () => {
     expect(resolveSectionColumns("auto", "zweispaltig", "sidebar", items, defaultDocumentDesign, true)).toBe(1);
     expect(resolveSectionColumns("auto", "zweispaltig", "main", items, defaultDocumentDesign, true)).toBe(2);
   });
+  it("sizes automatic item grids from the selected resume columns", () => {
+    const single = { ...defaultDocumentDesign, resumePresentation: { layoutMode: "single" as const } };
+    const narrow = { ...defaultDocumentDesign, resumePresentation: { layoutMode: "two-column" as const, sidebarWidthPercent: 40 as const } };
+    const wide = { ...defaultDocumentDesign, resumePresentation: { layoutMode: "two-column" as const, sidebarWidthPercent: 20 as const } };
+    expect(resolveSectionColumns("auto", "klassisch", "main", items, single, false)).toBe(3);
+    expect(resolveSectionColumns("auto", "klassisch", "sidebar", items, narrow, false)).toBe(1);
+    expect(resolveSectionColumns("auto", "klassisch", "main", items, narrow, false)).toBe(2);
+    const mediumTitles = items.map(() => ({title: "Strukturierte Zusammenarbeit im Team"}));
+    expect(resolveSectionColumns("auto", "klassisch", "main", mediumTitles, narrow, false)).toBe(1);
+    expect(resolveSectionColumns("auto", "klassisch", "main", mediumTitles, wide, false)).toBe(2);
+  });
   it("reduces columns for long text and large fonts, without creating empty columns", () => {
     expect(resolveSectionColumns("auto", "klassisch", "main", [{title: "Kurz"}], defaultDocumentDesign, false)).toBe(1);
     expect(resolveSectionColumns("auto", "klassisch", "main", items.map(() => ({title: "Strukturierte Problemlösungsfähigkeit im Entwicklungsteam", description: "Text ".repeat(30)})), { ...defaultDocumentDesign, fontSize: "large" }, false)).toBe(1);

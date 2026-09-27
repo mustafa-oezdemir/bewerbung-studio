@@ -665,7 +665,7 @@ export const profileSchema = z.object({
     .object({ showTitle: z.boolean().default(false) })
     .default({ showTitle: false }),
   resumeColumnRatio: z
-    .union([z.literal(25), z.literal(30), z.literal(35), z.literal(40)])
+    .union([z.literal(20), z.literal(25), z.literal(30), z.literal(35), z.literal(40)])
     .default(30),
   resumeClosing: z
     .object({

@@ -1,4 +1,6 @@
 import { resolveResumePresentation, separateResumeDraft } from "../shared/resumePresentation";
+import { resolveResumeLayout } from "../shared/resumeLayoutEngine";
+import type { ResumePresentation } from "../shared/resumePresentationSchema";
 import { ContactIcon } from "../components/resume/templates/ContactIcon";
 import { getPehlioneContacts } from "../shared/pehlioneContacts";
 import { getResumeDisplayProfile } from "../shared/resumeDisplayProfile";
@@ -453,7 +455,15 @@ export function DocumentsView({
       setResumeSectionPreview({ templateId, profile: previewProfile });
       setDesign((current) => {
         if (current.templateId !== templateId) return current;
-        const resumePresentation = Object.keys(separated.presentation).length ? separated.presentation : undefined;
+        const previous = current.settings.resumePresentation;
+        const combined = {
+          ...separated.presentation,
+          ...(previous?.layoutMode ? { layoutMode: previous.layoutMode } : {}),
+          ...(previous?.sidebarSide ? { sidebarSide: previous.sidebarSide } : {}),
+          ...(previous?.sidebarWidthPercent !== undefined && separated.presentation.sidebarWidthPercent === undefined
+            ? { sidebarWidthPercent: previous.sidebarWidthPercent } : {}),
+        };
+        const resumePresentation = Object.keys(combined).length ? combined : undefined;
         if (JSON.stringify(current.settings.resumePresentation) === JSON.stringify(resumePresentation)) return current;
         return { ...current, settings: { ...current.settings, resumePresentation } };
       });
@@ -612,6 +622,8 @@ export function DocumentsView({
     docs.documentListSettings,
   );
   const template = getTemplate(design.templateId);
+  const resumeLayout = resolveResumeLayout(template.id, design.settings.resumePresentation,
+    design.settings.resumeOutputMode === "ats" || design.settings.columnLayout === "compact-ats", profile?.resumeColumnRatio);
   const contentProfile = resumeContentDraft?.id === profile?.id ? resumeContentDraft : profile;
   const editorProfile = resolveResumePresentation(contentProfile, template.id, design.settings.resumePresentation);
   const renderProfile =
@@ -750,6 +762,21 @@ export function DocumentsView({
         [key]: value,
       },
     }));
+  };
+  const updateResumeLayout = <Key extends "layoutMode" | "sidebarSide" | "sidebarWidthPercent">(
+    key: Key,
+    value: ResumePresentation[Key],
+  ) => {
+    setDesign((current) => {
+      const { resumePresentation, ...settings } = current.settings;
+      const next: ResumePresentation = { ...resumePresentation, [key]: value };
+      if (key === "layoutMode" && value === undefined) {
+        delete next.layoutMode;
+        delete next.sidebarSide;
+        delete next.sidebarWidthPercent;
+      } else if (value === undefined) delete next[key];
+      return { ...current, settings: { ...settings, ...(Object.keys(next).length ? { resumePresentation: next } : {}) } };
+    });
   };
 
   const updateDocumentListItem = (
@@ -1861,6 +1888,43 @@ export function DocumentsView({
                       />
                       <span>Auf alle Bewerbungsunterlagen anwenden</span>
                     </label>
+                    <div className="design-option-group">
+                      <span>Lebenslauf-Layout</span>
+                      <div className="segmented-design-control" role="group" aria-label="Lebenslauf-Layout">
+                        {([undefined, "single", "two-column"] as const).map((mode) => (
+                          <button key={mode ?? "template"} type="button"
+                            className={(mode === undefined ? !resumeLayout.overridden : design.settings.resumePresentation?.layoutMode === mode) ? "selected" : ""}
+                            aria-pressed={mode === undefined ? !resumeLayout.overridden : design.settings.resumePresentation?.layoutMode === mode}
+                            onClick={() => updateResumeLayout("layoutMode", mode)}>
+                            {mode === undefined ? "Vorlage" : mode === "single" ? "Einspaltig" : "Zweispaltig"}
+                          </button>
+                        ))}
+                      </div>
+                      {resumeLayout.mode === "two-column" ? (
+                        <div className="advanced-design-grid">
+                          <label className="field">
+                            <span>Seitenspalte</span>
+                            <select aria-label="Seitenspalte" value={resumeLayout.sidebarSide}
+                              onChange={(event) => updateResumeLayout("sidebarSide", event.target.value as "left" | "right")}>
+                              <option value="left">Links</option>
+                              <option value="right">Rechts</option>
+                            </select>
+                          </label>
+                          <label className="field">
+                            <span>Spaltenverhältnis</span>
+                            <select aria-label="Spaltenverhältnis"
+                              value={design.settings.resumePresentation?.sidebarWidthPercent ?? "template"}
+                              onChange={(event) => updateResumeLayout("sidebarWidthPercent",
+                                event.target.value === "template" ? undefined : Number(event.target.value) as 20 | 25 | 30 | 35 | 40)}>
+                              <option value="template">Vorlage ({resumeLayout.sidebarWidthPercent}% / {100 - resumeLayout.sidebarWidthPercent}%)</option>
+                              {[20, 25, 30, 35, 40].map((percent) => (
+                                <option key={percent} value={percent}>{percent}% Seitenspalte / {100 - percent}% Hauptspalte</option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                      ) : null}
+                    </div>
                     <div className="design-option-group">
                       <span>Schriftgröße</span>
                       <div className="segmented-design-control">

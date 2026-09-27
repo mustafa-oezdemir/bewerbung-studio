@@ -176,6 +176,28 @@ Validierung:
   Generatoren wiederhergestellt; die sechs bisherigen Baselinefehler sind damit behoben.
 - Bestehende Bundle-Größen-/Vite-Deprecation-Warnungen bleiben ohne Buildfehler.
 
-Die QA-Ausgaben liegen unter `tmp/section-inheritance-qa`. Nächster geplanter Schritt
-ist Phase 6; vorlagenspezifische Redesigns und die spätere Designpanel-Anbindung sind
-nicht Bestandteil dieser Phase.
+Die QA-Ausgaben liegen unter `tmp/section-inheritance-qa`. Vorlagenspezifische
+Redesigns sind nicht Bestandteil dieser Phase.
+
+### Phase 6 – Gemeinsame Layout Engine (27.09.2026)
+
+Die gemeinsame Layoutauflösung unterstützt ein- und zweispaltige Lebensläufe,
+Seitenspalten links/rechts und die sicheren Verhältnisse 20/80 bis 40/60 in
+Fünferschritten. Ohne gespeicherte Layoutauswahl bleibt das native Layout jeder
+Vorlage samt eigener Breite unverändert. Eine Wahl im Designpanel wird pro
+Bewerbung gespeichert; „Vorlage“ entfernt Modus-, Seiten- und Breiten-Overrides
+und stellt die ursprüngliche Vorlage wieder her. Bestehende Pehlione-Profilbreiten
+bleiben bei einem reinen Seitenwechsel erhalten.
+
+Der gemeinsame DOM-Adapter wird nach dem Section-Management in React-Vorschau
+und Electron-PDF angewendet. Bei ursprünglich einspaltigen Vorlagen erzeugt er
+Haupt- und Seitenspalte mit einem seitenübergreifenden Kopfbereich. Bei nativen
+Zweispaltenvorlagen ordnet er die vorhandenen Bereiche um, ohne deren Inhalt zu
+duplizieren. Die automatische Breite der Wissens-/Stärkenraster folgt der
+gewählten Hauptspalte. ATS-Ausgaben behalten ihre einspaltige Darstellung.
+
+Validierung: `npm run release:check` mit 66 Testdateien / 623 Tests und Build
+erfolgreich; Electron-Start erfolgreich. `node scripts/layout-engine-qa.mjs`
+erzeugt 84 Preview-/PDF-Kombinationen aus den Phase-5-Fixtures;
+`npx electron scripts/check-layout-engine.cjs` bestätigt für alle 84 die
+berechnete Spaltenbreite, Reihenfolge und gemeinsame Grid-Zeile.

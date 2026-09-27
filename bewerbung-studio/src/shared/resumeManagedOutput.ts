@@ -1,4 +1,5 @@
 import { renderCustomSectionContent } from "./resumeCustomSections";
+import { applyResumePageLayout } from "./resumeLayoutEngine";
 import { resolveTemplateId } from "./templates";
 import { resumeSectionStyleSources } from "./resumeSectionStyleInheritance";
 import { parseHTML } from "linkedom";
@@ -430,6 +431,7 @@ export const applyManagedResumeOutput = (
       }
       anchor.remove();
     }
+    applyResumePageLayout(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings, profile.resumeColumnRatio);
   });
   return document.body.innerHTML;
 };

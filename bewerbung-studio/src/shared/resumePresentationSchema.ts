@@ -21,7 +21,9 @@ export const resumePresentationSchema = z.object({
     pageBreakBefore: z.boolean().optional(),
   })).optional(),
   showKnowledgeTitle: z.boolean().optional(),
-  sidebarWidthPercent: z.union([z.literal(25), z.literal(30), z.literal(35), z.literal(40)]).optional(),
+  layoutMode: z.enum(["single", "two-column"]).optional(),
+  sidebarSide: z.enum(["left", "right"]).optional(),
+  sidebarWidthPercent: z.union([z.literal(20), z.literal(25), z.literal(30), z.literal(35), z.literal(40)]).optional(),
 });
 
 export type ResumePresentation = z.infer<typeof resumePresentationSchema>;
