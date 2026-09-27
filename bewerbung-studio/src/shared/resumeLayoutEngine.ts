@@ -64,6 +64,12 @@ const singleHosts: Record<string, { preview: string; pdf: string }> = {
   tabellarisch: { preview: ".tabellarisch-page__content", pdf: ".tabellarisch-pdf-content" },
 };
 
+export const getResumeLayoutHost = (page: Element, templateId: string, surface: "preview" | "pdf"): Element | null => {
+  const id = resolveTemplateId(templateId);
+  const selector = nativeHosts[id]?.[surface] ?? singleHosts[id]?.[surface];
+  return selector ? (page.matches(selector) ? page : page.querySelector(selector)) : null;
+};
+
 const sidebarDefaults = new Set(["summary", "strengths", "knowledge", "languages", "certifications"]);
 
 /** One DOM projection is used by both React preview and Electron PDF. */
@@ -81,7 +87,7 @@ export const applyResumePageLayout = (
   const layout = resolveResumeLayout(id, presentation, ats, legacySidebarPercent);
   if (!layout.overridden) return;
   const descriptor = nativeHosts[id];
-  const host = page.querySelector(descriptor?.[surface] ?? singleHosts[id]?.[surface] ?? "[data-no-layout-host]");
+  const host = getResumeLayoutHost(page, id, surface);
   if (!host) return;
 
   const nativeMain = descriptor ? Array.from(host.children).find(child => child.matches("main,[class*='-content'],[class*='-left-column'],[class*='-main-column'],[class*='-pdf-main'],[class*='-pdf-left'],[class*='-resume-left-column']") && !child.matches("aside")) : undefined;

@@ -1,5 +1,7 @@
 import { keepResumeLayoutOverrides, resolveResumePresentation, separateResumeDraft } from "../shared/resumePresentation";
 import { resolveResumeLayout } from "../shared/resumeLayoutEngine";
+import { applyResumeSpacingPreset, getResumeSpacingPreset, resolveEffectiveResumeSpacing, resumeSpacingFields } from "../shared/resumeSpacing";
+import { cvDesignLimits } from "../shared/cvDesignSchema";
 import type { ResumePresentation } from "../shared/resumePresentationSchema";
 import { ContactIcon } from "../components/resume/templates/ContactIcon";
 import { getPehlioneContacts } from "../shared/pehlioneContacts";
@@ -9,6 +11,7 @@ import {
   selectDocumentTemplate,
   resetDocumentDesign,
   persistDocumentDraft,
+  updateCvDesignField,
   type DocumentDesignDraft,
 } from "../shared/documentEditorState";
 import { normalizeResumeDataDraft } from "../components/resume/ResumeDataEditor";
@@ -618,6 +621,8 @@ export function DocumentsView({
   const template = getTemplate(design.templateId);
   const resumeLayout = resolveResumeLayout(template.id, design.settings.resumePresentation,
     design.settings.resumeOutputMode === "ats" || design.settings.columnLayout === "compact-ats", profile?.resumeColumnRatio);
+  const resumeSpacing = resolveEffectiveResumeSpacing(template.id, design.settings);
+  const spacingPreset = getResumeSpacingPreset(template.id, design.settings);
   const contentProfile = resumeContentDraft?.id === profile?.id ? resumeContentDraft : profile;
   const editorProfile = resolveResumePresentation(contentProfile, template.id, design.settings.resumePresentation);
   const renderProfile =
@@ -749,13 +754,13 @@ export function DocumentsView({
     key: Key,
     value: DocumentDesignSettings[Key],
   ) => {
-    setDesign((current) => ({
-      ...current,
-      settings: {
-        ...current.settings,
-        [key]: value,
-      },
-    }));
+    setDesign((current) => {
+      const spacingKey = ({ marginLevel: "pageMarginMm", paddingLevel: "innerPaddingMm",
+        sectionSpacingLevel: "sectionGapMm" } as Record<string, "pageMarginMm" | "innerPaddingMm" | "sectionGapMm">)[key];
+      const base = spacingKey ? updateCvDesignField(current, "spacing", spacingKey, undefined)
+        : key === "lineHeightLevel" ? updateCvDesignField(current, "typography", "lineHeight", undefined) : current;
+      return { ...base, settings: { ...base.settings, [key]: value } };
+    });
   };
   const updateResumeLayout = <Key extends "layoutMode" | "sidebarSide" | "sidebarWidthPercent">(
     key: Key,
@@ -1667,6 +1672,50 @@ export function DocumentsView({
                           }
                         />
                       </label>
+                    </div>
+                    <div className="design-option-group resume-spacing-presets">
+                      <span>Lebenslauf-Abstände</span>
+                      <div className="segmented-design-control" role="group" aria-label="Lebenslauf-Abstände">
+                        {(["compact", "standard", "large"] as const).map((preset) => (
+                          <button key={preset} type="button" className={spacingPreset === preset ? "selected" : ""}
+                            aria-pressed={spacingPreset === preset}
+                            onClick={() => setDesign((current) => applyResumeSpacingPreset(current, preset))}>
+                            {preset === "compact" ? "Kompakt" : preset === "standard" ? "Standard" : "Groß"}
+                          </button>
+                        ))}
+                      </div>
+                      {spacingPreset === "custom" && <small>Benutzerdefinierte Abstände</small>}
+                      <details className="resume-spacing-advanced">
+                        <summary>Erweiterte Abstände</summary>
+                        <div className="advanced-design-grid">
+                          {resumeSpacingFields.map(({ key, label }) => (
+                            <label className="field" key={key}>
+                              <span>{label} (mm)</span>
+                              <input type="number" min={cvDesignLimits[key][0]} max={cvDesignLimits[key][1]} step="0.1"
+                                value={resumeSpacing.spacing[key]}
+                                onChange={(event) => {
+                                  if (!event.target.value) return;
+                                  const entered = Number(event.target.value);
+                                  if (!Number.isFinite(entered)) return;
+                                  const value = Math.max(cvDesignLimits[key][0], Math.min(cvDesignLimits[key][1], entered));
+                                  setDesign((current) => updateCvDesignField(current, "spacing", key, value));
+                                }} />
+                            </label>
+                          ))}
+                          <label className="field">
+                            <span>Zeilenhöhe</span>
+                            <input type="number" min={cvDesignLimits.lineHeight[0]} max={cvDesignLimits.lineHeight[1]} step="0.05"
+                              value={resumeSpacing.typography.lineHeight}
+                              onChange={(event) => {
+                                if (!event.target.value) return;
+                                const entered = Number(event.target.value);
+                                if (!Number.isFinite(entered)) return;
+                                const value = Math.max(cvDesignLimits.lineHeight[0], Math.min(cvDesignLimits.lineHeight[1], entered));
+                                setDesign((current) => updateCvDesignField(current, "typography", "lineHeight", value));
+                              }} />
+                          </label>
+                        </div>
+                      </details>
                     </div>
                     <div className="advanced-design-grid">
                       {(["strengthsColumns", "knowledgeColumns"] as const).map((key) => (

@@ -52,6 +52,7 @@ describe("managed template previews", () => {
     const preview = renderToStaticMarkup(<ManagedResumePreview profile={profile} templateId={templateId} pageNumber={1} totalPages={1}>{child}</ManagedResumePreview>);
     const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test", company: { name: "Test", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" }, status: "Entwurf", templateId, accentColor: "#123456", secondaryColor: "#234567", documents: {}, statusHistory: [], createdAt: now, updatedAt: now });
     const outputs = [preview, buildDocumentHtml(application, profile, "lebenslauf")].map(html => parseHTML(html).document);
+    for (const document of outputs) expect(document.querySelector("[data-resume-spacing-entry-gap]")).toBeNull();
     for (const section of profile.specialSections) {
       const selector = `[data-managed-section="special:${section.id}"]`;
       for (const document of outputs) {
@@ -209,5 +210,34 @@ describe("managed template previews", () => {
     const { document } = parseHTML(html);
     const sections = Array.from(document.querySelectorAll("[data-managed-section]")).map(node => node.getAttribute("data-managed-section"));
     expect(sections.indexOf("experience")).toBeLessThan(sections.indexOf("summary"));
+  });
+  it.each(Object.entries(components))("applies semantic spacing to preview and PDF only when overridden in %s", (templateId, component) => {
+    const now = new Date().toISOString();
+    const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: now,
+      summary: "Profiltext", experiences: [2020, 2022].map((year) => ({ id: crypto.randomUUID(), from: String(year), to: String(year + 1),
+        role: "Entwicklerin", company: "Beispiel", achievements: [] })),
+      education: [{ id: crypto.randomUUID(), from: "2018", to: "2020", degree: "Abschluss", institution: "Schule" }],
+    });
+    const settings = { ...defaultDocumentDesign, cvOverrides: { spacing: { sectionGapMm: 7, entryGapMm: 3, sectionTitleGapMm: 2.5,
+      entryContentGapMm: 1.5, pageMarginMm: 18, innerPaddingMm: 4, columnGapMm: 8 }, typography: { lineHeight: 1.3 } } };
+    const plan = createResumePagePlan(profile, "", {}, templateId)[0];
+    const child = createElement(component as unknown as ComponentType<Record<string, unknown>>, { profile, templateId, name: "Mina Kaya",
+      atsMode: false, plan, totalPages: 1, accentColor: "#123456", secondaryColor: "#234567", photoSource: null,
+      resumeProfile: "", sections: profile.resumeSections, backgroundId: "white" });
+    const preview = renderToStaticMarkup(<ManagedResumePreview profile={profile} templateId={templateId} pageNumber={1} totalPages={1} designSettings={settings}>{child}</ManagedResumePreview>);
+    const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test", company: { name: "Test", city: "Berlin" }, contact: {},
+      job: { title: "Entwicklung" }, status: "Entwurf", templateId, accentColor: "#123456", secondaryColor: "#234567",
+      documents: {}, statusHistory: [], createdAt: now, updatedAt: now, designSettings: settings });
+    for (const html of [preview, buildDocumentHtml(application, profile, "lebenslauf")]) {
+      const document = parseHTML(html).document;
+      const scope = document.querySelector("[data-resume-spacing-entry-gap]");
+      expect(scope, templateId).not.toBeNull();
+      expect(scope!.getAttribute("style"), templateId).toContain("--doc-entry-gap:3mm");
+      expect(scope!.getAttribute("style"), templateId).toContain("--doc-section-gap:7mm");
+      expect(scope!.getAttribute("style"), templateId).toContain("--doc-line-height:1.3");
+      expect(scope!.querySelectorAll("[data-resume-spacing-section]" ).length, templateId).toBeGreaterThan(1);
+      expect(scope!.querySelectorAll("[data-resume-spacing-entry]" ).length, templateId).toBeGreaterThan(1);
+      expect(html, templateId).toContain("data-resume-spacing-entry-following");
+    }
   });
 });

@@ -223,3 +223,24 @@ React-Vorschau und Electron-PDF verwenden dieselbe Abschnittsprojektion.
 Validierung: `npm run release:check` und der Electron-Starttest; Regressionen
 prüfen die Zuordnung und Sichtbarkeit für alle 14 Vorlagen in Vorschau und PDF,
 den einspaltigen Gruppenfluss sowie den Persistenz-Roundtrip.
+
+### Phase 8 – Semantisches Abstandssystem (27.09.2026)
+
+Das vorhandene CV-Tokenmodell steuert nun auch die tatsächliche Lebenslauf-
+Ausgabe: Seitenrand, Innenabstand, Abschnittsabstand, Eintragsabstand,
+Abstand nach Abschnitts-/Eintragstitel, Spaltenabstand und Zeilenhöhe sind
+getrennte Werte. Insbesondere ändert Eintragsabstand nur aufeinanderfolgende
+Karriereeinträge, während Abschnittsabstand zwischen Hauptbereichen wirkt.
+Vorhandene native CSS-Werte bleiben ohne Override unverändert.
+
+Im Designpanel stehen „Kompakt“, „Standard“ und „Groß“ sowie begrenzte
+mm-/Zeilenhöhenfelder bereit. „Standard“ entfernt semantische Abstandsoverrides
+und stellt auch die alten Regler auf die Vorgaben der ausgewählten Vorlage
+zurück. Alte gespeicherte Reglerwerte bleiben lesbar und werden im Editor
+angezeigt, bis der jeweilige semantische Wert explizit gesetzt wird.
+Overrides sind sparsam und vorlagenbezogen gespeichert; Preview und PDF
+verwenden denselben HTML-/CSS-Adapter.
+
+Validierung: `npm run release:check`; 28 Electron-Geometrieprüfungen
+(14 Vorlagen × Vorschau/PDF) für Abschnitts-, Titel- und Eintragsabstand,
+Seitenrand sowie gemeinsame Innen-/Spalten-/Zeilenvariablen.

@@ -7214,6 +7214,10 @@ body.is-resizing-split-view * {
 .manager-drag-handle { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; color: var(--muted); background: transparent; cursor: grab; }
 .manager-drag-handle:hover, .manager-drag-handle:focus-visible { color: var(--brand); background: color-mix(in srgb, var(--brand) 10%, var(--surface)); outline-offset: 2px; }
 .manager-drag-handle:active { cursor: grabbing; }
+.resume-spacing-presets { gap: 8px; }
+.resume-spacing-advanced { border-top: 1px solid var(--line); padding-top: 8px; }
+.resume-spacing-advanced summary { cursor: pointer; color: var(--muted); font-size: .68rem; font-weight: 600; }
+.resume-spacing-advanced .advanced-design-grid { margin-top: 10px; }
 .manager-card .resume-section-card > select { grid-column: 2 / -1; min-width: 0; }
 .manager-card-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 6px 0; border: 0; color: inherit; background: transparent; text-align: left; font-size: .68rem; font-weight: 700; cursor: pointer; }
 .manager-card-title[aria-expanded="true"] svg { transform: rotate(180deg); }
