@@ -10,6 +10,7 @@ import {
 const optionalNumber = z.number().nonnegative().optional();
 
 export const knowledgeItemSchema = z.object({
+  iconId: z.string().trim().optional(),
   id: z.uuid(),
   name: z.string().trim(),
   description: z.string().trim().optional(),

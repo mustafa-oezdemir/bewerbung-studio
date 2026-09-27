@@ -285,7 +285,11 @@ const designLevelSchema = z.union([
 
 const hexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 
+const sectionColumnSchema = z.union([z.literal("auto"), z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).default("auto");
+
 export const documentDesignSchema = z.object({
+  strengthsColumns: sectionColumnSchema,
+  knowledgeColumns: sectionColumnSchema,
   marginLevel: designLevelSchema.default(defaultDocumentDesign.marginLevel),
   paddingLevel: designLevelSchema.default(defaultDocumentDesign.paddingLevel),
   sectionSpacingLevel: designLevelSchema.default(

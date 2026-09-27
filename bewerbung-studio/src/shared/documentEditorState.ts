@@ -35,7 +35,7 @@ export const selectDocumentTemplate = (
     ...(saved ?? {
       accentColor: template.accent,
       secondaryColor: template.secondary,
-      settings: { ...current.settings, ...template.designDefaults },
+      settings: { ...current.settings, strengthsColumns: "auto", knowledgeColumns: "auto", ...template.designDefaults },
     }),
   };
 };

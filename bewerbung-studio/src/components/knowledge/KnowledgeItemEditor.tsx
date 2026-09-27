@@ -1,3 +1,4 @@
+import { TechnologyIconPicker } from "../profile/TechnologyIconPicker";
 import { Eye, EyeOff, GripVertical, Trash2 } from "lucide-react";
 import type { KnowledgeItem } from "../../features/knowledge/knowledge.types";
 import { KnowledgeAutocomplete } from "./KnowledgeAutocomplete";
@@ -39,6 +40,11 @@ export function KnowledgeItemEditor({
           value={item.name}
           onChange={(name) => onChange({ ...item, name })}
         />
+        <details className="knowledge-description-field">
+          <summary>Icon: {item.iconId ? "Manuell" : "Automatisch"}</summary>
+          <TechnologyIconPicker technologyTitle={item.name} value={item.iconId ?? ""}
+            onChange={(iconId) => onChange({ ...item, iconId })} />
+        </details>
         {showLevels ? (
           <KnowledgeLevelSelector
             value={item.level}

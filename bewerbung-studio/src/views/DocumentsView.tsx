@@ -1625,6 +1625,18 @@ export function DocumentsView({
                       </label>
                     </div>
                     <div className="advanced-design-grid">
+                      {(["strengthsColumns", "knowledgeColumns"] as const).map((key) => (
+                        <label className="field" key={key}>
+                          <span>{key === "strengthsColumns" ? "Stärken – Darstellung" : "Kenntnisse / Programmiersprachen – Darstellung"}</span>
+                          <select aria-label={key === "strengthsColumns" ? "Stärken – Spalten" : "Kenntnisse – Spalten"}
+                            value={design.settings[key] ?? "auto"}
+                            onChange={(event) => updateDesignSetting(key, event.target.value === "auto" ? "auto" : Number(event.target.value) as 1 | 2 | 3 | 4)}>
+                            <option value="auto">Automatisch</option>
+                            {[1, 2, 3, 4].map((count) => <option key={count} value={count}>{count} {count === 1 ? "Spalte" : "Spalten"}</option>)}
+                          </select>
+                          <small>Automatisch berücksichtigt den verfügbaren Bereich und die Textlänge. Icons: automatisch oder manuell im Inhaltseditor.</small>
+                        </label>
+                      ))}
                       <label className="design-range">
                         <span>
                           Seitenränder
@@ -1759,6 +1771,18 @@ export function DocumentsView({
                       </p>
                     ) : null}
                     <div className="advanced-design-grid">
+                      {(["strengthsColumns", "knowledgeColumns"] as const).map((key) => (
+                        <label className="field" key={key}>
+                          <span>{key === "strengthsColumns" ? "Stärken – Darstellung" : "Kenntnisse / Programmiersprachen – Darstellung"}</span>
+                          <select aria-label={key === "strengthsColumns" ? "Stärken – Spalten" : "Kenntnisse – Spalten"}
+                            value={design.settings[key] ?? "auto"}
+                            onChange={(event) => updateDesignSetting(key, event.target.value === "auto" ? "auto" : Number(event.target.value) as 1 | 2 | 3 | 4)}>
+                            <option value="auto">Automatisch</option>
+                            {[1, 2, 3, 4].map((count) => <option key={count} value={count}>{count} {count === 1 ? "Spalte" : "Spalten"}</option>)}
+                          </select>
+                          <small>Automatisch berücksichtigt den verfügbaren Bereich und die Textlänge. Icons: automatisch oder manuell im Inhaltseditor.</small>
+                        </label>
+                      ))}
                       <label className="design-range">
                         <span>
                           Hintergrundintensität{" "}
@@ -2232,6 +2256,7 @@ export function DocumentsView({
                       )}
                     </style>
                     <ManagedResumePreview
+                      designSettings={design.settings}
                       profile={renderProfile}
                       templateId={template.id}
                       pageNumber={plan.pageNumber}

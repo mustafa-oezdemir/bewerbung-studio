@@ -1,5 +1,15 @@
 import { getStrengthSymbolMarkup } from "./strengthSymbols";
 
+const technologyAliases: Record<string, string> = {
+  golang: "go", "go language": "go", js: "javascript", ts: "typescript",
+  "spring boot": "spring", springboot: "spring", "react.js": "react", reactjs: "react",
+};
+export const normalizeTechnologyName = (name: string) => {
+  const normalized = name.trim().toLocaleLowerCase("en-US").replace(/^(?:programming|programmiersprache)\s*[:–-]?\s*/i, "");
+  return technologyAliases[normalized] ?? normalized;
+};
+const escapeIconText = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+
 const svg = (content: string, brand = "generic", viewBox = "0 0 32 32") =>
   `<svg class="technology-brand-svg" data-brand="${brand}" viewBox="${viewBox}" focusable="false" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">${content}</svg>`;
 
@@ -66,10 +76,7 @@ export const getTechnologyBrandIconMarkup = (
   const selectedIcon = getDeviconMarkup(iconId);
   if (selectedIcon) return selectedIcon;
 
-  const normalized = technology
-    .trim()
-    .toLocaleLowerCase("en-US")
-    .replace(/^(?:programming|programmiersprache)\s*[:–-]?\s*/i, "");
+  const normalized = normalizeTechnologyName(technology);
   if (
     normalized === "react" ||
     normalized === "react.js" ||
@@ -173,6 +180,12 @@ export const getTechnologyBrandIconMarkup = (
     normalized.replace(/[^a-z0-9]/g, ""),
   );
   if (automaticDevicon) return automaticDevicon;
-  return letterMark(technology.slice(0, 3).toLocaleUpperCase("en-US"));
+  return letterMark(escapeIconText(technology.slice(0, 3).toLocaleUpperCase("en-US")));
 };
 import { getDeviconMarkup } from "./deviconCatalog";
+
+/** Preserve the existing icon catalogue and manual priority, with CV theme colors. */
+export const getThemedTechnologyIconMarkup = (title: string, iconId = "") =>
+  getTechnologyBrandIconMarkup(title, iconId)
+    .replace(/(fill|stroke|stop-color)="(?!none"|currentColor"|white"|#fff"|#ffffff"|url\()[^"]+"/gi, '$1="currentColor"')
+    .replace(/(fill|stroke|stop-color):\s*(#[0-9a-f]{3,8}|rgb\([^)]*\))/gi, "$1:currentColor");

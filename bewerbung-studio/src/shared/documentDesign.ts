@@ -67,7 +67,11 @@ export type DocumentBackgroundId = (typeof documentBackgroundIds)[number];
 export type DesignLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 export type DocumentBackgroundScope = (typeof documentBackgroundScopes)[number];
 
+export type SectionColumnMode = "auto" | 1 | 2 | 3 | 4;
+
 export type DocumentDesignSettings = {
+  strengthsColumns: SectionColumnMode;
+  knowledgeColumns: SectionColumnMode;
   marginLevel: DesignLevel;
   paddingLevel: DesignLevel;
   sectionSpacingLevel: DesignLevel;
@@ -115,6 +119,8 @@ export type ColumnLayoutOption = {
 };
 
 export const defaultDocumentDesign: DocumentDesignSettings = {
+  strengthsColumns: "auto",
+  knowledgeColumns: "auto",
   marginLevel: 5,
   paddingLevel: 5,
   sectionSpacingLevel: 5,

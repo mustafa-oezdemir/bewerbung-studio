@@ -2,7 +2,9 @@ import { createElement, type ComponentType } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { parseHTML } from "linkedom";
-import { profileSchema } from "../../shared/schema";
+import { applicationSchema, profileSchema } from "../../shared/schema";
+import { defaultDocumentDesign } from "../../shared/documentDesign";
+import { buildDocumentHtml } from "../../../electron/documents";
 import { createResumePagePlan } from "../../shared/documentPagination";
 import { moveManagerSection } from "../../features/resume-sections/resume-manager";
 import { ManagedResumePreview } from "./ManagedResumePreview";
@@ -36,6 +38,27 @@ const components = {
   "zweispaltig": ZweispaltigResume
 };
 describe("managed template previews", () => {
+  it.each(Object.entries(components))("matches preview and PDF section columns in %s", (templateId, component) => {
+    const now = new Date().toISOString();
+    const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: now,
+      strengths: Array.from({ length: 10 }, (_, i) => ({ id: crypto.randomUUID(), title: `Stärke ${i + 1}`, iconId: "symbol:check" })), skills: ["Java", "Go", "Docker"] });
+    const plan = createResumePagePlan(profile, "", {}, templateId)[0];
+    for (const columns of ["auto", 1, 2, 3, 4] as const) {
+      const settings = { ...defaultDocumentDesign, strengthsColumns: columns, knowledgeColumns: columns };
+      const child = createElement(component as unknown as ComponentType<Record<string, unknown>>, { profile, templateId, name: "Mina Kaya", atsMode: false, plan, totalPages: 1, accentColor: "#123456", secondaryColor: "#234567", photoSource: null, resumeProfile: "", sections: profile.resumeSections, backgroundId: "none" });
+      const preview = renderToStaticMarkup(<ManagedResumePreview profile={profile} templateId={templateId} pageNumber={1} totalPages={1} designSettings={settings}>{child}</ManagedResumePreview>);
+      const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test", company: { name: "Test", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" }, status: "Entwurf", templateId, accentColor: "#123456", documents: {}, statusHistory: [], createdAt: now, updatedAt: now, designSettings: settings });
+      const pdf = buildDocumentHtml(application, profile, "lebenslauf");
+      const previewDocument = parseHTML(preview).document;
+      const pdfDocument = parseHTML(pdf).document;
+      for (const selector of [".managed-strengths-grid", '[data-managed-section="knowledge"] .managed-item-grid']) {
+        const expected = previewDocument.querySelector(selector)?.getAttribute("data-columns");
+        expect(expected).toBeDefined();
+        expect(pdfDocument.querySelector(selector)?.getAttribute("data-columns")).toBe(expected);
+        if (columns !== "auto") expect(expected).toBe(String(columns));
+      }
+    }
+  });
   it.each(Object.entries(components))("renders all nine strengths in order in %s", (templateId, component) => {
     const strengths = ["Go", "React", "Spring Boot", "SQL", "Docker", "Git", "Linux", "Java", "TypeScript"].map((title, index) => ({ id: crypto.randomUUID(), title, description: index === 0 ? "Echo, Gin\nREST" : "", iconId: "" }));
     const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: new Date().toISOString(), strengths });

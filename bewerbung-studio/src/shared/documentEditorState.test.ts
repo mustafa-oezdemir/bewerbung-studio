@@ -7,9 +7,11 @@ const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.rando
 
 describe("document editor persistence", () => {
   it("restores saved design settings when switching templates, including after serialization", () => {
-    const original = { ...createDocumentDesignDraft(application), settings: { ...application.designSettings, marginLevel: 8 as const, headingColor: "#654321" } };
+    const original = { ...createDocumentDesignDraft(application), settings: { ...application.designSettings, strengthsColumns: 2 as const, knowledgeColumns: 1 as const, marginLevel: 8 as const, headingColor: "#654321" } };
     expect(selectDocumentTemplate(original, "modern")).toBe(original);
     const other = selectDocumentTemplate(original, "klassisch");
+    expect(other.settings.strengthsColumns).toBe("auto");
+    expect(other.settings.knowledgeColumns).toBe("auto");
     const saved = applicationSchema.parse(JSON.parse(JSON.stringify({ ...application, templateId: other.templateId, accentColor: other.accentColor, secondaryColor: other.secondaryColor, designSettings: other.settings, templateDesigns: other.templateDesigns })));
     const restored = selectDocumentTemplate(createDocumentDesignDraft(saved), "modern");
     expect(restored.settings).toEqual(original.settings);

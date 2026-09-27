@@ -32,6 +32,7 @@ export type KnowledgeLevel = (typeof knowledgeLevels)[number];
 export type KnowledgeCategoryType = (typeof knowledgeCategoryTypes)[number];
 
 export interface KnowledgeItem {
+  iconId?: string;
   id: string;
   name: string;
   description?: string;

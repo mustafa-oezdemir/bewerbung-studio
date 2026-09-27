@@ -1,3 +1,4 @@
+import type { DocumentDesignSettings } from "../../shared/documentDesign";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 import type { ApplicantProfile } from "../../shared/schema";
@@ -12,12 +13,14 @@ export function ManagedResumePreview({
   templateId,
   pageNumber,
   totalPages,
+  designSettings,
 }: {
   children: ReactNode;
   profile: ApplicantProfile | undefined;
   templateId: string;
   pageNumber: number;
   totalPages: number;
+  designSettings?: DocumentDesignSettings;
 }) {
   const html = applyManagedResumeOutput(
     renderToStaticMarkup(<>{children}</>),
@@ -25,6 +28,7 @@ export function ManagedResumePreview({
     templateId,
     pageNumber,
     totalPages,
+    designSettings,
   );
   return (
     <>

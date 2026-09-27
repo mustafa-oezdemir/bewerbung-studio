@@ -6,7 +6,13 @@ import {
 } from "../features/resume-sections/resume-manager";
 import { resolveKnowledgeGroups } from "../features/resume-sections/resume-section-system";
 import { getProfileMediaSource } from "./profileMedia";
-import { getTechnologyBrandIconMarkup } from "./technologyBrand";
+import { getThemedTechnologyIconMarkup } from "./technologyBrand";
+import { defaultDocumentDesign, type DocumentDesignSettings } from "./documentDesign";
+import { resolveSectionColumns } from "./resumeSectionLayout";
+import { ensureKnowledgeSection } from "../features/knowledge/knowledge.service";
+import { visibleKnowledgeItems, formatKnowledgeItem } from "../features/knowledge/knowledge.utils";
+import { knowledgeLevelScores } from "../features/knowledge/knowledge.constants";
+import type { KnowledgeItem, KnowledgeCategory, KnowledgeDisplayMode } from "../features/knowledge/knowledge.types";
 
 const escape = (value: string) =>
   value
@@ -41,6 +47,18 @@ const normalize = (value: string) =>
     .toLocaleLowerCase("de-DE");
 
 export const managedResumeCss = `
+.managed-item-grid{display:grid!important;grid-template-columns:repeat(var(--section-columns,1),minmax(0,1fr))!important;gap:2mm 3mm;min-width:0;padding:0;list-style:none}
+.managed-item-grid>*,.managed-item-text{min-width:0;overflow-wrap:anywhere;break-inside:avoid}
+.managed-item{display:grid;grid-template-columns:4mm minmax(0,1fr);align-items:start;gap:1.5mm;margin:0;min-width:0}
+.managed-item>svg{width:4mm;height:4mm;color:var(--doc-accent,var(--accent,currentColor))}
+.managed-item-text{display:block;white-space:pre-line}
+.managed-knowledge-category{margin-bottom:3mm;min-width:0}
+.managed-knowledge-category h4,.managed-knowledge-category h5{margin:1.5mm 0;font:inherit;font-weight:700}
+.managed-item-level{display:block;width:100%;height:1mm;margin-top:1mm;background:var(--doc-line-color,var(--line-color,currentColor))}
+.managed-item-level b{display:block;height:100%;background:var(--doc-accent,var(--accent,currentColor))}
+.managed-ats .managed-strength-card,.managed-ats .managed-item{grid-template-columns:minmax(0,1fr)}
+.managed-ats .managed-strength-card strong,.managed-ats .managed-strength-card p{grid-column:1}
+
 .managed-extra{margin:0 0 4mm;break-inside:avoid;color:inherit;font:inherit}
 .managed-extra h3{margin:0 0 2mm;font-size:1.08em;color:inherit}
 .managed-extra ul{padding-left:4mm;margin:0}.managed-extra li{margin-bottom:1mm}
@@ -50,11 +68,11 @@ export const managedResumeCss = `
 .managed-extra .managed-columns{display:grid;grid-template-columns:1fr 1fr;gap:2mm}
 [data-managed-section]{break-inside:avoid}
 [data-managed-moved], [data-managed-moved] :is(h2,h3,p,li,small){color:inherit!important}
-[data-managed-section="strengths"] .managed-strengths-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3mm;list-style:none;margin:0;padding:0}
-[data-managed-section="strengths"] .managed-strength-card{display:flex;flex-direction:column;align-items:flex-start;gap:1mm;min-width:0;margin:0;padding:0;border:0;break-inside:avoid;overflow-wrap:anywhere}
-[data-managed-section="strengths"] .managed-strength-card>svg{width:6mm;height:6mm;flex:none}
-[data-managed-section="strengths"] .managed-strength-card strong{font-size:1em;line-height:1.3}
-[data-managed-section="strengths"] .managed-strength-card p{margin:0;white-space:pre-line;font-size:.92em;line-height:1.4;color:inherit}
+[data-managed-section="strengths"] .managed-strengths-grid{display:grid;grid-template-columns:repeat(var(--section-columns,1),minmax(0,1fr));gap:3mm;list-style:none;margin:0;padding:0}
+[data-managed-section="strengths"] .managed-strength-card{display:grid;grid-template-columns:4mm minmax(0,1fr);align-items:start;gap:1mm 1.5mm;min-width:0;margin:0;padding:0;border:0;break-inside:avoid;overflow-wrap:anywhere}
+[data-managed-section="strengths"] .managed-strength-card>svg{width:4mm;height:4mm;grid-column:1;grid-row:1 / span 2;color:var(--doc-accent,var(--accent,currentColor))}
+[data-managed-section="strengths"] .managed-strength-card strong{grid-column:2;min-width:0;font-size:1em;line-height:1.3}
+[data-managed-section="strengths"] .managed-strength-card p{grid-column:2;min-width:0;margin:0;white-space:pre-line;font-size:.92em;line-height:1.4;color:inherit}
 `;
 
 // Both the React preview and the PDF use this pure HTML projection. It only
@@ -65,6 +83,7 @@ export const applyManagedResumeOutput = (
   templateId: string,
   pageNumber = 1,
   totalPages = 1,
+  designSettings: DocumentDesignSettings = defaultDocumentDesign,
 ) => {
   if (!profile) return html;
   const { document } = parseHTML(`<html><body>${html}</body></html>`);
@@ -140,7 +159,7 @@ export const applyManagedResumeOutput = (
         nodes.set(entry.id, [...(nodes.get(entry.id) ?? []), node]);
       }
     }
-    const isAts = Boolean(
+    const isAts = designSettings.resumeOutputMode === "ats" || designSettings.columnLayout === "compact-ats" || Boolean(
       root.querySelector('[data-renderer="ats"], [class*="-ats"]'),
     );
     const main =
@@ -155,6 +174,30 @@ export const applyManagedResumeOutput = (
       : (root.querySelector(
           "aside,.modern-resume-right-column,.modern-pdf-right,.elegant-sidebar,.elegant-pdf-sidebar,.zeitgenoessisch-sidebar,.zeit-pdf-sidebar,.kreativ-sidebar,.kreativ-pdf-sidebar,.zweispaltig-sidebar,.zweispaltig-pdf-sidebar,.gepflegt-sidebar,.gepflegt-pdf-sidebar,.kompakt-right",
         ) ?? main);
+    const columnsFor = (entry: ManagerSection, values: {title: string; description?: string}[], strengths = false) =>
+      resolveSectionColumns(strengths ? designSettings.strengthsColumns : designSettings.knowledgeColumns, templateId,
+        entry.zone, values, designSettings, sidebar !== main && !isAts);
+    const grid = (entry: ManagerSection, values: {title: string; description?: string}[], content: string, strengths = false) => {
+      const columns = columnsFor(entry, values, strengths);
+      return `<div class="${strengths ? "managed-strengths-grid" : "managed-item-grid"}" data-columns="${columns}" style="--section-columns:${columns}">${content}</div>`;
+    };
+    const renderKnowledge = (entry: ManagerSection) => {
+      const knowledge = ensureKnowledgeSection(profile.knowledgeSection, profile.skills);
+      if (!knowledge.isVisible) return "";
+      const list = (items: KnowledgeItem[], category: KnowledgeCategory, mode: KnowledgeDisplayMode) => {
+        const visible = visibleKnowledgeItems(items);
+        if (isAts) return `<p>${visible.map((item) => escape(formatKnowledgeItem(item, category.showLevels, category.showYearsOfExperience, "comma-separated"))).join(", ")}</p>`;
+        const content = visible.map((item) => {
+          const text = escape(formatKnowledgeItem(item, category.showLevels, category.showYearsOfExperience, mode));
+          const bar = !isAts && category.showLevels && mode === "level-bars" ? `<i class="managed-item-level" aria-hidden="true"><b style="width:${knowledgeLevelScores[item.level] * 20}%"></b></i>` : "";
+          return `<div class="managed-item">${isAts ? "" : getThemedTechnologyIconMarkup(item.name, item.iconId)}<span class="managed-item-text">${text}${bar}</span></div>`;
+        }).join("");
+        return grid(entry, visible.map((item) => ({title: item.name, description: item.description})), content);
+      };
+      return knowledge.categories.filter((item) => item.isVisible).sort((a,b) => a.sortOrder-b.sortOrder).map((category) =>
+        `<div class="managed-knowledge-category"><h4>${escape(category.title)}</h4>${category.subtitle ? `<small>${escape(category.subtitle)}</small>` : ""}${list(category.items, category, category.displayMode)}${category.subcategories.filter((sub) => sub.isVisible).sort((a,b) => a.sortOrder-b.sortOrder).map((sub) => `<h5>${escape(sub.title)}</h5>${list(sub.items, category, sub.displayMode ?? category.displayMode)}`).join("")}</div>`
+      ).join("");
+    };
     const container = (entry: ManagerSection) =>
       entry.zone === "sidebar" ? sidebar : main;
     for (const entry of entries.filter((item) => !item.fixed)) {
@@ -186,7 +229,7 @@ export const applyManagedResumeOutput = (
           ? items.map((item) => ({
               title: item.text,
               description: item.description ?? "",
-              iconId: "",
+              iconId: item.icon || explicit.find((strength) => strength.title === item.text)?.iconId || "",
             }))
           : explicit.length
             ? explicit
@@ -209,7 +252,8 @@ export const applyManagedResumeOutput = (
             `<h3>${escape(entry.title)}</h3>`;
           node.setAttribute("data-managed-section", "strengths");
           if (!existing.length) node.className = "managed-extra";
-          node.innerHTML = `${heading}<div class="managed-strengths-grid">${strengths.map((item) => `<article class="managed-strength-card">${isAts ? "" : getTechnologyBrandIconMarkup(item.title, item.iconId)}<strong>${escape(item.title)}</strong>${item.description ? `<p>${escape(item.description)}</p>` : ""}</article>`).join("")}</div>`;
+          if (isAts) node.classList.add("managed-ats");
+          node.innerHTML = `${heading}${grid(entry, strengths, strengths.map((item) => `<article class="managed-strength-card">${isAts ? "" : getThemedTechnologyIconMarkup(item.title, item.iconId)}<strong>${escape(item.title)}</strong>${item.description ? `<p>${escape(item.description)}</p>` : ""}</article>`).join(""), true)}`;
           node.querySelector("h2,h3")!.textContent = entry.title;
           existing.slice(1).forEach((duplicate) => duplicate.remove());
           if (!existing.length) container(entry).appendChild(node);
@@ -217,7 +261,23 @@ export const applyManagedResumeOutput = (
         }
         continue;
       }
-      if (items.length && last) {
+      if (entry.id === "knowledge" && !items.length) {
+        if (!last) {
+          existing.forEach((node) => node.remove());
+          nodes.delete(entry.id);
+          continue;
+        }
+        content = renderKnowledge(entry);
+        if (!content) {
+          existing.forEach((node) => node.remove());
+          nodes.delete(entry.id);
+          continue;
+        }
+      } else if (items.length && last) {
+        if (entry.id === "knowledge" || /knowledge|skills|technologies|tools|methods|technical/.test(group?.semanticType ?? "")) {
+        const itemHtml = items.map((item) => `<div class="managed-item">${isAts ? "" : item.icon ? `<span aria-hidden="true">${escape(item.icon)}</span>` : getThemedTechnologyIconMarkup(item.text)}<span class="managed-item-text">${escape(item.text)}${item.level ? ` <small>${escape(item.level)}</small>` : ""}${item.description ? `<small>${escape(item.description)}</small>` : ""}</span></div>`);
+        content = grid(entry, items.map((item) => ({title: item.text, description: item.description})), itemHtml.join(""));
+        } else {
         const itemHtml = items.map(
           (item) =>
             `${group?.rendererType === "icon-list" && item.icon ? `<span aria-hidden="true">${escape(item.icon)}</span> ` : ""}${escape(item.text)}${item.level ? ` <small>${escape(item.level)}</small>` : ""}${item.description ? `<small>${escape(item.description)}</small>` : ""}`,
@@ -232,6 +292,7 @@ export const applyManagedResumeOutput = (
               : group?.rendererType === "text-list"
                 ? itemHtml.map((item) => `<p>${item}</p>`).join("")
                 : `<ul>${itemHtml.map((item) => `<li>${item}</li>`).join("")}</ul>`;
+        }
       } else if (entry.id.startsWith("special:") && last && !existing.length) {
         const special = profile.specialSections.find(
           (item) => item.id === entry.id.slice(8),
@@ -244,10 +305,18 @@ export const applyManagedResumeOutput = (
             )
             .join("") ?? "";
       }
-      if (content) {
+      if (content && entry.id === "knowledge" && existing.length) {
+        const node = existing[0];
+        const heading = node.querySelector("h2,h3")?.outerHTML ?? `<h3>${escape(entry.title)}</h3>`;
+        node.innerHTML = heading + content;
+        node.querySelector("h2,h3")!.textContent = entry.title;
+        if (isAts) node.classList.add("managed-ats");
+        existing.slice(1).forEach((duplicate) => duplicate.remove());
+        nodes.set(entry.id, [node]);
+      } else if (content) {
         existing.forEach((node) => node.remove());
         const node = document.createElement("section");
-        node.className = "managed-extra";
+        node.className = `managed-extra${isAts ? " managed-ats" : ""}`;
         node.setAttribute("data-managed-section", entry.id);
         node.innerHTML = `<h3>${escape(entry.title)}</h3>${content}`;
         if (group?.pageBreakBefore) node.style.breakBefore = "page";

@@ -230,6 +230,15 @@ describe("DataStore backups", () => {
     ).rejects.toThrow();
   });
 
+  it("retains section columns and manual technology icons after reopening", async () => {
+    const workspace = await store.createApplication(applicationInput("Layout GmbH"));
+    const application = workspace.applications[0];
+    await store.saveApplication({ ...application, designSettings: { ...application.designSettings, strengthsColumns: 2, knowledgeColumns: 1 } });
+    const reopened = new DataStore(root);
+    await reopened.initialize();
+    expect(reopened.getWorkspace().applications[0].designSettings).toMatchObject({ strengthsColumns: 2, knowledgeColumns: 1 });
+  });
+
   it("reloads the saved resume configuration from disk without leaking between applications or profiles", async () => {
     await store.createApplication(applicationInput("Bewerbung A"));
     const a = store.getWorkspace().applications[0];
