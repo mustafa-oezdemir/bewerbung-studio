@@ -7,7 +7,7 @@ import { applicationSchema, profileSchema } from "../../shared/schema";
 import { defaultDocumentDesign } from "../../shared/documentDesign";
 import { buildDocumentHtml } from "../../../electron/documents";
 import { createResumePagePlan } from "../../shared/documentPagination";
-import { moveManagerSection } from "../../features/resume-sections/resume-manager";
+import { moveManagerSection, updateManagerSection } from "../../features/resume-sections/resume-manager";
 import { ManagedResumePreview } from "./ManagedResumePreview";
 import { ElegantResume } from "./templates/elegant";
 import { EinspaltigResume } from "./templates/einspaltig";
@@ -152,5 +152,62 @@ describe("managed template previews", () => {
     const siblings = Array.from(education!.parentElement!.children);
     expect(siblings.indexOf(education!)).toBeLessThan(siblings.indexOf(experience!));
     expect(document.querySelectorAll('[data-managed-section="special:bbbb0000-0000-4000-8000-000000000000"]')).toHaveLength(1);
+  });
+  it.each(Object.entries(components))("applies section placement and visibility equally in preview and PDF for %s", (templateId, component) => {
+    const now = new Date().toISOString();
+    let profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: now,
+      summary: "Profiltext", strengths: [{ id: crypto.randomUUID(), title: "Teamarbeit" }],
+      experiences: [{ id: crypto.randomUUID(), from: "2020", to: "2024", role: "Entwicklerin", company: "Arbeitgeber", achievements: [] }],
+      education: [{ id: crypto.randomUUID(), from: "2018", to: "2020", degree: "Abschluss", institution: "Schule" }],
+      specialSections: [{ id: "bbbb0000-0000-4000-8000-000000000000", kind: "custom", title: "Projekt-Highlight", isVisible: true,
+        entries: [{ id: crypto.randomUUID(), title: "Projekt" }] }],
+    });
+    profile = moveManagerSection(profile, templateId, "summary", "sidebar", 0);
+    profile = moveManagerSection(profile, templateId, "experience", "main", 0);
+    profile = moveManagerSection(profile, templateId, "special:bbbb0000-0000-4000-8000-000000000000", "main", 1);
+    profile = updateManagerSection(profile, templateId, "education", { visible: false });
+    const settings = { ...defaultDocumentDesign, resumePresentation: { layoutMode: "two-column" as const } };
+    const plan = createResumePagePlan(profile, "", {}, templateId)[0];
+    const child = createElement(component as unknown as ComponentType<Record<string, unknown>>, {
+      profile, templateId, name: "Mina Kaya", atsMode: false, plan, totalPages: 1, accentColor: "#123456", secondaryColor: "#234567",
+      photoSource: null, resumeProfile: "", sections: profile.resumeSections, backgroundId: "none",
+    });
+    const preview = renderToStaticMarkup(<ManagedResumePreview profile={profile} templateId={templateId} pageNumber={1} totalPages={1} designSettings={settings}>{child}</ManagedResumePreview>);
+    const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test", company: { name: "Test", city: "Berlin" }, contact: {},
+      job: { title: "Entwicklung" }, status: "Entwurf", templateId, accentColor: "#123456", secondaryColor: "#234567",
+      documents: {}, statusHistory: [], createdAt: now, updatedAt: now, designSettings: settings });
+    for (const html of [preview, buildDocumentHtml(application, profile, "lebenslauf")]) {
+      const { document } = parseHTML(html);
+      const summary = document.querySelector('[data-managed-section="summary"]');
+      const experience = document.querySelector('[data-managed-section="experience"]');
+      const project = document.querySelector('[data-managed-section="special:bbbb0000-0000-4000-8000-000000000000"]');
+      expect(summary, templateId).not.toBeNull();
+      expect(experience, templateId).not.toBeNull();
+      expect(project, templateId).not.toBeNull();
+      const host = document.querySelector('[data-resume-layout="two-column"]')!;
+      const zone = (node: Element) => {
+        let current = node;
+        while (current.parentElement && current.parentElement !== host) current = current.parentElement;
+        return current;
+      };
+      expect(zone(summary!), templateId).not.toBe(zone(experience!));
+      expect(zone(project!), templateId).toBe(zone(experience!));
+      expect(document.querySelector('[data-managed-section="education"]'), templateId).toBeNull();
+    }
+  });
+  it("stacks main sections before sidebar sections in a customized single-column CV", () => {
+    const now = new Date().toISOString();
+    let profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: now,
+      summary: "Profiltext", experiences: [{ id: crypto.randomUUID(), from: "2020", to: "2024", role: "Entwicklerin", company: "Arbeitgeber", achievements: [] }],
+    });
+    profile = moveManagerSection(profile, "einspaltig", "experience", "main", 0);
+    profile = moveManagerSection(profile, "einspaltig", "summary", "sidebar", 0);
+    const plan = createResumePagePlan(profile, "", {}, "einspaltig")[0];
+    const child = createElement(EinspaltigResume, { profile, name: "Mina Kaya", atsMode: false, plan, totalPages: 1,
+      accentColor: "#123456", secondaryColor: "#234567", photoSource: null, resumeProfile: "", sections: profile.resumeSections, backgroundId: "white" });
+    const html = renderToStaticMarkup(<ManagedResumePreview profile={profile} templateId="einspaltig" pageNumber={1} totalPages={1}>{child}</ManagedResumePreview>);
+    const { document } = parseHTML(html);
+    const sections = Array.from(document.querySelectorAll("[data-managed-section]")).map(node => node.getAttribute("data-managed-section"));
+    expect(sections.indexOf("experience")).toBeLessThan(sections.indexOf("summary"));
   });
 });

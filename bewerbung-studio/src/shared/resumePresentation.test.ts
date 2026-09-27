@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { profileSchema, documentDesignOverridesSchema } from "./schema";
-import { resolveResumePresentation, separateResumeDraft } from "./resumePresentation";
+import { keepResumeLayoutOverrides, resolveResumePresentation, separateResumeDraft } from "./resumePresentation";
 import { getManagerSections, updateManagerSection, moveManagerSection } from "../features/resume-sections/resume-manager";
 
 const makeProfile = () => profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: new Date().toISOString() });
@@ -30,6 +30,26 @@ describe("resume content and template presentation", () => {
     const result = separateResumeDraft(original, draft, "einspaltig");
     expect(result.profile.resumeManagerLayouts).toEqual(original.resumeManagerLayouts);
     expect(getManagerSections(resolveResumePresentation(result.profile, "einspaltig", result.presentation)!, "einspaltig").map(item => item.id)).toEqual(getManagerSections(draft, "einspaltig").map(item => item.id));
+  });
+  it("round trips placement, order and visibility across templates", () => {
+    const original = makeProfile();
+    let draft = moveManagerSection(original, "einspaltig", "experience", "sidebar", 0);
+    draft = moveManagerSection(draft, "einspaltig", "strengths", "sidebar", 1);
+    draft = updateManagerSection(draft, "einspaltig", "education", { visible: false });
+    const { profile, presentation } = separateResumeDraft(original, draft, "einspaltig");
+    const saved = documentDesignOverridesSchema.parse(JSON.parse(JSON.stringify({ resumePresentation: presentation })));
+    const restored = resolveResumePresentation(profile, "einspaltig", saved.resumePresentation)!;
+    expect(getManagerSections(restored, "einspaltig").filter(item => !item.fixed).map(item => [item.id, item.zone, item.visible]))
+      .toEqual(getManagerSections(draft, "einspaltig").filter(item => !item.fixed).map(item => [item.id, item.zone, item.visible]));
+    expect(getManagerSections(profile, "einspaltig").find(item => item.id === "experience")?.zone).toBe("main");
+    expect(getManagerSections(profile, "klassisch").find(item => item.id === "experience")?.zone).toBe("main");
+  });
+  it("retains layout controls when the section editor saves", () => {
+    expect(keepResumeLayoutOverrides({ sections: { summary: { zone: "sidebar" } } },
+      { layoutMode: "two-column", sidebarSide: "left", sidebarWidthPercent: 35 }))
+      .toEqual({ sections: { summary: { zone: "sidebar" } }, layoutMode: "two-column", sidebarSide: "left", sidebarWidthPercent: 35 });
+    expect(keepResumeLayoutOverrides({ sidebarWidthPercent: 40, sections: { summary: { visible: false } } }, undefined))
+      .toEqual({ sections: { summary: { visible: false } } });
   });
   it("persists sparse personal-field, closing and column overrides", () => {
     const original = makeProfile();

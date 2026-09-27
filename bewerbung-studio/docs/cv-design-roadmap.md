@@ -201,3 +201,25 @@ erfolgreich; Electron-Start erfolgreich. `node scripts/layout-engine-qa.mjs`
 erzeugt 84 Preview-/PDF-Kombinationen aus den Phase-5-Fixtures;
 `npx electron scripts/check-layout-engine.cjs` bestätigt für alle 84 die
 berechnete Spaltenbreite, Reihenfolge und gemeinsame Grid-Zeile.
+
+### Phase 7 – Section Placement, Order und Visibility (27.09.2026)
+
+Der vorhandene Abschnittsmanager ist die zentrale Bearbeitungsstelle für
+Sichtbarkeit, Reihenfolge und Zuordnung zur Haupt- oder Seitenspalte. Alle
+Inhaltsabschnitte einschließlich Berufserfahrung, Ausbildung, Projekt-Highlight
+und eigenen Bereichen dürfen in beide Spalten verschoben werden. Kopf,
+persönliche Angaben, Foto und Abschluss bleiben feste Strukturelemente.
+Der Organizer bietet Drag & Drop mit markiertem Ziel sowie fokussierbare
+Griffe: Pfeil hoch/runter ändert die Reihenfolge, links/rechts die Spalte.
+Augenschalter und Positionsauswahl bleiben als direkte Alternativen erhalten.
+
+Die Zuordnung wird als sparse, bewerbungsbezogener `resumePresentation.sections`
+Override gespeichert. Alte Profile und unveränderte Vorlagen behalten ihr
+ursprüngliches Erscheinungsbild. Bei einspaltiger Ausgabe werden die Gruppen
+in einer Spalte angeordnet; beim Wechsel zu zwei Spalten bleibt die Zuordnung
+erhalten. Section-Speichern bewahrt zugleich die Layout-Overrides aus Phase 6.
+React-Vorschau und Electron-PDF verwenden dieselbe Abschnittsprojektion.
+
+Validierung: `npm run release:check` und der Electron-Starttest; Regressionen
+prüfen die Zuordnung und Sichtbarkeit für alle 14 Vorlagen in Vorschau und PDF,
+den einspaltigen Gruppenfluss sowie den Persistenz-Roundtrip.

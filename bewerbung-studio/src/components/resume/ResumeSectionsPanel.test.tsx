@@ -27,7 +27,7 @@ describe("ResumeSectionsPanel flexible blocks", () => {
 
     expect(html).toContain("Abschnitte neu ordnen");
     expect(html).toContain("Hauptspalte");
-    expect(html).toContain("Seitenleiste");
+    expect(html).toContain("Seitenspalte");
     expect(html).not.toContain("9 Lebenslauf-Bereiche");
     expect(html).not.toContain("Besondere Kenntnisse · Bausteine");
     expect(html).not.toContain("Lebenslaufdaten bearbeiten");
@@ -35,5 +35,17 @@ describe("ResumeSectionsPanel flexible blocks", () => {
     expect(html).toContain('aria-label="Berufserfahrung ausblenden" aria-pressed="true"');
     expect(html).toContain("Technische Schwerpunkte");
     expect(html).toContain("Bereich hinzufügen");
+    expect(html).toContain("Pfeil hoch oder runter für Reihenfolge");
+    expect(html).toContain('aria-label="Berufserfahrung Position"');
+  });
+  it("offers both placement groups and keyboard controls on a native single-column template", () => {
+    const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: new Date().toISOString() });
+    const html = renderToStaticMarkup(<ResumeSectionsPanel profile={profile} templateId="einspaltig" layoutMode="single"
+      singlePageExceeded={false} onSave={vi.fn()} onPreview={vi.fn()} />);
+    expect(html).toContain("Im einspaltigen Layout erscheinen beide Gruppen in einer Spalte.");
+    expect(html).toContain("Hauptspalte");
+    expect(html).toContain("Seitenspalte");
+    expect(html).toContain('aria-label="Berufserfahrung Position"');
+    expect(html).toContain("Pfeil links oder rechts für Spalte");
   });
 });

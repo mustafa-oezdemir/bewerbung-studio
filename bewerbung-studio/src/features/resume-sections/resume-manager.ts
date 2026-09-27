@@ -39,17 +39,17 @@ const legacyKeys: Record<string, keyof ApplicantProfile["resumeSections"]> = {
   languages: "languages",
   certifications: "certifications",
 };
-export const managerZones = (templateId: string): ManagerZone[] =>
-  ["ivy-league", "einspaltig", "klassisch", "tabellarisch"].includes(templateId)
-    ? ["main"]
-    : ["main", "sidebar"];
+const nativeSingleTemplates = new Set(["ivy-league", "einspaltig", "klassisch", "tabellarisch"]);
+const defaultSidebarSections = new Set(["summary", "strengths", "knowledge", "languages", "certifications"]);
+// Placement is independent of the selected visual layout. In single-column
+// mode the sidebar group follows the main group; switching back restores it.
+export const managerZones = (_templateId: string): ManagerZone[] =>
+  ["main", "sidebar"];
 export const managerAllowedZones = (
-  templateId: string,
-  id: string,
+  _templateId: string,
+  _id: string,
 ): ManagerZone[] =>
-  ["experience", "education", "projects"].includes(id)
-    ? ["main"]
-    : managerZones(templateId);
+  ["main", "sidebar"];
 export const baseGroupType = (type: string) =>
   ({
     "core-competencies": "strengths",
@@ -99,7 +99,8 @@ export const getManagerSections = (
       zone: (zones.length > 1 &&
       (zone === "sidebar" ||
         (["kompakt", "stilvoll"].includes(templateId) &&
-          ["summary", "strengths", "knowledge"].includes(type)))
+          ["summary", "strengths", "knowledge"].includes(type)) ||
+        (nativeSingleTemplates.has(templateId) && defaultSidebarSections.has(type)))
         ? "sidebar"
         : "main") as ManagerZone,
     }));

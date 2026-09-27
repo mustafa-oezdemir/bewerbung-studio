@@ -73,6 +73,7 @@ export const applyResumePageLayout = (
   surface: "preview" | "pdf",
   settings: DocumentDesignSettings,
   legacySidebarPercent?: number,
+  sectionZones?: ReadonlyMap<string, "main" | "sidebar">,
 ): void => {
   const id = resolveTemplateId(templateId);
   const presentation = settings.resumePresentation;
@@ -100,7 +101,7 @@ export const applyResumePageLayout = (
     host.insertBefore(sidebar, main.nextSibling);
     for (const section of sections) {
       const id = section.getAttribute("data-managed-section") ?? "";
-      const explicit = presentation?.sections?.[id]?.zone;
+      const explicit = sectionZones?.get(id) ?? presentation?.sections?.[id]?.zone;
       (explicit === "sidebar" || (!explicit && sidebarDefaults.has(id)) ? sidebar : main).appendChild(section);
     }
     // The header and footer stay full width; decorative absolute layers keep their position.

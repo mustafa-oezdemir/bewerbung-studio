@@ -39,6 +39,7 @@ const noop = () => {};
 type Props = {
   profile: ApplicantProfile;
   templateId: string;
+  layoutMode?: "single" | "two-column";
   singlePageExceeded: boolean;
   onSave: (profile: ApplicantProfile) => Promise<void>;
   onPreview: (templateId: string, profile: ApplicantProfile | null) => void;
@@ -51,6 +52,7 @@ type Props = {
 export function ResumeSectionsPanel({
   profile,
   templateId,
+  layoutMode,
   singlePageExceeded,
   onSave,
   onPreview,
@@ -62,6 +64,7 @@ export function ResumeSectionsPanel({
   const [draft, setDraft] = useState(profile);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [dragged, setDragged] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [newBlock, setNewBlock] = useState(resumeBlockRegistry[0].id);
   useEffect(() => {
     setDraft(profile);
@@ -330,22 +333,51 @@ export function ResumeSectionsPanel({
   ) => (
     <article
       key={entry.id}
-      className={`manager-card${entry.visible ? "" : " is-hidden"}`}
+      className={`manager-card${entry.visible ? "" : " is-hidden"}${dropTarget === entry.id ? " is-drop-target" : ""}`}
       draggable={!entry.fixed}
       onDragStart={(event) => {
         event.dataTransfer.setData("text/plain", entry.id);
+        event.dataTransfer.effectAllowed = "move";
         setDragged(entry.id);
       }}
-      onDragEnd={() => setDragged(null)}
-      onDragOver={(event) => event.preventDefault()}
+      onDragEnd={() => { setDragged(null); setDropTarget(null); }}
+      onDragOver={(event) => {
+        if (entry.fixed) return;
+        event.preventDefault();
+        event.stopPropagation();
+        event.dataTransfer.dropEffect = "move";
+        setDropTarget(entry.id);
+      }}
       onDrop={(event) => {
         event.preventDefault();
         event.stopPropagation();
-        if (dragged && !entry.fixed) move(dragged, entry.zone, index);
+        const source = dragged || event.dataTransfer.getData("text/plain");
+        if (source && source !== entry.id && !entry.fixed) {
+          const after = event.clientY > event.currentTarget.getBoundingClientRect().top + event.currentTarget.getBoundingClientRect().height / 2;
+          const sourceIndex = siblings.findIndex((item) => item.id === source);
+          const insertion = index + Number(after);
+          move(source, entry.zone, sourceIndex >= 0 && sourceIndex < insertion ? insertion - 1 : insertion);
+        }
         setDragged(null);
+        setDropTarget(null);
       }}>
       <div className="resume-section-card">
-        <GripVertical size={16} aria-hidden="true" />
+        {entry.fixed ? <GripVertical size={16} aria-hidden="true" /> : (
+          <button type="button" className="manager-drag-handle"
+            aria-label={`${entry.title} verschieben: Pfeil hoch oder runter für Reihenfolge, Pfeil links oder rechts für Spalte`}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowUp" && index > 0) move(entry.id, entry.zone, index - 1);
+              else if (event.key === "ArrowDown" && index < siblings.length - 1) move(entry.id, entry.zone, index + 1);
+              else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+                const zone = event.key === "ArrowLeft" ? "main" : "sidebar";
+                if (zone !== entry.zone) move(entry.id, zone, entries.filter((item) => !item.fixed && item.zone === zone).length);
+                else return;
+              } else return;
+              event.preventDefault();
+            }}>
+            <GripVertical size={16} aria-hidden="true" />
+          </button>
+        )}
         <button
           type="button"
           className="manager-card-title"
@@ -397,7 +429,7 @@ export function ResumeSectionsPanel({
               }>
               {managerAllowedZones(templateId, entry.id).map((zone) => (
                 <option key={zone} value={zone}>
-                  {zone === "main" ? "Hauptspalte" : "Seitenleiste"}
+                  {zone === "main" ? "Hauptspalte" : "Seitenspalte"}
                 </option>
               ))}
             </select>
@@ -414,9 +446,10 @@ export function ResumeSectionsPanel({
         <div>
           <strong>Abschnitte neu ordnen</strong>
           <small>
-            Bereiche ein- oder ausblenden, verschieben und bearbeiten. Klicken
-            Sie auf einen Abschnitt, um seine Inhalte zu öffnen.
+            Bereiche ziehen oder am Griff mit den Pfeiltasten verschieben.
+            Mit dem Auge ein- oder ausblenden; Titel öffnen die Inhalte.
           </small>
+          {layoutMode === "single" && <small>Im einspaltigen Layout erscheinen beide Gruppen in einer Spalte.</small>}
         </div>
       </div>
       <div className="resume-section-zone">
@@ -434,15 +467,17 @@ export function ResumeSectionsPanel({
           );
           return (
             <div
-              className="resume-section-zone"
+              className={`resume-section-zone${dropTarget === `zone:${zone}` ? " is-drop-target" : ""}`}
               key={zone}
-              onDragOver={(event) => event.preventDefault()}
+              onDragOver={(event) => { event.preventDefault(); setDropTarget(`zone:${zone}`); }}
               onDrop={(event) => {
                 event.preventDefault();
-                if (dragged) move(dragged, zone, siblings.length);
+                const source = dragged || event.dataTransfer.getData("text/plain");
+                if (source) move(source, zone, siblings.length);
                 setDragged(null);
+                setDropTarget(null);
               }}>
-              <span>{zone === "main" ? "Hauptspalte" : "Seitenleiste"}</span>
+              <span>{zone === "main" ? "Hauptspalte" : "Seitenspalte"}</span>
               <div className="resume-section-list">
                 {siblings.map((entry, index) => card(entry, index, siblings))}
               </div>

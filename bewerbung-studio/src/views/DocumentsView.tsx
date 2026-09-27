@@ -1,4 +1,4 @@
-import { resolveResumePresentation, separateResumeDraft } from "../shared/resumePresentation";
+import { keepResumeLayoutOverrides, resolveResumePresentation, separateResumeDraft } from "../shared/resumePresentation";
 import { resolveResumeLayout } from "../shared/resumeLayoutEngine";
 import type { ResumePresentation } from "../shared/resumePresentationSchema";
 import { ContactIcon } from "../components/resume/templates/ContactIcon";
@@ -456,13 +456,7 @@ export function DocumentsView({
       setDesign((current) => {
         if (current.templateId !== templateId) return current;
         const previous = current.settings.resumePresentation;
-        const combined = {
-          ...separated.presentation,
-          ...(previous?.layoutMode ? { layoutMode: previous.layoutMode } : {}),
-          ...(previous?.sidebarSide ? { sidebarSide: previous.sidebarSide } : {}),
-          ...(previous?.sidebarWidthPercent !== undefined && separated.presentation.sidebarWidthPercent === undefined
-            ? { sidebarWidthPercent: previous.sidebarWidthPercent } : {}),
-        };
+        const combined = keepResumeLayoutOverrides(separated.presentation, previous);
         const resumePresentation = Object.keys(combined).length ? combined : undefined;
         if (JSON.stringify(current.settings.resumePresentation) === JSON.stringify(resumePresentation)) return current;
         return { ...current, settings: { ...current.settings, resumePresentation } };
@@ -846,7 +840,8 @@ export function DocumentsView({
     const separated = separateResumeDraft(profile, changedProfile, template.id);
     const savedProfile = { ...separated.profile, updatedAt: new Date().toISOString() };
     const snapshot = applicationSnapshot(formRef.current);
-    snapshot.designSettings = { ...snapshot.designSettings, resumePresentation: separated.presentation };
+    snapshot.designSettings = { ...snapshot.designSettings,
+      resumePresentation: keepResumeLayoutOverrides(separated.presentation, design.settings.resumePresentation) };
     await persistDocumentDraft(snapshot, savedProfile, saveProfile, saveApplication);
     setResumeContentDraft(savedProfile);
   };
@@ -1546,6 +1541,7 @@ export function DocumentsView({
                           template.id === "kompakt" && resumePlan.length > 1
                         }
                         templateId={template.id}
+                        layoutMode={resumeLayout.mode}
                         summaryValue={docs.resumeProfile}
                         onSummaryChange={(summary) =>
                           setDocumentPreview({

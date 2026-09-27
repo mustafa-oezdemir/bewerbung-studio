@@ -5,6 +5,17 @@ import { getResumeEditorSettings } from "../features/resume-sections/resume-edit
 import { resumePresentationSchema, type ResumePresentation } from "./resumePresentationSchema";
 import { resolveTemplateId } from "./templates";
 
+/** Editing section content must not discard the document's layout controls. */
+export const keepResumeLayoutOverrides = (
+  next: ResumePresentation,
+  previous: ResumePresentation | undefined,
+): ResumePresentation => ({
+  ...Object.fromEntries(Object.entries(next).filter(([key]) => key !== "sidebarWidthPercent")),
+  ...(previous?.layoutMode !== undefined ? { layoutMode: previous.layoutMode } : {}),
+  ...(previous?.sidebarSide !== undefined ? { sidebarSide: previous.sidebarSide } : {}),
+  ...(previous?.sidebarWidthPercent !== undefined ? { sidebarWidthPercent: previous.sidebarWidthPercent } : {}),
+});
+
 /** Compatibility projection: old renderers receive their established profile shape.
  * The returned object is never the object saved as profile content. */
 export const resolveResumePresentation = (

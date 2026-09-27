@@ -7210,6 +7210,11 @@ body.is-resizing-split-view * {
 .manager-card { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
 .manager-card > .resume-section-card { border: 0; border-radius: 0; padding: 11px; }
 .manager-card.is-hidden > .resume-section-card { color: var(--muted); }
+.manager-card.is-drop-target, .resume-section-zone.is-drop-target { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 8%, var(--surface)); }
+.manager-drag-handle { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; color: var(--muted); background: transparent; cursor: grab; }
+.manager-drag-handle:hover, .manager-drag-handle:focus-visible { color: var(--brand); background: color-mix(in srgb, var(--brand) 10%, var(--surface)); outline-offset: 2px; }
+.manager-drag-handle:active { cursor: grabbing; }
+.manager-card .resume-section-card > select { grid-column: 2 / -1; min-width: 0; }
 .manager-card-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 6px 0; border: 0; color: inherit; background: transparent; text-align: left; font-size: .68rem; font-weight: 700; cursor: pointer; }
 .manager-card-title[aria-expanded="true"] svg { transform: rotate(180deg); }
 .manager-card-body { display: grid; gap: 12px; padding: 14px; border-top: 1px solid var(--line); }

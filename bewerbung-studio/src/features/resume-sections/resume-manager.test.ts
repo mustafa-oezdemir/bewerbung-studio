@@ -19,11 +19,14 @@ describe("unified resume manager", () => {
     expect(resolveResumeSectionInstances(changed.resumeSemanticSections).find((entry) => entry.semanticType === "career")).toMatchObject({ visible: false, customTitle: "Praxis" });
     expect(updateManagerSection(changed, "modern", "experience", { visible: true }).resumeSections.experience).toBe(true);
   });
-  it("keeps layouts per template and rejects invalid career placements", () => {
+  it("keeps layouts per template and allows every section in either column", () => {
     const changed = moveManagerSection(profile, "modern", "education", "main", 0);
     expect(changed.resumeManagerLayouts.modern.filter((entry) => entry.zone === "main")[0].id).toBe("education");
     expect(changed.resumeManagerLayouts.kompakt).toBeUndefined();
-    expect(moveManagerSection(changed, "modern", "experience", "sidebar", 0)).toBe(changed);
+    const moved = moveManagerSection(changed, "modern", "experience", "sidebar", 0);
+    expect(getManagerSections(moved, "modern").find((entry) => entry.id === "experience")?.zone).toBe("sidebar");
+    expect(getManagerSections(moveManagerSection(moved, "einspaltig", "summary", "sidebar", 0), "einspaltig")
+      .find((entry) => entry.id === "summary")?.zone).toBe("sidebar");
     expect(profile.resumeManagerLayouts).toEqual({});
   });
 });

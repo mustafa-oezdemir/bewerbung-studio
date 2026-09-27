@@ -407,10 +407,13 @@ export const applyManagedResumeOutput = (
       }
     }
     // An anchor preserves the template's header/contact/photo and footer order.
+    const placementOrder = main === sidebar && profile.resumeManagerLayouts?.[templateId]?.length
+      ? [...entries.filter((entry) => entry.zone === "main"), ...entries.filter((entry) => entry.zone === "sidebar")]
+      : entries;
     for (const destination of profile.resumeManagerLayouts?.[templateId]?.length
       ? new Set([main, sidebar])
       : []) {
-      const moving = entries
+      const moving = placementOrder
         .filter(
           (entry) =>
             !entry.fixed && entry.visible && container(entry) === destination,
@@ -431,7 +434,8 @@ export const applyManagedResumeOutput = (
       }
       anchor.remove();
     }
-    applyResumePageLayout(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings, profile.resumeColumnRatio);
+    applyResumePageLayout(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings,
+      profile.resumeColumnRatio, new Map(entries.map((entry) => [entry.id, entry.zone])));
   });
   return document.body.innerHTML;
 };
