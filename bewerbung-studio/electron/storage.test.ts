@@ -15,7 +15,7 @@ import {
   type ApplicationInput,
 } from "../src/shared/schema";
 import { defaultDocumentDesign } from "../src/shared/documentDesign";
-import { createDocumentDesignDraft, selectDocumentTemplate } from "../src/shared/documentEditorState";
+import { createDocumentDesignDraft, selectDocumentTemplate, resetDocumentDesign, updateCvDesignField } from "../src/shared/documentEditorState";
 import { setResumeSectionTitle } from "../src/features/resume-sections/resume-sections";
 import { DataStore } from "./storage";
 
@@ -237,6 +237,29 @@ describe("DataStore backups", () => {
     const reopened = new DataStore(root);
     await reopened.initialize();
     expect(reopened.getWorkspace().applications[0].designSettings).toMatchObject({ strengthsColumns: 2, knowledgeColumns: 1 });
+  });
+
+  it("persists sparse per-template CV overrides and keeps a reset after restarting", async () => {
+    await store.createApplication(applicationInput("Design GmbH"));
+    const application = store.getWorkspace().applications[0];
+    const base = selectDocumentTemplate(createDocumentDesignDraft(application), "modern");
+    const changed = updateCvDesignField(base, "colors", "paragraph", "#abcdef");
+    const other = selectDocumentTemplate(changed, "kompakt");
+    await store.saveApplication({ ...application, templateId: other.templateId, accentColor: other.accentColor, secondaryColor: other.secondaryColor, designSettings: other.settings, templateDesigns: other.templateDesigns });
+    const reopened = new DataStore(root);
+    await reopened.initialize();
+    const loaded = reopened.getWorkspace().applications[0];
+    expect(loaded.templateDesigns.modern).toEqual({ settings: { cvOverrides: { colors: { paragraph: "#abcdef" } } } });
+    const restored = selectDocumentTemplate(createDocumentDesignDraft(loaded), "modern");
+    expect(restored.settings.cvOverrides).toEqual({ colors: { paragraph: "#abcdef" } });
+    const reset = resetDocumentDesign(restored);
+    await reopened.saveApplication({ ...loaded, templateId: reset.templateId, accentColor: reset.accentColor, secondaryColor: reset.secondaryColor, designSettings: reset.settings, templateDesigns: reset.templateDesigns });
+    const restarted = new DataStore(root);
+    await restarted.initialize();
+    const persisted = restarted.getWorkspace().applications[0];
+    expect(persisted.designSettings).not.toHaveProperty("cvOverrides");
+    expect(persisted.templateDesigns.modern).toBeUndefined();
+    expect(selectDocumentTemplate(selectDocumentTemplate(createDocumentDesignDraft(persisted), "kompakt"), "modern").settings).not.toHaveProperty("cvOverrides");
   });
 
   it("reloads the saved resume configuration from disk without leaking between applications or profiles", async () => {

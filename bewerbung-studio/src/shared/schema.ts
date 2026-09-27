@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { cvDesignOverridesSchema } from "./cvDesignSchema";
 import {
   columnLayoutIds,
   defaultDocumentDesign,
@@ -285,40 +286,51 @@ const designLevelSchema = z.union([
 
 const hexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 
-const sectionColumnSchema = z.union([z.literal("auto"), z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).default("auto");
+const sectionColumnSchema = z.union([z.literal("auto"), z.literal(1), z.literal(2), z.literal(3), z.literal(4)]);
 
-export const documentDesignSchema = z.object({
+// Sparse records must not run field defaults: Zod's .partial() on a field with
+// .default() still materializes that default when loading an empty object.
+const documentDesignValuesSchema = z.object({
+  cvOverrides: cvDesignOverridesSchema.optional(),
   strengthsColumns: sectionColumnSchema,
   knowledgeColumns: sectionColumnSchema,
-  marginLevel: designLevelSchema.default(defaultDocumentDesign.marginLevel),
-  paddingLevel: designLevelSchema.default(defaultDocumentDesign.paddingLevel),
-  sectionSpacingLevel: designLevelSchema.default(
-    defaultDocumentDesign.sectionSpacingLevel,
-  ),
+  marginLevel: designLevelSchema,
+  paddingLevel: designLevelSchema,
+  sectionSpacingLevel: designLevelSchema,
   fontSize: z.enum(fontSizeIds),
-  lineHeightLevel: designLevelSchema.default(
-    defaultDocumentDesign.lineHeightLevel,
-  ),
-  backgroundShadeLevel: designLevelSchema.default(
-    defaultDocumentDesign.backgroundShadeLevel,
-  ),
+  lineHeightLevel: designLevelSchema,
+  backgroundShadeLevel: designLevelSchema,
   fontId: z.enum(documentFontIds),
   headingFontId: z.enum(documentFontIds),
   columnLayout: z.enum(columnLayoutIds),
-  resumeOutputMode: z
-    .enum(resumeOutputModes)
-    .default(defaultDocumentDesign.resumeOutputMode),
+  resumeOutputMode: z.enum(resumeOutputModes),
   backgroundId: z.enum(documentBackgroundIds),
-  backgroundScope: z
-    .enum(documentBackgroundScopes)
-    .default(defaultDocumentDesign.backgroundScope),
+  backgroundScope: z.enum(documentBackgroundScopes),
+  textColor: hexColorSchema,
+  headingColor: hexColorSchema,
+  lineColor: hexColorSchema,
+  backgroundColor: hexColorSchema,
+  showBackgroundInPrint: z.boolean(),
+  syncAcrossDocuments: z.boolean(),
+});
+
+export const documentDesignOverridesSchema = documentDesignValuesSchema.partial();
+
+// Keep the historic defaults/required fields for full saved application records.
+export const documentDesignSchema = documentDesignValuesSchema.extend({
+  strengthsColumns: sectionColumnSchema.default("auto"),
+  knowledgeColumns: sectionColumnSchema.default("auto"),
+  marginLevel: designLevelSchema.default(defaultDocumentDesign.marginLevel),
+  paddingLevel: designLevelSchema.default(defaultDocumentDesign.paddingLevel),
+  sectionSpacingLevel: designLevelSchema.default(defaultDocumentDesign.sectionSpacingLevel),
+  lineHeightLevel: designLevelSchema.default(defaultDocumentDesign.lineHeightLevel),
+  backgroundShadeLevel: designLevelSchema.default(defaultDocumentDesign.backgroundShadeLevel),
+  resumeOutputMode: z.enum(resumeOutputModes).default(defaultDocumentDesign.resumeOutputMode),
+  backgroundScope: z.enum(documentBackgroundScopes).default(defaultDocumentDesign.backgroundScope),
   textColor: hexColorSchema.default(defaultDocumentDesign.textColor),
   headingColor: hexColorSchema.default(defaultDocumentDesign.headingColor),
   lineColor: hexColorSchema.default(defaultDocumentDesign.lineColor),
-  backgroundColor: hexColorSchema.default(
-    defaultDocumentDesign.backgroundColor,
-  ),
-  showBackgroundInPrint: z.boolean(),
+  backgroundColor: hexColorSchema.default(defaultDocumentDesign.backgroundColor),
   syncAcrossDocuments: z.boolean().default(true),
 });
 
@@ -343,9 +355,9 @@ export const applicationSchema = z.object({
     .record(
       z.string(),
       z.object({
-        accentColor: hexColorSchema,
-        secondaryColor: hexColorSchema,
-        settings: documentDesignSchema,
+        accentColor: hexColorSchema.optional(),
+        secondaryColor: hexColorSchema.optional(),
+        settings: documentDesignOverridesSchema,
       }),
     )
     .default({}),

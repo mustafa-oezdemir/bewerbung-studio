@@ -633,8 +633,10 @@ const templateIdAliases: Record<string, string> = {
   einfach: "einspaltig",
 };
 
+export const resolveTemplateId = (id: string) => templateIdAliases[id] ?? id;
+
 export const getTemplate = (id: string) => {
-  const resolvedId = templateIdAliases[id] ?? id;
+  const resolvedId = resolveTemplateId(id);
   return (
     allTemplates.find((template) => template.id === resolvedId) ?? templates[0]
   );

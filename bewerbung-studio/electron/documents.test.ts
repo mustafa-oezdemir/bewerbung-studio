@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { applicationSchema, profileSchema } from "../src/shared/schema";
 import { resolveResumeSectionInstances } from "../src/features/resume-sections/resume-section-system";
 import { buildDocumentHtml } from "./documents";
+import { templates } from "../src/shared/templates";
+import { getTemplateDocumentDesignDefaults } from "../src/shared/cvDesign";
+import { createDocumentDesignDraft, resetDocumentDesign } from "../src/shared/documentEditorState";
 import { strengthSymbolOptions } from "../src/shared/strengthSymbols";
 import { parseHTML } from "linkedom";
 import { moveManagerSection, updateManagerSection } from "../src/features/resume-sections/resume-manager";
@@ -60,6 +63,19 @@ const profile = profileSchema.parse({
 });
 
 describe("Lebenslauf-Dokumente", () => {
+  it.each(templates)("restores the original PDF after resetting $name", (template) => {
+    const original = {
+      ...application, templateId: template.id, accentColor: template.accent,
+      secondaryColor: template.secondary, designSettings: getTemplateDocumentDesignDefaults(template.id),
+    };
+    const modified = {
+      ...original, accentColor: "#aabbcc", secondaryColor: "#ccbbaa",
+      designSettings: { ...original.designSettings, marginLevel: 9 as const, fontId: "arial" as const, cvOverrides: { colors: { text: "#abcdef" } } },
+    };
+    const reset = resetDocumentDesign(createDocumentDesignDraft(modified));
+    const restored = { ...modified, accentColor: reset.accentColor, secondaryColor: reset.secondaryColor, designSettings: reset.settings };
+    expect(buildDocumentHtml(restored, profile, "lebenslauf")).toBe(buildDocumentHtml(original, profile, "lebenslauf"));
+  });
   it.each(["classic-professional", "modern-sidebar", "minimal-clean", "technical-developer", "executive-dark", "creative-accent", "pehlione_white", "pehlione_white_blue", "modern", "elegant", "zweispaltig", "zeitgenoessisch", "kreativ", "gepflegt", "kompakt", "stilvoll", "einspaltig", "klassisch", "tabellarisch", "ivy-league"])("uses shared contact icons in %s", (templateId) => {
     const contactProfile = profileSchema.parse({
       ...profile,

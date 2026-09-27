@@ -49,7 +49,7 @@ Quality Gate darf erst nach Wiederherstellung und Prüfung dieser Dateien gemeld
 
 - [x] 0: Architektur und Baseline dokumentieren.
 - [x] 1: Gemeinsame semantische Designauflösung, ohne Defaultansichten zu verändern.
-- [ ] 2: Vorlagenbezogene Overrides und vollständiger Reset.
+- [x] 2: Vorlagenbezogene Overrides und vollständiger Reset.
 - [ ] 3: Profildaten und Darstellung kompatibel trennen.
 - [ ] 4–5: Eigene Abschnitte normalisieren und Vorlagenstile vererben.
 - [ ] 6–7: Gemeinsame Spalten, Platzierung, Reihenfolge und Sichtbarkeit.
@@ -85,3 +85,26 @@ Schritt 5 bzw. 13. Die neue Grundlage allein ist noch kein fertiges Designpanel.
 Prüfung: 204 Resolver-/Preview-/PDF-Tests erfolgreich. Alle aktiven Vorlagen sind
 abgedeckt; Farben, Einheiten, Grenzen, Alias, isolierte Defaults und sparse
 Overrides werden geprüft. Vorhandene Vorschau-/PDF-Renderer bleiben unverändert.
+
+## Schritt 2: Vorlagenwechsel, Speicherung und Reset
+
+`documentEditorState.ts` initialisiert eine neue Vorlage jetzt ausschließlich mit
+deren Defaults. Inaktive Vorlagen speichern nur Abweichungen; historische volle
+Snapshots werden weiterhin gelesen. Das aktive `designSettings`-Objekt bleibt aus
+Kompatibilitätsgründen vollständig. Neue semantische Werte liegen darin optional
+und partiell unter `cvOverrides`; der bestehende DataStore übernimmt die Persistenz.
+
+Die Validierung trennt vollständige Einstellungen von partiellen Overrides, damit
+Zod beim Laden eines leeren Overrides keine globalen Defaults ergänzt. Der
+Design-Reset in `DocumentsView.tsx` setzt auch Akzent-/Sekundärfarbe zurück und
+entfernt semantische Overrides. Andere Vorlagen, Profildaten und Inhalte bleiben
+erhalten. Einzelfeld-Reset steht als gemeinsamer Zustandshelfer bereit; die neuen
+semantischen Bedienelemente und ihre Ausgabeanbindung folgen in späteren Schritten.
+
+Prüfung: Typecheck und Production Build erfolgreich. 538 Tests erfolgreich, nur
+die sechs dokumentierten Word-Baselinefehler verbleiben. Neue Tests prüfen alle
+14 Vorlagen auf Isolation, exakte PDF-HTML-Gleichheit nach Reset, alte Snapshots,
+Alias-Kompatibilität sowie Speichern/Neustart/Reset über den realen DataStore.
+Zusätzlich wurde eine echte Einspaltig-A4-PDF nach Reset erzeugt und gerendert:
+Vorlagenfarben, Hintergrund, eigene Überschrift und gestrichelte Trenner korrekt;
+Vorschau und PDF haben dieselben berechneten Überschriftsrahmen.

@@ -4,6 +4,7 @@ import { getResumeDisplayProfile } from "../shared/resumeDisplayProfile";
 import {
   createDocumentDesignDraft,
   selectDocumentTemplate,
+  resetDocumentDesign,
   persistDocumentDraft,
   type DocumentDesignDraft,
 } from "../shared/documentEditorState";
@@ -1936,15 +1937,7 @@ export function DocumentsView({
                     <button
                       className="button secondary design-reset-button"
                       type="button"
-                      onClick={() =>
-                        setDesign((current) => ({
-                          ...current,
-                          settings: {
-                            ...defaultDocumentDesign,
-                            ...(template.designDefaults ?? {}),
-                          },
-                        }))
-                      }>
+                      onClick={() => setDesign(resetDocumentDesign)}>
                       Auf Standard zurücksetzen
                     </button>
                   </section>

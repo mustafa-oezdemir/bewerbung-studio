@@ -1,3 +1,5 @@
+import type { CvDesignOverrides } from "./cvDesignSchema";
+
 export const documentFontIds = [
   "rubik",
   "inter",
@@ -70,6 +72,8 @@ export type DocumentBackgroundScope = (typeof documentBackgroundScopes)[number];
 export type SectionColumnMode = "auto" | 1 | 2 | 3 | 4;
 
 export type DocumentDesignSettings = {
+  /** Sparse semantic CV fields; omitted on legacy documents and after reset. */
+  cvOverrides?: CvDesignOverrides;
   strengthsColumns: SectionColumnMode;
   knowledgeColumns: SectionColumnMode;
   marginLevel: DesignLevel;
