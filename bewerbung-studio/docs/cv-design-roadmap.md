@@ -52,7 +52,7 @@ Quality Gate darf erst nach Wiederherstellung und Prüfung dieser Dateien gemeld
 - [x] 2: Vorlagenbezogene Overrides und vollständiger Reset.
 - [x] 3: Profildaten und Darstellung kompatibel trennen.
 - [x] 4: Eigene Abschnitte normalisieren.
-- [ ] 5: Vorlagenstile für eigene Abschnitte vererben.
+- [x] 5: Vorlagenstile für eigene Abschnitte vererben.
 - [ ] 6–7: Gemeinsame Spalten, Platzierung, Reihenfolge und Sichtbarkeit.
 - [ ] 8–9: Abstände und Metadatenlayout.
 - [ ] 10–11: Bestehende Stärken-/Icon-Lösung gegen gemeinsame Anforderungen prüfen.
@@ -143,3 +143,39 @@ Validierung: Build inklusive Typecheck erfolgreich. 578 Tests bestanden; weiterh
 sechs bekannte Word-Asset-Fehler. Die neue Regression prüft alle fünf Inhaltstypen in
 allen 14 aktiven Vorlagen auf identisches Preview-/PDF-Markup und eindeutige IDs.
 Visuelle Stil-Vererbung und vorlagenspezifische Abstände folgen in Phase 5.
+
+### Phase 5 – Gemeinsame Section Style Inheritance (27.09.2026)
+
+Alle 14 aktiven Vorlagen verwenden gemeinsame semantische Rollen für Hauptabschnitt,
+Eintragstitel, unterstützenden Organisations-/Akzenttext und Metadaten. Der gemeinsame
+Adapter erzeugt ausschließlich auf eigene Abschnitte begrenzte CSS-Aliase aus den
+nativen Stylesheets. Font, Farbe, Divider, Innen-/Außenabstand, Eintragsabstand sowie
+Dichte-, ATS- und Umbruchregeln bleiben dadurch an die jeweilige Vorlage gebunden.
+Es werden keine globalen Ersatz-Defaults und keine Profilmigration eingeführt.
+
+Preview und PDF verwenden denselben Inhalts- und Stiladapter. Bestehende verschachtelte
+Überschriften behalten ihre Label-/Icon-Struktur; neue Abschnitte stehen vor dem
+Abschlussblock. Unterabschnitte verwenden die native Überschriftenelementart ihres
+Renderers, weshalb ihre HTML-Tags zwischen Vorschau und PDF abweichen dürfen; Inhalt,
+IDs und semantische Rollen bleiben gleich. Karriere-Spaltengeometrie wird nicht auf
+freie Einträge kopiert. Bestehende Persistenz und vorlagenbezogener Reset bleiben erhalten.
+
+Die PostCSS-Abhängigkeit ist in Electron extern eingebunden: Node lädt das CommonJS-
+Paket selbst, sodass der ESM-Build nicht mehr an `require("path")` scheitert. Der
+Renderer verwendet weiterhin den Browser-Build der Bibliothek.
+
+Validierung:
+
+- `npm run release:check`: Typecheck, 65 Testdateien / 604 Tests und Production Build erfolgreich.
+- `node scripts/section-inheritance-qa.mjs` und `npx electron scripts/check-section-inheritance.cjs`:
+  56 berechnete Stilprüfungen (14 Vorlagen × visuell/ATS × Vorschau/PDF), keine Abweichungen.
+  Der gemeinsame Keep-with-next-Schutz darf zusätzlich einen alleinstehenden Titel verhindern.
+- 14 echte A4-PDFs erzeugt, mit Poppler gerendert und visuell geprüft.
+- `npx electron scripts/electron-startup-smoke.cjs`: Hauptprozess, Preload und React erfolgreich geladen.
+- Fehlende Word-Testassets unter `public/templates` mit den bestehenden `create-*-lebenslauf.py`
+  Generatoren wiederhergestellt; die sechs bisherigen Baselinefehler sind damit behoben.
+- Bestehende Bundle-Größen-/Vite-Deprecation-Warnungen bleiben ohne Buildfehler.
+
+Die QA-Ausgaben liegen unter `tmp/section-inheritance-qa`. Nächster geplanter Schritt
+ist Phase 6; vorlagenspezifische Redesigns und die spätere Designpanel-Anbindung sind
+nicht Bestandteil dieser Phase.

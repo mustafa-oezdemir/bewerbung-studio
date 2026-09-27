@@ -1,3 +1,4 @@
+import { inheritResumeSectionStyles } from "../src/shared/resumeSectionStyleInheritance";
 import { renderContactIcon } from "../src/shared/contactIcons";
 import { applyManagedResumeOutput, managedResumeCss } from "../src/shared/resumeManagedOutput";
 import { getResumeDisplayProfile } from "../src/shared/resumeDisplayProfile";
@@ -692,6 +693,20 @@ const pageFitScript = `
       document.querySelectorAll(".page").forEach(fit);
     })();
   </script>`;
+
+// Native styles are static; cache only their scoped section aliases, never user data.
+const inheritedPdfSectionStyles = new Map<string, string>();
+const getInheritedPdfSectionStyles = (templateId: string) => {
+  if (!inheritedPdfSectionStyles.has(templateId)) {
+    inheritedPdfSectionStyles.set(templateId, inheritResumeSectionStyles(
+      elegantDocumentCss + zweispaltigDocumentCss + zeitgenoessischDocumentCss + kreativDocumentCss
+      + ivyLeagueDocumentCss + extendedResumeDocumentCss + klassischDocumentCss + modernDocumentCss
+      + pehlioneDocumentCss + pehlionePdfLayoutFixes + gepflegtDocumentCss + tabellarischDocumentCss,
+      templateId, "pdf", true,
+    ));
+  }
+  return inheritedPdfSectionStyles.get(templateId)!;
+};
 
 export const buildDocumentHtml = (
   application: Application,
@@ -3805,7 +3820,7 @@ export const buildDocumentHtml = (
   const cvHtml = target === "mappe" ? buildDocumentHtml(application, profile, "lebenslauf", attachments) : "";
   const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings);
   const selected = target === "mappe" ? [letter, cover, managedResume] : target === "deckblatt" ? [cover] : target === "anschreiben" ? [letter] : [managedResume];
-  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${zweispaltigDocumentCss}${zeitgenoessischDocumentCss}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}</style></head><body>${selected.join("")}${pageFitScript}</body></html>`;
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${zweispaltigDocumentCss}${zeitgenoessischDocumentCss}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}</style></head><body>${selected.join("")}${pageFitScript}</body></html>`;
 };
 
 export const buildCoverLetterMarkdown = (

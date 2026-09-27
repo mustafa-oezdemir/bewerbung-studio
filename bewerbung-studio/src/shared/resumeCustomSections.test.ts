@@ -5,6 +5,14 @@ import { resumeCustomContentTypes } from "./resumeCustomSectionTypes";
 import { parseHTML } from "linkedom";
 const section = (extra = {}) => profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: new Date().toISOString(), specialSections: [{ id: crypto.randomUUID(), kind: "custom", title: "Beliebige Überschrift", entries: [{ id: crypto.randomUUID(), title: "demo" }], ...extra }] }).specialSections[0];
 describe("custom section normalization", () => {
+  it("keeps entry title, organization and date in distinct semantic roles", () => {
+    const { document } = parseHTML(renderCustomSectionContent(section({ contentType: "entries", entries: [{
+      id: crypto.randomUUID(), title: "Fachinformatiker für Anwendungsentwicklung", subtitle: "IAD GmbH", date: "07/2023 – 11/2025",
+    }] })));
+    expect(document.querySelector('[data-custom-role="entry-title"]')?.textContent).toBe("Fachinformatiker für Anwendungsentwicklung");
+    expect(document.querySelector('[data-custom-role="supporting"]')?.textContent).toBe("IAD GmbH");
+    expect(document.querySelector('[data-custom-role="metadata"]')?.textContent).toBe("07/2023 – 11/2025");
+  });
   it("separates legacy body content from the main heading without inspecting title spelling", () => {
     const original = section();
     const snapshot = JSON.stringify(original);

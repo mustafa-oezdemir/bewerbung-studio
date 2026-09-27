@@ -24,13 +24,13 @@ export const renderCustomSectionContent = (section: Section): string => {
   const normalized = normalizeCustomSection(section);
   const items = normalized.entries.map(entry => {
     const period = entry.date.trim() || [entry.from, entry.to].filter(value => value.trim()).join(" – ");
-    const metadata = [entry.subtitle, entry.location, period].filter(value => value.trim()).join(" · ");
+    const metadata = [entry.location, period].filter(value => value.trim()).join(" · ");
     const titleTag = entry.sectionType === "subsection" ? "h3" : "p";
-    const details = `${entry.title.trim() ? `<${titleTag} data-section-type="${entry.sectionType}">${escape(entry.title)}</${titleTag}>` : ""}${metadata ? `<p class="resume-special-output__meta">${escape(metadata)}</p>` : ""}${entry.description.trim() ? `<p>${escape(entry.description)}</p>` : ""}${entry.bullets.some(value => value.trim()) ? `<ul>${entry.bullets.filter(value => value.trim()).map(value => `<li>${escape(value)}</li>`).join("")}</ul>` : ""}${entry.url.trim() ? `<p class="resume-special-output__url">${escape(entry.url)}</p>` : ""}`;
+    const details = `${entry.title.trim() ? `<${titleTag} data-custom-role="${entry.sectionType === "subsection" ? "entry-title" : "body"}" data-section-type="${entry.sectionType}">${escape(entry.title)}</${titleTag}>` : ""}${entry.subtitle.trim() ? `<p data-custom-role="supporting">${escape(entry.subtitle)}</p>` : ""}${metadata ? `<p data-custom-role="metadata" class="resume-special-output__meta">${escape(metadata)}</p>` : ""}${entry.description.trim() ? `<p data-custom-role="body">${escape(entry.description)}</p>` : ""}${entry.bullets.some(value => value.trim()) ? `<ul>${entry.bullets.filter(value => value.trim()).map(value => `<li>${escape(value)}</li>`).join("")}</ul>` : ""}${entry.url.trim() ? `<p class="resume-special-output__url">${escape(entry.url)}</p>` : ""}`;
     const tag = ["list", "skills", "timeline"].includes(normalized.contentType) ? "li" : "article";
-    return `<${tag} class="resume-special-output__entry" data-entry-id="${escape(entry.id)}">${details}</${tag}>`;
+    return `<${tag} data-custom-role="entry" class="resume-special-output__entry" data-entry-id="${escape(entry.id)}">${details}</${tag}>`;
   }).join("");
   if (!items) return "";
   const tag = normalized.contentType === "list" || normalized.contentType === "skills" ? "ul" : normalized.contentType === "timeline" ? "ol" : "div";
-  return `<${tag} class="resume-special-output__entries" data-content-type="${normalized.contentType}">${items}</${tag}>`;
+  return `<${tag} data-custom-role="entries" class="resume-special-output__entries" data-content-type="${normalized.contentType}">${items}</${tag}>`;
 };

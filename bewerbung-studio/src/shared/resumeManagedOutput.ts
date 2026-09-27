@@ -1,4 +1,6 @@
 import { renderCustomSectionContent } from "./resumeCustomSections";
+import { resolveTemplateId } from "./templates";
+import { resumeSectionStyleSources } from "./resumeSectionStyleInheritance";
 import { parseHTML } from "linkedom";
 import type { ApplicantProfile } from "./schema";
 import {
@@ -47,6 +49,12 @@ const normalize = (value: string) =>
     .trim()
     .toLocaleLowerCase("de-DE");
 
+const setHeadingText = (heading: Element, title: string) => {
+  if (heading.textContent?.trim() === title.trim()) return;
+  const label = heading.querySelector("b") ?? Array.from(heading.children).find(child => child.tagName === "SPAN" && !child.querySelector("svg")) ?? heading;
+  label.textContent = title;
+};
+
 export const managedResumeCss = `
 .managed-item-grid{display:grid!important;grid-template-columns:repeat(var(--section-columns,1),minmax(0,1fr))!important;gap:2mm 3mm;min-width:0;padding:0;list-style:none}
 .managed-item-grid>*,.managed-item-text{min-width:0;overflow-wrap:anywhere;break-inside:avoid}
@@ -60,14 +68,23 @@ export const managedResumeCss = `
 .managed-ats .managed-strength-card,.managed-ats .managed-item{grid-template-columns:minmax(0,1fr)}
 .managed-ats .managed-strength-card strong,.managed-ats .managed-strength-card p{grid-column:1}
 
-.managed-extra{margin:0 0 4mm;break-inside:avoid;color:inherit;font:inherit}
-.managed-extra h3{margin:0 0 2mm;font-size:1.08em;color:inherit}
+.managed-extra:not([data-custom-template]){margin:0 0 4mm;break-inside:avoid;color:inherit;font:inherit}
+.managed-extra:not([data-custom-template]) h3{margin:0 0 2mm;font-size:1.08em;color:inherit}
 .managed-extra ul{padding-left:4mm;margin:0}.managed-extra li{margin-bottom:1mm}
-.managed-extra small{display:block;font-size:.92em}.managed-extra p{margin:1mm 0}
+.managed-extra:not([data-custom-template]) small{display:block;font-size:.92em}.managed-extra:not([data-custom-template]) p{margin:1mm 0}
 .managed-extra .managed-tags{display:flex;flex-wrap:wrap;gap:1.5mm}
 .managed-extra .managed-tags span{border:1px solid currentColor;border-radius:2mm;padding:.7mm 1.5mm}
 .managed-extra .managed-columns{display:grid;grid-template-columns:1fr 1fr;gap:2mm}
+:where([data-custom-template]){min-width:0}
+:where([data-custom-template]) [data-custom-role="heading"]{margin:0 0 2mm;break-after:avoid;page-break-after:avoid}
+:where([data-custom-template]) [data-custom-role="heading-label"]{grid-column:1 / -1}
+:where([data-custom-template]) [data-custom-role="entries"]{display:grid;gap:3mm;margin:0;padding:0;min-width:0}
+:where([data-custom-template]) :is(ul,ol)[data-custom-role="entries"]{padding-left:4mm}
+:where([data-custom-template]) [data-custom-role="entry"]{display:block;min-width:0;break-inside:avoid;overflow-wrap:anywhere}
+:where([data-custom-template]) :is(p,h3,h4,h5){margin:0}
+:where([data-custom-template]) .resume-special-output__meta{opacity:1}
 [data-managed-section]{break-inside:avoid}
+[data-managed-section][data-custom-template]{break-inside:avoid}
 [data-managed-moved], [data-managed-moved] :is(h2,h3,p,li,small){color:inherit!important}
 [data-managed-section="strengths"] .managed-strengths-grid{display:grid;grid-template-columns:repeat(var(--section-columns,1),minmax(0,1fr));gap:3mm;list-style:none;margin:0;padding:0}
 [data-managed-section="strengths"] .managed-strength-card{display:grid;grid-template-columns:4mm minmax(0,1fr);align-items:start;gap:1mm 1.5mm;min-width:0;margin:0;padding:0;border:0;break-inside:avoid;overflow-wrap:anywhere}
@@ -202,6 +219,11 @@ export const applyManagedResumeOutput = (
     };
     const container = (entry: ManagerSection) =>
       entry.zone === "sidebar" ? sidebar : main;
+    const appendSection = (entry: ManagerSection, node: Element) => {
+      const destination = container(entry);
+      const closing = Array.from(destination.children).find(child => child.matches("footer,[class*='closing']"));
+      destination.insertBefore(node, closing ?? null);
+    };
     for (const entry of entries.filter((item) => !item.fixed)) {
       const existing = nodes.get(entry.id) ?? [];
       const group = groups.find((group) => group.id === entry.groupId);
@@ -256,9 +278,9 @@ export const applyManagedResumeOutput = (
           if (!existing.length) node.className = "managed-extra";
           if (isAts) node.classList.add("managed-ats");
           node.innerHTML = `${heading}${grid(entry, strengths, strengths.map((item) => `<article class="managed-strength-card">${isAts ? "" : getThemedTechnologyIconMarkup(item.title, item.iconId)}<strong>${escape(item.title)}</strong>${item.description ? `<p>${escape(item.description)}</p>` : ""}</article>`).join(""), true)}`;
-          node.querySelector("h2,h3")!.textContent = entry.title;
+          setHeadingText(node.querySelector("h2,h3")!, entry.title);
           existing.slice(1).forEach((duplicate) => duplicate.remove());
-          if (!existing.length) container(entry).appendChild(node);
+          if (!existing.length) appendSection(entry, node);
           nodes.set(entry.id, [node]);
         }
         continue;
@@ -310,7 +332,7 @@ export const applyManagedResumeOutput = (
         const heading = node.querySelector("h2,h3")?.outerHTML ?? `<h3>${escape(entry.title)}</h3>`;
         node.innerHTML = heading + content;
         if (entry.id.startsWith("special:")) node.setAttribute("data-section-type", "main-section");
-        node.querySelector("h2,h3")!.textContent = entry.title;
+        setHeadingText(node.querySelector("h2,h3")!, entry.title);
         if (isAts) node.classList.add("managed-ats");
         existing.slice(1).forEach((duplicate) => duplicate.remove());
         nodes.set(entry.id, [node]);
@@ -322,7 +344,7 @@ export const applyManagedResumeOutput = (
         if (entry.id.startsWith("special:")) node.setAttribute("data-section-type", "main-section");
         node.innerHTML = `<h3>${escape(entry.title)}</h3>${content}`;
         if (group?.pageBreakBefore) node.style.breakBefore = "page";
-        container(entry).appendChild(node);
+        appendSection(entry, node);
         nodes.set(entry.id, [node]);
       } else if (items.length && !last) {
         existing.forEach((node) => node.remove());
@@ -336,8 +358,50 @@ export const applyManagedResumeOutput = (
             )
               ? " · Fortsetzung"
               : "";
-            heading.textContent = entry.title + continuation;
+            setHeadingText(heading, entry.title + continuation);
           }
+        }
+      }
+    }
+    // Semantic hooks let both outputs inherit native styles without copying data
+    // or assuming a user-provided section title has a particular meaning.
+    for (const [id, sections] of nodes) {
+      for (const node of sections) {
+        if (!id.startsWith("special:") && !node.classList.contains("managed-extra")) continue;
+        const resolvedId = resolveTemplateId(templateId);
+        const surface = root.matches(".cv-sheet") ? "pdf" : "preview";
+        const sources = resumeSectionStyleSources[surface][resolvedId as keyof typeof resumeSectionStyleSources.preview];
+        node.setAttribute("data-custom-template", resolvedId);
+        // Legacy fallback selectors must not override the native style contract.
+        node.classList.remove("managed-extra");
+        for (const [role, index] of [["entry-title", 2], ["supporting", 3]] as const) {
+          const source = sources?.[index];
+          if (!source) continue;
+          const native = Array.from(root.querySelectorAll(source)).find(element => !element.closest("[data-custom-template]"));
+          const tag = native?.tagName.toLowerCase() ?? source.match(/(?:^|[ >])([a-z][a-z0-9]*)$/)?.[1];
+          if (!tag) continue;
+          node.querySelectorAll(`[data-custom-role="${role}"]`).forEach(element => {
+            if (element.tagName.toLowerCase() === tag) return;
+            const replacement = document.createElement(tag);
+            for (const attribute of Array.from(element.attributes)) replacement.setAttribute(attribute.name, attribute.value);
+            replacement.innerHTML = element.innerHTML;
+            element.replaceWith(replacement);
+          });
+        }
+        const heading = node.querySelector("h2,h3");
+        if (!heading) continue;
+        heading.setAttribute("data-custom-role", "heading");
+        if (resolvedId.startsWith("pehlione_")) {
+          const label = document.createElement(surface === "pdf" ? "span" : "b");
+          label.setAttribute("data-custom-role", "heading-label");
+          label.textContent = heading.textContent;
+          heading.replaceChildren(label);
+        }
+        if (resolveTemplateId(templateId) === "zeitgenoessisch") {
+          const wrapper = document.createElement("header");
+          wrapper.setAttribute("data-custom-role", "heading-wrapper");
+          heading.replaceWith(wrapper);
+          wrapper.appendChild(heading);
         }
       }
     }

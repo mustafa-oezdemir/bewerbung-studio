@@ -61,7 +61,9 @@ describe("managed template previews", () => {
         expect(node.querySelector("[data-content-type]")?.getAttribute("data-content-type")).toBe(section.contentType);
         expect(node.querySelectorAll('[data-section-type="subsection"]')).toHaveLength(["entries", "timeline"].includes(section.contentType!) ? 1 : 0);
       }
-      expect(outputs[0].querySelector(`${selector} [data-content-type]`)?.outerHTML).toBe(outputs[1].querySelector(`${selector} [data-content-type]`)?.outerHTML);
+      const semanticContent = (document: Document) => Array.from(document.querySelectorAll(`${selector} [data-content-type] [data-custom-role]`))
+        .map(node => [node.getAttribute("data-custom-role"), node.getAttribute("data-section-type"), node.textContent]);
+      expect(semanticContent(outputs[0])).toEqual(semanticContent(outputs[1]));
     }
   });
   it("keeps only the lower Einspaltig section rule in preview and PDF, including custom sections", () => {
@@ -82,7 +84,7 @@ describe("managed template previews", () => {
     const expected = ["Zusammenfassung", "Stärken", "Berufserfahrung", "Ausbildung", "Sprachen", "Zertifikate", "Ehrenamt"];
     for (const [html, selector] of [[preview, ".einfach-section__title, .einfach-template .managed-extra > h3"], [pdf, ".managed-pdf-title, .einfach-pdf .managed-extra > h3"]] as const) {
       const { document } = parseHTML(html);
-      const headings = Array.from(document.querySelectorAll(selector)).map((heading) => heading.textContent?.trim());
+      const headings = Array.from(document.querySelectorAll(`${selector}, [data-custom-role="heading"]`)).map((heading) => heading.textContent?.trim());
       for (const title of expected) expect(headings).toContain(title);
       expect(document.querySelector('[data-managed-section="special:bbbb0000-0000-4000-8000-000000000000"]')).not.toBeNull();
     }

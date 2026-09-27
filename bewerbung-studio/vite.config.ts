@@ -14,7 +14,9 @@ const desktopPlugin =
             vite: {
               build: {
                 rollupOptions: {
-                  external: ["pdf-lib"],
+                  // PostCSS uses Node's CommonJS built-ins (path/url/fs).
+                  // Keep its package boundary so Node supplies require in ESM main.
+                  external: ["pdf-lib", "postcss"],
                 },
               },
             },
