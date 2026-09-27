@@ -206,10 +206,12 @@
   page-break-inside: avoid;
 }
 
-.einfach-section__title {
+.einfach-section__title,
+.einfach-template .managed-extra > h3 {
   margin: 0 0 2mm;
   padding: 1mm 0;
-  border-block: 0.3mm solid var(--einfach-primary);
+  border-top: 0;
+  border-bottom: 0.3mm solid var(--einfach-primary);
   color: var(--einfach-primary);
   font-size: 13.5pt;
   font-weight: 750;
