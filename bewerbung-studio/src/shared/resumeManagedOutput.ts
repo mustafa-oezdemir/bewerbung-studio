@@ -434,7 +434,7 @@ export const applyManagedResumeOutput = (
         const heading = node.querySelector("h2,h3");
         if (!heading) continue;
         heading.setAttribute("data-custom-role", "heading");
-        if (resolvedId === "pehlione_white_blue") {
+        if (resolvedId.startsWith("pehlione_")) {
           node.classList.add(surface === "pdf" ? "pehlione-pdf-section" : "pehlione-main-section");
           if (surface === "preview") heading.classList.add("pehlione-section-heading");
           const icon = document.createElement(surface === "pdf" ? "i" : "span");
@@ -445,11 +445,6 @@ export const applyManagedResumeOutput = (
           label.setAttribute("data-custom-role", "heading-label");
           label.textContent = heading.textContent;
           heading.replaceChildren(icon, label);
-        } else if (resolvedId.startsWith("pehlione_")) {
-          const label = document.createElement(surface === "pdf" ? "span" : "b");
-          label.setAttribute("data-custom-role", "heading-label");
-          label.textContent = heading.textContent;
-          heading.replaceChildren(label);
         }
         if (resolveTemplateId(templateId) === "zeitgenoessisch") {
           const wrapper = document.createElement("header");
@@ -489,7 +484,7 @@ export const applyManagedResumeOutput = (
     }
     // A section moved to the sidebar can carry the native PDF closing with it.
     // Keep the closing with the main column after section placement.
-    if (resolved.templateId === "pehlione_white_blue" && root.matches(".cv-sheet")) {
+    if (resolved.templateId.startsWith("pehlione_") && root.matches(".cv-sheet")) {
       const closing = root.querySelector("footer.pehlione-pdf-closing");
       if (closing && closing.parentElement !== main) main.appendChild(closing);
     }

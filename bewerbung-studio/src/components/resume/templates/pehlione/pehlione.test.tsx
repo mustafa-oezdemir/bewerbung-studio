@@ -167,6 +167,52 @@ describe("Pehlione White Blue", () => {
     expect(html).toContain("Grafana Datasource Plugin für PRTG");
   });
 
+  it("shares profile sections, placement and appearance between White preview and PDF", () => {
+    const customId = "87000000-0000-4000-8000-000000000001";
+    let source = profileSchema.parse({ ...profile, languages: ["Deutsch – C1"],
+      specialSections: [{ id: customId, kind: "custom", title: "Projekt-Highlight", isVisible: true,
+        contentType: "list", entries: [{ id: crypto.randomUUID(), title: "Profilprojekt" }] }],
+    });
+    source = moveManagerSection(source, "pehlione_white", "certifications", "sidebar", 0);
+    source = moveManagerSection(source, "pehlione_white", `special:${customId}`, "sidebar", 1);
+    const settings = { ...defaultDocumentDesign,
+      cvOverrides: { colors: { heading: "#112233", sectionHeading: "#334455", divider: "#556677" } },
+      resumeAppearance: { sidebarBackgroundColor: "#f2f3f4", sidebarTextColor: "#223344",
+        mainBackgroundColor: "#fafafa", photoDecorationColor: "#778899", contactDividerColor: "#aabbcc" },
+    };
+    const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test",
+      company: { name: "Firma", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" },
+      status: "Entwurf", templateId: "pehlione_white", accentColor: "#d9484a", secondaryColor: "#f5f5f5",
+      documents: {}, designSettings: settings, statusHistory: [], createdAt: profile.updatedAt, updatedAt: profile.updatedAt,
+    });
+    const resolved = resolveCvDocument({ profile: source, templateId: application.templateId, settings: application.designSettings });
+    const preview = renderToStaticMarkup(<ManagedResumePreview profile={resolved.profile} templateId="pehlione_white"
+      pageNumber={1} totalPages={1} designSettings={application.designSettings} resolvedCv={resolved}>
+      <PehlioneResume templateId="pehlione_white" profile={resolved.profile} name="Mina Kaya" atsMode={false}
+        plan={resolved.pagePlan[0]} totalPages={1} accentColor="#d9484a" secondaryColor="#f5f5f5"
+        resumeProfile="" sections={resolved.sections} />
+    </ManagedResumePreview>);
+    const pdf = buildDocumentHtml(application, source, "lebenslauf");
+    for (const [html, sidebarSelector, hostSelector] of [
+      [preview, ".pehlione-sidebar", ".pehlione-resume"],
+      [pdf, ".pehlione-pdf-sidebar", ".pehlione-pdf"],
+    ] as const) {
+      const { document } = parseHTML(html);
+      const host = document.querySelector(hostSelector)!;
+      const sidebar = document.querySelector(sidebarSelector)!;
+      expect(host.getAttribute("style")).toContain("--pehlione-sidebar-background:#f2f3f4");
+      expect(host.getAttribute("style")).toContain("--pehlione-title-color:#112233");
+      expect(host.getAttribute("style")).toContain("--pehlione-contact-divider-color:#aabbcc");
+      expect(sidebar.querySelector('[data-managed-section="certifications"]')).not.toBeNull();
+      const custom = sidebar.querySelector(`[data-managed-section="special:${customId}"]`);
+      expect(custom?.textContent).toContain("Profilprojekt");
+      expect(custom?.querySelector('[data-custom-role="heading"] svg')).not.toBeNull();
+      expect(document.querySelector('[data-managed-section="experience"]')?.textContent).toContain("Praktikum Softwareentwicklung");
+    }
+    const { document } = parseHTML(pdf);
+    expect(document.querySelector(".pehlione-pdf-closing")?.parentElement?.classList.contains("pehlione-pdf-main")).toBe(true);
+  });
+
   it("groups the signature above the printed name beside place and date", () => {
     const signedProfile = profileSchema.parse({
       ...profile,

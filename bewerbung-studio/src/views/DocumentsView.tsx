@@ -1597,14 +1597,14 @@ export function DocumentsView({
                       </div>
                       <div className="color-card-grid">
                         <ColorCard label="Seitenspalte Abschnittstitel"
-                          value={design.settings.resumeAppearance?.sidebarSectionHeadingColor ?? design.settings.resumeAppearance?.sidebarTextColor ?? "#ffffff"}
+                          value={design.settings.resumeAppearance?.sidebarSectionHeadingColor ?? design.settings.resumeAppearance?.sidebarTextColor ?? (template.id === "pehlione_white" ? design.accentColor : "#ffffff")}
                           onChange={(color) => updateResumeAppearance("sidebarSectionHeadingColor", color)} />
                         <ColorCard label="Abschnittslinien" value={resumeSpacing.colors.divider}
                           onChange={(color) => setDesign((current) => updateCvDesignField(current, "colors", "divider", color))} />
                       </div>
                       {design.settings.resumeAppearance?.sidebarSectionHeadingColor && <button className="design-color-reset" type="button"
                         onClick={() => updateResumeAppearance("sidebarSectionHeadingColor", undefined)}>Seitenspalte Abschnittstitel: Automatisch</button>}
-                      {template.id === "pehlione_white_blue" && <div className="color-card-grid">
+                      {template.id.startsWith("pehlione_") && <div className="color-card-grid">
                         {([
                           ["sidebarBackgroundColor", "Seitenspalte"],
                           ["sidebarTextColor", "Seitenspalte Text"],
@@ -1612,14 +1612,16 @@ export function DocumentsView({
                           ["photoDecorationColor", "Fotolinien"],
                           ["contactDividerColor", "Kontaktlinie"],
                         ] as const).map(([key, label]) => <ColorCard key={key} label={label}
-                          value={design.settings.resumeAppearance?.[key] ?? ({
-                            sidebarBackgroundColor: "#0b3d86", sidebarTextColor: "#ffffff",
-                            mainBackgroundColor: "#ffffff", photoDecorationColor: "#d9ebff",
-                            contactDividerColor: "#ffffff",
-                          } as const)[key]}
+                          value={design.settings.resumeAppearance?.[key] ?? (template.id === "pehlione_white"
+                            ? { sidebarBackgroundColor: "#ffffff", sidebarTextColor: "#142235",
+                              mainBackgroundColor: "#ffffff", photoDecorationColor: "#dcecff",
+                              contactDividerColor: design.accentColor }
+                            : { sidebarBackgroundColor: "#0b3d86", sidebarTextColor: "#ffffff",
+                              mainBackgroundColor: "#ffffff", photoDecorationColor: "#d9ebff",
+                              contactDividerColor: "#ffffff" })[key]}
                           onChange={(color) => updateResumeAppearance(key, color)} />)}
                       </div>}
-                      {template.id === "pehlione_white_blue" && <div className="advanced-design-grid">
+                      {template.id.startsWith("pehlione_") && <div className="advanced-design-grid">
                         <label className="field"><span>Abschnittslinien</span>
                           <input type="checkbox" checked={design.settings.resumeAppearance?.sectionDividerVisible !== false}
                             onChange={(event) => updateResumeAppearance("sectionDividerVisible", event.target.checked)} />

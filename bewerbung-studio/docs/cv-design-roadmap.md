@@ -348,3 +348,16 @@ Pehlione White Blue: Der Abschnitt „Sprachen“ zeigt in Vorschau und PDF ein
 Sprachen-Symbol im gleichen Akzent-Iconfeld wie andere ikontragende
 Abschnittstitel. Die Überschriftenfarbe und Abschnittslinie folgen weiterhin
 den gespeicherten Designwerten.
+
+## Phase 15: Pehlione White
+
+Pehlione White verwendet dieselbe Abschnitts- und Designprojektion wie White
+Blue mit vorlageneigenen Standardfarben und Hintergründen. Die bestehenden
+Renderer bleiben gemeinsam; eigene Abschnitte erhalten auch in White die
+Pehlione-Überschrift samt Symbol. Designfarben und Sichtbarkeit können für
+White im gleichen Vorlagenpanel überschrieben und zurückgesetzt werden.
+
+In die Seitenspalte verschobene Zertifikate und Projekt-Highlights zeigen im
+PDF nur noch eine Überschriftenlinie. Der lange Untertitel bleibt in Vorschau
+und PDF innerhalb der Hauptspalte mit rechtem Abstand. Geprüft mit den
+gespeicherten White-Daten als einseitiges A4-PDF sowie 756 Tests und Build.
