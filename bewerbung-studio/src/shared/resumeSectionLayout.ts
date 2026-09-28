@@ -20,8 +20,9 @@ export function resolveSectionColumns(
     ? layout.mode === "two-column"
     : !single && (hasSidebar ?? !["centered", "minimal", "timeline"].includes(template.layout));
   if (split && zone === "sidebar") return 1;
-  const width = (210 - 2 * marginLevelToMm[settings.marginLevel]) *
-    (split ? (layout.overridden ? (100 - layout.sidebarWidthPercent) / 100 : 0.62) : 1);
+  const pageMargin = settings.cvOverrides?.spacing?.pageMarginMm ?? marginLevelToMm[settings.marginLevel];
+  const width = (210 - 2 * pageMargin) *
+    (split ? (100 - layout.sidebarWidthPercent) / 100 : 1);
   const longest = Math.max(0, ...items.map((item) => item.title.length));
   const detailed = items.some((item) => (item.description?.length ?? 0) > 90);
   const minWidth = (longest > 45 || detailed ? 80 : longest > 25 ? 65 : 48) * (settings.fontSize === "large" ? 1.15 : 1);

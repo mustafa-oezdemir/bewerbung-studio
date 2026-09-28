@@ -35,6 +35,13 @@ describe("CV section columns and icons", () => {
     expect(resolveSectionColumns("auto", "klassisch", "main", [{title: "Kurz"}], defaultDocumentDesign, false)).toBe(1);
     expect(resolveSectionColumns("auto", "klassisch", "main", items.map(() => ({title: "Strukturierte Problemlösungsfähigkeit im Entwicklungsteam", description: "Text ".repeat(30)})), { ...defaultDocumentDesign, fontSize: "large" }, false)).toBe(1);
   });
+  it("uses the native sidebar ratio and semantic page margin for automatic strengths", () => {
+    const mediumTitles = items.map(() => ({ title: "Strukturierte Zusammenarbeit im Team" }));
+    const narrowMargin = { ...defaultDocumentDesign, marginLevel: 1 as const };
+    expect(resolveSectionColumns("auto", "pehlione_white", "main", mediumTitles, narrowMargin, true)).toBe(2);
+    const wideMargin = { ...narrowMargin, cvOverrides: { spacing: { pageMarginMm: 30 } } };
+    expect(resolveSectionColumns("auto", "pehlione_white", "main", mediumTitles, wideMargin, true)).toBe(1);
+  });
   it.each([["GoLang", "Go"], ["JS", "JavaScript"], ["ts", "TypeScript"], ["Spring Boot", "Spring"], ["GITHUB", "GitHub"]])("resolves %s aliases", (alias, canonical) => {
     expect(getTechnologyBrandIconMarkup(alias)).toBe(getTechnologyBrandIconMarkup(canonical));
   });
