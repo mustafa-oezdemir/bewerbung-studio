@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getTechnologyBrandIconMarkup } from "./technologyBrand";
+import { getTechnologyBrandIconMarkup, resolveTechnologyIcon } from "./technologyBrand";
 
 describe("technology brand icons", () => {
   it("renders branded marks for Go, JavaScript, and PHP", () => {
@@ -57,5 +57,28 @@ describe("technology brand icons", () => {
       expect(first).toContain('class="technology-brand-svg"');
       expect(getTechnologyBrandIconMarkup(language)).toBe(first);
     }
+  });
+
+  it.each([
+    ["Golang", "Go", "go"], ["Java", "Java", "java"], ["JS", "JavaScript", "javascript"],
+    ["TypeScript (TS)", "TypeScript", "typescript"], ["ReactJS", "React", "react"],
+    ["Spring Boot", "Spring", "devicon:spring"], ["Python 3", "Python", "python"],
+    ["PHP 8", "PHP", "php"], ["Docker Compose", "Docker", "devicon:docker"],
+    ["Git", "Git", "devicon:git"], ["Git Hub", "GitHub", "devicon:github"],
+  ])("resolves %s through the shared alias map", (alias, canonical, brand) => {
+    expect(resolveTechnologyIcon(alias).source).toBe("auto");
+    expect(getTechnologyBrandIconMarkup(alias)).toBe(getTechnologyBrandIconMarkup(canonical));
+    expect(getTechnologyBrandIconMarkup(alias)).toContain(`data-brand="${brand}"`);
+  });
+
+  it("keeps a valid manual icon ahead of automatic detection and falls back safely", () => {
+    expect(resolveTechnologyIcon("Go", "symbol:check")).toMatchObject({ source: "manual" });
+    expect(resolveTechnologyIcon("Go", "symbol:check").markup).toContain('data-strength-symbol="symbol:check"');
+    expect(resolveTechnologyIcon("Unknown skill", "react").markup).toContain('data-brand="devicon:react"');
+    expect(resolveTechnologyIcon("Go", "invalid-icon").source).toBe("auto");
+    const fallback = resolveTechnologyIcon('<script>', "invalid-icon");
+    expect(fallback.source).toBe("fallback");
+    expect(fallback.markup).not.toContain("<script>");
+    expect(fallback.markup).toContain("&lt;SC");
   });
 });

@@ -1,8 +1,14 @@
 import { getStrengthSymbolMarkup } from "./strengthSymbols";
 
 const technologyAliases: Record<string, string> = {
-  golang: "go", "go language": "go", js: "javascript", ts: "typescript",
-  "spring boot": "spring", springboot: "spring", "react.js": "react", reactjs: "react",
+  golang: "go", "go language": "go", "go-lang": "go",
+  js: "javascript", "java script": "javascript", "javascript (es6+)": "javascript",
+  ts: "typescript", "type script": "typescript", "typescript (ts)": "typescript",
+  "spring boot": "spring", springboot: "spring", "spring framework": "spring",
+  "react.js": "react", reactjs: "react", "react js": "react",
+  "python 3": "python", python3: "python", py: "python",
+  "php 8": "php", php8: "php", "docker engine": "docker", "docker compose": "docker",
+  "git hub": "github", "github.com": "github",
 };
 export const normalizeTechnologyName = (name: string) => {
   const normalized = name.trim().toLocaleLowerCase("en-US").replace(/^(?:programming|programmiersprache)\s*[:–-]?\s*/i, "");
@@ -67,15 +73,7 @@ const frameworkBrand = () =>
     "framework",
   );
 
-export const getTechnologyBrandIconMarkup = (
-  technology: string,
-  iconId = "",
-) => {
-  const symbol = getStrengthSymbolMarkup(iconId);
-  if (symbol) return symbol;
-  const selectedIcon = getDeviconMarkup(iconId);
-  if (selectedIcon) return selectedIcon;
-
+const getAutomaticTechnologyIconMarkup = (technology: string): string | undefined => {
   const normalized = normalizeTechnologyName(technology);
   if (
     normalized === "react" ||
@@ -101,6 +99,7 @@ export const getTechnologyBrandIconMarkup = (
   if (normalized === "python") {
     return svg(
       '<path d="M16 3c-7 0-8 3-8 7v4h9v2H6c-3 0-4 2-4 6s2 7 5 7h4v-5c0-4 3-6 7-6h7c3 0 5-3 5-7s-2-8-7-8z" fill="currentColor" opacity=".82"/><circle cx="13" cy="8" r="1.3" fill="white"/><circle cx="21" cy="24" r="1.3" fill="white"/>',
+      "python",
     );
   }
   if (normalized === "rust") {
@@ -180,8 +179,23 @@ export const getTechnologyBrandIconMarkup = (
     normalized.replace(/[^a-z0-9]/g, ""),
   );
   if (automaticDevicon) return automaticDevicon;
-  return letterMark(escapeIconText(technology.slice(0, 3).toLocaleUpperCase("en-US")));
+  return undefined;
 };
+
+export type ResolvedTechnologyIcon = { source: "manual" | "auto" | "fallback"; markup: string };
+
+/** Manual choice wins; known names use their brand; unknown names get a safe mark. */
+export const resolveTechnologyIcon = (technology: string, manualIcon = ""): ResolvedTechnologyIcon => {
+  const manual = getStrengthSymbolMarkup(manualIcon) || getDeviconMarkup(manualIcon);
+  if (manual) return { source: "manual", markup: manual };
+  const automatic = getAutomaticTechnologyIconMarkup(technology);
+  if (automatic) return { source: "auto", markup: automatic };
+  const label = technology.trim().slice(0, 3).toLocaleUpperCase("en-US") || "•";
+  return { source: "fallback", markup: letterMark(escapeIconText(label)) };
+};
+
+export const getTechnologyBrandIconMarkup = (technology: string, iconId = "") =>
+  resolveTechnologyIcon(technology, iconId).markup;
 import { getDeviconMarkup } from "./deviconCatalog";
 
 /** Preserve the existing icon catalogue and manual priority, with CV theme colors. */

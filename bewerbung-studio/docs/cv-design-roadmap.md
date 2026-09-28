@@ -53,9 +53,9 @@ Quality Gate darf erst nach Wiederherstellung und Prüfung dieser Dateien gemeld
 - [x] 3: Profildaten und Darstellung kompatibel trennen.
 - [x] 4: Eigene Abschnitte normalisieren.
 - [x] 5: Vorlagenstile für eigene Abschnitte vererben.
-- [ ] 6–7: Gemeinsame Spalten, Platzierung, Reihenfolge und Sichtbarkeit.
-- [ ] 8–9: Abstände und Metadatenlayout.
-- [ ] 10–11: Bestehende Stärken-/Icon-Lösung gegen gemeinsame Anforderungen prüfen.
+- [x] 6–7: Gemeinsame Spalten, Platzierung, Reihenfolge und Sichtbarkeit.
+- [x] 8–9: Abstände und Metadatenlayout.
+- [x] 10–11: Bestehende Stärken-/Icon-Lösung gegen gemeinsame Anforderungen prüfen.
 - [ ] 12–13: Abschlussblock und gemeinsame Vorschau-/PDF-Auflösung.
 - [ ] 14–24: Vorlagen einzeln anhand ihrer Referenzen prüfen und korrigieren.
 - [ ] 25–28: Designpanel, eigene Designs, Word-Anbindung und Editor.
@@ -257,3 +257,13 @@ Leistungslisten bestehen. Die Einstellung wird je Vorlage sparsam gespeichert;
 
 Validierung: HTML-Regressionen für 14 Vorlagen × Vorschau/PDF × drei
 Anordnungen und 84 Chromium-Geometrieprüfungen für Zeilen-/Spaltenpositionen.
+
+### Phase 11 – Automatische Technologie-Icons (28.09.2026)
+
+Ein gemeinsamer Resolver wählt zuerst ein gültiges manuelles Symbol oder
+Devicon, danach ein automatisch erkanntes Technologie-Icon und zuletzt ein
+escaptes Textsymbol. Häufige Schreibweisen für Go, JavaScript, TypeScript,
+React, Spring, Python, PHP, Docker und GitHub werden auf dieselbe Identität
+abgebildet. Stärken und Kenntnisse nutzen denselben Resolver in Vorschau und
+PDF; die bestehende Farbanpassung bleibt erhalten. Tests prüfen manuelle
+Priorität, Aliase und sichere Fallbacks.
