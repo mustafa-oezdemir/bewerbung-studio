@@ -1,11 +1,10 @@
 import { keepResumeLayoutOverrides, resolveResumePresentation, separateResumeDraft } from "../shared/resumePresentation";
-import { resolveResumeLayout } from "../shared/resumeLayoutEngine";
-import { applyResumeSpacingPreset, getResumeSpacingPreset, resolveEffectiveResumeSpacing, resumeSpacingFields } from "../shared/resumeSpacing";
+import { applyResumeSpacingPreset, getResumeSpacingPreset, resumeSpacingFields } from "../shared/resumeSpacing";
+import { resolveCvDocument } from "../shared/resolveCvDocument";
 import { cvDesignLimits } from "../shared/cvDesignSchema";
 import type { ResumePresentation } from "../shared/resumePresentationSchema";
 import { ContactIcon } from "../components/resume/templates/ContactIcon";
 import { getPehlioneContacts } from "../shared/pehlioneContacts";
-import { getResumeDisplayProfile } from "../shared/resumeDisplayProfile";
 import {
   createDocumentDesignDraft,
   selectDocumentTemplate,
@@ -83,22 +82,8 @@ import {
   getCoverLetterMainBody,
 } from "../shared/coverLetter";
 import {
-  createResumePagePlan,
-  einspaltigPaginationOptions,
-  elegantPaginationOptions,
   getLetterPageStatus,
-  ivyLeaguePaginationOptions,
-  klassischPaginationOptions,
-  kompaktPaginationOptions,
-  kreativPaginationOptions,
-  gepflegtPaginationOptions,
-  modernPaginationOptions,
-  pehlionePaginationOptions,
-  stilvollPaginationOptions,
-  tabellarischPaginationOptions,
   type ResumePagePlan,
-  zeitgenoessischPaginationOptions,
-  zweispaltigPaginationOptions,
 } from "../shared/documentPagination";
 import { getResumeIdentityVisibilityCss } from "../shared/resumeIdentityVisibility";
 import {
@@ -619,9 +604,6 @@ export function DocumentsView({
     docs.documentListSettings,
   );
   const template = getTemplate(design.templateId);
-  const resumeLayout = resolveResumeLayout(template.id, design.settings.resumePresentation,
-    design.settings.resumeOutputMode === "ats" || design.settings.columnLayout === "compact-ats", profile?.resumeColumnRatio);
-  const resumeSpacing = resolveEffectiveResumeSpacing(template.id, design.settings);
   const spacingPreset = getResumeSpacingPreset(template.id, design.settings);
   const contentProfile = resumeContentDraft?.id === profile?.id ? resumeContentDraft : profile;
   const editorProfile = resolveResumePresentation(contentProfile, template.id, design.settings.resumePresentation);
@@ -630,7 +612,18 @@ export function DocumentsView({
     resumeSectionPreview.profile.id === profile?.id
       ? resumeSectionPreview.profile
       : editorProfile;
-  const resumeRenderProfile = getResumeDisplayProfile(renderProfile);
+  const resolvedCv = resolveCvDocument({
+    profile: renderProfile,
+    templateId: template.id,
+    settings: design.settings,
+    resumeProfile: docs.resumeProfile,
+    deckblattStatement: docs.deckblattStatement,
+    jobTitle: application.job.title,
+    presentationAlreadyApplied: true,
+  });
+  const resumeRenderProfile = resolvedCv.profile;
+  const resumeLayout = resolvedCv.layout;
+  const resumeSpacing = resolvedCv.design;
   const emailAttachments = resolveApplicationEmailAttachments(
     docs,
     deckblattDocuments,
@@ -640,17 +633,7 @@ export function DocumentsView({
     profile,
     emailAttachments,
   );
-  const sections = {
-    ...(renderProfile?.resumeSections ?? {
-      profile: true,
-      strengths: true,
-      experience: true,
-      education: true,
-      skills: true,
-      languages: true,
-      certifications: true,
-    }),
-  };
+  const sections = resolvedCv.sections;
   const keywordMatch = analyzeKeywordMatch(application, renderProfile);
   const name = renderProfile
     ? `${renderProfile.firstName} ${renderProfile.lastName}`
@@ -680,53 +663,8 @@ export function DocumentsView({
     application.job.title;
   const coverSenderContact = docs.coverSenderContact || senderContactDetails;
   const coverGreeting = docs.coverGreeting || applicationGreeting(application);
-  const pehlioneResumeProfile =
-    docs.resumeProfile ||
-    (/kundenservice|sachbearbeit/i.test(application.job.title)
-      ? docs.deckblattStatement
-      : "");
-  const paginatedProfile = resumeRenderProfile
-    ? {
-        ...resumeRenderProfile,
-        experiences: sections.experience ? resumeRenderProfile.experiences : [],
-        education: sections.education ? resumeRenderProfile.education : [],
-      }
-    : undefined;
-  const resumePlan = createResumePagePlan(
-    paginatedProfile,
-    template.id === "pehlione_white_blue" || template.id === "pehlione_white"
-      ? pehlioneResumeProfile
-      : docs.resumeProfile,
-    template.id === "elegant"
-      ? elegantPaginationOptions
-      : template.id === "zweispaltig"
-        ? zweispaltigPaginationOptions
-        : template.id === "kompakt"
-          ? kompaktPaginationOptions
-          : template.id === "kreativ"
-            ? kreativPaginationOptions
-            : template.id === "gepflegt"
-              ? gepflegtPaginationOptions
-              : template.id === "zeitgenoessisch"
-                ? zeitgenoessischPaginationOptions
-                : template.id === "ivy-league"
-                  ? ivyLeaguePaginationOptions
-                  : template.id === "stilvoll"
-                    ? stilvollPaginationOptions
-                    : template.id === "einspaltig"
-                      ? einspaltigPaginationOptions
-                      : template.id === "klassisch"
-                        ? klassischPaginationOptions
-                        : template.id === "tabellarisch"
-                          ? tabellarischPaginationOptions
-                          : template.id === "modern"
-                            ? modernPaginationOptions
-                            : template.id === "pehlione_white_blue" ||
-                                template.id === "pehlione_white"
-                              ? pehlionePaginationOptions
-                              : undefined,
-    template.id,
-  );
+  const pehlioneResumeProfile = resolvedCv.paginationSummary;
+  const resumePlan = resolvedCv.pagePlan;
   const letterStatus = getLetterPageStatus(docs);
   const isAtsMode =
     design.settings.resumeOutputMode === "ats" ||
@@ -2413,6 +2351,7 @@ export function DocumentsView({
                     </style>
                     <ManagedResumePreview
                       designSettings={design.settings}
+                      resolvedCv={resolvedCv}
                       profile={renderProfile}
                       templateId={template.id}
                       pageNumber={plan.pageNumber}

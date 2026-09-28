@@ -80,11 +80,12 @@ export const applyResumePageLayout = (
   settings: DocumentDesignSettings,
   legacySidebarPercent?: number,
   sectionZones?: ReadonlyMap<string, "main" | "sidebar">,
+  resolvedLayout?: ResolvedResumeLayout,
 ): void => {
   const id = resolveTemplateId(templateId);
   const presentation = settings.resumePresentation;
   const ats = settings.resumeOutputMode === "ats" || settings.columnLayout === "compact-ats";
-  const layout = resolveResumeLayout(id, presentation, ats, legacySidebarPercent);
+  const layout = resolvedLayout ?? resolveResumeLayout(id, presentation, ats, legacySidebarPercent);
   if (!layout.overridden) return;
   const descriptor = nativeHosts[id];
   const host = getResumeLayoutHost(page, id, surface);

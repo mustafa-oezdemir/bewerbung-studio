@@ -1,8 +1,7 @@
 import { inheritResumeSectionStyles } from "../src/shared/resumeSectionStyleInheritance";
 import { renderContactIcon } from "../src/shared/contactIcons";
 import { applyManagedResumeOutput, managedResumeCss } from "../src/shared/resumeManagedOutput";
-import { getResumeDisplayProfile } from "../src/shared/resumeDisplayProfile";
-import { resolveResumePresentation } from "../src/shared/resumePresentation";
+import { resolveCvDocument } from "../src/shared/resolveCvDocument";
 import { getResumeIdentityVisibilityCss } from "../src/shared/resumeIdentityVisibility";
 import type {
   ApplicantProfile,
@@ -14,22 +13,8 @@ import {
   formatApplicationDateLong,
 } from "../src/shared/applicationDate";
 import {
-  createResumePagePlan,
-  einspaltigPaginationOptions,
-  elegantPaginationOptions,
-  gepflegtPaginationOptions,
   getLetterPageStatus,
-  ivyLeaguePaginationOptions,
-  klassischPaginationOptions,
-  kompaktPaginationOptions,
-  kreativPaginationOptions,
-  modernPaginationOptions,
-  pehlionePaginationOptions,
-  stilvollPaginationOptions,
-  tabellarischPaginationOptions,
   type ResumePagePlan,
-  zeitgenoessischPaginationOptions,
-  zweispaltigPaginationOptions,
 } from "../src/shared/documentPagination";
 import {
   fontSizeToPt,
@@ -717,7 +702,15 @@ export const buildDocumentHtml = (
   if (target === "deckblatt" || target === "mappe") {
     validateDeckblattData(application, profile);
   }
-  if (target === "lebenslauf") profile = getResumeDisplayProfile(resolveResumePresentation(profile, application.templateId, application.designSettings.resumePresentation));
+  const resolvedCv = resolveCvDocument({
+    profile,
+    templateId: application.templateId,
+    settings: application.designSettings,
+    resumeProfile: application.documents.resumeProfile,
+    deckblattStatement: application.documents.deckblattStatement,
+    jobTitle: application.job.title,
+  });
+  if (target === "lebenslauf") profile = resolvedCv.profile;
   const template = getTemplate(application.templateId);
   const accent = application.accentColor || template.accent;
   const secondary = application.secondaryColor || template.secondary;
@@ -736,17 +729,7 @@ export const buildDocumentHtml = (
   }`;
   const backgroundLayer = programmingBackgroundMarkup(designSettings, atsMode);
   const docs = application.documents;
-  const sections = {
-    ...(profile?.resumeSections ?? {
-      profile: true,
-      strengths: true,
-      experience: true,
-      education: true,
-      skills: true,
-      languages: true,
-      certifications: true,
-    }),
-  };
+  const sections = resolvedCv.sections;
   const name = fullName(profile);
   const role = application.job.title;
   const company = application.company.name;
@@ -851,52 +834,7 @@ export const buildDocumentHtml = (
     sections.certifications && profile?.certifications.length
       ? `<section><h3>Zertifikate</h3><ul>${profile.certifications.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></section>`
       : "";
-  const paginatedProfile = profile
-    ? {
-        ...profile,
-        experiences: sections.experience ? profile.experiences : [],
-        education: sections.education ? profile.education : [],
-      }
-    : undefined;
-  const resumePlan = createResumePagePlan(
-    paginatedProfile,
-    (template.id === "pehlione_white_blue" || template.id === "pehlione_white")
-      ? docs.resumeProfile ||
-        (/kundenservice|sachbearbeit/i.test(role)
-          ? docs.deckblattStatement
-          : "") ||
-        profile?.summary ||
-        ""
-      : docs.resumeProfile,
-    template.id === "elegant"
-      ? elegantPaginationOptions
-      : template.id === "zweispaltig"
-      ? zweispaltigPaginationOptions
-      : template.id === "kompakt"
-        ? kompaktPaginationOptions
-        : template.id === "kreativ"
-          ? kreativPaginationOptions
-          : template.id === "gepflegt"
-            ? gepflegtPaginationOptions
-            : template.id === "zeitgenoessisch"
-              ? zeitgenoessischPaginationOptions
-              : template.id === "ivy-league"
-                ? ivyLeaguePaginationOptions
-                : template.id === "stilvoll"
-                  ? stilvollPaginationOptions
-                  : template.id === "einspaltig"
-                    ? einspaltigPaginationOptions
-                    : template.id === "klassisch"
-                      ? klassischPaginationOptions
-                      : template.id === "tabellarisch"
-                        ? tabellarischPaginationOptions
-                        : template.id === "modern"
-                          ? modernPaginationOptions
-                          : (template.id === "pehlione_white_blue" || template.id === "pehlione_white")
-                            ? pehlionePaginationOptions
-                          : undefined,
-    template.id,
-  );
+  const resumePlan = resolvedCv.pagePlan;
 
   const renderExperience = (id: string) => {
     const item = experienceById.get(id);
@@ -3818,7 +3756,7 @@ export const buildDocumentHtml = (
     )
     .join("");
   const cvHtml = target === "mappe" ? buildDocumentHtml(application, profile, "lebenslauf", attachments) : "";
-  const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings);
+  const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings, resolvedCv);
   const selected = target === "mappe" ? [letter, cover, managedResume] : target === "deckblatt" ? [cover] : target === "anschreiben" ? [letter] : [managedResume];
   return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${zweispaltigDocumentCss}${zeitgenoessischDocumentCss}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}</style></head><body>${selected.join("")}${pageFitScript}</body></html>`;
 };

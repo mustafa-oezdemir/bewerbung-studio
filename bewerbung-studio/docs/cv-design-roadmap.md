@@ -282,3 +282,17 @@ Seitenzahlen-Footer bleiben auch beim Ausblenden des Abschlusses erhalten.
 Vorschau und PDF verwenden denselben Adapter. Validierung umfasst HTML-
 Regressionen für alle 14 Vorlagen und 112 Chromium-Geometrieprüfungen der
 beiden Positionen und vier Ausrichtungen, ohne Seitenüberlauf oder Überlappung.
+
+### Phase 13 – Gemeinsame CV-Auflösung (28.09.2026)
+
+Vorschau und PDF beziehen Profilprojektion, sichtbare Abschnitte,
+Knowledge-Gruppen, Layout, Designwerte und Seitenplan aus `resolveCvDocument`.
+Die vorlagenspezifischen Kapazitäten für die Paginierung sind einmalig dort
+zugeordnet. Der gemeinsame HTML-Adapter erhält bereits aufgelöste Abschnitte,
+Spalten und Abstandswerte. Der Pehlione-Kurzprofil-Fallback verwendet in
+beiden Ausgaben dieselbe Reihenfolge: Dokumenttext, passende Deckblatt-Aussage,
+Profilzusammenfassung. Die Vorlagen behalten ihre eigenen Renderer und ihre
+nativen Standards ohne Override.
+
+Validierung: Regressionen für alle 14 Vorlagen mit mehrseitigem Lebenslauf,
+Abschnitts- und Layout-Overrides; vollständiger Release-Check.

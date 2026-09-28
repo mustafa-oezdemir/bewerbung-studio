@@ -8,13 +8,12 @@ import { resumeSectionStyleSources } from "./resumeSectionStyleInheritance";
 import { parseHTML } from "linkedom";
 import type { ApplicantProfile } from "./schema";
 import {
-  getManagerSections,
   type ManagerSection,
 } from "../features/resume-sections/resume-manager";
-import { resolveKnowledgeGroups } from "../features/resume-sections/resume-section-system";
 import { getProfileMediaSource } from "./profileMedia";
 import { getThemedTechnologyIconMarkup } from "./technologyBrand";
 import { defaultDocumentDesign, type DocumentDesignSettings } from "./documentDesign";
+import { resolveCvDocument, type ResolvedCvDocument } from "./resolveCvDocument";
 import { resolveSectionColumns } from "./resumeSectionLayout";
 import { ensureKnowledgeSection } from "../features/knowledge/knowledge.service";
 import { visibleKnowledgeItems, formatKnowledgeItem } from "../features/knowledge/knowledge.utils";
@@ -108,14 +107,15 @@ export const applyManagedResumeOutput = (
   pageNumber = 1,
   totalPages = 1,
   designSettings: DocumentDesignSettings = defaultDocumentDesign,
+  resolvedCv?: ResolvedCvDocument,
 ) => {
   if (!profile) return html;
+  const resolved = resolvedCv ?? resolveCvDocument({
+    profile, templateId, settings: designSettings, presentationAlreadyApplied: true,
+  });
   const { document } = parseHTML(`<html><body>${html}</body></html>`);
-  const entries = getManagerSections(profile, templateId);
-  const groups = resolveKnowledgeGroups(
-    templateId,
-    profile.resumeKnowledgeGroups,
-  );
+  const entries = resolved.managerSections;
+  const groups = resolved.knowledgeGroups;
   const pages = Array.from(document.querySelectorAll(".cv-sheet"));
   const roots = pages.length ? pages : [document.body];
   roots.forEach((root, rootIndex) => {
@@ -440,8 +440,8 @@ export const applyManagedResumeOutput = (
       anchor.remove();
     }
     applyResumePageLayout(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings,
-      profile.resumeColumnRatio, new Map(entries.map((entry) => [entry.id, entry.zone])));
-    applyResumeSpacingOutput(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
+      profile.resumeColumnRatio, new Map(entries.map((entry) => [entry.id, entry.zone])), resolved.layout);
+    applyResumeSpacingOutput(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings, resolved.design);
     applyResumeMetadataLayout(root, profile, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
     applyResumeClosingOutput(root, main, profile, templateId, designSettings, last, enabled("closing"));
   });

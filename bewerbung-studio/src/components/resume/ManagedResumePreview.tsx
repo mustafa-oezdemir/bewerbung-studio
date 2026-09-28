@@ -5,6 +5,7 @@ import { inheritResumeSectionStyles } from "../../shared/resumeSectionStyleInher
 import { resolveTemplateId } from "../../shared/templates";
 import { resumeTemplateStyleSources } from "./resumeTemplateStyleSources";
 import type { ApplicantProfile } from "../../shared/schema";
+import type { ResolvedCvDocument } from "../../shared/resolveCvDocument";
 import {
   applyManagedResumeOutput,
   managedResumeCss,
@@ -25,6 +26,7 @@ export function ManagedResumePreview({
   pageNumber,
   totalPages,
   designSettings,
+  resolvedCv,
 }: {
   children: ReactNode;
   profile: ApplicantProfile | undefined;
@@ -32,6 +34,7 @@ export function ManagedResumePreview({
   pageNumber: number;
   totalPages: number;
   designSettings?: DocumentDesignSettings;
+  resolvedCv?: ResolvedCvDocument;
 }) {
   const html = applyManagedResumeOutput(
     renderToStaticMarkup(<>{children}</>),
@@ -40,6 +43,7 @@ export function ManagedResumePreview({
     pageNumber,
     totalPages,
     designSettings,
+    resolvedCv,
   );
   return (
     <>

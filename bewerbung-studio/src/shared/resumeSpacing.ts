@@ -100,6 +100,7 @@ export const applyResumeSpacingOutput = (
   templateId: string,
   surface: "preview" | "pdf",
   settings: DocumentDesignSettings,
+  resolvedDesign?: CvDesignTokens,
 ): void => {
   const overrides = settings.cvOverrides;
   const spacing = overrides?.spacing;
@@ -108,7 +109,7 @@ export const applyResumeSpacingOutput = (
   const scope = (surface === "pdf" ? page.querySelector(".page-content") : page.firstElementChild) as HTMLElement | null;
   if (!scope) return;
   const id = resolveTemplateId(templateId);
-  const design = resolveCvDesign(id, overrides);
+  const design = resolvedDesign ?? resolveCvDesign(id, overrides);
   const variables = getCvDesignVariables(design);
   for (const { key } of resumeSpacingFields) if (spacing?.[key] !== undefined) {
     const name = `--doc-${key.replace(/Mm$/, "").replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`;
