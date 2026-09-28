@@ -164,7 +164,7 @@ export function PehlioneResume({
           {knowledgeSection.visible && profile?.resumeKnowledgeContainer?.showTitle && visibleKnowledgeGroups.some((group) => group.slot === "sidebar") ? <h3 className="pehlione-container-title">{getResumeSemanticTitle(semanticSections, "knowledge")}</h3> : null}
           {knowledgeSection.visible && sections.strengths && (coreGroup?.items.length || coreCompetencies.length || competencyGroups.length) ? (
             <section className="pehlione-sidebar-section">
-              {heading(<Lightbulb />, coreGroup?.title || "Kernkompetenzen")}
+              {heading(<Lightbulb />, coreGroup?.title || "Kernkompetenzen", templateId === "pehlione_white_blue" ? "pehlione-competencies-heading" : "")}
               <ul className="pehlione-bullet-list">{coreGroup && visibleBlockItems(coreGroup).length
                 ? visibleBlockItems(coreGroup).map((item) => <li key={item.id}>{item.text}{item.description ? <small>{item.description}</small> : null}</li>)
                 : coreCompetencies.length

@@ -136,6 +136,9 @@ describe("Pehlione White Blue", () => {
       expect(languagesHeading?.textContent).toBe("Sprachen");
       expect(languagesHeading?.querySelector("svg")).not.toBeNull();
       expect(languagesHeading?.querySelector("span")).not.toBeNull();
+      const competenciesHeading = sidebar.querySelector(".pehlione-competencies-heading,.pehlione-pdf-competencies-heading");
+      expect(competenciesHeading?.textContent).toContain("Kernkompetenzen");
+      expect(competenciesHeading?.querySelector("svg")).not.toBeNull();
       expect(host.getAttribute("style")).toContain("--pehlione-title-color:#112233");
       expect(host.getAttribute("style")).toContain("--pehlione-contact-divider-color:#aabbcc");
       expect(host.getAttribute("data-section-divider")).toBe("hidden");

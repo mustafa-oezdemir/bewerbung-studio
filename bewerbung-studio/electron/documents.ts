@@ -3137,6 +3137,8 @@ export const buildDocumentHtml = (
     const sidebarHeading = (title: string, kind: "profile" | "project" | "training") =>
       template.id === "pehlione_white"
         ? `<h3 class="pehlione-pdf-sidebar-heading">${sectionIcon(kind)}<span>${escapeHtml(title)}</span></h3>`
+        : template.id === "pehlione_white_blue" && kind === "project"
+        ? `<h3 class="pehlione-pdf-sidebar-heading pehlione-pdf-competencies-heading">${sectionIcon(kind)}<span>${escapeHtml(title)}</span></h3>`
         : `<h3>${escapeHtml(title)}</h3>`;
     const entries = (kind: "experience" | "education") =>
       plan.items
