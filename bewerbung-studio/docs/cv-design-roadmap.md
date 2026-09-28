@@ -361,3 +361,8 @@ In die Seitenspalte verschobene Zertifikate und Projekt-Highlights zeigen im
 PDF nur noch eine Überschriftenlinie. Der lange Untertitel bleibt in Vorschau
 und PDF innerhalb der Hauptspalte mit rechtem Abstand. Geprüft mit den
 gespeicherten White-Daten als einseitiges A4-PDF sowie 756 Tests und Build.
+
+Pehlione White: Das Symbol der Kontaktüberschrift verwendet die Akzentfarbe.
+Ihre Linie folgt wie die übrigen Abschnittslinien der gemeinsamen
+Linienfarbe. Die separate Kontaktlinien-Farbkarte entfällt für White; ältere
+gespeicherte Kontaktlinienwerte werden dort nicht mehr ausgewertet.

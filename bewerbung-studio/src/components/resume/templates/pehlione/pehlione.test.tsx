@@ -13,6 +13,7 @@ import { resolveCvDocument } from "../../../../shared/resolveCvDocument";
 import { buildDocumentHtml } from "../../../../../electron/documents";
 import { ManagedResumePreview } from "../../ManagedResumePreview";
 import { moveManagerSection } from "../../../../features/resume-sections/resume-manager";
+import { pehlioneAppearanceCss } from "../../../../shared/pehlioneAppearance";
 
 const experienceId = "81000000-0000-4000-8000-000000000001";
 const educationId = "82000000-0000-4000-8000-000000000001";
@@ -211,6 +212,8 @@ describe("Pehlione White Blue", () => {
     }
     const { document } = parseHTML(pdf);
     expect(document.querySelector(".pehlione-pdf-closing")?.parentElement?.classList.contains("pehlione-pdf-main")).toBe(true);
+    expect(pehlioneAppearanceCss).toContain('.pehlione-contacts h3 svg{stroke:var(--pehlione-primary,#08245c)}');
+    expect(pehlioneAppearanceCss).toContain('h3{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary,#08245c))');
   });
 
   it("groups the signature above the printed name beside place and date", () => {

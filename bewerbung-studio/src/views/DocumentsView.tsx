@@ -1611,7 +1611,7 @@ export function DocumentsView({
                           ["mainBackgroundColor", "Hauptspalte"],
                           ["photoDecorationColor", "Fotolinien"],
                           ["contactDividerColor", "Kontaktlinie"],
-                        ] as const).map(([key, label]) => <ColorCard key={key} label={label}
+                        ] as const).filter(([key]) => template.id !== "pehlione_white" || key !== "contactDividerColor").map(([key, label]) => <ColorCard key={key} label={label}
                           value={design.settings.resumeAppearance?.[key] ?? (template.id === "pehlione_white"
                             ? { sidebarBackgroundColor: "#ffffff", sidebarTextColor: "#142235",
                               mainBackgroundColor: "#ffffff", photoDecorationColor: "#dcecff",
