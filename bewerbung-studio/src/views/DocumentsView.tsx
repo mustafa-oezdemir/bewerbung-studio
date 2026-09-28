@@ -777,6 +777,12 @@ export function DocumentsView({
       return { ...current, settings: { ...settings, ...(Object.keys(next).length ? { resumePresentation: next } : {}) } };
     });
   };
+  const updateClosingLayout = (key: "placement" | "alignment", value: "footer" | "main" | "left" | "center" | "right" | "distributed") => {
+    setDesign((current) => ({ ...current, settings: { ...current.settings,
+      resumePresentation: { ...current.settings.resumePresentation,
+        closing: { ...current.settings.resumePresentation?.closing, [key]: value } },
+    } }));
+  };
 
   const updateDocumentListItem = (
     key: string,
@@ -1547,6 +1553,9 @@ export function DocumentsView({
                         }
                         templateId={template.id}
                         layoutMode={resumeLayout.mode}
+                        closingPlacement={design.settings.resumePresentation?.closing?.placement}
+                        closingAlignment={design.settings.resumePresentation?.closing?.alignment ?? (template.id.startsWith("pehlione_") ? "distributed" : "left")}
+                        onClosingLayoutChange={updateClosingLayout}
                         summaryValue={docs.resumeProfile}
                         onSummaryChange={(summary) =>
                           setDocumentPreview({

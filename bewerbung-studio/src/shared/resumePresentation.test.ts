@@ -51,6 +51,14 @@ describe("resume content and template presentation", () => {
     expect(keepResumeLayoutOverrides({ sidebarWidthPercent: 40, sections: { summary: { visible: false } } }, undefined))
       .toEqual({ sections: { summary: { visible: false } } });
   });
+  it("retains closing placement and alignment while independently saving visibility", () => {
+    const previous = { closing: { placement: "main" as const, alignment: "right" as const, showDate: false } };
+    const merged = keepResumeLayoutOverrides({ closing: { showPlace: false } }, previous);
+    expect(merged.closing).toEqual({ showPlace: false, placement: "main", alignment: "right" });
+    const saved = documentDesignOverridesSchema.parse(JSON.parse(JSON.stringify({ resumePresentation: merged })));
+    const projected = resolveResumePresentation(makeProfile(), "modern", saved.resumePresentation)!;
+    expect(projected.resumeClosing).toMatchObject({ showPlace: false, showDate: true });
+  });
   it("persists sparse personal-field, closing and column overrides", () => {
     const original = makeProfile();
     const draft = { ...original, resumePersonalFieldVisibility: { ...original.resumePersonalFieldVisibility, email: false }, resumeClosing: { ...original.resumeClosing, showDate: false }, resumeColumnRatio: 40 as const };

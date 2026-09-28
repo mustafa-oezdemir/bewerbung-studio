@@ -40,6 +40,15 @@ describe("document editor persistence", () => {
     expect(saved.designSettings.metadataOrder).toBe("dates-first");
     expect(resetDocumentDesign(createDocumentDesignDraft(saved)).settings.metadataLayout).toBeUndefined();
   });
+  it("keeps closing placement per template and removes it on reset", () => {
+    const base = createDocumentDesignDraft(application);
+    const changed = { ...base, settings: { ...base.settings, resumePresentation: { closing: { placement: "main" as const, alignment: "center" as const } } } };
+    const other = selectDocumentTemplate(changed, "kompakt");
+    expect(other.settings.resumePresentation).toBeUndefined();
+    const restored = selectDocumentTemplate(other, "modern");
+    expect(restored.settings.resumePresentation?.closing).toEqual({ placement: "main", alignment: "center" });
+    expect(resetDocumentDesign(restored).settings.resumePresentation).toBeUndefined();
+  });
 
   it("resets colors and semantic overrides without resetting other templates", () => {
     let current = resetDocumentDesign(createDocumentDesignDraft(application));

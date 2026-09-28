@@ -8,6 +8,7 @@ import { defaultDocumentDesign } from "../../shared/documentDesign";
 import { buildDocumentHtml } from "../../../electron/documents";
 import { createResumePagePlan } from "../../shared/documentPagination";
 import { moveManagerSection, updateManagerSection } from "../../features/resume-sections/resume-manager";
+import { resolveResumePresentation } from "../../shared/resumePresentation";
 import { ManagedResumePreview } from "./ManagedResumePreview";
 import { ElegantResume } from "./templates/elegant";
 import { EinspaltigResume } from "./templates/einspaltig";
@@ -288,6 +289,36 @@ describe("managed template previews", () => {
           expect(grid.querySelector("[data-resume-metadata-location]")?.textContent).toBe(kind === "experience" ? "Marburg" : "Berlin");
         }
         expect(document.querySelector('[data-managed-section="experience"] [data-resume-metadata-entry]')?.textContent).toContain("Prozesse geplant");
+      }
+    }
+  });
+  it.each(Object.entries(components))("shares closing controls between preview and PDF in %s", (templateId, component) => {
+    const now = new Date().toISOString();
+    const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: now,
+      city: "Berlin", applicationPlace: "Marburg", applicationDate: "2026-09-28", signaturePath: "data:image/png;base64,AA==" });
+    for (const closing of [
+      { placement: "main" as const, alignment: "right" as const },
+      { placement: "footer" as const, alignment: "distributed" as const, showDate: false },
+      { placement: "footer" as const, alignment: "center" as const, showPlace: false, showSignature: false },
+    ]) {
+      const settings = { ...defaultDocumentDesign, resumePresentation: { closing } };
+      const projected = resolveResumePresentation(profile, templateId, settings.resumePresentation)!;
+      const plan = createResumePagePlan(projected, "", {}, templateId)[0];
+      const child = createElement(component as unknown as ComponentType<Record<string, unknown>>, { profile: projected, templateId, name: "Mina Kaya", atsMode: false,
+        plan, totalPages: 1, accentColor: "#123456", secondaryColor: "#234567", photoSource: null, resumeProfile: "", sections: projected.resumeSections, backgroundId: "white" });
+      const preview = renderToStaticMarkup(<ManagedResumePreview profile={projected} templateId={templateId} pageNumber={1} totalPages={1} designSettings={settings}>{child}</ManagedResumePreview>);
+      const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test", company: { name: "Test", city: "Berlin" }, contact: {},
+        job: { title: "Entwicklung" }, status: "Entwurf", templateId, accentColor: "#123456", secondaryColor: "#234567", documents: {}, statusHistory: [],
+        createdAt: now, updatedAt: now, designSettings: settings });
+      for (const html of [preview, buildDocumentHtml(application, profile, "lebenslauf")]) {
+        const document = parseHTML(html).document;
+        const block = document.querySelector("[data-resume-closing]");
+        expect(block, templateId).not.toBeNull();
+        expect(block?.getAttribute("data-resume-closing-placement")).toBe(closing.placement);
+        expect(block?.getAttribute("data-resume-closing-align")).toBe(closing.alignment);
+        expect(block?.querySelector("[data-resume-closing-place]")?.textContent).toBe(closing.showPlace === false ? undefined : "Marburg");
+        expect(block?.querySelector("[data-resume-closing-date]")?.textContent).toBe(closing.showDate === false ? undefined : "28.09.2026");
+        expect(block?.querySelector("[data-resume-closing-signature] img")?.getAttribute("src")).toBe(closing.showSignature === false ? undefined : profile.signaturePath);
       }
     }
   });

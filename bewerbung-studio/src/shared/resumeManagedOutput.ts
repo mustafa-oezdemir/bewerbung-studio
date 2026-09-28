@@ -2,6 +2,7 @@ import { renderCustomSectionContent } from "./resumeCustomSections";
 import { applyResumePageLayout } from "./resumeLayoutEngine";
 import { applyResumeSpacingOutput, resumeSpacingCss } from "./resumeSpacing";
 import { applyResumeMetadataLayout, resumeMetadataCss } from "./resumeMetadataLayout";
+import { applyResumeClosingOutput, resumeClosingCss } from "./resumeClosing";
 import { resolveTemplateId } from "./templates";
 import { resumeSectionStyleSources } from "./resumeSectionStyleInheritance";
 import { parseHTML } from "linkedom";
@@ -95,7 +96,8 @@ export const managedResumeCss = `
 [data-managed-section="strengths"] .managed-strength-card strong{grid-column:2;min-width:0;font-size:1em;line-height:1.3}
 [data-managed-section="strengths"] .managed-strength-card p{grid-column:2;min-width:0;margin:0;white-space:pre-line;font-size:.92em;line-height:1.4;color:inherit}
 ${resumeSpacingCss}
-${resumeMetadataCss}`;
+${resumeMetadataCss}
+${resumeClosingCss}`;
 
 // Both the React preview and the PDF use this pure HTML projection. It only
 // rearranges section nodes, retaining each template's header, artwork and CSS.
@@ -135,7 +137,7 @@ export const applyManagedResumeOutput = (
     }
     if (!enabled("closing"))
       root
-        .querySelectorAll('footer,[class*="-closing"]')
+        .querySelectorAll('footer.pehlione-closing,footer.pehlione-pdf-closing,[data-resume-closing]')
         .forEach((node) => node.remove());
     if (!enabled("personalData"))
       root
@@ -441,6 +443,7 @@ export const applyManagedResumeOutput = (
       profile.resumeColumnRatio, new Map(entries.map((entry) => [entry.id, entry.zone])));
     applyResumeSpacingOutput(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
     applyResumeMetadataLayout(root, profile, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
+    applyResumeClosingOutput(root, main, profile, templateId, designSettings, last, enabled("closing"));
   });
   return document.body.innerHTML;
 };

@@ -47,6 +47,9 @@ type Props = {
   onSummaryChange?: (value: string) => void;
   onPickMedia?: (kind: "photo" | "signature") => void;
   onRemoveMedia?: (kind: "photo" | "signature") => void;
+  closingPlacement?: "footer" | "main";
+  closingAlignment?: "left" | "center" | "right" | "distributed";
+  onClosingLayoutChange?: (key: "placement" | "alignment", value: "footer" | "main" | "left" | "center" | "right" | "distributed") => void;
 };
 
 export function ResumeSectionsPanel({
@@ -58,6 +61,9 @@ export function ResumeSectionsPanel({
   onPreview,
   onPickMedia,
   onRemoveMedia,
+  closingPlacement,
+  closingAlignment,
+  onClosingLayoutChange,
   summaryValue,
   onSummaryChange,
 }: Props) {
@@ -256,6 +262,26 @@ export function ResumeSectionsPanel({
                   {label}
                 </label>
               ))}
+            </div>
+            <div className="resume-data-field-grid">
+              <label className="field">
+                <span>Platzierung</span>
+                <select aria-label="Abschluss Platzierung" value={closingPlacement ?? "footer"}
+                  onChange={(event) => onClosingLayoutChange?.("placement", event.target.value as "footer" | "main")}>
+                  <option value="footer">Footer</option>
+                  <option value="main">Hauptspalte</option>
+                </select>
+              </label>
+              <label className="field">
+                <span>Ausrichtung</span>
+                <select aria-label="Abschluss Ausrichtung" value={closingAlignment ?? "left"}
+                  onChange={(event) => onClosingLayoutChange?.("alignment", event.target.value as "left" | "center" | "right" | "distributed")}>
+                  <option value="left">Links</option>
+                  <option value="center">Mitte</option>
+                  <option value="right">Rechts</option>
+                  <option value="distributed">Verteilt</option>
+                </select>
+              </label>
             </div>
             {media("signature")}
           </>

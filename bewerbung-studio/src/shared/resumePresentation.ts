@@ -11,6 +11,11 @@ export const keepResumeLayoutOverrides = (
   previous: ResumePresentation | undefined,
 ): ResumePresentation => ({
   ...Object.fromEntries(Object.entries(next).filter(([key]) => key !== "sidebarWidthPercent")),
+  ...((next.closing || previous?.closing?.placement || previous?.closing?.alignment) ? { closing: {
+    ...next.closing,
+    ...(previous?.closing?.placement ? { placement: previous.closing.placement } : {}),
+    ...(previous?.closing?.alignment ? { alignment: previous.closing.alignment } : {}),
+  } } : {}),
   ...(previous?.layoutMode !== undefined ? { layoutMode: previous.layoutMode } : {}),
   ...(previous?.sidebarSide !== undefined ? { sidebarSide: previous.sidebarSide } : {}),
   ...(previous?.sidebarWidthPercent !== undefined ? { sidebarWidthPercent: previous.sidebarWidthPercent } : {}),
@@ -29,7 +34,10 @@ export const resolveResumePresentation = (
   let projected: ApplicantProfile = {
     ...profile,
     resumePersonalFieldVisibility: { ...profile.resumePersonalFieldVisibility, ...presentation.personalFields },
-    resumeClosing: { ...profile.resumeClosing, ...presentation.closing },
+    resumeClosing: { ...profile.resumeClosing,
+      showPlace: presentation.closing?.showPlace ?? profile.resumeClosing.showPlace,
+      showDate: presentation.closing?.showDate ?? profile.resumeClosing.showDate,
+      showSignature: presentation.closing?.showSignature ?? profile.resumeClosing.showSignature },
     resumeColumnRatio: presentation.sidebarWidthPercent ?? profile.resumeColumnRatio,
     resumeKnowledgeContainer: { showTitle: presentation.showKnowledgeTitle ?? profile.resumeKnowledgeContainer.showTitle },
   };

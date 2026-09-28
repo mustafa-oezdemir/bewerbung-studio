@@ -14,6 +14,8 @@ export const resumePresentationSchema = z.object({
     showPlace: z.boolean().optional(),
     showDate: z.boolean().optional(),
     showSignature: z.boolean().optional(),
+    placement: z.enum(["footer", "main"]).optional(),
+    alignment: z.enum(["left", "center", "right", "distributed"]).optional(),
   }).optional(),
   blocks: z.record(z.string(), z.object({
     rendererType: z.enum(resumeBlockRendererTypes).optional(),

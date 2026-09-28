@@ -267,3 +267,18 @@ React, Spring, Python, PHP, Docker und GitHub werden auf dieselbe Identität
 abgebildet. Stärken und Kenntnisse nutzen denselben Resolver in Vorschau und
 PDF; die bestehende Farbanpassung bleibt erhalten. Tests prüfen manuelle
 Priorität, Aliase und sichere Fallbacks.
+
+### Phase 12 – Ort, Datum und Unterschrift (28.09.2026)
+
+Die drei Bestandteile des Lebenslauf-Abschlusses lassen sich unabhängig
+ein-/ausblenden. Die Unterschrift wird ausschließlich aus dem validierten
+Profilbild geladen. Platzierung (Footer/Hauptspalte) und Ausrichtung
+(links/mitte/rechts/verteilt) liegen als vorlagenbezogene Präsentationswerte
+vor; ein Design-Reset stellt die native Vorlage wieder her. Unveränderte
+Pehlione-Vorlagen behalten ihren bisherigen Abschluss. Andere Vorlagen
+verwenden bei vorhandenen Abschlussdaten den gemeinsamen Block; reine
+Seitenzahlen-Footer bleiben auch beim Ausblenden des Abschlusses erhalten.
+
+Vorschau und PDF verwenden denselben Adapter. Validierung umfasst HTML-
+Regressionen für alle 14 Vorlagen und 112 Chromium-Geometrieprüfungen der
+beiden Positionen und vier Ausrichtungen, ohne Seitenüberlauf oder Überlappung.
