@@ -366,3 +366,9 @@ Pehlione White: Das Symbol der Kontaktüberschrift verwendet die Akzentfarbe.
 Ihre Linie folgt wie die übrigen Abschnittslinien der gemeinsamen
 Linienfarbe. Die separate Kontaktlinien-Farbkarte entfällt für White; ältere
 gespeicherte Kontaktlinienwerte werden dort nicht mehr ausgewertet.
+
+Die gemeinsame Seitenspalten-Farbprojektion färbt nun auch SVG-Symbole der
+Abschnittsüberschriften. Ein eigener Wert für „Seitenspalte Abschnittstitel“
+hat bei Text und Symbol Vorrang vor der Akzentfarbe; ohne diesen Wert bleibt
+die Akzentdarstellung der Vorlage erhalten. Das gilt für Vorschau und PDF
+aller Vorlagen mit solchen Abschnittssymbolen.

@@ -13,7 +13,7 @@ const page = '<section class="cv-sheet"><main><section><h2>Stärken</h2><p>Old c
 
 describe("shared strengths output", () => {
   it.each(["pehlione-sidebar", "elegant-pdf-sidebar", "gepflegt-sidebar"])("colors sidebar section titles in %s independently from body text", (sidebarClass) => {
-    const { document } = parseHTML(`<div><aside class="${sidebarClass}"><section><h3><span>Kernkompetenzen</span></h3><p>Text</p><article><h3>Eintrag</h3></article></section><section><h3>Sprachen</h3></section></aside><main><section><h3>Berufserfahrung</h3></section></main></div>`);
+    const { document } = parseHTML(`<div><aside class="${sidebarClass}"><section><h3><svg></svg><span>Kernkompetenzen</span></h3><p>Text</p><article><h3>Eintrag</h3></article></section><section><h3><span><svg></svg></span>Sprachen</h3></section></aside><main><section><h3>Berufserfahrung</h3></section></main></div>`);
     const root = document.querySelector("div")!;
     applyResumeSectionHeadingColors(root, { ...defaultDocumentDesign, resumeAppearance: { sidebarTextColor: "#ff0000" } });
     const headings = root.querySelectorAll("aside > section > h3");
@@ -23,6 +23,8 @@ describe("shared strengths output", () => {
     expect(root.querySelector("main h3")?.getAttribute("style")).toBeNull();
     applyResumeSectionHeadingColors(root, { ...defaultDocumentDesign, resumeAppearance: { sidebarTextColor: "#ff0000", sidebarSectionHeadingColor: "#112233" } });
     expect(Array.from(headings).map(node => (node as HTMLElement).style.color)).toEqual(["#112233", "#112233"]);
+    expect(Array.from(root.querySelectorAll("aside > section > h3 svg")).map(node => (node as SVGElement).style.color)).toEqual(["#112233", "#112233"]);
+    expect(Array.from(root.querySelectorAll("aside > section > h3 svg")).map(node => (node as SVGElement).style.stroke)).toEqual(["#112233", "#112233"]);
   });
   it.each(["left", "right"])("resolves built-in and custom section titles by semantic column with sidebar on the %s", (side) => {
     const { document } = parseHTML('<div><main><section data-managed-section="experience"><h3>Berufserfahrung</h3></section></main><aside><section data-managed-section="special:project"><h3>Projekt-Highlight</h3></section></aside></div>');

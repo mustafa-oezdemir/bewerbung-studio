@@ -112,9 +112,10 @@ export const applyResumeSectionHeadingColors = (root: Element, settings: Documen
   );
   const colorize = (heading: Element, color: string) => {
     (heading as HTMLElement).style.setProperty("color", color, "important");
-    if (heading.closest(".pehlione-contacts"))
-      for (const icon of heading.querySelectorAll("svg"))
-        (icon as SVGElement).style.setProperty("stroke", color, "important");
+    for (const icon of heading.querySelectorAll("svg")) {
+      (icon as SVGElement).style.setProperty("color", color, "important");
+      (icon as SVGElement).style.setProperty("stroke", color, "important");
+    }
     for (const label of heading.querySelectorAll("b,strong,span,[data-custom-role='heading-label']"))
       if (!label.querySelector("svg") && label.textContent?.trim())
         (label as HTMLElement).style.setProperty("color", color, "important");
