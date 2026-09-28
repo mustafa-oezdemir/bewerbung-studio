@@ -452,6 +452,12 @@ export const applyManagedResumeOutput = (
       }
       anchor.remove();
     }
+    // A section moved to the sidebar can carry the native PDF closing with it.
+    // Keep the closing with the main column after section placement.
+    if (resolved.templateId === "pehlione_white_blue" && root.matches(".cv-sheet")) {
+      const closing = root.querySelector("footer.pehlione-pdf-closing");
+      if (closing && closing.parentElement !== main) main.appendChild(closing);
+    }
     applyResumePageLayout(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings,
       profile.resumeColumnRatio, new Map(entries.map((entry) => [entry.id, entry.zone])), resolved.layout);
     applyResumeSpacingOutput(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings, resolved.design);

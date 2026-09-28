@@ -1644,11 +1644,13 @@ export function DocumentsView({
                           ["sidebarTextColor", "Seitenspalte Text"],
                           ["mainBackgroundColor", "Hauptspalte"],
                           ["photoDecorationColor", "Fotolinien"],
+                          ["contactDividerColor", "Kontaktlinie"],
                         ] as const).map(([key, label]) => <label className="field" key={key}>
                           <span>{label}</span>
                           <input type="color" value={design.settings.resumeAppearance?.[key] ?? ({
                             sidebarBackgroundColor: "#0b3d86", sidebarTextColor: "#ffffff",
                             mainBackgroundColor: "#ffffff", photoDecorationColor: "#d9ebff",
+                            contactDividerColor: "#ffffff",
                           } as const)[key]}
                             onChange={(event) => updateResumeAppearance(key, event.target.value)} />
                         </label>)}

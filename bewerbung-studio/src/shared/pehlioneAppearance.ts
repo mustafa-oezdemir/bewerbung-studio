@@ -22,6 +22,7 @@ export const applyPehlioneAppearance = (root: Element, templateId: string, setti
     "--pehlione-divider-color": colors?.divider,
     "--pehlione-divider-width": appearance.sectionDividerWidthMm === undefined ? undefined : `${appearance.sectionDividerWidthMm}mm`,
     "--pehlione-photo-decoration-color": appearance.photoDecorationColor,
+    "--pehlione-contact-divider-color": appearance.contactDividerColor,
   };
   for (const [name, value] of Object.entries(values)) if (value !== undefined) style.setProperty(name, value);
   if (appearance.sectionDividerVisible === false) host.setAttribute("data-section-divider", "hidden");
@@ -59,6 +60,9 @@ export const pehlioneAppearanceCss = `
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-section-heading b,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-section>h3 span,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar h3{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary));border-bottom-width:var(--pehlione-divider-width,.3mm)}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-contacts.pehlione-contacts h3,
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar .pehlione-contacts.pehlione-contacts h3{border-bottom-color:var(--pehlione-contact-divider-color,#fff);border-bottom-width:var(--pehlione-divider-width,.3mm)}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar .pehlione-pdf-section>h3{border-bottom:0;padding-bottom:0}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-header,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-header{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary))}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry,

@@ -319,3 +319,13 @@ Systemen. Design-Reset entfernt die neuen Overrides.
 Validierung: HTML-Regressionen für Vorschau/PDF, Persistenz-Roundtrip,
 Chromium-Geometrieprüfung von Datum, Titel, Ort, Institution sowie der beiden
 Sonderabschnitte und Sichtprüfung eines einseitigen A4-PDFs.
+
+PDF-Nachbesserung: In die Seitenspalte verschobene Hauptabschnitte hatten
+dort gleichzeitig eine äußere und eine innere Überschriftenlinie. Die äußere
+Linie entfällt; Zusammenfassung und Zertifikate zeigen wieder je eine Linie.
+Die Kontaktlinie behält ohne Override das Weiß der Vorschau und besitzt eine
+eigene vorlagenbezogene Farbeinstellung. Kontaktüberschrift, Symbole und
+Kontaktdaten übernehmen die gewählte Textfarbe der Seitenspalte. Der native Abschluss bleibt nach
+dem Verschieben anderer Abschnitte in der Hauptspalte. Der Fehler wurde mit
+den gespeicherten Einstellungen eines echten Pehlione-White-Blue-Dokuments
+reproduziert und anhand eines einseitigen A4-PDFs geprüft.

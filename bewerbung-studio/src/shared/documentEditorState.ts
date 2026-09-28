@@ -97,6 +97,7 @@ export const updateResumeAppearanceField = <Key extends keyof ResumeAppearance>(
   if (key === "sectionDividerWidthMm" && value === 0.3) delete next.sectionDividerWidthMm;
   if (key === "mainBackgroundColor" && value === "#ffffff") delete next.mainBackgroundColor;
   if (key === "sidebarTextColor" && value === "#ffffff") delete next.sidebarTextColor;
+  if (key === "contactDividerColor" && value === "#ffffff") delete next.contactDividerColor;
   const { resumeAppearance: _previous, ...settings } = current.settings;
   return { ...current, settings: { ...settings, ...(Object.keys(next).length ? { resumeAppearance: next } : {}) } };
 };

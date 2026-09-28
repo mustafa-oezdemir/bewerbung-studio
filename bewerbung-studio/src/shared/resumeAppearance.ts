@@ -11,6 +11,7 @@ export const resumeAppearanceSchema = z.object({
   sectionDividerWidthMm: z.number().min(0.1).max(2).optional(),
   photoDecorationVisible: z.boolean().optional(),
   photoDecorationColor: color.optional(),
+  contactDividerColor: color.optional(),
 });
 
 export type ResumeAppearance = z.infer<typeof resumeAppearanceSchema>;

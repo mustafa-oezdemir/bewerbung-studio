@@ -77,7 +77,7 @@ export const renderPehlioneContacts = (profile?: ApplicantProfile) => {
 
 // One set of rules keeps the contact block identical in preview and PDF.
 export const pehlioneContactsCss = `
-.pehlione-contacts.pehlione-contacts{--contact-heading:#fff;--contact-text:#fff;margin:0 0 4.5mm;color:var(--contact-text);font-family:var(--doc-font,var(--body-font,"Source Sans 3",Arial,sans-serif));font-size:7.8pt;line-height:1.2;break-inside:avoid}
+.pehlione-contacts.pehlione-contacts{--contact-heading:var(--pehlione-sidebar-text,#fff);--contact-text:var(--pehlione-sidebar-text,#fff);margin:0 0 4.5mm;color:var(--contact-text);font-family:var(--doc-font,var(--body-font,"Source Sans 3",Arial,sans-serif));font-size:7.8pt;line-height:1.2;break-inside:avoid}
 .pehlione-resume--white .pehlione-contacts,.pehlione-pdf-white .pehlione-contacts{--contact-heading:var(--pehlione-primary,#08245c);--contact-text:#142235}
 .pehlione-contacts.pehlione-contacts h3{display:grid;grid-template-columns:8mm minmax(0,1fr);gap:2mm;align-items:center;margin:0 0 2mm;padding:0 0 1.5mm;border-bottom:.3mm solid var(--contact-heading);color:var(--contact-heading);font-family:inherit;font-size:9.7pt;font-weight:700;line-height:1.1;text-transform:uppercase}
 .pehlione-contacts.pehlione-contacts svg{display:block;width:4.2mm;height:4.2mm;fill:none;stroke:var(--contact-heading);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}

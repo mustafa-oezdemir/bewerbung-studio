@@ -12,6 +12,7 @@ import { defaultDocumentDesign } from "../../../../shared/documentDesign";
 import { resolveCvDocument } from "../../../../shared/resolveCvDocument";
 import { buildDocumentHtml } from "../../../../../electron/documents";
 import { ManagedResumePreview } from "../../ManagedResumePreview";
+import { moveManagerSection } from "../../../../features/resume-sections/resume-manager";
 
 const experienceId = "81000000-0000-4000-8000-000000000001";
 const educationId = "82000000-0000-4000-8000-000000000001";
@@ -62,6 +63,23 @@ const plan: ResumePagePlan = {
 };
 
 describe("Pehlione White Blue", () => {
+  it("keeps moved sidebar sections to one rule and the PDF closing in the main column", () => {
+    let arranged = moveManagerSection(profile, "pehlione_white_blue", "summary", "sidebar", 0);
+    arranged = moveManagerSection(arranged, "pehlione_white_blue", "certifications", "sidebar", 1);
+    const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test",
+      company: { name: "Firma", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" },
+      status: "Entwurf", templateId: "pehlione_white_blue", accentColor: "#0b3d86", secondaryColor: "#1f66b3",
+      documents: {}, statusHistory: [], createdAt: profile.updatedAt, updatedAt: profile.updatedAt,
+    });
+    const { document } = parseHTML(buildDocumentHtml(application, arranged, "lebenslauf"));
+    for (const id of ["summary", "certifications"]) {
+      const node = document.querySelector(`.pehlione-pdf-sidebar [data-managed-section="${id}"]`);
+      expect(node).not.toBeNull();
+      expect(node?.querySelector("h3>span")).not.toBeNull();
+    }
+    expect(document.querySelector(".pehlione-pdf-closing")?.parentElement?.classList.contains("pehlione-pdf-main")).toBe(true);
+    expect(document.querySelector(".pehlione-pdf-sidebar .pehlione-pdf-closing")).toBeNull();
+  });
   it("keeps profile data, career rows, custom sections and appearance in preview and PDF", () => {
     const projectId = "85000000-0000-4000-8000-000000000001";
     const hobbyId = "86000000-0000-4000-8000-000000000001";
@@ -73,8 +91,8 @@ describe("Pehlione White Blue", () => {
     });
     const settings = { ...defaultDocumentDesign,
       cvOverrides: { colors: { heading: "#112233", subheading: "#223344", sectionHeading: "#334455", divider: "#445566" } },
-      resumeAppearance: { sidebarBackgroundColor: "#556677", mainBackgroundColor: "#f5f6f7",
-        sectionDividerVisible: false, photoDecorationVisible: false },
+      resumeAppearance: { sidebarBackgroundColor: "#556677", sidebarTextColor: "#101010", mainBackgroundColor: "#f5f6f7",
+        sectionDividerVisible: false, photoDecorationVisible: false, contactDividerColor: "#aabbcc" },
     };
     const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test",
       company: { name: "Firma", city: "Berlin" }, contact: {}, job: { title: "Unrelated Job" },
@@ -106,7 +124,9 @@ describe("Pehlione White Blue", () => {
       expect(document.querySelectorAll('[data-managed-section="projects"]')).toHaveLength(0);
       const host = document.querySelector(hostSelector)!;
       expect(host.getAttribute("style")).toContain("--pehlione-sidebar-background:#556677");
+      expect(host.getAttribute("style")).toContain("--pehlione-sidebar-text:#101010");
       expect(host.getAttribute("style")).toContain("--pehlione-title-color:#112233");
+      expect(host.getAttribute("style")).toContain("--pehlione-contact-divider-color:#aabbcc");
       expect(host.getAttribute("data-section-divider")).toBe("hidden");
       expect(host.getAttribute("data-photo-decoration")).toBe("hidden");
       expect(document.querySelector(`${hostSelector} header h2`)).toBeNull();
@@ -243,7 +263,7 @@ describe("Pehlione White Blue", () => {
       />,
     );
 
-    expect(html).not.toContain("pehlione-sidebar");
+    expect(parseHTML(html).document.querySelector(".pehlione-sidebar")).toBeNull();
     expect(html).toContain("Kontakt:");
     expect(html).toContain("Praktikum Softwareentwicklung");
   });
