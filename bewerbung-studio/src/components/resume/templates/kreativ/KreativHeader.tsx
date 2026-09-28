@@ -3,7 +3,7 @@ import { toKreativExternalHref } from "./kreativ.model";
 import type { KreativHeaderProps } from "./kreativ.types";
 
 type KreativContact = {
-  kind: "phone" | "email" | "linkedin" | "location" | "birth";
+  kind: "phone" | "email" | "linkedin" | "github" | "website" | "location" | "birth";
   label: string;
   value: string | undefined;
   href: string;
@@ -44,6 +44,18 @@ export function KreativHeader({
       href: profile?.linkedin
         ? toKreativExternalHref(profile.linkedin)
         : "",
+    },
+    {
+      kind: "github",
+      label: "GitHub",
+      value: profile?.github,
+      href: profile?.github ? toKreativExternalHref(profile.github) : "",
+    },
+    {
+      kind: "website",
+      label: "Website",
+      value: profile?.portfolio,
+      href: profile?.portfolio ? toKreativExternalHref(profile.portfolio) : "",
     },
     {
       kind: "location",

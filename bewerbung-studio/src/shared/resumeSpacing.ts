@@ -6,6 +6,7 @@ import type { DocumentDesignDraft } from "./documentEditorState";
 import { resumeSectionStyleSources } from "./resumeSectionStyleInheritance";
 import { resolveTemplateId } from "./templates";
 import { getResumeLayoutHost } from "./resumeLayoutEngine";
+import { kreativDefaults } from "./cvTemplateDefaults/kreativ.defaults";
 
 type Spacing = CvDesignTokens["spacing"];
 export type ResumeSpacingPreset = "compact" | "standard" | "large" | "custom";
@@ -105,10 +106,15 @@ export const applyResumeSpacingOutput = (
   const overrides = settings.cvOverrides;
   const spacing = overrides?.spacing;
   const lineHeight = overrides?.typography?.lineHeight;
-  if (!spacing && lineHeight === undefined) return;
+  const id = resolveTemplateId(templateId);
+  const legacyKreativSectionGap = id === "kreativ" && settings.sectionSpacingLevel !== getTemplateDocumentDesignDefaults(id).sectionSpacingLevel;
+  if (!spacing && lineHeight === undefined && !legacyKreativSectionGap) return;
   const scope = (surface === "pdf" ? page.querySelector(".page-content") : page.firstElementChild) as HTMLElement | null;
   if (!scope) return;
-  const id = resolveTemplateId(templateId);
+  if (legacyKreativSectionGap && spacing?.sectionGapMm === undefined)
+    scope.style.setProperty("--kreativ-section-gap-base", `${sectionSpacingLevelToMm[settings.sectionSpacingLevel]}mm`);
+  else if (id === "kreativ")
+    scope.style.setProperty("--kreativ-section-gap-base", `${kreativDefaults.layout.sectionGapMm}mm`);
   const design = resolvedDesign ?? resolveCvDesign(id, overrides);
   const variables = getCvDesignVariables(design);
   for (const { key } of resumeSpacingFields) if (spacing?.[key] !== undefined) {

@@ -94,7 +94,9 @@ export function KreativPage({
           experienceTitle={getResumeSectionTitle(profile, "experience")}
           educationTitle={getResumeSectionTitle(profile, "education")}
           continuation={isContinuation}
-        />
+        >
+          {isLastPage ? <ResumeSpecialSections profile={profile} sectionClassName="kreativ-section" headingClassName="kreativ-section__title" /> : null}
+        </KreativLeftColumn>
         {!isContinuation ? (
           <KreativRightColumn
             profile={profile}
@@ -109,7 +111,6 @@ export function KreativPage({
             Berufserfahrung und Ausbildung im Profil ergänzen.
           </p>
         ) : null}
-        {isLastPage ? <ResumeSpecialSections profile={profile} sectionClassName="kreativ-section" headingClassName="kreativ-section__title" /> : null}
       </div>
       <KreativFooter
         profile={profile}

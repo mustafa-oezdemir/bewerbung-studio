@@ -18,8 +18,8 @@
   --kreativ-header-height: 46mm;
   --kreativ-margin: calc(var(--doc-margin, 14mm) + 1mm);
   --kreativ-column-gap: 11mm;
-  --kreativ-section-gap: var(--doc-section-gap, 7mm);
-  --kreativ-entry-gap: 4.5mm;
+  --kreativ-section-gap: var(--kreativ-section-gap-base, 4.5mm);
+  --kreativ-entry-gap: var(--kreativ-entry-gap-base, 2.5mm);
   --kreativ-body-size: var(--doc-body-size, 8.5pt);
   --kreativ-line-height: var(--doc-line-height, 1.3);
   --kreativ-name-size: 23pt;
@@ -230,9 +230,9 @@
   column-gap: var(--kreativ-column-gap);
   align-items: start;
   padding:
-    10mm
+    var(--kreativ-header-to-content-gap, 7mm)
     var(--kreativ-margin)
-    max(13mm, calc(var(--kreativ-margin) - 2mm));
+    max(var(--kreativ-footer-clearance, 18mm), calc(var(--kreativ-margin) - 2mm));
 }
 
 .kreativ-content--continuation {
@@ -243,6 +243,10 @@
 .kreativ-left-column {
   grid-column: 1;
   min-width: 0;
+}
+
+.kreativ-left-column > .resume-special-output-list {
+  gap: 0;
 }
 
 .kreativ-right-column {
@@ -291,7 +295,7 @@
 }
 
 .kreativ-career-entry {
-  padding-bottom: 3mm;
+  padding-bottom: var(--kreativ-entry-divider-gap, 1.5mm);
   border-bottom: 0.25mm dashed var(--kreativ-light-divider);
   break-inside: avoid;
   page-break-inside: avoid;
@@ -523,19 +527,13 @@
 }
 
 .kreativ-template[data-density="compact"] {
-  --kreativ-section-gap: max(
-    5mm,
-    calc(var(--doc-section-gap, 7mm) - 1mm)
-  );
-  --kreativ-entry-gap: 3.7mm;
+  --kreativ-section-gap: calc(var(--kreativ-section-gap-base, 4.5mm) * 0.85);
+  --kreativ-entry-gap: calc(var(--kreativ-entry-gap-base, 2.5mm) * 0.85);
 }
 
 .kreativ-template[data-density="dense"] {
-  --kreativ-section-gap: max(
-    3.7mm,
-    calc(var(--doc-section-gap, 7mm) - 2mm)
-  );
-  --kreativ-entry-gap: 2.8mm;
+  --kreativ-section-gap: calc(var(--kreativ-section-gap-base, 4.5mm) * 0.65);
+  --kreativ-entry-gap: calc(var(--kreativ-entry-gap-base, 2.5mm) * 0.65);
 }
 
 .kreativ-template[data-density="dense"] .kreativ-header {

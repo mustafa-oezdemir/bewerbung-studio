@@ -413,3 +413,14 @@ Section-Manager erzeugt wird. Für Interessen und Projekte werden passende
 Symbole anhand des gespeicherten Abschnittstyps gewählt; frei benannte
 Abschnitte nutzen ein neutrales Symbol. Bestehende native Abschnitte und
 Profilinhalte bleiben unverändert.
+
+## Phase 18: Kreativ
+
+Kreativ verwendet für Vorschau und PDF dieselben Vorlagenwerte für den
+Abstand unter dem Kopfbereich, zwischen Abschnitten und zwischen
+Berufserfahrungs-Einträgen. Der Abstand vor der Fußzeile ist als eigener
+Vorlagenwert definiert. Nachträglich hinzugefügte Abschnitte stehen in der
+Hauptspalte und behalten ihre normale Überschrift und ihren Inhaltstyp;
+Projekt-Highlight und Hobbys & Interesses werden getrennt von Ausbildung
+ausgegeben. Die Sichtbarkeit von Telefon, E-Mail, LinkedIn, GitHub, Website,
+Adresse und Foto folgt weiterhin dem aufgelösten Profil.

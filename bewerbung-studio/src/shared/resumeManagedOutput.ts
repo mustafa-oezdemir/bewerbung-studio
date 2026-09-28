@@ -99,6 +99,8 @@ export const managedResumeCss = `
 :where([data-custom-template]) [data-custom-role="entry"]{display:block;min-width:0;break-inside:avoid;overflow-wrap:anywhere}
 :where([data-custom-template]) :is(p,h3,h4,h5){margin:0}
 :where([data-custom-template]) .resume-special-output__meta{opacity:1}
+:where([data-custom-template="kreativ"]) [data-content-type="list"]>[data-custom-role="entry"]{display:list-item}
+:where([data-custom-template="kreativ"]) [data-content-type="list"]>[data-custom-role="entry"]::marker{color:var(--kreativ-primary,var(--accent,currentColor))}
 [data-managed-section]{break-inside:avoid}
 [data-managed-section][data-custom-template]{break-inside:avoid}
 [data-managed-moved], [data-managed-moved] :is(p,li,small){color:inherit!important}

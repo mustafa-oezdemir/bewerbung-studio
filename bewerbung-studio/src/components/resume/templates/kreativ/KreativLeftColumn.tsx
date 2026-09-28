@@ -1,5 +1,6 @@
 import type { KreativCareerItem } from "./kreativ.types";
 import { KreativCareerSection } from "./KreativCareerSection";
+import type { ReactNode } from "react";
 
 export function KreativLeftColumn({
   experiences,
@@ -7,12 +8,14 @@ export function KreativLeftColumn({
   experienceTitle,
   educationTitle,
   continuation = false,
+  children,
 }: {
   experiences: KreativCareerItem[];
   education: KreativCareerItem[];
   experienceTitle: string;
   educationTitle: string;
   continuation?: boolean;
+  children?: ReactNode;
 }) {
   return (
     <main className="kreativ-left-column">
@@ -23,6 +26,7 @@ export function KreativLeftColumn({
         continuation={continuation}
       />
       <KreativCareerSection kind="education" title={educationTitle} items={education} />
+      {children}
     </main>
   );
 }

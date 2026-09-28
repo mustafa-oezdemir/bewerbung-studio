@@ -17,6 +17,11 @@ export function KreativResume({
   sections,
 }: KreativResumeProps) {
   const variables = {
+    "--kreativ-header-to-content-gap": `${kreativDefaults.layout.headerToContentGapMm}mm`,
+    "--kreativ-footer-clearance": `${kreativDefaults.layout.footerClearanceMm}mm`,
+    "--kreativ-entry-divider-gap": `${kreativDefaults.layout.entryDividerGapMm}mm`,
+    "--kreativ-entry-gap-base": `${kreativDefaults.layout.entryGapMm}mm`,
+    "--kreativ-section-gap-base": `${kreativDefaults.layout.sectionGapMm}mm`,
     "--kreativ-primary":
       accentColor || kreativDefaults.colors.primary,
     "--kreativ-primary-soft":

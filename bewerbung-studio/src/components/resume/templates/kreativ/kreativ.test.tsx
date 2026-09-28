@@ -1,5 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { parseHTML } from "linkedom";
+import { applicationSchema } from "../../../../shared/schema";
+import { buildDocumentHtml } from "../../../../../electron/documents";
+import { getTemplateDocumentDesignDefaults } from "../../../../shared/cvDesign";
+import { resolveCvDocument } from "../../../../shared/resolveCvDocument";
+import { ManagedResumePreview } from "../../ManagedResumePreview";
 import { kreativLebenslaufTemplateConfig } from "../../../../features/templates/template.constants";
 import type { ResumePagePlan } from "../../../../shared/documentPagination";
 import { profileSchema } from "../../../../shared/schema";
@@ -101,6 +107,7 @@ const renderResume = ({
   photoSource = "data:image/png;base64,AA==",
   resumeProfile = "Auf die Stelle zugeschnitten",
   name = "Marie Schröder",
+  profileOverride = profile,
 }: {
   atsMode?: boolean;
   plan?: ResumePagePlan;
@@ -108,10 +115,11 @@ const renderResume = ({
   photoSource?: string | null;
   resumeProfile?: string;
   name?: string;
+  profileOverride?: typeof profile;
 } = {}) =>
   renderToStaticMarkup(
     <KreativResume
-      profile={profile}
+      profile={profileOverride}
       name={name}
       atsMode={atsMode}
       plan={plan}
@@ -120,7 +128,7 @@ const renderResume = ({
       secondaryColor="#D9F2E5"
       photoSource={photoSource}
       resumeProfile={resumeProfile}
-      sections={profile.resumeSections}
+      sections={profileOverride.resumeSections}
     />,
   );
 
@@ -169,6 +177,52 @@ describe("Kreativ page model", () => {
 });
 
 describe("Kreativ rendering", () => {
+  it("keeps custom sections in the main column and preserves visibility in preview and PDF", () => {
+    const projectId = crypto.randomUUID();
+    const hobbiesId = crypto.randomUUID();
+    const hiddenId = crypto.randomUUID();
+    const source = profileSchema.parse({ ...profile, github: "github.com/marie", resumePersonalFieldVisibility: {
+      ...profile.resumePersonalFieldVisibility, phone: false, website: false,
+    }, specialSections: [
+      { id: projectId, kind: "projects", title: "Projekt-Highlight", contentType: "list", entries: [{ id: crypto.randomUUID(), title: "oiözio" }] },
+      { id: hobbiesId, kind: "interests", title: "Hobbys & Interesses", contentType: "text", entries: [{ id: crypto.randomUUID(), title: "demo" }] },
+      { id: hiddenId, kind: "custom", title: "Verborgen", isVisible: false, entries: [{ id: crypto.randomUUID(), title: "Geheim" }] },
+    ] });
+    const settings = getTemplateDocumentDesignDefaults("kreativ");
+    const resolved = resolveCvDocument({ profile: source, templateId: "kreativ", settings });
+    const preview = resolved.pagePlan.map(plan => renderToStaticMarkup(
+      <ManagedResumePreview profile={resolved.profile} templateId="kreativ" pageNumber={plan.pageNumber}
+        totalPages={resolved.pagePlan.length} designSettings={settings} resolvedCv={resolved}>
+        <KreativResume profile={resolved.profile} name="Marie Schröder" atsMode={false} plan={plan}
+          totalPages={resolved.pagePlan.length} accentColor="#37B978" secondaryColor="#D9F2E5"
+          photoSource={null} resumeProfile="" sections={resolved.sections} />
+      </ManagedResumePreview>
+    )).join("");
+    const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test",
+      company: { name: "Firma", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" }, status: "Entwurf",
+      templateId: "kreativ", accentColor: "#37B978", secondaryColor: "#D9F2E5", documents: {},
+      designSettings: settings, statusHistory: [], createdAt: profile.updatedAt, updatedAt: profile.updatedAt,
+    });
+    for (const [html, mainSelector] of [[preview, ".kreativ-left-column"],
+      [buildDocumentHtml(application, source, "lebenslauf"), ".kreativ-pdf-left"]] as const) {
+      const { document } = parseHTML(html);
+      for (const id of [projectId, hobbiesId]) {
+        const section = document.querySelector(`${mainSelector} [data-managed-section="special:${id}"]`);
+        expect(section?.getAttribute("data-section-type")).toBe("main-section");
+        expect(section?.querySelector('[data-custom-role="heading"]')).not.toBeNull();
+        expect(section?.querySelector('[data-custom-role="entry"]')).not.toBeNull();
+      }
+      expect(document.querySelector(`[data-managed-section="special:${projectId}"]`)?.textContent).toContain("oiözio");
+      expect(document.querySelector(`[data-managed-section="special:${hobbiesId}"]`)?.textContent).toContain("demo");
+      expect(document.querySelector(`[data-managed-section="special:${hiddenId}"]`)).toBeNull();
+      expect(document.querySelector('[data-contact-kind="phone"]')).toBeNull();
+      expect(document.querySelector('[data-contact-kind="github"]')?.textContent).toContain("github.com/marie");
+      expect(document.querySelector('[data-contact-kind="website"]')).toBeNull();
+      expect(document.querySelector(`${mainSelector} [data-managed-section="experience"]`)).not.toBeNull();
+      expect(document.querySelector(`${mainSelector} [data-managed-section="education"]`)).not.toBeNull();
+      expect(document.querySelector("[data-managed-section=summary]")).not.toBeNull();
+    }
+  });
   it("renders the green profile banner, photo, circles, and two columns", () => {
     const markup = renderResume();
 
