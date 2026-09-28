@@ -190,12 +190,15 @@ export const applyManagedResumeOutput = (
       root
         .querySelectorAll('footer.pehlione-closing,footer.pehlione-pdf-closing,[data-resume-closing]')
         .forEach((node) => node.remove());
-    if (!enabled("personalData"))
+    if (!enabled("personalData")) {
+      if (resolved.templateId === "kompakt" && root.matches(".cv-sheet"))
+        root.querySelector(".kompakt-pdf-contacts")?.closest("section")?.remove();
       root
         .querySelectorAll(
           'address,[data-element-id$=".contacts"],[data-resume-personal],.resume-personal-data,.pehlione-contacts,.pehlione-ats-contact,.pehlione-pdf-ats-contact,.zeitgenoessisch-contacts,section:has(>.modern-contact-list)',
         )
         .forEach((node) => node.remove());
+    }
     const number = pages.length > 1 ? rootIndex + 1 : pageNumber;
     const last =
       pages.length > 1 ? rootIndex === pages.length - 1 : number === totalPages;
@@ -513,6 +516,12 @@ export const applyManagedResumeOutput = (
           node.querySelector("h3")?.classList.add("pehlione-pdf-sidebar-heading");
       }
       anchor.remove();
+    }
+    if (resolved.templateId === "kompakt") for (const wrapper of root.querySelectorAll(".kompakt-left > .resume-special-output-list")) {
+      const parent = wrapper.parentElement;
+      if (!parent) continue;
+      while (wrapper.firstChild) parent.insertBefore(wrapper.firstChild, wrapper);
+      wrapper.remove();
     }
     // A section moved to the sidebar can carry the native PDF closing with it.
     // Keep the closing with the main column after section placement.

@@ -486,7 +486,7 @@ describe("managed resume registration", () => {
       name: "Kompakt",
       category: "compact-professional",
       supportsAtsMode: true,
-      supportsPhoto: false,
+      supportsPhoto: true,
       supportsMultiplePages: true,
     });
     expect(getTemplate("einspaltig")).toMatchObject({

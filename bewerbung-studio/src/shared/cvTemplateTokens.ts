@@ -82,6 +82,7 @@ export const cvTemplateTokens: Record<string, CvDesignOverrides> = {
   kompakt: {
     ...adapt(kompaktDefaults),
     typography: { headingSizePt: 20, subheadingSizePt: 8.5, sectionHeadingSizePt: 8.5, entryHeadingSizePt: 10.5, bodySizePt: 8, lineHeight: 1.25 },
+    spacing: { ...adapt(kompaktDefaults).spacing, sectionTitleGapMm: kompaktDefaults.layout.sectionTitleGapMm, entryContentGapMm: kompaktDefaults.layout.entryContentGapMm },
   },
   stilvoll: {
     ...adapt(stilvollDefaults),

@@ -1,5 +1,6 @@
 import { inheritResumeSectionStyles } from "../src/shared/resumeSectionStyleInheritance";
 import { kreativDefaults } from "../src/shared/cvTemplateDefaults/kreativ.defaults";
+import { kompaktDefaults } from "../src/shared/cvTemplateDefaults/kompakt.defaults";
 import { stilvollDefaults } from "../src/shared/cvTemplateDefaults/stilvoll.defaults";
 import { renderContactIcon } from "../src/shared/contactIcons";
 import { applyManagedResumeOutput, managedResumeCss } from "../src/shared/resumeManagedOutput";
@@ -585,6 +586,18 @@ const extendedResumeDocumentCss = `
   .stilvoll-pdf .stilvoll-pdf-meta{margin:var(--stilvoll-entry-content-gap) 0 1mm}
   .stilvoll-pdf .stilvoll-pdf-entry ul{margin:.6mm 0 0}
   .stilvoll-pdf .stilvoll-pdf-entry li{margin:.3mm 0}
+  .kompakt-pdf{--kompakt-header-content-gap:${kompaktDefaults.layout.headerToContentGapMm}mm;--kompakt-footer-clearance:${kompaktDefaults.layout.footerClearanceMm}mm;--kompakt-section-gap-base:${kompaktDefaults.layout.sectionGapMm}mm;--kompakt-entry-gap-base:${kompaktDefaults.layout.entryGapMm}mm;--kompakt-section-title-gap:${kompaktDefaults.layout.sectionTitleGapMm}mm;--kompakt-entry-content-gap:${kompaktDefaults.layout.entryContentGapMm}mm;--managed-section-gap:var(--kompakt-section-gap-base);--managed-entry-gap:var(--kompakt-entry-gap-base);--managed-pattern:color-mix(in srgb,var(--managed-accent) 25%,white)}
+  .kompakt-pdf .managed-pdf-background path,.kompakt-pdf .managed-pdf-background circle{vector-effect:non-scaling-stroke}
+  .kompakt-pdf-columns:not(.continuation){padding-top:var(--kompakt-header-content-gap);padding-bottom:var(--kompakt-footer-clearance)}
+  .kompakt-pdf-header h2{margin:.5mm 0 0;font-weight:500}
+  .kompakt-pdf .managed-pdf-title{margin-bottom:var(--kompakt-section-title-gap);color:var(--managed-muted);font-size:8.5pt;font-weight:450;line-height:1}
+  .kompakt-pdf .managed-pdf-section>p{margin:0;hyphens:auto;overflow-wrap:break-word}
+  .kompakt-pdf .kompakt-pdf-meta{margin:var(--kompakt-entry-content-gap) 0 1mm}
+  .kompakt-pdf-entry h3,.kompakt-pdf-meta{line-height:1.15}
+  .kompakt-pdf .kompakt-pdf-entry ul{margin:0}
+  .kompakt-pdf-contact,.kompakt-pdf-contact a{min-width:0;overflow-wrap:anywhere;word-break:break-word}
+  .kompakt-pdf[data-density="compact"]{--managed-section-gap:calc(var(--kompakt-section-gap-base) * .85);--managed-entry-gap:calc(var(--kompakt-entry-gap-base) * .85)}
+  .kompakt-pdf[data-density="dense"]{--managed-section-gap:max(3mm,calc(var(--kompakt-section-gap-base) * .65));--managed-entry-gap:max(2.5mm,calc(var(--kompakt-entry-gap-base) * .65))}
   @media print{.no-print-background .managed-pdf-background{display:none!important}}
 `;
 
@@ -2728,7 +2741,7 @@ export const buildDocumentHtml = (
       photoSource
       ? `<img class="kompakt-pdf-photo" src="${escapeHtml(photoSource)}" alt="">`
       : "";
-    return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="kompakt" data-no-fit="true"><div class="page-content managed-pdf kompakt-pdf" data-density="${plan.density}">${designSettings.backgroundId === "abstract" && !isContinuation ? kompaktBackground : ""}<header class="managed-pdf-header kompakt-pdf-header${isContinuation ? " compact" : ""}${photo ? " with-photo" : ""}">${isContinuation ? '<p class="kicker">Lebenslauf · Fortsetzung</p>' : ""}<h1>${escapeHtml(name)}</h1>${managedJobTitle ? `<h2>${escapeHtml(managedJobTitle)}</h2>` : ""}${photo}</header><div class="kompakt-pdf-columns${isContinuation ? " continuation" : ""}"><main>${sections.experience ? managedSection(`Erfahrung${isContinuation ? " · Fortsetzung" : ""}`, `<div class="managed-pdf-list">${experiences}</div>`) : ""}${sections.education ? managedSection("Ausbildung", `<div class="managed-pdf-list">${education}</div>`) : ""}${isLastPage && sections.languages ? managedSection("Sprachen", managedVisualLanguages("kompakt")) : ""}</main>${right}</div>${managedFooter(plan, true)}</div></section>`;
+    return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="kompakt" data-no-fit="true"><div class="page-content managed-pdf kompakt-pdf" data-density="${plan.density}">${designSettings.backgroundId === "abstract" && !isContinuation ? kompaktBackground : ""}<header class="managed-pdf-header kompakt-pdf-header${isContinuation ? " compact" : ""}${photo ? " with-photo" : ""}">${isContinuation ? '<p class="kicker">Lebenslauf · Fortsetzung</p>' : ""}<h1>${escapeHtml(name)}</h1>${managedJobTitle ? `<h2>${escapeHtml(managedJobTitle)}</h2>` : ""}${photo}</header><div class="kompakt-pdf-columns${isContinuation ? " continuation" : ""}"><main>${sections.experience && experiences ? managedSection(`Erfahrung${isContinuation ? " · Fortsetzung" : ""}`, `<div class="managed-pdf-list">${experiences}</div>`) : ""}${sections.education && education ? managedSection("Ausbildung", `<div class="managed-pdf-list">${education}</div>`) : ""}${isLastPage && sections.languages ? managedSection("Sprachen", managedVisualLanguages("kompakt")) : ""}</main>${right}</div>${managedFooter(plan, true)}</div></section>`;
   };
   const renderEinspaltigResumePage = (plan: ResumePagePlan) => {
     if (atsMode) return renderManagedAtsPage(plan, "einfach", "einspaltig");

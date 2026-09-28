@@ -9,11 +9,11 @@
   --kompakt-text: #3f494f;
   --kompakt-muted: #6d757a;
   --kompakt-divider: #aeb6ba;
-  --kompakt-pattern: #ffd7bc;
+  --kompakt-pattern: color-mix(in srgb, var(--kompakt-accent) 25%, white);
   --kompakt-inactive: #e1e5e7;
   --kompakt-margin: max(13mm, calc(var(--doc-margin, 13mm) - 1mm));
-  --kompakt-section-gap: max(3.5mm, calc(var(--doc-section-gap, 5.5mm) - 1mm));
-  --kompakt-entry-gap: 4mm;
+  --kompakt-section-gap: var(--kompakt-section-gap-base);
+  --kompakt-entry-gap: var(--kompakt-entry-gap-base);
   --kompakt-body-size: max(7.5pt, var(--doc-body-size, 8pt));
   --kompakt-line-height: max(1.18, var(--doc-line-height, 1.25));
   position: relative;
@@ -135,7 +135,7 @@
   grid-template-columns: minmax(0, 108mm) minmax(0, 66mm);
   column-gap: 10mm;
   align-items: start;
-  padding: 9mm var(--kompakt-margin) 15mm;
+  padding: var(--kompakt-header-content-gap) var(--kompakt-margin) var(--kompakt-footer-clearance);
 }
 
 .kompakt-content--continuation {
@@ -155,11 +155,12 @@
   page-break-inside: avoid;
 }
 
-.kompakt-section__title {
-  margin: 0 0 3mm;
+.kompakt-template .kompakt-section__title {
+  margin: 0 0 var(--kompakt-section-title-gap);
   padding-bottom: 1mm;
   border-bottom: 0.3mm solid var(--kompakt-divider);
   color: var(--kompakt-muted);
+  font-family: inherit;
   font-size: 8.5pt;
   font-weight: 450;
   line-height: 1;
@@ -205,7 +206,7 @@
 }
 
 .kompakt-career-entry__meta {
-  margin: 0.7mm 0 1mm;
+  margin: var(--kompakt-entry-content-gap) 0 1mm;
   color: var(--kompakt-muted);
   font-size: 7.4pt;
   line-height: 1.15;
@@ -372,13 +373,13 @@
 }
 
 .kompakt-template[data-density="compact"] {
-  --kompakt-entry-gap: 3.2mm;
-  --kompakt-section-gap: max(3.5mm, calc(var(--doc-section-gap, 5.5mm) - 2mm));
+  --kompakt-entry-gap: calc(var(--kompakt-entry-gap-base) * 0.85);
+  --kompakt-section-gap: calc(var(--kompakt-section-gap-base) * 0.85);
 }
 
 .kompakt-template[data-density="dense"] {
-  --kompakt-entry-gap: 2.5mm;
-  --kompakt-section-gap: 3.5mm;
+  --kompakt-entry-gap: max(2.5mm, calc(var(--kompakt-entry-gap-base) * 0.65));
+  --kompakt-section-gap: max(3mm, calc(var(--kompakt-section-gap-base) * 0.65));
   --kompakt-body-size: max(7.5pt, calc(var(--doc-body-size, 8pt) - 0.5pt));
   --kompakt-line-height: max(1.18, calc(var(--doc-line-height, 1.25) - 0.07));
 }

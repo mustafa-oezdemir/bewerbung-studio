@@ -436,3 +436,22 @@ weiterhin berücksichtigt. Projekt-Highlight und Hobbys & Interesses übernehmen
 die normale Stilvoll-Überschrift und folgen der gespeicherten Spaltenposition.
 Vorschau und gedrucktes A4-PDF wurden mit Profil- und Zusatzabschnitten
 verglichen; der vorhandene zweispaltige Entwurf bleibt erhalten.
+
+## Phase 20: Kompakt
+
+Kompakt behält seine breite Hauptspalte (108 mm) und schmale Seitenspalte
+(66 mm); die gemeinsame Verhältnisvorgabe entspricht nun dieser nativen
+Aufteilung. Der Standard-Eintragsabstand beträgt 3,2 mm und bleibt vom
+Abschnittsabstand (3,5 mm) und Titelabstand getrennt. Kompakt, Standard und
+Groß wirken auf Berufs- und Ausbildungs-Einträge in Vorschau und PDF gleich;
+gespeicherte Werte des älteren Abschnittsabstand-Reglers bleiben wirksam.
+
+Zusatzabschnitte wie Projekt-Highlight und Hobbys & Interesses stehen als
+eigenständige Abschnitte in der gewählten Spalte. Lange Kontaktwerte umbrechen
+innerhalb der Seitenspalte. Die orangefarbene Liniengrafik verwendet die
+Sekundärfarbe und dieselbe feine Strichstärke auf beiden Ausgaben. Kompakt
+meldet seine bereits vorhandene Fotodarstellung nun auch als unterstützte
+Vorlagenfunktion; ausgeblendete Kontaktdaten hinterlassen im PDF keinen leeren
+Abschnitt. Auf einer Fortsetzungsseite werden Berufs- und Ausbildungs-Titel
+nur ausgegeben, wenn dort auch Einträge stehen. Die Vorschau wurde mit einem
+gedruckten A4-PDF und einem zweiseitigen Belastungsbeispiel verglichen.

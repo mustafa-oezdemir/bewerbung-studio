@@ -346,10 +346,10 @@ const allTemplates: TemplateDefinition[] = [
     ],
     category: "compact-professional",
     supportsAtsMode: true,
-    supportsPhoto: false,
+    supportsPhoto: true,
     supportsFreeform: true,
     supportsMultiplePages: true,
-    sidebarWidthRatio: 0.36,
+    sidebarWidthRatio: 0.38,
     atsInfo:
       "Kompakt bietet eine lineare ATS-Ausgabe ohne Flusslinien, Symbole, Skill-Tags oder Sprachniveau-Punkte.",
     designDefaults: {
