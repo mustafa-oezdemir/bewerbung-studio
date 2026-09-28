@@ -382,3 +382,24 @@ Pehlione White PDF: In die Seitenspalte verschobene Abschnitte übernehmen nun
 die vorhandene White-Seitenspalten-Überschrift. Die Symbole stehen ohne
 farbige Kachel wie in der Vorschau, und die Linie beginnt erst am Text.
 Zertifikate verwenden auch im PDF das Graduationssymbol der Vorschau.
+
+## Phase 16: Zweispaltig und gemeinsame Gestaltung
+
+Zweispaltig behält ohne gespeicherte Overrides sein 62/38-Layout und die
+nativen Farben. Die vorhandenen gemeinsamen Systeme für Metadaten,
+Abschnittsreihenfolge, Spaltenposition und -breite, Sonderabschnitte sowie
+Ort/Datum/Unterschrift werden in Vorschau und PDF verwendet. Die beiden
+Metadatenmodi und eine 35/65-Variante wurden mit Projekt-Highlight und
+Hobbys & Interesses auf beiden Ausgaben geprüft. Beide Beispiel-PDFs blieben
+einseitige A4-Dokumente.
+
+„Farben und Dekoration“ ist jetzt ein gemeinsames Panel für alle
+Lebenslauf-Vorlagen. Hintergrund, Seitenspalten-Text, Abschnittslinien und
+Fotodekoration werden für andere Vorlagen über denselben HTML-Projektionspfad
+auf Vorschau und PDF angewendet. Fehlende Werte lassen das native
+Vorlagendesign unverändert; der Panel-Reset entfernt die gespeicherten
+Dekorations-Overrides. Für Pehlione bleibt die vorhandene Projektion aktiv.
+
+Seitenspalten-Textfarbe steuert auch die Einträge unter „Zertifikate“.
+Abschnittstitel und Symbole behalten ihre getrennte Farbpriorität; der
+Pehlione-Theme-Hintergrund bleibt durch diese Textanpassung unberührt.

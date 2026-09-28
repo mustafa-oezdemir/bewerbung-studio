@@ -4,7 +4,7 @@ import { applyResumeSpacingOutput, resumeSpacingCss } from "./resumeSpacing";
 import { applyResumeMetadataLayout, resumeMetadataCss } from "./resumeMetadataLayout";
 import { applyResumeClosingOutput, resumeClosingCss } from "./resumeClosing";
 import { applyPehlioneAppearance, pehlioneAppearanceCss } from "./pehlioneAppearance";
-import { resumeAppearanceSchema } from "./resumeAppearance";
+import { applyGeneralResumeAppearance, resumeAppearanceSchema } from "./resumeAppearance";
 import { resolveTemplateId } from "./templates";
 import { resumeSectionStyleSources } from "./resumeSectionStyleInheritance";
 import { parseHTML } from "linkedom";
@@ -496,6 +496,7 @@ export const applyManagedResumeOutput = (
     applyResumeSpacingOutput(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings, resolved.design);
     applyResumeMetadataLayout(root, profile, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
     applyResumeClosingOutput(root, main, profile, templateId, designSettings, last, enabled("closing"));
+    applyGeneralResumeAppearance(root, resolved.templateId, designSettings, main, sidebar);
     applyPehlioneAppearance(root, resolved.templateId, designSettings);
     applyResumeSectionHeadingColors(root, designSettings);
   });

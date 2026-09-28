@@ -1,8 +1,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { ResumePagePlan } from "../../../../shared/documentPagination";
-import { profileSchema } from "../../../../shared/schema";
+import { applicationSchema, profileSchema } from "../../../../shared/schema";
 import { getTemplate } from "../../../../shared/templates";
+import { defaultDocumentDesign } from "../../../../shared/documentDesign";
+import { resolveCvDocument } from "../../../../shared/resolveCvDocument";
+import { ManagedResumePreview } from "../../ManagedResumePreview";
+import { buildDocumentHtml } from "../../../../../electron/documents";
+import { parseHTML } from "linkedom";
+import { moveManagerSection } from "../../../../features/resume-sections/resume-manager";
 import { ZweispaltigResume } from "./ZweispaltigResume";
 import {
   createZweispaltigPageData,
@@ -172,6 +178,60 @@ describe("Zweispaltig page model", () => {
 });
 
 describe("Zweispaltig rendering", () => {
+  it.each(["side-by-side", "stacked"] as const)("shares %s metadata, custom sections and layout with PDF", (metadataLayout) => {
+    const projectId = "71000000-0000-4000-8000-000000000001";
+    const hobbyId = "72000000-0000-4000-8000-000000000001";
+    let source = profileSchema.parse({ ...profile, experiences: [profile.experiences[0]],
+      applicationPlace: "Berlin", applicationDate: "2026-09-28",
+      specialSections: [
+        { id: projectId, kind: "custom", title: "Projekt-Highlight", isVisible: true,
+          contentType: "list", entries: [{ id: crypto.randomUUID(), title: "Projektinhalt" }] },
+        { id: hobbyId, kind: "interests", title: "Hobbys & Interesses", isVisible: true,
+          contentType: "text", entries: [{ id: crypto.randomUUID(), title: "Wandern" }] },
+      ],
+    });
+    source = moveManagerSection(source, "zweispaltig", `special:${projectId}`, "main", 2);
+    source = moveManagerSection(source, "zweispaltig", `special:${hobbyId}`, "sidebar", 3);
+    const settings = { ...defaultDocumentDesign, metadataLayout,
+      resumePresentation: { sidebarWidthPercent: 35 as const, sidebarSide: "right" as const,
+        closing: { placement: "main" as const, alignment: "right" as const } },
+      resumeAppearance: { sidebarBackgroundColor: "#f2f3f4", mainBackgroundColor: "#fafafa" },
+    };
+    const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test",
+      company: { name: "Firma", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" },
+      status: "Entwurf", templateId: "zweispaltig", accentColor: "#0b3d86", secondaryColor: "#58b5f7",
+      documents: {}, designSettings: settings, statusHistory: [], createdAt: profile.updatedAt, updatedAt: profile.updatedAt,
+    });
+    const resolved = resolveCvDocument({ profile: source, templateId: "zweispaltig", settings: application.designSettings });
+    const preview = resolved.pagePlan.map((plan) => renderToStaticMarkup(
+      <ManagedResumePreview profile={resolved.profile} templateId="zweispaltig" pageNumber={plan.pageNumber}
+        totalPages={resolved.pagePlan.length} designSettings={application.designSettings} resolvedCv={resolved}>
+        <ZweispaltigResume profile={resolved.profile} name="Mina Kaya" atsMode={false} plan={plan}
+          totalPages={resolved.pagePlan.length} accentColor="#0b3d86" secondaryColor="#58b5f7"
+          photoSource={null} resumeProfile="" sections={resolved.sections} />
+      </ManagedResumePreview>,
+    )).join("");
+    const pdf = buildDocumentHtml(application, source, "lebenslauf");
+    for (const [html, mainSelector, sidebarSelector] of [
+      [preview, ".zweispaltig-main", ".zweispaltig-sidebar"],
+      [pdf, ".zweispaltig-pdf-main", ".zweispaltig-pdf-sidebar"],
+    ] as const) {
+      const { document } = parseHTML(html);
+      expect(document.querySelector(`${mainSelector} [data-managed-section="special:${projectId}"]`)?.textContent).toContain("Projektinhalt");
+      expect(document.querySelector(`${sidebarSelector} [data-managed-section="special:${hobbyId}"]`)?.textContent).toContain("Wandern");
+      for (const id of [projectId, hobbyId]) {
+        const section = document.querySelector(`[data-managed-section="special:${id}"]`);
+        expect(section?.getAttribute("data-section-type")).toBe("main-section");
+        expect(section?.querySelector('[data-custom-role="heading"]')).not.toBeNull();
+      }
+      expect(document.querySelector(`[data-resume-metadata-grid="${metadataLayout}"]`)).not.toBeNull();
+      expect(document.querySelector('[data-resume-sidebar-side="right"]')?.getAttribute("style")).toContain("65fr) minmax(0, 35fr)");
+      expect(document.querySelector(`${sidebarSelector}`)?.getAttribute("style")).toContain("#f2f3f4");
+      expect(document.querySelector(`${mainSelector}`)?.getAttribute("style")).toContain("#fafafa");
+      expect(document.querySelector(`${mainSelector} [data-resume-closing]`)?.textContent).toContain("Berlin");
+      expect(document.querySelector(`${mainSelector} [data-resume-closing]`)?.textContent).toContain("28.09.2026");
+    }
+  });
   it("renders the visual 62/38 composition and optional photo", () => {
     const markup = renderResume();
 

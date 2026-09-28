@@ -206,6 +206,7 @@ describe("Pehlione White Blue", () => {
       expect(host.getAttribute("style")).toContain("--pehlione-contact-divider-color:#aabbcc");
       expect(sidebar.querySelector('[data-managed-section="certifications"]')).not.toBeNull();
       expect(sidebar.querySelector('[data-managed-section="certifications"] h2,[data-managed-section="certifications"] h3')?.getAttribute("style")).toContain("#cc0000");
+      expect(sidebar.querySelector('[data-managed-section="certifications"] li')?.getAttribute("style")).toContain("#223344");
       const custom = sidebar.querySelector(`[data-managed-section="special:${customId}"]`);
       expect(custom?.textContent).toContain("Profilprojekt");
       expect(custom?.querySelector('[data-custom-role="heading"] svg')).not.toBeNull();

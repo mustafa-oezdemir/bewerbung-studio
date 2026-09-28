@@ -94,9 +94,8 @@ export const updateResumeAppearanceField = <Key extends keyof ResumeAppearance>(
   const next: ResumeAppearance = { ...current.settings.resumeAppearance, [key]: value };
   if (key === "sectionDividerVisible" && value === true) delete next.sectionDividerVisible;
   if (key === "photoDecorationVisible" && value === true) delete next.photoDecorationVisible;
-  if (key === "sectionDividerWidthMm" && value === 0.3) delete next.sectionDividerWidthMm;
-  if (key === "mainBackgroundColor" && value === "#ffffff") delete next.mainBackgroundColor;
-  if (key === "sidebarTextColor" && value === "#ffffff") delete next.sidebarTextColor;
+  // Native values differ by template; these explicit colors/widths must remain
+  // saved even when they happen to match a different template's default.
   if (key === "contactDividerColor" && value === "#ffffff") delete next.contactDividerColor;
   const { resumeAppearance: _previous, ...settings } = current.settings;
   return { ...current, settings: { ...settings, ...(Object.keys(next).length ? { resumeAppearance: next } : {}) } };

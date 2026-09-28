@@ -29,6 +29,18 @@ describe("document editor persistence", () => {
     expect(reset.settings.resumeAppearance).toBeUndefined();
     expect(reset.settings.cvOverrides).toBeUndefined();
   });
+  it("keeps white and native-sized appearance choices on non-Pehlione templates", () => {
+    let draft = selectDocumentTemplate(createDocumentDesignDraft(application), "zweispaltig");
+    draft = updateResumeAppearanceField(draft, "sidebarTextColor", "#ffffff");
+    draft = updateResumeAppearanceField(draft, "mainBackgroundColor", "#ffffff");
+    draft = updateResumeAppearanceField(draft, "sectionDividerWidthMm", 0.3);
+    expect(draft.settings.resumeAppearance).toMatchObject({
+      sidebarTextColor: "#ffffff", mainBackgroundColor: "#ffffff", sectionDividerWidthMm: 0.3,
+    });
+    const restored = selectDocumentTemplate(selectDocumentTemplate(draft, "modern"), "zweispaltig");
+    expect(restored.settings.resumeAppearance).toEqual(draft.settings.resumeAppearance);
+    expect(resetDocumentDesign(restored).settings.resumeAppearance).toBeUndefined();
+  });
   it.each(templates)("starts $name with its own defaults rather than the previous draft", (template) => {
     const original = {
       ...createDocumentDesignDraft(application), templateId: "classic-professional",

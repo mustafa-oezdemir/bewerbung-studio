@@ -635,6 +635,15 @@ export function DocumentsView({
   const resumeRenderProfile = resolvedCv.profile;
   const resumeLayout = resolvedCv.layout;
   const resumeSpacing = resolvedCv.design;
+  const appearanceDefaults = template.id === "pehlione_white_blue"
+    ? { sidebarBackgroundColor: "#0b3d86", sidebarTextColor: "#ffffff",
+      mainBackgroundColor: "#ffffff", photoDecorationColor: "#d9ebff", contactDividerColor: "#ffffff" }
+    : template.id === "pehlione_white"
+      ? { sidebarBackgroundColor: "#ffffff", sidebarTextColor: "#142235",
+        mainBackgroundColor: "#ffffff", photoDecorationColor: "#dcecff", contactDividerColor: design.accentColor }
+      : { sidebarBackgroundColor: resumeSpacing.colors.background, sidebarTextColor: resumeSpacing.colors.text,
+        mainBackgroundColor: resumeSpacing.colors.background, photoDecorationColor: design.accentColor,
+        contactDividerColor: resumeSpacing.colors.divider };
   const emailAttachments = resolveApplicationEmailAttachments(
     docs,
     deckblattDocuments,
@@ -1585,7 +1594,7 @@ export function DocumentsView({
                         onChange={(color) => setDesign((current) => ({ ...current, secondaryColor: color }))} />
                     </div>
                     <details className="resume-spacing-advanced design-colors-panel">
-                      <summary>{template.name} · Farben und Dekoration</summary>
+                      <summary>Farben und Dekoration</summary>
                       <div className="color-card-grid">
                         {([
                           ["heading", "Name"],
@@ -1597,39 +1606,34 @@ export function DocumentsView({
                       </div>
                       <div className="color-card-grid">
                         <ColorCard label="Seitenspalte Abschnittstitel"
-                          value={design.settings.resumeAppearance?.sidebarSectionHeadingColor ?? design.settings.resumeAppearance?.sidebarTextColor ?? (template.id === "pehlione_white" ? design.accentColor : "#ffffff")}
+                          value={design.settings.resumeAppearance?.sidebarSectionHeadingColor ?? design.settings.resumeAppearance?.sidebarTextColor ?? (template.id === "pehlione_white_blue" ? "#ffffff" : resumeSpacing.colors.sectionHeading)}
                           onChange={(color) => updateResumeAppearance("sidebarSectionHeadingColor", color)} />
                         <ColorCard label="Abschnittslinien" value={resumeSpacing.colors.divider}
                           onChange={(color) => setDesign((current) => updateCvDesignField(current, "colors", "divider", color))} />
                       </div>
                       {design.settings.resumeAppearance?.sidebarSectionHeadingColor && <button className="design-color-reset" type="button"
                         onClick={() => updateResumeAppearance("sidebarSectionHeadingColor", undefined)}>Seitenspalte Abschnittstitel: Automatisch</button>}
-                      {template.id.startsWith("pehlione_") && <div className="color-card-grid">
+                      <div className="color-card-grid">
                         {([
                           ["sidebarBackgroundColor", "Seitenspalte"],
                           ["sidebarTextColor", "Seitenspalte Text"],
                           ["mainBackgroundColor", "Hauptspalte"],
                           ["photoDecorationColor", "Fotolinien"],
                           ["contactDividerColor", "Kontaktlinie"],
-                        ] as const).filter(([key]) => template.id !== "pehlione_white" || key !== "contactDividerColor").map(([key, label]) => <ColorCard key={key} label={label}
-                          value={design.settings.resumeAppearance?.[key] ?? (template.id === "pehlione_white"
-                            ? { sidebarBackgroundColor: "#ffffff", sidebarTextColor: "#142235",
-                              mainBackgroundColor: "#ffffff", photoDecorationColor: "#dcecff",
-                              contactDividerColor: design.accentColor }
-                            : { sidebarBackgroundColor: "#0b3d86", sidebarTextColor: "#ffffff",
-                              mainBackgroundColor: "#ffffff", photoDecorationColor: "#d9ebff",
-                              contactDividerColor: "#ffffff" })[key]}
+                        ] as const).filter(([key]) => key !== "contactDividerColor" || template.id === "pehlione_white_blue").map(([key, label]) => <ColorCard key={key} label={label}
+                          value={design.settings.resumeAppearance?.[key] ?? appearanceDefaults[key]}
                           onChange={(color) => updateResumeAppearance(key, color)} />)}
-                      </div>}
-                      {template.id.startsWith("pehlione_") && <div className="advanced-design-grid">
+                      </div>
+                      <div className="advanced-design-grid">
                         <label className="field"><span>Abschnittslinien</span>
                           <input type="checkbox" checked={design.settings.resumeAppearance?.sectionDividerVisible !== false}
                             onChange={(event) => updateResumeAppearance("sectionDividerVisible", event.target.checked)} />
                         </label>
                         <label className="field"><span>Linienstärke (mm)</span>
                           <input type="number" min="0.1" max="2" step="0.1"
-                            value={design.settings.resumeAppearance?.sectionDividerWidthMm ?? 0.3}
+                            placeholder="Vorlage" value={design.settings.resumeAppearance?.sectionDividerWidthMm ?? ""}
                             onChange={(event) => {
+                              if (!event.target.value) { updateResumeAppearance("sectionDividerWidthMm", undefined); return; }
                               const value = Number(event.target.value);
                               if (Number.isFinite(value) && value >= 0.1 && value <= 2)
                                 updateResumeAppearance("sectionDividerWidthMm", value);
@@ -1639,7 +1643,11 @@ export function DocumentsView({
                           <input type="checkbox" checked={design.settings.resumeAppearance?.photoDecorationVisible !== false}
                             onChange={(event) => updateResumeAppearance("photoDecorationVisible", event.target.checked)} />
                         </label>
-                      </div>}
+                      </div>
+                      {design.settings.resumeAppearance && <button className="design-color-reset" type="button"
+                        onClick={() => setDesign((current) => ({ ...current, settings: { ...current.settings, resumeAppearance: undefined } }))}>
+                        Farben und Dekoration: Vorlagenwerte
+                      </button>}
                     </details>
                     <div className="design-option-group resume-spacing-presets">
                       <span>Lebenslauf-Abstände</span>
