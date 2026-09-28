@@ -403,3 +403,13 @@ Dekorations-Overrides. Für Pehlione bleibt die vorhandene Projektion aktiv.
 Seitenspalten-Textfarbe steuert auch die Einträge unter „Zertifikate“.
 Abschnittstitel und Symbole behalten ihre getrennte Farbpriorität; der
 Pehlione-Theme-Hintergrund bleibt durch diese Textanpassung unberührt.
+
+## Phase 17: Zeitgenössisch
+
+Nachträglich hinzugefügte Abschnitte übernehmen in Vorschau und PDF die
+vorhandene Zeitgenössisch-Überschrift mit Icon-Kachel, Schrift und Abstand.
+Stärken erhalten auch dann dieses Layout, wenn der Block erst vom gemeinsamen
+Section-Manager erzeugt wird. Für Interessen und Projekte werden passende
+Symbole anhand des gespeicherten Abschnittstyps gewählt; frei benannte
+Abschnitte nutzen ein neutrales Symbol. Bestehende native Abschnitte und
+Profilinhalte bleiben unverändert.

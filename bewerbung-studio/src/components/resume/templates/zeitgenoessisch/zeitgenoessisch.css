@@ -279,7 +279,8 @@
 }
 
 .zeitgenoessisch-left-column > .zeitgenoessisch-section:first-child,
-.zeitgenoessisch-main-column > .zeitgenoessisch-section:first-child {
+.zeitgenoessisch-main-column > .zeitgenoessisch-section:first-child,
+.zeitgenoessisch-main-column > .resume-special-output-list:first-child > .zeitgenoessisch-section:first-child {
   margin-top: 0;
 }
 

@@ -54,6 +54,16 @@ const normalize = (value: string) =>
     .trim()
     .toLocaleLowerCase("de-DE");
 
+const zeitgenoessischExtraIcon = (id: string, profile: ApplicantProfile): string => {
+  if (id === "strengths") return '<path d="m12 3 2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.5-.8z"/>';
+  const section = id.startsWith("special:")
+    ? profile.specialSections.find(item => item.id === id.slice(8))
+    : undefined;
+  if (section?.kind === "interests" || /hobbys|interessen/.test(normalize(section?.title ?? ""))) return '<path d="M20.8 8.6c0 4.4-8.8 10.4-8.8 10.4S3.2 13 3.2 8.6a4.6 4.6 0 0 1 8.8-1.8 4.6 4.6 0 0 1 8.8 1.8z"/>';
+  if (section?.kind === "projects" || /projekt/.test(normalize(section?.title ?? ""))) return '<path d="M4 7h16v12H4zM9 7V4h6v3M4 12h16M10 12v2h4v-2"/>';
+  return '<path d="M12 3a6 6 0 0 0-3.5 10.9V18h7v-4.1A6 6 0 0 0 12 3ZM9 21h6"/>';
+};
+
 const setHeadingText = (heading: Element, title: string) => {
   if (heading.textContent?.trim() === title.trim()) return;
   const label = heading.querySelector("b") ?? Array.from(heading.children).find(child => child.tagName === "SPAN" && !child.querySelector("svg")) ?? heading;
@@ -82,6 +92,7 @@ export const managedResumeCss = `
 .managed-extra .managed-columns{display:grid;grid-template-columns:1fr 1fr;gap:2mm}
 :where([data-custom-template]){min-width:0}
 :where([data-custom-template]) [data-custom-role="heading"]{margin:0 0 2mm;break-after:avoid;page-break-after:avoid}
+:where([data-custom-template="zeitgenoessisch"]) [data-custom-role="heading"]{margin:0}
 :where([data-custom-template]) [data-custom-role="heading-label"]{grid-column:1 / -1}
 :where([data-custom-template]) [data-custom-role="entries"]{display:grid;gap:3mm;margin:0;padding:0;min-width:0}
 :where([data-custom-template]) :is(ul,ol)[data-custom-role="entries"]{padding-left:4mm}
@@ -447,11 +458,27 @@ export const applyManagedResumeOutput = (
           label.textContent = heading.textContent;
           heading.replaceChildren(icon, label);
         }
-        if (resolveTemplateId(templateId) === "zeitgenoessisch") {
+        if (resolvedId === "zeitgenoessisch") {
+          node.classList.add(surface === "pdf" ? "zeit-pdf-section" : "zeitgenoessisch-section");
           const wrapper = document.createElement("header");
+          wrapper.className = surface === "pdf" ? "zeit-pdf-heading" : "zeitgenoessisch-section-heading";
           wrapper.setAttribute("data-custom-role", "heading-wrapper");
+          const icon = document.createElement(surface === "pdf" ? "i" : "span");
+          if (surface === "preview") icon.className = "zeitgenoessisch-section-heading__icon";
+          icon.setAttribute("aria-hidden", "true");
+          icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor">${zeitgenoessischExtraIcon(id, profile)}</svg>`;
+          wrapper.appendChild(icon);
+          const headingTag = surface === "pdf" ? "H3" : "H2";
+          const nativeHeading = heading.tagName !== headingTag
+            ? document.createElement(headingTag.toLowerCase())
+            : heading;
+          if (nativeHeading !== heading) {
+            for (const attribute of Array.from(heading.attributes)) nativeHeading.setAttribute(attribute.name, attribute.value);
+            nativeHeading.innerHTML = heading.innerHTML;
+          }
+          if (surface === "preview") nativeHeading.classList.add("zeitgenoessisch-section-heading__title");
           heading.replaceWith(wrapper);
-          wrapper.appendChild(heading);
+          wrapper.appendChild(nativeHeading);
         }
       }
     }
