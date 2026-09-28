@@ -480,6 +480,8 @@ export const applyManagedResumeOutput = (
           node.setAttribute("data-managed-moved", "true");
         }
         destination.insertBefore(node, anchor);
+        if (resolved.templateId === "pehlione_white" && root.matches(".cv-sheet") && destination === sidebar)
+          node.querySelector("h3")?.classList.add("pehlione-pdf-sidebar-heading");
       }
       anchor.remove();
     }

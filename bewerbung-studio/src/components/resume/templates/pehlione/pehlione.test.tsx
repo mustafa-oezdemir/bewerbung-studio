@@ -213,6 +213,13 @@ describe("Pehlione White Blue", () => {
       expect(document.querySelector('[data-managed-section="experience"]')?.textContent).toContain("Praktikum Softwareentwicklung");
     }
     const { document } = parseHTML(pdf);
+    for (const id of ["certifications", `special:${customId}`]) {
+      const heading = document.querySelector(`.pehlione-pdf-sidebar [data-managed-section="${id}"] h3`);
+      expect(heading?.classList.contains("pehlione-pdf-sidebar-heading")).toBe(true);
+      expect(heading?.querySelector(".pehlione-pdf-section-icon svg")).not.toBeNull();
+      expect(heading?.querySelector(":scope > span")).not.toBeNull();
+    }
+    expect(document.querySelector('.pehlione-pdf-sidebar [data-managed-section="certifications"] h3 svg path')?.getAttribute("d")).toContain("m2 10 10-5");
     expect(document.querySelector(".pehlione-pdf-closing")?.parentElement?.classList.contains("pehlione-pdf-main")).toBe(true);
     expect(pehlioneAppearanceCss).toContain('.pehlione-contacts h3 svg{stroke:var(--pehlione-primary,#08245c)}');
     expect(pehlioneAppearanceCss).toContain('h3{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary,#08245c))');

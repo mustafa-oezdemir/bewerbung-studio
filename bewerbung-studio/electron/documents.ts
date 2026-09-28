@@ -3125,7 +3125,7 @@ export const buildDocumentHtml = (
         experience: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V4h8v3M3 12h18M10 12v2h4v-2"/>',
         education: '<path d="m2 10 10-5 10 5-10 5L2 10Z"/><path d="M6 12v5c3 2 9 2 12 0v-5M22 10v6"/>',
         project: '<path d="M9 18h6M10 22h4M8.5 14.5A7 7 0 1 1 15.5 14.5C14.5 15.4 14 16.2 14 18h-4c0-1.8-.5-2.6-1.5-3.5Z"/>',
-        training: '<path d="M3 5h7a2 2 0 0 1 2 2v14a3 3 0 0 0-3-3H3V5ZM21 5h-7a2 2 0 0 0-2 2v14a3 3 0 0 1 3-3h6V5Z"/>',
+        training: '<path d="m2 10 10-5 10 5-10 5L2 10Z"/><path d="M6 12v5c3 2 9 2 12 0v-5M22 10v6"/>',
         languages: '<path d="m5 8 6 6M4 14l6-6 2-3H2M8 2v3M2 5h12M7 16h15m-11 5 5-11 5 11m-8.5-3h7"/>',
       } as const;
       return `<i class="pehlione-pdf-section-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${paths[kind]}</svg></i>`;

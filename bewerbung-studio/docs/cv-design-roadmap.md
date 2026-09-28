@@ -377,3 +377,8 @@ Beim Verschieben eines Hauptabschnitts in die Seitenspalte wird seine
 Überschrift nicht mehr zwangsweise auf die Seitenspalten-Textfarbe gesetzt.
 Damit behalten etwa Zertifikate und Projekt-Highlight zunächst die Akzentfarbe
 und folgen einer ausdrücklich gewählten Seitenspalten-Überschriftenfarbe.
+
+Pehlione White PDF: In die Seitenspalte verschobene Abschnitte übernehmen nun
+die vorhandene White-Seitenspalten-Überschrift. Die Symbole stehen ohne
+farbige Kachel wie in der Vorschau, und die Linie beginnt erst am Text.
+Zertifikate verwenden auch im PDF das Graduationssymbol der Vorschau.

@@ -81,6 +81,10 @@ export const pehlioneAppearanceCss = `
 .pehlione-resume[data-template="pehlione_white"] .pehlione-contacts.pehlione-contacts h3,
 .cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-contacts.pehlione-contacts h3{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary,#08245c));border-bottom-width:var(--pehlione-divider-width,.3mm)}
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-sidebar .pehlione-pdf-section>h3{border-bottom:0;padding-bottom:0}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading{display:grid;grid-template-columns:8mm minmax(0,1fr);gap:2mm;align-items:center;border-bottom:0;padding-bottom:0}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading>.pehlione-pdf-section-icon{display:grid;width:8mm;height:8mm;place-items:center;color:var(--pehlione-primary,#08245c);background:transparent}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading>.pehlione-pdf-section-icon svg{width:7mm;height:7mm}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading>span{display:block;min-width:0;padding-bottom:1.2mm;border-bottom:var(--pehlione-divider-width,.3mm) solid var(--pehlione-divider-color,var(--pehlione-primary,#08245c))}
 .pehlione-resume[data-template="pehlione_white"] .pehlione-header h2,
 .cv-sheet[data-template="pehlione_white"] .pehlione-pdf-header h2{max-width:calc(100% - 6mm);white-space:normal;overflow-wrap:anywhere}
 .pehlione-resume[data-template="pehlione_white"][data-density="compact"] .pehlione-header h2,
@@ -115,6 +119,7 @@ export const pehlioneAppearanceCss = `
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf[data-section-divider="hidden"] .pehlione-pdf-section>h3 span,
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf[data-section-divider="hidden"] :is(.pehlione-pdf-language-heading,.pehlione-pdf-competencies-heading)>span,
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf[data-section-divider="hidden"] .pehlione-pdf-sidebar h3{border-bottom:0}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf[data-section-divider="hidden"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading>span{border-bottom:0}
 .pehlione-resume[data-template="pehlione_white"][data-photo-decoration="hidden"] .pehlione-blueprint,
 .cv-sheet[data-template="pehlione_white"] .pehlione-pdf[data-photo-decoration="hidden"] .pehlione-pdf-blueprint{display:none}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-hero:before,
