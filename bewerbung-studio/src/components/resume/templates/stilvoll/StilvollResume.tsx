@@ -14,6 +14,11 @@ export function StilvollResume({
       accentColor || stilvollDefaults.colors.primary,
     "--stilvoll-primary-dark":
       secondaryColor || stilvollDefaults.colors.primaryDark,
+    "--stilvoll-header-content-gap": `${stilvollDefaults.layout.headerToContentGapMm}mm`,
+    "--stilvoll-section-gap-base": `${stilvollDefaults.layout.sectionGapMm}mm`,
+    "--stilvoll-entry-gap-base": `${stilvollDefaults.layout.entryGapMm}mm`,
+    "--stilvoll-section-title-gap": `${stilvollDefaults.layout.sectionTitleGapMm}mm`,
+    "--stilvoll-entry-content-gap": `${stilvollDefaults.layout.entryContentGapMm}mm`,
   } as CSSProperties;
   return (
     <article

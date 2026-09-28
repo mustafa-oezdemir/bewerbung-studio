@@ -86,7 +86,8 @@ export const cvTemplateTokens: Record<string, CvDesignOverrides> = {
   stilvoll: {
     ...adapt(stilvollDefaults),
     colors: { ...adapt(stilvollDefaults).colors, heading: stilvollDefaults.colors.primaryDark, entryHeading: stilvollDefaults.colors.primaryDark, sectionHeading: stilvollDefaults.colors.muted },
-    typography: { headingSizePt: 23, subheadingSizePt: 12, sectionHeadingSizePt: 9.5, entryHeadingSizePt: 11, bodySizePt: 8.5, lineHeight: 1.32 },
+    typography: { headingSizePt: 23, subheadingSizePt: 12, sectionHeadingSizePt: 9.5, entryHeadingSizePt: 11, bodySizePt: 8.5, lineHeight: 1.3 },
+    spacing: { ...adapt(stilvollDefaults).spacing, sectionTitleGapMm: stilvollDefaults.layout.sectionTitleGapMm, entryContentGapMm: stilvollDefaults.layout.entryContentGapMm },
   },
   // Pehlione's originals live in CSS rather than a *.defaults.ts module.
   pehlione_white_blue: {

@@ -7,6 +7,7 @@ import { resumeSectionStyleSources } from "./resumeSectionStyleInheritance";
 import { resolveTemplateId } from "./templates";
 import { getResumeLayoutHost } from "./resumeLayoutEngine";
 import { kreativDefaults } from "./cvTemplateDefaults/kreativ.defaults";
+import { stilvollDefaults } from "./cvTemplateDefaults/stilvoll.defaults";
 
 type Spacing = CvDesignTokens["spacing"];
 export type ResumeSpacingPreset = "compact" | "standard" | "large" | "custom";
@@ -107,14 +108,20 @@ export const applyResumeSpacingOutput = (
   const spacing = overrides?.spacing;
   const lineHeight = overrides?.typography?.lineHeight;
   const id = resolveTemplateId(templateId);
-  const legacyKreativSectionGap = id === "kreativ" && settings.sectionSpacingLevel !== getTemplateDocumentDesignDefaults(id).sectionSpacingLevel;
-  if (!spacing && lineHeight === undefined && !legacyKreativSectionGap) return;
+  const nativeSectionGap = id === "kreativ" || id === "stilvoll";
+  const legacyNativeSectionGap = nativeSectionGap && settings.sectionSpacingLevel !== getTemplateDocumentDesignDefaults(id).sectionSpacingLevel;
+  if (!spacing && lineHeight === undefined && !legacyNativeSectionGap) return;
   const scope = (surface === "pdf" ? page.querySelector(".page-content") : page.firstElementChild) as HTMLElement | null;
   if (!scope) return;
-  if (legacyKreativSectionGap && spacing?.sectionGapMm === undefined)
-    scope.style.setProperty("--kreativ-section-gap-base", `${sectionSpacingLevelToMm[settings.sectionSpacingLevel]}mm`);
-  else if (id === "kreativ")
-    scope.style.setProperty("--kreativ-section-gap-base", `${kreativDefaults.layout.sectionGapMm}mm`);
+  if (nativeSectionGap) {
+    const property = id === "kreativ" ? "--kreativ-section-gap-base" : "--stilvoll-section-gap-base";
+    const defaultGap = id === "kreativ" ? kreativDefaults.layout.sectionGapMm : stilvollDefaults.layout.sectionGapMm;
+    const gap = spacing?.sectionGapMm ?? (legacyNativeSectionGap
+      ? sectionSpacingLevelToMm[settings.sectionSpacingLevel] : defaultGap);
+    scope.style.setProperty(property, `${gap}mm`);
+  }
+  if (id === "stilvoll" && spacing?.entryGapMm !== undefined)
+    scope.style.setProperty("--stilvoll-entry-gap-base", `${spacing.entryGapMm}mm`);
   const design = resolvedDesign ?? resolveCvDesign(id, overrides);
   const variables = getCvDesignVariables(design);
   for (const { key } of resumeSpacingFields) if (spacing?.[key] !== undefined) {

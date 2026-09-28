@@ -1,5 +1,6 @@
 import { inheritResumeSectionStyles } from "../src/shared/resumeSectionStyleInheritance";
 import { kreativDefaults } from "../src/shared/cvTemplateDefaults/kreativ.defaults";
+import { stilvollDefaults } from "../src/shared/cvTemplateDefaults/stilvoll.defaults";
 import { renderContactIcon } from "../src/shared/contactIcons";
 import { applyManagedResumeOutput, managedResumeCss } from "../src/shared/resumeManagedOutput";
 import { resolveCvDocument } from "../src/shared/resolveCvDocument";
@@ -574,6 +575,16 @@ const extendedResumeDocumentCss = `
   .einfach-pdf-entry-heading,.einfach-pdf-entry-organization{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4mm;align-items:baseline}.einfach-pdf-entry-heading time,.einfach-pdf-entry-organization span{color:var(--managed-muted);font-size:8.1pt;text-align:right;white-space:nowrap}.einfach-pdf-entry-organization{margin:1mm 0 1.5mm}.einfach-pdf-entry-organization h4{margin:0}
   .modern-pdf-achievements article{display:block}
   .modern-pdf-dots{gap:1.1mm;font-size:0}.modern-pdf-dots i{display:block;box-sizing:border-box;width:2.3mm;height:2.3mm;border:.35mm solid var(--modern-primary);border-radius:50%;background:transparent}.modern-pdf-dots i.filled{background:var(--modern-primary)}
+  .stilvoll-pdf{--stilvoll-header-content-gap:${stilvollDefaults.layout.headerToContentGapMm}mm;--stilvoll-section-gap-base:${stilvollDefaults.layout.sectionGapMm}mm;--stilvoll-entry-gap-base:${stilvollDefaults.layout.entryGapMm}mm;--stilvoll-section-title-gap:${stilvollDefaults.layout.sectionTitleGapMm}mm;--stilvoll-entry-content-gap:${stilvollDefaults.layout.entryContentGapMm}mm;--managed-section-gap:var(--stilvoll-section-gap-base);--managed-entry-gap:var(--stilvoll-entry-gap-base)}
+  .stilvoll-pdf-columns:not(.continuation){padding-top:var(--stilvoll-header-content-gap)}
+  .stilvoll-pdf[data-density="compact"]{--managed-section-gap:calc(var(--stilvoll-section-gap-base) * .85);--managed-entry-gap:calc(var(--stilvoll-entry-gap-base) * .85)}
+  .stilvoll-pdf[data-density="dense"]{--managed-section-gap:calc(var(--stilvoll-section-gap-base) * .65);--managed-entry-gap:calc(var(--stilvoll-entry-gap-base) * .65)}
+  .stilvoll-pdf[data-density="dense"] .stilvoll-pdf-columns:not(.continuation){padding-top:5mm}
+  .stilvoll-pdf .managed-pdf-title{margin-bottom:var(--stilvoll-section-title-gap);color:var(--managed-muted);font-size:9.5pt;font-weight:400;line-height:1}
+  .stilvoll-pdf .managed-pdf-section>p{margin:0;hyphens:auto;overflow-wrap:break-word}
+  .stilvoll-pdf .stilvoll-pdf-meta{margin:var(--stilvoll-entry-content-gap) 0 1mm}
+  .stilvoll-pdf .stilvoll-pdf-entry ul{margin:.6mm 0 0}
+  .stilvoll-pdf .stilvoll-pdf-entry li{margin:.3mm 0}
   @media print{.no-print-background .managed-pdf-background{display:none!important}}
 `;
 

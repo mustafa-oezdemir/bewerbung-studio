@@ -424,3 +424,15 @@ Hauptspalte und behalten ihre normale Überschrift und ihren Inhaltstyp;
 Projekt-Highlight und Hobbys & Interesses werden getrennt von Ausbildung
 ausgegeben. Die Sichtbarkeit von Telefon, E-Mail, LinkedIn, GitHub, Website,
 Adresse und Foto folgt weiterhin dem aufgelösten Profil.
+
+## Phase 19: Stilvoll
+
+Stilvoll verwendet in Vorschau und PDF gemeinsame native Werte für den Abstand
+zwischen Kopf und Inhalt (6 mm), zwischen Abschnitten (6 mm) und zwischen
+Berufs- und Ausbildungs-Einträgen (3,8 mm). Die vorhandenen Einstellungen
+„Kompakt“, „Standard“ und „Groß“ sowie der getrennte Eintragsabstand bleiben
+für gespeicherte Lebensläufe verfügbar. Der alte Abschnittsabstand-Regler wird
+weiterhin berücksichtigt. Projekt-Highlight und Hobbys & Interesses übernehmen
+die normale Stilvoll-Überschrift und folgen der gespeicherten Spaltenposition.
+Vorschau und gedrucktes A4-PDF wurden mit Profil- und Zusatzabschnitten
+verglichen; der vorhandene zweispaltige Entwurf bleibt erhalten.

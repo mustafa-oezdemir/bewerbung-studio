@@ -9,12 +9,15 @@ export const stilvollDefaults = {
   },
   layout: {
     headerHeightMm: 36,
-    contentTopMm: 50,
+    contentTopMm: 42,
+    headerToContentGapMm: 6,
     leftColumnWidthMm: 54,
     columnGapMm: 11,
     rightColumnWidthMm: 115,
-    sectionGapMm: 7,
-    entryGapMm: 5,
+    sectionGapMm: 6,
+    entryGapMm: 3.8,
+    sectionTitleGapMm: 3,
+    entryContentGapMm: 1,
   },
   colors: {
     primary: "#36B873",
