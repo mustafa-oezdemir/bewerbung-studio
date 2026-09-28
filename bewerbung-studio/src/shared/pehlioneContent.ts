@@ -90,3 +90,8 @@ export const getPehlioneProjectHighlight = (profile?: ApplicantProfile) => {
   }
   return undefined;
 };
+
+export const hasPehlioneCustomProjectHighlight = (profile?: ApplicantProfile) =>
+  profile?.specialSections.some((section) =>
+    section.isVisible && /projekt[\s-]*highlight/i.test(section.title),
+  ) ?? false;

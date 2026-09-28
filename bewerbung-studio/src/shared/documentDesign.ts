@@ -1,5 +1,6 @@
 import type { CvDesignOverrides } from "./cvDesignSchema";
 import type { ResumePresentation } from "./resumePresentationSchema";
+import type { ResumeAppearance } from "./resumeAppearance";
 
 export const documentFontIds = [
   "rubik",
@@ -75,6 +76,7 @@ export type SectionColumnMode = "auto" | 1 | 2 | 3 | 4;
 export type DocumentDesignSettings = {
   /** Sparse semantic CV fields; omitted on legacy documents and after reset. */
   cvOverrides?: CvDesignOverrides;
+  resumeAppearance?: ResumeAppearance;
   resumePresentation?: ResumePresentation;
   /** Optional career metadata arrangement; absence preserves each template. */
   metadataLayout?: "side-by-side" | "stacked";

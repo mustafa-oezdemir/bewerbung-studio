@@ -296,3 +296,26 @@ nativen Standards ohne Override.
 
 Validierung: Regressionen für alle 14 Vorlagen mit mehrseitigem Lebenslauf,
 Abschnitts- und Layout-Overrides; vollständiger Release-Check.
+
+### Phase 14 – Pehlione White Blue (28.09.2026)
+
+Die Karrierezeilen ordnen Zeitraum und Position/Abschluss in einer gemeinsamen
+Zeile mit gleicher Schriftgröße an; Ort und Organisation stehen direkt darunter
+in den jeweils zugehörigen Spalten. Die Werte stammen ausschließlich aus dem
+Profil. Ohne Profil-Berufsbezeichnung erscheint kein Ersatz aus der Bewerbung.
+Neue Projekt- und Interessenabschnitte erhalten denselben Abschnittskopf wie
+die nativen Bereiche; ein eigener Projektabschnitt ersetzt die abgeleitete
+Projekt-Darstellung, damit der Inhalt nicht doppelt erscheint. Die Fotozeichnung
+ist zwischen Vorschau und PDF angeglichen.
+
+Das Designpanel bietet sparsame, vorlagenbezogene Overrides für Titel- und
+Abschnittsfarben, Spaltenhintergründe und Seitenspalten-Text, Linienfarbe,
+Linienbreite und Sichtbarkeit sowie Foto-Dekorfarbe und Sichtbarkeit. Fehlen
+diese Werte, bleibt das ursprüngliche Pehlione-Design bestehen. Sichtbarkeit,
+Reihenfolge und Spaltenplatzierung verwenden weiterhin den gemeinsamen
+Section-Manager; Abstand und Metadatenlayout bleiben in den gemeinsamen
+Systemen. Design-Reset entfernt die neuen Overrides.
+
+Validierung: HTML-Regressionen für Vorschau/PDF, Persistenz-Roundtrip,
+Chromium-Geometrieprüfung von Datum, Titel, Ort, Institution sowie der beiden
+Sonderabschnitte und Sichtprüfung eines einseitigen A4-PDFs.

@@ -1,6 +1,7 @@
 import { resumeCustomContentTypes } from "./resumeCustomSectionTypes";
 import { z } from "zod";
 import { cvDesignOverridesSchema } from "./cvDesignSchema";
+import { resumeAppearanceSchema } from "./resumeAppearance";
 import { resumePresentationSchema } from "./resumePresentationSchema";
 import {
   columnLayoutIds,
@@ -295,6 +296,7 @@ const sectionColumnSchema = z.union([z.literal("auto"), z.literal(1), z.literal(
 // .default() still materializes that default when loading an empty object.
 const documentDesignValuesSchema = z.object({
   cvOverrides: cvDesignOverridesSchema.optional(),
+  resumeAppearance: resumeAppearanceSchema.optional(),
   resumePresentation: resumePresentationSchema.optional(),
   metadataLayout: z.enum(["side-by-side", "stacked"]).optional(),
   metadataOrder: z.enum(["details-first", "dates-first"]).optional(),

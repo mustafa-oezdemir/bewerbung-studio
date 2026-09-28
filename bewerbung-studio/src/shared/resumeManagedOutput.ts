@@ -3,6 +3,7 @@ import { applyResumePageLayout } from "./resumeLayoutEngine";
 import { applyResumeSpacingOutput, resumeSpacingCss } from "./resumeSpacing";
 import { applyResumeMetadataLayout, resumeMetadataCss } from "./resumeMetadataLayout";
 import { applyResumeClosingOutput, resumeClosingCss } from "./resumeClosing";
+import { applyPehlioneAppearance, pehlioneAppearanceCss } from "./pehlioneAppearance";
 import { resolveTemplateId } from "./templates";
 import { resumeSectionStyleSources } from "./resumeSectionStyleInheritance";
 import { parseHTML } from "linkedom";
@@ -96,7 +97,8 @@ export const managedResumeCss = `
 [data-managed-section="strengths"] .managed-strength-card p{grid-column:2;min-width:0;margin:0;white-space:pre-line;font-size:.92em;line-height:1.4;color:inherit}
 ${resumeSpacingCss}
 ${resumeMetadataCss}
-${resumeClosingCss}`;
+${resumeClosingCss}
+${pehlioneAppearanceCss}`;
 
 // Both the React preview and the PDF use this pure HTML projection. It only
 // rearranges section nodes, retaining each template's header, artwork and CSS.
@@ -397,7 +399,18 @@ export const applyManagedResumeOutput = (
         const heading = node.querySelector("h2,h3");
         if (!heading) continue;
         heading.setAttribute("data-custom-role", "heading");
-        if (resolvedId.startsWith("pehlione_")) {
+        if (resolvedId === "pehlione_white_blue") {
+          node.classList.add(surface === "pdf" ? "pehlione-pdf-section" : "pehlione-main-section");
+          if (surface === "preview") heading.classList.add("pehlione-section-heading");
+          const icon = document.createElement(surface === "pdf" ? "i" : "span");
+          if (surface === "pdf") icon.className = "pehlione-pdf-section-icon";
+          icon.setAttribute("aria-hidden", "true");
+          icon.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 2 3 12l9 10 9-10Z" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+          const label = document.createElement(surface === "pdf" ? "span" : "b");
+          label.setAttribute("data-custom-role", "heading-label");
+          label.textContent = heading.textContent;
+          heading.replaceChildren(icon, label);
+        } else if (resolvedId.startsWith("pehlione_")) {
           const label = document.createElement(surface === "pdf" ? "span" : "b");
           label.setAttribute("data-custom-role", "heading-label");
           label.textContent = heading.textContent;
@@ -444,6 +457,7 @@ export const applyManagedResumeOutput = (
     applyResumeSpacingOutput(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings, resolved.design);
     applyResumeMetadataLayout(root, profile, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
     applyResumeClosingOutput(root, main, profile, templateId, designSettings, last, enabled("closing"));
+    applyPehlioneAppearance(root, resolved.templateId, designSettings);
   });
   return document.body.innerHTML;
 };

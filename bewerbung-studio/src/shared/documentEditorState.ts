@@ -2,6 +2,7 @@ import type { ApplicantProfile, Application } from "./schema";
 import { getTemplate, resolveTemplateId } from "./templates";
 import { compactCvDesignOverrides, getTemplateDocumentDesignDefaults } from "./cvDesign";
 import type { CvDesignTokens } from "./cvDesignSchema";
+import type { ResumeAppearance } from "./resumeAppearance";
 
 export const createDocumentDesignDraft = (application: Application) => ({
   applicationId: application.id,
@@ -85,6 +86,19 @@ export const updateCvDesignField = <Group extends keyof CvDesignTokens, Key exte
     [group]: { ...cvOverrides?.[group], [key]: value },
   });
   return { ...current, settings: { ...settings, ...(Object.keys(compact).length ? { cvOverrides: compact } : {}) } };
+};
+
+export const updateResumeAppearanceField = <Key extends keyof ResumeAppearance>(
+  current: DocumentDesignDraft, key: Key, value: ResumeAppearance[Key],
+): DocumentDesignDraft => {
+  const next: ResumeAppearance = { ...current.settings.resumeAppearance, [key]: value };
+  if (key === "sectionDividerVisible" && value === true) delete next.sectionDividerVisible;
+  if (key === "photoDecorationVisible" && value === true) delete next.photoDecorationVisible;
+  if (key === "sectionDividerWidthMm" && value === 0.3) delete next.sectionDividerWidthMm;
+  if (key === "mainBackgroundColor" && value === "#ffffff") delete next.mainBackgroundColor;
+  if (key === "sidebarTextColor" && value === "#ffffff") delete next.sidebarTextColor;
+  const { resumeAppearance: _previous, ...settings } = current.settings;
+  return { ...current, settings: { ...settings, ...(Object.keys(next).length ? { resumeAppearance: next } : {}) } };
 };
 
 /** Save profile content before publishing the application snapshot or exporting. */

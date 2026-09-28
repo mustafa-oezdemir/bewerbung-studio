@@ -11,6 +11,7 @@ import {
   resetDocumentDesign,
   persistDocumentDraft,
   updateCvDesignField,
+  updateResumeAppearanceField,
   type DocumentDesignDraft,
 } from "../shared/documentEditorState";
 import { normalizeResumeDataDraft } from "../components/resume/ResumeDataEditor";
@@ -700,6 +701,10 @@ export function DocumentsView({
       return { ...base, settings: { ...base.settings, [key]: value } };
     });
   };
+  const updateResumeAppearance = <Key extends keyof NonNullable<DocumentDesignSettings["resumeAppearance"]>>(
+    key: Key,
+    value: NonNullable<DocumentDesignSettings["resumeAppearance"]>[Key],
+  ) => setDesign((current) => updateResumeAppearanceField(current, key, value));
   const updateResumeLayout = <Key extends "layoutMode" | "sidebarSide" | "sidebarWidthPercent">(
     key: Key,
     value: ResumePresentation[Key],
@@ -1620,6 +1625,52 @@ export function DocumentsView({
                         />
                       </label>
                     </div>
+                    {template.id === "pehlione_white_blue" && <details className="resume-spacing-advanced">
+                      <summary>Pehlione White Blue · Farben und Dekoration</summary>
+                      <div className="advanced-design-grid">
+                        {([
+                          ["heading", "Name"],
+                          ["subheading", "Berufsbezeichnung"],
+                          ["sectionHeading", "Abschnittstitel"],
+                          ["entryHeading", "Position / Abschluss"],
+                          ["divider", "Abschnittslinien"],
+                        ] as const).map(([key, label]) => <label className="field" key={key}>
+                          <span>{label}</span>
+                          <input type="color" value={resumeSpacing.colors[key]}
+                            onChange={(event) => setDesign((current) => updateCvDesignField(current, "colors", key, event.target.value))} />
+                        </label>)}
+                        {([
+                          ["sidebarBackgroundColor", "Seitenspalte"],
+                          ["sidebarTextColor", "Seitenspalte Text"],
+                          ["mainBackgroundColor", "Hauptspalte"],
+                          ["photoDecorationColor", "Fotolinien"],
+                        ] as const).map(([key, label]) => <label className="field" key={key}>
+                          <span>{label}</span>
+                          <input type="color" value={design.settings.resumeAppearance?.[key] ?? ({
+                            sidebarBackgroundColor: "#0b3d86", sidebarTextColor: "#ffffff",
+                            mainBackgroundColor: "#ffffff", photoDecorationColor: "#d9ebff",
+                          } as const)[key]}
+                            onChange={(event) => updateResumeAppearance(key, event.target.value)} />
+                        </label>)}
+                        <label className="field"><span>Abschnittslinien</span>
+                          <input type="checkbox" checked={design.settings.resumeAppearance?.sectionDividerVisible !== false}
+                            onChange={(event) => updateResumeAppearance("sectionDividerVisible", event.target.checked)} />
+                        </label>
+                        <label className="field"><span>Linienstärke (mm)</span>
+                          <input type="number" min="0.1" max="2" step="0.1"
+                            value={design.settings.resumeAppearance?.sectionDividerWidthMm ?? 0.3}
+                            onChange={(event) => {
+                              const value = Number(event.target.value);
+                              if (Number.isFinite(value) && value >= 0.1 && value <= 2)
+                                updateResumeAppearance("sectionDividerWidthMm", value);
+                            }} />
+                        </label>
+                        <label className="field"><span>Fotolinien</span>
+                          <input type="checkbox" checked={design.settings.resumeAppearance?.photoDecorationVisible !== false}
+                            onChange={(event) => updateResumeAppearance("photoDecorationVisible", event.target.checked)} />
+                        </label>
+                      </div>
+                    </details>}
                     <div className="design-option-group resume-spacing-presets">
                       <span>Lebenslauf-Abstände</span>
                       <div className="segmented-design-control" role="group" aria-label="Lebenslauf-Abstände">

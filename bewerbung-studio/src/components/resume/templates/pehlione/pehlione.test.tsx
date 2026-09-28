@@ -6,6 +6,12 @@ import type { ResumePagePlan } from "../../../../shared/documentPagination";
 import { PehlioneResume } from "./PehlioneResume";
 import { getTemplate, templates } from "../../../../shared/templates";
 import { getTemplateKnowledgeSlots } from "../../../../features/resume-sections/knowledge-block-registry";
+import { parseHTML } from "linkedom";
+import { applicationSchema } from "../../../../shared/schema";
+import { defaultDocumentDesign } from "../../../../shared/documentDesign";
+import { resolveCvDocument } from "../../../../shared/resolveCvDocument";
+import { buildDocumentHtml } from "../../../../../electron/documents";
+import { ManagedResumePreview } from "../../ManagedResumePreview";
 
 const experienceId = "81000000-0000-4000-8000-000000000001";
 const educationId = "82000000-0000-4000-8000-000000000001";
@@ -56,6 +62,56 @@ const plan: ResumePagePlan = {
 };
 
 describe("Pehlione White Blue", () => {
+  it("keeps profile data, career rows, custom sections and appearance in preview and PDF", () => {
+    const projectId = "85000000-0000-4000-8000-000000000001";
+    const hobbyId = "86000000-0000-4000-8000-000000000001";
+    const source = profileSchema.parse({ ...profile, title: "", experiences: [{ ...profile.experiences[0], role: "Praktikum als Anwendungsentwickler" }],
+      specialSections: [
+        { id: projectId, kind: "custom", title: "Projekt-Highlight", isVisible: true, contentType: "list", entries: [{ id: crypto.randomUUID(), title: "oiözio" }] },
+        { id: hobbyId, kind: "interests", title: "Hobbys & Interesses", isVisible: true, contentType: "text", entries: [{ id: crypto.randomUUID(), title: "demo" }] },
+      ],
+    });
+    const settings = { ...defaultDocumentDesign,
+      cvOverrides: { colors: { heading: "#112233", subheading: "#223344", sectionHeading: "#334455", divider: "#445566" } },
+      resumeAppearance: { sidebarBackgroundColor: "#556677", mainBackgroundColor: "#f5f6f7",
+        sectionDividerVisible: false, photoDecorationVisible: false },
+    };
+    const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test",
+      company: { name: "Firma", city: "Berlin" }, contact: {}, job: { title: "Unrelated Job" },
+      status: "Entwurf", templateId: "pehlione_white_blue", accentColor: "#0b3d86", secondaryColor: "#1f66b3",
+      documents: {}, designSettings: settings, statusHistory: [], createdAt: profile.updatedAt, updatedAt: profile.updatedAt,
+    });
+    const resolved = resolveCvDocument({ profile: source, templateId: application.templateId, settings: application.designSettings });
+    const preview = renderToStaticMarkup(<ManagedResumePreview profile={resolved.profile} templateId="pehlione_white_blue"
+      pageNumber={1} totalPages={1} designSettings={application.designSettings} resolvedCv={resolved}>
+      <PehlioneResume templateId="pehlione_white_blue" profile={resolved.profile} name="Mina Kaya" atsMode={false}
+        plan={resolved.pagePlan[0]} totalPages={1} accentColor="#0b3d86" secondaryColor="#1f66b3"
+        resumeProfile="" sections={resolved.sections} />
+    </ManagedResumePreview>);
+    const pdf = buildDocumentHtml(application, source, "lebenslauf");
+    for (const [html, entrySelector, hostSelector] of [
+      [preview, ".pehlione-career-entry", ".pehlione-resume"],
+      [pdf, ".pehlione-pdf-entry", ".pehlione-pdf"],
+    ] as const) {
+      const { document } = parseHTML(html);
+      const entry = document.querySelector(entrySelector)!;
+      expect(entry.querySelector("h3,h4")?.textContent).toBe("Praktikum als Anwendungsentwickler");
+      expect(entry.querySelector('[class$="__meta"]')?.textContent).toContain("11/2024 – 06/2025");
+      expect(entry.querySelector('[class$="__meta"]')?.textContent).toContain("Marburg");
+      expect(entry.querySelector("strong,.pehlione-career-entry__organisation")?.textContent).toBe("Universitätsstadt Marburg");
+      expect(document.querySelectorAll(`[data-managed-section="special:${projectId}"]`)).toHaveLength(1);
+      expect(document.querySelectorAll(`[data-managed-section="special:${hobbyId}"]`)).toHaveLength(1);
+      expect(document.querySelector(`[data-managed-section="special:${projectId}"]`)?.textContent).toContain("oiözio");
+      expect(document.querySelector(`[data-managed-section="special:${hobbyId}"]`)?.textContent).toContain("demo");
+      expect(document.querySelectorAll('[data-managed-section="projects"]')).toHaveLength(0);
+      const host = document.querySelector(hostSelector)!;
+      expect(host.getAttribute("style")).toContain("--pehlione-sidebar-background:#556677");
+      expect(host.getAttribute("style")).toContain("--pehlione-title-color:#112233");
+      expect(host.getAttribute("data-section-divider")).toBe("hidden");
+      expect(host.getAttribute("data-photo-decoration")).toBe("hidden");
+      expect(document.querySelector(`${hostSelector} header h2`)).toBeNull();
+    }
+  });
   it("offers a separate white variant with the technical sidebar and existing content", () => {
     const template = getTemplate("pehlione_white");
     expect(templates).toContainEqual(template);

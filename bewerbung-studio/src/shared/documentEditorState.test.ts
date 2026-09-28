@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { applicationSchema, documentDesignOverridesSchema, profileSchema } from "./schema";
-import { createDocumentDesignDraft, selectDocumentTemplate, resetDocumentDesign, updateCvDesignField, persistDocumentDraft } from "./documentEditorState";
+import { createDocumentDesignDraft, selectDocumentTemplate, resetDocumentDesign, updateCvDesignField, updateResumeAppearanceField, persistDocumentDraft } from "./documentEditorState";
 import { getTemplateDocumentDesignDefaults } from "./cvDesign";
 import { getTemplate, templates } from "./templates";
 
@@ -8,6 +8,25 @@ const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, 
 const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Firma", company: { name: "Firma", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" }, status: "Entwurf", templateId: "modern", accentColor: "#123456", secondaryColor: "#abcdef", documents: {}, profileId: profile.id, statusHistory: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
 
 describe("document editor persistence", () => {
+  it("stores Pehlione appearance sparsely per template and resets to native defaults", () => {
+    let draft = selectDocumentTemplate(createDocumentDesignDraft(application), "pehlione_white_blue");
+    draft = updateResumeAppearanceField(draft, "sectionDividerVisible", false);
+    draft = updateResumeAppearanceField(draft, "sidebarBackgroundColor", "#334455");
+    draft = updateCvDesignField(draft, "colors", "heading", "#112233");
+    const other = selectDocumentTemplate(draft, "klassisch");
+    expect(other.settings.resumeAppearance).toBeUndefined();
+    const saved = applicationSchema.parse({ ...application, templateId: other.templateId,
+      accentColor: other.accentColor, secondaryColor: other.secondaryColor,
+      designSettings: other.settings, templateDesigns: other.templateDesigns });
+    const restored = selectDocumentTemplate(createDocumentDesignDraft(saved), "pehlione_white_blue");
+    expect(restored.settings.resumeAppearance).toEqual({ sectionDividerVisible: false, sidebarBackgroundColor: "#334455" });
+    expect(restored.settings.cvOverrides?.colors?.heading).toBe("#112233");
+    expect(updateResumeAppearanceField(restored, "sectionDividerVisible", true).settings.resumeAppearance)
+      .toEqual({ sidebarBackgroundColor: "#334455" });
+    const reset = resetDocumentDesign(restored);
+    expect(reset.settings.resumeAppearance).toBeUndefined();
+    expect(reset.settings.cvOverrides).toBeUndefined();
+  });
   it.each(templates)("starts $name with its own defaults rather than the previous draft", (template) => {
     const original = {
       ...createDocumentDesignDraft(application), templateId: "classic-professional",
