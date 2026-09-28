@@ -13,7 +13,8 @@
   --klassisch-border: #d5dbde;
   --klassisch-margin: max(15mm, var(--doc-margin, 15mm));
   --klassisch-section-gap: var(--doc-section-gap, 6mm);
-  --klassisch-entry-gap: 4.2mm;
+  --klassisch-entry-gap: var(--klassisch-entry-gap-base);
+  --klassisch-education-entry-gap: calc(var(--klassisch-entry-gap) - 0.4mm);
   --klassisch-body-size: var(--doc-body-size, 8.5pt);
   --klassisch-line-height: var(--doc-line-height, 1.25);
   position: relative;
@@ -194,8 +195,8 @@
   page-break-inside: avoid;
 }
 
-.klassisch-section__title {
-  margin: 0 0 3mm;
+.klassisch-template .klassisch-section__title {
+  margin: 0 0 var(--klassisch-section-title-gap);
   color: var(--klassisch-heading);
   font-size: 10.4pt;
   font-weight: 750;
@@ -273,7 +274,7 @@
 }
 
 .klassisch-career h4 {
-  margin-top: 1mm;
+  margin-top: var(--klassisch-entry-content-gap);
   color: var(--klassisch-accent);
   font-size: 10pt;
   font-weight: 650;
@@ -283,7 +284,7 @@
 .klassisch-career__heading > p {
   display: flex;
   flex-direction: column;
-  gap: 2mm;
+  gap: 1.4mm;
   margin: 0;
   color: var(--klassisch-muted);
   font-size: 7.8pt;
@@ -293,7 +294,7 @@
 
 .klassisch-career ul,
 .klassisch-section > ul {
-  margin: 1.2mm 0 0;
+  margin: var(--klassisch-entry-content-gap) 0 0;
   padding-left: 4.3mm;
 }
 
@@ -311,7 +312,7 @@
 }
 
 .klassisch-career--education > div {
-  gap: 3.5mm;
+  gap: var(--klassisch-education-entry-gap);
 }
 
 .klassisch-career--education h3 {
@@ -363,13 +364,13 @@
 }
 
 .klassisch-template[data-density="compact"] {
-  --klassisch-section-gap: max(4.8mm, calc(var(--doc-section-gap, 6mm) - 1mm));
-  --klassisch-entry-gap: 3.5mm;
+  --klassisch-section-gap: max(3mm, calc(var(--doc-section-gap, 3.8mm) * 0.85));
+  --klassisch-entry-gap: calc(var(--klassisch-entry-gap-base) * 0.85);
 }
 
 .klassisch-template[data-density="dense"] {
-  --klassisch-section-gap: max(3.8mm, calc(var(--doc-section-gap, 6mm) - 2mm));
-  --klassisch-entry-gap: 2.8mm;
+  --klassisch-section-gap: max(2.6mm, calc(var(--doc-section-gap, 3.8mm) * 0.7));
+  --klassisch-entry-gap: max(2.4mm, calc(var(--klassisch-entry-gap-base) * 0.7));
   --klassisch-body-size: max(8pt, calc(var(--doc-body-size, 8.5pt) - 0.3pt));
 }
 

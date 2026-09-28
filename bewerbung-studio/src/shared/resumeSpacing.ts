@@ -157,8 +157,12 @@ export const applyResumeSpacingOutput = (
   }
   const sources = resumeSectionStyleSources[surface][id as keyof typeof resumeSectionStyleSources.preview];
   if (sources) {
-    if (spacing?.sectionTitleGapMm !== undefined)
-      scope.querySelectorAll(sources[1]).forEach(node => node.setAttribute("data-resume-spacing-title", ""));
+    if (spacing?.sectionTitleGapMm !== undefined) {
+      const titleSelector = id === "klassisch"
+        ? `${sources[1]},[data-custom-template="klassisch"] [data-custom-role="heading"]`
+        : sources[1];
+      scope.querySelectorAll(titleSelector).forEach(node => node.setAttribute("data-resume-spacing-title", ""));
+    }
     if (spacing?.entryContentGapMm !== undefined)
       scope.querySelectorAll(sources[2]).forEach(node => node.setAttribute("data-resume-spacing-entry-title", ""));
     if (spacing?.entryGapMm !== undefined) {

@@ -4638,20 +4638,20 @@ var fontSizeToPt = {
 var getDocumentFont = (id) => documentFonts.find((font) => font.id === id) ?? documentFonts.find((font) => font.id === "source-sans") ?? documentFonts[0];
 //#endregion
 //#region src/shared/cvDesignSchema.ts
-var color$1 = string().regex(/^#[0-9a-f]{6}$/i);
+var color$2 = string().regex(/^#[0-9a-f]{6}$/i);
 var cvColorsSchema = object({
-	text: color$1,
-	paragraph: color$1,
-	heading: color$1,
-	subheading: color$1,
-	sectionHeading: color$1,
-	entryHeading: color$1,
-	divider: color$1,
-	background: color$1,
-	accent: color$1,
-	surface: color$1,
-	muted: color$1,
-	icon: color$1
+	text: color$2,
+	paragraph: color$2,
+	heading: color$2,
+	subheading: color$2,
+	sectionHeading: color$2,
+	entryHeading: color$2,
+	divider: color$2,
+	background: color$2,
+	accent: color$2,
+	surface: color$2,
+	muted: color$2,
+	icon: color$2
 });
 /** Physical units are shared by controls, validation and both output adapters. */
 var cvDesignLimits = {
@@ -4699,6 +4699,51 @@ var cvDesignOverridesSchema = object({
 	typography: cvTypographySchema.partial().optional(),
 	spacing: cvSpacingSchema.partial().optional()
 });
+//#endregion
+//#region src/shared/resumeAppearance.ts
+var color$1 = string().regex(/^#[0-9a-f]{6}$/i);
+/** Sparse, reusable visual controls. Missing values preserve the native template. */
+var resumeAppearanceSchema = object({
+	sidebarBackgroundColor: color$1.optional(),
+	sidebarTextColor: color$1.optional(),
+	sidebarSectionHeadingColor: color$1.optional(),
+	mainBackgroundColor: color$1.optional(),
+	sectionDividerVisible: boolean().optional(),
+	sectionDividerWidthMm: number().min(.1).max(2).optional(),
+	photoDecorationVisible: boolean().optional(),
+	photoDecorationColor: color$1.optional(),
+	contactDividerColor: color$1.optional()
+});
+/** Project optional appearance controls onto the existing template columns.
+* Native CSS remains authoritative when a field has no saved override. */
+var applyGeneralResumeAppearance = (page, templateId, settings, main, sidebar) => {
+	const appearance = resumeAppearanceSchema.parse(settings.resumeAppearance ?? {});
+	const set = (element, property, value) => element.style.setProperty(property, value, "important");
+	if (sidebar !== main && appearance.sidebarTextColor) {
+		set(sidebar, "color", appearance.sidebarTextColor);
+		for (const node of sidebar.querySelectorAll("p,li,small,a")) set(node, "color", appearance.sidebarTextColor);
+	}
+	if (templateId.startsWith("pehlione_")) return;
+	if (appearance.mainBackgroundColor) set(main, "background", appearance.mainBackgroundColor);
+	if (sidebar !== main && appearance.sidebarBackgroundColor) set(sidebar, "background", appearance.sidebarBackgroundColor);
+	if (appearance.sectionDividerVisible === false || appearance.sectionDividerWidthMm !== void 0) for (const section of page.querySelectorAll("[data-managed-section]")) {
+		const heading = section.querySelector("h2,h3");
+		if (!heading || heading.closest("[data-managed-section]") !== section) continue;
+		for (const node of [heading, ...heading.querySelectorAll("b,span")]) if (appearance.sectionDividerVisible === false) set(node, "border-bottom-width", "0");
+		else if (appearance.sectionDividerWidthMm !== void 0) set(node, "border-bottom-width", `${appearance.sectionDividerWidthMm}mm`);
+	}
+	if (appearance.photoDecorationVisible === false || appearance.photoDecorationColor) {
+		for (const photo of page.querySelectorAll("img[class*=\"photo\"],img[class*=\"Photo\"]")) {
+			const target = photo.parentElement?.className && /photo|Photo/.test(String(photo.parentElement.className)) ? photo.parentElement : photo;
+			if (appearance.photoDecorationVisible === false) {
+				set(target, "border-width", "0");
+				set(target, "box-shadow", "none");
+			} else if (appearance.photoDecorationColor) set(target, "border-color", appearance.photoDecorationColor);
+		}
+		for (const decoration of page.querySelectorAll("[class*=\"photo-shape\"],[class*=\"photo-pale\"],[class*=\"photo-soft\"],[class*=\"photo-accent\"]")) if (appearance.photoDecorationVisible === false) set(decoration, "display", "none");
+		else if (appearance.photoDecorationColor) set(decoration, "background-color", appearance.photoDecorationColor);
+	}
+};
 //#endregion
 //#region src/features/resume-sections/knowledge-block-registry.ts
 var resumeBlockRendererTypes = [
@@ -5167,7 +5212,14 @@ var resumePresentationSchema = object({
 	closing: object({
 		showPlace: boolean().optional(),
 		showDate: boolean().optional(),
-		showSignature: boolean().optional()
+		showSignature: boolean().optional(),
+		placement: _enum(["footer", "main"]).optional(),
+		alignment: _enum([
+			"left",
+			"center",
+			"right",
+			"distributed"
+		]).optional()
 	}).optional(),
 	blocks: record(string(), object({
 		rendererType: _enum(resumeBlockRendererTypes).optional(),
@@ -5686,6 +5738,7 @@ var sectionColumnSchema = union([
 ]);
 var documentDesignValuesSchema = object({
 	cvOverrides: cvDesignOverridesSchema.optional(),
+	resumeAppearance: resumeAppearanceSchema.optional(),
 	resumePresentation: resumePresentationSchema.optional(),
 	metadataLayout: _enum(["side-by-side", "stacked"]).optional(),
 	metadataOrder: _enum(["details-first", "dates-first"]).optional(),
@@ -6396,10 +6449,10 @@ var allTemplates = [
 		],
 		category: "compact-professional",
 		supportsAtsMode: true,
-		supportsPhoto: false,
+		supportsPhoto: true,
 		supportsFreeform: true,
 		supportsMultiplePages: true,
-		sidebarWidthRatio: .36,
+		sidebarWidthRatio: .38,
 		atsInfo: "Kompakt bietet eine lineare ATS-Ausgabe ohne Flusslinien, Symbole, Skill-Tags oder Sprachniveau-Punkte.",
 		designDefaults: {
 			marginLevel: 1,
@@ -7489,6 +7542,153 @@ var inheritResumeSectionStyles = (css, templateId, surface, aliasesOnly = false)
 	return defaults + root.toString();
 };
 //#endregion
+//#region src/shared/cvTemplateDefaults/klassisch.defaults.ts
+var klassischDefaults = {
+	page: {
+		widthMm: 210,
+		heightMm: 297,
+		marginTopMm: 16,
+		marginRightMm: 15,
+		marginBottomMm: 17,
+		marginLeftMm: 15
+	},
+	layout: {
+		headerHeightMm: 31,
+		sectionGapMm: 3.8,
+		entryGapMm: 3.2,
+		educationEntryGapMm: 2.8,
+		sectionTitleGapMm: 2.2,
+		entryContentGapMm: .8,
+		strengthGapMm: 9
+	},
+	colors: {
+		primary: "#2B2F32",
+		accent: "#00AFC5",
+		heading: "#5A6267",
+		text: "#3F484D",
+		muted: "#68747A",
+		softBackground: "#CDEFF3",
+		border: "#D5DBDE",
+		inactive: "#E4E8EA"
+	}
+};
+//#endregion
+//#region src/shared/cvTemplateDefaults/kreativ.defaults.ts
+var kreativDefaults = {
+	page: {
+		widthMm: 210,
+		heightMm: 297,
+		marginLeftMm: 15,
+		marginRightMm: 15,
+		marginBottomMm: 13
+	},
+	layout: {
+		headerHeightMm: 46,
+		contentTopMm: 53,
+		headerToContentGapMm: 7,
+		footerClearanceMm: 18,
+		entryDividerGapMm: 1.5,
+		leftColumnWidthMm: 105,
+		columnGapMm: 11,
+		rightColumnWidthMm: 64,
+		sectionGapMm: 4.5,
+		entryGapMm: 2.5,
+		photoWidthMm: 28,
+		photoHeightMm: 28
+	},
+	colors: {
+		primary: "#37B978",
+		primaryDark: "#075D4E",
+		primarySoft: "#D9F2E5",
+		heading: "#075D4E",
+		text: "#465156",
+		mutedText: "#687277",
+		divider: "#B8C4C0",
+		lightDivider: "#D7DFDC",
+		pageBackground: "#FFFFFF",
+		headerText: "#FFFFFF",
+		inactiveLevel: "#E1E5E3"
+	},
+	typography: {
+		fontFamily: "\"Source Sans 3\", \"Segoe UI\", Arial, Helvetica, sans-serif",
+		nameSizePt: 23,
+		professionSizePt: 11.5,
+		sectionTitleSizePt: 14,
+		entryTitleSizePt: 11,
+		bodySizePt: 8.5,
+		smallSizePt: 7.8,
+		lineHeight: 1.3
+	}
+};
+//#endregion
+//#region src/shared/cvTemplateDefaults/kompakt.defaults.ts
+var kompaktDefaults = {
+	page: {
+		widthMm: 210,
+		heightMm: 297,
+		marginTopMm: 13,
+		marginRightMm: 13,
+		marginBottomMm: 12,
+		marginLeftMm: 13
+	},
+	layout: {
+		headerHeightMm: 22,
+		contentTopMm: 31,
+		headerToContentGapMm: 9,
+		footerClearanceMm: 15,
+		leftColumnWidthMm: 108,
+		columnGapMm: 10,
+		rightColumnWidthMm: 66,
+		sectionGapMm: 3.5,
+		entryGapMm: 3.2,
+		sectionTitleGapMm: 3,
+		entryContentGapMm: .7
+	},
+	colors: {
+		primary: "#073D96",
+		accent: "#FF6200",
+		text: "#3F494F",
+		muted: "#6D757A",
+		divider: "#AEB6BA",
+		pattern: "#FFD7BC",
+		inactive: "#E1E5E7"
+	}
+};
+//#endregion
+//#region src/shared/cvTemplateDefaults/stilvoll.defaults.ts
+var stilvollDefaults = {
+	page: {
+		widthMm: 210,
+		heightMm: 297,
+		marginTopMm: 14,
+		marginRightMm: 15,
+		marginBottomMm: 13,
+		marginLeftMm: 15
+	},
+	layout: {
+		headerHeightMm: 36,
+		contentTopMm: 42,
+		headerToContentGapMm: 6,
+		leftColumnWidthMm: 54,
+		columnGapMm: 11,
+		rightColumnWidthMm: 115,
+		sectionGapMm: 6,
+		entryGapMm: 3.8,
+		sectionTitleGapMm: 3,
+		entryContentGapMm: 1
+	},
+	colors: {
+		primary: "#36B873",
+		primaryDark: "#075E50",
+		primarySoft: "#D9F2E5",
+		text: "#465156",
+		muted: "#6D777C",
+		divider: "#AEB8B5",
+		pattern: "#DCE2DF",
+		inactive: "#DDE2E0"
+	}
+};
+//#endregion
 //#region src/shared/contactIcons.ts
 var contactIconPaths = {
 	phone: "<path d=\"M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13 1 .37 1.98.72 2.9a2 2 0 0 1-.45 2.11L8.1 10a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.92.35 1.9.59 2.9.72A2 2 0 0 1 22 16.92z\"/>",
@@ -7691,10 +7891,11 @@ var sidebarDefaults = /* @__PURE__ */ new Set([
 	"certifications"
 ]);
 /** One DOM projection is used by both React preview and Electron PDF. */
-var applyResumePageLayout = (page, templateId, surface, settings, legacySidebarPercent, sectionZones) => {
+var applyResumePageLayout = (page, templateId, surface, settings, legacySidebarPercent, sectionZones, resolvedLayout) => {
 	const id = resolveTemplateId(templateId);
 	const presentation = settings.resumePresentation;
-	const layout = resolveResumeLayout(id, presentation, settings.resumeOutputMode === "ats" || settings.columnLayout === "compact-ats", legacySidebarPercent);
+	const ats = settings.resumeOutputMode === "ats" || settings.columnLayout === "compact-ats";
+	const layout = resolvedLayout ?? resolveResumeLayout(id, presentation, ats, legacySidebarPercent);
 	if (!layout.overridden) return;
 	const descriptor = nativeHosts[id];
 	const host = getResumeLayoutHost(page, id, surface);
@@ -7931,109 +8132,6 @@ var ivyLeagueDefaults = {
 	background: { opacity: .58 }
 };
 //#endregion
-//#region src/shared/cvTemplateDefaults/klassisch.defaults.ts
-var klassischDefaults = {
-	page: {
-		widthMm: 210,
-		heightMm: 297,
-		marginTopMm: 16,
-		marginRightMm: 15,
-		marginBottomMm: 17,
-		marginLeftMm: 15
-	},
-	layout: {
-		headerHeightMm: 31,
-		sectionGapMm: 6,
-		entryGapMm: 4.2,
-		strengthGapMm: 9
-	},
-	colors: {
-		primary: "#2B2F32",
-		accent: "#00AFC5",
-		heading: "#5A6267",
-		text: "#3F484D",
-		muted: "#68747A",
-		softBackground: "#CDEFF3",
-		border: "#D5DBDE",
-		inactive: "#E4E8EA"
-	}
-};
-//#endregion
-//#region src/shared/cvTemplateDefaults/kompakt.defaults.ts
-var kompaktDefaults = {
-	page: {
-		widthMm: 210,
-		heightMm: 297,
-		marginTopMm: 13,
-		marginRightMm: 13,
-		marginBottomMm: 12,
-		marginLeftMm: 13
-	},
-	layout: {
-		headerHeightMm: 22,
-		contentTopMm: 33,
-		leftColumnWidthMm: 108,
-		columnGapMm: 10,
-		rightColumnWidthMm: 66,
-		sectionGapMm: 5.5,
-		entryGapMm: 4
-	},
-	colors: {
-		primary: "#073D96",
-		accent: "#FF6200",
-		text: "#3F494F",
-		muted: "#6D757A",
-		divider: "#AEB6BA",
-		pattern: "#FFD7BC",
-		inactive: "#E1E5E7"
-	}
-};
-//#endregion
-//#region src/shared/cvTemplateDefaults/kreativ.defaults.ts
-var kreativDefaults = {
-	page: {
-		widthMm: 210,
-		heightMm: 297,
-		marginLeftMm: 15,
-		marginRightMm: 15,
-		marginBottomMm: 13
-	},
-	layout: {
-		headerHeightMm: 46,
-		contentTopMm: 56,
-		leftColumnWidthMm: 105,
-		columnGapMm: 11,
-		rightColumnWidthMm: 64,
-		sectionGapMm: 7,
-		entryGapMm: 4.5,
-		photoWidthMm: 28,
-		photoHeightMm: 28
-	},
-	colors: {
-		primary: "#37B978",
-		primaryDark: "#075D4E",
-		primarySoft: "#D9F2E5",
-		heading: "#075D4E",
-		text: "#465156",
-		mutedText: "#687277",
-		divider: "#B8C4C0",
-		lightDivider: "#D7DFDC",
-		pageBackground: "#FFFFFF",
-		headerText: "#FFFFFF",
-		inactiveLevel: "#E1E5E3"
-	},
-	typography: {
-		fontFamily: "\"Source Sans 3\", \"Segoe UI\", Arial, Helvetica, sans-serif",
-		nameSizePt: 23,
-		professionSizePt: 11.5,
-		sectionTitleSizePt: 14,
-		entryTitleSizePt: 11,
-		bodySizePt: 8.5,
-		smallSizePt: 7.8,
-		lineHeight: 1.3
-	}
-};
-//#endregion
 //#region src/shared/cvTemplateDefaults/modern.defaults.ts
 /**
 * Modern template default values and design tokens
@@ -8114,37 +8212,6 @@ var modernTemplateDefaults = {
 		roleBottomGapMm: 1,
 		metaBottomGapMm: 1.5,
 		summaryBottomGapMm: 1
-	}
-};
-//#endregion
-//#region src/shared/cvTemplateDefaults/stilvoll.defaults.ts
-var stilvollDefaults = {
-	page: {
-		widthMm: 210,
-		heightMm: 297,
-		marginTopMm: 14,
-		marginRightMm: 15,
-		marginBottomMm: 13,
-		marginLeftMm: 15
-	},
-	layout: {
-		headerHeightMm: 36,
-		contentTopMm: 50,
-		leftColumnWidthMm: 54,
-		columnGapMm: 11,
-		rightColumnWidthMm: 115,
-		sectionGapMm: 7,
-		entryGapMm: 5
-	},
-	colors: {
-		primary: "#36B873",
-		primaryDark: "#075E50",
-		primarySoft: "#D9F2E5",
-		text: "#465156",
-		muted: "#6D777C",
-		divider: "#AEB8B5",
-		pattern: "#DCE2DF",
-		inactive: "#DDE2E0"
 	}
 };
 //#endregion
@@ -8377,6 +8444,11 @@ var cvTemplateTokens = {
 			entryHeadingSizePt: 12.2,
 			bodySizePt: 8.5,
 			lineHeight: 1.25
+		},
+		spacing: {
+			...adapt(klassischDefaults).spacing,
+			sectionTitleGapMm: klassischDefaults.layout.sectionTitleGapMm,
+			entryContentGapMm: klassischDefaults.layout.entryContentGapMm
 		}
 	},
 	kompakt: {
@@ -8388,6 +8460,11 @@ var cvTemplateTokens = {
 			entryHeadingSizePt: 10.5,
 			bodySizePt: 8,
 			lineHeight: 1.25
+		},
+		spacing: {
+			...adapt(kompaktDefaults).spacing,
+			sectionTitleGapMm: kompaktDefaults.layout.sectionTitleGapMm,
+			entryContentGapMm: kompaktDefaults.layout.entryContentGapMm
 		}
 	},
 	stilvoll: {
@@ -8404,7 +8481,12 @@ var cvTemplateTokens = {
 			sectionHeadingSizePt: 9.5,
 			entryHeadingSizePt: 11,
 			bodySizePt: 8.5,
-			lineHeight: 1.32
+			lineHeight: 1.3
+		},
+		spacing: {
+			...adapt(stilvollDefaults).spacing,
+			sectionTitleGapMm: stilvollDefaults.layout.sectionTitleGapMm,
+			entryContentGapMm: stilvollDefaults.layout.entryContentGapMm
 		}
 	},
 	pehlione_white_blue: {
@@ -8581,6 +8663,22 @@ var resumeSpacingFields = [
 		label: "Spaltenabstand"
 	}
 ];
+/** Show legacy saved slider values accurately until an explicit semantic field replaces them. */
+var resolveEffectiveResumeSpacing = (templateId, settings) => {
+	const design = resolveCvDesign(templateId, settings.cvOverrides);
+	const defaults = getTemplateDocumentDesignDefaults(templateId);
+	const spacing = { ...design.spacing };
+	const typography = { ...design.typography };
+	if (settings.cvOverrides?.spacing?.pageMarginMm === void 0 && settings.marginLevel !== defaults.marginLevel) spacing.pageMarginMm = marginLevelToMm[settings.marginLevel];
+	if (settings.cvOverrides?.spacing?.innerPaddingMm === void 0 && settings.paddingLevel !== defaults.paddingLevel) spacing.innerPaddingMm = paddingLevelToMm[settings.paddingLevel];
+	if (settings.cvOverrides?.spacing?.sectionGapMm === void 0 && settings.sectionSpacingLevel !== defaults.sectionSpacingLevel) spacing.sectionGapMm = sectionSpacingLevelToMm[settings.sectionSpacingLevel];
+	if (settings.cvOverrides?.typography?.lineHeight === void 0 && settings.lineHeightLevel !== defaults.lineHeightLevel) typography.lineHeight = lineHeightLevelToValue[settings.lineHeightLevel];
+	return {
+		...design,
+		spacing,
+		typography
+	};
+};
 var resumeSpacingCss = `
 [data-resume-spacing-section-gap] [data-resume-spacing-section]{margin-block-end:0!important}
 [data-resume-spacing-section-gap] [data-resume-spacing-section-following]{margin-block-start:var(--doc-section-gap)!important}
@@ -8592,15 +8690,26 @@ var resumeSpacingCss = `
 [data-resume-spacing-line-height] :is(p,li){line-height:var(--doc-line-height)!important}
 `;
 /** Annotate only explicitly changed fields; untouched templates keep native CSS. */
-var applyResumeSpacingOutput = (page, templateId, surface, settings) => {
+var applyResumeSpacingOutput = (page, templateId, surface, settings, resolvedDesign) => {
 	const overrides = settings.cvOverrides;
 	const spacing = overrides?.spacing;
 	const lineHeight = overrides?.typography?.lineHeight;
-	if (!spacing && lineHeight === void 0) return;
+	const id = resolveTemplateId(templateId);
+	const nativeSectionGap = id === "kreativ" || id === "stilvoll" || id === "kompakt";
+	const legacyNativeSectionGap = nativeSectionGap && settings.sectionSpacingLevel !== getTemplateDocumentDesignDefaults(id).sectionSpacingLevel;
+	if (!spacing && lineHeight === void 0 && !legacyNativeSectionGap) return;
 	const scope = surface === "pdf" ? page.querySelector(".page-content") : page.firstElementChild;
 	if (!scope) return;
-	const id = resolveTemplateId(templateId);
-	const variables = getCvDesignVariables(resolveCvDesign(id, overrides));
+	if (nativeSectionGap) {
+		const property = `--${id}-section-gap-base`;
+		const defaultGap = id === "kreativ" ? kreativDefaults.layout.sectionGapMm : id === "stilvoll" ? stilvollDefaults.layout.sectionGapMm : kompaktDefaults.layout.sectionGapMm;
+		const legacyGap = id === "kompakt" ? Math.max(3.5, sectionSpacingLevelToMm[settings.sectionSpacingLevel] - 1) : sectionSpacingLevelToMm[settings.sectionSpacingLevel];
+		const gap = spacing?.sectionGapMm ?? (legacyNativeSectionGap ? legacyGap : defaultGap);
+		scope.style.setProperty(property, `${gap}mm`);
+	}
+	if (id === "stilvoll" && spacing?.entryGapMm !== void 0) scope.style.setProperty("--stilvoll-entry-gap-base", `${spacing.entryGapMm}mm`);
+	if (id === "kompakt" && spacing?.entryGapMm !== void 0) scope.style.setProperty("--kompakt-entry-gap-base", `${spacing.entryGapMm}mm`);
+	const variables = getCvDesignVariables(resolvedDesign ?? resolveCvDesign(id, overrides));
 	for (const { key } of resumeSpacingFields) if (spacing?.[key] !== void 0) {
 		const name = `--doc-${key.replace(/Mm$/, "").replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`;
 		scope.style.setProperty(name, variables[name]);
@@ -8626,7 +8735,10 @@ var applyResumeSpacingOutput = (page, templateId, surface, settings) => {
 	}
 	const sources = resumeSectionStyleSources[surface][id];
 	if (sources) {
-		if (spacing?.sectionTitleGapMm !== void 0) scope.querySelectorAll(sources[1]).forEach((node) => node.setAttribute("data-resume-spacing-title", ""));
+		if (spacing?.sectionTitleGapMm !== void 0) {
+			const titleSelector = id === "klassisch" ? `${sources[1]},[data-custom-template="klassisch"] [data-custom-role="heading"]` : sources[1];
+			scope.querySelectorAll(titleSelector).forEach((node) => node.setAttribute("data-resume-spacing-title", ""));
+		}
 		if (spacing?.entryContentGapMm !== void 0) scope.querySelectorAll(sources[2]).forEach((node) => node.setAttribute("data-resume-spacing-entry-title", ""));
 		if (spacing?.entryGapMm !== void 0) {
 			const entries = Array.from(scope.querySelectorAll(sources[6]));
@@ -8749,6 +8861,216 @@ var applyResumeMetadataLayout = (page, profile, templateId, surface, settings) =
 		}
 	}
 };
+//#endregion
+//#region src/shared/profileMedia.ts
+var supportedProfileMedia = /^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/=\s]+$/i;
+var getProfileMediaSource = (value) => value && supportedProfileMedia.test(value) ? value : "";
+//#endregion
+//#region src/shared/resumeClosing.ts
+var resumeClosingCss = `
+[data-resume-closing]{display:flex;flex-wrap:wrap;align-items:end;gap:2mm 6mm;grid-column:1/-1;min-width:0;margin-top:5mm;padding-top:2mm;border-top:.2mm solid var(--doc-divider-color,#cbd5e1);break-inside:avoid;font-size:9pt;line-height:1.25}
+[data-resume-closing-placement="footer"]{position:absolute;z-index:3;right:12mm;bottom:12mm;left:12mm;margin-top:0;background:var(--doc-background-color,#fff)}
+[data-resume-closing]>*{min-width:0;overflow-wrap:anywhere}
+[data-resume-closing][data-resume-closing-align="left"]{justify-content:flex-start;text-align:left}
+[data-resume-closing][data-resume-closing-align="center"]{justify-content:center;text-align:center}
+[data-resume-closing][data-resume-closing-align="right"]{justify-content:flex-end;text-align:right}
+[data-resume-closing][data-resume-closing-align="distributed"]{justify-content:space-between;text-align:left}
+[data-resume-closing-signature]{display:flex;flex-direction:column;align-items:inherit;max-width:48mm}
+[data-resume-closing-signature] img{display:block;max-width:48mm;max-height:14mm;width:auto;height:auto;object-fit:contain}
+[data-resume-closing-signature] strong{font-size:8pt;font-weight:600}
+`;
+var germanDate = (value) => {
+	const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+	return match ? `${match[3]}.${match[2]}.${match[1]}` : value.trim();
+};
+/** Add one shared closing on the final page while retaining an untouched Pehlione default. */
+var applyResumeClosingOutput = (page, main, profile, templateId, settings, lastPage, visible) => {
+	const native = page.querySelectorAll("footer.pehlione-closing,footer.pehlione-pdf-closing");
+	if (!lastPage || !visible) {
+		native.forEach((node) => node.remove());
+		return;
+	}
+	const choice = settings.resumePresentation?.closing;
+	const pehlione = templateId.startsWith("pehlione_");
+	if (pehlione && !choice?.placement && !choice?.alignment) return;
+	const signature = profile.resumeClosing.showSignature ? getProfileMediaSource(profile.signaturePath) : "";
+	const hasExplicitContent = Boolean(profile.applicationPlace.trim() || profile.applicationDate.trim() || signature);
+	if (!pehlione && !hasExplicitContent && !choice) return;
+	const place = profile.resumeClosing.showPlace ? (profile.applicationPlace || profile.city).trim() : "";
+	const date = profile.resumeClosing.showDate ? germanDate(profile.applicationDate) : "";
+	if (!place && !date && !signature) {
+		native.forEach((node) => node.remove());
+		return;
+	}
+	native.forEach((node) => node.remove());
+	const document = page.ownerDocument;
+	const block = document.createElement("div");
+	const placement = choice?.placement ?? "footer";
+	block.setAttribute("data-resume-closing", "");
+	block.setAttribute("data-resume-closing-placement", placement);
+	block.setAttribute("data-resume-closing-align", choice?.alignment ?? (pehlione ? "distributed" : "left"));
+	if (place) {
+		const element = document.createElement("span");
+		element.setAttribute("data-resume-closing-place", "");
+		element.textContent = place;
+		block.appendChild(element);
+	}
+	if (date) {
+		const element = document.createElement("time");
+		element.setAttribute("data-resume-closing-date", "");
+		element.textContent = date;
+		block.appendChild(element);
+	}
+	if (signature) {
+		const holder = document.createElement("span");
+		holder.setAttribute("data-resume-closing-signature", "");
+		const image = document.createElement("img");
+		image.setAttribute("src", signature);
+		image.setAttribute("alt", "Unterschrift");
+		holder.appendChild(image);
+		const name = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
+		if (name) {
+			const label = document.createElement("strong");
+			label.textContent = name;
+			holder.appendChild(label);
+		}
+		block.appendChild(holder);
+	}
+	const destination = placement === "main" ? page.querySelector("[data-resume-layout-zone=\"main\"]") ?? main : page.matches(".cv-sheet") ? page : page.firstElementChild ?? main;
+	if (placement === "footer") destination.style.position = "relative";
+	destination.appendChild(block);
+};
+//#endregion
+//#region src/shared/pehlioneAppearance.ts
+/** Both Pehlione themes consume the same saved design on both HTML surfaces. */
+var applyPehlioneAppearance = (root, templateId, settings) => {
+	if (templateId !== "pehlione_white_blue" && templateId !== "pehlione_white") return;
+	const appearance = resumeAppearanceSchema.parse(settings.resumeAppearance ?? {});
+	const colors = settings.cvOverrides?.colors;
+	const host = root.matches(".pehlione-resume,.pehlione-pdf") ? root : root.querySelector(".pehlione-resume,.pehlione-pdf");
+	if (!host) return;
+	const style = host.style;
+	const values = {
+		"--pehlione-sidebar-background": appearance.sidebarBackgroundColor,
+		"--pehlione-sidebar-text": appearance.sidebarTextColor,
+		"--pehlione-main-background": appearance.mainBackgroundColor,
+		"--pehlione-title-color": colors?.heading,
+		"--pehlione-subtitle-color": colors?.subheading,
+		"--pehlione-section-color": colors?.sectionHeading,
+		"--pehlione-entry-color": colors?.entryHeading,
+		"--pehlione-divider-color": colors?.divider,
+		"--pehlione-divider-width": appearance.sectionDividerWidthMm === void 0 ? void 0 : `${appearance.sectionDividerWidthMm}mm`,
+		"--pehlione-photo-decoration-color": appearance.photoDecorationColor,
+		"--pehlione-contact-divider-color": appearance.contactDividerColor
+	};
+	for (const [name, value] of Object.entries(values)) if (value !== void 0) style.setProperty(name, value);
+	if (appearance.sectionDividerVisible === false) host.setAttribute("data-section-divider", "hidden");
+	if (appearance.photoDecorationVisible === false) host.setAttribute("data-photo-decoration", "hidden");
+};
+var pehlioneAppearanceCss = `
+[data-custom-template^="pehlione_"][class*="pehlione-main-section"]>[data-custom-role="heading"],
+[data-custom-template^="pehlione_"][class*="pehlione-pdf-section"]>[data-custom-role="heading"]{display:grid;grid-template-columns:9mm minmax(0,1fr);gap:3mm;align-items:center}
+[data-custom-template^="pehlione_"]>[data-custom-role="heading"]>[data-custom-role="heading-label"]{grid-column:2;grid-row:1;min-width:0}
+[data-custom-template^="pehlione_"]>[data-custom-role="heading"]>[aria-hidden="true"]{grid-column:1;grid-row:1}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-sidebar,
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar{background:var(--pehlione-sidebar-background,linear-gradient(155deg,#062e64,#0b3d86 58%,#041f45));color:var(--pehlione-sidebar-text,#fff)}
+.pehlione-resume[data-template="pehlione_white"] .pehlione-sidebar,
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar{background:var(--pehlione-sidebar-background,#fff);color:var(--pehlione-sidebar-text,#142235)}
+.pehlione-resume[data-template="pehlione_white"] .pehlione-contacts,
+.cv-sheet[data-template="pehlione_white"] .pehlione-contacts{--contact-text:var(--pehlione-sidebar-text,#142235);--contact-heading:var(--pehlione-sidebar-text,var(--pehlione-primary,#08245c))}
+.pehlione-resume[data-template="pehlione_white"] .pehlione-contacts h3 svg,
+.cv-sheet[data-template="pehlione_white"] .pehlione-contacts h3 svg{stroke:var(--pehlione-primary,#08245c)}
+.pehlione-resume[data-template="pehlione_white"] .pehlione-blueprint svg,
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-blueprint svg{stroke:var(--pehlione-photo-decoration-color,#dcecff)}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero,
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero.with-photo{background-color:#062b5a;background-image:linear-gradient(#ffffff1e 1px,transparent 1px),linear-gradient(90deg,#ffffff1e 1px,transparent 1px);background-size:4mm 4mm}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero:before,
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero:after{position:absolute;display:block;border:.25mm solid var(--pehlione-photo-decoration-color,#b7d7ff99);border-radius:50%;content:"";transform:none}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero:before{top:8mm;left:10mm;width:28mm;height:28mm}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero:after{top:14mm;left:16mm;width:16mm;height:16mm}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i{position:absolute;top:22mm;left:9mm;width:34mm;border-top:.25mm solid var(--pehlione-photo-decoration-color,#d9ebff99);transform:rotate(var(--angle,0deg));transform-origin:left}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i:nth-of-type(1){--angle:-27deg}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i:nth-of-type(2){--angle:18deg}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i:nth-of-type(3){top:11mm;left:29mm;--angle:52deg}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero b{position:absolute;top:17mm;left:21mm;color:#d9ebff;font-size:9mm;font-weight:400}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-main,
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-main{background:var(--pehlione-main-background,#fff)}
+.pehlione-resume[data-template="pehlione_white"] .pehlione-main,
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-main{background:var(--pehlione-main-background,#fff)}
+.pehlione-resume[data-template^="pehlione_"] .pehlione-header h1,
+.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-header h1{color:var(--pehlione-title-color,var(--pehlione-primary))}
+.pehlione-resume[data-template^="pehlione_"] .pehlione-header h2,
+.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-header h2{color:var(--pehlione-subtitle-color,#12294e)}
+.pehlione-resume[data-template^="pehlione_"] .pehlione-main .pehlione-section-heading,
+.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-section>h3{color:var(--pehlione-section-color,var(--pehlione-primary))}
+.pehlione-resume[data-template^="pehlione_"] .pehlione-career-entry h3,
+.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-entry h4{color:var(--pehlione-entry-color,var(--pehlione-primary))}
+.pehlione-resume[data-template^="pehlione_"] .pehlione-section-heading b,
+.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-section>h3 span,
+.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-sidebar h3{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary));border-bottom-width:var(--pehlione-divider-width,.3mm)}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-sidebar :is(.pehlione-language-heading,.pehlione-competencies-heading){display:grid;grid-template-columns:9mm minmax(0,1fr);gap:3mm;align-items:center}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-sidebar :is(.pehlione-language-heading,.pehlione-competencies-heading)>span{display:grid;width:9mm;height:9mm;place-items:center;border-radius:1.2mm;color:#fff;background:var(--pehlione-primary,#0b3d86)}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-sidebar :is(.pehlione-language-heading,.pehlione-competencies-heading) b{display:block;min-width:0;padding-bottom:1.2mm;border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary));border-bottom-width:var(--pehlione-divider-width,.3mm)}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar :is(.pehlione-pdf-language-heading,.pehlione-pdf-competencies-heading){display:grid;grid-template-columns:9mm minmax(0,1fr);gap:3mm;align-items:center;border-bottom:0;padding-bottom:0}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar :is(.pehlione-pdf-language-heading,.pehlione-pdf-competencies-heading)>i{display:grid;width:9mm;height:9mm;place-items:center;border-radius:1.2mm;color:#fff;background:var(--pehlione-primary,#0b3d86)}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar :is(.pehlione-pdf-language-heading,.pehlione-pdf-competencies-heading)>span{display:block;min-width:0;padding-bottom:1.2mm;border-bottom:var(--pehlione-divider-width,.3mm) solid var(--pehlione-divider-color,var(--pehlione-primary))}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-contacts.pehlione-contacts h3,
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar .pehlione-contacts.pehlione-contacts h3{border-bottom-color:var(--pehlione-contact-divider-color,#fff);border-bottom-width:var(--pehlione-divider-width,.3mm)}
+.pehlione-resume[data-template="pehlione_white"] .pehlione-contacts.pehlione-contacts h3,
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-contacts.pehlione-contacts h3{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary,#08245c));border-bottom-width:var(--pehlione-divider-width,.3mm)}
+.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-sidebar .pehlione-pdf-section>h3{border-bottom:0;padding-bottom:0}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading{display:grid;grid-template-columns:8mm minmax(0,1fr);gap:2mm;align-items:center;border-bottom:0;padding-bottom:0}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading>.pehlione-pdf-section-icon{display:grid;width:8mm;height:8mm;place-items:center;color:var(--pehlione-primary,#08245c);background:transparent}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading>.pehlione-pdf-section-icon svg{width:7mm;height:7mm}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading>span{display:block;min-width:0;padding-bottom:1.2mm;border-bottom:var(--pehlione-divider-width,.3mm) solid var(--pehlione-divider-color,var(--pehlione-primary,#08245c))}
+.pehlione-resume[data-template="pehlione_white"] .pehlione-header h2,
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-header h2{max-width:calc(100% - 6mm);white-space:normal;overflow-wrap:anywhere}
+.pehlione-resume[data-template="pehlione_white"][data-density="compact"] .pehlione-header h2,
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf[data-density="compact"] .pehlione-pdf-header h2{font-size:9pt}
+.pehlione-resume.pehlione-resume[data-template="pehlione_white"][data-density="compact"] .pehlione-header h2{white-space:normal}
+.pehlione-resume[data-template^="pehlione_"] .pehlione-header,
+.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-header{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary))}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry,
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-entry{border-bottom-color:var(--pehlione-divider-color,#b8c3d0)}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry,
+.pehlione-resume[data-template="pehlione_white_blue"][data-density="compact"] .pehlione-career-entry,
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-entry{grid-template-columns:30mm minmax(0,1fr);gap:3mm;align-items:start}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry__meta,
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-entry__meta{min-width:0}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry__period,
+.pehlione-resume[data-template="pehlione_white_blue"][data-density="compact"] .pehlione-career-entry__period,
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry h3,
+.pehlione-resume[data-template="pehlione_white_blue"][data-density="compact"] .pehlione-career-entry h3,
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-entry__meta>p,
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-entry h4{margin:0;font-size:9pt;line-height:1.2;font-weight:700}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry__period,
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-entry__meta>p{white-space:nowrap}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry__location,
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-entry__meta>small{display:block;margin-top:1mm;color:#1e3150;font-size:8.2pt;line-height:1.25}
+.pehlione-resume[data-template="pehlione_white_blue"] [data-resume-metadata-grid="side-by-side"][data-resume-metadata-order="dates-first"],
+.cv-sheet[data-template="pehlione_white_blue"] [data-resume-metadata-grid="side-by-side"][data-resume-metadata-order="dates-first"]{grid-template-columns:30mm minmax(0,1fr)!important}
+.pehlione-resume[data-template="pehlione_white_blue"] [data-resume-metadata-grid="side-by-side"][data-resume-metadata-order="dates-first"] :is([data-resume-metadata-date],[data-resume-metadata-role]),
+.cv-sheet[data-template="pehlione_white_blue"] [data-resume-metadata-grid="side-by-side"][data-resume-metadata-order="dates-first"] :is([data-resume-metadata-date],[data-resume-metadata-role]){font-size:9pt;line-height:1.2;text-align:left}
+.pehlione-resume[data-section-divider="hidden"] .pehlione-section-heading b,
+.pehlione-resume[data-section-divider="hidden"] :is(.pehlione-language-heading,.pehlione-competencies-heading) b,
+.pehlione-resume[data-section-divider="hidden"] .pehlione-sidebar h3,
+.cv-sheet[data-template^="pehlione_"] .pehlione-pdf[data-section-divider="hidden"] .pehlione-pdf-section>h3 span,
+.cv-sheet[data-template^="pehlione_"] .pehlione-pdf[data-section-divider="hidden"] :is(.pehlione-pdf-language-heading,.pehlione-pdf-competencies-heading)>span,
+.cv-sheet[data-template^="pehlione_"] .pehlione-pdf[data-section-divider="hidden"] .pehlione-pdf-sidebar h3{border-bottom:0}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf[data-section-divider="hidden"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading>span{border-bottom:0}
+.pehlione-resume[data-template="pehlione_white"][data-photo-decoration="hidden"] .pehlione-blueprint,
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf[data-photo-decoration="hidden"] .pehlione-pdf-blueprint{display:none}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-hero:before,
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-hero:after{border-color:var(--pehlione-photo-decoration-color,#b7d7ff99)}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-hero :is(i),
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero:after{border-color:var(--pehlione-photo-decoration-color,#d9ebff99)}
+.pehlione-resume[data-photo-decoration="hidden"] .pehlione-hero :is(i),
+.pehlione-resume[data-photo-decoration="hidden"] .pehlione-hero:before,
+.pehlione-resume[data-photo-decoration="hidden"] .pehlione-hero:after,
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf[data-photo-decoration="hidden"] .pehlione-pdf-hero:before,
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf[data-photo-decoration="hidden"] .pehlione-pdf-hero:after,
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf[data-photo-decoration="hidden"] .pehlione-pdf-hero i{display:none}
+`;
 //#endregion
 //#region node_modules/linkedom/esm/shared/symbols.js
 var CHANGED = Symbol("changed");
@@ -20937,186 +21259,6 @@ function Document() {
 }
 setPrototypeOf(Document, Document$1).prototype = Document$1.prototype;
 //#endregion
-//#region src/features/resume-sections/resume-manager.ts
-var managerSemanticTypes = {
-	heading: "heading",
-	personalData: "personalData",
-	photo: "photo",
-	summary: "summary",
-	experience: "career",
-	education: "education",
-	knowledge: "knowledge",
-	closing: "closing"
-};
-var legacyKeys = {
-	summary: "profile",
-	experience: "experience",
-	education: "education",
-	strengths: "strengths",
-	knowledge: "skills",
-	languages: "languages",
-	certifications: "certifications"
-};
-var nativeSingleTemplates = /* @__PURE__ */ new Set([
-	"ivy-league",
-	"einspaltig",
-	"klassisch",
-	"tabellarisch"
-]);
-var defaultSidebarSections = /* @__PURE__ */ new Set([
-	"summary",
-	"strengths",
-	"knowledge",
-	"languages",
-	"certifications"
-]);
-var managerZones = (_templateId) => ["main", "sidebar"];
-var baseGroupType = (type) => ({
-	"core-competencies": "strengths",
-	"technical-focus": "knowledge",
-	kenntnisse: "knowledge",
-	sprachen: "languages",
-	stärken: "strengths",
-	strengths: "strengths",
-	languages: "languages",
-	certificates: "certifications"
-})[type];
-var getManagerSections = (profile, templateId) => {
-	const pehlione = templateId.startsWith("pehlione_");
-	const zones = managerZones(templateId);
-	const identity = [
-		"heading",
-		"personalData",
-		"photo",
-		"closing"
-	].map((id) => ({
-		id,
-		title: {
-			heading: "Lebenslauf-Kopf",
-			personalData: "Persönliche Daten",
-			photo: "Bewerbungsfoto",
-			closing: "Ort, Datum und Unterschrift"
-		}[id],
-		visible: getResumeSemanticSection(profile.resumeSemanticSections, managerSemanticTypes[id]).visible,
-		zone: "main",
-		fixed: true
-	}));
-	const legacy = getProfileResumeSectionLayout(profile, templateId).filter(({ type }) => type in legacyKeys).map(({ type, zone }) => ({
-		id: type,
-		title: pehlione && type === "strengths" ? "Kernkompetenzen" : pehlione && type === "knowledge" ? "Technische Schwerpunkte" : getResumeSectionTitle(profile, type),
-		visible: isResumeSectionVisible(profile, type),
-		zone: zones.length > 1 && (zone === "sidebar" || ["kompakt", "stilvoll"].includes(templateId) && [
-			"summary",
-			"strengths",
-			"knowledge"
-		].includes(type) || nativeSingleTemplates.has(templateId) && defaultSidebarSections.has(type)) ? "sidebar" : "main"
-	}));
-	if (pehlione) legacy.find((item) => item.id === "summary").zone = "main";
-	const entries = [...legacy];
-	for (const group of resolveKnowledgeGroups(templateId, profile.resumeKnowledgeGroups)) {
-		const base = baseGroupType(group.semanticType);
-		const existing = entries.find((entry) => entry.id === base);
-		if (existing) {
-			existing.groupId = group.id;
-			if (group.items.length) {
-				existing.title = group.title;
-				existing.visible = group.visible;
-			}
-		} else entries.push({
-			id: `group:${group.id}`,
-			groupId: group.id,
-			title: group.title,
-			visible: group.visible,
-			zone: zones.includes(group.slot) ? group.slot : "main"
-		});
-	}
-	if (pehlione) entries.push({
-		id: "projects",
-		title: "Projekt-Highlight",
-		visible: true,
-		zone: "main"
-	});
-	for (const section of profile.specialSections) entries.push({
-		id: `special:${section.id}`,
-		title: section.title,
-		visible: section.isVisible,
-		zone: "main"
-	});
-	const saved = profile.resumeManagerLayouts?.[templateId] ?? [];
-	const ordered = [];
-	for (const position of saved) {
-		const entry = entries.find((item) => item.id === position.id);
-		if (entry && !ordered.some((item) => item.id === entry.id)) ordered.push({
-			...entry,
-			zone: zones.includes(position.zone) ? position.zone : "main"
-		});
-	}
-	return [
-		...identity,
-		...ordered,
-		...entries.filter((entry) => !ordered.some((item) => item.id === entry.id))
-	].map((entry) => ({
-		...entry,
-		...profile.resumeManagerOverrides?.[entry.id]
-	}));
-};
-var updateManagerSection = (profile, templateId, id, change) => {
-	let next = {
-		...profile,
-		resumeManagerOverrides: {
-			...profile.resumeManagerOverrides,
-			[id]: {
-				...profile.resumeManagerOverrides?.[id],
-				...change
-			}
-		}
-	};
-	const semantic = managerSemanticTypes[id];
-	if (semantic) next.resumeSemanticSections = resolveResumeSectionInstances(profile.resumeSemanticSections).map((item) => item.semanticType === semantic ? {
-		...item,
-		...change.title !== void 0 ? { customTitle: change.title } : {},
-		...change.visible !== void 0 ? {
-			visible: change.visible,
-			enabled: change.visible
-		} : {}
-	} : item);
-	if (id === "knowledge") next.resumeSemanticSections = resolveResumeSectionInstances(next.resumeSemanticSections).map((item) => item.semanticType === "knowledge" ? {
-		...item,
-		visible: true,
-		enabled: true
-	} : item);
-	const key = legacyKeys[id];
-	if (key && change.visible !== void 0) next.resumeSections = {
-		...profile.resumeSections,
-		[key]: change.visible
-	};
-	if (change.title !== void 0) {
-		if (id === "knowledge") next.knowledgeSection = {
-			...profile.knowledgeSection,
-			title: change.title
-		};
-		else if (id in profile.resumeSectionTitles) next.resumeSectionTitles = {
-			...profile.resumeSectionTitles,
-			[id]: change.title
-		};
-	}
-	const entry = getManagerSections(profile, templateId).find((item) => item.id === id);
-	if (entry?.groupId) next.resumeKnowledgeGroups = resolveKnowledgeGroups(templateId, profile.resumeKnowledgeGroups).map((group) => group.id === entry.groupId ? {
-		...group,
-		...change
-	} : group);
-	if (id.startsWith("special:")) next.specialSections = profile.specialSections.map((item) => item.id === id.slice(8) ? {
-		...item,
-		...change.title !== void 0 ? { title: change.title } : {},
-		...change.visible !== void 0 ? { isVisible: change.visible } : {}
-	} : item);
-	return next;
-};
-//#endregion
-//#region src/shared/profileMedia.ts
-var supportedProfileMedia = /^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/=\s]+$/i;
-var getProfileMediaSource = (value) => value && supportedProfileMedia.test(value) ? value : "";
-//#endregion
 //#region src/shared/strengthSymbols.ts
 var strengthSymbolOptions = [
 	{
@@ -25024,12 +25166,28 @@ var getDeviconMarkup = (iconId) => iconMarkup.get(iconId.trim().toLocaleLowerCas
 var technologyAliases = {
 	golang: "go",
 	"go language": "go",
+	"go-lang": "go",
 	js: "javascript",
+	"java script": "javascript",
+	"javascript (es6+)": "javascript",
 	ts: "typescript",
+	"type script": "typescript",
+	"typescript (ts)": "typescript",
 	"spring boot": "spring",
 	springboot: "spring",
+	"spring framework": "spring",
 	"react.js": "react",
-	reactjs: "react"
+	reactjs: "react",
+	"react js": "react",
+	"python 3": "python",
+	python3: "python",
+	py: "python",
+	"php 8": "php",
+	php8: "php",
+	"docker engine": "docker",
+	"docker compose": "docker",
+	"git hub": "github",
+	"github.com": "github"
 };
 var normalizeTechnologyName = (name) => {
 	const normalized = name.trim().toLocaleLowerCase("en-US").replace(/^(?:programming|programmiersprache)\s*[:–-]?\s*/i, "");
@@ -25044,16 +25202,12 @@ var javascriptBrand = () => svg("<path d=\"M4 2h24l-2.2 25L16 30 6.2 27z\" fill=
 var phpBrand = () => svg("<ellipse cx=\"24\" cy=\"16\" rx=\"22\" ry=\"10.5\" fill=\"#7185b5\" stroke=\"#1f2430\" stroke-width=\"1.2\"/><text x=\"24\" y=\"20.2\" text-anchor=\"middle\" fill=\"#111\" stroke=\"#fff\" stroke-width=\".9\" paint-order=\"stroke\" font-family=\"Arial,sans-serif\" font-size=\"13\" font-style=\"italic\" font-weight=\"800\">php</text>", "php", "0 0 48 32");
 var typescriptBrand = () => svg("<rect x=\"3\" y=\"3\" width=\"26\" height=\"26\" rx=\"2\" fill=\"#3178c6\"/><path d=\"M8 9h15v4h-5v12h-5V13H8z\" fill=\"#fff\"/><path d=\"M19 17c0-3 2.2-4.8 5.4-4.8 1.7 0 3.1.4 4.2 1.2l-1.7 3c-.8-.5-1.6-.8-2.4-.8-.6 0-1 .3-1 .7 0 .5.6.7 1.8 1.2 2.2.8 3.2 2 3.2 4 0 2.5-1.9 4.2-5 4.2-2 0-3.7-.5-4.9-1.6l1.8-3c.9.8 2 1.2 3 1.2.8 0 1.2-.3 1.2-.8 0-.6-.6-.8-1.8-1.2-2.1-.8-3.2-2-3.2-3.3z\" fill=\"#fff\" transform=\"translate(-1 -1) scale(.82) translate(7 5)\"/>", "typescript");
 var frameworkBrand = () => svg("<path d=\"m16 3 10 5.5v6L16 20 6 14.5v-6z\" fill=\"#6f42c1\"/><path d=\"m6 17 10 5.5L26 17v6L16 29 6 23z\" fill=\"#9b72e5\"/><path d=\"m16 3v17M6 8.5 16 14l10-5.5\" fill=\"none\" stroke=\"#fff\" stroke-width=\"1.6\" stroke-linejoin=\"round\"/>", "framework");
-var getTechnologyBrandIconMarkup = (technology, iconId = "") => {
-	const symbol = getStrengthSymbolMarkup(iconId);
-	if (symbol) return symbol;
-	const selectedIcon = getDeviconMarkup(iconId);
-	if (selectedIcon) return selectedIcon;
+var getAutomaticTechnologyIconMarkup = (technology) => {
 	const normalized = normalizeTechnologyName(technology);
 	if (normalized === "react" || normalized === "react.js" || normalized === "reactjs") return svg("<circle cx=\"16\" cy=\"16\" r=\"2.3\" fill=\"#61dafb\"/><ellipse cx=\"16\" cy=\"16\" rx=\"13\" ry=\"5.2\" fill=\"none\" stroke=\"#61dafb\" stroke-width=\"1.6\"/><ellipse cx=\"16\" cy=\"16\" rx=\"13\" ry=\"5.2\" transform=\"rotate(60 16 16)\" fill=\"none\" stroke=\"#61dafb\" stroke-width=\"1.6\"/><ellipse cx=\"16\" cy=\"16\" rx=\"13\" ry=\"5.2\" transform=\"rotate(120 16 16)\" fill=\"none\" stroke=\"#61dafb\" stroke-width=\"1.6\"/>", "react");
 	if (normalized === "electron") return svg("<circle cx=\"16\" cy=\"16\" r=\"2\" fill=\"currentColor\"/><path d=\"M8 8c7-4 16 0 18 8M5 18c1 8 10 12 17 8M21 5c-7 0-14 7-14 15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><circle cx=\"7\" cy=\"9\" r=\"1.6\" fill=\"currentColor\"/><circle cx=\"25\" cy=\"17\" r=\"1.6\" fill=\"currentColor\"/><circle cx=\"21\" cy=\"26\" r=\"1.6\" fill=\"currentColor\"/>");
 	if (normalized === "java") return svg("<path d=\"M10 20h13v2.5c0 3-2.5 5.5-5.5 5.5h-2A5.5 5.5 0 0 1 10 22.5zM23 21h2a3 3 0 0 1 0 6h-3\" fill=\"none\" stroke=\"#5382a1\" stroke-width=\"2\"/><path d=\"M14 17c-4-4 5-5 1-9M19 17c-3-3 4-4 1-8M18 7c1-2 3-3 5-4\" fill=\"none\" stroke=\"#e76f00\" stroke-width=\"1.8\" stroke-linecap=\"round\"/>", "java");
-	if (normalized === "python") return svg("<path d=\"M16 3c-7 0-8 3-8 7v4h9v2H6c-3 0-4 2-4 6s2 7 5 7h4v-5c0-4 3-6 7-6h7c3 0 5-3 5-7s-2-8-7-8z\" fill=\"currentColor\" opacity=\".82\"/><circle cx=\"13\" cy=\"8\" r=\"1.3\" fill=\"white\"/><circle cx=\"21\" cy=\"24\" r=\"1.3\" fill=\"white\"/>");
+	if (normalized === "python") return svg("<path d=\"M16 3c-7 0-8 3-8 7v4h9v2H6c-3 0-4 2-4 6s2 7 5 7h4v-5c0-4 3-6 7-6h7c3 0 5-3 5-7s-2-8-7-8z\" fill=\"currentColor\" opacity=\".82\"/><circle cx=\"13\" cy=\"8\" r=\"1.3\" fill=\"white\"/><circle cx=\"21\" cy=\"24\" r=\"1.3\" fill=\"white\"/>", "python");
 	if (normalized === "rust") return svg("<circle cx=\"16\" cy=\"16\" r=\"11\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-dasharray=\"3 2\"/><text x=\"16\" y=\"20\" text-anchor=\"middle\" fill=\"currentColor\" font-family=\"Georgia,serif\" font-size=\"13\" font-weight=\"700\">R</text>");
 	if (["html", "html5"].includes(normalized)) return shieldBrand("html", "#e44d26", "#f16529", "M9 8h15l-.4 4H14l.3 3.4h9l-.8 8.1-6.5 1.8-6.5-1.8-.4-4h4l.2 1.2 2.7.7 2.8-.8.3-3.3H9.8z");
 	if (["css", "css3"].includes(normalized)) return shieldBrand("css", "#1572b6", "#33a9dc", "M9 8h15l-.4 4-8.8 3.5h8.5l-.8 8-6.5 1.8-6.5-1.8-.4-4h4l.2 1.2 2.7.7 2.8-.8.2-2.2H9.8l-.3-3.8 8.7-3.4H9.3z");
@@ -25125,10 +25279,484 @@ var getTechnologyBrandIconMarkup = (technology, iconId = "") => {
 	if (normalized === "cobol") return letterMark("COB");
 	const automaticDevicon = getDeviconMarkup(normalized.replace(/[^a-z0-9]/g, ""));
 	if (automaticDevicon) return automaticDevicon;
-	return letterMark(escapeIconText(technology.slice(0, 3).toLocaleUpperCase("en-US")));
 };
+/** Manual choice wins; known names use their brand; unknown names get a safe mark. */
+var resolveTechnologyIcon = (technology, manualIcon = "") => {
+	const manual = getStrengthSymbolMarkup(manualIcon) || getDeviconMarkup(manualIcon);
+	if (manual) return {
+		source: "manual",
+		markup: manual
+	};
+	const automatic = getAutomaticTechnologyIconMarkup(technology);
+	if (automatic) return {
+		source: "auto",
+		markup: automatic
+	};
+	return {
+		source: "fallback",
+		markup: letterMark(escapeIconText(technology.trim().slice(0, 3).toLocaleUpperCase("en-US") || "•"))
+	};
+};
+var getTechnologyBrandIconMarkup = (technology, iconId = "") => resolveTechnologyIcon(technology, iconId).markup;
 /** Preserve the existing icon catalogue and manual priority, with CV theme colors. */
 var getThemedTechnologyIconMarkup = (title, iconId = "") => getTechnologyBrandIconMarkup(title, iconId).replace(/(fill|stroke|stop-color)="(?!none"|currentColor"|white"|#fff"|#ffffff"|url\()[^"]+"/gi, "$1=\"currentColor\"").replace(/(fill|stroke|stop-color):\s*(#[0-9a-f]{3,8}|rgb\([^)]*\))/gi, "$1:currentColor");
+//#endregion
+//#region src/features/resume-sections/resume-manager.ts
+var managerSemanticTypes = {
+	heading: "heading",
+	personalData: "personalData",
+	photo: "photo",
+	summary: "summary",
+	experience: "career",
+	education: "education",
+	knowledge: "knowledge",
+	closing: "closing"
+};
+var legacyKeys = {
+	summary: "profile",
+	experience: "experience",
+	education: "education",
+	strengths: "strengths",
+	knowledge: "skills",
+	languages: "languages",
+	certifications: "certifications"
+};
+var nativeSingleTemplates = /* @__PURE__ */ new Set([
+	"ivy-league",
+	"einspaltig",
+	"klassisch",
+	"tabellarisch"
+]);
+var defaultSidebarSections = /* @__PURE__ */ new Set([
+	"summary",
+	"strengths",
+	"knowledge",
+	"languages",
+	"certifications"
+]);
+var managerZones = (_templateId) => ["main", "sidebar"];
+var baseGroupType = (type) => ({
+	"core-competencies": "strengths",
+	"technical-focus": "knowledge",
+	kenntnisse: "knowledge",
+	sprachen: "languages",
+	stärken: "strengths",
+	strengths: "strengths",
+	languages: "languages",
+	certificates: "certifications"
+})[type];
+var getManagerSections = (profile, templateId) => {
+	const pehlione = templateId.startsWith("pehlione_");
+	const zones = managerZones(templateId);
+	const identity = [
+		"heading",
+		"personalData",
+		"photo",
+		"closing"
+	].map((id) => ({
+		id,
+		title: {
+			heading: "Lebenslauf-Kopf",
+			personalData: "Persönliche Daten",
+			photo: "Bewerbungsfoto",
+			closing: "Ort, Datum und Unterschrift"
+		}[id],
+		visible: getResumeSemanticSection(profile.resumeSemanticSections, managerSemanticTypes[id]).visible,
+		zone: "main",
+		fixed: true
+	}));
+	const legacy = getProfileResumeSectionLayout(profile, templateId).filter(({ type }) => type in legacyKeys).map(({ type, zone }) => ({
+		id: type,
+		title: pehlione && type === "strengths" ? "Kernkompetenzen" : pehlione && type === "knowledge" ? "Technische Schwerpunkte" : getResumeSectionTitle(profile, type),
+		visible: isResumeSectionVisible(profile, type),
+		zone: zones.length > 1 && (zone === "sidebar" || ["kompakt", "stilvoll"].includes(templateId) && [
+			"summary",
+			"strengths",
+			"knowledge"
+		].includes(type) || nativeSingleTemplates.has(templateId) && defaultSidebarSections.has(type)) ? "sidebar" : "main"
+	}));
+	if (pehlione) legacy.find((item) => item.id === "summary").zone = "main";
+	const entries = [...legacy];
+	for (const group of resolveKnowledgeGroups(templateId, profile.resumeKnowledgeGroups)) {
+		const base = baseGroupType(group.semanticType);
+		const existing = entries.find((entry) => entry.id === base);
+		if (existing) {
+			existing.groupId = group.id;
+			if (group.items.length) {
+				existing.title = group.title;
+				existing.visible = group.visible;
+			}
+		} else entries.push({
+			id: `group:${group.id}`,
+			groupId: group.id,
+			title: group.title,
+			visible: group.visible,
+			zone: zones.includes(group.slot) ? group.slot : "main"
+		});
+	}
+	if (pehlione) entries.push({
+		id: "projects",
+		title: "Projekt-Highlight",
+		visible: true,
+		zone: "main"
+	});
+	for (const section of profile.specialSections) entries.push({
+		id: `special:${section.id}`,
+		title: section.title,
+		visible: section.isVisible,
+		zone: "main"
+	});
+	const saved = profile.resumeManagerLayouts?.[templateId] ?? [];
+	const ordered = [];
+	for (const position of saved) {
+		const entry = entries.find((item) => item.id === position.id);
+		if (entry && !ordered.some((item) => item.id === entry.id)) ordered.push({
+			...entry,
+			zone: zones.includes(position.zone) ? position.zone : "main"
+		});
+	}
+	return [
+		...identity,
+		...ordered,
+		...entries.filter((entry) => !ordered.some((item) => item.id === entry.id))
+	].map((entry) => ({
+		...entry,
+		...profile.resumeManagerOverrides?.[entry.id]
+	}));
+};
+var updateManagerSection = (profile, templateId, id, change) => {
+	let next = {
+		...profile,
+		resumeManagerOverrides: {
+			...profile.resumeManagerOverrides,
+			[id]: {
+				...profile.resumeManagerOverrides?.[id],
+				...change
+			}
+		}
+	};
+	const semantic = managerSemanticTypes[id];
+	if (semantic) next.resumeSemanticSections = resolveResumeSectionInstances(profile.resumeSemanticSections).map((item) => item.semanticType === semantic ? {
+		...item,
+		...change.title !== void 0 ? { customTitle: change.title } : {},
+		...change.visible !== void 0 ? {
+			visible: change.visible,
+			enabled: change.visible
+		} : {}
+	} : item);
+	if (id === "knowledge") next.resumeSemanticSections = resolveResumeSectionInstances(next.resumeSemanticSections).map((item) => item.semanticType === "knowledge" ? {
+		...item,
+		visible: true,
+		enabled: true
+	} : item);
+	const key = legacyKeys[id];
+	if (key && change.visible !== void 0) next.resumeSections = {
+		...profile.resumeSections,
+		[key]: change.visible
+	};
+	if (change.title !== void 0) {
+		if (id === "knowledge") next.knowledgeSection = {
+			...profile.knowledgeSection,
+			title: change.title
+		};
+		else if (id in profile.resumeSectionTitles) next.resumeSectionTitles = {
+			...profile.resumeSectionTitles,
+			[id]: change.title
+		};
+	}
+	const entry = getManagerSections(profile, templateId).find((item) => item.id === id);
+	if (entry?.groupId) next.resumeKnowledgeGroups = resolveKnowledgeGroups(templateId, profile.resumeKnowledgeGroups).map((group) => group.id === entry.groupId ? {
+		...group,
+		...change
+	} : group);
+	if (id.startsWith("special:")) next.specialSections = profile.specialSections.map((item) => item.id === id.slice(8) ? {
+		...item,
+		...change.title !== void 0 ? { title: change.title } : {},
+		...change.visible !== void 0 ? { isVisible: change.visible } : {}
+	} : item);
+	return next;
+};
+//#endregion
+//#region src/shared/resumePresentation.ts
+/** Compatibility projection: old renderers receive their established profile shape.
+* The returned object is never the object saved as profile content. */
+var resolveResumePresentation = (profile, templateId, overrides) => {
+	if (!profile || !overrides) return profile;
+	const id = resolveTemplateId(templateId);
+	const presentation = resumePresentationSchema.parse(overrides);
+	let projected = {
+		...profile,
+		resumePersonalFieldVisibility: {
+			...profile.resumePersonalFieldVisibility,
+			...presentation.personalFields
+		},
+		resumeClosing: {
+			...profile.resumeClosing,
+			showPlace: presentation.closing?.showPlace ?? profile.resumeClosing.showPlace,
+			showDate: presentation.closing?.showDate ?? profile.resumeClosing.showDate,
+			showSignature: presentation.closing?.showSignature ?? profile.resumeClosing.showSignature
+		},
+		resumeColumnRatio: presentation.sidebarWidthPercent ?? profile.resumeColumnRatio,
+		resumeKnowledgeContainer: { showTitle: presentation.showKnowledgeTitle ?? profile.resumeKnowledgeContainer.showTitle }
+	};
+	if (presentation.blocks) projected.resumeKnowledgeGroups = resolveKnowledgeGroups(id, profile.resumeKnowledgeGroups).map((block) => ({
+		...block,
+		...presentation.blocks?.[block.id]
+	}));
+	for (const [sectionId, settings] of Object.entries(presentation.sections ?? {})) {
+		const change = {
+			...settings.title !== void 0 ? { title: settings.title } : {},
+			...settings.visible !== void 0 ? { visible: settings.visible } : {}
+		};
+		if (Object.keys(change).length) projected = updateManagerSection(projected, id, sectionId, change);
+	}
+	if (Object.values(presentation.sections ?? {}).some((settings) => settings.order !== void 0 || settings.zone !== void 0)) {
+		const ordered = getManagerSections(projected, id).filter((section) => !section.fixed).map((section, index) => ({
+			...section,
+			order: index,
+			...presentation.sections?.[section.id]
+		})).sort((left, right) => left.order - right.order);
+		projected.resumeManagerLayouts = {
+			...profile.resumeManagerLayouts,
+			[id]: ordered.map((section) => ({
+				id: section.id,
+				zone: section.zone
+			}))
+		};
+	}
+	return projected;
+};
+//#endregion
+//#region src/shared/resumeDisplayProfile.ts
+var getResumeDisplayProfile = (profile) => {
+	if (!profile) return void 0;
+	const visible = {
+		...defaultResumePersonalFieldVisibility,
+		...profile.resumePersonalFieldVisibility
+	};
+	return {
+		...profile,
+		street: visible.address ? profile.street : "",
+		postalCode: visible.address ? profile.postalCode : "",
+		city: visible.address ? profile.city : "",
+		country: visible.address ? profile.country : "",
+		phone: visible.phone ? profile.phone : "",
+		email: visible.email ? profile.email : "",
+		linkedin: visible.linkedin ? profile.linkedin : "",
+		github: visible.github ? profile.github : "",
+		portfolio: visible.website ? profile.portfolio : "",
+		birthDate: visible.birthDate ? profile.birthDate : "",
+		birthPlace: visible.birthPlace ? profile.birthPlace : "",
+		nationality: visible.nationality ? profile.nationality : "",
+		photoPath: getResumeSemanticSection(profile.resumeSemanticSections, "photo").visible ? profile.photoPath : "",
+		onlineProfiles: profile.onlineProfiles.filter((entry) => /xing/i.test(entry.label) ? visible.xing : visible.website)
+	};
+};
+//#endregion
+//#region src/shared/documentPagination.ts
+var FIRST_PAGE_CAPACITY = 30;
+var SECOND_PAGE_CAPACITY = 38;
+var RECOMMENDED_LETTER_CHARACTERS = 3300;
+var zweispaltigPaginationOptions = {
+	firstPageCapacity: 50,
+	secondPageCapacity: 54,
+	preserveItemOrder: true
+};
+var elegantPaginationOptions = {
+	firstPageCapacity: 50,
+	secondPageCapacity: 54,
+	preserveItemOrder: true
+};
+var kompaktPaginationOptions = {
+	firstPageCapacity: 50,
+	secondPageCapacity: 54,
+	preserveItemOrder: true
+};
+var kreativPaginationOptions = {
+	firstPageCapacity: 50,
+	secondPageCapacity: 54,
+	preserveItemOrder: true
+};
+var tabellarischPaginationOptions = {
+	firstPageCapacity: 48,
+	secondPageCapacity: 52,
+	preserveItemOrder: true
+};
+var modernPaginationOptions = {
+	firstPageCapacity: 50,
+	secondPageCapacity: 54,
+	preserveItemOrder: true
+};
+var pehlionePaginationOptions = {
+	firstPageCapacity: 50,
+	secondPageCapacity: 54,
+	preserveItemOrder: true
+};
+var gepflegtPaginationOptions = {
+	firstPageCapacity: 50,
+	secondPageCapacity: 54,
+	preserveItemOrder: true
+};
+var zeitgenoessischPaginationOptions = {
+	firstPageCapacity: 50,
+	secondPageCapacity: 54,
+	preserveItemOrder: true
+};
+var ivyLeaguePaginationOptions = {
+	firstPageCapacity: 50,
+	secondPageCapacity: 54,
+	preserveItemOrder: true
+};
+var stilvollPaginationOptions = {
+	firstPageCapacity: 50,
+	secondPageCapacity: 54,
+	preserveItemOrder: true
+};
+var einspaltigPaginationOptions = {
+	firstPageCapacity: 42,
+	secondPageCapacity: 50,
+	preserveItemOrder: true
+};
+var klassischPaginationOptions = {
+	firstPageCapacity: 50,
+	secondPageCapacity: 54,
+	preserveItemOrder: true
+};
+var textWeight = (value, charactersPerUnit = 95) => Math.max(0, Math.ceil(value.trim().length / charactersPerUnit));
+var experienceWeight = (experience) => 4 + textWeight(`${experience.role} ${experience.company}`, 70) + experience.achievements.filter((achievement) => achievement.trim()).reduce((total, achievement) => total + 1 + textWeight(achievement), 0);
+var educationWeight = (education) => 2 + textWeight(`${education.degree} ${education.institution}`, 80);
+var sidebarWeight = (profile, resumeProfile) => {
+	if (!profile) return 4;
+	const summary = resumeProfile || profile.summary;
+	const knowledgeCount = flattenKnowledgeNames(ensureKnowledgeSection(profile.knowledgeSection, profile.skills)).length;
+	return textWeight(summary, 105) + Math.ceil(knowledgeCount / 3) + Math.ceil(profile.languages.length / 2) + Math.ceil(profile.certifications.length / 2);
+};
+var densityForWeight = (weight, capacity) => {
+	if (weight > capacity * 1.3) return "dense";
+	if (weight > capacity * .9) return "compact";
+	return "standard";
+};
+var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateId) => {
+	const firstPageCapacity = options.firstPageCapacity ?? FIRST_PAGE_CAPACITY;
+	const secondPageCapacity = options.secondPageCapacity ?? SECOND_PAGE_CAPACITY;
+	const items = [...(profile?.experiences ?? []).map((experience) => ({
+		kind: "experience",
+		id: experience.id,
+		weight: experienceWeight(experience)
+	})), ...(profile?.education ?? []).map((education) => ({
+		kind: "education",
+		id: education.id,
+		weight: educationWeight(education)
+	}))];
+	const managerLayout = templateId ? profile?.resumeManagerLayouts?.[templateId] : void 0;
+	if (managerLayout?.length) {
+		const order = managerLayout.map((item) => item.id);
+		items.sort((left, right) => order.indexOf(left.kind) - order.indexOf(right.kind));
+	}
+	const totalMainWeight = items.reduce((total, item) => total + item.weight, 0);
+	const firstPageWeight = Math.max(totalMainWeight, sidebarWeight(profile, resumeProfile));
+	if (firstPageWeight <= firstPageCapacity || items.length <= 1) return [{
+		pageNumber: 1,
+		items,
+		density: densityForWeight(firstPageWeight, firstPageCapacity)
+	}];
+	const pageOneItems = [];
+	const pageTwoItems = [];
+	let pageOneWeight = 0;
+	let continueOnSecondPage = false;
+	for (const item of items) if (!continueOnSecondPage && (pageOneItems.length === 0 || pageOneWeight + item.weight <= firstPageCapacity)) {
+		pageOneItems.push(item);
+		pageOneWeight += item.weight;
+	} else {
+		pageTwoItems.push(item);
+		continueOnSecondPage = Boolean(managerLayout?.length) || (options.preserveItemOrder ?? false);
+	}
+	if (pageTwoItems.length === 0 && pageOneItems.length > 1) {
+		pageTwoItems.unshift(pageOneItems.pop());
+		pageOneWeight = pageOneItems.reduce((total, item) => total + item.weight, 0);
+	}
+	const pageTwoWeight = pageTwoItems.reduce((total, item) => total + item.weight, 0);
+	return [{
+		pageNumber: 1,
+		items: pageOneItems,
+		density: densityForWeight(Math.max(pageOneWeight, sidebarWeight(profile, resumeProfile)), firstPageCapacity)
+	}, {
+		pageNumber: 2,
+		items: pageTwoItems,
+		density: densityForWeight(pageTwoWeight, secondPageCapacity)
+	}];
+};
+var getLetterPageStatus = (documents) => {
+	const characterCount = [
+		documents.coverSubject,
+		documents.coverIntroduction,
+		getCoverLetterMainBody(documents),
+		documents.coverCompanyFit,
+		documents.coverExtraParagraph,
+		documents.coverClosing
+	].reduce((total, value) => total + value.trim().length, 0);
+	return {
+		characterCount,
+		recommendedMaximum: RECOMMENDED_LETTER_CHARACTERS,
+		density: characterCount > RECOMMENDED_LETTER_CHARACTERS ? "dense" : characterCount > 2500 ? "compact" : "standard",
+		isOverRecommendedLength: characterCount > RECOMMENDED_LETTER_CHARACTERS
+	};
+};
+//#endregion
+//#region src/shared/resolveCvDocument.ts
+var paginationOptions = {
+	elegant: elegantPaginationOptions,
+	zweispaltig: zweispaltigPaginationOptions,
+	kompakt: kompaktPaginationOptions,
+	kreativ: kreativPaginationOptions,
+	gepflegt: gepflegtPaginationOptions,
+	zeitgenoessisch: zeitgenoessischPaginationOptions,
+	"ivy-league": ivyLeaguePaginationOptions,
+	stilvoll: stilvollPaginationOptions,
+	einspaltig: einspaltigPaginationOptions,
+	klassisch: klassischPaginationOptions,
+	tabellarisch: tabellarischPaginationOptions,
+	modern: modernPaginationOptions,
+	pehlione_white_blue: pehlionePaginationOptions,
+	pehlione_white: pehlionePaginationOptions
+};
+/** The sole CV projection used by both preview and print renderers. */
+var resolveCvDocument = ({ profile: sourceProfile, templateId: requestedTemplateId, settings = defaultDocumentDesign, resumeProfile = "", deckblattStatement = "", jobTitle = "", presentationAlreadyApplied = false }) => {
+	const templateId = resolveTemplateId(requestedTemplateId);
+	const profile = getResumeDisplayProfile(presentationAlreadyApplied ? sourceProfile : resolveResumePresentation(sourceProfile, templateId, settings.resumePresentation));
+	const sections = { ...profile?.resumeSections ?? {
+		profile: true,
+		strengths: true,
+		experience: true,
+		education: true,
+		skills: true,
+		languages: true,
+		certifications: true
+	} };
+	const managerSections = profile ? getManagerSections(profile, templateId) : [];
+	const knowledgeGroups = profile ? resolveKnowledgeGroups(templateId, profile.resumeKnowledgeGroups) : [];
+	const atsMode = settings.resumeOutputMode === "ats" || settings.columnLayout === "compact-ats";
+	const layout = resolveResumeLayout(templateId, settings.resumePresentation, atsMode, sourceProfile?.resumeColumnRatio);
+	const design = resolveEffectiveResumeSpacing(templateId, settings);
+	const paginationSummary = templateId.startsWith("pehlione_") ? resumeProfile || (/kundenservice|sachbearbeit/i.test(jobTitle) ? deckblattStatement : "") || profile?.summary || "" : resumeProfile;
+	return {
+		templateId,
+		settings,
+		profile,
+		sections,
+		managerSections,
+		knowledgeGroups,
+		atsMode,
+		layout,
+		design,
+		paginationSummary,
+		pagePlan: createResumePagePlan(profile && {
+			...profile,
+			experiences: sections.experience ? profile.experiences : [],
+			education: sections.education ? profile.education : []
+		}, paginationSummary, paginationOptions[templateId], templateId)
+	};
+};
 //#endregion
 //#region src/shared/resumeSectionLayout.ts
 /** A4 dimensions, not viewport width: the editor and PDF make the same decision. */
@@ -25147,7 +25775,7 @@ function resolveSectionColumns(mode, templateId, zone, items, settings = default
 		"timeline"
 	].includes(template.layout));
 	if (split && zone === "sidebar") return 1;
-	const width = (210 - 2 * marginLevelToMm[settings.marginLevel]) * (split ? layout.overridden ? (100 - layout.sidebarWidthPercent) / 100 : .62 : 1);
+	const width = (210 - 2 * (settings.cvOverrides?.spacing?.pageMarginMm ?? marginLevelToMm[settings.marginLevel])) * (split ? (100 - layout.sidebarWidthPercent) / 100 : 1);
 	const longest = Math.max(0, ...items.map((item) => item.title.length));
 	const detailed = items.some((item) => (item.description?.length ?? 0) > 90);
 	const minWidth = (longest > 45 || detailed ? 80 : longest > 25 ? 65 : 48) * (settings.fontSize === "large" ? 1.15 : 1);
@@ -25185,6 +25813,13 @@ var aliases = {
 	projects: ["Projekt-Highlight"]
 };
 var normalize = (value) => value.replace(/\s*·\s*Fortsetzung/i, "").trim().toLocaleLowerCase("de-DE");
+var zeitgenoessischExtraIcon = (id, profile) => {
+	if (id === "strengths") return "<path d=\"m12 3 2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.5-.8z\"/>";
+	const section = id.startsWith("special:") ? profile.specialSections.find((item) => item.id === id.slice(8)) : void 0;
+	if (section?.kind === "interests" || /hobbys|interessen/.test(normalize(section?.title ?? ""))) return "<path d=\"M20.8 8.6c0 4.4-8.8 10.4-8.8 10.4S3.2 13 3.2 8.6a4.6 4.6 0 0 1 8.8-1.8 4.6 4.6 0 0 1 8.8 1.8z\"/>";
+	if (section?.kind === "projects" || /projekt/.test(normalize(section?.title ?? ""))) return "<path d=\"M4 7h16v12H4zM9 7V4h6v3M4 12h16M10 12v2h4v-2\"/>";
+	return "<path d=\"M12 3a6 6 0 0 0-3.5 10.9V18h7v-4.1A6 6 0 0 0 12 3ZM9 21h6\"/>";
+};
 var setHeadingText = (heading, title) => {
 	if (heading.textContent?.trim() === title.trim()) return;
 	const label = heading.querySelector("b") ?? Array.from(heading.children).find((child) => child.tagName === "SPAN" && !child.querySelector("svg")) ?? heading;
@@ -25212,27 +25847,68 @@ var managedResumeCss = `
 .managed-extra .managed-columns{display:grid;grid-template-columns:1fr 1fr;gap:2mm}
 :where([data-custom-template]){min-width:0}
 :where([data-custom-template]) [data-custom-role="heading"]{margin:0 0 2mm;break-after:avoid;page-break-after:avoid}
+:where([data-custom-template="zeitgenoessisch"]) [data-custom-role="heading"]{margin:0}
 :where([data-custom-template]) [data-custom-role="heading-label"]{grid-column:1 / -1}
 :where([data-custom-template]) [data-custom-role="entries"]{display:grid;gap:3mm;margin:0;padding:0;min-width:0}
 :where([data-custom-template]) :is(ul,ol)[data-custom-role="entries"]{padding-left:4mm}
 :where([data-custom-template]) [data-custom-role="entry"]{display:block;min-width:0;break-inside:avoid;overflow-wrap:anywhere}
 :where([data-custom-template]) :is(p,h3,h4,h5){margin:0}
 :where([data-custom-template]) .resume-special-output__meta{opacity:1}
+:where([data-custom-template="kreativ"]) [data-content-type="list"]>[data-custom-role="entry"]{display:list-item}
+:where([data-custom-template="kreativ"]) [data-content-type="list"]>[data-custom-role="entry"]::marker{color:var(--kreativ-primary,var(--accent,currentColor))}
 [data-managed-section]{break-inside:avoid}
 [data-managed-section][data-custom-template]{break-inside:avoid}
-[data-managed-moved], [data-managed-moved] :is(h2,h3,p,li,small){color:inherit!important}
+[data-managed-moved], [data-managed-moved] :is(p,li,small){color:inherit!important}
 [data-managed-section="strengths"] .managed-strengths-grid{display:grid;grid-template-columns:repeat(var(--section-columns,1),minmax(0,1fr));gap:3mm;list-style:none;margin:0;padding:0}
 [data-managed-section="strengths"] .managed-strength-card{display:grid;grid-template-columns:4mm minmax(0,1fr);align-items:start;gap:1mm 1.5mm;min-width:0;margin:0;padding:0;border:0;break-inside:avoid;overflow-wrap:anywhere}
 [data-managed-section="strengths"] .managed-strength-card>svg{width:4mm;height:4mm;grid-column:1;grid-row:1 / span 2;color:var(--doc-accent,var(--accent,currentColor))}
 [data-managed-section="strengths"] .managed-strength-card strong{grid-column:2;min-width:0;font-size:1em;line-height:1.3}
 [data-managed-section="strengths"] .managed-strength-card p{grid-column:2;min-width:0;margin:0;white-space:pre-line;font-size:.92em;line-height:1.4;color:inherit}
 ${resumeSpacingCss}
-${resumeMetadataCss}`;
-var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, totalPages = 1, designSettings = defaultDocumentDesign) => {
+${resumeMetadataCss}
+${resumeClosingCss}
+${pehlioneAppearanceCss}`;
+/** Resolve section-title colors by column role on both HTML surfaces. */
+var applyResumeSectionHeadingColors = (root, settings) => {
+	const appearance = resumeAppearanceSchema.parse(settings.resumeAppearance ?? {});
+	const sidebarColor = appearance.sidebarSectionHeadingColor ?? appearance.sidebarTextColor;
+	const mainColor = settings.cvOverrides?.colors?.sectionHeading;
+	if (!sidebarColor && !mainColor) return;
+	const sidebar = root.querySelector("[data-resume-layout-zone=\"sidebar\"],.pehlione-sidebar,.pehlione-pdf-sidebar,.elegant-sidebar,.elegant-pdf-sidebar,.gepflegt-sidebar,.gepflegt-pdf-sidebar,.zeitgenoessisch-sidebar,.zeit-pdf-sidebar,.kreativ-sidebar,.kreativ-pdf-sidebar,.zweispaltig-sidebar,.zweispaltig-pdf-sidebar,.modern-resume-right-column,.modern-pdf-right,.kompakt-right,.kompakt-pdf-columns>aside,.stilvoll-content>aside,.stilvoll-pdf-columns>aside,aside");
+	const colorize = (heading, color) => {
+		heading.style.setProperty("color", color, "important");
+		for (const icon of heading.querySelectorAll("svg")) {
+			icon.style.setProperty("color", color, "important");
+			icon.style.setProperty("stroke", color, "important");
+		}
+		for (const label of heading.querySelectorAll("b,strong,span,[data-custom-role='heading-label']")) if (!label.querySelector("svg") && label.textContent?.trim()) label.style.setProperty("color", color, "important");
+	};
+	if (sidebar && sidebarColor) for (const heading of sidebar.querySelectorAll("h2,h3")) {
+		const section = heading.closest("section");
+		if (section && section.querySelector("h2,h3") !== heading) continue;
+		if (!section && heading.parentElement !== sidebar) continue;
+		const entry = heading.closest("article");
+		if (entry && sidebar.contains(entry)) continue;
+		colorize(heading, sidebarColor);
+	}
+	if (mainColor) for (const section of root.querySelectorAll("[data-managed-section]")) {
+		if (sidebar?.contains(section)) continue;
+		const heading = section.querySelector("h2,h3");
+		if (!heading || heading.closest("article") && section.contains(heading.closest("article"))) continue;
+		colorize(heading, mainColor);
+	}
+};
+var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, totalPages = 1, designSettings = defaultDocumentDesign, resolvedCv) => {
 	if (!profile) return html;
+	const resolved = resolvedCv ?? resolveCvDocument({
+		profile,
+		templateId,
+		settings: designSettings,
+		presentationAlreadyApplied: true
+	});
 	const { document } = parseHTML(`<html><body>${html}</body></html>`);
-	const entries = getManagerSections(profile, templateId);
-	const groups = resolveKnowledgeGroups(templateId, profile.resumeKnowledgeGroups);
+	const entries = resolved.managerSections;
+	const groups = resolved.knowledgeGroups;
 	const pages = Array.from(document.querySelectorAll(".cv-sheet"));
 	(pages.length ? pages : [document.body]).forEach((root, rootIndex) => {
 		const enabled = (id) => entries.find((entry) => entry.id === id)?.visible !== false;
@@ -25242,8 +25918,11 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 				if (img.getAttribute("src") === source || /photo|foto/i.test(img.className)) (img.closest("[class*=\"__photo\"],[class*=\"-header__photo\"],[class*=\"-header-photo\"]") ?? img).remove();
 			});
 		}
-		if (!enabled("closing")) root.querySelectorAll("footer,[class*=\"-closing\"]").forEach((node) => node.remove());
-		if (!enabled("personalData")) root.querySelectorAll("address,[data-element-id$=\".contacts\"],[data-resume-personal],.resume-personal-data,.pehlione-contacts,.pehlione-ats-contact,.pehlione-pdf-ats-contact,.zeitgenoessisch-contacts,section:has(>.modern-contact-list)").forEach((node) => node.remove());
+		if (!enabled("closing")) root.querySelectorAll("footer.pehlione-closing,footer.pehlione-pdf-closing,[data-resume-closing]").forEach((node) => node.remove());
+		if (!enabled("personalData")) {
+			if (resolved.templateId === "kompakt" && root.matches(".cv-sheet")) root.querySelector(".kompakt-pdf-contacts")?.closest("section")?.remove();
+			root.querySelectorAll("address,[data-element-id$=\".contacts\"],[data-resume-personal],.resume-personal-data,.pehlione-contacts,.pehlione-ats-contact,.pehlione-pdf-ats-contact,.zeitgenoessisch-contacts,section:has(>.modern-contact-list)").forEach((node) => node.remove());
+		}
 		const number = pages.length > 1 ? rootIndex + 1 : pageNumber;
 		const last = pages.length > 1 ? rootIndex === pages.length - 1 : number === totalPages;
 		const nodes = /* @__PURE__ */ new Map();
@@ -25420,16 +26099,36 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 			if (!heading) continue;
 			heading.setAttribute("data-custom-role", "heading");
 			if (resolvedId.startsWith("pehlione_")) {
+				node.classList.add(surface === "pdf" ? "pehlione-pdf-section" : "pehlione-main-section");
+				if (surface === "preview") heading.classList.add("pehlione-section-heading");
+				const icon = document.createElement(surface === "pdf" ? "i" : "span");
+				if (surface === "pdf") icon.className = "pehlione-pdf-section-icon";
+				icon.setAttribute("aria-hidden", "true");
+				icon.innerHTML = "<svg viewBox=\"0 0 24 24\"><path d=\"M12 2 3 12l9 10 9-10Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/></svg>";
 				const label = document.createElement(surface === "pdf" ? "span" : "b");
 				label.setAttribute("data-custom-role", "heading-label");
 				label.textContent = heading.textContent;
-				heading.replaceChildren(label);
+				heading.replaceChildren(icon, label);
 			}
-			if (resolveTemplateId(templateId) === "zeitgenoessisch") {
+			if (resolvedId === "zeitgenoessisch") {
+				node.classList.add(surface === "pdf" ? "zeit-pdf-section" : "zeitgenoessisch-section");
 				const wrapper = document.createElement("header");
+				wrapper.className = surface === "pdf" ? "zeit-pdf-heading" : "zeitgenoessisch-section-heading";
 				wrapper.setAttribute("data-custom-role", "heading-wrapper");
+				const icon = document.createElement(surface === "pdf" ? "i" : "span");
+				if (surface === "preview") icon.className = "zeitgenoessisch-section-heading__icon";
+				icon.setAttribute("aria-hidden", "true");
+				icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor">${zeitgenoessischExtraIcon(id, profile)}</svg>`;
+				wrapper.appendChild(icon);
+				const headingTag = surface === "pdf" ? "H3" : "H2";
+				const nativeHeading = heading.tagName !== headingTag ? document.createElement(headingTag.toLowerCase()) : heading;
+				if (nativeHeading !== heading) {
+					for (const attribute of Array.from(heading.attributes)) nativeHeading.setAttribute(attribute.name, attribute.value);
+					nativeHeading.innerHTML = heading.innerHTML;
+				}
+				if (surface === "preview") nativeHeading.classList.add("zeitgenoessisch-section-heading__title");
 				heading.replaceWith(wrapper);
-				wrapper.appendChild(heading);
+				wrapper.appendChild(nativeHeading);
 			}
 		}
 		const placementOrder = main === sidebar && profile.resumeManagerLayouts?.[templateId]?.length ? [...entries.filter((entry) => entry.zone === "main"), ...entries.filter((entry) => entry.zone === "sidebar")] : entries;
@@ -25442,88 +26141,30 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 			for (const node of moving) {
 				if (node.parentElement !== destination) node.setAttribute("data-managed-moved", "true");
 				destination.insertBefore(node, anchor);
+				if (resolved.templateId === "pehlione_white" && root.matches(".cv-sheet") && destination === sidebar) node.querySelector("h3")?.classList.add("pehlione-pdf-sidebar-heading");
 			}
 			anchor.remove();
 		}
-		applyResumePageLayout(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings, profile.resumeColumnRatio, new Map(entries.map((entry) => [entry.id, entry.zone])));
-		applyResumeSpacingOutput(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
+		const specialWrapperSelector = resolved.templateId === "kompakt" ? ".kompakt-left > .resume-special-output-list" : resolved.templateId === "klassisch" ? ".klassisch-content > .resume-special-output-list" : null;
+		if (specialWrapperSelector) for (const wrapper of root.querySelectorAll(specialWrapperSelector)) {
+			const parent = wrapper.parentElement;
+			if (!parent) continue;
+			while (wrapper.firstChild) parent.insertBefore(wrapper.firstChild, wrapper);
+			wrapper.remove();
+		}
+		if (resolved.templateId.startsWith("pehlione_") && root.matches(".cv-sheet")) {
+			const closing = root.querySelector("footer.pehlione-pdf-closing");
+			if (closing && closing.parentElement !== main) main.appendChild(closing);
+		}
+		applyResumePageLayout(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings, profile.resumeColumnRatio, new Map(entries.map((entry) => [entry.id, entry.zone])), resolved.layout);
+		applyResumeSpacingOutput(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings, resolved.design);
 		applyResumeMetadataLayout(root, profile, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
+		applyResumeClosingOutput(root, main, profile, templateId, designSettings, last, enabled("closing"));
+		applyGeneralResumeAppearance(root, resolved.templateId, designSettings, main, sidebar);
+		applyPehlioneAppearance(root, resolved.templateId, designSettings);
+		applyResumeSectionHeadingColors(root, designSettings);
 	});
 	return document.body.innerHTML;
-};
-//#endregion
-//#region src/shared/resumeDisplayProfile.ts
-var getResumeDisplayProfile = (profile) => {
-	if (!profile) return void 0;
-	const visible = {
-		...defaultResumePersonalFieldVisibility,
-		...profile.resumePersonalFieldVisibility
-	};
-	return {
-		...profile,
-		street: visible.address ? profile.street : "",
-		postalCode: visible.address ? profile.postalCode : "",
-		city: visible.address ? profile.city : "",
-		country: visible.address ? profile.country : "",
-		phone: visible.phone ? profile.phone : "",
-		email: visible.email ? profile.email : "",
-		linkedin: visible.linkedin ? profile.linkedin : "",
-		github: visible.github ? profile.github : "",
-		portfolio: visible.website ? profile.portfolio : "",
-		birthDate: visible.birthDate ? profile.birthDate : "",
-		birthPlace: visible.birthPlace ? profile.birthPlace : "",
-		nationality: visible.nationality ? profile.nationality : "",
-		photoPath: getResumeSemanticSection(profile.resumeSemanticSections, "photo").visible ? profile.photoPath : "",
-		onlineProfiles: profile.onlineProfiles.filter((entry) => /xing/i.test(entry.label) ? visible.xing : visible.website)
-	};
-};
-//#endregion
-//#region src/shared/resumePresentation.ts
-/** Compatibility projection: old renderers receive their established profile shape.
-* The returned object is never the object saved as profile content. */
-var resolveResumePresentation = (profile, templateId, overrides) => {
-	if (!profile || !overrides) return profile;
-	const id = resolveTemplateId(templateId);
-	const presentation = resumePresentationSchema.parse(overrides);
-	let projected = {
-		...profile,
-		resumePersonalFieldVisibility: {
-			...profile.resumePersonalFieldVisibility,
-			...presentation.personalFields
-		},
-		resumeClosing: {
-			...profile.resumeClosing,
-			...presentation.closing
-		},
-		resumeColumnRatio: presentation.sidebarWidthPercent ?? profile.resumeColumnRatio,
-		resumeKnowledgeContainer: { showTitle: presentation.showKnowledgeTitle ?? profile.resumeKnowledgeContainer.showTitle }
-	};
-	if (presentation.blocks) projected.resumeKnowledgeGroups = resolveKnowledgeGroups(id, profile.resumeKnowledgeGroups).map((block) => ({
-		...block,
-		...presentation.blocks?.[block.id]
-	}));
-	for (const [sectionId, settings] of Object.entries(presentation.sections ?? {})) {
-		const change = {
-			...settings.title !== void 0 ? { title: settings.title } : {},
-			...settings.visible !== void 0 ? { visible: settings.visible } : {}
-		};
-		if (Object.keys(change).length) projected = updateManagerSection(projected, id, sectionId, change);
-	}
-	if (Object.values(presentation.sections ?? {}).some((settings) => settings.order !== void 0 || settings.zone !== void 0)) {
-		const ordered = getManagerSections(projected, id).filter((section) => !section.fixed).map((section, index) => ({
-			...section,
-			order: index,
-			...presentation.sections?.[section.id]
-		})).sort((left, right) => left.order - right.order);
-		projected.resumeManagerLayouts = {
-			...profile.resumeManagerLayouts,
-			[id]: ordered.map((section) => ({
-				id: section.id,
-				zone: section.zone
-			}))
-		};
-	}
-	return projected;
 };
 //#endregion
 //#region src/shared/resumeIdentityVisibility.ts
@@ -25537,156 +26178,6 @@ var getResumeIdentityVisibilityCss = (sections) => {
 	if (hidden("heading")) rules.push(`${scope} header:not([class*="section-heading"]) :is(h1,h2,[class*="__name"],[class*="__title"],[class*="__profession"],[class*="__kicker"],.kicker),${scope} .tabellarisch-pdf-continuation{display:none!important}`);
 	if (hidden("personalData")) rules.push(`${scope} :is(address,[data-element-id$=".contacts"],[data-resume-personal],.resume-personal-data,.pehlione-contacts,.pehlione-ats-contact,.pehlione-pdf-ats-contact,.zeitgenoessisch-contacts),${scope} section:has(>address),${scope} section:has(>.modern-contact-list){display:none!important}`);
 	return rules.join("\n");
-};
-//#endregion
-//#region src/shared/documentPagination.ts
-var FIRST_PAGE_CAPACITY = 30;
-var SECOND_PAGE_CAPACITY = 38;
-var RECOMMENDED_LETTER_CHARACTERS = 3300;
-var zweispaltigPaginationOptions = {
-	firstPageCapacity: 50,
-	secondPageCapacity: 54,
-	preserveItemOrder: true
-};
-var elegantPaginationOptions = {
-	firstPageCapacity: 50,
-	secondPageCapacity: 54,
-	preserveItemOrder: true
-};
-var kompaktPaginationOptions = {
-	firstPageCapacity: 50,
-	secondPageCapacity: 54,
-	preserveItemOrder: true
-};
-var kreativPaginationOptions = {
-	firstPageCapacity: 50,
-	secondPageCapacity: 54,
-	preserveItemOrder: true
-};
-var tabellarischPaginationOptions = {
-	firstPageCapacity: 48,
-	secondPageCapacity: 52,
-	preserveItemOrder: true
-};
-var modernPaginationOptions = {
-	firstPageCapacity: 50,
-	secondPageCapacity: 54,
-	preserveItemOrder: true
-};
-var pehlionePaginationOptions = {
-	firstPageCapacity: 50,
-	secondPageCapacity: 54,
-	preserveItemOrder: true
-};
-var gepflegtPaginationOptions = {
-	firstPageCapacity: 50,
-	secondPageCapacity: 54,
-	preserveItemOrder: true
-};
-var zeitgenoessischPaginationOptions = {
-	firstPageCapacity: 50,
-	secondPageCapacity: 54,
-	preserveItemOrder: true
-};
-var ivyLeaguePaginationOptions = {
-	firstPageCapacity: 50,
-	secondPageCapacity: 54,
-	preserveItemOrder: true
-};
-var stilvollPaginationOptions = {
-	firstPageCapacity: 50,
-	secondPageCapacity: 54,
-	preserveItemOrder: true
-};
-var einspaltigPaginationOptions = {
-	firstPageCapacity: 42,
-	secondPageCapacity: 50,
-	preserveItemOrder: true
-};
-var klassischPaginationOptions = {
-	firstPageCapacity: 50,
-	secondPageCapacity: 54,
-	preserveItemOrder: true
-};
-var textWeight = (value, charactersPerUnit = 95) => Math.max(0, Math.ceil(value.trim().length / charactersPerUnit));
-var experienceWeight = (experience) => 4 + textWeight(`${experience.role} ${experience.company}`, 70) + experience.achievements.filter((achievement) => achievement.trim()).reduce((total, achievement) => total + 1 + textWeight(achievement), 0);
-var educationWeight = (education) => 2 + textWeight(`${education.degree} ${education.institution}`, 80);
-var sidebarWeight = (profile, resumeProfile) => {
-	if (!profile) return 4;
-	const summary = resumeProfile || profile.summary;
-	const knowledgeCount = flattenKnowledgeNames(ensureKnowledgeSection(profile.knowledgeSection, profile.skills)).length;
-	return textWeight(summary, 105) + Math.ceil(knowledgeCount / 3) + Math.ceil(profile.languages.length / 2) + Math.ceil(profile.certifications.length / 2);
-};
-var densityForWeight = (weight, capacity) => {
-	if (weight > capacity * 1.3) return "dense";
-	if (weight > capacity * .9) return "compact";
-	return "standard";
-};
-var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateId) => {
-	const firstPageCapacity = options.firstPageCapacity ?? FIRST_PAGE_CAPACITY;
-	const secondPageCapacity = options.secondPageCapacity ?? SECOND_PAGE_CAPACITY;
-	const items = [...(profile?.experiences ?? []).map((experience) => ({
-		kind: "experience",
-		id: experience.id,
-		weight: experienceWeight(experience)
-	})), ...(profile?.education ?? []).map((education) => ({
-		kind: "education",
-		id: education.id,
-		weight: educationWeight(education)
-	}))];
-	const managerLayout = templateId ? profile?.resumeManagerLayouts?.[templateId] : void 0;
-	if (managerLayout?.length) {
-		const order = managerLayout.map((item) => item.id);
-		items.sort((left, right) => order.indexOf(left.kind) - order.indexOf(right.kind));
-	}
-	const totalMainWeight = items.reduce((total, item) => total + item.weight, 0);
-	const firstPageWeight = Math.max(totalMainWeight, sidebarWeight(profile, resumeProfile));
-	if (firstPageWeight <= firstPageCapacity || items.length <= 1) return [{
-		pageNumber: 1,
-		items,
-		density: densityForWeight(firstPageWeight, firstPageCapacity)
-	}];
-	const pageOneItems = [];
-	const pageTwoItems = [];
-	let pageOneWeight = 0;
-	let continueOnSecondPage = false;
-	for (const item of items) if (!continueOnSecondPage && (pageOneItems.length === 0 || pageOneWeight + item.weight <= firstPageCapacity)) {
-		pageOneItems.push(item);
-		pageOneWeight += item.weight;
-	} else {
-		pageTwoItems.push(item);
-		continueOnSecondPage = Boolean(managerLayout?.length) || (options.preserveItemOrder ?? false);
-	}
-	if (pageTwoItems.length === 0 && pageOneItems.length > 1) {
-		pageTwoItems.unshift(pageOneItems.pop());
-		pageOneWeight = pageOneItems.reduce((total, item) => total + item.weight, 0);
-	}
-	const pageTwoWeight = pageTwoItems.reduce((total, item) => total + item.weight, 0);
-	return [{
-		pageNumber: 1,
-		items: pageOneItems,
-		density: densityForWeight(Math.max(pageOneWeight, sidebarWeight(profile, resumeProfile)), firstPageCapacity)
-	}, {
-		pageNumber: 2,
-		items: pageTwoItems,
-		density: densityForWeight(pageTwoWeight, secondPageCapacity)
-	}];
-};
-var getLetterPageStatus = (documents) => {
-	const characterCount = [
-		documents.coverSubject,
-		documents.coverIntroduction,
-		getCoverLetterMainBody(documents),
-		documents.coverCompanyFit,
-		documents.coverExtraParagraph,
-		documents.coverClosing
-	].reduce((total, value) => total + value.trim().length, 0);
-	return {
-		characterCount,
-		recommendedMaximum: RECOMMENDED_LETTER_CHARACTERS,
-		density: characterCount > RECOMMENDED_LETTER_CHARACTERS ? "dense" : characterCount > 2500 ? "compact" : "standard",
-		isOverRecommendedLength: characterCount > RECOMMENDED_LETTER_CHARACTERS
-	};
 };
 //#endregion
 //#region src/shared/contactPresentation.ts
@@ -25771,7 +26262,7 @@ var renderPehlioneContacts = (profile) => {
 	return `<section class="pehlione-contacts"><h3>${icon("person")}<span>Kontakt</span></h3><ul>${contacts.map((item) => `<li data-contact-kind="${item.key}">${renderContactIcon({ kind: item.key })}<div><strong>${item.label}</strong>${item.href ? `<a href="${escape(item.href)}">${escape(item.value)}</a>` : `<span>${escape(item.value)}</span>`}</div></li>`).join("")}</ul></section>`;
 };
 var pehlioneContactsCss = `
-.pehlione-contacts.pehlione-contacts{--contact-heading:#fff;--contact-text:#fff;margin:0 0 4.5mm;color:var(--contact-text);font-family:var(--doc-font,var(--body-font,"Source Sans 3",Arial,sans-serif));font-size:7.8pt;line-height:1.2;break-inside:avoid}
+.pehlione-contacts.pehlione-contacts{--contact-heading:var(--pehlione-sidebar-text,#fff);--contact-text:var(--pehlione-sidebar-text,#fff);margin:0 0 4.5mm;color:var(--contact-text);font-family:var(--doc-font,var(--body-font,"Source Sans 3",Arial,sans-serif));font-size:7.8pt;line-height:1.2;break-inside:avoid}
 .pehlione-resume--white .pehlione-contacts,.pehlione-pdf-white .pehlione-contacts{--contact-heading:var(--pehlione-primary,#08245c);--contact-text:#142235}
 .pehlione-contacts.pehlione-contacts h3{display:grid;grid-template-columns:8mm minmax(0,1fr);gap:2mm;align-items:center;margin:0 0 2mm;padding:0 0 1.5mm;border-bottom:.3mm solid var(--contact-heading);color:var(--contact-heading);font-family:inherit;font-size:9.7pt;font-weight:700;line-height:1.1;text-transform:uppercase}
 .pehlione-contacts.pehlione-contacts svg{display:block;width:4.2mm;height:4.2mm;fill:none;stroke:var(--contact-heading);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -25878,6 +26369,7 @@ var getPehlioneProjectHighlight = (profile) => {
 		};
 	}
 };
+var hasPehlioneCustomProjectHighlight = (profile) => profile?.specialSections.some((section) => section.isVisible && /projekt[\s-]*highlight/i.test(section.title)) ?? false;
 //#endregion
 //#region electron/documents.ts
 var escapeHtml = (value = "") => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;").replaceAll("'", "&#039;");
@@ -26190,7 +26682,7 @@ var zeitgenoessischDocumentCss = `
   .zeit-pdf-ats>section,.zeit-pdf-ats .knowledge-section{margin-top:var(--section-gap)}.zeit-pdf-ats>section>h3,.zeit-pdf-ats .knowledge-section>h3{margin:0 0 3mm;padding-bottom:1.4mm;border-bottom:.45mm solid var(--zeit-divider);color:var(--zeit-dark);font-size:11pt;font-weight:750;text-transform:uppercase}
 `;
 var kreativDocumentCss = `
-  .kreativ-pdf{--kreativ-dark:#075d4e;--kreativ-text:#465156;--kreativ-muted:#687277;--kreativ-divider:#b8c4c0;--kreativ-light:#d7dfdc;--kreativ-inactive:#e1e5e3;--kreativ-margin:calc(var(--doc-margin) + 1mm);--kreativ-column-gap:11mm;--kreativ-section-gap:var(--section-gap);--kreativ-entry-gap:4.5mm;position:relative;width:100%;height:100%;overflow:hidden;color:var(--kreativ-text);background:#fff;font-family:var(--body-font);font-size:var(--body-size);line-height:var(--body-line)}
+  .kreativ-pdf{--kreativ-dark:#075d4e;--kreativ-text:#465156;--kreativ-muted:#687277;--kreativ-divider:#b8c4c0;--kreativ-light:#d7dfdc;--kreativ-inactive:#e1e5e3;--kreativ-margin:calc(var(--doc-margin) + 1mm);--kreativ-column-gap:11mm;--kreativ-section-gap:var(--kreativ-section-gap-base);--kreativ-header-to-content-gap:${kreativDefaults.layout.headerToContentGapMm}mm;--kreativ-footer-clearance:${kreativDefaults.layout.footerClearanceMm}mm;--kreativ-entry-divider-gap:${kreativDefaults.layout.entryDividerGapMm}mm;--kreativ-entry-gap-base:${kreativDefaults.layout.entryGapMm}mm;--kreativ-section-gap-base:${kreativDefaults.layout.sectionGapMm}mm;--kreativ-entry-gap:var(--kreativ-entry-gap-base);position:relative;width:100%;height:100%;overflow:hidden;color:var(--kreativ-text);background:#fff;font-family:var(--body-font);font-size:var(--body-size);line-height:var(--body-line)}
   .kreativ-pdf *{box-sizing:border-box}
   .kreativ-pdf-header{position:relative;z-index:3;display:grid;grid-template-columns:minmax(0,1fr) 28mm;align-items:center;gap:10mm;width:100%;height:46mm;padding:12mm var(--kreativ-margin) 6mm;color:#fff;background:var(--accent)}
   .kreativ-pdf-identity{min-width:0}.kreativ-pdf-identity h1{margin:0;color:inherit;font-size:23pt;font-weight:750;letter-spacing:.015em;line-height:1;overflow-wrap:anywhere}.kreativ-pdf-identity h2{margin:1.5mm 0 0;color:inherit;font-size:11.5pt;font-weight:650;line-height:1.15;overflow-wrap:anywhere}
@@ -26200,12 +26692,12 @@ var kreativDocumentCss = `
   .kreativ-pdf-header.compact{display:flex;flex-wrap:wrap;align-items:baseline;gap:1.5mm 4mm;height:auto;min-height:24mm;padding:12mm var(--kreativ-margin) 4mm;color:var(--kreativ-dark);background:#fff;border-bottom:.4mm solid var(--kreativ-divider)}
   .kreativ-pdf-header.compact .kreativ-pdf-identity{display:contents}.kreativ-pdf-header.compact .kicker{flex-basis:100%;margin:0;color:var(--accent);font-size:7.3pt;font-weight:700;letter-spacing:.16em;text-transform:uppercase}.kreativ-pdf-header.compact h1{font-size:15pt}.kreativ-pdf-header.compact h2{margin:0;color:var(--kreativ-muted);font-size:8.7pt}
   .kreativ-pdf-background{position:absolute;top:46mm;right:-9mm;z-index:1;width:78mm;height:78mm;fill:none;stroke:color-mix(in srgb,var(--accent),transparent 85%);stroke-width:.9;pointer-events:none}.kreativ-pdf-background .wide{stroke-dasharray:1.2 1.5}.kreativ-pdf-background .tight{stroke-dasharray:.8 1.2}
-  .kreativ-pdf-content{position:relative;z-index:2;display:grid;grid-template-columns:minmax(0,105fr) minmax(0,64fr);column-gap:var(--kreativ-column-gap);align-items:start;padding:10mm var(--kreativ-margin) max(13mm,calc(var(--kreativ-margin) - 2mm))}
+  .kreativ-pdf-content{position:relative;z-index:2;display:grid;grid-template-columns:minmax(0,105fr) minmax(0,64fr);column-gap:var(--kreativ-column-gap);align-items:start;padding:var(--kreativ-header-to-content-gap) var(--kreativ-margin) max(var(--kreativ-footer-clearance),calc(var(--kreativ-margin) - 2mm))}
   .kreativ-pdf-content.continuation{display:block;padding-top:7mm}.kreativ-pdf-left{grid-column:1;min-width:0}.kreativ-pdf-right{position:relative;grid-column:2;min-width:0}
   .kreativ-pdf-section,.kreativ-pdf-right>section{margin:0 0 var(--kreativ-section-gap);break-inside:avoid;page-break-inside:avoid}
   .kreativ-pdf-title,.kreativ-pdf-right section>h3,.kreativ-pdf-ats>section>h3,.kreativ-pdf-ats .knowledge-section>h3{margin:0 0 3.5mm;padding-bottom:1.2mm;border-bottom:.65mm solid var(--kreativ-dark);color:var(--kreativ-dark);font-family:var(--heading-font);font-size:14pt;font-weight:750;letter-spacing:.025em;line-height:1;text-transform:uppercase}
   .kreativ-pdf-summary{margin:0;color:var(--kreativ-text);font-size:var(--body-size);line-height:var(--body-line);hyphens:auto;overflow-wrap:break-word}
-  .kreativ-pdf-list{display:flex;flex-direction:column;gap:var(--kreativ-entry-gap)}.kreativ-pdf-entry{padding-bottom:3mm;border-bottom:.25mm dashed var(--kreativ-light);break-inside:avoid;page-break-inside:avoid}.kreativ-pdf-entry:last-child{padding-bottom:0;border-bottom:0}
+  .kreativ-pdf-list{display:flex;flex-direction:column;gap:var(--kreativ-entry-gap)}.kreativ-pdf-entry{padding-bottom:var(--kreativ-entry-divider-gap);border-bottom:.25mm dashed var(--kreativ-light);break-inside:avoid;page-break-inside:avoid}.kreativ-pdf-entry:last-child{padding-bottom:0;border-bottom:0}
   .kreativ-pdf-entry h4,.kreativ-pdf-entry h5{margin:0;overflow-wrap:anywhere}.kreativ-pdf-entry h4{color:var(--kreativ-dark);font-size:11pt;font-weight:600;line-height:1.15}.kreativ-pdf-entry h5{color:var(--accent);font-size:9.5pt;font-weight:750;line-height:1.2}
   .kreativ-pdf-entry-heading,.kreativ-pdf-entry-subheading{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:1mm 4mm}.kreativ-pdf-entry-subheading{margin-top:1mm}.kreativ-pdf-entry-meta,.kreativ-pdf-entry-location{margin:0;color:var(--kreativ-muted);font-size:7.8pt;line-height:1.2;text-align:right;white-space:nowrap}
   .kreativ-pdf-entry ul,.kreativ-pdf-right ul,.kreativ-pdf-ats ul{margin:0;padding-left:4.5mm}.kreativ-pdf-entry li,.kreativ-pdf-right li,.kreativ-pdf-ats li{margin:.5mm 0;padding-left:.4mm;hyphens:auto;overflow-wrap:break-word}.kreativ-pdf-entry li::marker,.kreativ-pdf-right li::marker,.kreativ-pdf-ats li::marker{color:var(--accent)}
@@ -26216,7 +26708,7 @@ var kreativDocumentCss = `
   .kreativ-pdf-ats{--kreativ-dark:#173b33;--kreativ-text:#303d3a;--kreativ-muted:#687277;--kreativ-divider:#b8c4c0;width:100%;height:100%;padding:var(--doc-margin);overflow:hidden;color:var(--kreativ-text);background:#fff}
   .kreativ-pdf-ats .kreativ-pdf-header{display:block;height:auto;min-height:auto;padding:0 0 4mm;color:var(--kreativ-dark);background:#fff;border-bottom:.4mm solid var(--kreativ-divider)}.kreativ-pdf-ats .kreativ-pdf-identity h1{font-size:20pt}.kreativ-pdf-ats .kreativ-pdf-identity h2{font-size:10pt}.kreativ-pdf-ats .kreativ-pdf-contacts{color:var(--kreativ-text)}
   .kreativ-pdf-ats>section,.kreativ-pdf-ats .knowledge-section{margin-top:var(--section-gap)}.kreativ-pdf-ats .knowledge-category h4,.kreativ-pdf-ats .knowledge-subcategory h5{color:var(--kreativ-dark)}
-  .kreativ-pdf[data-density="compact"]{--kreativ-section-gap:max(5mm,calc(var(--section-gap) - 1mm));--kreativ-entry-gap:3.7mm}.kreativ-pdf[data-density="dense"]{--kreativ-section-gap:max(3.7mm,calc(var(--section-gap) - 2mm));--kreativ-entry-gap:2.8mm}.kreativ-pdf[data-density="dense"] .kreativ-pdf-header{height:42mm;padding-top:6mm;padding-bottom:5mm}.kreativ-pdf[data-density="dense"] .kreativ-pdf-identity h1{font-size:21pt}.kreativ-pdf[data-density="dense"] .kreativ-pdf-content{padding-top:6mm}
+  .kreativ-pdf[data-density="compact"]{--kreativ-section-gap:calc(var(--kreativ-section-gap-base) * .85);--kreativ-entry-gap:calc(var(--kreativ-entry-gap-base) * .85)}.kreativ-pdf[data-density="dense"]{--kreativ-section-gap:calc(var(--kreativ-section-gap-base) * .65);--kreativ-entry-gap:calc(var(--kreativ-entry-gap-base) * .65)}.kreativ-pdf[data-density="dense"] .kreativ-pdf-header{height:42mm;padding-top:6mm;padding-bottom:5mm}.kreativ-pdf[data-density="dense"] .kreativ-pdf-identity h1{font-size:21pt}.kreativ-pdf[data-density="dense"] .kreativ-pdf-content{padding-top:6mm}
 `;
 var ivyLeagueDocumentCss = `
   .ivy-pdf{--ivy-heading:var(--accent);--ivy-accent:var(--secondary);--ivy-text:#3f4b50;--ivy-muted:#667177;--ivy-divider:color-mix(in srgb,var(--accent),#0b459a 38%);--ivy-inactive:#dce9e8;--ivy-margin:var(--doc-margin);position:relative;width:100%;height:100%;overflow:hidden;color:var(--ivy-text);background:transparent;font-family:var(--body-font)}
@@ -26246,9 +26738,41 @@ var extendedResumeDocumentCss = `
   .einfach-pdf-entry-heading,.einfach-pdf-entry-organization{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4mm;align-items:baseline}.einfach-pdf-entry-heading time,.einfach-pdf-entry-organization span{color:var(--managed-muted);font-size:8.1pt;text-align:right;white-space:nowrap}.einfach-pdf-entry-organization{margin:1mm 0 1.5mm}.einfach-pdf-entry-organization h4{margin:0}
   .modern-pdf-achievements article{display:block}
   .modern-pdf-dots{gap:1.1mm;font-size:0}.modern-pdf-dots i{display:block;box-sizing:border-box;width:2.3mm;height:2.3mm;border:.35mm solid var(--modern-primary);border-radius:50%;background:transparent}.modern-pdf-dots i.filled{background:var(--modern-primary)}
+  .stilvoll-pdf{--stilvoll-header-content-gap:${stilvollDefaults.layout.headerToContentGapMm}mm;--stilvoll-section-gap-base:${stilvollDefaults.layout.sectionGapMm}mm;--stilvoll-entry-gap-base:${stilvollDefaults.layout.entryGapMm}mm;--stilvoll-section-title-gap:${stilvollDefaults.layout.sectionTitleGapMm}mm;--stilvoll-entry-content-gap:${stilvollDefaults.layout.entryContentGapMm}mm;--managed-section-gap:var(--stilvoll-section-gap-base);--managed-entry-gap:var(--stilvoll-entry-gap-base)}
+  .stilvoll-pdf-columns:not(.continuation){padding-top:var(--stilvoll-header-content-gap)}
+  .stilvoll-pdf[data-density="compact"]{--managed-section-gap:calc(var(--stilvoll-section-gap-base) * .85);--managed-entry-gap:calc(var(--stilvoll-entry-gap-base) * .85)}
+  .stilvoll-pdf[data-density="dense"]{--managed-section-gap:calc(var(--stilvoll-section-gap-base) * .65);--managed-entry-gap:calc(var(--stilvoll-entry-gap-base) * .65)}
+  .stilvoll-pdf[data-density="dense"] .stilvoll-pdf-columns:not(.continuation){padding-top:5mm}
+  .stilvoll-pdf .managed-pdf-title{margin-bottom:var(--stilvoll-section-title-gap);color:var(--managed-muted);font-size:9.5pt;font-weight:400;line-height:1}
+  .stilvoll-pdf .managed-pdf-section>p{margin:0;hyphens:auto;overflow-wrap:break-word}
+  .stilvoll-pdf .stilvoll-pdf-meta{margin:var(--stilvoll-entry-content-gap) 0 1mm}
+  .stilvoll-pdf .stilvoll-pdf-entry ul{margin:.6mm 0 0}
+  .stilvoll-pdf .stilvoll-pdf-entry li{margin:.3mm 0}
+  .kompakt-pdf{--kompakt-header-content-gap:${kompaktDefaults.layout.headerToContentGapMm}mm;--kompakt-footer-clearance:${kompaktDefaults.layout.footerClearanceMm}mm;--kompakt-section-gap-base:${kompaktDefaults.layout.sectionGapMm}mm;--kompakt-entry-gap-base:${kompaktDefaults.layout.entryGapMm}mm;--kompakt-section-title-gap:${kompaktDefaults.layout.sectionTitleGapMm}mm;--kompakt-entry-content-gap:${kompaktDefaults.layout.entryContentGapMm}mm;--managed-section-gap:var(--kompakt-section-gap-base);--managed-entry-gap:var(--kompakt-entry-gap-base);--managed-pattern:color-mix(in srgb,var(--managed-accent) 25%,white)}
+  .kompakt-pdf .managed-pdf-background path,.kompakt-pdf .managed-pdf-background circle{vector-effect:non-scaling-stroke}
+  .kompakt-pdf-columns:not(.continuation){padding-top:var(--kompakt-header-content-gap);padding-bottom:var(--kompakt-footer-clearance)}
+  .kompakt-pdf-header h2{margin:.5mm 0 0;font-weight:500}
+  .kompakt-pdf .managed-pdf-title{margin-bottom:var(--kompakt-section-title-gap);color:var(--managed-muted);font-size:8.5pt;font-weight:450;line-height:1}
+  .kompakt-pdf .managed-pdf-section>p{margin:0;hyphens:auto;overflow-wrap:break-word}
+  .kompakt-pdf .kompakt-pdf-meta{margin:var(--kompakt-entry-content-gap) 0 1mm}
+  .kompakt-pdf-entry h3,.kompakt-pdf-meta{line-height:1.15}
+  .kompakt-pdf .kompakt-pdf-entry ul{margin:0}
+  .kompakt-pdf-contact,.kompakt-pdf-contact a{min-width:0;overflow-wrap:anywhere;word-break:break-word}
+  .kompakt-pdf[data-density="compact"]{--managed-section-gap:calc(var(--kompakt-section-gap-base) * .85);--managed-entry-gap:calc(var(--kompakt-entry-gap-base) * .85)}
+  .kompakt-pdf[data-density="dense"]{--managed-section-gap:max(3mm,calc(var(--kompakt-section-gap-base) * .65));--managed-entry-gap:max(2.5mm,calc(var(--kompakt-entry-gap-base) * .65))}
   @media print{.no-print-background .managed-pdf-background{display:none!important}}
 `;
 var klassischDocumentCss = `
+  .klassisch-pdf.klassisch-pdf{--klassisch-entry-gap-base:${klassischDefaults.layout.entryGapMm}mm;--klassisch-section-title-gap:${klassischDefaults.layout.sectionTitleGapMm}mm;--klassisch-entry-content-gap:${klassischDefaults.layout.entryContentGapMm}mm;--klassisch-entry-gap:var(--klassisch-entry-gap-base);--klassisch-education-entry-gap:calc(var(--klassisch-entry-gap) - .4mm)}
+  .klassisch-pdf .klassisch-pdf-title{margin-bottom:var(--klassisch-section-title-gap);color:var(--klassisch-heading)}
+  .klassisch-pdf .klassisch-pdf-entry h4{margin-top:var(--klassisch-entry-content-gap)}
+  .klassisch-pdf .klassisch-pdf-entry-meta{gap:1.4mm}
+  .klassisch-pdf .klassisch-pdf-entry ul,.klassisch-pdf .klassisch-pdf-certifications{margin-top:var(--klassisch-entry-content-gap)}
+  .klassisch-pdf .klassisch-pdf-section>ul{margin:var(--klassisch-entry-content-gap) 0 0;padding-left:4.3mm}
+  .klassisch-pdf .klassisch-pdf-section>ul li{margin:.15mm 0;padding-left:.5mm;hyphens:auto;overflow-wrap:break-word}
+  .klassisch-pdf .klassisch-pdf-education .klassisch-pdf-list{gap:var(--klassisch-education-entry-gap)}
+  .klassisch-pdf.klassisch-pdf[data-density="compact"]{--klassisch-section-gap:max(3mm,calc(var(--section-gap) * .85));--klassisch-entry-gap:calc(var(--klassisch-entry-gap-base) * .85)}
+  .klassisch-pdf.klassisch-pdf[data-density="dense"]{--klassisch-section-gap:max(2.6mm,calc(var(--section-gap) * .7));--klassisch-entry-gap:max(2.4mm,calc(var(--klassisch-entry-gap-base) * .7))}
   .klassisch-pdf{isolation:isolate;--klassisch-primary:var(--accent);--klassisch-accent:var(--secondary);--klassisch-heading:#5a6267;--klassisch-text:#3f484d;--klassisch-muted:#68747a;--klassisch-soft:#cdeff3;--klassisch-border:#d5dbde;--klassisch-margin:max(15mm,var(--doc-margin));--klassisch-section-gap:var(--section-gap);--klassisch-entry-gap:4.2mm;position:relative;width:100%;height:100%;overflow:hidden;color:var(--klassisch-text);background:#fff;font-family:var(--body-font);font-size:var(--body-size);line-height:var(--body-line)}
   .klassisch-pdf *{box-sizing:border-box}.klassisch-pdf a{color:inherit;text-decoration:none}.klassisch-pdf-background{position:absolute;inset:0;z-index:-1;width:100%;height:100%;pointer-events:none}.klassisch-pdf-background .fill{fill:var(--klassisch-soft)}.klassisch-pdf-background .line{fill:none;stroke:rgba(255,255,255,.92);stroke-width:.28;vector-effect:non-scaling-stroke}.klassisch-pdf-content{position:relative;z-index:2;height:100%;padding:14mm var(--klassisch-margin) 17mm}
   .klassisch-pdf-header{display:grid;grid-template-columns:minmax(0,1fr) 34mm;gap:8mm;align-items:start;min-height:33mm;margin-bottom:7mm}.klassisch-pdf-header.no-photo{grid-template-columns:1fr}.klassisch-pdf-header h1{max-width:138mm;margin:0;color:var(--klassisch-primary);font-size:26pt;font-weight:750;letter-spacing:-.01em;line-height:1;overflow-wrap:anywhere}.klassisch-pdf-header h2{margin:2mm 0 1.5mm;color:var(--klassisch-text);font-size:12.2pt;font-weight:400;line-height:1.12;overflow-wrap:anywhere}.klassisch-pdf-contacts{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:.8mm 8mm;width:100%;max-width:132mm;margin:0;color:var(--klassisch-text);font-size:8pt;font-style:normal;line-height:1.25}.klassisch-pdf-contacts span{min-width:0;overflow-wrap:anywhere}.klassisch-pdf-contacts [data-contact-kind="linkedin"]{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal}.klassisch-pdf-photo{justify-self:end;width:32mm;height:32mm;border-radius:50%;object-fit:cover;background:#edf1f3}
@@ -26350,7 +26874,15 @@ var getInheritedPdfSectionStyles = (templateId) => {
 };
 var buildDocumentHtml = (application, profile, target, attachments = []) => {
 	if (target === "deckblatt" || target === "mappe") validateDeckblattData(application, profile);
-	if (target === "lebenslauf") profile = getResumeDisplayProfile(resolveResumePresentation(profile, application.templateId, application.designSettings.resumePresentation));
+	const resolvedCv = resolveCvDocument({
+		profile,
+		templateId: application.templateId,
+		settings: application.designSettings,
+		resumeProfile: application.documents.resumeProfile,
+		deckblattStatement: application.documents.deckblattStatement,
+		jobTitle: application.job.title
+	});
+	if (target === "lebenslauf") profile = resolvedCv.profile;
 	const template = getTemplate(application.templateId);
 	const accent = application.accentColor || template.accent;
 	const secondary = application.secondaryColor || template.secondary;
@@ -26361,15 +26893,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 	const designClasses = `background-${designSettings.backgroundId} background-scope-${designSettings.backgroundScope} ${designSettings.showBackgroundInPrint ? "print-background" : "no-print-background"}`;
 	const backgroundLayer = programmingBackgroundMarkup(designSettings, atsMode);
 	const docs = application.documents;
-	const sections = { ...profile?.resumeSections ?? {
-		profile: true,
-		strengths: true,
-		experience: true,
-		education: true,
-		skills: true,
-		languages: true,
-		certifications: true
-	} };
+	const sections = resolvedCv.sections;
 	const name = fullName(profile);
 	const role = application.job.title;
 	const company = application.company.name;
@@ -26426,11 +26950,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 	const skillSection = sections.skills ? renderKnowledgeSection(profile, atsMode) : "";
 	const languageSection = sections.languages && profile?.languages.length ? `<section><h3>Sprachen</h3>${profile.languages.map((language) => atsMode ? `<p class="language language-plain"><span>${escapeHtml(language)}</span></p>` : `<p class="language"><span>${escapeHtml(language)}</span><i>●●●●○</i></p>`).join("")}</section>` : "";
 	const certificationSection = sections.certifications && profile?.certifications.length ? `<section><h3>Zertifikate</h3><ul>${profile.certifications.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></section>` : "";
-	const resumePlan = createResumePagePlan(profile ? {
-		...profile,
-		experiences: sections.experience ? profile.experiences : [],
-		education: sections.education ? profile.education : []
-	} : void 0, template.id === "pehlione_white_blue" || template.id === "pehlione_white" ? docs.resumeProfile || (/kundenservice|sachbearbeit/i.test(role) ? docs.deckblattStatement : "") || profile?.summary || "" : docs.resumeProfile, template.id === "elegant" ? elegantPaginationOptions : template.id === "zweispaltig" ? zweispaltigPaginationOptions : template.id === "kompakt" ? kompaktPaginationOptions : template.id === "kreativ" ? kreativPaginationOptions : template.id === "gepflegt" ? gepflegtPaginationOptions : template.id === "zeitgenoessisch" ? zeitgenoessischPaginationOptions : template.id === "ivy-league" ? ivyLeaguePaginationOptions : template.id === "stilvoll" ? stilvollPaginationOptions : template.id === "einspaltig" ? einspaltigPaginationOptions : template.id === "klassisch" ? klassischPaginationOptions : template.id === "tabellarisch" ? tabellarischPaginationOptions : template.id === "modern" ? modernPaginationOptions : template.id === "pehlione_white_blue" || template.id === "pehlione_white" ? pehlionePaginationOptions : void 0, template.id);
+	const resumePlan = resolvedCv.pagePlan;
 	const renderExperience = (id) => {
 		const item = experienceById.get(id);
 		if (!item) return "";
@@ -27035,6 +27555,20 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 			href: externalHref(profile?.linkedin)
 		},
 		{
+			kind: "github",
+			label: "GitHub",
+			icon: "",
+			value: profile?.github,
+			href: externalHref(profile?.github)
+		},
+		{
+			kind: "website",
+			label: "Website",
+			icon: "",
+			value: profile?.portfolio,
+			href: externalHref(profile?.portfolio)
+		},
+		{
 			kind: "location",
 			label: "Wohnort",
 			icon: kreativIconMarkup("location"),
@@ -27483,7 +28017,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 		const kompaktSkills = sections.skills && kreativSkillValues.length ? `<div class="kompakt-pdf-skills">${kreativSkillValues.map((skill) => `<span class="kompakt-pdf-skill">${escapeHtml(skill)}</span>`).join("")}</div>` : "";
 		const right = isContinuation ? "" : `<aside>${managedSection("Kontaktdaten", `<address class="kompakt-pdf-contacts">${contacts}</address>`)}${sections.profile ? managedSection("Zusammenfassung", `<p>${escapeHtml(managedSummary)}</p>`) : ""}${managedSection("Stärken", kompaktStrengths)}${managedSection("Erfolge", kompaktAchievements)}${managedSection("Fähigkeiten", kompaktSkills)}</aside>`;
 		const photo = !isContinuation && getResumeSemanticSection(profile?.resumeSemanticSections, "photo").visible && photoSource ? `<img class="kompakt-pdf-photo" src="${escapeHtml(photoSource)}" alt="">` : "";
-		return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="kompakt" data-no-fit="true"><div class="page-content managed-pdf kompakt-pdf" data-density="${plan.density}">${designSettings.backgroundId === "abstract" && !isContinuation ? kompaktBackground : ""}<header class="managed-pdf-header kompakt-pdf-header${isContinuation ? " compact" : ""}${photo ? " with-photo" : ""}">${isContinuation ? "<p class=\"kicker\">Lebenslauf · Fortsetzung</p>" : ""}<h1>${escapeHtml(name)}</h1>${managedJobTitle ? `<h2>${escapeHtml(managedJobTitle)}</h2>` : ""}${photo}</header><div class="kompakt-pdf-columns${isContinuation ? " continuation" : ""}"><main>${sections.experience ? managedSection(`Erfahrung${isContinuation ? " · Fortsetzung" : ""}`, `<div class="managed-pdf-list">${experiences}</div>`) : ""}${sections.education ? managedSection("Ausbildung", `<div class="managed-pdf-list">${education}</div>`) : ""}${isLastPage && sections.languages ? managedSection("Sprachen", managedVisualLanguages("kompakt")) : ""}</main>${right}</div>${managedFooter(plan, true)}</div></section>`;
+		return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="kompakt" data-no-fit="true"><div class="page-content managed-pdf kompakt-pdf" data-density="${plan.density}">${designSettings.backgroundId === "abstract" && !isContinuation ? kompaktBackground : ""}<header class="managed-pdf-header kompakt-pdf-header${isContinuation ? " compact" : ""}${photo ? " with-photo" : ""}">${isContinuation ? "<p class=\"kicker\">Lebenslauf · Fortsetzung</p>" : ""}<h1>${escapeHtml(name)}</h1>${managedJobTitle ? `<h2>${escapeHtml(managedJobTitle)}</h2>` : ""}${photo}</header><div class="kompakt-pdf-columns${isContinuation ? " continuation" : ""}"><main>${sections.experience && experiences ? managedSection(`Erfahrung${isContinuation ? " · Fortsetzung" : ""}`, `<div class="managed-pdf-list">${experiences}</div>`) : ""}${sections.education && education ? managedSection("Ausbildung", `<div class="managed-pdf-list">${education}</div>`) : ""}${isLastPage && sections.languages ? managedSection("Sprachen", managedVisualLanguages("kompakt")) : ""}</main>${right}</div>${managedFooter(plan, true)}</div></section>`;
 	};
 	const renderEinspaltigResumePage = (plan) => {
 		if (atsMode) return renderManagedAtsPage(plan, "einfach", "einspaltig");
@@ -27676,21 +28210,22 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 				experience: "<rect x=\"3\" y=\"7\" width=\"18\" height=\"13\" rx=\"2\"/><path d=\"M8 7V4h8v3M3 12h18M10 12v2h4v-2\"/>",
 				education: "<path d=\"m2 10 10-5 10 5-10 5L2 10Z\"/><path d=\"M6 12v5c3 2 9 2 12 0v-5M22 10v6\"/>",
 				project: "<path d=\"M9 18h6M10 22h4M8.5 14.5A7 7 0 1 1 15.5 14.5C14.5 15.4 14 16.2 14 18h-4c0-1.8-.5-2.6-1.5-3.5Z\"/>",
-				training: "<path d=\"M3 5h7a2 2 0 0 1 2 2v14a3 3 0 0 0-3-3H3V5ZM21 5h-7a2 2 0 0 0-2 2v14a3 3 0 0 1 3-3h6V5Z\"/>"
+				training: "<path d=\"m2 10 10-5 10 5-10 5L2 10Z\"/><path d=\"M6 12v5c3 2 9 2 12 0v-5M22 10v6\"/>",
+				languages: "<path d=\"m5 8 6 6M4 14l6-6 2-3H2M8 2v3M2 5h12M7 16h15m-11 5 5-11 5 11m-8.5-3h7\"/>"
 			}[kind]}</svg></i>`;
 		};
 		const sectionHeading = (title, kind) => `<h3>${sectionIcon(kind)}<span>${escapeHtml(title)}</span></h3>`;
-		const sidebarHeading = (title, kind) => template.id === "pehlione_white" ? `<h3 class="pehlione-pdf-sidebar-heading">${sectionIcon(kind)}<span>${escapeHtml(title)}</span></h3>` : `<h3>${escapeHtml(title)}</h3>`;
+		const sidebarHeading = (title, kind) => template.id === "pehlione_white" ? `<h3 class="pehlione-pdf-sidebar-heading">${sectionIcon(kind)}<span>${escapeHtml(title)}</span></h3>` : template.id === "pehlione_white_blue" && kind === "project" ? `<h3 class="pehlione-pdf-sidebar-heading pehlione-pdf-competencies-heading">${sectionIcon(kind)}<span>${escapeHtml(title)}</span></h3>` : `<h3>${escapeHtml(title)}</h3>`;
 		const entries = (kind) => plan.items.filter((item) => item.kind === kind).map((item) => {
 			if (kind === "experience") {
 				const source = experienceById.get(item.id);
 				if (!source) return "";
 				const achievements = source.achievements.filter(Boolean);
-				return `<article class="pehlione-pdf-entry"><p>${escapeHtml(formatDateRange(source.from, source.to))}</p><div><h4>${escapeHtml(source.role)}</h4><strong>${escapeHtml(source.company)}${source.city ? ` · ${escapeHtml(source.city)}` : ""}</strong>${achievements.length ? `<ul>${achievements.slice(0, 5).map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}</div></article>`;
+				return `<article class="pehlione-pdf-entry">${template.id === "pehlione_white_blue" ? `<div class="pehlione-pdf-entry__meta"><p>${escapeHtml(formatDateRange(source.from, source.to))}</p>${source.city ? `<small>${escapeHtml(source.city)}</small>` : ""}</div>` : `<p>${escapeHtml(formatDateRange(source.from, source.to))}</p>`}<div><h4>${escapeHtml(source.role)}</h4><strong>${escapeHtml(source.company)}${template.id === "pehlione_white" && source.city ? ` · ${escapeHtml(source.city)}` : ""}</strong>${achievements.length ? `<ul>${achievements.slice(0, 5).map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}</div></article>`;
 			}
 			const source = educationById.get(item.id);
 			if (!source) return "";
-			return `<article class="pehlione-pdf-entry"><p>${escapeHtml(formatDateRange(source.from, source.to))}</p><div><h4>${escapeHtml(source.degree)}</h4><strong>${escapeHtml(source.institution)}${source.city ? ` · ${escapeHtml(source.city)}` : ""}</strong></div></article>`;
+			return `<article class="pehlione-pdf-entry">${template.id === "pehlione_white_blue" ? `<div class="pehlione-pdf-entry__meta"><p>${escapeHtml(formatDateRange(source.from, source.to))}</p>${source.city ? `<small>${escapeHtml(source.city)}</small>` : ""}</div>` : `<p>${escapeHtml(formatDateRange(source.from, source.to))}</p>`}<div><h4>${escapeHtml(source.degree)}</h4><strong>${escapeHtml(source.institution)}${template.id === "pehlione_white" && source.city ? ` · ${escapeHtml(source.city)}` : ""}</strong></div></article>`;
 		}).join("");
 		const experience = entries("experience");
 		const education = entries("education");
@@ -27720,18 +28255,19 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 		const sidebarKnowledge = knowledgeGroups.filter((group) => group.slot === "sidebar" && group.id !== coreGroup?.id && group.id !== focusGroup?.id).map((group) => blockMarkup(group, true)).join("");
 		const mainKnowledge = knowledgeGroups.filter((group) => group.slot !== "sidebar").map((group) => blockMarkup(group)).join("");
 		const project = getPehlioneProjectHighlight(profile);
-		const header = `<header class="pehlione-pdf-header${continuation ? " continuation" : ""}"><h1>${escapeHtml(name)}</h1><h2>${escapeHtml(profile?.title || role)}</h2></header>`;
+		const header = `<header class="pehlione-pdf-header${continuation ? " continuation" : ""}"><h1>${escapeHtml(name)}</h1>${profile?.title || template.id === "pehlione_white" ? `<h2>${escapeHtml(profile?.title || role)}</h2>` : ""}</header>`;
 		const closing = profile?.resumeClosing ?? {
 			showPlace: true,
 			showDate: true,
 			showSignature: true
 		};
 		const closingMarkup = lastPage && closingSection.visible && (closing.showPlace || closing.showDate || closing.showSignature) ? `<footer class="pehlione-pdf-closing">${closing.showPlace || closing.showDate ? `<p>${escapeHtml([closing.showPlace ? profile?.applicationPlace || profile?.city : "", closing.showDate ? profile?.applicationDate : ""].filter(Boolean).join(", "))}</p>` : ""}${closing.showSignature ? `<div class="pehlione-pdf-signer">${signatureSource ? `<img src="${escapeHtml(signatureSource)}" alt="Unterschrift">` : ""}<strong>${escapeHtml(name)}</strong></div>` : ""}</footer>` : "";
-		const main = `${!continuation && summarySection.visible && sections.profile && managedSummary ? `<section class="pehlione-pdf-section pehlione-pdf-summary-section">${sectionHeading(getResumeSemanticTitle(semanticSections, "summary"), "profile")}<p class="pehlione-pdf-summary">${escapeHtml(managedSummary)}</p></section>` : ""}${sections.experience && experience ? `<section class="pehlione-pdf-section pehlione-pdf-experience">${sectionHeading(`${getResumeSemanticTitle(semanticSections, "career")}${continuation ? " · Fortsetzung" : ""}`, "experience")}${experience}</section>` : ""}${sections.education && education ? `<section class="pehlione-pdf-section pehlione-pdf-education">${sectionHeading(getResumeSemanticTitle(semanticSections, "education"), "education")}${education}</section>` : ""}${!continuation && project && !knowledgeGroups.some((group) => group.semanticType === "project-highlight" && visibleBlockItems(group).length) ? `<section class="pehlione-pdf-section pehlione-pdf-project">${sectionHeading("Projekt-Highlight", "project")}<h4>${escapeHtml(project.title)}</h4><p>${[project.company, ...project.technologies].filter(Boolean).map(escapeHtml).join(" · ")}</p>${project.achievements.length ? `<ul>${project.achievements.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}</section>` : ""}${lastPage && knowledgeSection.visible && profile?.resumeKnowledgeContainer?.showTitle && mainKnowledge ? `<section class="pehlione-pdf-section">${sectionHeading(getResumeSemanticTitle(semanticSections, "knowledge"), "profile")}</section>` : ""}${lastPage && knowledgeSection.visible ? mainKnowledge : ""}${lastPage && sections.certifications && kreativCertifications.length && !knowledgeGroups.some((group) => ["training", "certificates"].includes(group.semanticType)) ? `<section class="pehlione-pdf-section pehlione-pdf-training">${sectionHeading("Weiterbildungen", "training")}<ul>${kreativCertifications.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul></section>` : ""}${closingMarkup}${!experience && !education ? "<p class='muted'>Berufserfahrung und Ausbildung im Profil ergänzen.</p>" : ""}`;
+		const main = `${!continuation && summarySection.visible && sections.profile && managedSummary ? `<section class="pehlione-pdf-section pehlione-pdf-summary-section">${sectionHeading(getResumeSemanticTitle(semanticSections, "summary"), "profile")}<p class="pehlione-pdf-summary">${escapeHtml(managedSummary)}</p></section>` : ""}${sections.experience && experience ? `<section class="pehlione-pdf-section pehlione-pdf-experience">${sectionHeading(`${getResumeSemanticTitle(semanticSections, "career")}${continuation ? " · Fortsetzung" : ""}`, "experience")}${experience}</section>` : ""}${sections.education && education ? `<section class="pehlione-pdf-section pehlione-pdf-education">${sectionHeading(getResumeSemanticTitle(semanticSections, "education"), "education")}${education}</section>` : ""}${!continuation && project && !(template.id === "pehlione_white_blue" && hasPehlioneCustomProjectHighlight(profile)) && !knowledgeGroups.some((group) => group.semanticType === "project-highlight" && visibleBlockItems(group).length) ? `<section class="pehlione-pdf-section pehlione-pdf-project">${sectionHeading("Projekt-Highlight", "project")}<h4>${escapeHtml(project.title)}</h4><p>${[project.company, ...project.technologies].filter(Boolean).map(escapeHtml).join(" · ")}</p>${project.achievements.length ? `<ul>${project.achievements.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}</section>` : ""}${lastPage && knowledgeSection.visible && profile?.resumeKnowledgeContainer?.showTitle && mainKnowledge ? `<section class="pehlione-pdf-section">${sectionHeading(getResumeSemanticTitle(semanticSections, "knowledge"), "profile")}</section>` : ""}${lastPage && knowledgeSection.visible ? mainKnowledge : ""}${lastPage && sections.certifications && kreativCertifications.length && !knowledgeGroups.some((group) => ["training", "certificates"].includes(group.semanticType)) ? `<section class="pehlione-pdf-section pehlione-pdf-training">${sectionHeading("Weiterbildungen", "training")}<ul>${kreativCertifications.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}${closingMarkup}${!experience && !education ? "<p class='muted'>Berufserfahrung und Ausbildung im Profil ergänzen.</p>" : ""}`;
 		const density = plan.items.length >= 5 ? "compact" : plan.density;
 		if (atsMode || continuation) return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="${escapeHtml(template.id)}" data-no-fit="true"><div class="page-content pehlione-pdf${template.id === "pehlione_white" ? " pehlione-pdf-white" : ""} ${continuation ? "pehlione-pdf-continuation" : "pehlione-pdf-ats"}" data-density="${density}"><main class="pehlione-pdf-main">${header}${!continuation ? `<p class="pehlione-pdf-ats-contact"><strong>Kontakt:</strong> ${contactItems.map((item) => escapeHtml(item.value)).join(" · ")}</p>` : ""}${main}</main></div></section>`;
 		const languages = sections.languages ? (profile?.languages ?? []).filter(Boolean).map((item) => `<li>${escapeHtml(item)}</li>`).join("") : "";
-		const sidebar = `<aside class="pehlione-pdf-sidebar"><div class="pehlione-pdf-hero${pehlionePhoto ? " with-photo" : ""}">${template.id === "pehlione_white" ? `<span class="pehlione-pdf-blueprint">${pehlioneBlueprintMarkup}</span>` : ""}${pehlionePhoto}</div>${contacts}${knowledgeSection.visible && profile?.resumeKnowledgeContainer?.showTitle && knowledgeGroups.some((group) => group.slot === "sidebar") ? `<h3 class="pehlione-pdf-container-title">${escapeHtml(getResumeSemanticTitle(semanticSections, "knowledge"))}</h3>` : ""}${knowledgeSection.visible && sections.strengths && competenceMarkup ? `<section>${sidebarHeading(coreGroup?.title || "Kernkompetenzen", "project")}<ul>${competenceMarkup}</ul></section>` : ""}${knowledgeSection.visible && focus ? `<section>${sidebarHeading(focusGroup?.title || "Technische Schwerpunkte", "training")}<ul>${focus}</ul></section>` : ""}${knowledgeSection.visible ? sidebarKnowledge : ""}${languages ? `<section><h3>Sprachen</h3><ul>${languages}</ul></section>` : ""}</aside>`;
+		const languageHeading = template.id === "pehlione_white_blue" ? `<h3 class="pehlione-pdf-sidebar-heading pehlione-pdf-language-heading">${sectionIcon("languages")}<span>Sprachen</span></h3>` : "<h3>Sprachen</h3>";
+		const sidebar = `<aside class="pehlione-pdf-sidebar"><div class="pehlione-pdf-hero${pehlionePhoto ? " with-photo" : ""}">${template.id === "pehlione_white" ? `<span class="pehlione-pdf-blueprint">${pehlioneBlueprintMarkup}</span>` : `<i></i><i></i><i></i>${pehlionePhoto ? "" : "<b>◉</b>"}`}${pehlionePhoto}</div>${contacts}${knowledgeSection.visible && profile?.resumeKnowledgeContainer?.showTitle && knowledgeGroups.some((group) => group.slot === "sidebar") ? `<h3 class="pehlione-pdf-container-title">${escapeHtml(getResumeSemanticTitle(semanticSections, "knowledge"))}</h3>` : ""}${knowledgeSection.visible && sections.strengths && competenceMarkup ? `<section>${sidebarHeading(coreGroup?.title || "Kernkompetenzen", "project")}<ul>${competenceMarkup}</ul></section>` : ""}${knowledgeSection.visible && focus ? `<section>${sidebarHeading(focusGroup?.title || "Technische Schwerpunkte", "training")}<ul>${focus}</ul></section>` : ""}${knowledgeSection.visible ? sidebarKnowledge : ""}${languages ? `<section class="pehlione-pdf-section pehlione-pdf-language-section">${languageHeading}<ul>${languages}</ul></section>` : ""}</aside>`;
 		const sidebarWidth = (profile?.resumeColumnRatio ?? 30) * 2.1;
 		return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="${escapeHtml(template.id)}" data-no-fit="true"><div class="page-content pehlione-pdf${template.id === "pehlione_white" ? " pehlione-pdf-white" : ""}" data-density="${density}" style="grid-template-columns:${sidebarWidth}mm minmax(0,1fr)">${sidebar}<main class="pehlione-pdf-main">${header}${main}</main></div></section>`;
 	};
@@ -28018,7 +28554,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 	};
 	const resume = resumePlan.map(template.id === "pehlione_white_blue" || template.id === "pehlione_white" ? renderPehlioneResumePage : template.id === "modern" ? renderModernResumePage : template.id === "stilvoll" ? renderStilvollResumePage : template.id === "kompakt" ? renderKompaktResumePage : template.id === "einspaltig" ? renderEinspaltigResumePage : template.id === "klassisch" ? (plan) => renderKlassischResumePage(plan) : template.id === "elegant" ? renderElegantResumePage : template.id === "gepflegt" ? renderGepflegtResumePage : template.id === "ivy-league" ? renderIvyLeagueResumePage : template.id === "kreativ" ? renderKreativResumePage : template.id === "zeitgenoessisch" ? renderZeitgenoessischResumePage : template.id === "zweispaltig" ? renderZweispaltigResumePage : template.id === "tabellarisch" ? renderTabellarischResumePage : renderResumePage).join("");
 	const cvHtml = target === "mappe" ? buildDocumentHtml(application, profile, "lebenslauf", attachments) : "";
-	const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings);
+	const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings, resolvedCv);
 	const selected = target === "mappe" ? [
 		letter,
 		cover,

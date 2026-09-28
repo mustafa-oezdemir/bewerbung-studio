@@ -455,3 +455,20 @@ Vorlagenfunktion; ausgeblendete Kontaktdaten hinterlassen im PDF keinen leeren
 Abschnitt. Auf einer Fortsetzungsseite werden Berufs- und Ausbildungs-Titel
 nur ausgegeben, wenn dort auch Einträge stehen. Die Vorschau wurde mit einem
 gedruckten A4-PDF und einem zweiseitigen Belastungsbeispiel verglichen.
+
+## Phase 22: Klassisch
+
+Die bestehende einspaltige Form mit den hellblauen Wellen bleibt erhalten.
+Vorschau und PDF verwenden wieder dieselbe graue Abschnittsüberschrift;
+allgemeine Dokumentregeln überschreiben die Vorlagenfarbe nicht mehr.
+Titelabstand (2,2 mm), Eintragsabstand (3,2 mm) und Abstand innerhalb eines
+Eintrags (0,8 mm) haben getrennte Standardwerte. Ausbildungs-Einträge stehen
+mit 2,8 mm etwas enger. Der bestehende Abschnittsabstand und die vom Benutzer
+gewählte Zeilenhöhe bleiben unabhängig einstellbar; Kompakt, Standard und Groß
+nutzen weiterhin die gemeinsamen Designer-Einstellungen.
+
+Projekt-Highlight, Hobbys & Interesses und weitere eigene Abschnitte stehen
+als normale Klassisch-Abschnitte im Inhaltsfluss. Zertifikatslisten folgen in
+beiden Ausgaben denselben Abständen. Die Profil-Sichtbarkeit bleibt erhalten.
+Eine gedruckte A4-Seite und ein zweiseitiges Beispiel wurden auf gleiche
+Abschnitte, Umbrüche und Abstand zum Footer geprüft.

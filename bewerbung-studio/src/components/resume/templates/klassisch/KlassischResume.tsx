@@ -14,6 +14,9 @@ export function KlassischResume({
       accentColor || klassischDefaults.colors.primary,
     "--klassisch-accent":
       secondaryColor || klassischDefaults.colors.accent,
+    "--klassisch-entry-gap-base": `${klassischDefaults.layout.entryGapMm}mm`,
+    "--klassisch-section-title-gap": `${klassischDefaults.layout.sectionTitleGapMm}mm`,
+    "--klassisch-entry-content-gap": `${klassischDefaults.layout.entryContentGapMm}mm`,
   } as CSSProperties;
   return (
     <article
@@ -31,4 +34,3 @@ export function KlassischResume({
 }
 
 export default KlassischResume;
-

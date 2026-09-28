@@ -78,6 +78,7 @@ export const cvTemplateTokens: Record<string, CvDesignOverrides> = {
   klassisch: {
     ...adapt(klassischDefaults),
     typography: { headingSizePt: 26, subheadingSizePt: 12.2, sectionHeadingSizePt: 10.4, entryHeadingSizePt: 12.2, bodySizePt: 8.5, lineHeight: 1.25 },
+    spacing: { ...adapt(klassischDefaults).spacing, sectionTitleGapMm: klassischDefaults.layout.sectionTitleGapMm, entryContentGapMm: klassischDefaults.layout.entryContentGapMm },
   },
   kompakt: {
     ...adapt(kompaktDefaults),

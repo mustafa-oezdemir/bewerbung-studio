@@ -1,4 +1,5 @@
 import { inheritResumeSectionStyles } from "../src/shared/resumeSectionStyleInheritance";
+import { klassischDefaults } from "../src/shared/cvTemplateDefaults/klassisch.defaults";
 import { kreativDefaults } from "../src/shared/cvTemplateDefaults/kreativ.defaults";
 import { kompaktDefaults } from "../src/shared/cvTemplateDefaults/kompakt.defaults";
 import { stilvollDefaults } from "../src/shared/cvTemplateDefaults/stilvoll.defaults";
@@ -602,6 +603,16 @@ const extendedResumeDocumentCss = `
 `;
 
 const klassischDocumentCss = `
+  .klassisch-pdf.klassisch-pdf{--klassisch-entry-gap-base:${klassischDefaults.layout.entryGapMm}mm;--klassisch-section-title-gap:${klassischDefaults.layout.sectionTitleGapMm}mm;--klassisch-entry-content-gap:${klassischDefaults.layout.entryContentGapMm}mm;--klassisch-entry-gap:var(--klassisch-entry-gap-base);--klassisch-education-entry-gap:calc(var(--klassisch-entry-gap) - .4mm)}
+  .klassisch-pdf .klassisch-pdf-title{margin-bottom:var(--klassisch-section-title-gap);color:var(--klassisch-heading)}
+  .klassisch-pdf .klassisch-pdf-entry h4{margin-top:var(--klassisch-entry-content-gap)}
+  .klassisch-pdf .klassisch-pdf-entry-meta{gap:1.4mm}
+  .klassisch-pdf .klassisch-pdf-entry ul,.klassisch-pdf .klassisch-pdf-certifications{margin-top:var(--klassisch-entry-content-gap)}
+  .klassisch-pdf .klassisch-pdf-section>ul{margin:var(--klassisch-entry-content-gap) 0 0;padding-left:4.3mm}
+  .klassisch-pdf .klassisch-pdf-section>ul li{margin:.15mm 0;padding-left:.5mm;hyphens:auto;overflow-wrap:break-word}
+  .klassisch-pdf .klassisch-pdf-education .klassisch-pdf-list{gap:var(--klassisch-education-entry-gap)}
+  .klassisch-pdf.klassisch-pdf[data-density="compact"]{--klassisch-section-gap:max(3mm,calc(var(--section-gap) * .85));--klassisch-entry-gap:calc(var(--klassisch-entry-gap-base) * .85)}
+  .klassisch-pdf.klassisch-pdf[data-density="dense"]{--klassisch-section-gap:max(2.6mm,calc(var(--section-gap) * .7));--klassisch-entry-gap:max(2.4mm,calc(var(--klassisch-entry-gap-base) * .7))}
   .klassisch-pdf{isolation:isolate;--klassisch-primary:var(--accent);--klassisch-accent:var(--secondary);--klassisch-heading:#5a6267;--klassisch-text:#3f484d;--klassisch-muted:#68747a;--klassisch-soft:#cdeff3;--klassisch-border:#d5dbde;--klassisch-margin:max(15mm,var(--doc-margin));--klassisch-section-gap:var(--section-gap);--klassisch-entry-gap:4.2mm;position:relative;width:100%;height:100%;overflow:hidden;color:var(--klassisch-text);background:#fff;font-family:var(--body-font);font-size:var(--body-size);line-height:var(--body-line)}
   .klassisch-pdf *{box-sizing:border-box}.klassisch-pdf a{color:inherit;text-decoration:none}.klassisch-pdf-background{position:absolute;inset:0;z-index:-1;width:100%;height:100%;pointer-events:none}.klassisch-pdf-background .fill{fill:var(--klassisch-soft)}.klassisch-pdf-background .line{fill:none;stroke:rgba(255,255,255,.92);stroke-width:.28;vector-effect:non-scaling-stroke}.klassisch-pdf-content{position:relative;z-index:2;height:100%;padding:14mm var(--klassisch-margin) 17mm}
   .klassisch-pdf-header{display:grid;grid-template-columns:minmax(0,1fr) 34mm;gap:8mm;align-items:start;min-height:33mm;margin-bottom:7mm}.klassisch-pdf-header.no-photo{grid-template-columns:1fr}.klassisch-pdf-header h1{max-width:138mm;margin:0;color:var(--klassisch-primary);font-size:26pt;font-weight:750;letter-spacing:-.01em;line-height:1;overflow-wrap:anywhere}.klassisch-pdf-header h2{margin:2mm 0 1.5mm;color:var(--klassisch-text);font-size:12.2pt;font-weight:400;line-height:1.12;overflow-wrap:anywhere}.klassisch-pdf-contacts{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:.8mm 8mm;width:100%;max-width:132mm;margin:0;color:var(--klassisch-text);font-size:8pt;font-style:normal;line-height:1.25}.klassisch-pdf-contacts span{min-width:0;overflow-wrap:anywhere}.klassisch-pdf-contacts [data-contact-kind="linkedin"]{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal}.klassisch-pdf-photo{justify-self:end;width:32mm;height:32mm;border-radius:50%;object-fit:cover;background:#edf1f3}

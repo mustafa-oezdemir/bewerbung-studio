@@ -517,7 +517,12 @@ export const applyManagedResumeOutput = (
       }
       anchor.remove();
     }
-    if (resolved.templateId === "kompakt") for (const wrapper of root.querySelectorAll(".kompakt-left > .resume-special-output-list")) {
+    const specialWrapperSelector = resolved.templateId === "kompakt"
+      ? ".kompakt-left > .resume-special-output-list"
+      : resolved.templateId === "klassisch"
+        ? ".klassisch-content > .resume-special-output-list"
+        : null;
+    if (specialWrapperSelector) for (const wrapper of root.querySelectorAll(specialWrapperSelector)) {
       const parent = wrapper.parentElement;
       if (!parent) continue;
       while (wrapper.firstChild) parent.insertBefore(wrapper.firstChild, wrapper);

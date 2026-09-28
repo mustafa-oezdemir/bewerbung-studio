@@ -9,8 +9,11 @@ export const klassischDefaults = {
   },
   layout: {
     headerHeightMm: 31,
-    sectionGapMm: 6,
-    entryGapMm: 4.2,
+    sectionGapMm: 3.8,
+    entryGapMm: 3.2,
+    educationEntryGapMm: 2.8,
+    sectionTitleGapMm: 2.2,
+    entryContentGapMm: 0.8,
     strengthGapMm: 9,
   },
   colors: {
