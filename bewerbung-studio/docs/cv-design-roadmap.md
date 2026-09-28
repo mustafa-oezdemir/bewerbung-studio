@@ -329,3 +329,17 @@ Kontaktdaten übernehmen die gewählte Textfarbe der Seitenspalte. Der native Ab
 dem Verschieben anderer Abschnitte in der Hauptspalte. Der Fehler wurde mit
 den gespeicherten Einstellungen eines echten Pehlione-White-Blue-Dokuments
 reproduziert und anhand eines einseitigen A4-PDFs geprüft.
+
+Seitenspalten-Abschnittstitel besitzen nun eine eigene, vorlagenbezogene
+Farbeinstellung in allen CV-Vorlagen. Ohne eigene Überschriftenfarbe verwenden
+sie eine gewählte Seitenspalten-Textfarbe; ohne beide Overrides bleiben die
+jeweiligen Vorlagenfarben erhalten. Vorschau und PDF nutzen dieselbe
+Abschnittsprojektion. Die Kontaktlinie bleibt separat einstellbar.
+
+Die Designoberfläche nutzt für Akzent, Fläche und weitere Farbwerte ein
+gemeinsames kompaktes Color-Card-Control. Das Vorlagenpanel hat vier Karten
+pro breite Zeile und bricht bei geringerer Panelbreite auf zwei bzw. eine
+Spalte um. Der PDF-Hinweis steht oberhalb des Panels; der Abschnittsorganizer
+folgt danach. Abschnittstitelfarben werden anhand der semantischen Haupt- oder
+Seitenspalte auf Standard- und eigene Abschnitte angewendet, unabhängig davon,
+ob die Seitenspalte links oder rechts steht.

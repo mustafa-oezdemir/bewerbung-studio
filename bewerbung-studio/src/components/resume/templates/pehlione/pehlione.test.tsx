@@ -83,7 +83,7 @@ describe("Pehlione White Blue", () => {
   it("keeps profile data, career rows, custom sections and appearance in preview and PDF", () => {
     const projectId = "85000000-0000-4000-8000-000000000001";
     const hobbyId = "86000000-0000-4000-8000-000000000001";
-    const source = profileSchema.parse({ ...profile, title: "", experiences: [{ ...profile.experiences[0], role: "Praktikum als Anwendungsentwickler" }],
+    const source = profileSchema.parse({ ...profile, title: "", languages: ["Deutsch – C1"], experiences: [{ ...profile.experiences[0], role: "Praktikum als Anwendungsentwickler" }],
       specialSections: [
         { id: projectId, kind: "custom", title: "Projekt-Highlight", isVisible: true, contentType: "list", entries: [{ id: crypto.randomUUID(), title: "oiözio" }] },
         { id: hobbyId, kind: "interests", title: "Hobbys & Interesses", isVisible: true, contentType: "text", entries: [{ id: crypto.randomUUID(), title: "demo" }] },
@@ -91,7 +91,7 @@ describe("Pehlione White Blue", () => {
     });
     const settings = { ...defaultDocumentDesign,
       cvOverrides: { colors: { heading: "#112233", subheading: "#223344", sectionHeading: "#334455", divider: "#445566" } },
-      resumeAppearance: { sidebarBackgroundColor: "#556677", sidebarTextColor: "#101010", mainBackgroundColor: "#f5f6f7",
+      resumeAppearance: { sidebarBackgroundColor: "#556677", sidebarTextColor: "#101010", sidebarSectionHeadingColor: "#cc0000", mainBackgroundColor: "#f5f6f7",
         sectionDividerVisible: false, photoDecorationVisible: false, contactDividerColor: "#aabbcc" },
     };
     const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test",
@@ -125,6 +125,11 @@ describe("Pehlione White Blue", () => {
       const host = document.querySelector(hostSelector)!;
       expect(host.getAttribute("style")).toContain("--pehlione-sidebar-background:#556677");
       expect(host.getAttribute("style")).toContain("--pehlione-sidebar-text:#101010");
+      const sidebar = host.querySelector(".pehlione-sidebar,.pehlione-pdf-sidebar")!;
+      for (const title of ["Kernkompetenzen", "Sprachen"]) {
+        const heading = Array.from(sidebar.querySelectorAll("h2,h3")).find(node => node.textContent?.includes(title));
+        expect(heading?.getAttribute("style")).toContain("color:#cc0000");
+      }
       expect(host.getAttribute("style")).toContain("--pehlione-title-color:#112233");
       expect(host.getAttribute("style")).toContain("--pehlione-contact-divider-color:#aabbcc");
       expect(host.getAttribute("data-section-divider")).toBe("hidden");

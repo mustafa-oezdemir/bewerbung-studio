@@ -122,6 +122,16 @@ import { selectCurrentApplication, useAppStore } from "../store/useAppStore";
 
 type Tab = "deckblatt" | "anschreiben" | "email" | "lebenslauf";
 
+function ColorCard({ label, value, onChange }: { label: string; value: string; onChange: (color: string) => void }) {
+  return <label className="design-color-card">
+    <span>{label}</span>
+    <span className="design-color-card__choice">
+      <input type="color" aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} />
+      <code>{value.toUpperCase()}</code>
+    </span>
+  </label>;
+}
+
 function DocumentListEditor({
   items,
   onChange,
@@ -1486,33 +1496,6 @@ export function DocumentsView({
                       umzubrechen verteilt.
                     </span>
                   </section>
-                  {profile ? (
-                    <>
-                      <ResumeSectionsPanel
-                        key={`${application.id}:${profile.id}:${template.id}:${resumeEditorRevision}`}
-                        profile={editorProfile ?? profile}
-                        singlePageExceeded={
-                          template.id === "kompakt" && resumePlan.length > 1
-                        }
-                        templateId={template.id}
-                        layoutMode={resumeLayout.mode}
-                        closingPlacement={design.settings.resumePresentation?.closing?.placement}
-                        closingAlignment={design.settings.resumePresentation?.closing?.alignment ?? (template.id.startsWith("pehlione_") ? "distributed" : "left")}
-                        onClosingLayoutChange={updateClosingLayout}
-                        summaryValue={docs.resumeProfile}
-                        onSummaryChange={(summary) =>
-                          setDocumentPreview({
-                            applicationId: application.id,
-                            documents: { ...docs, resumeProfile: summary },
-                          })
-                        }
-                        onPickMedia={(kind) => void pickProfileMedia(kind)}
-                        onRemoveMedia={(kind) => void removeProfileMedia(kind)}
-                        onSave={saveResumeSections}
-                        onPreview={handleResumeSectionPreview}
-                      />
-                    </>
-                  ) : null}
                   <button
                     className="design-panel-trigger"
                     type="button"
@@ -1526,14 +1509,12 @@ export function DocumentsView({
                       </small>
                     </span>
                   </button>
+                  <p className="design-pdf-note">Modell und Farben gelten auch für den PDF-Export.</p>
                   <section
                     className={`document-design-panel ${designPanelOpen ? "" : "collapsed"}`}>
                     <div className="design-panel-heading">
                       <div>
                         <span>Design und Schriftart</span>
-                        <small>
-                          Modell und Farben gelten auch für den PDF-Export.
-                        </small>
                       </div>
                       <div className="design-panel-heading-actions">
                         <strong>{template.name}</strong>
@@ -1574,8 +1555,7 @@ export function DocumentsView({
                         </button>
                       ))}
                     </div>
-                    <div className="document-color-controls">
-                      <div className="color-preset-row">
+                    <div className="color-preset-row design-preset-row">
                         {colorPresets.map((preset) => (
                           <button
                             key={preset.id}
@@ -1597,63 +1577,49 @@ export function DocumentsView({
                             }
                           />
                         ))}
-                      </div>
-                      <label>
-                        <span>Akzent</span>
-                        <input
-                          type="color"
-                          value={design.accentColor}
-                          onChange={(event) =>
-                            setDesign((current) => ({
-                              ...current,
-                              accentColor: event.target.value,
-                            }))
-                          }
-                        />
-                      </label>
-                      <label>
-                        <span>Fläche</span>
-                        <input
-                          type="color"
-                          value={design.secondaryColor}
-                          onChange={(event) =>
-                            setDesign((current) => ({
-                              ...current,
-                              secondaryColor: event.target.value,
-                            }))
-                          }
-                        />
-                      </label>
                     </div>
-                    {template.id === "pehlione_white_blue" && <details className="resume-spacing-advanced">
-                      <summary>Pehlione White Blue · Farben und Dekoration</summary>
-                      <div className="advanced-design-grid">
+                    <div className="color-card-grid">
+                      <ColorCard label="Akzent" value={design.accentColor}
+                        onChange={(color) => setDesign((current) => ({ ...current, accentColor: color }))} />
+                      <ColorCard label="Fläche" value={design.secondaryColor}
+                        onChange={(color) => setDesign((current) => ({ ...current, secondaryColor: color }))} />
+                    </div>
+                    <details className="resume-spacing-advanced design-colors-panel">
+                      <summary>{template.name} · Farben und Dekoration</summary>
+                      <div className="color-card-grid">
                         {([
                           ["heading", "Name"],
                           ["subheading", "Berufsbezeichnung"],
                           ["sectionHeading", "Abschnittstitel"],
                           ["entryHeading", "Position / Abschluss"],
-                          ["divider", "Abschnittslinien"],
-                        ] as const).map(([key, label]) => <label className="field" key={key}>
-                          <span>{label}</span>
-                          <input type="color" value={resumeSpacing.colors[key]}
-                            onChange={(event) => setDesign((current) => updateCvDesignField(current, "colors", key, event.target.value))} />
-                        </label>)}
+                        ] as const).map(([key, label]) => <ColorCard key={key} label={label} value={resumeSpacing.colors[key]}
+                          onChange={(color) => setDesign((current) => updateCvDesignField(current, "colors", key, color))} />)}
+                      </div>
+                      <div className="color-card-grid">
+                        <ColorCard label="Seitenspalte Abschnittstitel"
+                          value={design.settings.resumeAppearance?.sidebarSectionHeadingColor ?? design.settings.resumeAppearance?.sidebarTextColor ?? "#ffffff"}
+                          onChange={(color) => updateResumeAppearance("sidebarSectionHeadingColor", color)} />
+                        <ColorCard label="Abschnittslinien" value={resumeSpacing.colors.divider}
+                          onChange={(color) => setDesign((current) => updateCvDesignField(current, "colors", "divider", color))} />
+                      </div>
+                      {design.settings.resumeAppearance?.sidebarSectionHeadingColor && <button className="design-color-reset" type="button"
+                        onClick={() => updateResumeAppearance("sidebarSectionHeadingColor", undefined)}>Seitenspalte Abschnittstitel: Automatisch</button>}
+                      {template.id === "pehlione_white_blue" && <div className="color-card-grid">
                         {([
                           ["sidebarBackgroundColor", "Seitenspalte"],
                           ["sidebarTextColor", "Seitenspalte Text"],
                           ["mainBackgroundColor", "Hauptspalte"],
                           ["photoDecorationColor", "Fotolinien"],
                           ["contactDividerColor", "Kontaktlinie"],
-                        ] as const).map(([key, label]) => <label className="field" key={key}>
-                          <span>{label}</span>
-                          <input type="color" value={design.settings.resumeAppearance?.[key] ?? ({
+                        ] as const).map(([key, label]) => <ColorCard key={key} label={label}
+                          value={design.settings.resumeAppearance?.[key] ?? ({
                             sidebarBackgroundColor: "#0b3d86", sidebarTextColor: "#ffffff",
                             mainBackgroundColor: "#ffffff", photoDecorationColor: "#d9ebff",
                             contactDividerColor: "#ffffff",
                           } as const)[key]}
-                            onChange={(event) => updateResumeAppearance(key, event.target.value)} />
-                        </label>)}
+                          onChange={(color) => updateResumeAppearance(key, color)} />)}
+                      </div>}
+                      {template.id === "pehlione_white_blue" && <div className="advanced-design-grid">
                         <label className="field"><span>Abschnittslinien</span>
                           <input type="checkbox" checked={design.settings.resumeAppearance?.sectionDividerVisible !== false}
                             onChange={(event) => updateResumeAppearance("sectionDividerVisible", event.target.checked)} />
@@ -1671,8 +1637,8 @@ export function DocumentsView({
                           <input type="checkbox" checked={design.settings.resumeAppearance?.photoDecorationVisible !== false}
                             onChange={(event) => updateResumeAppearance("photoDecorationVisible", event.target.checked)} />
                         </label>
-                      </div>
-                    </details>}
+                      </div>}
+                    </details>
                     <div className="design-option-group resume-spacing-presets">
                       <span>Lebenslauf-Abstände</span>
                       <div className="segmented-design-control" role="group" aria-label="Lebenslauf-Abstände">
@@ -1860,7 +1826,7 @@ export function DocumentsView({
                         </small>
                       </label>
                     </div>
-                    <div className="document-color-controls extended">
+                    <div className="color-card-grid">
                       {(
                         [
                           ["textColor", "Lesetext"],
@@ -1868,18 +1834,8 @@ export function DocumentsView({
                           ["lineColor", "Linien"],
                           ["backgroundColor", "Hintergrund"],
                         ] as const
-                      ).map(([key, label]) => (
-                        <label key={key}>
-                          <span>{label}</span>
-                          <input
-                            type="color"
-                            value={design.settings[key]}
-                            onChange={(event) =>
-                              updateDesignSetting(key, event.target.value)
-                            }
-                          />
-                        </label>
-                      ))}
+                      ).map(([key, label]) => <ColorCard key={key} label={label} value={design.settings[key]}
+                        onChange={(color) => updateDesignSetting(key, color)} />)}
                     </div>
                     {!textContrastIsReadable ? (
                       <p className="resume-sections-warning" role="status">
@@ -2095,6 +2051,25 @@ export function DocumentsView({
                       Auf Standard zurücksetzen
                     </button>
                   </section>
+                  {profile ? (
+                    <ResumeSectionsPanel
+                      key={`${application.id}:${profile.id}:${template.id}:${resumeEditorRevision}`}
+                      profile={editorProfile ?? profile}
+                      singlePageExceeded={template.id === "kompakt" && resumePlan.length > 1}
+                      templateId={template.id}
+                      layoutMode={resumeLayout.mode}
+                      closingPlacement={design.settings.resumePresentation?.closing?.placement}
+                      closingAlignment={design.settings.resumePresentation?.closing?.alignment ?? (template.id.startsWith("pehlione_") ? "distributed" : "left")}
+                      onClosingLayoutChange={updateClosingLayout}
+                      summaryValue={docs.resumeProfile}
+                      onSummaryChange={(summary) => setDocumentPreview({ applicationId: application.id,
+                        documents: { ...docs, resumeProfile: summary } })}
+                      onPickMedia={(kind) => void pickProfileMedia(kind)}
+                      onRemoveMedia={(kind) => void removeProfileMedia(kind)}
+                      onSave={saveResumeSections}
+                      onPreview={handleResumeSectionPreview}
+                    />
+                  ) : null}
                   <section className="match-analysis">
                     <header>
                       <div>

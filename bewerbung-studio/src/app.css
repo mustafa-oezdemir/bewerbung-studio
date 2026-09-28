@@ -5350,6 +5350,7 @@ body.is-resizing-split-view * {
 
 .document-design-panel {
   display: grid;
+  container-type: inline-size;
   gap: 12px;
   padding: 13px;
   border: 1px solid var(--line);
@@ -7205,6 +7206,59 @@ body.is-resizing-split-view * {
   height: 100%;
   overflow: visible;
 }
+
+.design-pdf-note {
+  margin: -4px 2px 0;
+  color: var(--muted);
+  font-size: .68rem;
+  line-height: 1.45;
+}
+
+.design-preset-row { display: flex; flex-wrap: wrap; gap: 7px; }
+.color-card-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.design-colors-panel {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.design-colors-panel summary {
+  color: var(--ink);
+  font-size: .72rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.design-colors-panel[open] > summary { margin-bottom: 10px; }
+.design-colors-panel > .color-card-grid + .color-card-grid { margin-top: 8px; }
+.design-color-card {
+  display: grid;
+  align-content: space-between;
+  gap: 7px;
+  min-width: 0;
+  min-height: 67px;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink);
+  background: var(--surface);
+  cursor: pointer;
+}
+.design-color-card:hover { border-color: var(--brand); }
+.design-color-card:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; }
+.design-color-card > span:first-child { min-width: 0; font-size: .66rem; font-weight: 650; line-height: 1.25; overflow-wrap: anywhere; }
+.design-color-card__choice { display: flex; align-items: center; gap: 7px; }
+.design-color-card input[type="color"] { flex: none; width: 32px; height: 28px; padding: 2px; border: 1px solid var(--line); border-radius: 6px; background: transparent; cursor: pointer; }
+.design-color-card code { color: var(--muted); font-size: .58rem; font-family: inherit; }
+.design-color-reset { justify-self: start; margin-top: 7px; border: 0; color: var(--muted); background: transparent; font-size: .62rem; cursor: pointer; }
+.design-color-reset:hover, .design-color-reset:focus-visible { color: var(--brand); text-decoration: underline; }
+@container (max-width: 650px) { .color-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (max-width: 350px) { .color-card-grid { grid-template-columns: minmax(0, 1fr); } }
 
 .resume-manager { gap: 14px; }
 .manager-card { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }

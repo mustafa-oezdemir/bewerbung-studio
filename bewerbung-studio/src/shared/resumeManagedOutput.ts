@@ -4,6 +4,7 @@ import { applyResumeSpacingOutput, resumeSpacingCss } from "./resumeSpacing";
 import { applyResumeMetadataLayout, resumeMetadataCss } from "./resumeMetadataLayout";
 import { applyResumeClosingOutput, resumeClosingCss } from "./resumeClosing";
 import { applyPehlioneAppearance, pehlioneAppearanceCss } from "./pehlioneAppearance";
+import { resumeAppearanceSchema } from "./resumeAppearance";
 import { resolveTemplateId } from "./templates";
 import { resumeSectionStyleSources } from "./resumeSectionStyleInheritance";
 import { parseHTML } from "linkedom";
@@ -99,6 +100,40 @@ ${resumeSpacingCss}
 ${resumeMetadataCss}
 ${resumeClosingCss}
 ${pehlioneAppearanceCss}`;
+
+/** Resolve section-title colors by column role on both HTML surfaces. */
+export const applyResumeSectionHeadingColors = (root: Element, settings: DocumentDesignSettings): void => {
+  const appearance = resumeAppearanceSchema.parse(settings.resumeAppearance ?? {});
+  const sidebarColor = appearance.sidebarSectionHeadingColor ?? appearance.sidebarTextColor;
+  const mainColor = settings.cvOverrides?.colors?.sectionHeading;
+  if (!sidebarColor && !mainColor) return;
+  const sidebar = root.querySelector(
+    '[data-resume-layout-zone="sidebar"],.pehlione-sidebar,.pehlione-pdf-sidebar,.elegant-sidebar,.elegant-pdf-sidebar,.gepflegt-sidebar,.gepflegt-pdf-sidebar,.zeitgenoessisch-sidebar,.zeit-pdf-sidebar,.kreativ-sidebar,.kreativ-pdf-sidebar,.zweispaltig-sidebar,.zweispaltig-pdf-sidebar,.modern-resume-right-column,.modern-pdf-right,.kompakt-right,.kompakt-pdf-columns>aside,.stilvoll-content>aside,.stilvoll-pdf-columns>aside,aside',
+  );
+  const colorize = (heading: Element, color: string) => {
+    (heading as HTMLElement).style.setProperty("color", color, "important");
+    if (heading.closest(".pehlione-contacts"))
+      for (const icon of heading.querySelectorAll("svg"))
+        (icon as SVGElement).style.setProperty("stroke", color, "important");
+    for (const label of heading.querySelectorAll("b,strong,span,[data-custom-role='heading-label']"))
+      if (!label.querySelector("svg") && label.textContent?.trim())
+        (label as HTMLElement).style.setProperty("color", color, "important");
+  };
+  if (sidebar && sidebarColor) for (const heading of sidebar.querySelectorAll("h2,h3")) {
+    const section = heading.closest("section");
+    if (section && section.querySelector("h2,h3") !== heading) continue;
+    if (!section && heading.parentElement !== sidebar) continue;
+    const entry = heading.closest("article");
+    if (entry && sidebar.contains(entry)) continue;
+    colorize(heading, sidebarColor);
+  }
+  if (mainColor) for (const section of root.querySelectorAll("[data-managed-section]")) {
+    if (sidebar?.contains(section)) continue;
+    const heading = section.querySelector("h2,h3");
+    if (!heading || heading.closest("article") && section.contains(heading.closest("article"))) continue;
+    colorize(heading, mainColor);
+  }
+};
 
 // Both the React preview and the PDF use this pure HTML projection. It only
 // rearranges section nodes, retaining each template's header, artwork and CSS.
@@ -464,6 +499,7 @@ export const applyManagedResumeOutput = (
     applyResumeMetadataLayout(root, profile, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
     applyResumeClosingOutput(root, main, profile, templateId, designSettings, last, enabled("closing"));
     applyPehlioneAppearance(root, resolved.templateId, designSettings);
+    applyResumeSectionHeadingColors(root, designSettings);
   });
   return document.body.innerHTML;
 };

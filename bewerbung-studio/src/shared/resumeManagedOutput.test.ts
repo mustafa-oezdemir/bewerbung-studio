@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseHTML } from "linkedom";
 import { profileSchema } from "./schema";
-import { applyManagedResumeOutput } from "./resumeManagedOutput";
+import { applyManagedResumeOutput, applyResumeSectionHeadingColors } from "./resumeManagedOutput";
 import { defaultDocumentDesign } from "./documentDesign";
 import { createKnowledgeCategory, createKnowledgeItem } from "../features/knowledge/knowledge.utils";
 
@@ -12,6 +12,37 @@ const profile = profileSchema.parse({
 const page = '<section class="cv-sheet"><main><section><h2>Stärken</h2><p>Old content</p></section></main></section>';
 
 describe("shared strengths output", () => {
+  it.each(["pehlione-sidebar", "elegant-pdf-sidebar", "gepflegt-sidebar"])("colors sidebar section titles in %s independently from body text", (sidebarClass) => {
+    const { document } = parseHTML(`<div><aside class="${sidebarClass}"><section><h3><span>Kernkompetenzen</span></h3><p>Text</p><article><h3>Eintrag</h3></article></section><section><h3>Sprachen</h3></section></aside><main><section><h3>Berufserfahrung</h3></section></main></div>`);
+    const root = document.querySelector("div")!;
+    applyResumeSectionHeadingColors(root, { ...defaultDocumentDesign, resumeAppearance: { sidebarTextColor: "#ff0000" } });
+    const headings = root.querySelectorAll("aside > section > h3");
+    expect(Array.from(headings).map(node => (node as HTMLElement).style.color)).toEqual(["#ff0000", "#ff0000"]);
+    expect(root.querySelector("aside p")?.getAttribute("style")).toBeNull();
+    expect(root.querySelector("aside article h3")?.getAttribute("style")).toBeNull();
+    expect(root.querySelector("main h3")?.getAttribute("style")).toBeNull();
+    applyResumeSectionHeadingColors(root, { ...defaultDocumentDesign, resumeAppearance: { sidebarTextColor: "#ff0000", sidebarSectionHeadingColor: "#112233" } });
+    expect(Array.from(headings).map(node => (node as HTMLElement).style.color)).toEqual(["#112233", "#112233"]);
+  });
+  it.each(["left", "right"])("resolves built-in and custom section titles by semantic column with sidebar on the %s", (side) => {
+    const { document } = parseHTML('<div><main><section data-managed-section="experience"><h3>Berufserfahrung</h3></section></main><aside><section data-managed-section="special:project"><h3>Projekt-Highlight</h3></section></aside></div>');
+    const root = document.querySelector("div")!;
+    const main = root.querySelector("main")!;
+    const sidebar = root.querySelector("aside")!;
+    if (side === "left") root.insertBefore(sidebar, main);
+    const settings = { ...defaultDocumentDesign, cvOverrides: { colors: { sectionHeading: "#123456" } },
+      resumeAppearance: { sidebarSectionHeadingColor: "#ff0000" } };
+    applyResumeSectionHeadingColors(root, settings);
+    expect(main.querySelector("h3")?.getAttribute("style")).toContain("#123456");
+    expect(sidebar.querySelector("h3")?.getAttribute("style")).toContain("#ff0000");
+    const custom = sidebar.querySelector("section")!;
+    main.appendChild(custom);
+    applyResumeSectionHeadingColors(root, settings);
+    expect(custom.querySelector("h3")?.getAttribute("style")).toContain("#123456");
+    sidebar.appendChild(custom);
+    applyResumeSectionHeadingColors(root, settings);
+    expect(custom.querySelector("h3")?.getAttribute("style")).toContain("#ff0000");
+  });
   it("preserves native heading decoration and inserts custom sections before the closing", () => {
     const custom = profileSchema.parse({ ...profile, strengths: [], specialSections: [{ id: crypto.randomUUID(), title: "Eigener Abschnitt", kind: "custom", entries: [{ id: crypto.randomUUID(), title: "Inhalt" }] }] });
     const html = '<main class="pehlione-main"><section class="pehlione-main-section"><h2 class="pehlione-section-heading"><span><svg></svg></span><b>Berufserfahrung</b></h2><p>Erfahrung</p></section><footer>Abschluss</footer></main>';

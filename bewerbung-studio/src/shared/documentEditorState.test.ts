@@ -13,6 +13,7 @@ describe("document editor persistence", () => {
     draft = updateResumeAppearanceField(draft, "sectionDividerVisible", false);
     draft = updateResumeAppearanceField(draft, "sidebarBackgroundColor", "#334455");
     draft = updateResumeAppearanceField(draft, "contactDividerColor", "#abcdef");
+    draft = updateResumeAppearanceField(draft, "sidebarSectionHeadingColor", "#112244");
     draft = updateCvDesignField(draft, "colors", "heading", "#112233");
     const other = selectDocumentTemplate(draft, "klassisch");
     expect(other.settings.resumeAppearance).toBeUndefined();
@@ -20,10 +21,10 @@ describe("document editor persistence", () => {
       accentColor: other.accentColor, secondaryColor: other.secondaryColor,
       designSettings: other.settings, templateDesigns: other.templateDesigns });
     const restored = selectDocumentTemplate(createDocumentDesignDraft(saved), "pehlione_white_blue");
-    expect(restored.settings.resumeAppearance).toEqual({ sectionDividerVisible: false, sidebarBackgroundColor: "#334455", contactDividerColor: "#abcdef" });
+    expect(restored.settings.resumeAppearance).toEqual({ sectionDividerVisible: false, sidebarBackgroundColor: "#334455", contactDividerColor: "#abcdef", sidebarSectionHeadingColor: "#112244" });
     expect(restored.settings.cvOverrides?.colors?.heading).toBe("#112233");
     expect(updateResumeAppearanceField(restored, "sectionDividerVisible", true).settings.resumeAppearance)
-      .toEqual({ sidebarBackgroundColor: "#334455", contactDividerColor: "#abcdef" });
+      .toEqual({ sidebarBackgroundColor: "#334455", contactDividerColor: "#abcdef", sidebarSectionHeadingColor: "#112244" });
     const reset = resetDocumentDesign(restored);
     expect(reset.settings.resumeAppearance).toBeUndefined();
     expect(reset.settings.cvOverrides).toBeUndefined();

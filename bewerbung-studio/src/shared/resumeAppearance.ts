@@ -6,6 +6,7 @@ const color = z.string().regex(/^#[0-9a-f]{6}$/i);
 export const resumeAppearanceSchema = z.object({
   sidebarBackgroundColor: color.optional(),
   sidebarTextColor: color.optional(),
+  sidebarSectionHeadingColor: color.optional(),
   mainBackgroundColor: color.optional(),
   sectionDividerVisible: z.boolean().optional(),
   sectionDividerWidthMm: z.number().min(0.1).max(2).optional(),
