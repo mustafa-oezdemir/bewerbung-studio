@@ -372,3 +372,8 @@ Abschnittsüberschriften. Ein eigener Wert für „Seitenspalte Abschnittstitel�
 hat bei Text und Symbol Vorrang vor der Akzentfarbe; ohne diesen Wert bleibt
 die Akzentdarstellung der Vorlage erhalten. Das gilt für Vorschau und PDF
 aller Vorlagen mit solchen Abschnittssymbolen.
+
+Beim Verschieben eines Hauptabschnitts in die Seitenspalte wird seine
+Überschrift nicht mehr zwangsweise auf die Seitenspalten-Textfarbe gesetzt.
+Damit behalten etwa Zertifikate und Projekt-Highlight zunächst die Akzentfarbe
+und folgen einer ausdrücklich gewählten Seitenspalten-Überschriftenfarbe.

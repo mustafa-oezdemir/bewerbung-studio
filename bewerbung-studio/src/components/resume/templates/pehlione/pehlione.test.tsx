@@ -179,7 +179,7 @@ describe("Pehlione White Blue", () => {
     const settings = { ...defaultDocumentDesign,
       cvOverrides: { colors: { heading: "#112233", sectionHeading: "#334455", divider: "#556677" } },
       resumeAppearance: { sidebarBackgroundColor: "#f2f3f4", sidebarTextColor: "#223344",
-        mainBackgroundColor: "#fafafa", photoDecorationColor: "#778899", contactDividerColor: "#aabbcc" },
+        sidebarSectionHeadingColor: "#cc0000", mainBackgroundColor: "#fafafa", photoDecorationColor: "#778899", contactDividerColor: "#aabbcc" },
     };
     const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test",
       company: { name: "Firma", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" },
@@ -205,9 +205,11 @@ describe("Pehlione White Blue", () => {
       expect(host.getAttribute("style")).toContain("--pehlione-title-color:#112233");
       expect(host.getAttribute("style")).toContain("--pehlione-contact-divider-color:#aabbcc");
       expect(sidebar.querySelector('[data-managed-section="certifications"]')).not.toBeNull();
+      expect(sidebar.querySelector('[data-managed-section="certifications"] h2,[data-managed-section="certifications"] h3')?.getAttribute("style")).toContain("#cc0000");
       const custom = sidebar.querySelector(`[data-managed-section="special:${customId}"]`);
       expect(custom?.textContent).toContain("Profilprojekt");
       expect(custom?.querySelector('[data-custom-role="heading"] svg')).not.toBeNull();
+      expect(custom?.querySelector('[data-custom-role="heading"]')?.getAttribute("style")).toContain("#cc0000");
       expect(document.querySelector('[data-managed-section="experience"]')?.textContent).toContain("Praktikum Softwareentwicklung");
     }
     const { document } = parseHTML(pdf);

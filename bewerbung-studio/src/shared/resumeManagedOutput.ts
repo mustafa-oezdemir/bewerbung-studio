@@ -90,7 +90,7 @@ export const managedResumeCss = `
 :where([data-custom-template]) .resume-special-output__meta{opacity:1}
 [data-managed-section]{break-inside:avoid}
 [data-managed-section][data-custom-template]{break-inside:avoid}
-[data-managed-moved], [data-managed-moved] :is(h2,h3,p,li,small){color:inherit!important}
+[data-managed-moved], [data-managed-moved] :is(p,li,small){color:inherit!important}
 [data-managed-section="strengths"] .managed-strengths-grid{display:grid;grid-template-columns:repeat(var(--section-columns,1),minmax(0,1fr));gap:3mm;list-style:none;margin:0;padding:0}
 [data-managed-section="strengths"] .managed-strength-card{display:grid;grid-template-columns:4mm minmax(0,1fr);align-items:start;gap:1mm 1.5mm;min-width:0;margin:0;padding:0;border:0;break-inside:avoid;overflow-wrap:anywhere}
 [data-managed-section="strengths"] .managed-strength-card>svg{width:4mm;height:4mm;grid-column:1;grid-row:1 / span 2;color:var(--doc-accent,var(--accent,currentColor))}
