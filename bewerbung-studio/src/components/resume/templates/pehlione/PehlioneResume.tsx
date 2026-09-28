@@ -3,6 +3,7 @@ import {
   Code2,
   Database,
   GraduationCap,
+  Languages,
   Lightbulb,
   UserRound,
   Wrench,
@@ -44,8 +45,8 @@ type Props = {
   sections: ApplicantProfile["resumeSections"];
 };
 
-const heading = (icon: ReactNode, title: string) => (
-  <h2 className="pehlione-section-heading">
+const heading = (icon: ReactNode, title: string, className = "") => (
+  <h2 className={`pehlione-section-heading${className ? ` ${className}` : ""}`}>
     <span>{icon}</span>
     <b>{title}</b>
   </h2>
@@ -185,7 +186,7 @@ export function PehlioneResume({
           ) : null)}
           {sections.languages && profile?.languages.filter(Boolean).length ? (
             <section className="pehlione-sidebar-section">
-              {heading(<UserRound />, "Sprachen")}
+              {heading(<Languages />, "Sprachen", templateId === "pehlione_white_blue" ? "pehlione-language-heading" : "")}
               <ul className="pehlione-bullet-list">{profile.languages.filter(Boolean).map((item) => <li key={item}>{item}</li>)}</ul>
             </section>
           ) : null}

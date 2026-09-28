@@ -64,8 +64,9 @@ const plan: ResumePagePlan = {
 
 describe("Pehlione White Blue", () => {
   it("keeps moved sidebar sections to one rule and the PDF closing in the main column", () => {
-    let arranged = moveManagerSection(profile, "pehlione_white_blue", "summary", "sidebar", 0);
+    let arranged = moveManagerSection(profileSchema.parse({ ...profile, languages: ["Deutsch – C1"] }), "pehlione_white_blue", "summary", "sidebar", 0);
     arranged = moveManagerSection(arranged, "pehlione_white_blue", "certifications", "sidebar", 1);
+    arranged = moveManagerSection(arranged, "pehlione_white_blue", "languages", "main", 2);
     const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test",
       company: { name: "Firma", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" },
       status: "Entwurf", templateId: "pehlione_white_blue", accentColor: "#0b3d86", secondaryColor: "#1f66b3",
@@ -79,6 +80,7 @@ describe("Pehlione White Blue", () => {
     }
     expect(document.querySelector(".pehlione-pdf-closing")?.parentElement?.classList.contains("pehlione-pdf-main")).toBe(true);
     expect(document.querySelector(".pehlione-pdf-sidebar .pehlione-pdf-closing")).toBeNull();
+    expect(document.querySelector('.pehlione-pdf-main [data-managed-section="languages"] .pehlione-pdf-language-heading svg')).not.toBeNull();
   });
   it("keeps profile data, career rows, custom sections and appearance in preview and PDF", () => {
     const projectId = "85000000-0000-4000-8000-000000000001";
@@ -130,6 +132,10 @@ describe("Pehlione White Blue", () => {
         const heading = Array.from(sidebar.querySelectorAll("h2,h3")).find(node => node.textContent?.includes(title));
         expect(heading?.getAttribute("style")).toContain("color:#cc0000");
       }
+      const languagesHeading = sidebar.querySelector(".pehlione-language-heading,.pehlione-pdf-language-heading");
+      expect(languagesHeading?.textContent).toBe("Sprachen");
+      expect(languagesHeading?.querySelector("svg")).not.toBeNull();
+      expect(languagesHeading?.querySelector("span")).not.toBeNull();
       expect(host.getAttribute("style")).toContain("--pehlione-title-color:#112233");
       expect(host.getAttribute("style")).toContain("--pehlione-contact-divider-color:#aabbcc");
       expect(host.getAttribute("data-section-divider")).toBe("hidden");

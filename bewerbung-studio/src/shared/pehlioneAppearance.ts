@@ -60,6 +60,12 @@ export const pehlioneAppearanceCss = `
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-section-heading b,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-section>h3 span,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar h3{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary));border-bottom-width:var(--pehlione-divider-width,.3mm)}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-sidebar .pehlione-language-heading{display:grid;grid-template-columns:9mm minmax(0,1fr);gap:3mm;align-items:center}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-sidebar .pehlione-language-heading>span{display:grid;width:9mm;height:9mm;place-items:center;border-radius:1.2mm;color:#fff;background:var(--pehlione-primary,#0b3d86)}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-sidebar .pehlione-language-heading b{display:block;min-width:0;padding-bottom:1.2mm;border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary));border-bottom-width:var(--pehlione-divider-width,.3mm)}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar .pehlione-pdf-language-heading{display:grid;grid-template-columns:9mm minmax(0,1fr);gap:3mm;align-items:center;border-bottom:0;padding-bottom:0}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar .pehlione-pdf-language-heading>i{display:grid;width:9mm;height:9mm;place-items:center;border-radius:1.2mm;color:#fff;background:var(--pehlione-primary,#0b3d86)}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar .pehlione-pdf-language-heading>span{display:block;min-width:0;padding-bottom:1.2mm;border-bottom:var(--pehlione-divider-width,.3mm) solid var(--pehlione-divider-color,var(--pehlione-primary))}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-contacts.pehlione-contacts h3,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar .pehlione-contacts.pehlione-contacts h3{border-bottom-color:var(--pehlione-contact-divider-color,#fff);border-bottom-width:var(--pehlione-divider-width,.3mm)}
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar .pehlione-pdf-section>h3{border-bottom:0;padding-bottom:0}
@@ -87,8 +93,10 @@ export const pehlioneAppearanceCss = `
 .pehlione-resume[data-template="pehlione_white_blue"] [data-resume-metadata-grid="side-by-side"][data-resume-metadata-order="dates-first"] :is([data-resume-metadata-date],[data-resume-metadata-role]),
 .cv-sheet[data-template="pehlione_white_blue"] [data-resume-metadata-grid="side-by-side"][data-resume-metadata-order="dates-first"] :is([data-resume-metadata-date],[data-resume-metadata-role]){font-size:9pt;line-height:1.2;text-align:left}
 .pehlione-resume[data-section-divider="hidden"] .pehlione-section-heading b,
+.pehlione-resume[data-section-divider="hidden"] .pehlione-language-heading b,
 .pehlione-resume[data-section-divider="hidden"] .pehlione-sidebar h3,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf[data-section-divider="hidden"] .pehlione-pdf-section>h3 span,
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf[data-section-divider="hidden"] .pehlione-pdf-language-heading>span,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf[data-section-divider="hidden"] .pehlione-pdf-sidebar h3{border-bottom:0}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-hero:before,
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-hero:after{border-color:var(--pehlione-photo-decoration-color,#b7d7ff99)}

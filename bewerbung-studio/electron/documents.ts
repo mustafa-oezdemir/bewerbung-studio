@@ -3118,7 +3118,7 @@ export const buildDocumentHtml = (
     const continuation = plan.pageNumber > 1;
     const lastPage = plan.pageNumber === resumePlan.length;
     const sectionIcon = (
-      kind: "profile" | "experience" | "education" | "project" | "training",
+      kind: "profile" | "experience" | "education" | "project" | "training" | "languages",
     ) => {
       const paths = {
         profile: '<circle cx="12" cy="7" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
@@ -3126,6 +3126,7 @@ export const buildDocumentHtml = (
         education: '<path d="m2 10 10-5 10 5-10 5L2 10Z"/><path d="M6 12v5c3 2 9 2 12 0v-5M22 10v6"/>',
         project: '<path d="M9 18h6M10 22h4M8.5 14.5A7 7 0 1 1 15.5 14.5C14.5 15.4 14 16.2 14 18h-4c0-1.8-.5-2.6-1.5-3.5Z"/>',
         training: '<path d="M3 5h7a2 2 0 0 1 2 2v14a3 3 0 0 0-3-3H3V5ZM21 5h-7a2 2 0 0 0-2 2v14a3 3 0 0 1 3-3h6V5Z"/>',
+        languages: '<path d="m5 8 6 6M4 14l6-6 2-3H2M8 2v3M2 5h12M7 16h15m-11 5 5-11 5 11m-8.5-3h7"/>',
       } as const;
       return `<i class="pehlione-pdf-section-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${paths[kind]}</svg></i>`;
     };
@@ -3209,7 +3210,10 @@ export const buildDocumentHtml = (
     const languages = sections.languages
       ? (profile?.languages ?? []).filter(Boolean).map((item) => `<li>${escapeHtml(item)}</li>`).join("")
       : "";
-    const sidebar = `<aside class="pehlione-pdf-sidebar"><div class="pehlione-pdf-hero${pehlionePhoto ? " with-photo" : ""}">${template.id === "pehlione_white" ? `<span class="pehlione-pdf-blueprint">${pehlioneBlueprintMarkup}</span>` : `<i></i><i></i><i></i>${pehlionePhoto ? "" : "<b>◉</b>"}`}${pehlionePhoto}</div>${contacts}${knowledgeSection.visible && profile?.resumeKnowledgeContainer?.showTitle && knowledgeGroups.some((group) => group.slot === "sidebar") ? `<h3 class="pehlione-pdf-container-title">${escapeHtml(getResumeSemanticTitle(semanticSections, "knowledge"))}</h3>` : ""}${knowledgeSection.visible && sections.strengths && competenceMarkup ? `<section>${sidebarHeading(coreGroup?.title || "Kernkompetenzen", "project")}<ul>${competenceMarkup}</ul></section>` : ""}${knowledgeSection.visible && focus ? `<section>${sidebarHeading(focusGroup?.title || "Technische Schwerpunkte", "training")}<ul>${focus}</ul></section>` : ""}${knowledgeSection.visible ? sidebarKnowledge : ""}${languages ? `<section><h3>Sprachen</h3><ul>${languages}</ul></section>` : ""}</aside>`;
+    const languageHeading = template.id === "pehlione_white_blue"
+      ? `<h3 class="pehlione-pdf-sidebar-heading pehlione-pdf-language-heading">${sectionIcon("languages")}<span>Sprachen</span></h3>`
+      : "<h3>Sprachen</h3>";
+    const sidebar = `<aside class="pehlione-pdf-sidebar"><div class="pehlione-pdf-hero${pehlionePhoto ? " with-photo" : ""}">${template.id === "pehlione_white" ? `<span class="pehlione-pdf-blueprint">${pehlioneBlueprintMarkup}</span>` : `<i></i><i></i><i></i>${pehlionePhoto ? "" : "<b>◉</b>"}`}${pehlionePhoto}</div>${contacts}${knowledgeSection.visible && profile?.resumeKnowledgeContainer?.showTitle && knowledgeGroups.some((group) => group.slot === "sidebar") ? `<h3 class="pehlione-pdf-container-title">${escapeHtml(getResumeSemanticTitle(semanticSections, "knowledge"))}</h3>` : ""}${knowledgeSection.visible && sections.strengths && competenceMarkup ? `<section>${sidebarHeading(coreGroup?.title || "Kernkompetenzen", "project")}<ul>${competenceMarkup}</ul></section>` : ""}${knowledgeSection.visible && focus ? `<section>${sidebarHeading(focusGroup?.title || "Technische Schwerpunkte", "training")}<ul>${focus}</ul></section>` : ""}${knowledgeSection.visible ? sidebarKnowledge : ""}${languages ? `<section class="pehlione-pdf-section pehlione-pdf-language-section">${languageHeading}<ul>${languages}</ul></section>` : ""}</aside>`;
     const sidebarWidth = (profile?.resumeColumnRatio ?? 30) * 2.1;
     return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="${escapeHtml(template.id)}" data-no-fit="true"><div class="page-content pehlione-pdf${template.id === "pehlione_white" ? " pehlione-pdf-white" : ""}" data-density="${density}" style="grid-template-columns:${sidebarWidth}mm minmax(0,1fr)">${sidebar}<main class="pehlione-pdf-main">${header}${main}</main></div></section>`;
   };

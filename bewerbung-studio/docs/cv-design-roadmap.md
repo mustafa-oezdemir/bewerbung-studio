@@ -343,3 +343,8 @@ Spalte um. Der PDF-Hinweis steht oberhalb des Panels; der Abschnittsorganizer
 folgt danach. Abschnittstitelfarben werden anhand der semantischen Haupt- oder
 Seitenspalte auf Standard- und eigene Abschnitte angewendet, unabhängig davon,
 ob die Seitenspalte links oder rechts steht.
+
+Pehlione White Blue: Der Abschnitt „Sprachen“ zeigt in Vorschau und PDF ein
+Sprachen-Symbol im gleichen Akzent-Iconfeld wie andere ikontragende
+Abschnittstitel. Die Überschriftenfarbe und Abschnittslinie folgen weiterhin
+den gespeicherten Designwerten.
