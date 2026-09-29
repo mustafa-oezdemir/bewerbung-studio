@@ -79,12 +79,31 @@ export class WorkspaceManager {
     await rename(temporary, this.bootstrapPath);
   }
 
+  private async repairNestedApplicationsRoot(root: string) {
+    const applicationsFolder = path.basename(root).toLocaleLowerCase();
+    const dataFolder = path.basename(path.dirname(root)).toLocaleLowerCase();
+    if (applicationsFolder !== "bewerbungen" || dataFolder !== "data") {
+      return null;
+    }
+    const candidate = path.dirname(path.dirname(root));
+    const workspacePath = path.join(candidate, "data", "Settings", "workspace.json");
+    const backupPath = `${workspacePath}.bak`;
+    if (!(await exists(workspacePath)) && !(await exists(backupPath))) {
+      return null;
+    }
+    await this.writeBootstrap(candidate);
+    return candidate;
+  }
+
   async status(): Promise<WorkspaceStatus> {
     const override = this.environment[BEWERBUNG_ROOT_PATH_ENV]?.trim();
     if (override) return { state: "ready", root: path.resolve(override) };
     const config = await this.readBootstrap();
     if (config) {
-      const root = path.resolve(config.workspaceRootPath);
+      const configuredRoot = path.resolve(config.workspaceRootPath);
+      const root =
+        (await this.repairNestedApplicationsRoot(configuredRoot)) ??
+        configuredRoot;
       if (!(await exists(root))) return { state: "missing", root };
       const workspacePath = path.join(root, "data", "Settings", "workspace.json");
       if (!(await exists(workspacePath)) && !(await exists(`${workspacePath}.bak`))) {

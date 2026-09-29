@@ -50,6 +50,29 @@ describe("workspace management", () => {
     expect((await stat(path.join(root, "data", "Settings"))).isDirectory()).toBe(true);
   });
 
+  it("repairs a bootstrap that accidentally points to data/Bewerbungen", async () => {
+    const base = await temporary();
+    const userData = path.join(base, "config");
+    const root = path.join(base, "workspace");
+    await writeWorkspace(root);
+    await mkdir(userData, { recursive: true });
+    await writeFile(
+      path.join(userData, "bootstrap.json"),
+      JSON.stringify({
+        workspaceRootPath: path.join(root, "data", "Bewerbungen"),
+        setupCompleted: true,
+      }),
+    );
+
+    const manager = new WorkspaceManager(userData, {}, path.join(base, "legacy"));
+
+    expect(await manager.status()).toEqual({ state: "ready", root });
+    expect(
+      JSON.parse(await readFile(path.join(userData, "bootstrap.json"), "utf8"))
+        .workspaceRootPath,
+    ).toBe(root);
+  });
+
   it("reports a missing configured folder instead of silently creating it", async () => {
     const base = await temporary();
     const userData = path.join(base, "config");

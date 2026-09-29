@@ -24,6 +24,7 @@ export function SettingsView() {
   const [workspaceRoot, setWorkspaceRoot] = useState("");
   const [changeMode, setChangeMode] = useState<WorkspaceChangeMode>("move");
   const [storageMessage, setStorageMessage] = useState("");
+  const [changingWorkspace, setChangingWorkspace] = useState(false);
   useEffect(() => {
     if (window.bewerbungsManager) {
       void window.bewerbungsManager.system.dataPath().then(setDataPath);
@@ -35,19 +36,30 @@ export function SettingsView() {
 
   const changeWorkspace = async () => {
     setStorageMessage("");
+    setChangingWorkspace(true);
     try {
       const status =
         await window.bewerbungsManager.system.changeWorkspace(changeMode);
-      if (status.state === "ready" && status.root !== workspaceRoot)
+      if (status.state === "ready" && status.root !== workspaceRoot) {
+        setWorkspaceRoot(status.root);
         window.location.reload();
+      } else {
+        setStorageMessage("Der Speicherort wurde nicht geändert.");
+      }
     } catch (error) {
       setStorageMessage(
         error instanceof Error
           ? error.message
           : "Der Speicherort konnte nicht geändert werden.",
       );
+    } finally {
+      setChangingWorkspace(false);
     }
   };
+
+  const applicationsPath = dataPath === "Wird geladen …"
+    ? dataPath
+    : `${dataPath}\\Bewerbungen`;
 
   const backupWorkspace = async () => {
     setStorageMessage("");
@@ -90,12 +102,17 @@ export function SettingsView() {
             </span>
             <div>
               <h3>Speicherort / Bewerbungsordner</h3>
-              <p>Ihre Unterlagen werden unter diesem Ordner organisiert.</p>
+              <p>
+                Sie können den Speicherort jederzeit frei auswählen. Die App
+                organisiert darin alle Bewerbungen und Einstellungen.
+              </p>
             </div>
           </header>
           <div className="path-box">
-            <small>Aktueller Speicherort</small>
+            <small>Gewählter Stammordner</small>
             <code>{workspaceRoot || "Wird geladen …"}</code>
+            <small>Bewerbungsdateien</small>
+            <code>{applicationsPath}</code>
           </div>
           <label className="field">
             <span>Beim Wechsel des Speicherorts</span>
@@ -112,8 +129,10 @@ export function SettingsView() {
             </select>
           </label>
           <p>
-            Vor dem Wechsel wird eine vollständige Sicherung erstellt. Der
-            bisherige Ordner bleibt zur Wiederherstellung erhalten.
+            Wählen Sie anschließend einen beliebigen lokalen Ordner oder
+            erstellen Sie im Dialog einen neuen. Vor dem Wechsel wird eine
+            vollständige Sicherung erstellt; der bisherige Ordner bleibt zur
+            Wiederherstellung erhalten.
           </p>
           {storageMessage && <p role="status">{storageMessage}</p>}
           <div className="settings-action-grid">
@@ -128,8 +147,11 @@ export function SettingsView() {
             <button
               className="button secondary"
               type="button"
+              disabled={changingWorkspace}
               onClick={() => void changeWorkspace()}>
-              Speicherort ändern
+              {changingWorkspace
+                ? "Speicherort wird geändert …"
+                : "Anderen Ordner auswählen …"}
             </button>
             <button
               className="button secondary"
