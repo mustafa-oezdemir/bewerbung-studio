@@ -546,6 +546,23 @@
   overflow-wrap: anywhere;
 }
 
+.zweispaltig-footer--with-contact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+}
+
+.zweispaltig-footer__contact {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1mm 4mm;
+  text-align: center;
+}
+
+.zweispaltig-footer--with-contact > span:last-child {
+  justify-self: end;
+}
+
 .zweispaltig-footer span:last-child {
   flex: none;
 }

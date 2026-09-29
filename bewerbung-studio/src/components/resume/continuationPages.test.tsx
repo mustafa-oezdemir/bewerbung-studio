@@ -42,7 +42,7 @@ const components = {
 const now = new Date("2026-07-19T10:00:00.000Z").toISOString();
 const headline = "Prozessoptimierer Unikat";
 const profile = profileSchema.parse({
-  id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", title: headline, city: "Berlin", email: "mina@example.com",
+  id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", title: headline, city: "Berlin", email: "mina@example.com", phone: "+49 30 123456",
   summary: "Erfahrene Fachkraft mit Schwerpunkt auf verlässlichen Abläufen und klarer Zusammenarbeit im Team.",
   skills: ["TypeScript", "React", "Node.js", "SQL", "Prozessanalyse"], languages: ["Deutsch – C1", "Englisch – B2"],
   signaturePath: "data:image/png;base64,iVBORw0KGgo=",
@@ -106,13 +106,21 @@ describe.each(Object.keys(components))("continuation page of %s", (templateId) =
     const first = surface === "pdf" ? pdfPages[0] : previewPages[0];
     const second = surface === "pdf" ? pdfPages[1] : previewPages[1];
     expect(second.querySelector("aside")).toBeNull();
-    expect(second.querySelector("[data-resume-continuation-meta]")?.textContent).toBe("Lebenslauf · Seite 2 von 2");
+    if (templateId === "zweispaltig") {
+      expect(second.querySelector("[data-resume-continuation-meta]")).toBeNull();
+      expect(second.querySelector("[data-resume-continuation-contact]")?.textContent).toContain("mina@example.com");
+      expect(second.querySelector("[data-resume-continuation-contact]")?.textContent).toContain("+49 30 123456");
+      expect(first.querySelector("[data-resume-continuation-contact]")).toBeNull();
+      expect(second.querySelector("footer")?.textContent).toContain("Seite 2 von 2");
+    } else {
+      expect(second.querySelector("[data-resume-continuation-meta]")?.textContent).toBe("Lebenslauf · Seite 2 von 2");
+      expect(second.querySelectorAll("[data-resume-continuation-meta]")).toHaveLength(1);
+    }
     expect(second.querySelector("[data-resume-continuation]")?.textContent).toContain("Mina Kaya");
     // The headline and the “Fortsetzung” kicker are not repeated.
     expect(text(second)).not.toContain(headline);
     expect(text(second)).not.toContain("Lebenslauf · Fortsetzung");
     expect(text(first)).toContain(headline);
-    expect(second.querySelectorAll("[data-resume-continuation-meta]")).toHaveLength(1);
   });
 
   it.each(["preview", "pdf"] as const)("never draws a career heading without entries in the %s", (surface) => {

@@ -455,6 +455,9 @@ const zweispaltigDocumentCss = `
   .zweispaltig-pdf-footer{position:absolute;right:var(--doc-margin);bottom:6mm;left:var(--doc-margin);display:flex;align-items:center;justify-content:space-between;gap:6mm;color:var(--zweispaltig-muted);font-size:7pt;line-height:1.2}
   .zweispaltig-pdf-footer a{color:var(--zweispaltig-heading);text-decoration:none;overflow-wrap:anywhere}
   .zweispaltig-pdf-footer span:last-child{margin-left:auto}
+  .zweispaltig-pdf-footer.with-contact{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}
+  .zweispaltig-pdf-footer-contact{display:flex;flex-wrap:wrap;justify-content:center;gap:1mm 4mm;text-align:center}
+  .zweispaltig-pdf-footer.with-contact>span:last-child{justify-self:end}
   .zweispaltig-pdf[data-density="compact"]{--zweispaltig-section-gap:max(4mm,calc(var(--section-gap) - 1mm));--zweispaltig-entry-gap:3mm}
   .zweispaltig-pdf[data-density="dense"]{--zweispaltig-section-gap:max(3.2mm,calc(var(--section-gap) - 2mm));--zweispaltig-entry-gap:2.4mm;padding-top:max(11mm,calc(var(--doc-margin) - 6mm))}
   .zweispaltig-pdf[data-density="dense"] .zweispaltig-pdf-header h1{font-size:21pt}
@@ -1437,6 +1440,12 @@ export const buildDocumentHtml = (
     const footerLink = zweispaltigPortfolio
       ? `<a href="${escapeHtml(externalHref(zweispaltigPortfolio))}">${escapeHtml(zweispaltigPortfolio)}</a>`
       : "<span></span>";
+    const footerContact = isContinuation
+      ? [
+          profile?.email ? `<a href="mailto:${escapeHtml(profile.email)}">${escapeHtml(profile.email)}</a>` : "",
+          profile?.phone ? `<a href="tel:${escapeHtml(profile.phone.replace(/[^\d+]/g, ""))}">${escapeHtml(profile.phone)}</a>` : "",
+        ].filter(Boolean).join("")
+      : "";
 
     return `
       <section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="zweispaltig" data-no-fit="true">
@@ -1455,7 +1464,7 @@ export const buildDocumentHtml = (
             </main>
             ${sidebarMarkup}
           </div>
-          <footer class="zweispaltig-pdf-footer">${footerLink}<span>Seite ${plan.pageNumber} von ${resumePlan.length}</span></footer>
+          <footer class="zweispaltig-pdf-footer${footerContact ? " with-contact" : ""}">${footerLink}${footerContact ? `<div class="zweispaltig-pdf-footer-contact" data-resume-continuation-contact>${footerContact}</div>` : ""}<span>Seite ${plan.pageNumber} von ${resumePlan.length}</span></footer>
         </div>
       </section>`;
   };

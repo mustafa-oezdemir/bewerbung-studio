@@ -40,6 +40,15 @@ describe("continuation header", () => {
     expect(preview.querySelector("header")?.textContent).toBe("Mina KayaLebenslauf · Seite 2 von 2");
   });
 
+  it("leaves only the name in Zweispaltig continuation headers numbered in the footer", () => {
+    for (const className of ["zweispaltig-header zweispaltig-header--compact", "zweispaltig-pdf-header compact"]) {
+      const page = root(`<header class="${className}"><div><p>Lebenslauf · Fortsetzung</p><h1>Mina Kaya</h1><h2>Entwicklerin</h2></div></header>`);
+      normalizeContinuationHeader(page, 2, 2);
+      expect(page.querySelector("header")?.textContent).toBe("Mina Kaya");
+      expect(page.querySelector("[data-resume-continuation-meta]")).toBeNull();
+    }
+  });
+
   it("is idempotent and leaves pages without a compact header untouched", () => {
     const page = root('<header class="pehlione-header"><h1>Mina Kaya</h1><h2>Entwicklerin</h2></header>');
     normalizeContinuationHeader(page, 2, 2);

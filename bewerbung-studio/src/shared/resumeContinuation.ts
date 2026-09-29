@@ -19,9 +19,9 @@ const continuationHeaderSelector =
   'header[class*="compact"],header[class*="continuation"],header.continuation,.pehlione-header';
 
 /**
- * Continuation pages carry only the name and a page indicator: the headline,
- * the “Lebenslauf · Fortsetzung” kicker and every other repeated identity
- * detail are dropped from the header.
+ * Continuation pages carry only the name and, unless the template already
+ * numbers its footer, a page indicator. The headline, the “Lebenslauf ·
+ * Fortsetzung” kicker and other repeated identity details are dropped.
  */
 export const normalizeContinuationHeader = (
   root: Element,
@@ -37,10 +37,12 @@ export const normalizeContinuationHeader = (
   if (container !== header) {
     for (const sibling of Array.from(header.children)) if (sibling !== container) sibling.remove();
   }
-  const meta = header.ownerDocument.createElement("p");
-  meta.setAttribute("data-resume-continuation-meta", "");
-  meta.textContent = `Lebenslauf · Seite ${pageNumber} von ${totalPages}`;
-  name.after(meta);
+  if (!header.classList.contains("zweispaltig-header") && !header.classList.contains("zweispaltig-pdf-header")) {
+    const meta = header.ownerDocument.createElement("p");
+    meta.setAttribute("data-resume-continuation-meta", "");
+    meta.textContent = `Lebenslauf · Seite ${pageNumber} von ${totalPages}`;
+    name.after(meta);
+  }
   header.setAttribute("data-resume-continuation", "");
 };
 
