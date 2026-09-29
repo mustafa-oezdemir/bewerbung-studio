@@ -979,6 +979,10 @@ describe("Lebenslauf-Dokumente", () => {
     expect(sidebarMarkup).toContain("Zusammenfassung");
     expect(body).not.toContain('<img class="zweispaltig-pdf-photo"');
     expect(body).not.toContain("monogram");
+    const { document } = parseHTML(html);
+    expect(document.querySelector(".zweispaltig-pdf-header h2")?.textContent).toBe(profile.title);
+    expect(document.querySelector(".zweispaltig-pdf-header")?.textContent).not.toContain("TypeScript");
+    expect(document.querySelector(".zweispaltig-pdf-sidebar")?.textContent).toContain("TypeScript");
   });
 
   it("keeps a sidebar summary in the right Zweispaltig PDF column", () => {

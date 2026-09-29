@@ -252,6 +252,13 @@ describe("Zweispaltig rendering", () => {
     );
   });
 
+  it("shows only the professional title in the header, with skills in Kenntnisse", () => {
+    const { document } = parseHTML(renderResume({ plan: singlePagePlan, totalPages: 1 }));
+    expect(document.querySelector(".zweispaltig-header h2")?.textContent).toBe(profile.title);
+    expect(document.querySelector(".zweispaltig-header")?.textContent).not.toContain("TypeScript");
+    expect(document.querySelector(".zweispaltig-sidebar")?.textContent).toContain("TypeScript");
+  });
+
   it("does not invent a photo placeholder", () => {
     const markup = renderResume({ photoSource: null });
 

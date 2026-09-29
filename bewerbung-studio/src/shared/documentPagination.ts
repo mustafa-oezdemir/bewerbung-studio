@@ -576,6 +576,9 @@ export const createResumePagePlan = (
       Math.max(0, MIN_FIRST_FILL - fillOne) * 1.5 +
       Math.max(0, -gap - REVERSED_GAP) * 0.6 +
       Math.max(0, gap - MAX_FILL_GAP) +
+      // Zweispaltig removes the sidebar on continuation pages. Do not leave a
+      // visibly empty first-page main column just to keep education together.
+      (templateId === "zweispaltig" && !flat ? Math.max(0, 0.85 - fillOne) * 2.4 : 0) +
       (splits(count) ? (preferWhole ? 0.14 : 0.04) + (singleSide(count) ? 0.05 : 0) : 0);
     candidates.push({ count, fillOne, fillTwo, densityOne: one.density, densityTwo: two.density, cost });
   };

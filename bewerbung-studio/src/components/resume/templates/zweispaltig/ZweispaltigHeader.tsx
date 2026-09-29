@@ -1,8 +1,5 @@
 import { ContactIcon } from "../ContactIcon";
-import {
-  toZweispaltigExternalHref,
-  uniqueZweispaltigValues,
-} from "./zweispaltig.model";
+import { toZweispaltigExternalHref } from "./zweispaltig.model";
 import type { ZweispaltigHeaderProps } from "./zweispaltig.types";
 
 type ZweispaltigContact = {
@@ -29,9 +26,6 @@ export function ZweispaltigHeader({
   const location = [profile?.postalCode, profile?.city, profile?.country]
     .filter(Boolean)
     .join(" ");
-  const specializations = uniqueZweispaltigValues(
-    profile?.skills ?? [],
-  ).slice(0, 3);
   const birth = [profile?.birthDate, profile?.birthPlace]
     .filter(Boolean)
     .join(", ");
@@ -100,14 +94,9 @@ export function ZweispaltigHeader({
           </p>
         ) : null}
         <h1>{name}</h1>
-        {profile?.title || (!compact && specializations.length) ? (
+        {profile?.title ? (
           <h2>
-            {profile?.title ? <span>{profile.title}</span> : null}
-            {!compact
-              ? specializations.map((specialization) => (
-                  <span key={specialization}>{specialization}</span>
-                ))
-              : null}
+            <span>{profile.title}</span>
           </h2>
         ) : null}
 

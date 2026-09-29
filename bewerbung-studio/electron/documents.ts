@@ -1234,17 +1234,13 @@ export const buildDocumentHtml = (
     compact: boolean,
     showPhoto: boolean,
   ) => {
-    const specializations = uniqueValues(profile?.skills ?? []).slice(0, 3);
-    const professionParts = [
-      profile?.title || (!specializations.length ? role : ""),
-      ...(compact ? [] : specializations),
-    ].filter(Boolean);
+    const profession = profile?.title || role;
     return `
       <header class="zweispaltig-pdf-header${compact ? " compact" : ""}">
         <div>
           ${compact ? '<p class="kicker">Lebenslauf · Fortsetzung</p>' : ""}
           <h1>${escapeHtml(name)}</h1>
-          ${professionParts.length ? `<h2>${professionParts.map((part) => `<span>${escapeHtml(part)}</span>`).join("")}</h2>` : ""}
+          ${profession ? `<h2><span>${escapeHtml(profession)}</span></h2>` : ""}
           ${compact ? "" : zweispaltigContactMarkup()}
         </div>
         ${

@@ -17352,14 +17352,14 @@ var FB = {
 		let t = v[e].kind, n = v.slice(0, e).filter((e) => e.kind === t).length, r = v.slice(e).filter((e) => e.kind === t).length;
 		return n === 1 || r === 1;
 	}, Ee = [], De = (e) => {
-		let t = L(be, x(v.slice(0, e), "first")), r = L(ye, x(v.slice(e), "cont")) + m, i = t / N, a = r / P, o = Ce(Math.max(i, Se)), s = Ce(a), c = n.keepSectionsTogether ?? !0, l = i - a, u = 1e3 * (o.overflow + s.overflow) + (o.density === "compact" ? .04 : o.density === "dense" ? .2 : 0) + (s.density === "compact" ? .04 : s.density === "dense" ? .2 : 0) + Math.max(0, WB - a) * 3 + Math.max(0, GB - i) * 1.5 + Math.max(0, -l - qB) * .6 + Math.max(0, l - KB) + (we(e) ? (c ? .14 : .04) + (Te(e) ? .05 : 0) : 0);
+		let t = L(be, x(v.slice(0, e), "first")), i = L(ye, x(v.slice(e), "cont")) + m, a = t / N, o = i / P, c = Ce(Math.max(a, Se)), l = Ce(o), u = n.keepSectionsTogether ?? !0, d = a - o, f = 1e3 * (c.overflow + l.overflow) + (c.density === "compact" ? .04 : c.density === "dense" ? .2 : 0) + (l.density === "compact" ? .04 : l.density === "dense" ? .2 : 0) + Math.max(0, WB - o) * 3 + Math.max(0, GB - a) * 1.5 + Math.max(0, -d - qB) * .6 + Math.max(0, d - KB) + (r === "zweispaltig" && !s ? Math.max(0, .85 - a) * 2.4 : 0) + (we(e) ? (u ? .14 : .04) + (Te(e) ? .05 : 0) : 0);
 		Ee.push({
 			count: e,
-			fillOne: i,
-			fillTwo: a,
-			densityOne: o.density,
-			densityTwo: s.density,
-			cost: u
+			fillOne: a,
+			fillTwo: o,
+			densityOne: c.density,
+			densityTwo: l.density,
+			cost: f
 		});
 	};
 	if (me !== void 0) De(Math.min(Math.max(me, 0), v.length));
@@ -18347,13 +18347,13 @@ ${Gu}`, vV = (e, t) => {
 			return e.href ? `<a data-contact-kind="${e.kind}" href="${$(e.href)}">${t}</a>` : `<span data-contact-kind="${e.kind}">${t}</span>`;
 		}).join("")}</address>` : "";
 	}, be = (e, n) => {
-		let r = LV(t?.skills ?? []).slice(0, 3), i = [t?.title || (r.length ? "" : _), ...e ? [] : r].filter(Boolean);
+		let r = t?.title || _;
 		return `
       <header class="zweispaltig-pdf-header${e ? " compact" : ""}">
         <div>
           ${e ? "<p class=\"kicker\">Lebenslauf · Fortsetzung</p>" : ""}
           <h1>${$(g)}</h1>
-          ${i.length ? `<h2>${i.map((e) => `<span>${$(e)}</span>`).join("")}</h2>` : ""}
+          ${r ? `<h2><span>${$(r)}</span></h2>` : ""}
           ${e ? "" : ye()}
         </div>
         ${n && b ? `<img class="zweispaltig-pdf-photo" src="${$(b)}" alt="">` : ""}

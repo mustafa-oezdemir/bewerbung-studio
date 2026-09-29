@@ -152,11 +152,13 @@ describe("A4 document pagination", () => {
     }
   });
 
-  it.each(["zweispaltig"])("prefers a section boundary when the pages stay reasonably balanced in %s", (id) => {
-    const plan = resolve(makeProfile(3, 3, 4), id).pagePlan;
+  it("uses free space in Zweispaltig's first main column for education", () => {
+    const plan = resolve(makeProfile(3, 3, 4), "zweispaltig").pagePlan;
     expect(plan).toHaveLength(2);
-    expect(plan[0].items.every((item) => item.kind === "experience")).toBe(true);
+    expect(plan[0].items.slice(0, 3).every((item) => item.kind === "experience")).toBe(true);
+    expect(plan[0].items.some((item) => item.kind === "education")).toBe(true);
     expect(plan[1].items.every((item) => item.kind === "education")).toBe(true);
+    expect(plan[0].fill!.main).toBeLessThanOrEqual(1);
   });
 
   it("splits a section between two entries instead of leaving one page nearly empty", () => {
