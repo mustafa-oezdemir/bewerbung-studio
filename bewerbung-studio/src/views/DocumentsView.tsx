@@ -2279,7 +2279,7 @@ export function DocumentsView({
                   automatisch erfunden.
                 </p>
               </div>
-              <button className="button primary full-button" type="submit">
+              <button className="button primary full-button" type="submit" formNoValidate>
                 <Save size={17} />{" "}
                 {tab === "anschreiben"
                   ? "Texte speichern & Word aktualisieren"

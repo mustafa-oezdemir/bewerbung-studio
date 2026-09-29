@@ -2232,6 +2232,10 @@ body.is-resizing-split-view * {
   width: 100%;
 }
 
+:root[data-theme="dark"] .document-editor form > .button.primary.full-button {
+  color: #0d1f1c;
+}
+
 .paper-stage {
   display: flex;
   overflow: auto;
