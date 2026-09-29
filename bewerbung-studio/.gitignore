@@ -12,6 +12,7 @@ dist
 dist-ssr
 release
 artifacts
+output/
 windows-release
 electron-builder.env
 *.pfx

@@ -65,6 +65,44 @@ const plan: ResumePagePlan = {
 };
 
 describe("Pehlione White Blue", () => {
+  it.each(["pehlione_white", "pehlione_white_blue"] as const)("places Projekt-Highlight after Ausbildung on the final page in preview and PDF for %s", (templateId) => {
+    const source = profileSchema.parse({ ...profile,
+      experiences: Array.from({ length: 3 }, (_, index) => ({ ...profile.experiences[0], id: crypto.randomUUID(), role: `Position ${index + 1}`,
+        achievements: Array.from({ length: 4 }, () => "Technische Prozesse geplant, optimiert und mit dem Team dokumentiert.") })),
+      education: Array.from({ length: 4 }, (_, index) => ({ ...profile.education[0], id: crypto.randomUUID(), degree: `Abschluss ${index + 1}` })),
+    });
+    const settings = getTemplateDocumentDesignDefaults(templateId);
+    const template = getTemplate(templateId);
+    const resolved = resolveCvDocument({ profile: source, templateId, settings });
+    expect(resolved.pagePlan).toHaveLength(2);
+    expect(resolved.pagePlan[0].blocks).not.toContain("projects");
+    expect(resolved.pagePlan[1].blocks).toContain("projects");
+    const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test",
+      company: { name: "Firma", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" },
+      status: "Entwurf", templateId, accentColor: template.accent, secondaryColor: template.secondary,
+      designSettings: settings, documents: {}, statusHistory: [], createdAt: profile.updatedAt, updatedAt: profile.updatedAt,
+    });
+    const pdfPages = Array.from(parseHTML(buildDocumentHtml(application, source, "lebenslauf")).document.querySelectorAll(".cv-sheet"));
+    expect(pehlioneAppearanceCss).toContain('.pehlione-resume[data-template^="pehlione_"] .pehlione-project,');
+    expect(pehlioneAppearanceCss).toContain('.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-project{padding:0;border:0;background:transparent}');
+    const previewPages = resolved.pagePlan.map((page) => parseHTML(renderToStaticMarkup(
+      <ManagedResumePreview profile={resolved.profile} templateId={templateId} pageNumber={page.pageNumber}
+        totalPages={2} designSettings={settings} resolvedCv={resolved}>
+        <PehlioneResume templateId={templateId} profile={resolved.profile} name="Mina Kaya" atsMode={false}
+          plan={page} totalPages={2} accentColor={template.accent} secondaryColor={template.secondary}
+          resumeProfile={resolved.paginationSummary} sections={resolved.sections} />
+      </ManagedResumePreview>,
+    )).document);
+    for (const [pages, selector] of [[pdfPages, ".pehlione-pdf-project"], [previewPages, ".pehlione-project"]] as const) {
+      expect(pages[0].querySelector(selector)).toBeNull();
+      const main = pages[1].querySelector(".pehlione-pdf-main,.pehlione-main");
+      expect(main?.querySelector(selector)).not.toBeNull();
+      const text = main?.textContent ?? "";
+      expect(text.indexOf("Ausbildung")).toBeGreaterThanOrEqual(0);
+      expect(text.indexOf("Projekt-Highlight")).toBeGreaterThan(text.indexOf("Ausbildung"));
+      expect(text.split("Projekt-Highlight")).toHaveLength(2);
+    }
+  });
   it.each(["pehlione_white_blue", "pehlione_white"])("keeps ATS continuation full-width and renders languages once in %s", (templateId) => {
     const source = profileSchema.parse({ ...profile, languages: ["Deutsch – C1"],
       experiences: Array.from({ length: 6 }, (_, index) => ({ ...profile.experiences[0], id: crypto.randomUUID(), role: `Position ${index + 1}`,

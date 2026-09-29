@@ -417,7 +417,9 @@ export const createResumePagePlan = (
         (total, entry) => total + linesFor(entry.length, geometry.text.bulletW, geometry.text.bulletFont, geometry.text.cw),
         0,
       );
-      flow.push({ id: "projects", zone: "main", height: (24 + lines * geometry.exp.linePitch) * scale.textHeight, home: "first" });
+      // Pehlione renders its project highlight after education. When education
+      // continues on page two, the project must follow it there as well.
+      flow.push({ id: "projects", zone: "main", height: (24 + lines * geometry.exp.linePitch) * scale.textHeight, home: "last" });
     }
   }
   const knowledgeZone = zoneOf("knowledge");

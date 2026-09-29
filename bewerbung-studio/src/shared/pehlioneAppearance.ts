@@ -30,6 +30,8 @@ export const applyPehlioneAppearance = (root: Element, templateId: string, setti
 };
 
 export const pehlioneAppearanceCss = `
+.pehlione-resume[data-template^="pehlione_"] .pehlione-project,
+.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-project{padding:0;border:0;background:transparent}
 [data-custom-template^="pehlione_"][class*="pehlione-main-section"]>[data-custom-role="heading"],
 [data-custom-template^="pehlione_"][class*="pehlione-pdf-section"]>[data-custom-role="heading"]{display:grid;grid-template-columns:9mm minmax(0,1fr);gap:3mm;align-items:center}
 [data-custom-template^="pehlione_"]>[data-custom-role="heading"]>[data-custom-role="heading-label"]{grid-column:2;grid-row:1;min-width:0}
