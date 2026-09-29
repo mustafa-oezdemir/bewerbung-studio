@@ -52,6 +52,21 @@ function Invoke-Git {
   }
 }
 
+function Assert-WorkspaceIntegrity {
+  $workspacePath = Join-Path $RepositoryPath "data\Settings\workspace.json"
+  if (Test-Path -LiteralPath $workspacePath) {
+    try {
+      Get-Content -LiteralPath $workspacePath -Raw | ConvertFrom-Json -ErrorAction Stop | Out-Null
+    } catch {
+      throw "Workspace JSON is invalid. Git synchronization was stopped without changing repository history."
+    }
+  }
+  $unmerged = @(& git -C $RepositoryPath diff --name-only --diff-filter=U)
+  if ($LASTEXITCODE -ne 0 -or $unmerged.Count -gt 0) {
+    throw "Unresolved Git conflicts detected. Git synchronization was stopped."
+  }
+}
+
 $insideWorkTree = & git -C $RepositoryPath rev-parse --is-inside-work-tree 2>$null
 if ($LASTEXITCODE -ne 0 -or $insideWorkTree.Trim() -ne "true") {
   throw "No Git repository found at $RepositoryPath."
@@ -73,29 +88,19 @@ if ($remotes -notcontains "origin") {
   }
 }
 
-$remoteMain = @(& git -C $RepositoryPath ls-remote --heads origin main)
-if ($LASTEXITCODE -ne 0) {
-  throw "Unable to read origin/main."
-}
-if ($remoteMain.Count -gt 0) {
-  Invoke-Git pull --rebase --autostash origin main
-}
-
+Assert-WorkspaceIntegrity
 Invoke-Git add --all
 & git -C $RepositoryPath diff --cached --quiet
 $diffExitCode = $LASTEXITCODE
-if ($diffExitCode -eq 0) {
-  exit 0
-}
-if ($diffExitCode -ne 1) {
+if ($diffExitCode -eq 1) {
+  Invoke-Git commit --message $CommitMessage
+} elseif ($diffExitCode -ne 0) {
   throw "git diff --cached --quiet failed with exit code $diffExitCode."
 }
 
-Invoke-Git commit --message $CommitMessage
 & git -C $RepositoryPath push origin HEAD:main
 if ($LASTEXITCODE -ne 0) {
-  Invoke-Git pull --rebase --autostash origin main
-  Invoke-Git push origin HEAD:main
+  throw "Git push failed. Local application data and history were preserved without an automatic merge."
 }
 `;
 

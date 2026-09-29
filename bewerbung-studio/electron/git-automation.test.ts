@@ -89,13 +89,15 @@ describe("GitAutomationService", () => {
       "utf8",
     );
     expect(script).toContain("push origin HEAD:main");
-    expect(script.indexOf("pull --rebase --autostash origin main")).toBeLessThan(
-      script.indexOf("add --all"),
+    expect(script).toContain("Assert-WorkspaceIntegrity");
+    expect(script).not.toContain("pull --rebase --autostash");
+    expect(script.indexOf("add --all")).toBeLessThan(
+      script.indexOf("commit --message"),
     );
   });
 
   it.skipIf(process.platform !== "win32")(
-    "commits and pushes through PowerShell to the configured repository",
+    "commits safely and refuses to auto-merge a diverged remote",
     async () => {
       const base = await mkdtemp(path.join(tmpdir(), "bewerbung-git-e2e-"));
       temporaryDirectories.push(base);
@@ -182,24 +184,28 @@ describe("GitAutomationService", () => {
       await writeFile(path.join(repository, "local.txt"), "local", "utf8");
 
       service.queueCommit("Test Firma", "update");
-      await service.waitForIdle();
+      await expect(service.waitForIdle()).rejects.toThrow("Git push failed");
 
-      await expect(readFile(path.join(repository, "remote.txt"), "utf8")).resolves.toBe(
-        "remote",
-      );
-      const { stdout: synchronizedRemoteHead } = await execFileAsync("git", [
-        "--git-dir",
-        remote,
-        "rev-parse",
-        "refs/heads/main",
-      ]);
-      const { stdout: synchronizedLocalHead } = await execFileAsync("git", [
+      await expect(readFile(path.join(repository, "remote.txt"), "utf8")).rejects.toThrow();
+      await expect(readFile(path.join(repository, "local.txt"), "utf8")).resolves.toBe("local");
+      const { stdout: localCommitMessage } = await execFileAsync("git", [
         "-C",
         repository,
-        "rev-parse",
-        "HEAD",
+        "log",
+        "-1",
+        "--pretty=%s",
       ]);
-      expect(synchronizedRemoteHead.trim()).toBe(synchronizedLocalHead.trim());
+      expect(localCommitMessage.trim()).toBe(
+        "Test Firma | 2026-08-29 11:00:00 | update",
+      );
+      const { stdout: conflicts } = await execFileAsync("git", [
+        "-C",
+        repository,
+        "diff",
+        "--name-only",
+        "--diff-filter=U",
+      ]);
+      expect(conflicts.trim()).toBe("");
     },
     15_000,
   );

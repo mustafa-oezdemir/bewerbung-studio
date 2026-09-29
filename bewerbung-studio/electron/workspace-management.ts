@@ -82,10 +82,13 @@ export class WorkspaceManager {
   private async repairNestedApplicationsRoot(root: string) {
     const applicationsFolder = path.basename(root).toLocaleLowerCase();
     const dataFolder = path.basename(path.dirname(root)).toLocaleLowerCase();
-    if (applicationsFolder !== "bewerbungen" || dataFolder !== "data") {
-      return null;
-    }
-    const candidate = path.dirname(path.dirname(root));
+    const candidate =
+      applicationsFolder === "bewerbungen" && dataFolder === "data"
+        ? path.dirname(path.dirname(root))
+        : applicationsFolder === "data"
+          ? path.dirname(root)
+          : null;
+    if (!candidate) return null;
     const workspacePath = path.join(candidate, "data", "Settings", "workspace.json");
     const backupPath = `${workspacePath}.bak`;
     if (!(await exists(workspacePath)) && !(await exists(backupPath))) {
@@ -93,6 +96,63 @@ export class WorkspaceManager {
     }
     await this.writeBootstrap(candidate);
     return candidate;
+  }
+
+  private async readWorkspace(root: string) {
+    const workspacePath = path.join(root, "data", "Settings", "workspace.json");
+    if (!(await exists(workspacePath))) return null;
+    try {
+      return workspaceSchema.parse(JSON.parse(await readFile(workspacePath, "utf8")));
+    } catch {
+      throw new Error("Der Bewerbungsordner enthält ungültige Daten.");
+    }
+  }
+
+  private async preservePersonalData(source: string, target: string) {
+    const sourceWorkspace = await this.readWorkspace(source);
+    if (!sourceWorkspace) return;
+    const targetWorkspace = await this.readWorkspace(target);
+    const mergeById = <T extends { id: string }>(current: T[], incoming: T[]) => {
+      const items = new Map(current.map((item) => [item.id, item]));
+      for (const item of incoming) if (!items.has(item.id)) items.set(item.id, item);
+      return [...items.values()];
+    };
+    const nextWorkspace = workspaceSchema.parse({
+      ...(targetWorkspace ?? sourceWorkspace),
+      applications: targetWorkspace?.applications ?? [],
+      events: targetWorkspace?.events ?? [],
+      attachments: targetWorkspace?.attachments ?? [],
+      profiles: mergeById(
+        targetWorkspace?.profiles ?? [],
+        sourceWorkspace.profiles,
+      ),
+      todos: mergeById(
+        targetWorkspace?.todos ?? [],
+        sourceWorkspace.todos,
+      ),
+      customCvDesigns: mergeById(
+        targetWorkspace?.customCvDesigns ?? [],
+        sourceWorkspace.customCvDesigns,
+      ),
+      updatedAt: new Date().toISOString(),
+    });
+    const workspacePath = path.join(target, "data", "Settings", "workspace.json");
+    const temporary = `${workspacePath}.${randomUUID()}.tmp`;
+    await mkdir(path.dirname(workspacePath), { recursive: true });
+    await writeFile(temporary, JSON.stringify(nextWorkspace, null, 2), "utf8");
+    await rename(temporary, workspacePath);
+
+    const sourceProfileDirectory = path.join(source, "data", "Profile");
+    if (!(await exists(sourceProfileDirectory))) return;
+    for (const sourceFile of await listFiles(sourceProfileDirectory)) {
+      const targetFile = path.join(
+        target,
+        "data",
+        "Profile",
+        path.relative(sourceProfileDirectory, sourceFile),
+      );
+      if (!(await exists(targetFile))) await copyAndVerify(sourceFile, targetFile);
+    }
   }
 
   async status(): Promise<WorkspaceStatus> {
@@ -233,6 +293,7 @@ export class WorkspaceManager {
       }
       await this.fullBackup(source);
       await new FileManagementService(resolveApplicationPaths(target)).initialize();
+      await this.preservePersonalData(source, target);
     }
     await this.writeBootstrap(target);
     // A move keeps the old root as a recoverable copy. Explicit cleanup can follow separately.

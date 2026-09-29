@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { WorkspaceManager } from "./workspace-management";
-import { defaultSettings } from "../src/shared/schema";
+import { defaultSettings, profileSchema } from "../src/shared/schema";
 
 const roots: string[] = [];
 const temporary = async () => {
@@ -71,6 +71,62 @@ describe("workspace management", () => {
       JSON.parse(await readFile(path.join(userData, "bootstrap.json"), "utf8"))
         .workspaceRootPath,
     ).toBe(root);
+  });
+
+  it("repairs a bootstrap that accidentally points to the managed data folder", async () => {
+    const base = await temporary();
+    const userData = path.join(base, "config");
+    const root = path.join(base, "workspace");
+    await writeWorkspace(root);
+    await mkdir(userData, { recursive: true });
+    await writeFile(
+      path.join(userData, "bootstrap.json"),
+      JSON.stringify({
+        workspaceRootPath: path.join(root, "data"),
+        setupCompleted: true,
+      }),
+    );
+
+    const manager = new WorkspaceManager(userData, {}, path.join(base, "legacy"));
+
+    expect(await manager.status()).toEqual({ state: "ready", root });
+  });
+
+  it("keeps profiles when switching to a new empty workspace", async () => {
+    const base = await temporary();
+    const manager = new WorkspaceManager(path.join(base, "config"), {}, path.join(base, "legacy"));
+    const source = await manager.setup(path.join(base, "source"));
+    const profile = profileSchema.parse({
+      id: crypto.randomUUID(),
+      isDefault: true,
+      firstName: "Mustafa",
+      lastName: "Özdemir",
+      updatedAt: new Date().toISOString(),
+    });
+    const sourceWorkspace = {
+      schemaVersion: 1 as const,
+      applications: [],
+      profiles: [profile],
+      events: [],
+      attachments: [],
+      todos: [],
+      customCvDesigns: [],
+      settings: defaultSettings,
+      updatedAt: new Date().toISOString(),
+    };
+    await writeFile(
+      path.join(source, "data", "Settings", "workspace.json"),
+      JSON.stringify(sourceWorkspace),
+    );
+    const target = path.join(base, "target");
+
+    await manager.changeRoot(source, target, "new");
+
+    const targetWorkspace = JSON.parse(
+      await readFile(path.join(target, "data", "Settings", "workspace.json"), "utf8"),
+    );
+    expect(targetWorkspace.applications).toEqual([]);
+    expect(targetWorkspace.profiles).toEqual([profile]);
   });
 
   it("reports a missing configured folder instead of silently creating it", async () => {
