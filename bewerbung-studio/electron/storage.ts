@@ -294,6 +294,10 @@ export class DataStore {
     this.workspace = await this.loadWorkspace();
     for (const application of this.workspace.applications) {
       await this.files.consolidateLegacyDocumentDirectories(application);
+      await this.files.normalizeLegacyDocumentNames(
+        application,
+        this.applicantDocumentNames(application),
+      );
     }
     this.workspace.applications.forEach((application) =>
       this.syncEvents(application),
@@ -794,6 +798,10 @@ export class DataStore {
     );
     try {
       await this.files.synchronizeApplicationArtifactNames(current, application);
+      await this.files.normalizeLegacyDocumentNames(
+        application,
+        this.applicantDocumentNames(application),
+      );
     } catch (error) {
       await this.files.relocateApplicationFolders(
         { ...current, folderName: application.folderName },
@@ -1124,6 +1132,17 @@ export class DataStore {
         fileName: attachment.fileName,
         path: this.getAttachmentPath(attachment),
       }));
+  }
+
+  private applicantDocumentNames(application: Application) {
+    const profile = this.getProfileForApplication(application);
+    const applicantName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
+    return {
+      anschreiben: applicantDocumentFileName("Anschreiben", application, applicantName),
+      deckblatt: applicantDocumentFileName("Deckblatt", application, applicantName),
+      lebenslauf: applicantDocumentFileName("Lebenslauf", application, applicantName),
+      mappe: applicantDocumentFileName("Mappe", application, applicantName),
+    };
   }
 
   getProfileForApplication(application: Application) {

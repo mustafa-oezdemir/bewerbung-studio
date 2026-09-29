@@ -75,6 +75,12 @@ type DocumentDirectories = {
   email: string;
 };
 
+export type ApplicationDocumentNameKind =
+  | "anschreiben"
+  | "deckblatt"
+  | "lebenslauf"
+  | "mappe";
+
 export const applicationFileBaseName = (
   application: Pick<Application, "company" | "createdAt" | "sentAt">,
 ) =>
@@ -498,6 +504,56 @@ export class FileManagementService {
     );
   }
 
+  /**
+   * Rename documents that still use an older naming scheme
+   * (e.g. `Firma_TT.MM.JJJJ_Position_anschreiben.pdf` or `Anschreiben.docx`)
+   * to `<Dokument>_<Name>_<Firma>`. Existing targets are never overwritten.
+   */
+  async normalizeLegacyDocumentNames(
+    application: Pick<Application, "folderName" | "status" | "company" | "createdAt" | "sentAt">,
+    names: Record<ApplicationDocumentNameKind, string>,
+  ) {
+    if (application.status === "Absage") return;
+    const directory = this.applicationDataPath(application.folderName);
+    let entries;
+    try {
+      entries = await readdir(directory, { withFileTypes: true });
+    } catch (error) {
+      const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
+      if (code === "ENOENT") return;
+      throw error;
+    }
+    const base = applicationFileBaseName(application).toLocaleLowerCase();
+    const kinds = Object.keys(names) as ApplicationDocumentNameKind[];
+    const reserved = new Set(entries.map((entry) => entry.name.toLocaleLowerCase()));
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      const parsed = path.parse(entry.name);
+      const extension = parsed.ext.toLowerCase();
+      if (extension !== ".pdf" && extension !== ".docx") continue;
+      const stem = parsed.name.toLocaleLowerCase();
+      const kind = kinds.find(
+        (candidate) =>
+          stem === candidate ||
+          (stem.startsWith(`${base}_`) && stem.endsWith(`_${candidate}`)),
+      );
+      if (!kind || !names[kind]) continue;
+      const targetName = `${names[kind]}${extension}`;
+      if (targetName.toLocaleLowerCase() === entry.name.toLocaleLowerCase()) continue;
+      if (reserved.has(targetName.toLocaleLowerCase())) continue;
+      const target = path.join(directory, targetName);
+      if (!isPathInside(directory, target)) continue;
+      try {
+        await this.withRenameRetry(() => rename(path.join(directory, entry.name), target));
+        reserved.delete(entry.name.toLocaleLowerCase());
+        reserved.add(targetName.toLocaleLowerCase());
+      } catch (error) {
+        // A file opened in Word or a PDF viewer keeps its old name until the next attempt.
+        if (!isApplicationFolderLockError(error)) throw error;
+      }
+    }
+  }
+
   async synchronizeApplicationArtifactNames(
     previous: Application,
     next: Application,
@@ -547,13 +603,6 @@ export class FileManagementService {
         let targetName = entry.name;
         for (const [from, to] of replacements) {
           targetName = targetName.split(from).join(to);
-        }
-        if (
-          path.resolve(entry.parentPath) ===
-            path.resolve(documentDirectories.anschreiben) &&
-          /^Anschreiben\.docx$/i.test(entry.name)
-        ) {
-          targetName = `${applicationFileBaseName(next)}_Anschreiben.docx`;
         }
         if (targetName === entry.name) continue;
         moves.push({ source, target: path.join(entry.parentPath, targetName) });

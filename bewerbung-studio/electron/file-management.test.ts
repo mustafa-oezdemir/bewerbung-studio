@@ -95,6 +95,76 @@ describe("FileManagementService", () => {
     await expect(access(resumeRoot)).rejects.toThrow();
   });
 
+  it("renames legacy document names to <Dokument>_<Name>_<Firma>", async () => {
+    const folderName = path.join("Temmler_Pharma_GmbH_29.09.2026", "Maschinen-Einrichter_fur_die_Produktion");
+    const application = {
+      folderName,
+      status: "Entwurf",
+      company: { name: "Temmler Pharma GmbH" },
+      createdAt: "2026-09-29T08:00:00.000Z",
+      sentAt: "2026-09-29T08:00:00.000Z",
+    } as Application;
+    const target = service.applicationDataPath(folderName);
+    const coverRoot = path.join(service.paths.anschreibenDocuments, folderName);
+    const resumeRoot = path.join(service.paths.lebenslaufDocuments, folderName);
+    await Promise.all([mkdir(coverRoot, { recursive: true }), mkdir(resumeRoot, { recursive: true })]);
+    await writeFile(path.join(coverRoot, "Anschreiben_Mustafa_Özdemir_Temmler_Pharma_GmbH.docx"), "docx");
+    await writeFile(
+      path.join(coverRoot, "Temmler_Pharma_GmbH_29.09.2026_Maschinen-Einrichter_fur_die_Produktion_anschreiben.pdf"),
+      "cover pdf",
+    );
+    await writeFile(
+      path.join(resumeRoot, "Temmler_Pharma_GmbH_29.09.2026_Maschinen-Einrichter_fur_die_Produktion_lebenslauf.pdf"),
+      "resume pdf",
+    );
+    await writeFile(path.join(resumeRoot, "Temmler_Pharma_GmbH_29.09.2026_mappe.pdf"), "mappe pdf");
+    const names = {
+      anschreiben: "Anschreiben_Mustafa_Özdemir_Temmler_Pharma_GmbH",
+      deckblatt: "Deckblatt_Mustafa_Özdemir_Temmler_Pharma_GmbH",
+      lebenslauf: "Lebenslauf_Mustafa_Özdemir_Temmler_Pharma_GmbH",
+      mappe: "Mappe_Mustafa_Özdemir_Temmler_Pharma_GmbH",
+    };
+
+    await service.consolidateLegacyDocumentDirectories(application);
+    await service.normalizeLegacyDocumentNames(application, names);
+
+    await expect(readFile(path.join(target, `${names.anschreiben}.docx`), "utf8")).resolves.toBe("docx");
+    await expect(readFile(path.join(target, `${names.anschreiben}.pdf`), "utf8")).resolves.toBe("cover pdf");
+    await expect(readFile(path.join(target, `${names.lebenslauf}.pdf`), "utf8")).resolves.toBe("resume pdf");
+    await expect(readFile(path.join(target, `${names.mappe}.pdf`), "utf8")).resolves.toBe("mappe pdf");
+    await expect(access(coverRoot)).rejects.toThrow();
+    await expect(access(resumeRoot)).rejects.toThrow();
+  });
+
+  it("never overwrites an existing document while renaming legacy names", async () => {
+    const folderName = path.join("Muster_GmbH_29.09.2026", "Entwicklung");
+    const application = {
+      folderName,
+      status: "Entwurf",
+      company: { name: "Muster GmbH" },
+      createdAt: "2026-09-29T08:00:00.000Z",
+      sentAt: "2026-09-29T08:00:00.000Z",
+    } as Application;
+    const target = service.applicationDataPath(folderName);
+    await mkdir(target, { recursive: true });
+    await writeFile(path.join(target, "Lebenslauf_Max_Muster_GmbH.pdf"), "current");
+    await writeFile(path.join(target, "Muster_GmbH_29.09.2026_Entwicklung_lebenslauf.pdf"), "legacy");
+    await writeFile(path.join(target, "Anschreiben.docx"), "letter");
+
+    await service.normalizeLegacyDocumentNames(application, {
+      anschreiben: "Anschreiben_Max_Muster_GmbH",
+      deckblatt: "Deckblatt_Max_Muster_GmbH",
+      lebenslauf: "Lebenslauf_Max_Muster_GmbH",
+      mappe: "Mappe_Max_Muster_GmbH",
+    });
+
+    await expect(readFile(path.join(target, "Lebenslauf_Max_Muster_GmbH.pdf"), "utf8")).resolves.toBe("current");
+    await expect(
+      readFile(path.join(target, "Muster_GmbH_29.09.2026_Entwicklung_lebenslauf.pdf"), "utf8"),
+    ).resolves.toBe("legacy");
+    await expect(readFile(path.join(target, "Anschreiben_Max_Muster_GmbH.docx"), "utf8")).resolves.toBe("letter");
+  });
+
   it("moves every application artifact when the application date changes", async () => {
     const folderName = path.join("Siemens_30.07.2026", "Softwareentwickler");
     const application = {

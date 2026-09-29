@@ -445,7 +445,7 @@ describe("DataStore backups", () => {
     await expect(access(oldAnschreiben)).rejects.toThrow();
     await expect(
       readFile(
-        path.join(newAnschreiben, "Datum_GmbH_22.08.2026_Anschreiben.docx"),
+        path.join(newAnschreiben, store.getExportDefaultName(updated.id, "anschreiben").replace(/\.pdf$/, ".docx")),
         "utf8",
       ),
     ).resolves.toBe("letter");
@@ -458,6 +458,37 @@ describe("DataStore backups", () => {
         "utf8",
       ),
     ).resolves.toContain('"sentAt": "2026-08-22T09:00:00.000Z"');
+  });
+
+  it("moves legacy Anschreiben/Lebenslauf files into the application folder with applicant names on startup", async () => {
+    const created = await store.createApplication({
+      ...applicationInput("Temmler Pharma GmbH"),
+      sentAt: "2026-09-29T09:00:00.000Z",
+    });
+    const application = created.applications[0];
+    const base = `Temmler_Pharma_GmbH_29.09.2026_${path.basename(application.folderName)}`;
+    const coverRoot = path.join(root, "Anschreiben", application.folderName);
+    const resumeRoot = path.join(root, "Lebenslauf", application.folderName);
+    await mkdir(coverRoot, { recursive: true });
+    await mkdir(resumeRoot, { recursive: true });
+    await writeFile(path.join(coverRoot, `${base}_anschreiben.pdf`), "cover");
+    await writeFile(path.join(resumeRoot, `${base}_lebenslauf.pdf`), "resume");
+
+    const restarted = new DataStore(root);
+    await restarted.initialize();
+
+    const target = restarted.files.applicationDataPath(application.folderName);
+    await expect(
+      readFile(path.join(target, restarted.getExportDefaultName(application.id, "anschreiben")), "utf8"),
+    ).resolves.toBe("cover");
+    await expect(
+      readFile(path.join(target, restarted.getExportDefaultName(application.id, "lebenslauf")), "utf8"),
+    ).resolves.toBe("resume");
+    expect(restarted.getAutomaticExportPath(application.id, "mappe")).toBe(
+      path.join(target, restarted.getExportDefaultName(application.id, "mappe")),
+    );
+    await expect(access(coverRoot)).rejects.toThrow();
+    await expect(access(resumeRoot)).rejects.toThrow();
   });
 
   it("preserves the application-standard synchronized cover letter while saving editor changes", async () => {
@@ -502,7 +533,7 @@ describe("DataStore backups", () => {
       readFile(
         path.join(
           newAnschreiben,
-          "YKK_Produktion_GmbH_25.08.2026_Anschreiben.docx",
+          store.getExportDefaultName(updated.id, "anschreiben").replace(/\.pdf$/, ".docx"),
         ),
         "utf8",
       ),
