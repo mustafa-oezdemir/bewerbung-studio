@@ -51,7 +51,7 @@ describe("GitAutomationService", () => {
       action: "vorstellungsgespraech",
     });
     expect(
-      inferApplicationGitChange("data/Settings/workspace.json"),
+      inferApplicationGitChange("data/Setting/Settings/workspace.json"),
     ).toBeUndefined();
     expect(
       inferApplicationGitChange(
@@ -78,14 +78,14 @@ describe("GitAutomationService", () => {
 
     expect(calls).toEqual([
       [
-        path.join(root, "data", "Settings", "auto-git-sync.ps1"),
+        path.join(root, "data", "Setting", "Settings", "auto-git-sync.ps1"),
         root,
         APPLICATION_DATA_REMOTE,
         "Siemens AG | 2026-08-29 10:30:00 | vorstellungsgespraech",
       ],
     ]);
     const script = await readFile(
-      path.join(root, "data", "Settings", "auto-git-sync.ps1"),
+      path.join(root, "data", "Setting", "Settings", "auto-git-sync.ps1"),
       "utf8",
     );
     expect(script).toContain("push origin HEAD:main");

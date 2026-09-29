@@ -731,7 +731,7 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle("system:open-backups", async () => {
     if (workspaceStatus.state !== "ready") throw new Error("Kein Bewerbungsordner eingerichtet.");
-    const backupPath = path.join(workspaceStatus.root, "data", "Backups");
+    const backupPath = resolveApplicationPaths(workspaceStatus.root).backupsRoot;
     const error = await shell.openPath(backupPath);
     if (error) throw new Error(error);
   });

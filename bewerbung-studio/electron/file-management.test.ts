@@ -31,14 +31,51 @@ describe("FileManagementService", () => {
     await Promise.all(
       [
         paths.dataRoot,
-        paths.anschreibenDocuments,
-        paths.lebenslaufDocuments,
+        paths.applicationsData,
         paths.zeugnisseArchive,
         paths.zertifikateArchive,
         paths.absagenRoot,
         paths.interviewsRoot,
+        paths.settingRoot,
+        paths.settingsRoot,
+        paths.profileRoot,
+        paths.backupsRoot,
+        paths.logsRoot,
+        paths.crashDumpsRoot,
+        paths.electronSessionRoot,
+        paths.deletedRoot,
       ].map((candidate) => expect(access(candidate)).resolves.toBeUndefined()),
     );
+  });
+
+  it("migrates legacy system and archive folders safely and idempotently", async () => {
+    const legacySettings = path.join(service.paths.dataRoot, "Settings");
+    const legacyProfiles = path.join(service.paths.dataRoot, "Profile");
+    const legacyCertificateArchive = path.join(root, "Zeugnisse");
+    await Promise.all([
+      mkdir(legacySettings, { recursive: true }),
+      mkdir(legacyProfiles, { recursive: true }),
+      mkdir(legacyCertificateArchive, { recursive: true }),
+    ]);
+    await writeFile(path.join(legacySettings, "legacy.json"), "settings");
+    await writeFile(path.join(legacyProfiles, "photo.jpg"), "photo");
+    await writeFile(path.join(legacyCertificateArchive, "zeugnis.pdf"), "certificate");
+
+    await service.initialize();
+    await service.initialize();
+
+    await expect(
+      readFile(path.join(service.paths.settingsRoot, "legacy.json"), "utf8"),
+    ).resolves.toBe("settings");
+    await expect(
+      readFile(path.join(service.paths.profileRoot, "photo.jpg"), "utf8"),
+    ).resolves.toBe("photo");
+    await expect(
+      readFile(path.join(service.paths.zeugnisseArchive, "zeugnis.pdf"), "utf8"),
+    ).resolves.toBe("certificate");
+    await expect(access(legacySettings)).rejects.toThrow();
+    await expect(access(legacyProfiles)).rejects.toThrow();
+    await expect(access(legacyCertificateArchive)).rejects.toThrow();
   });
 
   it("sanitizes invalid and reserved Windows names", () => {
@@ -49,7 +86,7 @@ describe("FileManagementService", () => {
     expect(sanitizeFileName('  <>:"/\\|?*  ')).toBe("Bewerbung");
   });
 
-  it("groups applications by company/date and adds position collision suffixes", async () => {
+  it("groups applications by company/date and adds collision suffixes", async () => {
     const date = new Date(2026, 6, 30, 12, 0, 0);
     expect(formatLocalDate(date)).toBe("2026-07-30");
     await expect(
@@ -59,14 +96,14 @@ describe("FileManagementService", () => {
         date,
       ),
     ).resolves.toBe(
-      path.join("Lebenslauf", "Siemens_30.07.2026", "Bewerbung_als_Softwareentwickler"),
+      "Siemens_2026-07-30",
     );
     await expect(
       service.allocateApplicationFolderName("Siemens", "IT Support", date),
-    ).resolves.toBe(path.join("Lebenslauf", "Siemens_30.07.2026", "Bewerbung_als_IT_Support"));
+    ).resolves.toBe("Siemens_2026-07-30_2");
     await expect(
       service.allocateApplicationFolderName("Siemens", "Bewerbung als Lagerist", date),
-    ).resolves.toBe(path.join("Lebenslauf", "Siemens_30.07.2026", "Bewerbung_als_Lagerist"));
+    ).resolves.toBe("Siemens_2026-07-30_3");
     await expect(
       service.allocateApplicationFolderName(
         "Siemens",
@@ -74,7 +111,7 @@ describe("FileManagementService", () => {
         date,
       ),
     ).resolves.toBe(
-      path.join("Lebenslauf", "Siemens_30.07.2026", "Bewerbung_als_Softwareentwickler_2"),
+      "Siemens_2026-07-30_4",
     );
   });
 
@@ -205,7 +242,7 @@ describe("FileManagementService", () => {
     );
 
     expect(relocated).toBe(
-      path.join("Lebenslauf", "Siemens_22.08.2026", "Bewerbung_als_Softwareentwickler"),
+      "Siemens_2026-08-22",
     );
     for (const [index, source] of sourcePaths.entries()) {
       await expect(access(source)).rejects.toThrow();
@@ -221,7 +258,7 @@ describe("FileManagementService", () => {
     }
   });
 
-  it("moves a legacy company/date folder into its new position subfolder", async () => {
+  it("moves a legacy company/date folder into the canonical application folder", async () => {
     const legacyFolderName = "Universitatsklinikum_Frankfurt_2026-08-09";
     const application = {
       folderName: legacyFolderName,
@@ -250,11 +287,7 @@ describe("FileManagementService", () => {
     );
 
     expect(relocated).toBe(
-      path.join(
-        "Lebenslauf",
-        "Universitatsklinikum_Frankfurt_09.08.2026",
-        "Bewerbung_als_Softwareentwickler_in_–_Workflow-Modellierung_&_User_Experience",
-      ),
+      "Universitatsklinikum_Frankfurt_2026-08-09",
     );
     for (const [index, legacyPath] of legacyPaths.entries()) {
       await expect(

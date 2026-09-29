@@ -25,6 +25,21 @@ const hashFile = async (filePath: string) => {
 
 const timestamp = () => new Date().toISOString().replace("T", "_").replace(/:/g, "-").slice(0, 19);
 
+const workspacePaths = (root: string) => {
+  const paths = resolveApplicationPaths(root);
+  return [
+    path.join(paths.settingsRoot, "workspace.json"),
+    path.join(paths.dataRoot, "Settings", "workspace.json"),
+  ];
+};
+
+const existingWorkspacePath = async (root: string) => {
+  for (const candidate of workspacePaths(root)) {
+    if (await exists(candidate)) return candidate;
+  }
+  return workspacePaths(root)[0];
+};
+
 const listFiles = async (root: string, excluded?: string): Promise<string[]> => {
   const files: string[] = [];
   const pending = [root];
@@ -89,9 +104,11 @@ export class WorkspaceManager {
           ? path.dirname(root)
           : null;
     if (!candidate) return null;
-    const workspacePath = path.join(candidate, "data", "Settings", "workspace.json");
-    const backupPath = `${workspacePath}.bak`;
-    if (!(await exists(workspacePath)) && !(await exists(backupPath))) {
+    const candidates = workspacePaths(candidate);
+    const found = await Promise.all(
+      candidates.flatMap((workspacePath) => [exists(workspacePath), exists(`${workspacePath}.bak`)]),
+    );
+    if (!found.some(Boolean)) {
       return null;
     }
     await this.writeBootstrap(candidate);
@@ -99,7 +116,7 @@ export class WorkspaceManager {
   }
 
   private async readWorkspace(root: string) {
-    const workspacePath = path.join(root, "data", "Settings", "workspace.json");
+    const workspacePath = await existingWorkspacePath(root);
     if (!(await exists(workspacePath))) return null;
     try {
       return workspaceSchema.parse(JSON.parse(await readFile(workspacePath, "utf8")));
@@ -136,19 +153,21 @@ export class WorkspaceManager {
       ),
       updatedAt: new Date().toISOString(),
     });
-    const workspacePath = path.join(target, "data", "Settings", "workspace.json");
+    const workspacePath = path.join(resolveApplicationPaths(target).settingsRoot, "workspace.json");
     const temporary = `${workspacePath}.${randomUUID()}.tmp`;
     await mkdir(path.dirname(workspacePath), { recursive: true });
     await writeFile(temporary, JSON.stringify(nextWorkspace, null, 2), "utf8");
     await rename(temporary, workspacePath);
 
-    const sourceProfileDirectory = path.join(source, "data", "Profile");
+    const sourcePaths = resolveApplicationPaths(source);
+    const targetPaths = resolveApplicationPaths(target);
+    const sourceProfileDirectory = (await exists(sourcePaths.profileRoot))
+      ? sourcePaths.profileRoot
+      : path.join(sourcePaths.dataRoot, "Profile");
     if (!(await exists(sourceProfileDirectory))) return;
     for (const sourceFile of await listFiles(sourceProfileDirectory)) {
       const targetFile = path.join(
-        target,
-        "data",
-        "Profile",
+        targetPaths.profileRoot,
         path.relative(sourceProfileDirectory, sourceFile),
       );
       if (!(await exists(targetFile))) await copyAndVerify(sourceFile, targetFile);
@@ -165,8 +184,11 @@ export class WorkspaceManager {
         (await this.repairNestedApplicationsRoot(configuredRoot)) ??
         configuredRoot;
       if (!(await exists(root))) return { state: "missing", root };
-      const workspacePath = path.join(root, "data", "Settings", "workspace.json");
-      if (!(await exists(workspacePath)) && !(await exists(`${workspacePath}.bak`))) {
+      const candidates = workspacePaths(root);
+      const found = await Promise.all(
+        candidates.flatMap((workspacePath) => [exists(workspacePath), exists(`${workspacePath}.bak`)]),
+      );
+      if (!found.some(Boolean)) {
         return {
           state: "error", root,
           message: "Die gespeicherten Bewerbungsdaten wurden in diesem Ordner nicht gefunden. Der Ordner wurde nicht verändert.",
@@ -176,7 +198,7 @@ export class WorkspaceManager {
     }
     // Existing installations must retain their original data without a setup prompt.
     const legacyRoot = path.resolve(this.legacyRootPath);
-    if (await exists(path.join(legacyRoot, "data", "Settings", "workspace.json"))) {
+    if ((await Promise.all(workspacePaths(legacyRoot).map(exists))).some(Boolean)) {
       await this.writeBootstrap(legacyRoot);
       return { state: "ready", root: legacyRoot };
     }
@@ -202,7 +224,7 @@ export class WorkspaceManager {
 
   async setup(rootPath: string, activate = true) {
     const root = await this.validateRoot(rootPath, true);
-    const workspacePath = path.join(root, "data", "Settings", "workspace.json");
+    const workspacePath = await existingWorkspacePath(root);
     if (await exists(workspacePath)) {
       try {
         const parsed = workspaceSchema.safeParse(JSON.parse(await readFile(workspacePath, "utf8")));
@@ -222,7 +244,7 @@ export class WorkspaceManager {
 
   async fullBackup(rootPath: string, oldSchemaVersion = 1, newSchemaVersion = 1, migratedFields: string[] = []) {
     const root = await this.validateRoot(rootPath, false);
-    const backupRoot = path.join(root, "data", "Backups", `Migration_${timestamp()}_${randomUUID().slice(0, 8)}`);
+    const backupRoot = path.join(resolveApplicationPaths(root).backupsRoot, `Migration_${timestamp()}_${randomUUID().slice(0, 8)}`);
     await mkdir(backupRoot, { recursive: true });
     const entries: Array<{ path: string; size: number; sha256: string }> = [];
     try {
@@ -232,7 +254,7 @@ export class WorkspaceManager {
         const verified = await copyAndVerify(source, target);
         entries.push({ path: relative, ...verified });
       }
-      const workspaceSource = path.join(root, "data", "Settings", "workspace.json");
+      const workspaceSource = await existingWorkspacePath(root);
       if (await exists(workspaceSource) && !(await exists(path.join(backupRoot, "workspace.json")))) {
         await copyAndVerify(workspaceSource, path.join(backupRoot, "workspace.json"));
       }
@@ -269,7 +291,7 @@ export class WorkspaceManager {
         for (const file of await listFiles(source)) {
           await copyAndVerify(file, path.join(target, path.relative(source, file)));
         }
-        const workspacePath = path.join(target, "data", "Settings", "workspace.json");
+        const workspacePath = await existingWorkspacePath(target);
         if (await exists(workspacePath)) {
           try {
             const parsed = workspaceSchema.safeParse(JSON.parse(await readFile(workspacePath, "utf8")));
@@ -282,7 +304,7 @@ export class WorkspaceManager {
         throw error;
       }
     } else {
-      const workspacePath = path.join(target, "data", "Settings", "workspace.json");
+      const workspacePath = await existingWorkspacePath(target);
       if (await exists(workspacePath)) {
         try {
           const parsed = workspaceSchema.safeParse(JSON.parse(await readFile(workspacePath, "utf8")));

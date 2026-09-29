@@ -140,7 +140,17 @@ export class LegacyMigrationService {
     ) {
       throw new Error("Der Migrationsquellordner muss außerhalb des neuen Hauptordners liegen.");
     }
-    const workspacePath = path.join(resolvedSource, "Settings", "workspace.json");
+    const workspaceCandidates = [
+      path.join(resolvedSource, "Setting", "Settings", "workspace.json"),
+      path.join(resolvedSource, "Settings", "workspace.json"),
+    ];
+    const workspacePath =
+      (await Promise.all(
+        workspaceCandidates.map(async (candidate) => ({
+          candidate,
+          exists: await pathExists(candidate),
+        })),
+      )).find((item) => item.exists)?.candidate ?? workspaceCandidates[0];
     const parsed: unknown = JSON.parse(await readFile(workspacePath, "utf8"));
     return {
       sourcePath: resolvedSource,
@@ -163,14 +173,22 @@ export class LegacyMigrationService {
   }
 
   private async copyLegacyData(sourcePath: string, workspace: Workspace) {
-    const directDataDirectories = ["Bewerbungen", "Muster", "Profile", "Backups"];
-    for (const directory of directDataDirectories) {
+    const directDataDirectories: Array<[string[], string]> = [
+      [["Bewerbungen"], this.paths.applicationsData],
+      [["Setting", "Muster"], this.paths.musterRoot],
+      [["Setting", "Profile"], this.paths.profileRoot],
+      [["Setting", "Backups"], this.paths.backupsRoot],
+    ];
+    for (const [segments, target] of directDataDirectories) {
+      const legacySegments = [segments.at(-1)!];
+      const canonicalSource = path.join(sourcePath, ...segments);
+      const source = (await pathExists(canonicalSource))
+        ? canonicalSource
+        : path.join(sourcePath, ...legacySegments);
       await copyDirectoryWithoutOverwrite(
-        path.join(sourcePath, directory),
-        directory === "Bewerbungen"
-          ? this.paths.applicationsData
-          : path.join(this.paths.dataRoot, directory),
-        directory === "Bewerbungen"
+        source,
+        target,
+        segments[0] === "Bewerbungen"
           ? (relativePath) =>
               isApplicationDataFile(
                 relativePath,
@@ -182,8 +200,10 @@ export class LegacyMigrationService {
       );
     }
     await copyDirectoryWithoutOverwrite(
-      path.join(sourcePath, "Settings"),
-      path.join(this.paths.dataRoot, "Settings"),
+      (await pathExists(path.join(sourcePath, "Setting", "Settings")))
+        ? path.join(sourcePath, "Setting", "Settings")
+        : path.join(sourcePath, "Settings"),
+      this.paths.settingsRoot,
       (relativePath) =>
         !["workspace.json", "workspace.json.bak"].includes(relativePath),
     );

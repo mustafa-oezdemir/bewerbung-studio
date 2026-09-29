@@ -68,7 +68,7 @@ describe("DataStore backups", () => {
   });
 
   it("creates one automatic daily workspace backup", async () => {
-    const files = await readdir(path.join(store.dataPath, "Backups"));
+    const files = await readdir(store.files.paths.backupsRoot);
     expect(
       files.some((file) => /^workspace-\d{4}-\d{2}-\d{2}\.json$/.test(file)),
     ).toBe(true);
@@ -84,7 +84,7 @@ describe("DataStore backups", () => {
 
     expect(restored.applications).toHaveLength(1);
     expect(restored.applications[0].company.name).toBe("Erste GmbH");
-    const files = await readdir(path.join(store.dataPath, "Backups"));
+    const files = await readdir(store.files.paths.backupsRoot);
     expect(files.some((file) => file.startsWith("vor-import-"))).toBe(true);
   });
 
@@ -144,33 +144,20 @@ describe("DataStore backups", () => {
     expect(snapshotHtml).toContain("background-dots");
   });
 
-  it("creates company-date roots with position subfolders for drafts", async () => {
+  it("creates one company-date folder per application", async () => {
     const first = await store.createApplication(applicationInput("Siemens"));
     const firstApplication = first.applications[0];
-    const companyDateFolder = path.dirname(firstApplication.folderName);
-    expect(path.basename(companyDateFolder)).toMatch(
-      /^Siemens_\d{2}\.\d{2}\.\d{4}$/,
-    );
-    expect(path.dirname(companyDateFolder)).toBe("Lebenslauf");
-    expect(path.basename(firstApplication.folderName)).toBe(
-      "Bewerbung_als_Softwareentwickler",
-    );
+    expect(firstApplication.folderName).toMatch(/^Siemens_\d{4}-\d{2}-\d{2}$/);
 
     const secondInput = applicationInput("Siemens");
     secondInput.job.title = "IT Support Spezialist";
     const second = await store.createApplication(secondInput);
     const secondApplication = second.applications[0];
-    expect(path.dirname(secondApplication.folderName)).toBe(companyDateFolder);
-    expect(path.basename(secondApplication.folderName)).toBe(
-      "Bewerbung_als_IT_Support_Spezialist",
-    );
+    expect(secondApplication.folderName).toBe(`${firstApplication.folderName}_2`);
 
     const third = await store.createApplication(applicationInput("Siemens"));
     const thirdApplication = third.applications[0];
-    expect(path.dirname(thirdApplication.folderName)).toBe(companyDateFolder);
-    expect(path.basename(thirdApplication.folderName)).toBe(
-      "Bewerbung_als_Softwareentwickler_2",
-    );
+    expect(thirdApplication.folderName).toBe(`${firstApplication.folderName}_3`);
     await expect(access(path.join(store.files.paths.anschreibenDocuments, firstApplication.folderName))).rejects.toThrow();
     expect(store.getApplicationAnschreibenPath(firstApplication.id)).toBe(
       path.join(store.files.applicationDataPath(firstApplication.folderName), "Anschreiben"),
@@ -294,7 +281,7 @@ describe("DataStore backups", () => {
   });
 
   it("does not replace unreadable existing workspace data with an empty workspace", async () => {
-    const workspacePath = path.join(store.dataPath, "Settings", "workspace.json");
+    const workspacePath = path.join(store.files.paths.settingsRoot, "workspace.json");
     await writeFile(workspacePath, "{broken", "utf8");
     await writeFile(`${workspacePath}.bak`, "{broken", "utf8");
     await expect(new DataStore(root).initialize()).rejects.toThrow("nicht gelesen");
@@ -302,16 +289,16 @@ describe("DataStore backups", () => {
   });
 
   it("preserves both the damaged file and the valid fallback before recovery", async () => {
-    const workspacePath = path.join(store.dataPath, "Settings", "workspace.json");
+    const workspacePath = path.join(store.files.paths.settingsRoot, "workspace.json");
     await writeFile(`${workspacePath}.bak`, await readFile(workspacePath));
     await writeFile(workspacePath, "{broken", "utf8");
     await new DataStore(root).initialize();
-    const backups = await readdir(path.join(store.dataPath, "Backups"));
+    const backups = await readdir(store.files.paths.backupsRoot);
     const damaged = backups.find((file) => file.startsWith("unlesbar-workspace-"));
     const recovered = backups.find((file) => file.startsWith("wiederhergestellt-workspace-"));
     expect(damaged).toBeDefined();
     expect(recovered).toBeDefined();
-    expect(await readFile(path.join(store.dataPath, "Backups", damaged!), "utf8")).toBe("{broken");
+    expect(await readFile(path.join(store.files.paths.backupsRoot, damaged!), "utf8")).toBe("{broken");
   });
 
   it("creates a dated application with its email area and cover-letter name", async () => {
@@ -327,9 +314,7 @@ describe("DataStore backups", () => {
     );
     const context = store.getTemplateDocumentContext(application.id);
 
-    expect(path.dirname(application.folderName)).toBe(
-      path.join("Lebenslauf", "Muster_GmbH_08.09.2026"),
-    );
+    expect(application.folderName).toBe("Muster_GmbH_2026-09-08");
     expect(context.requestedBaseName).toBe(
       "Anschreiben_Muster_GmbH",
     );
@@ -441,7 +426,7 @@ describe("DataStore backups", () => {
     const updated = saved.applications.find((item) => item.id === application.id)!;
     const newAnschreiben = store.files.documentDirectories(updated).anschreiben;
 
-    expect(path.dirname(updated.folderName)).toBe(path.join("Lebenslauf", "Datum_GmbH_22.08.2026"));
+    expect(updated.folderName).toBe("Datum_GmbH_2026-08-22");
     expect(updated.folderName).not.toBe(oldFolderName);
     await expect(access(oldAnschreiben)).rejects.toThrow();
     await expect(
@@ -548,7 +533,7 @@ describe("DataStore backups", () => {
     const newAnschreiben = store.files.documentDirectories(updated).anschreiben;
 
     expect(updated.folderName).toBe(
-      path.join("Lebenslauf", "YKK_Produktion_GmbH_25.08.2026", "Bewerbung_als_Maschinenbediener"),
+      "YKK_Produktion_GmbH_2026-08-25",
     );
     expect(updated.folderName).not.toBe(oldFolderName);
     await expect(access(oldAnschreiben)).rejects.toThrow();
@@ -611,9 +596,7 @@ describe("DataStore backups", () => {
     expect(context.targetDirectories.anschreiben).toBe(
       path.join(store.files.applicationDataPath(application.folderName), "Anschreiben"),
     );
-    expect(path.dirname(application.folderName)).toBe(
-      path.join("Lebenslauf", "Beispiel_GmbH_17.05.2024"),
-    );
+    expect(application.folderName).toBe("Beispiel_GmbH_2024-05-17");
     expect(context.data).toMatchObject({
       ANSPRECHPARTNER: "Herrn Andreas Steck\nFrau Erika Musterfrau",
       ANREDE: "Sehr geehrter Herr Steck, sehr geehrte Frau Musterfrau,",
@@ -866,7 +849,7 @@ describe("DataStore backups", () => {
     });
 
     await writeFile(
-      path.join(store.dataPath, "Settings", "workspace.json"),
+      path.join(store.files.paths.settingsRoot, "workspace.json"),
       JSON.stringify({
         ...rejected,
         events: rejected.events.filter(
@@ -1006,7 +989,7 @@ describe("DataStore backups", () => {
     );
   });
 
-  it("persists and clears the new-application draft below data/Settings", async () => {
+  it("persists and clears the new-application draft below data/Setting/Settings", async () => {
     const draft = applicationInput("Draft GmbH");
     await store.saveApplicationDraft(draft);
     await expect(store.getApplicationDraft()).resolves.toMatchObject({

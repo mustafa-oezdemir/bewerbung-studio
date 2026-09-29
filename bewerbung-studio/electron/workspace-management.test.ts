@@ -17,7 +17,7 @@ afterEach(async () => {
 });
 
 const writeWorkspace = async (root: string) => {
-  const directory = path.join(root, "data", "Settings");
+  const directory = path.join(root, "data", "Setting", "Settings");
   await mkdir(directory, { recursive: true });
   await writeFile(path.join(directory, "workspace.json"), JSON.stringify({
     schemaVersion: 1, applications: [], profiles: [], events: [], attachments: [],
@@ -47,7 +47,7 @@ describe("workspace management", () => {
     await writeWorkspace(root);
     expect(await new WorkspaceManager(userData, {}, path.join(base, "legacy")).status()).toEqual({ state: "ready", root });
     expect(JSON.parse(await readFile(path.join(userData, "bootstrap.json"), "utf8")).workspaceRootPath).toBe(root);
-    expect((await stat(path.join(root, "data", "Settings"))).isDirectory()).toBe(true);
+    expect((await stat(path.join(root, "data", "Setting", "Settings"))).isDirectory()).toBe(true);
   });
 
   it("repairs a bootstrap that accidentally points to data/Bewerbungen", async () => {
@@ -115,7 +115,7 @@ describe("workspace management", () => {
       updatedAt: new Date().toISOString(),
     };
     await writeFile(
-      path.join(source, "data", "Settings", "workspace.json"),
+      path.join(source, "data", "Setting", "Settings", "workspace.json"),
       JSON.stringify(sourceWorkspace),
     );
     const target = path.join(base, "target");
@@ -123,7 +123,7 @@ describe("workspace management", () => {
     await manager.changeRoot(source, target, "new");
 
     const targetWorkspace = JSON.parse(
-      await readFile(path.join(target, "data", "Settings", "workspace.json"), "utf8"),
+      await readFile(path.join(target, "data", "Setting", "Settings", "workspace.json"), "utf8"),
     );
     expect(targetWorkspace.applications).toEqual([]);
     expect(targetWorkspace.profiles).toEqual([profile]);
@@ -151,10 +151,11 @@ describe("workspace management", () => {
     const manager = new WorkspaceManager(path.join(base, "config"), {}, path.join(base, "legacy"));
     const root = await manager.setup(path.join(base, "Bewerbungen"));
     await writeWorkspace(root);
-    const document = path.join(root, "Lebenslauf", "Beispiel.docx");
+    const document = path.join(root, "data", "Bewerbungen", "Beispiel_2026-09-29", "Lebenslauf", "Beispiel.docx");
+    await mkdir(path.dirname(document), { recursive: true });
     await writeFile(document, Buffer.from([0, 1, 2, 255]));
     const backup = await manager.fullBackup(root, 1, 2, ["resumeSections"]);
-    expect(await readFile(path.join(backup, "Lebenslauf", "Beispiel.docx"))).toEqual(Buffer.from([0, 1, 2, 255]));
+    expect(await readFile(path.join(backup, "data", "Bewerbungen", "Beispiel_2026-09-29", "Lebenslauf", "Beispiel.docx"))).toEqual(Buffer.from([0, 1, 2, 255]));
     const manifest = JSON.parse(await readFile(path.join(backup, "migration-manifest.json"), "utf8"));
     expect(manifest.oldSchemaVersion).toBe(1);
     expect(manifest.newSchemaVersion).toBe(2);
@@ -179,11 +180,13 @@ describe("workspace management", () => {
     const manager = new WorkspaceManager(path.join(base, "config"), {}, path.join(base, "legacy"));
     const source = await manager.setup(path.join(base, "source"));
     await writeWorkspace(source);
-    await writeFile(path.join(source, "Anschreiben", "letter.docx"), "document");
+    const relativeDocument = path.join("data", "Bewerbungen", "Firma_2026-09-29", "Anschreiben", "letter.docx");
+    await mkdir(path.dirname(path.join(source, relativeDocument)), { recursive: true });
+    await writeFile(path.join(source, relativeDocument), "document");
     const target = path.join(base, "target");
     expect(await manager.changeRoot(source, target, "copy")).toBe(target);
     expect(await manager.status()).toEqual({ state: "ready", root: target });
-    expect(await readFile(path.join(target, "Anschreiben", "letter.docx"), "utf8")).toBe("document");
-    expect(await readFile(path.join(source, "Anschreiben", "letter.docx"), "utf8")).toBe("document");
+    expect(await readFile(path.join(target, relativeDocument), "utf8")).toBe("document");
+    expect(await readFile(path.join(source, relativeDocument), "utf8")).toBe("document");
   });
 });

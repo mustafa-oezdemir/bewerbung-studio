@@ -1,11 +1,20 @@
 import { randomUUID } from "node:crypto";
-import { access, mkdir, readdir, rename, rm, rmdir } from "node:fs/promises";
+import {
+  access,
+  copyFile,
+  lstat,
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  rmdir,
+} from "node:fs/promises";
 import path from "node:path";
 import type { Application, ApplicationStatus } from "../src/shared/schema";
 import type { ApplicationPaths } from "../src/config/application-paths";
 import {
   formatApplicationDate,
-  formatApplicationDateFolder,
   getApplicationDate,
 } from "../src/shared/applicationDate";
 
@@ -80,6 +89,9 @@ type DocumentDirectories = {
   lebenslauf: string;
   deckblatt: string;
   email: string;
+  stellenanzeige: string;
+  bewerbungsunterlagen: string;
+  backup: string;
 };
 
 export type ApplicationDocumentNameKind =
@@ -107,13 +119,163 @@ export class FileManagementService {
     }
   }
 
+  private async verifiedCopy(source: string, target: string) {
+    await mkdir(path.dirname(target), { recursive: true });
+    await copyFile(source, target);
+    const [sourceContents, targetContents] = await Promise.all([
+      readFile(source),
+      readFile(target),
+    ]);
+    if (!sourceContents.equals(targetContents)) {
+      throw new Error(`Kopierprüfung fehlgeschlagen: ${source}`);
+    }
+  }
+
+  private async availableMigrationConflictPath(label: string, relative: string) {
+    const parsed = path.parse(relative);
+    const base = path.join(
+      this.paths.backupsRoot,
+      "Migrationskonflikte",
+      sanitizeFileName(label),
+      parsed.dir,
+    );
+    await mkdir(base, { recursive: true });
+    for (let index = 1; ; index += 1) {
+      const suffix = index === 1 ? "" : `_${index}`;
+      const candidate = path.join(base, `${parsed.name}${suffix}${parsed.ext}`);
+      if (!(await pathExists(candidate))) return candidate;
+    }
+  }
+
+  private async migrateDirectory(
+    sourceRoot: string,
+    targetRoot: string,
+    label: string,
+  ) {
+    if (
+      path.resolve(sourceRoot) === path.resolve(targetRoot) ||
+      !(await pathExists(sourceRoot))
+    ) {
+      return;
+    }
+
+    const files: Array<{ source: string; relative: string }> = [];
+    const directories: string[] = [];
+    const collect = async (directory: string) => {
+      const sourceInfo = await lstat(directory);
+      if (sourceInfo.isSymbolicLink()) {
+        throw new Error(`Symbolische Verknüpfungen werden nicht migriert: ${directory}`);
+      }
+      directories.push(directory);
+      const entries = await readdir(directory, { withFileTypes: true });
+      for (const entry of entries) {
+        const source = path.join(directory, entry.name);
+        if (entry.isSymbolicLink()) {
+          throw new Error(`Symbolische Verknüpfungen werden nicht migriert: ${source}`);
+        }
+        if (entry.isDirectory()) {
+          await collect(source);
+        } else if (entry.isFile()) {
+          files.push({ source, relative: path.relative(sourceRoot, source) });
+        }
+      }
+    };
+    await collect(sourceRoot);
+
+    for (const file of files) {
+      const target = path.join(targetRoot, file.relative);
+      if (await pathExists(target)) {
+        const [sourceContents, targetContents] = await Promise.all([
+          readFile(file.source),
+          readFile(target),
+        ]);
+        if (!sourceContents.equals(targetContents)) {
+          const conflict = await this.availableMigrationConflictPath(
+            label,
+            file.relative,
+          );
+          await this.verifiedCopy(file.source, conflict);
+        }
+      } else {
+        await this.verifiedCopy(file.source, target);
+      }
+      await rm(file.source);
+    }
+
+    for (const directory of directories.reverse()) {
+      try {
+        await rmdir(directory);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOTEMPTY") throw error;
+      }
+    }
+  }
+
+  private async migrateWorkspaceLayout() {
+    await mkdir(this.paths.backupsRoot, { recursive: true });
+    const settingFolders: Array<[string, string]> = [
+      ["Backups", this.paths.backupsRoot],
+      ["cache", path.join(this.paths.settingRoot, "cache")],
+      ["CrashDumps", this.paths.crashDumpsRoot],
+      ["ElectronSession", this.paths.electronSessionRoot],
+      ["Logs", this.paths.logsRoot],
+      ["Muster", this.paths.musterRoot],
+      ["Profile", this.paths.profileRoot],
+      ["Settings", this.paths.settingsRoot],
+    ];
+    for (const [name, target] of settingFolders) {
+      await this.migrateDirectory(
+        path.join(this.paths.dataRoot, name),
+        target,
+        `Setting_${name}`,
+      );
+    }
+
+    for (const name of [
+      "Zeugnisse",
+      "Zertifikate",
+      "Vorstellungsgespräch",
+      "Absagen",
+    ]) {
+      await this.migrateDirectory(
+        path.join(this.paths.root, name),
+        path.join(this.paths.dataRoot, name),
+        name,
+      );
+    }
+    for (const name of ["Anschreiben", "Lebenslauf"]) {
+      await this.migrateDirectory(
+        path.join(this.paths.root, name),
+        path.join(this.paths.dataRoot, name),
+        `Legacy_${name}`,
+      );
+    }
+    await this.migrateDirectory(
+      path.join(this.paths.root, "Muster"),
+      this.paths.musterRoot,
+      "Muster",
+    );
+  }
+
+  async archiveUnmatchedLegacyDocumentDirectories() {
+    for (const [source, name] of [
+      [this.paths.anschreibenDocuments, "Anschreiben"],
+      [this.paths.lebenslaufDocuments, "Lebenslauf"],
+    ] as const) {
+      await this.migrateDirectory(
+        source,
+        path.join(this.paths.backupsRoot, "Legacy", name),
+        `Legacy_Archiv_${name}`,
+      );
+    }
+  }
+
   async initialize() {
+    await this.migrateWorkspaceLayout();
     const directories = [
       this.paths.root,
       this.paths.dataRoot,
       this.paths.applicationsData,
-      this.paths.anschreibenDocuments,
-      this.paths.lebenslaufDocuments,
       this.paths.zeugnisseArchive,
       this.paths.zertifikateArchive,
       this.paths.absagenRoot,
@@ -123,13 +285,33 @@ export class FileManagementService {
       this.paths.lebenslaufTemplates,
       this.paths.previewCache,
       this.paths.systemTemplateCache,
-      path.join(this.paths.dataRoot, "Profile"),
-      path.join(this.paths.dataRoot, "Settings"),
-      path.join(this.paths.dataRoot, "Backups"),
+      this.paths.settingRoot,
+      this.paths.profileRoot,
+      this.paths.settingsRoot,
+      this.paths.backupsRoot,
+      this.paths.logsRoot,
+      this.paths.crashDumpsRoot,
+      this.paths.electronSessionRoot,
+      this.paths.deletedRoot,
     ];
     await Promise.all(
       directories.map((directory) => mkdir(directory, { recursive: true })),
     );
+    for (const obsoleteName of [
+      "Absagen",
+      "Anschreiben",
+      "Lebenslauf",
+      "Vorstellungsgespräch",
+      "Zertifikate",
+      "Zeugnisse",
+    ]) {
+      try {
+        await rmdir(path.join(this.paths.applicationsData, obsoleteName));
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (!["ENOENT", "ENOTEMPTY"].includes(String(code))) throw error;
+      }
+    }
   }
 
   applicationDataPath(folderName: string) {
@@ -191,23 +373,20 @@ export class FileManagementService {
       lebenslauf: path.join(applicationData, "Lebenslauf"),
       deckblatt: path.join(applicationData, "Deckblatt"),
       email: path.join(applicationData, "Email"),
+      stellenanzeige: path.join(applicationData, "Stellenanzeige"),
+      bewerbungsunterlagen: path.join(applicationData, "Bewerbungsunterlagen"),
+      backup: path.join(applicationData, "Backup"),
     };
   }
 
   async allocateApplicationFolderName(
     companyName: string,
-    positionName: string,
+    _positionName: string,
     date = new Date(),
   ) {
-    const companyDateFolder = path.join(
-      "Lebenslauf",
-      `${sanitizeFileName(companyName)}_${formatApplicationDateFolder(date)}`,
-    );
-    const positionFolder = applicationPositionFolder(positionName);
+    const baseFolder = `${sanitizeFileName(companyName)}_${formatLocalDate(date)}`;
     for (let suffix = 1; suffix < 10_000; suffix += 1) {
-      const uniquePositionFolder =
-        suffix === 1 ? positionFolder : `${positionFolder}_${suffix}`;
-      const folderName = path.join(companyDateFolder, uniquePositionFolder);
+      const folderName = suffix === 1 ? baseFolder : `${baseFolder}_${suffix}`;
       const occupied = await Promise.all([
         pathExists(this.applicationDataPath(folderName)),
         pathExists(path.join(this.paths.anschreibenDocuments, folderName)),
@@ -297,16 +476,10 @@ export class FileManagementService {
   }
 
   async relocateApplicationFolders(application: Application, date: Date) {
-    const companyDateFolder = path.join(
-      "Lebenslauf",
-      `${sanitizeFileName(application.company.name)}_${formatApplicationDateFolder(date)}`,
-    );
-    const positionFolder = applicationPositionFolder(application.job.title);
+    const baseFolder = `${sanitizeFileName(application.company.name)}_${formatLocalDate(date)}`;
     let targetFolderName = "";
     for (let suffix = 1; suffix < 10_000; suffix += 1) {
-      const uniquePositionFolder =
-        suffix === 1 ? positionFolder : `${positionFolder}_${suffix}`;
-      const candidate = path.join(companyDateFolder, uniquePositionFolder);
+      const candidate = suffix === 1 ? baseFolder : `${baseFolder}_${suffix}`;
       if (candidate === application.folderName) return application.folderName;
       if (!(await this.applicationFolderOccupied(candidate))) {
         targetFolderName = candidate;
@@ -433,14 +606,11 @@ export class FileManagementService {
 
   async ensureApplicationDataDirectories(application: Application) {
     const dataRoot = this.applicationDataPath(application.folderName);
-    await Promise.all([
-      mkdir(path.join(dataRoot, "Stellenanzeige"), { recursive: true }),
-      mkdir(path.join(dataRoot, "Email"), { recursive: true }),
-      mkdir(path.join(dataRoot, "Anschreiben"), { recursive: true }),
-      mkdir(path.join(dataRoot, "Lebenslauf"), { recursive: true }),
-      mkdir(path.join(dataRoot, "Deckblatt"), { recursive: true }),
-      mkdir(path.join(dataRoot, "Bewerbungsunterlagen"), { recursive: true }),
-    ]);
+    await Promise.all(
+      Object.values(this.documentDirectories(application)).map((directory) =>
+        mkdir(directory, { recursive: true }),
+      ),
+    );
     return { dataRoot };
   }
 

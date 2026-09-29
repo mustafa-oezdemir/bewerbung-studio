@@ -44,6 +44,7 @@ import { templates } from "../src/shared/templates";
 import {
   formatApplicationDate,
   formatApplicationDateLong,
+  getApplicationDate,
 } from "../src/shared/applicationDate";
 import {
   buildApplicationEmailMarkdown,
@@ -274,29 +275,30 @@ export class DataStore {
     this.files = new FileManagementService(paths);
     this.migration = new LegacyMigrationService(paths);
     this.dataPath = paths.dataRoot;
-    this.workspacePath = path.join(this.dataPath, "Settings", "workspace.json");
+    this.workspacePath = path.join(paths.settingsRoot, "workspace.json");
     this.applicationDraftPath = path.join(
-      this.dataPath,
-      "Settings",
+      paths.settingsRoot,
       "new-application-draft.json",
     );
-    this.deletedApplicationsPath = path.join(
-      this.dataPath,
-      "Silinenler",
-      "silinenler.json",
-    );
+    this.deletedApplicationsPath = path.join(paths.deletedRoot, "silinenler.json");
   }
 
   async initialize() {
     await this.files.initialize();
     this.workspace = await this.loadWorkspace();
     for (const application of this.workspace.applications) {
+      application.folderName = await this.files.relocateApplicationFolders(
+        application,
+        getApplicationDate(application),
+      );
+      await this.files.ensureApplicationDataDirectories(application);
       await this.files.consolidateLegacyDocumentDirectories(application);
       await this.files.normalizeLegacyDocumentNames(
         application,
         this.applicantDocumentNames(application),
       );
     }
+    await this.files.archiveUnmatchedLegacyDocumentDirectories();
     this.workspace.applications.forEach((application) =>
       this.syncEvents(application),
     );
@@ -340,7 +342,7 @@ export class DataStore {
         const result = workspaceSchema.safeParse(parsed);
         if (result.success) {
           if (candidate !== this.workspacePath) {
-            const recoveryRoot = path.join(this.dataPath, "Backups");
+            const recoveryRoot = this.files.paths.backupsRoot;
             await mkdir(recoveryRoot, { recursive: true });
             const recoveryId = `${timestamp()}-${createId()}`;
             if (await stat(this.workspacePath).catch(() => null)) {
@@ -460,7 +462,7 @@ export class DataStore {
 
   private async createAutomaticBackup() {
     if (!this.workspace.settings.autoBackupEnabled) return;
-    const backupRoot = path.join(this.dataPath, "Backups");
+    const backupRoot = this.files.paths.backupsRoot;
     await mkdir(backupRoot, { recursive: true });
     const date = new Date().toISOString().slice(0, 10);
     const backupPath = path.join(backupRoot, `workspace-${date}.json`);
@@ -535,11 +537,11 @@ export class DataStore {
         JSON.stringify(applicationSchema.parse(application), null, 2),
       ),
       this.atomicWrite(
-        path.join(dataRoot, "Stellenanzeige", "stellenanzeige.json"),
+        path.join(documents.stellenanzeige, "stellenanzeige.json"),
         JSON.stringify(application.job, null, 2),
       ),
       this.atomicWrite(
-        path.join(dataRoot, "Stellenanzeige", "stellenanzeige.txt"),
+        path.join(documents.stellenanzeige, "stellenanzeige.txt"),
         application.job.fullText,
       ),
       this.atomicWrite(
@@ -1709,12 +1711,8 @@ export class DataStore {
   getAutomaticExportPath(id: string, target: "deckblatt" | "anschreiben" | "lebenslauf" | "mappe") {
     const application = this.getApplication(id);
     const directories = this.files.documentDirectories(application);
-    const directory = target === "mappe"
-      ? path.join(
-          this.files.applicationDataPath(application.folderName),
-          "Bewerbungsunterlagen",
-        )
-      : directories[target];
+    const directory =
+      target === "mappe" ? directories.bewerbungsunterlagen : directories[target];
     return path.join(directory, this.getExportDefaultName(id, target));
   }
 
@@ -1742,8 +1740,7 @@ export class DataStore {
       );
     }
     const emergencyPath = path.join(
-      this.dataPath,
-      "Backups",
+      this.files.paths.backupsRoot,
       `vor-migration-${timestamp()}-${createId()}.json`,
     );
     await copyFile(this.workspacePath, emergencyPath);
@@ -1752,10 +1749,10 @@ export class DataStore {
     try {
       this.workspace = await this.migration.migrate(sourcePath);
       await this.persist(this.workspace.applications);
+      await this.files.archiveUnmatchedLegacyDocumentDirectories();
       await this.atomicWrite(
         path.join(
-          this.dataPath,
-          "Backups",
+          this.files.paths.backupsRoot,
           `migration-${timestamp()}-${createId()}.json`,
         ),
         JSON.stringify(
@@ -1784,8 +1781,7 @@ export class DataStore {
     const parsed: unknown = JSON.parse(await readFile(filePath, "utf8"));
     const imported = workspaceSchema.parse(parsed);
     const emergencyPath = path.join(
-      this.dataPath,
-      "Backups",
+      this.files.paths.backupsRoot,
       `vor-import-${timestamp()}.json`,
     );
     await copyFile(this.workspacePath, emergencyPath);

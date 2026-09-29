@@ -20,13 +20,17 @@ describe("application paths", () => {
     ).toBe(root);
     const paths = resolveApplicationPaths(root);
     expect(paths.dataRoot).toBe(path.join(root, "data"));
-    expect(paths.anschreibenDocuments).toBe(path.join(root, "Anschreiben"));
-    expect(paths.lebenslaufDocuments).toBe(path.join(root, "Lebenslauf"));
-    expect(paths.zeugnisseArchive).toBe(path.join(root, "Zeugnisse"));
-    expect(paths.zertifikateArchive).toBe(path.join(root, "Zertifikate"));
-    expect(paths.absagenRoot).toBe(path.join(root, "Absagen"));
+    expect(paths.settingRoot).toBe(path.join(root, "data", "Setting"));
+    expect(paths.settingsRoot).toBe(path.join(root, "data", "Setting", "Settings"));
+    expect(paths.profileRoot).toBe(path.join(root, "data", "Setting", "Profile"));
+    expect(paths.backupsRoot).toBe(path.join(root, "data", "Setting", "Backups"));
+    expect(paths.anschreibenDocuments).toBe(path.join(root, "data", "Anschreiben"));
+    expect(paths.lebenslaufDocuments).toBe(path.join(root, "data", "Lebenslauf"));
+    expect(paths.zeugnisseArchive).toBe(path.join(root, "data", "Zeugnisse"));
+    expect(paths.zertifikateArchive).toBe(path.join(root, "data", "Zertifikate"));
+    expect(paths.absagenRoot).toBe(path.join(root, "data", "Absagen"));
     expect(paths.interviewsRoot).toBe(
-      path.join(root, "Vorstellungsgespräch"),
+      path.join(root, "data", "Vorstellungsgespräch"),
     );
   });
 });

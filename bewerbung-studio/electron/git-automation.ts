@@ -3,6 +3,7 @@ import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { execFile } from "node:child_process";
+import { resolveApplicationPaths } from "../src/config/application-paths";
 
 export const APPLICATION_DATA_REMOTE =
   "https://github.com/mustafa-oezdemir/bewerbung.git";
@@ -53,7 +54,7 @@ function Invoke-Git {
 }
 
 function Assert-WorkspaceIntegrity {
-  $workspacePath = Join-Path $RepositoryPath "data\Settings\workspace.json"
+  $workspacePath = Join-Path $RepositoryPath "data\Setting\Settings\workspace.json"
   if (Test-Path -LiteralPath $workspacePath) {
     try {
       Get-Content -LiteralPath $workspacePath -Raw | ConvertFrom-Json -ErrorAction Stop | Out-Null
@@ -186,11 +187,11 @@ const shouldIgnoreWatchEvent = (relativePath: string) => {
   const fileName = path.basename(normalized);
   return (
     normalized.startsWith(".git/") ||
-    normalized.startsWith("data/Logs/") ||
-    normalized.startsWith("data/Electron/") ||
-    normalized.startsWith("data/ElectronSession/") ||
-    normalized.startsWith("data/CrashDumps/") ||
-    normalized.startsWith("data/cache/") ||
+    normalized.startsWith("data/Setting/Logs/") ||
+    normalized.startsWith("data/Setting/Electron/") ||
+    normalized.startsWith("data/Setting/ElectronSession/") ||
+    normalized.startsWith("data/Setting/CrashDumps/") ||
+    normalized.startsWith("data/Setting/cache/") ||
     fileName.startsWith("~$") ||
     /\.(?:tmp|temp|log|bak)$/i.test(fileName)
   );
@@ -220,18 +221,9 @@ export class GitAutomationService implements ApplicationGitCommitQueue {
     this.runner = options.runner ?? defaultRunner;
     this.watchFileChanges = options.watchFileChanges ?? true;
     this.now = options.now ?? (() => new Date());
-    this.scriptPath = path.join(
-      repositoryPath,
-      "data",
-      "Settings",
-      "auto-git-sync.ps1",
-    );
-    this.logPath = path.join(
-      repositoryPath,
-      "data",
-      "Logs",
-      "git-automation.log",
-    );
+    const paths = resolveApplicationPaths(repositoryPath);
+    this.scriptPath = path.join(paths.settingsRoot, "auto-git-sync.ps1");
+    this.logPath = path.join(paths.logsRoot, "git-automation.log");
   }
 
   async initialize() {
