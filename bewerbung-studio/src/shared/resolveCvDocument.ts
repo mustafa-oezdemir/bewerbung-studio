@@ -5,42 +5,10 @@ import { resolveResumePresentation } from "./resumePresentation";
 import { getResumeDisplayProfile } from "./resumeDisplayProfile";
 import { resolveResumeLayout } from "./resumeLayoutEngine";
 import { resolveEffectiveResumeSpacing } from "./resumeSpacing";
+import { getProfileMediaSource } from "./profileMedia";
 import { getManagerSections } from "../features/resume-sections/resume-manager";
 import { resolveKnowledgeGroups } from "../features/resume-sections/resume-section-system";
-import {
-  createResumePagePlan,
-  einspaltigPaginationOptions,
-  elegantPaginationOptions,
-  gepflegtPaginationOptions,
-  ivyLeaguePaginationOptions,
-  klassischPaginationOptions,
-  kompaktPaginationOptions,
-  kreativPaginationOptions,
-  modernPaginationOptions,
-  pehlionePaginationOptions,
-  stilvollPaginationOptions,
-  tabellarischPaginationOptions,
-  zeitgenoessischPaginationOptions,
-  zweispaltigPaginationOptions,
-  type ResumePaginationOptions,
-} from "./documentPagination";
-
-const paginationOptions: Record<string, ResumePaginationOptions> = {
-  elegant: elegantPaginationOptions,
-  zweispaltig: zweispaltigPaginationOptions,
-  kompakt: kompaktPaginationOptions,
-  kreativ: kreativPaginationOptions,
-  gepflegt: gepflegtPaginationOptions,
-  zeitgenoessisch: zeitgenoessischPaginationOptions,
-  "ivy-league": ivyLeaguePaginationOptions,
-  stilvoll: stilvollPaginationOptions,
-  einspaltig: einspaltigPaginationOptions,
-  klassisch: klassischPaginationOptions,
-  tabellarisch: tabellarischPaginationOptions,
-  modern: modernPaginationOptions,
-  pehlione_white_blue: pehlionePaginationOptions,
-  pehlione_white: pehlionePaginationOptions,
-};
+import { createResumePagePlan, type ResumePlanContext } from "./documentPagination";
 
 type CvDocumentInput = {
   profile: ApplicantProfile | undefined;
@@ -96,8 +64,34 @@ export const resolveCvDocument = ({
     experiences: sections.experience ? profile.experiences : [],
     education: sections.education ? profile.education : [],
   };
+  const closingSection = managerSections.find((entry) => entry.id === "closing");
+  const overrides = settings.cvOverrides;
+  const planContext: ResumePlanContext = {
+    atsMode,
+    layout: {
+      mode: layout.mode,
+      sidebarWidthPercent: layout.sidebarWidthPercent,
+      overridden: layout.overridden,
+      nativeSidebarWidthPercent: resolveResumeLayout(templateId, undefined, false, sourceProfile?.resumeColumnRatio).sidebarWidthPercent,
+    },
+    sections: managerSections.map(({ id, visible, zone }) => ({ id, visible, zone })),
+    closing: profile && {
+      visible:
+        closingSection?.visible !== false &&
+        (profile.resumeClosing.showPlace || profile.resumeClosing.showDate || profile.resumeClosing.showSignature),
+      signature: profile.resumeClosing.showSignature && Boolean(getProfileMediaSource(profile.signaturePath)),
+    },
+    overrides: {
+      bodySizePt: overrides?.typography?.bodySizePt,
+      lineHeight: overrides?.typography?.lineHeight,
+      pageMarginMm: overrides?.spacing?.pageMarginMm,
+      sectionGapMm: overrides?.spacing?.sectionGapMm,
+      entryGapMm: overrides?.spacing?.entryGapMm,
+    },
+    settings,
+  };
   const pagePlan = createResumePagePlan(
-    paginatedProfile, paginationSummary, paginationOptions[templateId], templateId,
+    paginatedProfile, paginationSummary || resumeProfile, {}, templateId, planContext,
   );
   return {
     templateId,

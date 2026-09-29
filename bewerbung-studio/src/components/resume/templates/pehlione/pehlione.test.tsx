@@ -14,6 +14,7 @@ import { buildDocumentHtml } from "../../../../../electron/documents";
 import { ManagedResumePreview } from "../../ManagedResumePreview";
 import { moveManagerSection } from "../../../../features/resume-sections/resume-manager";
 import { pehlioneAppearanceCss } from "../../../../shared/pehlioneAppearance";
+import { getTemplateDocumentDesignDefaults } from "../../../../shared/cvDesign";
 
 const experienceId = "81000000-0000-4000-8000-000000000001";
 const educationId = "82000000-0000-4000-8000-000000000001";
@@ -64,6 +65,32 @@ const plan: ResumePagePlan = {
 };
 
 describe("Pehlione White Blue", () => {
+  it.each(["pehlione_white_blue", "pehlione_white"])("keeps ATS continuation full-width and renders languages once in %s", (templateId) => {
+    const source = profileSchema.parse({ ...profile, languages: ["Deutsch – C1"],
+      experiences: Array.from({ length: 6 }, (_, index) => ({ ...profile.experiences[0], id: crypto.randomUUID(), role: `Position ${index + 1}`,
+        achievements: Array.from({ length: 5 }, () => "Technische Prozesse geplant, optimiert und dokumentiert.") })),
+      education: Array.from({ length: 3 }, (_, index) => ({ ...profile.education[0], id: crypto.randomUUID(), degree: `Abschluss ${index + 1}` })),
+    });
+    const settings = { ...getTemplateDocumentDesignDefaults(templateId), resumeOutputMode: "ats" as const };
+    const template = getTemplate(templateId);
+    const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test",
+      company: { name: "Firma", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" },
+      status: "Entwurf", templateId, accentColor: template.accent, secondaryColor: template.secondary,
+      designSettings: settings, documents: {}, statusHistory: [], createdAt: profile.updatedAt, updatedAt: profile.updatedAt,
+    });
+    const html = buildDocumentHtml(application, source, "lebenslauf");
+    const { document } = parseHTML(html);
+    const pages = Array.from(document.querySelectorAll(`.cv-sheet[data-template="${templateId}"]`));
+    expect(pages).toHaveLength(2);
+    expect(html).toContain(".pehlione-pdf-ats{display:block");
+    for (const page of pages) {
+      expect(page.querySelector(".pehlione-pdf-ats > .pehlione-pdf-main")).not.toBeNull();
+      expect(page.querySelector("aside")).toBeNull();
+      expect(page.querySelector(".pehlione-pdf-ats")?.getAttribute("style") ?? "").not.toContain("grid-template-columns");
+    }
+    expect(pages[1].querySelector(".pehlione-pdf-main")?.textContent).toContain("Sprachen");
+    expect(pages.filter(page => page.textContent?.includes("Deutsch – C1"))).toHaveLength(1);
+  });
   it("keeps moved sidebar sections to one rule and the PDF closing in the main column", () => {
     let arranged = moveManagerSection(profileSchema.parse({ ...profile, languages: ["Deutsch – C1"] }), "pehlione_white_blue", "summary", "sidebar", 0);
     arranged = moveManagerSection(arranged, "pehlione_white_blue", "certifications", "sidebar", 1);
@@ -284,7 +311,7 @@ describe("Pehlione White Blue", () => {
     expect(render(false, 2)).toContain("Fortsetzung · Seite 2 von 2");
   });
 
-  it("keeps the visual sidebar and white language title on PDF continuation output", () => {
+  it("continues on a sidebar-free page with one compact header and keeps the white sidebar title style", () => {
     const longProfile = profileSchema.parse({
       ...profile,
       languages: ["Deutsch – C1"],
@@ -319,8 +346,13 @@ describe("Pehlione White Blue", () => {
     const { document } = parseHTML(buildDocumentHtml(application, longProfile, "lebenslauf"));
     const pages = document.querySelectorAll('[data-template="pehlione_white_blue"]');
     expect(pages).toHaveLength(2);
-    expect(pages[1].querySelector(".pehlione-pdf-sidebar-continuation")).not.toBeNull();
+    // Page two carries no idle sidebar and no repeated identity block.
+    expect(pages[1].querySelector(".pehlione-pdf-sidebar-continuation")).toBeNull();
+    expect(pages[1].querySelector("aside")).toBeNull();
     expect(pages[1].querySelector(".pehlione-pdf-main")).not.toBeNull();
+    expect(pages[1].querySelector("[data-resume-continuation-meta]")?.textContent).toBe("Lebenslauf · Seite 2 von 2");
+    expect(pages[1].querySelectorAll("h1")).toHaveLength(1);
+    expect(pages[1].querySelector("header")?.textContent).not.toContain(profile.title);
     expect(document.querySelectorAll(".pehlione-pdf-education")).toHaveLength(1);
     expect(buildDocumentHtml(application, longProfile, "lebenslauf")).toContain(
       ".pehlione-pdf-sidebar .pehlione-pdf-section h3{color:var(--pehlione-sidebar-text,#fff)}",

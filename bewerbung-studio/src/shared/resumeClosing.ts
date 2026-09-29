@@ -29,6 +29,8 @@ export const applyResumeClosingOutput = (
   settings: DocumentDesignSettings,
   lastPage: boolean,
   visible: boolean,
+  /** Millimetres to keep clear of a sidebar column, so a footer never covers it. */
+  inset?: { left: number; right: number },
 ): void => {
   const native = page.querySelectorAll("footer.pehlione-closing,footer.pehlione-pdf-closing");
   if (!lastPage || !visible) {
@@ -84,6 +86,11 @@ export const applyResumeClosingOutput = (
   const destination = placement === "main"
     ? (page.querySelector('[data-resume-layout-zone="main"]') ?? main)
     : (page.matches(".cv-sheet") ? page : page.firstElementChild ?? main);
-  if (placement === "footer") (destination as HTMLElement).style.position = "relative";
+  if (placement === "footer") {
+    (destination as HTMLElement).style.position = "relative";
+    if (inset) {
+      block.setAttribute("style", `left:${inset.left}mm;right:${inset.right}mm`);
+    }
+  }
   destination.appendChild(block);
 };

@@ -100,7 +100,7 @@ export function TabellarischPage({
           </section>
         ) : null}
 
-        {isLastPage && atsMode ? (
+        {isLastPage ? (
           <TabellarischAdditionalSections
             profile={profile}
             sections={sections}

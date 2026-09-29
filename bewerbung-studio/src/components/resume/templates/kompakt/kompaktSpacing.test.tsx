@@ -150,7 +150,7 @@ describe("Kompakt spacing and section output", () => {
   it("does not leave an empty Ausbildung heading at a PDF page break", () => {
     const long = "Koordination und Dokumentation komplexer Abläufe mit mehreren Beteiligten und termingerechter Umsetzung.";
     const heavy = profileSchema.parse({ ...baseProfile, experiences: baseProfile.experiences.map((item) => ({
-      ...item, achievements: [...item.achievements, ...Array.from({ length: 8 }, () => long)],
+      ...item, achievements: [...item.achievements, ...Array.from({ length: 30 }, () => long)],
     })) });
     const { document } = parseHTML(buildDocumentHtml(application, heavy, "lebenslauf"));
     const pages = document.querySelectorAll('.cv-sheet[data-template="kompakt"]');

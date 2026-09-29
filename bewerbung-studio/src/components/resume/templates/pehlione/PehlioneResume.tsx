@@ -76,7 +76,8 @@ export function PehlioneResume({
   const coreCompetencies = getPehlioneCoreCompetencies(profile);
   const technicalFocus = getPehlioneTechnicalFocus(profile);
   const summary = resolveTemplateSummary(profile, resumeProfile);
-  const density = plan.items.length >= 5 ? "compact" : plan.density;
+  // Pehlione's `compact` mode is its strongest compaction; the `dense` stylesheet only trims margins.
+  const density = plan.density === "dense" ? "compact" : plan.density;
   const project = getPehlioneProjectHighlight(profile);
   const semanticSections = profile?.resumeSemanticSections;
   const photoSource = getResumeSemanticSection(semanticSections, "photo").visible
@@ -231,6 +232,7 @@ export function PehlioneResume({
         {lastPage && knowledgeSection.visible && profile?.resumeKnowledgeContainer?.showTitle && mainKnowledgeGroups.some((group) => visibleBlockItems(group).length) ? <section className="pehlione-main-section pehlione-knowledge-container-title">{heading(<Lightbulb />, getResumeSemanticTitle(semanticSections, "knowledge"))}</section> : null}
         {lastPage && knowledgeSection.visible && mainKnowledgeGroups.map((group) => visibleBlockItems(group).length ? <section className={`pehlione-main-section pehlione-flex-block renderer-${group.rendererType}`} key={group.id} style={{ breakBefore: group.pageBreakBefore ? "page" : "auto" }}>{heading(group.semanticType === "training" || group.semanticType === "certificates" ? <GraduationCap /> : <Lightbulb />, group.title)}{blockContent(group)}</section> : null)}
         {lastPage && sections.certifications && profile?.certifications.length && !mainKnowledgeGroups.some((group) => ["training", "certificates"].includes(group.semanticType)) ? <section className="pehlione-main-section pehlione-training">{heading(<GraduationCap />, "Weiterbildungen")}<ul>{profile.certifications.map((item) => <li key={item}>{item}</li>)}</ul></section> : null}
+        {atsMode && lastPage && sections.languages && profile?.languages.filter(Boolean).length ? <section className="pehlione-main-section pehlione-training">{heading(<Languages />, "Sprachen")}<ul>{profile.languages.filter(Boolean).map((item) => <li key={item}>{item}</li>)}</ul></section> : null}
         {lastPage && interestsSection.visible && profile?.specialSections.filter((section) => section.kind === "interests" && section.isVisible).map((section) => (
           <section className="pehlione-main-section pehlione-training" data-element-id={`special.${section.id}`} key={section.id}>{heading(<Lightbulb />, section.title)}<ul>{section.entries.map((entry) => <li key={entry.id}>{entry.title || entry.description}</li>)}</ul></section>
         ))}

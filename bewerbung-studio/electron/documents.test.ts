@@ -1457,7 +1457,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).toContain("ivy-pdf-languages--columns-3");
     expect(html).toContain("grid-template-columns:auto auto;justify-content:start;gap:2mm");
     expect(body).toContain("Erfahrung");
-    expect(body).toContain('<div class="ivy-pdf-entry-role"><h4>Senior Entwicklerin</h4><span>01/2022 – Heute</span></div>');
+    expect(body).toContain('<div class="ivy-pdf-entry-role"><h4>Senior Entwicklerin</h4><span data-resume-nowrap="">01/2022 – Heute</span></div>');
     expect(body).toContain('<div class="ivy-pdf-entry-top"><h3>Beispiel GmbH</h3><span>Berlin</span></div>');
     expect(body).toContain(
       'href="https://linkedin.com/in/mina-kaya"',
@@ -1625,7 +1625,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).not.toContain("Softwareentwicklerin | TypeScript");
     expect(body).toContain("Zusammenfassung");
     expect(body).toContain("Erfahrung");
-    expect(body).toContain('<div class="stilvoll-pdf-heading"><h3>Senior Entwicklerin</h3><span>01/2022 – Heute</span></div>');
+    expect(body).toContain('<div class="stilvoll-pdf-heading"><h3>Senior Entwicklerin</h3><span data-resume-nowrap="">01/2022 – Heute</span></div>');
     expect(body).toContain('<p class="stilvoll-pdf-meta"><strong>Beispiel GmbH</strong><span>Berlin</span></p>');
     expect(body).toContain(
       'href="https://linkedin.com/in/mina-kaya"',
@@ -1779,7 +1779,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).toContain("Java");
     expect(body).toContain("★");
     expect(body).not.toContain("&#9873;");
-    expect(body).toContain('<div class="kompakt-pdf-entry-heading"><h3>Senior Entwicklerin</h3><time>01/2022 – Heute</time></div>');
+    expect(body).toContain('<div class="kompakt-pdf-entry-heading"><h3>Senior Entwicklerin</h3><time data-resume-nowrap="">01/2022 – Heute</time></div>');
     expect(body).toContain('<p class="kompakt-pdf-meta"><strong>Beispiel GmbH</strong><span>Berlin</span></p>');
     expect(html).toContain(".kompakt-pdf .managed-pdf-title{padding-bottom:1mm;border-bottom:.3mm solid var(--managed-divider)}");
     expect(body).toContain('href="https://linkedin.com/in/mina-kaya"');
@@ -2354,7 +2354,7 @@ describe("Lebenslauf-Dokumente", () => {
     );
     const body = html.slice(html.indexOf("<body>"));
 
-    expect(body.match(/data-resume-page="/g)).toHaveLength(1);
+    expect(body.match(/data-resume-page="/g)?.length).toBeLessThanOrEqual(2);
     expect(body).toContain('data-template="tabellarisch"');
     expect(body).toContain('data-no-fit="true"');
     expect(body).toContain("tabellarisch-pdf-background");

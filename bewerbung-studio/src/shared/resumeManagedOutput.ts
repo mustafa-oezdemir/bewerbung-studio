@@ -1,9 +1,16 @@
 import { renderCustomSectionContent } from "./resumeCustomSections";
-import { applyResumePageLayout } from "./resumeLayoutEngine";
+import { applyResumePageLayout, getResumeLayoutHost } from "./resumeLayoutEngine";
 import { applyResumeSpacingOutput, resumeSpacingCss } from "./resumeSpacing";
 import { applyResumeMetadataLayout, resumeMetadataCss } from "./resumeMetadataLayout";
 import { applyResumeClosingOutput, resumeClosingCss } from "./resumeClosing";
 import { applyPehlioneAppearance, pehlioneAppearanceCss } from "./pehlioneAppearance";
+import {
+  keepDatesOnOneLine,
+  normalizeContinuationHeader,
+  removeContinuationSidebar,
+  removeEmptyCareerSections,
+  resumeContinuationCss,
+} from "./resumeContinuation";
 import { applyGeneralResumeAppearance, resumeAppearanceSchema } from "./resumeAppearance";
 import { resolveTemplateId } from "./templates";
 import { resumeSectionStyleSources } from "./resumeSectionStyleInheritance";
@@ -16,6 +23,7 @@ import { getProfileMediaSource } from "./profileMedia";
 import { getThemedTechnologyIconMarkup } from "./technologyBrand";
 import { defaultDocumentDesign, type DocumentDesignSettings } from "./documentDesign";
 import { resolveCvDocument, type ResolvedCvDocument } from "./resolveCvDocument";
+import { getPaginationGeometry } from "./resumePaginationGeometry";
 import { resolveSectionColumns } from "./resumeSectionLayout";
 import { getCvDesignVariables } from "./cvDesign";
 import type { CvDesignTokens } from "./cvDesignSchema";
@@ -50,9 +58,11 @@ const aliases: Record<string, string[]> = {
   languages: ["Sprachen"],
   projects: ["Projekt-Highlight"],
 };
+// Templates write the continuation cue with or without the middle dot.
+const continuationCue = /\s*(?:·\s*)?Fortsetzung/i;
 const normalize = (value: string) =>
   value
-    .replace(/\s*·\s*Fortsetzung/i, "")
+    .replace(continuationCue, "")
     .trim()
     .toLocaleLowerCase("de-DE");
 
@@ -114,6 +124,7 @@ export const managedResumeCss = `
 ${resumeSpacingCss}
 ${resumeMetadataCss}
 ${resumeClosingCss}
+${resumeContinuationCss}
 ${pehlioneAppearanceCss}`;
 
 /** Resolve section-title colors by column role on both HTML surfaces. */
@@ -302,6 +313,16 @@ export const applyManagedResumeOutput = (
     const number = pages.length > 1 ? rootIndex + 1 : pageNumber;
     const last =
       pages.length > 1 ? rootIndex === pages.length - 1 : number === totalPages;
+    // The page plan decides where the movable blocks live (a sidebar block moves
+    // to page one when that column has room). Blocks unknown to the plan keep
+    // their historic home on the last page.
+    const planned = resolved.pagePlan;
+    const hosts = (id: string) => {
+      const movable = id === "knowledge" || id.startsWith("group:") || id.startsWith("special:");
+      if (!movable || !planned.some((page) => page.blocks?.includes(id))) return last;
+      return Boolean(planned[number - 1]?.blocks?.includes(id));
+    };
+    if (number > 1) removeContinuationSidebar(root);
     const nodes = new Map<string, Element[]>();
     const sectionNodes = Array.from(
       root.querySelectorAll("section:not(.page)"),
@@ -345,6 +366,11 @@ export const applyManagedResumeOutput = (
       root.querySelector(
         ".pehlione-main,.pehlione-pdf-main,.elegant-main,.elegant-pdf-main,.modern-resume-left-column,.modern-pdf-left,.zweispaltig-main,.zweispaltig-pdf-main,.zeitgenoessisch-main,.zeit-pdf-main,.kreativ-main,.kreativ-pdf-main,.gepflegt-main,.gepflegt-pdf-main,.kompakt-left,.kompakt-pdf-columns>main,main",
       ) ??
+      // Single-column templates flow every section through one content host, also
+      // on pages that carry no experience entry (where nothing else would name it).
+      (["einspaltig", "ivy-league", "klassisch", "tabellarisch"].includes(resolved.templateId)
+        ? getResumeLayoutHost(root, resolved.templateId, root.matches(".cv-sheet") ? "pdf" : "preview")
+        : null) ??
       nodes.get("experience")?.[0]?.parentElement ??
       root.querySelector(".page-content") ??
       root;
@@ -446,7 +472,7 @@ export const applyManagedResumeOutput = (
         continue;
       }
       if (entry.id === "knowledge" && !items.length) {
-        if (!last) {
+        if (!hosts(entry.id)) {
           existing.forEach((node) => node.remove());
           nodes.delete(entry.id);
           continue;
@@ -457,7 +483,7 @@ export const applyManagedResumeOutput = (
           nodes.delete(entry.id);
           continue;
         }
-      } else if (items.length && last) {
+      } else if (items.length && hosts(entry.id)) {
         if (entry.id === "knowledge" || /knowledge|skills|technologies|tools|methods|technical/.test(group?.semanticType ?? "")) {
         const itemHtml = items.map((item) => `<div class="managed-item">${isAts ? "" : item.icon ? `<span aria-hidden="true">${escape(item.icon)}</span>` : getThemedTechnologyIconMarkup(item.text)}<span class="managed-item-text">${escape(item.text)}${item.level ? ` <small>${escape(item.level)}</small>` : ""}${item.description ? `<small>${escape(item.description)}</small>` : ""}</span></div>`);
         content = grid(entry, items.map((item) => ({title: item.text, description: item.description})), itemHtml.join(""));
@@ -477,7 +503,7 @@ export const applyManagedResumeOutput = (
                 ? itemHtml.map((item) => `<p>${item}</p>`).join("")
                 : `<ul>${itemHtml.map((item) => `<li>${item}</li>`).join("")}</ul>`;
         }
-      } else if (entry.id.startsWith("special:") && (last || existing.length)) {
+      } else if (entry.id.startsWith("special:") && (hosts(entry.id) || existing.length)) {
         const special = profile.specialSections.find(item => item.id === entry.id.slice(8));
         content = special ? renderCustomSectionContent(special) : "";
         if (!content) {
@@ -506,14 +532,14 @@ export const applyManagedResumeOutput = (
         if (group?.pageBreakBefore) node.style.breakBefore = "page";
         appendSection(entry, node);
         nodes.set(entry.id, [node]);
-      } else if (items.length && !last) {
+      } else if (items.length && !hosts(entry.id)) {
         existing.forEach((node) => node.remove());
         nodes.delete(entry.id);
       } else {
         for (const node of existing) {
           const heading = node.querySelector("h2,h3");
           if (heading) {
-            const continuation = /·\s*Fortsetzung/i.test(
+            const continuation = /Fortsetzung/i.test(
               heading.textContent ?? "",
             )
               ? " · Fortsetzung"
@@ -634,13 +660,36 @@ export const applyManagedResumeOutput = (
       const closing = root.querySelector("footer.pehlione-pdf-closing");
       if (closing && closing.parentElement !== main) main.appendChild(closing);
     }
+    // Quality rules shared by every template: no orphan headings, one compact
+    // header and no idle sidebar on continuation pages, dates on a single line.
+    // A career heading is an orphan only when its entries live on another page.
+    const pagePlan = planned[number - 1];
+    const careerPresent = (kind: "experience" | "education") =>
+      !pagePlan ||
+      pagePlan.items.some((item) => item.kind === kind) ||
+      !planned.some((page) => page.items.some((item) => item.kind === kind));
+    removeEmptyCareerSections(root, { experience: careerPresent("experience"), education: careerPresent("education") });
+    if (number > 1) {
+      normalizeContinuationHeader(root, number, pages.length > 1 ? pages.length : totalPages);
+    }
+    keepDatesOnOneLine(root);
     applyResumePageLayout(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings,
       profile.resumeColumnRatio, new Map(entries.map((entry) => [entry.id, entry.zone])), resolved.layout);
     const surface = root.matches(".cv-sheet") ? "pdf" : "preview";
     applyResumeSpacingOutput(root, templateId, surface, designSettings, resolved.design);
     applyResumeDesignOverrides(root, templateId, surface, designSettings, resolved.design);
     applyResumeMetadataLayout(root, profile, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
-    applyResumeClosingOutput(root, main, profile, templateId, designSettings, last, enabled("closing"));
+    // A footer closing must stay inside the main column when a sidebar shares the page.
+    const geometry = getPaginationGeometry(resolved.templateId);
+    const hasSidebar =
+      !isAts && resolved.layout.mode === "two-column" && geometry.columns === 2 &&
+      (number === 1 ? planned[0]?.sidebar !== false : Boolean(root.querySelector("aside")));
+    const sidebarMm = resolved.layout.sidebarWidthPercent * 2.1;
+    const closingInset = !hasSidebar ? undefined
+      : resolved.layout.overridden
+        ? { left: resolved.layout.sidebarSide === "left" ? Math.round(sidebarMm + 8) : 12, right: resolved.layout.sidebarSide === "right" ? Math.round(sidebarMm + 8) : 12 }
+        : { left: Math.max(12, Math.round(geometry.contentLeft)), right: Math.max(12, Math.round(210 - geometry.contentRight)) };
+    applyResumeClosingOutput(root, main, profile, templateId, designSettings, last, enabled("closing"), closingInset);
     applyGeneralResumeAppearance(root, resolved.templateId, designSettings, main, sidebar);
     applyPehlioneAppearance(root, resolved.templateId, designSettings);
     applyResumeSectionHeadingColors(root, designSettings);
