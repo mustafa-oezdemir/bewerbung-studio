@@ -349,7 +349,7 @@ describe("Pehlione White Blue", () => {
     expect(render(false, 2)).toContain("Fortsetzung · Seite 2 von 2");
   });
 
-  it("continues on a sidebar-free page with one compact header and keeps the white sidebar title style", () => {
+  it("continues on a sidebar-free page with the same header and keeps the white sidebar title style", () => {
     const longProfile = profileSchema.parse({
       ...profile,
       languages: ["Deutsch – C1"],
@@ -384,13 +384,13 @@ describe("Pehlione White Blue", () => {
     const { document } = parseHTML(buildDocumentHtml(application, longProfile, "lebenslauf"));
     const pages = document.querySelectorAll('[data-template="pehlione_white_blue"]');
     expect(pages).toHaveLength(2);
-    // Page two carries no idle sidebar and no repeated identity block.
+    // Page two carries no idle sidebar but repeats the first-page header.
     expect(pages[1].querySelector(".pehlione-pdf-sidebar-continuation")).toBeNull();
     expect(pages[1].querySelector("aside")).toBeNull();
     expect(pages[1].querySelector(".pehlione-pdf-main")).not.toBeNull();
-    expect(pages[1].querySelector("[data-resume-continuation-meta]")?.textContent).toBe("Lebenslauf · Seite 2 von 2");
     expect(pages[1].querySelectorAll("h1")).toHaveLength(1);
-    expect(pages[1].querySelector("header")?.textContent).not.toContain(profile.title);
+    expect(pages[1].querySelector("header")?.outerHTML).toBe(pages[0].querySelector("header")?.outerHTML);
+    expect(pages[1].querySelector("header")?.textContent).toContain(profile.title);
     expect(document.querySelectorAll(".pehlione-pdf-education")).toHaveLength(1);
     expect(buildDocumentHtml(application, longProfile, "lebenslauf")).toContain(
       ".pehlione-pdf-sidebar .pehlione-pdf-section h3{color:var(--pehlione-sidebar-text,#fff)}",

@@ -1,11 +1,12 @@
 import type { DocumentDesignSettings } from "../../shared/documentDesign";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { ReactNode } from "react";
+import { Children, cloneElement, isValidElement, type ReactElement, type ReactNode } from "react";
 import { inheritResumeSectionStyles } from "../../shared/resumeSectionStyleInheritance";
 import { resolveTemplateId } from "../../shared/templates";
 import { resumeTemplateStyleSources } from "./resumeTemplateStyleSources";
 import type { ApplicantProfile } from "../../shared/schema";
 import type { ResolvedCvDocument } from "../../shared/resolveCvDocument";
+import type { ResumePagePlan } from "../../shared/documentPagination";
 import {
   applyManagedResumeOutput,
   managedResumeCss,
@@ -36,6 +37,17 @@ export function ManagedResumePreview({
   designSettings?: DocumentDesignSettings;
   resolvedCv?: ResolvedCvDocument;
 }) {
+  const firstPlan = resolvedCv?.pagePlan[0];
+  const firstPageHtml = pageNumber > 1 && firstPlan
+    ? applyManagedResumeOutput(
+        renderToStaticMarkup(<>{Children.map(children, (child) =>
+          isValidElement(child) && (child.props as { plan?: ResumePagePlan }).plan
+            ? cloneElement(child as ReactElement<{ plan: ResumePagePlan }>, { plan: firstPlan })
+            : child,
+        )}</>),
+        profile, templateId, 1, totalPages, designSettings, resolvedCv,
+      )
+    : undefined;
   const html = applyManagedResumeOutput(
     renderToStaticMarkup(<>{children}</>),
     profile,
@@ -44,6 +56,7 @@ export function ManagedResumePreview({
     totalPages,
     designSettings,
     resolvedCv,
+    firstPageHtml,
   );
   return (
     <>

@@ -470,8 +470,15 @@ export const createResumePagePlan = (
   }
 
   // --- page geometry ----------------------------------------------------------
-  const top1 = context.atsMode ? geometry.atsTop1 : geometry.top1;
-  const top2 = context.atsMode ? geometry.atsTop2 : geometry.top2;
+  // Every continuation page repeats the native first-page header. Kompakt's
+  // first header has no contact block, and the added line exceeds its minimum
+  // height; the other templates have room for the shared contact line.
+  const contactOnContinuation = find("personalData")?.visible !== false && Boolean(profile?.email?.trim() || profile?.phone?.trim());
+  const kompaktContactHeight = templateId === "kompakt" && contactOnContinuation ? 5.5 : 0;
+  const top1 = (context.atsMode ? geometry.atsTop1 : geometry.top1) + kompaktContactHeight;
+  const top2 = (context.atsMode
+    ? geometry.atsTop2 + geometry.top1 - geometry.top2
+    : geometry.top1) + kompaktContactHeight;
   const mainCap1 = (geometry.limit - top1 - 2 * scale.marginInset) * SAFETY;
   const mainCap2 = (geometry.limit - top2 - 2 * scale.marginInset) * SAFETY;
   const sideCap1 = geometry.sideTop1 === null || flat ? 0 : (geometry.sideLimit - geometry.sideTop1 - 2 * scale.marginInset) * SAFETY;

@@ -13,7 +13,8 @@ describe("template pagination geometry", () => {
     expect(geometry.top1).toBeGreaterThan(10);
     expect(geometry.limit).toBeGreaterThan(geometry.top1 + 100);
     expect(geometry.limit).toBeLessThan(297);
-    // A continuation page starts higher than page one: only a compact header precedes the flow.
+    // These native geometry values predate shared full-header repetition; the
+    // page planner reserves the extra continuation height separately.
     expect(geometry.top2).toBeLessThanOrEqual(geometry.top1);
     expect(geometry.text.cw).toBeGreaterThan(0.3);
     expect(geometry.text.cw).toBeLessThan(0.75);

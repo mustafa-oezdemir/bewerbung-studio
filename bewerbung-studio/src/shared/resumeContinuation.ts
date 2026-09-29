@@ -5,6 +5,11 @@ export const resumeContinuationCss = `
 [data-resume-continuation]{min-height:0!important;height:auto!important;margin:0 0 5mm!important;padding-bottom:2.5mm!important}
 [data-resume-continuation] h1{margin:0!important;font-size:15pt!important;line-height:1.1!important;letter-spacing:0!important}
 [data-resume-continuation] [data-resume-continuation-meta]{display:block!important;margin:.8mm 0 0!important;padding:0!important;color:var(--doc-muted-color,#5c6870)!important;font-family:inherit!important;font-size:8pt!important;font-weight:500!important;letter-spacing:.04em!important;line-height:1.25!important;text-transform:none!important;opacity:1!important}
+[data-resume-continuation-identity]{display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;width:100%!important}
+[data-resume-continuation-contact]{display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:1mm 5mm!important;width:100%!important;margin:1.5mm 0 0!important;padding:0!important;color:var(--doc-muted-color,#5c6870)!important;font-family:inherit!important;font-size:8pt!important;font-style:normal!important;font-weight:400!important;line-height:1.25!important;letter-spacing:0!important;text-transform:none!important}
+[data-resume-continuation-contact] a{color:inherit!important;text-decoration:none!important;overflow-wrap:anywhere!important}
+[data-resume-header-extra-contact]{display:flex;flex-wrap:wrap;gap:1mm 5mm;margin:1.5mm 0 0;color:inherit;font-size:8pt;font-style:normal;line-height:1.25}
+[data-resume-header-extra-contact] a{color:inherit;text-decoration:none;overflow-wrap:anywhere}
 aside[class*="continuation"]{display:block!important;height:auto!important;min-height:0!important;padding-top:12mm!important}
 [data-managed-section]>:is(h2,h3){break-after:avoid;page-break-after:avoid}
 [data-resume-nowrap]{white-space:nowrap!important}
@@ -18,15 +23,50 @@ aside[class*="continuation"]{display:block!important;height:auto!important;min-h
 const continuationHeaderSelector =
   'header[class*="compact"],header[class*="continuation"],header.continuation,.pehlione-header';
 
+/** Some native first-page headers keep contact details in a sidebar instead. */
+export const ensureResumeHeaderContacts = (
+  root: Element,
+  contact?: { email?: string; phone?: string },
+): void => {
+  const header = root.querySelector("header");
+  if (!header || !contact) return;
+  const email = contact.email?.trim();
+  const phone = contact.phone?.trim();
+  const missingEmail = email && !header.textContent?.includes(email);
+  const missingPhone = phone && !header.textContent?.includes(phone);
+  if (!missingEmail && !missingPhone) return;
+  const details = header.ownerDocument.createElement("address");
+  details.setAttribute("data-resume-header-extra-contact", "");
+  if (missingEmail) {
+    const link = header.ownerDocument.createElement("a");
+    link.setAttribute("href", `mailto:${email}`);
+    link.textContent = email;
+    details.appendChild(link);
+  }
+  if (missingPhone) {
+    const link = header.ownerDocument.createElement("a");
+    link.setAttribute("href", `tel:${phone.replace(/[^\d+]/g, "")}`);
+    link.textContent = phone;
+    details.appendChild(link);
+  }
+  (header.querySelector("h2") ?? header.querySelector("h1,strong") ?? header.lastElementChild)?.after(details);
+};
+
+/** Repeat the already-managed first-page header without a compact variant. */
+export const repeatResumeHeader = (root: Element, sourceHeader: Element): void => {
+  root.querySelector("header")?.replaceWith(sourceHeader.cloneNode(true));
+};
+
 /**
- * Continuation pages carry only the name and, unless the template already
- * numbers its footer, a page indicator. The headline, the “Lebenslauf ·
- * Fortsetzung” kicker and other repeated identity details are dropped.
+ * Continuation pages carry the name and visible contact details. Templates
+ * without a numbered footer also keep their page indicator. The headline and
+ * other repeated identity details are dropped.
  */
 export const normalizeContinuationHeader = (
   root: Element,
   pageNumber: number,
   totalPages: number,
+  contact?: { email?: string; phone?: string },
 ): void => {
   const header = root.querySelector(continuationHeaderSelector);
   if (!header || header.hasAttribute("data-resume-continuation")) return;
@@ -37,11 +77,31 @@ export const normalizeContinuationHeader = (
   if (container !== header) {
     for (const sibling of Array.from(header.children)) if (sibling !== container) sibling.remove();
   }
+  container.setAttribute("data-resume-continuation-identity", "");
+  const email = contact?.email?.trim();
+  const phone = contact?.phone?.trim();
+  if (email || phone) {
+    const details = header.ownerDocument.createElement("div");
+    details.setAttribute("data-resume-continuation-contact", "");
+    if (email) {
+      const link = header.ownerDocument.createElement("a");
+      link.setAttribute("href", `mailto:${email}`);
+      link.textContent = email;
+      details.appendChild(link);
+    }
+    if (phone) {
+      const link = header.ownerDocument.createElement("a");
+      link.setAttribute("href", `tel:${phone.replace(/[^\d+]/g, "")}`);
+      link.textContent = phone;
+      details.appendChild(link);
+    }
+    name.after(details);
+  }
   if (!header.classList.contains("zweispaltig-header") && !header.classList.contains("zweispaltig-pdf-header")) {
     const meta = header.ownerDocument.createElement("p");
     meta.setAttribute("data-resume-continuation-meta", "");
     meta.textContent = `Lebenslauf · Seite ${pageNumber} von ${totalPages}`;
-    name.after(meta);
+    (container.querySelector("[data-resume-continuation-contact]") ?? name).after(meta);
   }
   header.setAttribute("data-resume-continuation", "");
 };

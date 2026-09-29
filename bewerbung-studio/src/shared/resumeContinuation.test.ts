@@ -1,15 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { parseHTML } from "linkedom";
 import {
+  ensureResumeHeaderContacts,
   keepDatesOnOneLine,
   normalizeContinuationHeader,
   removeContinuationSidebar,
   removeEmptyCareerSections,
+  repeatResumeHeader,
 } from "./resumeContinuation";
 
 const root = (html: string) => parseHTML(`<html><body><div id="root">${html}</div></body></html>`).document.getElementById("root")!;
 
 describe("continuation header", () => {
+  it("adds missing contact fields to the first header and repeats it with its photo", () => {
+    const first = root('<header class="sample-header"><h1>Mina Kaya</h1><h2>Entwicklerin</h2><img src="portrait.png"></header>');
+    const second = root('<header class="sample-header compact"><h1>Mina Kaya</h1></header>');
+    ensureResumeHeaderContacts(first, { email: "mina@example.com", phone: "+49 30 123456" });
+    repeatResumeHeader(second, first.querySelector("header")!);
+    expect(second.querySelector("header")?.outerHTML).toBe(first.querySelector("header")?.outerHTML);
+    expect(second.querySelector('a[href="mailto:mina@example.com"]')).not.toBeNull();
+    expect(second.querySelector('a[href="tel:+4930123456"]')).not.toBeNull();
+    expect(second.querySelector("header img")?.getAttribute("src")).toBe("portrait.png");
+    expect(second.querySelector("header.compact")).toBeNull();
+  });
+
   it("replaces kicker and headline with a single page indicator", () => {
     const page = root(
       '<header class="modern-pdf-header compact"><div><p class="kicker">Lebenslauf · Fortsetzung</p><h1>Mina Kaya</h1><h2>Entwicklerin</h2></div></header>',
@@ -43,9 +57,12 @@ describe("continuation header", () => {
   it("leaves only the name in Zweispaltig continuation headers numbered in the footer", () => {
     for (const className of ["zweispaltig-header zweispaltig-header--compact", "zweispaltig-pdf-header compact"]) {
       const page = root(`<header class="${className}"><div><p>Lebenslauf · Fortsetzung</p><h1>Mina Kaya</h1><h2>Entwicklerin</h2></div></header>`);
-      normalizeContinuationHeader(page, 2, 2);
-      expect(page.querySelector("header")?.textContent).toBe("Mina Kaya");
+      normalizeContinuationHeader(page, 2, 2, { email: "mina@example.com", phone: "+49 30 123456" });
+      expect(page.querySelector("header")?.textContent).toBe("Mina Kayamina@example.com+49 30 123456");
       expect(page.querySelector("[data-resume-continuation-meta]")).toBeNull();
+      expect(page.querySelector('[data-resume-continuation-contact] a[href="mailto:mina@example.com"]')).not.toBeNull();
+      expect(page.querySelector('[data-resume-continuation-contact] a[href="tel:+4930123456"]')).not.toBeNull();
+      expect(page.querySelector("[data-resume-continuation-identity]")?.children[1]?.hasAttribute("data-resume-continuation-contact")).toBe(true);
     }
   });
 

@@ -455,9 +455,6 @@ const zweispaltigDocumentCss = `
   .zweispaltig-pdf-footer{position:absolute;right:var(--doc-margin);bottom:6mm;left:var(--doc-margin);display:flex;align-items:center;justify-content:space-between;gap:6mm;color:var(--zweispaltig-muted);font-size:7pt;line-height:1.2}
   .zweispaltig-pdf-footer a{color:var(--zweispaltig-heading);text-decoration:none;overflow-wrap:anywhere}
   .zweispaltig-pdf-footer span:last-child{margin-left:auto}
-  .zweispaltig-pdf-footer.with-contact{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}
-  .zweispaltig-pdf-footer-contact{display:flex;flex-wrap:wrap;justify-content:center;gap:1mm 4mm;text-align:center}
-  .zweispaltig-pdf-footer.with-contact>span:last-child{justify-self:end}
   .zweispaltig-pdf[data-density="compact"]{--zweispaltig-section-gap:max(4mm,calc(var(--section-gap) - 1mm));--zweispaltig-entry-gap:3mm}
   .zweispaltig-pdf[data-density="dense"]{--zweispaltig-section-gap:max(3.2mm,calc(var(--section-gap) - 2mm));--zweispaltig-entry-gap:2.4mm;padding-top:max(11mm,calc(var(--doc-margin) - 6mm))}
   .zweispaltig-pdf[data-density="dense"] .zweispaltig-pdf-header h1{font-size:21pt}
@@ -652,8 +649,8 @@ const pehlioneDocumentCss = `
   .pehlione-pdf{--pehlione-primary:var(--accent);--pehlione-accent:var(--secondary);display:grid;grid-template-columns:62mm minmax(0,1fr);width:100%;height:100%;overflow:hidden;color:#142235;background:#fff;font-family:var(--body-font);font-size:8.8pt;line-height:1.3}.pehlione-pdf *{box-sizing:border-box}.pehlione-pdf-sidebar{padding:0 7mm 11mm;color:#fff;background:linear-gradient(155deg,#062e64,#0b3d86 58%,#041f45)}.pehlione-pdf-hero{position:relative;height:46mm;margin:0 -7mm 8mm;overflow:hidden;background-color:#062b5a;background-image:radial-gradient(circle at 50% 50%,transparent 24%,#d7eaff 25% 27%,transparent 28% 43%,#d7eaff 44% 45%,transparent 46%),linear-gradient(#fff2 1px,transparent 1px),linear-gradient(90deg,#fff2 1px,transparent 1px);background-size:auto,4mm 4mm,4mm 4mm}.pehlione-pdf-hero:after{position:absolute;top:22mm;left:8mm;width:37mm;border-top:.3mm solid #d7eaff;content:"";transform:rotate(-24deg)}.pehlione-pdf-sidebar section{margin:0 0 7mm}.pehlione-pdf-sidebar h3{margin:0 0 3mm;padding-bottom:2mm;border-bottom:.3mm solid #b8d2f4;color:#fff;font-size:10.5pt;line-height:1.1;text-transform:uppercase}.pehlione-pdf-sidebar ul{display:grid;gap:2mm;margin:0;padding-left:4mm}.pehlione-pdf-sidebar li{line-height:1.25}.pehlione-pdf-main{min-width:0;padding:10mm 10mm 12mm}.pehlione-pdf-header{margin:0 0 7mm;padding-bottom:4mm;border-bottom:.7mm solid var(--pehlione-primary)}.pehlione-pdf-header h1{margin:0;color:var(--pehlione-primary);font-size:29pt;font-weight:800;letter-spacing:-.035em;line-height:1}.pehlione-pdf-header h2{margin:2mm 0 0;color:#12294e;font-size:13pt;line-height:1.18}.pehlione-pdf-header p{margin:0 0 1mm;color:var(--pehlione-primary);font-size:8pt;font-weight:700;text-transform:uppercase}.pehlione-pdf-section{margin:0 0 6mm}.pehlione-pdf-section h3{display:grid;grid-template-columns:9mm minmax(0,1fr);gap:3mm;align-items:center;margin:0 0 3mm;color:var(--pehlione-primary);font-size:13pt;line-height:1.1;text-transform:uppercase}.pehlione-pdf-section h3:before{display:grid;width:9mm;height:9mm;place-items:center;border-radius:1mm;color:#fff;background:var(--pehlione-primary);content:"◆";font-size:5pt}.pehlione-pdf-section h3 span{padding-bottom:1.2mm;border-bottom:.3mm solid var(--pehlione-primary)}.pehlione-pdf-summary{margin:0;text-align:justify;hyphens:auto}.pehlione-pdf-entry{display:grid;grid-template-columns:29mm minmax(0,1fr);gap:4mm;padding-bottom:4mm;border-bottom:.25mm solid #b8c3d0}.pehlione-pdf-entry+.pehlione-pdf-entry{padding-top:4mm}.pehlione-pdf-entry:last-child{padding-bottom:0;border-bottom:0}.pehlione-pdf-entry>p{margin:0;color:#1e3150;font-weight:700;line-height:1.25}.pehlione-pdf-entry h4{margin:0;color:var(--pehlione-primary);font-size:10.4pt;line-height:1.2}.pehlione-pdf-entry strong{display:block;margin:1mm 0 1.5mm;color:#173f82;font-size:9.2pt}.pehlione-pdf-entry ul,.pehlione-pdf-project ul,.pehlione-pdf-training ul{margin:0;padding-left:4mm}.pehlione-pdf-entry li,.pehlione-pdf-project li,.pehlione-pdf-training li{margin:.5mm 0;hyphens:auto}.pehlione-pdf-project{padding:3mm 3.5mm;border-left:1.2mm solid var(--pehlione-primary);background:#f1f6fc}.pehlione-pdf-project h4{margin:0;color:var(--pehlione-primary);font-size:10.4pt}.pehlione-pdf-project p{margin:1mm 0 1.5mm;color:#173f82;font-weight:700}.pehlione-pdf[data-density="compact"] .pehlione-pdf-section{margin-bottom:4mm}.pehlione-pdf[data-density="dense"] .pehlione-pdf-main{padding-top:7mm;padding-bottom:8mm}.pehlione-pdf[data-density="dense"] .pehlione-pdf-header{margin-bottom:4mm}.pehlione-pdf[data-density="dense"] .pehlione-pdf-header h1{font-size:24pt}.pehlione-pdf[data-density="dense"] .pehlione-pdf-section{margin-bottom:3.5mm}.pehlione-pdf[data-density="dense"] .pehlione-pdf-entry{padding-bottom:2.5mm}.pehlione-pdf-ats{display:block;padding:14mm 16mm;background:#fff;font-family:Arial,sans-serif}.pehlione-pdf-ats .pehlione-pdf-main{padding:0}.pehlione-pdf-ats .pehlione-pdf-header h1{font-size:20pt}.pehlione-pdf-ats .pehlione-pdf-section h3:before{display:none}.pehlione-pdf-ats .pehlione-pdf-section h3{display:block;font-size:10.5pt}.pehlione-pdf-ats .pehlione-pdf-section h3 span{display:block}.pehlione-pdf-ats-contact{margin:0 0 5mm}.pehlione-pdf-continuation{display:block;padding:14mm 16mm;background:#fff;font-family:Arial,sans-serif}
 `;
 
-// Shared with the preview rules: continuation pages use a compact header and
-// no nested page padding, so page two does not start with an artificial void.
+// Continuation pages repeat the first-page header without an idle sidebar or
+// nested page padding, so page two does not start with an artificial void.
 const pehlionePdfLayoutFixes = `
   .pehlione-pdf-sidebar .pehlione-pdf-section h3{color:var(--pehlione-sidebar-text,#fff)}
   .pehlione-pdf-continuation{display:grid;padding:0;background:#fff;font-family:var(--body-font)}.pehlione-pdf-continuation .pehlione-pdf-main{padding:10mm 16mm 16mm}.pehlione-pdf-sidebar-continuation{display:flex;height:297mm;flex-direction:column;justify-content:center;overflow:hidden}.pehlione-pdf-continuation-intro{width:100%}.pehlione-pdf-sidebar-continuation p,.pehlione-pdf-sidebar-continuation h2,.pehlione-pdf-sidebar-continuation span,.pehlione-pdf-sidebar-continuation small{display:block;margin:0}.pehlione-pdf-sidebar-continuation p{font-size:8pt;letter-spacing:.12em;text-transform:uppercase}.pehlione-pdf-sidebar-continuation h2{margin-top:2mm;color:inherit;font-size:16pt;line-height:1.05;text-transform:uppercase;overflow-wrap:anywhere}.pehlione-pdf-sidebar-continuation span{margin-top:2mm;opacity:.82}.pehlione-pdf-sidebar-continuation i{display:block;width:16mm;height:.5mm;margin:8mm 0;background:currentColor}.pehlione-pdf-sidebar-continuation small{font-size:7.5pt;opacity:.82}.pehlione-pdf-continuation-knowledge{width:100%;margin-top:18mm}.pehlione-pdf-sidebar-continuation h3{color:var(--pehlione-sidebar-text,#fff)}
@@ -1385,7 +1382,7 @@ export const buildDocumentHtml = (
       return `
         <section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="zweispaltig" data-no-fit="true">
           <div class="page-content zweispaltig-pdf zweispaltig-pdf-ats" data-density="${plan.density}">
-            ${renderZweispaltigHeader(isContinuation, false)}
+            ${renderZweispaltigHeader(false, false)}
             ${atsSummary}
             ${careerMarkup}
             ${isLastPage ? `${skillSection}${languageSection}${zweispaltigAtsStrengthSection}${certificationSection}` : ""}
@@ -1440,17 +1437,11 @@ export const buildDocumentHtml = (
     const footerLink = zweispaltigPortfolio
       ? `<a href="${escapeHtml(externalHref(zweispaltigPortfolio))}">${escapeHtml(zweispaltigPortfolio)}</a>`
       : "<span></span>";
-    const footerContact = isContinuation
-      ? [
-          profile?.email ? `<a href="mailto:${escapeHtml(profile.email)}">${escapeHtml(profile.email)}</a>` : "",
-          profile?.phone ? `<a href="tel:${escapeHtml(profile.phone.replace(/[^\d+]/g, ""))}">${escapeHtml(profile.phone)}</a>` : "",
-        ].filter(Boolean).join("")
-      : "";
 
     return `
       <section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="zweispaltig" data-no-fit="true">
         <div class="page-content zweispaltig-pdf" data-density="${plan.density}">
-          ${renderZweispaltigHeader(isContinuation, !isContinuation)}
+          ${renderZweispaltigHeader(false, true)}
           <div class="zweispaltig-pdf-columns${isContinuation ? " continuation" : ""}">
             <main class="zweispaltig-pdf-main">
               ${mainMarkup}
@@ -1464,7 +1455,7 @@ export const buildDocumentHtml = (
             </main>
             ${sidebarMarkup}
           </div>
-          <footer class="zweispaltig-pdf-footer${footerContact ? " with-contact" : ""}">${footerLink}${footerContact ? `<div class="zweispaltig-pdf-footer-contact" data-resume-continuation-contact>${footerContact}</div>` : ""}<span>Seite ${plan.pageNumber} von ${resumePlan.length}</span></footer>
+          <footer class="zweispaltig-pdf-footer">${footerLink}<span>Seite ${plan.pageNumber} von ${resumePlan.length}</span></footer>
         </div>
       </section>`;
   };

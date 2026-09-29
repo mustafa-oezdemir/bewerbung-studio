@@ -268,9 +268,16 @@ describe("Zweispaltig rendering", () => {
   });
 
   it("uses a full-width continuation without repeated summary or sidebar", () => {
+    const first = renderResume({ plan: firstPagePlan });
     const markup = renderResume({ plan: secondPagePlan });
+    const firstHeader = parseHTML(first).document.querySelector(".zweispaltig-header");
+    const secondHeader = parseHTML(markup).document.querySelector(".zweispaltig-header");
 
     expect(markup).toContain('data-continuation="true"');
+    expect(secondHeader?.outerHTML).toBe(firstHeader?.outerHTML);
+    expect(secondHeader?.querySelector(".zweispaltig-header__photo")).not.toBeNull();
+    expect(secondHeader?.textContent).toContain(profile.email);
+    expect(secondHeader?.textContent).toContain(profile.phone);
     expect(markup).toContain("zweispaltig-columns--continuation");
     expect(markup).toContain("Zukunft AG");
     expect(markup).toContain("Beispiel Universität");

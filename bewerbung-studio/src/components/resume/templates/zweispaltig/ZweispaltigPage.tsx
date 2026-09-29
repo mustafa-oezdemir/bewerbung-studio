@@ -75,7 +75,6 @@ export function ZweispaltigPage({
           profile={profile}
           name={name}
           photoSource={null}
-          compact={isContinuation}
           atsMode
         />
         {hasCustomLayout ? atsOrder.map((type) => <div className="zweispaltig-ordered-section" key={type}>{renderOrderedSection(type, "ats")}</div>) : null}
@@ -101,7 +100,6 @@ export function ZweispaltigPage({
         profile={profile}
         name={name}
         photoSource={photoSource}
-        compact={isContinuation}
       />
       <div
         className={`zweispaltig-columns ${isContinuation ? "zweispaltig-columns--continuation" : ""}`}

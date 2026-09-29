@@ -7,6 +7,8 @@ import { applyPehlioneAppearance, pehlioneAppearanceCss } from "./pehlioneAppear
 import {
   keepDatesOnOneLine,
   normalizeContinuationHeader,
+  ensureResumeHeaderContacts,
+  repeatResumeHeader,
   removeContinuationSidebar,
   removeEmptyCareerSections,
   resumeContinuationCss,
@@ -269,6 +271,7 @@ export const applyManagedResumeOutput = (
   totalPages = 1,
   designSettings: DocumentDesignSettings = defaultDocumentDesign,
   resolvedCv?: ResolvedCvDocument,
+  firstPageHtml?: string,
 ) => {
   if (!profile) return html;
   const resolved = resolvedCv ?? resolveCvDocument({
@@ -279,6 +282,9 @@ export const applyManagedResumeOutput = (
   const groups = resolved.knowledgeGroups;
   const pages = Array.from(document.querySelectorAll(".cv-sheet"));
   const roots = pages.length ? pages : [document.body];
+  let firstPageHeader: Element | null = firstPageHtml
+    ? parseHTML(`<html><body>${firstPageHtml}</body></html>`).document.querySelector("header")
+    : null;
   roots.forEach((root, rootIndex) => {
     const enabled = (id: string) =>
       entries.find((entry) => entry.id === id)?.visible !== false;
@@ -660,8 +666,8 @@ export const applyManagedResumeOutput = (
       const closing = root.querySelector("footer.pehlione-pdf-closing");
       if (closing && closing.parentElement !== main) main.appendChild(closing);
     }
-    // Quality rules shared by every template: no orphan headings, one compact
-    // header and no idle sidebar on continuation pages, dates on a single line.
+    // Quality rules shared by every template: no orphan headings, the same
+    // header on both pages, no idle continuation sidebar, and unwrapped dates.
     // A career heading is an orphan only when its entries live on another page.
     const pagePlan = planned[number - 1];
     const careerPresent = (kind: "experience" | "education") =>
@@ -669,9 +675,11 @@ export const applyManagedResumeOutput = (
       pagePlan.items.some((item) => item.kind === kind) ||
       !planned.some((page) => page.items.some((item) => item.kind === kind));
     removeEmptyCareerSections(root, { experience: careerPresent("experience"), education: careerPresent("education") });
-    if (number > 1) {
-      normalizeContinuationHeader(root, number, pages.length > 1 ? pages.length : totalPages);
-    }
+    if (number === 1 && (pages.length > 1 || totalPages > 1))
+      ensureResumeHeaderContacts(root, enabled("personalData") ? profile : undefined);
+    else if (firstPageHeader) repeatResumeHeader(root, firstPageHeader);
+    else normalizeContinuationHeader(root, number, pages.length > 1 ? pages.length : totalPages,
+      enabled("personalData") ? profile : undefined);
     keepDatesOnOneLine(root);
     applyResumePageLayout(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings,
       profile.resumeColumnRatio, new Map(entries.map((entry) => [entry.id, entry.zone])), resolved.layout);
@@ -693,6 +701,7 @@ export const applyManagedResumeOutput = (
     applyGeneralResumeAppearance(root, resolved.templateId, designSettings, main, sidebar);
     applyPehlioneAppearance(root, resolved.templateId, designSettings);
     applyResumeSectionHeadingColors(root, designSettings);
+    if (number === 1) firstPageHeader = root.querySelector("header")?.cloneNode(true) as Element | null;
   });
   return document.body.innerHTML;
 };

@@ -102,25 +102,22 @@ describe.each(Object.keys(components))("continuation page of %s", (templateId) =
     for (const index of [0, 1]) expect({ page: index + 1, ids: sectionIds(previewPages[index]) }).toEqual({ page: index + 1, ids: sectionIds(pdfPages[index]) });
   });
 
-  it.each(["preview", "pdf"] as const)("uses one compact header and no idle sidebar in the %s", (surface) => {
+  it.each(["preview", "pdf"] as const)("repeats the first-page header without an idle sidebar in the %s", (surface) => {
     const first = surface === "pdf" ? pdfPages[0] : previewPages[0];
     const second = surface === "pdf" ? pdfPages[1] : previewPages[1];
     expect(second.querySelector("aside")).toBeNull();
-    if (templateId === "zweispaltig") {
-      expect(second.querySelector("[data-resume-continuation-meta]")).toBeNull();
-      expect(second.querySelector("[data-resume-continuation-contact]")?.textContent).toContain("mina@example.com");
-      expect(second.querySelector("[data-resume-continuation-contact]")?.textContent).toContain("+49 30 123456");
-      expect(first.querySelector("[data-resume-continuation-contact]")).toBeNull();
-      expect(second.querySelector("footer")?.textContent).toContain("Seite 2 von 2");
-    } else {
-      expect(second.querySelector("[data-resume-continuation-meta]")?.textContent).toBe("Lebenslauf · Seite 2 von 2");
-      expect(second.querySelectorAll("[data-resume-continuation-meta]")).toHaveLength(1);
-    }
-    expect(second.querySelector("[data-resume-continuation]")?.textContent).toContain("Mina Kaya");
-    // The headline and the “Fortsetzung” kicker are not repeated.
-    expect(text(second)).not.toContain(headline);
-    expect(text(second)).not.toContain("Lebenslauf · Fortsetzung");
-    expect(text(first)).toContain(headline);
+    const firstHeader = first.querySelector("header");
+    const secondHeader = second.querySelector("header");
+    expect(secondHeader?.outerHTML).toBe(firstHeader?.outerHTML);
+    expect(secondHeader?.textContent).toContain("Mina Kaya");
+    expect(secondHeader?.textContent).toContain(headline);
+    expect(secondHeader?.textContent).toContain("mina@example.com");
+    expect(secondHeader?.textContent).toContain("+49 30 123456");
+    expect(secondHeader?.querySelector('a[href="mailto:mina@example.com"]')).not.toBeNull();
+    expect(secondHeader?.querySelector('a[href="tel:+4930123456"]')).not.toBeNull();
+    expect(second.querySelector("[data-resume-continuation-meta]")).toBeNull();
+    expect(second.querySelector("footer [data-resume-header-extra-contact]")).toBeNull();
+    if (templateId === "zweispaltig") expect(second.querySelector("footer")?.textContent).toContain("Seite 2 von 2");
   });
 
   it.each(["preview", "pdf"] as const)("never draws a career heading without entries in the %s", (surface) => {
