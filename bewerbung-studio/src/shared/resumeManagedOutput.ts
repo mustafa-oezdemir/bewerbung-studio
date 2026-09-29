@@ -169,6 +169,28 @@ export const applyResumeDesignOverrides = (
   for (const [name, value] of Object.entries(variables))
     (scope as HTMLElement).style.setProperty(name, value);
 
+  const prefix = ({
+    modern: "modern", elegant: "elegant", gepflegt: "gepflegt",
+    "ivy-league": "ivy", klassisch: "klassisch", kompakt: "kompakt",
+    kreativ: "kreativ", stilvoll: "stilvoll", tabellarisch: "tabellarisch",
+    zeitgenoessisch: "zeit", zweispaltig: "zweispaltig", einspaltig: "einfach",
+    pehlione_white: "pehlione", pehlione_white_blue: "pehlione",
+  } as Record<string, string>)[resolveTemplateId(templateId)];
+  const nativeNames: Partial<Record<keyof CvDesignTokens["colors"], string[]>> = prefix ? {
+    text: [`--${prefix}-text`], muted: [`--${prefix}-muted`],
+    divider: [`--${prefix}-divider`, `--${prefix}-line`],
+    background: [`--${prefix}-paper`, `--${prefix}-page-bg`, `--${prefix}-page-background`],
+    accent: [`--${prefix}-accent`, `--${prefix}-primary`],
+    surface: [`--${prefix}-soft`, `--${prefix}-secondary`, `--${prefix}-pattern`],
+  } : {};
+  for (const [key, value] of Object.entries(settings.cvOverrides?.colors ?? {})) {
+    if (value === undefined) continue;
+    for (const property of nativeNames[key as keyof typeof nativeNames] ?? [])
+      (scope as HTMLElement).style.setProperty(property, String(value));
+  }
+  if (settings.cvOverrides?.colors?.accent) (scope as HTMLElement).style.setProperty("--accent", design.colors.accent);
+  if (settings.cvOverrides?.colors?.surface) (scope as HTMLElement).style.setProperty("--secondary", design.colors.surface);
+
   const colors = overrides.colors;
   if (colors?.background) {
     set(root, "background-color", design.colors.background);
@@ -191,9 +213,13 @@ export const applyResumeDesignOverrides = (
   const sources = resumeSectionStyleSources[surface][resolveTemplateId(templateId) as keyof typeof resumeSectionStyleSources.preview];
   const sectionHeadings = sources ? scope.querySelectorAll(`${sources[1]},[data-custom-role='heading']`) : scope.querySelectorAll("[data-managed-section]>h2,[data-managed-section]>h3");
   const entryHeadings = sources ? scope.querySelectorAll(`${sources[2]},[data-custom-role='entry'] h3,[data-custom-role='entry'] h4`) : scope.querySelectorAll("article h3,article h4");
+  const supporting = sources ? scope.querySelectorAll(sources[3]) : scope.querySelectorAll("[class*='company'],[class*='organization']");
   if (colors?.sectionHeading) for (const node of sectionHeadings) set(node, "color", design.colors.sectionHeading);
   if (colors?.entryHeading) for (const node of entryHeadings) set(node, "color", design.colors.entryHeading);
   if (colors?.divider) for (const node of sectionHeadings) set(node, "border-color", design.colors.divider);
+  if (colors?.accent) for (const node of supporting) set(node, "color", design.colors.accent);
+  if (colors?.surface) for (const node of scope.querySelectorAll("[class*='project'],[class*='card'],[class*='tag'],[class*='chip']"))
+    set(node, "background-color", design.colors.surface);
 
   const typography = overrides.typography;
   if (!typography) return;

@@ -7301,6 +7301,9 @@ body.is-resizing-split-view * {
 }
 .design-colors-panel[open] > summary { margin-bottom: 10px; }
 .design-colors-panel > .color-card-grid + .color-card-grid { margin-top: 8px; }
+.design-color-group { display: grid; gap: 6px; }
+.design-color-group + .design-color-group { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.design-color-group > strong { color: var(--muted); font-size: .62rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .design-color-card {
   display: grid;
   align-content: space-between;
@@ -7319,7 +7322,8 @@ body.is-resizing-split-view * {
 .design-color-card > span:first-child { min-width: 0; font-size: .66rem; font-weight: 650; line-height: 1.25; overflow-wrap: anywhere; }
 .design-color-card__choice { display: flex; align-items: center; gap: 7px; }
 .design-color-card input[type="color"] { flex: none; width: 32px; height: 28px; padding: 2px; border: 1px solid var(--line); border-radius: 6px; background: transparent; cursor: pointer; }
-.design-color-card code { color: var(--muted); font-size: .58rem; font-family: inherit; }
+.design-color-card__hex { min-width: 0; width: 76px; padding: 5px 6px; border: 1px solid transparent; border-radius: 5px; color: var(--muted); background: transparent; font: 600 .58rem/1.2 ui-monospace, SFMono-Regular, Consolas, monospace; text-transform: uppercase; }
+.design-color-card__hex:hover, .design-color-card__hex:focus { border-color: var(--line); color: var(--ink); background: var(--surface-raised, var(--surface)); outline: 0; }
 .design-color-reset { justify-self: start; margin-top: 7px; border: 0; color: var(--muted); background: transparent; font-size: .62rem; cursor: pointer; }
 .design-color-reset:hover, .design-color-reset:focus-visible { color: var(--brand); text-decoration: underline; }
 @container (max-width: 650px) { .color-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

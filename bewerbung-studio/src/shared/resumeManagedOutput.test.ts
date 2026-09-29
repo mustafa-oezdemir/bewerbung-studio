@@ -15,20 +15,29 @@ const page = '<section class="cv-sheet"><main><section><h2>Stärken</h2><p>Old c
 describe("shared strengths output", () => {
   it.each(["preview", "pdf"] as const)("applies semantic typography and color overrides to %s", (surface) => {
     const markup = surface === "pdf"
-      ? '<section class="cv-sheet"><div class="page-content klassisch-pdf"><header><h1>Mina Kaya</h1><h2>Entwicklerin</h2></header><section class="klassisch-pdf-section" data-managed-section="experience"><h3 class="klassisch-pdf-title">Berufserfahrung</h3><article class="klassisch-pdf-entry"><h3>Rolle</h3><p>Text</p></article></section></div></section>'
-      : '<section><div class="klassisch-template"><header><h1>Mina Kaya</h1><h2>Entwicklerin</h2></header><section class="klassisch-section" data-managed-section="experience"><h2 class="klassisch-section__title">Berufserfahrung</h2><article class="klassisch-career"><h3>Rolle</h3><p>Text</p></article></section></div></section>';
+      ? '<section class="cv-sheet"><div class="page-content klassisch-pdf"><header><h1>Mina Kaya</h1><h2>Entwicklerin</h2></header><section class="klassisch-pdf-section" data-managed-section="experience"><h3 class="klassisch-pdf-title">Berufserfahrung</h3><article class="klassisch-pdf-entry"><h3>Rolle</h3><h4>Firma</h4><p>Text</p><small>Meta</small><svg></svg><div class="project-card">Projekt</div></article></section></div></section>'
+      : '<section><div class="klassisch-template"><header><h1>Mina Kaya</h1><h2>Entwicklerin</h2></header><section class="klassisch-section" data-managed-section="experience"><h2 class="klassisch-section__title">Berufserfahrung</h2><article class="klassisch-career"><h3>Rolle</h3><h4>Firma</h4><p>Text</p><small>Meta</small><svg></svg><div class="project-card">Projekt</div></article></section></div></section>';
     const { document } = parseHTML(markup);
     const root = document.querySelector("section")!;
-    const settings = { ...defaultDocumentDesign, cvOverrides: { colors: { background: "#fafafa", paragraph: "#112233", heading: "#223344", sectionHeading: "#334455" },
+    const settings = { ...defaultDocumentDesign, cvOverrides: { colors: { text: "#010101", background: "#fafafa", paragraph: "#112233", heading: "#223344", subheading: "#334466", sectionHeading: "#334455", entryHeading: "#445566", divider: "#556677", accent: "#667788", surface: "#778899", muted: "#8899aa", icon: "#99aabb" },
       typography: { headingSizePt: 30, headingWeight: 800, sectionHeadingWeight: 600, sectionHeadingUppercase: true } } };
     applyResumeDesignOverrides(root, "klassisch", surface, settings, resolveCvDesign("klassisch", settings.cvOverrides));
     expect(root.getAttribute("style")).toContain("#fafafa");
     expect(root.querySelector("header h1")?.getAttribute("style")).toContain("30pt");
     expect(root.querySelector("header h1")?.getAttribute("style")).toContain("800");
+    expect(root.querySelector("header h1")?.getAttribute("style")).toContain("#223344");
+    expect(root.querySelector("header h2")?.getAttribute("style")).toContain("#334466");
     const heading = root.querySelector('[data-managed-section] > h2,[data-managed-section] > h3');
     expect(heading?.getAttribute("style")).toContain("uppercase");
     expect(heading?.getAttribute("style")).toContain("600");
+    expect(heading?.getAttribute("style")).toContain("#334455");
+    expect(heading?.getAttribute("style")).toContain("#556677");
+    expect(root.querySelector("article h3")?.getAttribute("style")).toContain("#445566");
     expect(root.querySelector("article p")?.getAttribute("style")).toContain("#112233");
+    expect(root.querySelector("article small")?.getAttribute("style")).toContain("#8899aa");
+    expect(root.querySelector("article svg")?.getAttribute("style")).toContain("#99aabb");
+    expect(root.querySelector(".project-card")?.getAttribute("style")).toContain("#778899");
+    expect((surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild)?.getAttribute("style")).toContain("--accent:#667788");
   });
   it.each(["pehlione-sidebar", "elegant-pdf-sidebar", "gepflegt-sidebar"])("colors sidebar section titles in %s independently from body text", (sidebarClass) => {
     const { document } = parseHTML(`<div><aside class="${sidebarClass}"><section><h3><svg></svg><span>Kernkompetenzen</span></h3><p>Text</p><article><h3>Eintrag</h3></article></section><section><h3><span><svg></svg></span>Sprachen</h3></section></aside><main><section><h3>Berufserfahrung</h3></section></main></div>`);

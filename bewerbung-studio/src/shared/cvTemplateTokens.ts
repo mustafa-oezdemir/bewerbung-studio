@@ -19,6 +19,8 @@ type NativeDefaults = {
     text: string; primary?: string; heading?: string; accent?: string;
     muted?: string; mutedText?: string; divider?: string; line?: string;
     border?: string; pageBackground?: string; background?: string;
+    surface?: string; secondary?: string; primarySoft?: string;
+    softBackground?: string; iconBackground?: string; pattern?: string;
   };
   typography?: {
     bodySizePt?: number; nameSizePt?: number; professionSizePt?: number;
@@ -44,6 +46,9 @@ const adapt = (source: NativeDefaults): CvDesignOverrides => {
       accent, icon: accent, muted: colors.muted ?? colors.mutedText,
       divider: colors.divider ?? colors.line ?? colors.border,
       background: colors.pageBackground ?? colors.background,
+      surface: colors.surface ?? colors.secondary ?? colors.primarySoft ??
+        colors.softBackground ?? colors.iconBackground ?? colors.pattern ??
+        colors.pageBackground ?? colors.background,
     }),
     typography: defined({
       bodySizePt: typography?.bodySizePt, headingSizePt: typography?.nameSizePt,

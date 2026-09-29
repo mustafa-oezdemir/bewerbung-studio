@@ -19,6 +19,8 @@ describe("shared CV design foundation", () => {
 
   it("reuses the exact existing constants and retains distinct template palettes", () => {
     expect(resolveCvDesign("modern").colors.heading).toBe(modernTemplateDefaults.colors.heading);
+    expect(resolveCvDesign("modern").colors.surface).toBe(modernTemplateDefaults.colors.secondary);
+    expect(resolveCvDesign("klassisch").colors.surface).toBe("#CDEFF3");
     expect(resolveCvDesign("kompakt").colors.accent).toBe("#FF6200");
     expect(resolveCvDesign("klassisch").colors.accent).toBe("#00AFC5");
     expect(resolveCvDesign("einfach")).toEqual(resolveCvDesign("einspaltig"));

@@ -126,11 +126,22 @@ import { selectCurrentApplication, useAppStore } from "../store/useAppStore";
 type Tab = "deckblatt" | "anschreiben" | "email" | "lebenslauf";
 
 function ColorCard({ label, value, onChange }: { label: string; value: string; onChange: (color: string) => void }) {
+  const [hex, setHex] = useState(value.toUpperCase());
+  useEffect(() => setHex(value.toUpperCase()), [value]);
+  const commit = (candidate: string) => {
+    const normalized = candidate.startsWith("#") ? candidate : `#${candidate}`;
+    if (/^#[0-9a-f]{6}$/i.test(normalized)) onChange(normalized.toUpperCase());
+    else setHex(value.toUpperCase());
+  };
   return <label className="design-color-card">
     <span>{label}</span>
     <span className="design-color-card__choice">
       <input type="color" aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} />
-      <code>{value.toUpperCase()}</code>
+      <input className="design-color-card__hex" type="text" aria-label={`${label} HEX`}
+        inputMode="text" maxLength={7} value={hex}
+        onChange={(event) => setHex(event.target.value.toUpperCase())}
+        onBlur={(event) => commit(event.target.value)}
+        onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commit(event.currentTarget.value); } }} />
     </span>
   </label>;
 }
@@ -789,6 +800,14 @@ export function DocumentsView({
     void removeCustomCvDesign(selected.id);
     setCustomDesignId(undefined);
     setCustomDesignName("");
+  };
+  const resetAllDesignSettings = () => {
+    const changed = Boolean(design.settings.cvOverrides || design.settings.resumeAppearance ||
+      design.settings.resumePresentation || design.settings.metadataLayout || design.settings.metadataOrder);
+    if (changed && !window.confirm("Alle Design-Anpassungen dieses Lebenslaufs auf die Standardwerte der Vorlage zurücksetzen?")) return;
+    setDesign(resetDocumentDesign);
+    setResumeSectionPreview(null);
+    setResumeEditorRevision((value) => value + 1);
   };
 
   const updateDocumentListItem = (
@@ -1662,21 +1681,15 @@ export function DocumentsView({
                     </div>
                     <details className="resume-spacing-advanced design-colors-panel">
                       <summary>Farben und Dekoration</summary>
-                      <div className="color-card-grid">
-                        {([
-                          ["text", "Lesetext"],
-                          ["paragraph", "Absatztext"],
-                          ["heading", "Überschrift"],
-                          ["subheading", "Unterüberschrift"],
-                          ["sectionHeading", "Hauptabschnitt"],
-                          ["entryHeading", "Unterabschnitt"],
-                          ["accent", "Akzent"],
-                          ["divider", "Linien"],
-                          ["background", "Hintergrund"],
-                          ["surface", "Fläche"],
-                        ] as const).map(([key, label]) => <ColorCard key={key} label={label} value={resumeSpacing.colors[key]}
-                          onChange={(color) => setDesign((current) => updateCvDesignField(current, "colors", key, color))} />)}
-                      </div>
+                      {([
+                        ["Text", [["text", "Lesetext"], ["paragraph", "Absatztext"], ["muted", "Sekundärtext"]]],
+                        ["Überschriften", [["heading", "Überschrift"], ["subheading", "Unterüberschrift"], ["sectionHeading", "Hauptabschnitt"], ["entryHeading", "Unterabschnitt"]]],
+                        ["Design", [["accent", "Akzent"], ["divider", "Linien"], ["background", "Hintergrund"], ["surface", "Fläche"], ["icon", "Icon-Farbe"]]],
+                      ] as const).map(([group, colors]) => <div className="design-color-group" key={group}>
+                        <strong>{group}</strong>
+                        <div className="color-card-grid">{colors.map(([key, label]) => <ColorCard key={key} label={label} value={resumeSpacing.colors[key]}
+                          onChange={(color) => setDesign((current) => updateCvDesignField(current, "colors", key, color))} />)}</div>
+                      </div>)}
                       <div className="color-card-grid">
                         <ColorCard label="Seitenspalte Abschnittstitel"
                           value={design.settings.resumeAppearance?.sidebarSectionHeadingColor ?? design.settings.resumeAppearance?.sidebarTextColor ?? (template.id === "pehlione_white_blue" ? "#ffffff" : resumeSpacing.colors.sectionHeading)}
@@ -1795,6 +1808,17 @@ export function DocumentsView({
                     <details className="resume-spacing-advanced">
                       <summary>Typografie im Detail</summary>
                       <div className="advanced-design-grid">
+                        <label className="field"><span>Zeilenhöhe</span>
+                          <select value={design.settings.cvOverrides?.typography?.lineHeight ?? "template"}
+                            onChange={(event) => setDesign((current) => updateCvDesignField(current, "typography", "lineHeight",
+                              event.target.value === "template" ? undefined : Number(event.target.value)))}>
+                            <option value="template">Vorlagenwert</option>
+                            {design.settings.cvOverrides?.typography?.lineHeight !== undefined &&
+                              ![1.1, 1.15, 1.5].includes(design.settings.cvOverrides.typography.lineHeight) ?
+                              <option value={design.settings.cvOverrides.typography.lineHeight}>Benutzerdefiniert ({design.settings.cvOverrides.typography.lineHeight.toLocaleString("de-DE")})</option> : null}
+                            <option value="1.1">Eng (1,10)</option><option value="1.15">Standard (1,15)</option><option value="1.5">Weit (1,50)</option>
+                          </select>
+                        </label>
                         {([
                           ["bodySizePt", "Lesetext"], ["headingSizePt", "Hauptüberschrift"],
                           ["subheadingSizePt", "Unterüberschrift"], ["sectionHeadingSizePt", "Abschnittsüberschrift"],
@@ -2181,7 +2205,7 @@ export function DocumentsView({
                     <button
                       className="button secondary design-reset-button"
                       type="button"
-                      onClick={() => { setDesign(resetDocumentDesign); setResumeSectionPreview(null); setResumeEditorRevision((value) => value + 1); }}>
+                      onClick={resetAllDesignSettings}>
                       Auf Standard zurücksetzen
                     </button>
                   </section>
