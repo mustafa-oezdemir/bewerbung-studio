@@ -79,9 +79,7 @@ import { formatKnowledgeSectionAsText } from "../src/features/knowledge/knowledg
 import { buildDocumentHtml } from "./documents";
 import {
   FileManagementService,
-  applicationFileBaseName,
   isPathInside,
-  sanitizeFileName,
 } from "./file-management";
 import { LegacyMigrationService } from "./legacy-migration";
 import type {
@@ -789,6 +787,7 @@ export class DataStore {
     if (index < 0) throw new Error("Bewerbung wurde nicht gefunden.");
     const current = this.workspace.applications[index];
     const shouldCommitUpdate = applicationContentChanged(current, application);
+    await this.files.consolidateLegacyDocumentDirectories(current);
     application.folderName = await this.files.relocateApplicationFolders(
       {
         ...application,
@@ -1617,9 +1616,9 @@ export class DataStore {
       ...elegantData,
     };
     const documentDirectories = this.files.documentDirectories(application);
-    const applicationBaseName = applicationFileBaseName(application);
-    const documentName = (kind: "Anschreiben" | "Deckblatt" | "Lebenslauf" | "Mappe") =>
-      applicantDocumentFileName(kind, application, applicantName);
+    const documentName = (
+      kind: "Anschreiben" | "Deckblatt" | "Lebenslauf" | "Mappe",
+    ) => applicantDocumentFileName(kind, application, applicantName);
     return {
       application,
       targetDirectories: {
@@ -1664,8 +1663,15 @@ export class DataStore {
   getExportDefaultName(id: string, target: string) {
     const application = this.getApplication(id);
     const profile = this.getProfileForApplication(application);
-    const applicantName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
-    const kind = ({ anschreiben: "Anschreiben", deckblatt: "Deckblatt", lebenslauf: "Lebenslauf", mappe: "Mappe" } as const)[target as "anschreiben" | "deckblatt" | "lebenslauf" | "mappe"];
+    const applicantName = [profile?.firstName, profile?.lastName]
+      .filter(Boolean)
+      .join(" ");
+    const kind = {
+      anschreiben: "Anschreiben",
+      deckblatt: "Deckblatt",
+      lebenslauf: "Lebenslauf",
+      mappe: "Mappe",
+    }[target] as "Anschreiben" | "Deckblatt" | "Lebenslauf" | "Mappe" | undefined;
     if (!kind) throw new Error("Ungültiges Exportziel.");
     return `${applicantDocumentFileName(kind, application, applicantName)}.pdf`;
   }
@@ -1704,7 +1710,10 @@ export class DataStore {
     const application = this.getApplication(id);
     const directories = this.files.documentDirectories(application);
     const directory = target === "mappe"
-      ? this.files.applicationDataPath(application.folderName)
+      ? path.join(
+          this.files.applicationDataPath(application.folderName),
+          "Bewerbungsunterlagen",
+        )
       : directories[target];
     return path.join(directory, this.getExportDefaultName(id, target));
   }

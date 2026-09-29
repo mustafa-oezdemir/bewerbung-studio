@@ -88,23 +88,13 @@ describe("legacy migration", () => {
     const migrated = await targetStore.migrateLegacyData(sourceStore.dataPath);
     expect(migrated.applications).toHaveLength(1);
     const migratedDocument = path.join(
-      targetStore.files.paths.anschreibenDocuments,
-      application.folderName,
+      targetStore.files.documentDirectories(application).anschreiben,
       "Legacy.docx",
     );
     await expect(readFile(migratedDocument, "utf8")).resolves.toBe(
       "legacy-cover",
     );
-    await expect(
-      access(
-        path.join(
-          targetStore.dataPath,
-          "Bewerbungen",
-          application.folderName,
-          "Anschreiben",
-        ),
-      ),
-    ).rejects.toThrow();
+    await expect(access(path.dirname(migratedDocument))).resolves.toBeUndefined();
     await expect(readFile(legacyDocument, "utf8")).resolves.toBe(
       "legacy-cover",
     );

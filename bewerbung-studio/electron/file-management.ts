@@ -26,6 +26,13 @@ export const sanitizeFileName = (value: string) => {
   return reservedWindowsNames.test(sanitized) ? `_${sanitized}` : sanitized;
 };
 
+export const applicationPositionFolder = (positionName: string) => {
+  const normalizedPosition = positionName
+    .trim()
+    .replace(/^Bewerbung\s+als\s+/i, "");
+  return `Bewerbung_als_${sanitizeFileName(normalizedPosition)}`;
+};
+
 export const formatLocalDate = (date: Date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -180,9 +187,9 @@ export class FileManagementService {
   ): DocumentDirectories {
     const applicationData = this.applicationDataPath(application.folderName);
     return {
-      anschreiben: applicationData,
-      lebenslauf: applicationData,
-      deckblatt: applicationData,
+      anschreiben: path.join(applicationData, "Anschreiben"),
+      lebenslauf: path.join(applicationData, "Lebenslauf"),
+      deckblatt: path.join(applicationData, "Deckblatt"),
       email: path.join(applicationData, "Email"),
     };
   }
@@ -192,8 +199,11 @@ export class FileManagementService {
     positionName: string,
     date = new Date(),
   ) {
-    const companyDateFolder = `${sanitizeFileName(companyName)}_${formatApplicationDateFolder(date)}`;
-    const positionFolder = sanitizeFileName(positionName);
+    const companyDateFolder = path.join(
+      "Lebenslauf",
+      `${sanitizeFileName(companyName)}_${formatApplicationDateFolder(date)}`,
+    );
+    const positionFolder = applicationPositionFolder(positionName);
     for (let suffix = 1; suffix < 10_000; suffix += 1) {
       const uniquePositionFolder =
         suffix === 1 ? positionFolder : `${positionFolder}_${suffix}`;
@@ -287,8 +297,11 @@ export class FileManagementService {
   }
 
   async relocateApplicationFolders(application: Application, date: Date) {
-    const companyDateFolder = `${sanitizeFileName(application.company.name)}_${formatApplicationDateFolder(date)}`;
-    const positionFolder = sanitizeFileName(application.job.title);
+    const companyDateFolder = path.join(
+      "Lebenslauf",
+      `${sanitizeFileName(application.company.name)}_${formatApplicationDateFolder(date)}`,
+    );
+    const positionFolder = applicationPositionFolder(application.job.title);
     let targetFolderName = "";
     for (let suffix = 1; suffix < 10_000; suffix += 1) {
       const uniquePositionFolder =
@@ -423,25 +436,40 @@ export class FileManagementService {
     await Promise.all([
       mkdir(path.join(dataRoot, "Stellenanzeige"), { recursive: true }),
       mkdir(path.join(dataRoot, "Email"), { recursive: true }),
+      mkdir(path.join(dataRoot, "Anschreiben"), { recursive: true }),
+      mkdir(path.join(dataRoot, "Lebenslauf"), { recursive: true }),
+      mkdir(path.join(dataRoot, "Deckblatt"), { recursive: true }),
+      mkdir(path.join(dataRoot, "Bewerbungsunterlagen"), { recursive: true }),
     ]);
     return { dataRoot };
   }
 
-  /** Move documents created by older versions into the canonical application folder. */
+  /** Move documents created by older versions into the canonical application subfolders. */
   async consolidateLegacyDocumentDirectories(
-    application: Pick<Application, "folderName" | "status">,
+    application: Pick<Application, "folderName">,
   ) {
-    if (application.status === "Absage") return;
-    const targetRoot = this.applicationDataPath(application.folderName);
-    const legacyRoots = [
-      path.join(this.paths.anschreibenDocuments, application.folderName),
-      path.join(this.paths.lebenslaufDocuments, application.folderName),
+    const dataRoot = this.applicationDataPath(application.folderName);
+    const locations = [
+      {
+        source: path.join(this.paths.anschreibenDocuments, application.folderName),
+        defaultKind: "anschreiben" as const,
+      },
+      {
+        source: path.join(this.paths.lebenslaufDocuments, application.folderName),
+        defaultKind: "lebenslauf" as const,
+      },
     ];
+    const targetRoots: Record<ApplicationDocumentNameKind, string> = {
+      anschreiben: path.join(dataRoot, "Anschreiben"),
+      deckblatt: path.join(dataRoot, "Deckblatt"),
+      lebenslauf: path.join(dataRoot, "Lebenslauf"),
+      mappe: path.join(dataRoot, "Bewerbungsunterlagen"),
+    };
     const moves: Array<{ source: string; target: string }> = [];
-    for (const [legacyIndex, legacyRoot] of legacyRoots.entries()) {
+    for (const location of locations) {
       let entries;
       try {
-        entries = await readdir(legacyRoot, { withFileTypes: true, recursive: true });
+        entries = await readdir(location.source, { withFileTypes: true, recursive: true });
       } catch (error) {
         const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
         if (code === "ENOENT") continue;
@@ -450,16 +478,19 @@ export class FileManagementService {
       for (const entry of entries) {
         if (!entry.isFile()) continue;
         const source = path.join(entry.parentPath, entry.name);
-        const relative = path.relative(legacyRoot, source);
-        let target = path.resolve(targetRoot, relative);
-        if (!isPathInside(targetRoot, target)) throw new Error("Ungültiger Dokumentpfad.");
+        const stem = path.parse(entry.name).name.toLocaleLowerCase();
+        const kind = (Object.keys(targetRoots) as ApplicationDocumentNameKind[]).find(
+          (candidate) =>
+            stem === candidate ||
+            stem.startsWith(`${candidate}_`) ||
+            stem.endsWith(`_${candidate}`) ||
+            stem.includes(`_${candidate}_`),
+        ) ?? location.defaultKind;
+        const targetRoot = targetRoots[kind];
+        let target = path.join(targetRoot, entry.name);
         if (await pathExists(target)) {
           const parsed = path.parse(entry.name);
-          const archiveRoot = path.join(
-            targetRoot,
-            "Altbestand",
-            legacyIndex === 0 ? "Anschreiben" : "Lebenslauf",
-          );
+          const archiveRoot = path.join(targetRoot, "Altbestand");
           for (let suffix = 1; suffix < 10_000; suffix += 1) {
             const candidate = path.join(
               archiveRoot,
@@ -493,13 +524,15 @@ export class FileManagementService {
       if (isApplicationFolderLockError(error)) throw new ApplicationFolderLockedError();
       throw error;
     }
-    for (const legacyRoot of legacyRoots) {
-      if (await pathExists(legacyRoot)) await rm(legacyRoot, { recursive: true, force: true });
+    for (const location of locations) {
+      if (await pathExists(location.source)) {
+        await rm(location.source, { recursive: true, force: true });
+      }
     }
     await this.removeEmptyArtifactParents(
-      legacyRoots.map((legacyRoot, index) => ({
+      locations.map((location, index) => ({
         root: path.resolve(index === 0 ? this.paths.anschreibenDocuments : this.paths.lebenslaufDocuments),
-        path: legacyRoot,
+        path: location.source,
       })),
     );
   }
@@ -513,43 +546,49 @@ export class FileManagementService {
     application: Pick<Application, "folderName" | "status" | "company" | "createdAt" | "sentAt">,
     names: Record<ApplicationDocumentNameKind, string>,
   ) {
-    if (application.status === "Absage") return;
-    const directory = this.applicationDataPath(application.folderName);
-    let entries;
-    try {
-      entries = await readdir(directory, { withFileTypes: true });
-    } catch (error) {
-      const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
-      if (code === "ENOENT") return;
-      throw error;
-    }
+    const dataRoot = this.applicationDataPath(application.folderName);
+    const documentDirectories = this.documentDirectories(application);
+    const directories: Record<ApplicationDocumentNameKind, string> = {
+      anschreiben: documentDirectories.anschreiben,
+      deckblatt: documentDirectories.deckblatt,
+      lebenslauf: documentDirectories.lebenslauf,
+      mappe: path.join(dataRoot, "Bewerbungsunterlagen"),
+    };
     const base = applicationFileBaseName(application).toLocaleLowerCase();
-    const kinds = Object.keys(names) as ApplicationDocumentNameKind[];
-    const reserved = new Set(entries.map((entry) => entry.name.toLocaleLowerCase()));
-    for (const entry of entries) {
-      if (!entry.isFile()) continue;
-      const parsed = path.parse(entry.name);
-      const extension = parsed.ext.toLowerCase();
-      if (extension !== ".pdf" && extension !== ".docx") continue;
-      const stem = parsed.name.toLocaleLowerCase();
-      const kind = kinds.find(
-        (candidate) =>
-          stem === candidate ||
-          (stem.startsWith(`${base}_`) && stem.endsWith(`_${candidate}`)),
-      );
-      if (!kind || !names[kind]) continue;
-      const targetName = `${names[kind]}${extension}`;
-      if (targetName.toLocaleLowerCase() === entry.name.toLocaleLowerCase()) continue;
-      if (reserved.has(targetName.toLocaleLowerCase())) continue;
-      const target = path.join(directory, targetName);
-      if (!isPathInside(directory, target)) continue;
+    for (const kind of Object.keys(names) as ApplicationDocumentNameKind[]) {
+      const directory = directories[kind];
+      let entries;
       try {
-        await this.withRenameRetry(() => rename(path.join(directory, entry.name), target));
-        reserved.delete(entry.name.toLocaleLowerCase());
-        reserved.add(targetName.toLocaleLowerCase());
+        entries = await readdir(directory, { withFileTypes: true });
       } catch (error) {
-        // A file opened in Word or a PDF viewer keeps its old name until the next attempt.
-        if (!isApplicationFolderLockError(error)) throw error;
+        const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
+        if (code === "ENOENT") continue;
+        throw error;
+      }
+      const reserved = new Set(entries.map((entry) => entry.name.toLocaleLowerCase()));
+      for (const entry of entries) {
+        if (!entry.isFile()) continue;
+        const parsed = path.parse(entry.name);
+        const extension = parsed.ext.toLowerCase();
+        if (extension !== ".pdf" && extension !== ".docx") continue;
+        const stem = parsed.name.toLocaleLowerCase();
+        const isLegacyName =
+          stem === kind ||
+          (stem.startsWith(`${base}_`) && stem.endsWith(`_${kind}`));
+        if (!isLegacyName) continue;
+        const targetName = `${names[kind]}${extension}`;
+        if (targetName.toLocaleLowerCase() === entry.name.toLocaleLowerCase()) continue;
+        if (reserved.has(targetName.toLocaleLowerCase())) continue;
+        const target = path.join(directory, targetName);
+        if (!isPathInside(directory, target)) continue;
+        try {
+          await this.withRenameRetry(() => rename(path.join(directory, entry.name), target));
+          reserved.delete(entry.name.toLocaleLowerCase());
+          reserved.add(targetName.toLocaleLowerCase());
+        } catch (error) {
+          // A file opened in Word or a PDF viewer keeps its old name until the next attempt.
+          if (!isApplicationFolderLockError(error)) throw error;
+        }
       }
     }
   }

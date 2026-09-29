@@ -59,11 +59,14 @@ describe("FileManagementService", () => {
         date,
       ),
     ).resolves.toBe(
-      path.join("Siemens_30.07.2026", "Softwareentwickler"),
+      path.join("Lebenslauf", "Siemens_30.07.2026", "Bewerbung_als_Softwareentwickler"),
     );
     await expect(
       service.allocateApplicationFolderName("Siemens", "IT Support", date),
-    ).resolves.toBe(path.join("Siemens_30.07.2026", "IT_Support"));
+    ).resolves.toBe(path.join("Lebenslauf", "Siemens_30.07.2026", "Bewerbung_als_IT_Support"));
+    await expect(
+      service.allocateApplicationFolderName("Siemens", "Bewerbung als Lagerist", date),
+    ).resolves.toBe(path.join("Lebenslauf", "Siemens_30.07.2026", "Bewerbung_als_Lagerist"));
     await expect(
       service.allocateApplicationFolderName(
         "Siemens",
@@ -71,26 +74,30 @@ describe("FileManagementService", () => {
         date,
       ),
     ).resolves.toBe(
-      path.join("Siemens_30.07.2026", "Softwareentwickler_2"),
+      path.join("Lebenslauf", "Siemens_30.07.2026", "Bewerbung_als_Softwareentwickler_2"),
     );
   });
 
   it("consolidates legacy cover-letter and resume folders without overwriting existing files", async () => {
     const folderName = path.join("Muster_GmbH_29.09.2026", "Entwicklung");
     const application = { folderName, status: "Entwurf" } as Application;
-    const target = service.applicationDataPath(folderName);
+    const directories = service.documentDirectories(application);
     const coverRoot = path.join(service.paths.anschreibenDocuments, folderName);
     const resumeRoot = path.join(service.paths.lebenslaufDocuments, folderName);
-    await Promise.all([mkdir(target, { recursive: true }), mkdir(coverRoot, { recursive: true }), mkdir(resumeRoot, { recursive: true })]);
-    await writeFile(path.join(target, "Anschreiben.docx"), "current");
+    await Promise.all([
+      mkdir(directories.anschreiben, { recursive: true }),
+      mkdir(coverRoot, { recursive: true }),
+      mkdir(resumeRoot, { recursive: true }),
+    ]);
+    await writeFile(path.join(directories.anschreiben, "Anschreiben.docx"), "current");
     await writeFile(path.join(coverRoot, "Anschreiben.docx"), "legacy cover");
     await writeFile(path.join(resumeRoot, "Lebenslauf.pdf"), "legacy resume");
 
     await service.consolidateLegacyDocumentDirectories(application);
 
-    await expect(readFile(path.join(target, "Anschreiben.docx"), "utf8")).resolves.toBe("current");
-    await expect(readFile(path.join(target, "Altbestand", "Anschreiben", "Anschreiben.docx"), "utf8")).resolves.toBe("legacy cover");
-    await expect(readFile(path.join(target, "Lebenslauf.pdf"), "utf8")).resolves.toBe("legacy resume");
+    await expect(readFile(path.join(directories.anschreiben, "Anschreiben.docx"), "utf8")).resolves.toBe("current");
+    await expect(readFile(path.join(directories.anschreiben, "Altbestand", "Anschreiben.docx"), "utf8")).resolves.toBe("legacy cover");
+    await expect(readFile(path.join(directories.lebenslauf, "Lebenslauf.pdf"), "utf8")).resolves.toBe("legacy resume");
     await expect(access(coverRoot)).rejects.toThrow();
     await expect(access(resumeRoot)).rejects.toThrow();
   });
@@ -104,7 +111,11 @@ describe("FileManagementService", () => {
       createdAt: "2026-09-29T08:00:00.000Z",
       sentAt: "2026-09-29T08:00:00.000Z",
     } as Application;
-    const target = service.applicationDataPath(folderName);
+    const directories = service.documentDirectories(application);
+    const packageDirectory = path.join(
+      service.applicationDataPath(folderName),
+      "Bewerbungsunterlagen",
+    );
     const coverRoot = path.join(service.paths.anschreibenDocuments, folderName);
     const resumeRoot = path.join(service.paths.lebenslaufDocuments, folderName);
     await Promise.all([mkdir(coverRoot, { recursive: true }), mkdir(resumeRoot, { recursive: true })]);
@@ -128,10 +139,10 @@ describe("FileManagementService", () => {
     await service.consolidateLegacyDocumentDirectories(application);
     await service.normalizeLegacyDocumentNames(application, names);
 
-    await expect(readFile(path.join(target, `${names.anschreiben}.docx`), "utf8")).resolves.toBe("docx");
-    await expect(readFile(path.join(target, `${names.anschreiben}.pdf`), "utf8")).resolves.toBe("cover pdf");
-    await expect(readFile(path.join(target, `${names.lebenslauf}.pdf`), "utf8")).resolves.toBe("resume pdf");
-    await expect(readFile(path.join(target, `${names.mappe}.pdf`), "utf8")).resolves.toBe("mappe pdf");
+    await expect(readFile(path.join(directories.anschreiben, `${names.anschreiben}.docx`), "utf8")).resolves.toBe("docx");
+    await expect(readFile(path.join(directories.anschreiben, `${names.anschreiben}.pdf`), "utf8")).resolves.toBe("cover pdf");
+    await expect(readFile(path.join(directories.lebenslauf, `${names.lebenslauf}.pdf`), "utf8")).resolves.toBe("resume pdf");
+    await expect(readFile(path.join(packageDirectory, `${names.mappe}.pdf`), "utf8")).resolves.toBe("mappe pdf");
     await expect(access(coverRoot)).rejects.toThrow();
     await expect(access(resumeRoot)).rejects.toThrow();
   });
@@ -145,11 +156,14 @@ describe("FileManagementService", () => {
       createdAt: "2026-09-29T08:00:00.000Z",
       sentAt: "2026-09-29T08:00:00.000Z",
     } as Application;
-    const target = service.applicationDataPath(folderName);
-    await mkdir(target, { recursive: true });
-    await writeFile(path.join(target, "Lebenslauf_Max_Muster_GmbH.pdf"), "current");
-    await writeFile(path.join(target, "Muster_GmbH_29.09.2026_Entwicklung_lebenslauf.pdf"), "legacy");
-    await writeFile(path.join(target, "Anschreiben.docx"), "letter");
+    const directories = service.documentDirectories(application);
+    await Promise.all([
+      mkdir(directories.anschreiben, { recursive: true }),
+      mkdir(directories.lebenslauf, { recursive: true }),
+    ]);
+    await writeFile(path.join(directories.lebenslauf, "Lebenslauf_Max_Muster_GmbH.pdf"), "current");
+    await writeFile(path.join(directories.lebenslauf, "Muster_GmbH_29.09.2026_Entwicklung_lebenslauf.pdf"), "legacy");
+    await writeFile(path.join(directories.anschreiben, "Anschreiben.docx"), "letter");
 
     await service.normalizeLegacyDocumentNames(application, {
       anschreiben: "Anschreiben_Max_Muster_GmbH",
@@ -158,11 +172,11 @@ describe("FileManagementService", () => {
       mappe: "Mappe_Max_Muster_GmbH",
     });
 
-    await expect(readFile(path.join(target, "Lebenslauf_Max_Muster_GmbH.pdf"), "utf8")).resolves.toBe("current");
+    await expect(readFile(path.join(directories.lebenslauf, "Lebenslauf_Max_Muster_GmbH.pdf"), "utf8")).resolves.toBe("current");
     await expect(
-      readFile(path.join(target, "Muster_GmbH_29.09.2026_Entwicklung_lebenslauf.pdf"), "utf8"),
+      readFile(path.join(directories.lebenslauf, "Muster_GmbH_29.09.2026_Entwicklung_lebenslauf.pdf"), "utf8"),
     ).resolves.toBe("legacy");
-    await expect(readFile(path.join(target, "Anschreiben_Max_Muster_GmbH.docx"), "utf8")).resolves.toBe("letter");
+    await expect(readFile(path.join(directories.anschreiben, "Anschreiben_Max_Muster_GmbH.docx"), "utf8")).resolves.toBe("letter");
   });
 
   it("moves every application artifact when the application date changes", async () => {
@@ -191,7 +205,7 @@ describe("FileManagementService", () => {
     );
 
     expect(relocated).toBe(
-      path.join("Siemens_22.08.2026", "Softwareentwickler"),
+      path.join("Lebenslauf", "Siemens_22.08.2026", "Bewerbung_als_Softwareentwickler"),
     );
     for (const [index, source] of sourcePaths.entries()) {
       await expect(access(source)).rejects.toThrow();
@@ -237,8 +251,9 @@ describe("FileManagementService", () => {
 
     expect(relocated).toBe(
       path.join(
+        "Lebenslauf",
         "Universitatsklinikum_Frankfurt_09.08.2026",
-        "Softwareentwickler_in_–_Workflow-Modellierung_&_User_Experience",
+        "Bewerbung_als_Softwareentwickler_in_–_Workflow-Modellierung_&_User_Experience",
       ),
     );
     for (const [index, legacyPath] of legacyPaths.entries()) {
@@ -310,7 +325,7 @@ describe("FileManagementService", () => {
     ).toThrow(/zentralen Ordner/);
   });
 
-  it("keeps consolidated company documents in the application folder after a rejection", async () => {
+  it("keeps company documents in their application subfolders after a rejection", async () => {
     const folderName = await service.allocateApplicationFolderName(
       "Siemens",
       "Softwareentwickler",
@@ -334,7 +349,7 @@ describe("FileManagementService", () => {
       ...application,
       status: "Absage",
     });
-    expect(rejected.anschreiben).toBe(service.applicationDataPath(folderName));
+    expect(rejected.anschreiben).toBe(path.join(service.applicationDataPath(folderName), "Anschreiben"));
     await expect(
       readFile(path.join(rejected.anschreiben, "Anschreiben.docx"), "utf8"),
     ).resolves.toBe("cover");
@@ -345,7 +360,7 @@ describe("FileManagementService", () => {
     expect(active.lebenslauf).toBe(rejected.lebenslauf);
   });
 
-  it("keeps the consolidated folder when a rejected application becomes active again", async () => {
+  it("keeps the same document subfolders when an application becomes active again", async () => {
     const folderName = path.join("Siemens_2026-07-30", "Softwareentwickler");
     const application = {
       folderName,

@@ -130,7 +130,7 @@ describe("central application-date workflow", () => {
       initialContext.data,
     );
     expect(initial.folderName).toBe(
-      path.join("Muster_GmbH_08.09.2026", "Softwareentwickler"),
+      path.join("Lebenslauf", "Muster_GmbH_08.09.2026", "Bewerbung_als_Softwareentwickler"),
     );
     expect(path.basename(initialResult.filePath)).toBe(
       "Anschreiben_Muster_GmbH.docx",
@@ -157,7 +157,7 @@ describe("central application-date workflow", () => {
     );
 
     expect(updated.folderName).toBe(
-      path.join("Muster_GmbH_15.09.2026", "Softwareentwickler"),
+      path.join("Lebenslauf", "Muster_GmbH_15.09.2026", "Bewerbung_als_Softwareentwickler"),
     );
     expect(path.basename(updatedResult.filePath)).toBe(
       "Anschreiben_Muster_GmbH.docx",

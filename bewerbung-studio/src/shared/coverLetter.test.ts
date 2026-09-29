@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Application } from "./schema";
 import {
+  applicantDocumentFileName,
   coverLetterApplicantFileName,
   createCoverSubject,
   getCoverLetterAttachments,
@@ -83,6 +84,19 @@ describe("coverLetterApplicantFileName", () => {
     expect(
       coverLetterApplicantFileName(application("Aagon GmbH"), "Mustafa Özdemir"),
     ).toBe("Anschreiben_Mustafa_Özdemir_Aagon_GmbH");
+  });
+
+  it("uses the same applicant-company order for every saved document", () => {
+    expect(
+      (["Anschreiben", "Lebenslauf", "Deckblatt", "Mappe"] as const).map(
+        (kind) => applicantDocumentFileName(kind, application("Temmler Pharma GmbH"), "Mustafa Özdemir"),
+      ),
+    ).toEqual([
+      "Anschreiben_Mustafa_Özdemir_Temmler_Pharma_GmbH",
+      "Lebenslauf_Mustafa_Özdemir_Temmler_Pharma_GmbH",
+      "Deckblatt_Mustafa_Özdemir_Temmler_Pharma_GmbH",
+      "Mappe_Mustafa_Özdemir_Temmler_Pharma_GmbH",
+    ]);
   });
 
   it("falls back to the company when no applicant name is available", () => {

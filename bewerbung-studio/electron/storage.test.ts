@@ -148,11 +148,12 @@ describe("DataStore backups", () => {
     const first = await store.createApplication(applicationInput("Siemens"));
     const firstApplication = first.applications[0];
     const companyDateFolder = path.dirname(firstApplication.folderName);
-    expect(companyDateFolder).toMatch(
+    expect(path.basename(companyDateFolder)).toMatch(
       /^Siemens_\d{2}\.\d{2}\.\d{4}$/,
     );
+    expect(path.dirname(companyDateFolder)).toBe("Lebenslauf");
     expect(path.basename(firstApplication.folderName)).toBe(
-      "Softwareentwickler",
+      "Bewerbung_als_Softwareentwickler",
     );
 
     const secondInput = applicationInput("Siemens");
@@ -161,18 +162,18 @@ describe("DataStore backups", () => {
     const secondApplication = second.applications[0];
     expect(path.dirname(secondApplication.folderName)).toBe(companyDateFolder);
     expect(path.basename(secondApplication.folderName)).toBe(
-      "IT_Support_Spezialist",
+      "Bewerbung_als_IT_Support_Spezialist",
     );
 
     const third = await store.createApplication(applicationInput("Siemens"));
     const thirdApplication = third.applications[0];
     expect(path.dirname(thirdApplication.folderName)).toBe(companyDateFolder);
     expect(path.basename(thirdApplication.folderName)).toBe(
-      "Softwareentwickler_2",
+      "Bewerbung_als_Softwareentwickler_2",
     );
     await expect(access(path.join(store.files.paths.anschreibenDocuments, firstApplication.folderName))).rejects.toThrow();
     expect(store.getApplicationAnschreibenPath(firstApplication.id)).toBe(
-      store.files.applicationDataPath(firstApplication.folderName),
+      path.join(store.files.applicationDataPath(firstApplication.folderName), "Anschreiben"),
     );
     await expect(
       access(
@@ -327,7 +328,7 @@ describe("DataStore backups", () => {
     const context = store.getTemplateDocumentContext(application.id);
 
     expect(path.dirname(application.folderName)).toBe(
-      "Muster_GmbH_08.09.2026",
+      path.join("Lebenslauf", "Muster_GmbH_08.09.2026"),
     );
     expect(context.requestedBaseName).toBe(
       "Anschreiben_Muster_GmbH",
@@ -440,7 +441,7 @@ describe("DataStore backups", () => {
     const updated = saved.applications.find((item) => item.id === application.id)!;
     const newAnschreiben = store.files.documentDirectories(updated).anschreiben;
 
-    expect(path.dirname(updated.folderName)).toBe("Datum_GmbH_22.08.2026");
+    expect(path.dirname(updated.folderName)).toBe(path.join("Lebenslauf", "Datum_GmbH_22.08.2026"));
     expect(updated.folderName).not.toBe(oldFolderName);
     await expect(access(oldAnschreiben)).rejects.toThrow();
     await expect(
@@ -478,14 +479,15 @@ describe("DataStore backups", () => {
     await restarted.initialize();
 
     const target = restarted.files.applicationDataPath(application.folderName);
+    const directories = restarted.files.documentDirectories(application);
     await expect(
-      readFile(path.join(target, restarted.getExportDefaultName(application.id, "anschreiben")), "utf8"),
+      readFile(path.join(directories.anschreiben, restarted.getExportDefaultName(application.id, "anschreiben")), "utf8"),
     ).resolves.toBe("cover");
     await expect(
-      readFile(path.join(target, restarted.getExportDefaultName(application.id, "lebenslauf")), "utf8"),
+      readFile(path.join(directories.lebenslauf, restarted.getExportDefaultName(application.id, "lebenslauf")), "utf8"),
     ).resolves.toBe("resume");
     expect(restarted.getAutomaticExportPath(application.id, "mappe")).toBe(
-      path.join(target, restarted.getExportDefaultName(application.id, "mappe")),
+      path.join(target, "Bewerbungsunterlagen", restarted.getExportDefaultName(application.id, "mappe")),
     );
     await expect(access(coverRoot)).rejects.toThrow();
     await expect(access(resumeRoot)).rejects.toThrow();
@@ -504,6 +506,27 @@ describe("DataStore backups", () => {
 
     await expect(store.saveApplication(application)).resolves.toBeDefined();
     await expect(readFile(personalFile, "utf8")).resolves.toBe("personal letter");
+  });
+
+  it("consolidates legacy document folders when an existing application is saved", async () => {
+    const created = await store.createApplication(applicationInput("Legacy GmbH"));
+    const application = created.applications[0];
+    const legacyDirectory = path.join(
+      store.files.paths.anschreibenDocuments,
+      application.folderName,
+    );
+    await mkdir(legacyDirectory, { recursive: true });
+    await writeFile(path.join(legacyDirectory, "Legacy.docx"), "legacy letter");
+
+    const saved = await store.saveApplication(application);
+    const updated = saved.applications.find((item) => item.id === application.id)!;
+    const consolidatedFile = path.join(
+      store.files.documentDirectories(updated).anschreiben,
+      "Legacy.docx",
+    );
+
+    await expect(readFile(consolidatedFile, "utf8")).resolves.toBe("legacy letter");
+    await expect(access(legacyDirectory)).rejects.toThrow();
   });
 
   it("renames application folders immediately when company and position change", async () => {
@@ -525,7 +548,7 @@ describe("DataStore backups", () => {
     const newAnschreiben = store.files.documentDirectories(updated).anschreiben;
 
     expect(updated.folderName).toBe(
-      path.join("YKK_Produktion_GmbH_25.08.2026", "Maschinenbediener"),
+      path.join("Lebenslauf", "YKK_Produktion_GmbH_25.08.2026", "Bewerbung_als_Maschinenbediener"),
     );
     expect(updated.folderName).not.toBe(oldFolderName);
     await expect(access(oldAnschreiben)).rejects.toThrow();
@@ -586,10 +609,10 @@ describe("DataStore backups", () => {
     const context = store.getTemplateDocumentContext(application.id);
 
     expect(context.targetDirectories.anschreiben).toBe(
-      store.files.applicationDataPath(application.folderName),
+      path.join(store.files.applicationDataPath(application.folderName), "Anschreiben"),
     );
     expect(path.dirname(application.folderName)).toBe(
-      "Beispiel_GmbH_17.05.2024",
+      path.join("Lebenslauf", "Beispiel_GmbH_17.05.2024"),
     );
     expect(context.data).toMatchObject({
       ANSPRECHPARTNER: "Herrn Andreas Steck\nFrau Erika Musterfrau",
@@ -870,7 +893,12 @@ describe("DataStore backups", () => {
     );
     await expect(
       readFile(
-        path.join(rejectedDirectories.lebenslauf, "Lebenslauf.docx"),
+        path.join(
+          rejectedDirectories.lebenslauf,
+          reloadedStore
+            .getExportDefaultName(application.id, "lebenslauf")
+            .replace(/\.pdf$/, ".docx"),
+        ),
         "utf8",
       ),
     ).resolves.toBe("resume");
