@@ -3,7 +3,7 @@ import path from "node:path";
 import PizZip from "pizzip";
 import type { CreatedDocumentResult } from "../../src/features/templates/template.types";
 import { wordMusterTemplateConfig } from "../../src/features/templates/template.constants";
-import { sanitizeTemplateFileName } from "./template-filename.service";
+import { sanitizeSynchronizedDocumentFileName } from "./template-filename.service";
 
 const pngDataUrl = /^data:image\/png;base64,([a-z0-9+/=\s]+)$/i;
 
@@ -258,7 +258,7 @@ export const createDefaultCoverLetterDocument = async (
   );
   if (signatureBytes) zip.file("word/media/unterschrift.png", signatureBytes);
   await mkdir(targetDirectory, { recursive: true });
-  const fileName = `${sanitizeTemplateFileName(requestedBaseName)}.docx`;
+  const fileName = `${sanitizeSynchronizedDocumentFileName(requestedBaseName)}.docx`;
   const filePath = path.join(targetDirectory, fileName);
   await writeFile(filePath, zip.generate({ type: "nodebuffer", compression: "DEFLATE" }));
   return {

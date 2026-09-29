@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import PizZip from "pizzip";
 import type { CreatedDocumentResult } from "../../src/features/templates/template.types";
-import { sanitizeTemplateFileName } from "./template-filename.service";
+import { sanitizeSynchronizedDocumentFileName } from "./template-filename.service";
 
 const templateId = "system-default-deckblatt";
 const pngDataUrl = /^data:image\/png;base64,([a-z0-9+/=\s]+)$/i;
@@ -212,7 +212,7 @@ export const createDefaultDeckblattDocument = async (
   if (photoBytes) zip.file("word/media/profilfoto.png", photoBytes);
 
   await mkdir(targetDirectory, { recursive: true });
-  const fileName = `${sanitizeTemplateFileName(requestedBaseName)}.docx`;
+  const fileName = `${sanitizeSynchronizedDocumentFileName(requestedBaseName)}.docx`;
   const filePath = path.join(targetDirectory, fileName);
   await writeFile(filePath, zip.generate({ type: "nodebuffer", compression: "DEFLATE" }));
   return {

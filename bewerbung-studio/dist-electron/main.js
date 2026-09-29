@@ -49,15 +49,6 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 }) : target, mod));
 var __toCommonJS = (mod) => __hasOwnProp.call(mod, "module.exports") ? mod["module.exports"] : __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 //#endregion
-//#region src/shared/resumeCustomSectionTypes.ts
-var resumeCustomContentTypes = [
-	"text",
-	"list",
-	"entries",
-	"skills",
-	"timeline"
-];
-//#endregion
 //#region node_modules/zod/v4/core/core.js
 var _a$2;
 function $constructor(name, initializer, params) {
@@ -4295,6 +4286,15 @@ function preprocess(fn, schema) {
 	});
 }
 //#endregion
+//#region src/shared/resumeCustomSectionTypes.ts
+var resumeCustomContentTypes = [
+	"text",
+	"list",
+	"entries",
+	"skills",
+	"timeline"
+];
+//#endregion
 //#region src/shared/documentDesign.ts
 var documentFontIds = [
 	"rubik",
@@ -4712,13 +4712,41 @@ var resumeAppearanceSchema = object({
 	sectionDividerWidthMm: number().min(.1).max(2).optional(),
 	photoDecorationVisible: boolean().optional(),
 	photoDecorationColor: color$1.optional(),
-	contactDividerColor: color$1.optional()
+	contactDividerColor: color$1.optional(),
+	photoLayout: _enum([
+		"template",
+		"circle",
+		"rounded",
+		"square",
+		"hidden"
+	]).optional(),
+	headerLayout: _enum([
+		"template",
+		"left",
+		"center",
+		"split"
+	]).optional()
 });
 /** Project optional appearance controls onto the existing template columns.
 * Native CSS remains authoritative when a field has no saved override. */
 var applyGeneralResumeAppearance = (page, templateId, settings, main, sidebar) => {
 	const appearance = resumeAppearanceSchema.parse(settings.resumeAppearance ?? {});
 	const set = (element, property, value) => element.style.setProperty(property, value, "important");
+	if (appearance.headerLayout && appearance.headerLayout !== "template") {
+		const header = page.querySelector("header,[class*=\"header\"],[class*=\"Header\"]");
+		if (header) {
+			set(header, "text-align", appearance.headerLayout === "center" ? "center" : "left");
+			if (appearance.headerLayout === "center") set(header, "justify-content", "center");
+			if (appearance.headerLayout === "split") set(header, "justify-content", "space-between");
+		}
+	}
+	if (appearance.photoLayout) for (const photo of page.querySelectorAll("img[class*=\"photo\"],img[class*=\"Photo\"],img[alt*=\"foto\" i]")) {
+		const target = photo.parentElement?.className && /photo/i.test(String(photo.parentElement.className)) ? photo.parentElement : photo;
+		if (appearance.photoLayout === "hidden") set(target, "display", "none");
+		if (appearance.photoLayout === "circle") set(target, "border-radius", "50%");
+		if (appearance.photoLayout === "rounded") set(target, "border-radius", "12px");
+		if (appearance.photoLayout === "square") set(target, "border-radius", "0");
+	}
 	if (sidebar !== main && appearance.sidebarTextColor) {
 		set(sidebar, "color", appearance.sidebarTextColor);
 		for (const node of sidebar.querySelectorAll("p,li,small,a")) set(node, "color", appearance.sidebarTextColor);
@@ -6046,6 +6074,31 @@ var calendarEventSchema = object({
 	createdAt: datetime(),
 	updatedAt: datetime()
 });
+var todoSchema = object({
+	id: uuid(),
+	title: string().trim().min(1).max(160),
+	description: string().max(4e3).default(""),
+	priority: _enum([
+		"low",
+		"medium",
+		"high"
+	]).default("medium"),
+	dueDate: date().optional(),
+	completed: boolean().default(false),
+	createdAt: datetime(),
+	updatedAt: datetime(),
+	completedAt: datetime().optional()
+});
+var customCvDesignSchema = object({
+	id: uuid(),
+	name: string().trim().min(1).max(80),
+	baseTemplateId: string().min(1),
+	accentColor: hexColorSchema,
+	secondaryColor: hexColorSchema,
+	settings: documentDesignSchema,
+	createdAt: datetime(),
+	updatedAt: datetime()
+});
 var attachmentSchema = object({
 	id: uuid(),
 	applicationId: uuid(),
@@ -6080,6 +6133,8 @@ var workspaceSchema = object({
 	profiles: array(profileSchema),
 	events: array(calendarEventSchema),
 	attachments: array(attachmentSchema),
+	todos: array(todoSchema).default([]),
+	customCvDesigns: array(customCvDesignSchema).default([]),
 	settings: appSettingsSchema,
 	updatedAt: datetime()
 });
@@ -6848,6 +6903,7 @@ var coverLetterApplicantFileName = (application, applicantName) => {
 		sanitize(application.company.name)
 	].filter(Boolean).join("_");
 };
+var applicantDocumentFileName = (kind, application, applicantName) => coverLetterApplicantFileName(application, applicantName).replace(/^Anschreiben/, kind);
 //#endregion
 //#region src/shared/applicationEmail.ts
 var contactName = (contact) => [
@@ -25915,7 +25971,7 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 		if (!enabled("photo")) {
 			const source = getProfileMediaSource(profile.photoPath);
 			root.querySelectorAll("img").forEach((img) => {
-				if (img.getAttribute("src") === source || /photo|foto/i.test(img.className)) (img.closest("[class*=\"__photo\"],[class*=\"-header__photo\"],[class*=\"-header-photo\"]") ?? img).remove();
+				if (img.getAttribute("src") === source || /photo|foto/i.test(img.className) || /photo|foto/i.test(img.getAttribute("alt") ?? "")) (img.closest("[class*=\"__photo\"],[class*=\"-header__photo\"],[class*=\"-header-photo\"]") ?? img).remove();
 			});
 		}
 		if (!enabled("closing")) root.querySelectorAll("footer.pehlione-closing,footer.pehlione-pdf-closing,[data-resume-closing]").forEach((node) => node.remove());
@@ -28667,19 +28723,10 @@ var FileManagementService = class {
 	}
 	documentDirectories(application) {
 		const applicationData = this.applicationDataPath(application.folderName);
-		if (application.status === "Absage") {
-			const rejectionRoot = this.rejectionPath(application.folderName);
-			return {
-				anschreiben: rejectionRoot,
-				lebenslauf: path.join(rejectionRoot, "Lebenslauf"),
-				deckblatt: path.join(applicationData, "Deckblatt"),
-				email: path.join(applicationData, "Email")
-			};
-		}
 		return {
-			anschreiben: path.join(this.paths.anschreibenDocuments, application.folderName),
-			lebenslauf: path.join(this.paths.lebenslaufDocuments, application.folderName),
-			deckblatt: path.join(applicationData, "Deckblatt"),
+			anschreiben: applicationData,
+			lebenslauf: applicationData,
+			deckblatt: applicationData,
 			email: path.join(applicationData, "Email")
 		};
 	}
@@ -28696,7 +28743,7 @@ var FileManagementService = class {
 				pathExists$1(this.rejectionPath(folderName))
 			])).some(Boolean)) continue;
 			try {
-				await mkdir(path.join(this.paths.anschreibenDocuments, folderName), { recursive: true });
+				await mkdir(this.applicationDataPath(folderName), { recursive: true });
 				return folderName;
 			} catch (error) {
 				if ((typeof error === "object" && error && "code" in error ? String(error.code) : "") !== "EEXIST") throw error;
@@ -28828,6 +28875,70 @@ var FileManagementService = class {
 		await Promise.all([mkdir(path.join(dataRoot, "Stellenanzeige"), { recursive: true }), mkdir(path.join(dataRoot, "Email"), { recursive: true })]);
 		return { dataRoot };
 	}
+	/** Move documents created by older versions into the canonical application folder. */
+	async consolidateLegacyDocumentDirectories(application) {
+		if (application.status === "Absage") return;
+		const targetRoot = this.applicationDataPath(application.folderName);
+		const legacyRoots = [path.join(this.paths.anschreibenDocuments, application.folderName), path.join(this.paths.lebenslaufDocuments, application.folderName)];
+		const moves = [];
+		for (const [legacyIndex, legacyRoot] of legacyRoots.entries()) {
+			let entries;
+			try {
+				entries = await readdir(legacyRoot, {
+					withFileTypes: true,
+					recursive: true
+				});
+			} catch (error) {
+				if ((typeof error === "object" && error && "code" in error ? String(error.code) : "") === "ENOENT") continue;
+				throw error;
+			}
+			for (const entry of entries) {
+				if (!entry.isFile()) continue;
+				const source = path.join(entry.parentPath, entry.name);
+				const relative = path.relative(legacyRoot, source);
+				let target = path.resolve(targetRoot, relative);
+				if (!isPathInside$1(targetRoot, target)) throw new Error("Ungültiger Dokumentpfad.");
+				if (await pathExists$1(target)) {
+					const parsed = path.parse(entry.name);
+					const archiveRoot = path.join(targetRoot, "Altbestand", legacyIndex === 0 ? "Anschreiben" : "Lebenslauf");
+					for (let suffix = 1; suffix < 1e4; suffix += 1) {
+						const candidate = path.join(archiveRoot, `${parsed.name}${suffix === 1 ? "" : `_${suffix}`}${parsed.ext}`);
+						if (!await pathExists$1(candidate)) {
+							target = candidate;
+							break;
+						}
+					}
+				}
+				moves.push({
+					source,
+					target
+				});
+			}
+		}
+		const completed = [];
+		try {
+			for (const move of moves) {
+				await mkdir(path.dirname(move.target), { recursive: true });
+				await this.withRenameRetry(() => rename(move.source, move.target));
+				completed.push(move);
+			}
+		} catch (error) {
+			for (const move of completed.reverse()) try {
+				await mkdir(path.dirname(move.source), { recursive: true });
+				await rename(move.target, move.source);
+			} catch {}
+			if (isApplicationFolderLockError(error)) throw new ApplicationFolderLockedError();
+			throw error;
+		}
+		for (const legacyRoot of legacyRoots) if (await pathExists$1(legacyRoot)) await rm(legacyRoot, {
+			recursive: true,
+			force: true
+		});
+		await this.removeEmptyArtifactParents(legacyRoots.map((legacyRoot, index) => ({
+			root: path.resolve(index === 0 ? this.paths.anschreibenDocuments : this.paths.lebenslaufDocuments),
+			path: legacyRoot
+		})));
+	}
 	async synchronizeApplicationArtifactNames(previous, next) {
 		const previousDate = getApplicationDate(previous);
 		const nextDate = getApplicationDate(next);
@@ -28838,11 +28949,11 @@ var FileManagementService = class {
 			[formatLocalDate(previousDate), formatLocalDate(nextDate)]
 		].filter(([from, to]) => from !== to);
 		const documentDirectories = this.documentDirectories(next);
-		const directoryCandidates = [
+		const directoryCandidates = [.../* @__PURE__ */ new Set([
 			this.applicationDataPath(next.folderName),
 			documentDirectories.anschreiben,
 			documentDirectories.lebenslauf
-		];
+		])];
 		const directories = directoryCandidates.filter((candidate, index) => !directoryCandidates.some((parent, parentIndex) => parentIndex !== index && parent !== candidate && isPathInside$1(parent, candidate)));
 		const moves = [];
 		for (const directory of directories) {
@@ -28914,6 +29025,7 @@ var FileManagementService = class {
 			...application,
 			status: nextStatus
 		});
+		if (current.anschreiben === next.anschreiben && current.lebenslauf === next.lebenslauf) return;
 		const moves = wasRejected ? [[current.lebenslauf, next.lebenslauf], [current.anschreiben, next.anschreiben]] : [[current.anschreiben, next.anschreiben], [current.lebenslauf, next.lebenslauf]];
 		const completed = [];
 		try {
@@ -29173,6 +29285,8 @@ var emptyWorkspace = () => ({
 	profiles: [],
 	events: [],
 	attachments: [],
+	todos: [],
+	customCvDesigns: [],
 	settings: defaultSettings,
 	updatedAt: nowIso()
 });
@@ -29228,6 +29342,7 @@ var DataStore = class {
 	async initialize() {
 		await this.files.initialize();
 		this.workspace = await this.loadWorkspace();
+		for (const application of this.workspace.applications) await this.files.consolidateLegacyDocumentDirectories(application);
 		this.workspace.applications.forEach((application) => this.syncEvents(application));
 		await this.persist();
 	}
@@ -29994,7 +30109,8 @@ var DataStore = class {
 			...elegantData
 		};
 		const documentDirectories = this.files.documentDirectories(application);
-		const applicationBaseName = applicationFileBaseName(application);
+		applicationFileBaseName(application);
+		const documentName = (kind) => applicantDocumentFileName(kind, application, applicantName);
 		return {
 			application,
 			targetDirectories: {
@@ -30004,9 +30120,9 @@ var DataStore = class {
 			},
 			requestedBaseName: coverLetterApplicantFileName(application, applicantName),
 			requestedBaseNames: {
-				anschreiben: coverLetterApplicantFileName(application, applicantName),
-				deckblatt: `${applicationBaseName}_Deckblatt`,
-				lebenslauf: `${applicationBaseName}_${sanitizeFileName(application.job.title)}_Lebenslauf`
+				anschreiben: documentName("Anschreiben"),
+				deckblatt: documentName("Deckblatt"),
+				lebenslauf: documentName("Lebenslauf")
 			},
 			data: templateData
 		};
@@ -30018,13 +30134,47 @@ var DataStore = class {
 	}
 	getExportDefaultName(id, target) {
 		const application = this.getApplication(id);
-		if (target === "deckblatt") return `${applicationFileBaseName(application)}_Deckblatt.pdf`;
-		return `${applicationFileBaseName(application)}_${sanitizeFileName(application.job.title)}_${target}.pdf`;
+		const profile = this.getProfileForApplication(application);
+		const applicantName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
+		const kind = {
+			anschreiben: "Anschreiben",
+			deckblatt: "Deckblatt",
+			lebenslauf: "Lebenslauf",
+			mappe: "Mappe"
+		}[target];
+		if (!kind) throw new Error("Ungültiges Exportziel.");
+		return `${applicantDocumentFileName(kind, application, applicantName)}.pdf`;
+	}
+	async saveTodo(todo) {
+		const validated = todoSchema.parse(todo);
+		const index = this.workspace.todos.findIndex((item) => item.id === validated.id);
+		if (index < 0) this.workspace.todos.unshift(validated);
+		else this.workspace.todos[index] = validated;
+		await this.persist();
+		return this.getWorkspace();
+	}
+	async removeTodo(id) {
+		this.workspace.todos = this.workspace.todos.filter((item) => item.id !== id);
+		await this.persist();
+		return this.getWorkspace();
+	}
+	async saveCustomCvDesign(design) {
+		const validated = customCvDesignSchema.parse(design);
+		const index = this.workspace.customCvDesigns.findIndex((item) => item.id === validated.id);
+		if (index < 0) this.workspace.customCvDesigns.unshift(validated);
+		else this.workspace.customCvDesigns[index] = validated;
+		await this.persist();
+		return this.getWorkspace();
+	}
+	async removeCustomCvDesign(id) {
+		this.workspace.customCvDesigns = this.workspace.customCvDesigns.filter((item) => item.id !== id);
+		await this.persist();
+		return this.getWorkspace();
 	}
 	getAutomaticExportPath(id, target) {
 		const application = this.getApplication(id);
 		const directories = this.files.documentDirectories(application);
-		const directory = target === "mappe" ? path.join(this.files.applicationDataPath(application.folderName), "Bewerbungsunterlagen") : directories[target];
+		const directory = target === "mappe" ? this.files.applicationDataPath(application.folderName) : directories[target];
 		return path.join(directory, this.getExportDefaultName(id, target));
 	}
 	async writeBackup(filePath) {
@@ -48708,7 +48858,7 @@ var createDefaultCoverLetterDocument = async (targetDirectory, requestedBaseName
 	zip.file("word/settings.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`);
 	if (signatureBytes) zip.file("word/media/unterschrift.png", signatureBytes);
 	await mkdir(targetDirectory, { recursive: true });
-	const fileName = `${sanitizeTemplateFileName(requestedBaseName)}.docx`;
+	const fileName = `${sanitizeSynchronizedDocumentFileName(requestedBaseName)}.docx`;
 	const filePath = path.join(targetDirectory, fileName);
 	await writeFile(filePath, zip.generate({
 		type: "nodebuffer",
@@ -48885,7 +49035,7 @@ var createDefaultDeckblattDocument = async (targetDirectory, requestedBaseName, 
 	zip.file("word/settings.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`);
 	if (photoBytes) zip.file("word/media/profilfoto.png", photoBytes);
 	await mkdir(targetDirectory, { recursive: true });
-	const fileName = `${sanitizeTemplateFileName(requestedBaseName)}.docx`;
+	const fileName = `${sanitizeSynchronizedDocumentFileName(requestedBaseName)}.docx`;
 	const filePath = path.join(targetDirectory, fileName);
 	await writeFile(filePath, zip.generate({
 		type: "nodebuffer",
@@ -49531,6 +49681,10 @@ var registerIpc = () => {
 	});
 	ipcMain.handle("settings:save", (_event, value) => store.saveSettings(appSettingsSchema.parse(value)));
 	ipcMain.handle("events:save", (_event, value) => store.saveEvent(calendarEventSchema.parse(value)));
+	ipcMain.handle("todos:save", (_event, value) => store.saveTodo(todoSchema.parse(value)));
+	ipcMain.handle("todos:remove", (_event, id) => store.removeTodo(string().uuid().parse(id)));
+	ipcMain.handle("custom-cv-designs:save", (_event, value) => store.saveCustomCvDesign(customCvDesignSchema.parse(value)));
+	ipcMain.handle("custom-cv-designs:remove", (_event, id) => store.removeCustomCvDesign(string().uuid().parse(id)));
 	ipcMain.handle("attachments:add", async (_event, applicationId, rawCategory) => {
 		const category = attachmentCategories.find((item) => item === rawCategory);
 		if (!category) throw new Error("Ungültige Dokumentkategorie.");

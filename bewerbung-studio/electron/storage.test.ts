@@ -170,27 +170,9 @@ describe("DataStore backups", () => {
     expect(path.basename(thirdApplication.folderName)).toBe(
       "Softwareentwickler_2",
     );
-    await expect(
-      access(
-        path.join(
-          store.files.paths.anschreibenDocuments,
-          firstApplication.folderName,
-        ),
-      ),
-    ).resolves.toBeUndefined();
-    await expect(
-      readdir(
-        path.join(
-          store.files.paths.anschreibenDocuments,
-          firstApplication.folderName,
-        ),
-      ),
-    ).resolves.toEqual([]);
+    await expect(access(path.join(store.files.paths.anschreibenDocuments, firstApplication.folderName))).rejects.toThrow();
     expect(store.getApplicationAnschreibenPath(firstApplication.id)).toBe(
-      path.join(
-        store.files.paths.anschreibenDocuments,
-        firstApplication.folderName,
-      ),
+      store.files.applicationDataPath(firstApplication.folderName),
     );
     await expect(
       access(
@@ -350,11 +332,9 @@ describe("DataStore backups", () => {
     expect(context.requestedBaseName).toBe(
       "Anschreiben_Muster_GmbH",
     );
-    expect(context.requestedBaseNames.deckblatt).toBe(
-      "Muster_GmbH_08.09.2026_Deckblatt",
-    );
+    expect(context.requestedBaseNames.deckblatt).toBe("Deckblatt_Muster_GmbH");
     expect(store.getExportDefaultName(application.id, "deckblatt")).toBe(
-      "Muster_GmbH_08.09.2026_Deckblatt.pdf",
+      "Deckblatt_Muster_GmbH.pdf",
     );
     expect(store.getAutomaticExportPath(application.id, "lebenslauf")).toBe(
       path.join(context.targetDirectories.lebenslauf, store.getExportDefaultName(application.id, "lebenslauf")),
@@ -575,10 +555,7 @@ describe("DataStore backups", () => {
     const context = store.getTemplateDocumentContext(application.id);
 
     expect(context.targetDirectories.anschreiben).toBe(
-      path.join(
-        store.files.paths.anschreibenDocuments,
-        application.folderName,
-      ),
+      store.files.applicationDataPath(application.folderName),
     );
     expect(path.dirname(application.folderName)).toBe(
       "Beispiel_GmbH_17.05.2024",

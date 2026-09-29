@@ -75,6 +75,26 @@ describe("FileManagementService", () => {
     );
   });
 
+  it("consolidates legacy cover-letter and resume folders without overwriting existing files", async () => {
+    const folderName = path.join("Muster_GmbH_29.09.2026", "Entwicklung");
+    const application = { folderName, status: "Entwurf" } as Application;
+    const target = service.applicationDataPath(folderName);
+    const coverRoot = path.join(service.paths.anschreibenDocuments, folderName);
+    const resumeRoot = path.join(service.paths.lebenslaufDocuments, folderName);
+    await Promise.all([mkdir(target, { recursive: true }), mkdir(coverRoot, { recursive: true }), mkdir(resumeRoot, { recursive: true })]);
+    await writeFile(path.join(target, "Anschreiben.docx"), "current");
+    await writeFile(path.join(coverRoot, "Anschreiben.docx"), "legacy cover");
+    await writeFile(path.join(resumeRoot, "Lebenslauf.pdf"), "legacy resume");
+
+    await service.consolidateLegacyDocumentDirectories(application);
+
+    await expect(readFile(path.join(target, "Anschreiben.docx"), "utf8")).resolves.toBe("current");
+    await expect(readFile(path.join(target, "Altbestand", "Anschreiben", "Anschreiben.docx"), "utf8")).resolves.toBe("legacy cover");
+    await expect(readFile(path.join(target, "Lebenslauf.pdf"), "utf8")).resolves.toBe("legacy resume");
+    await expect(access(coverRoot)).rejects.toThrow();
+    await expect(access(resumeRoot)).rejects.toThrow();
+  });
+
   it("moves every application artifact when the application date changes", async () => {
     const folderName = path.join("Siemens_30.07.2026", "Softwareentwickler");
     const application = {
@@ -220,7 +240,7 @@ describe("FileManagementService", () => {
     ).toThrow(/zentralen Ordner/);
   });
 
-  it("moves company documents into Absagen without deleting their contents", async () => {
+  it("keeps consolidated company documents in the application folder after a rejection", async () => {
     const folderName = await service.allocateApplicationFolderName(
       "Siemens",
       "Softwareentwickler",
@@ -244,22 +264,18 @@ describe("FileManagementService", () => {
       ...application,
       status: "Absage",
     });
-    expect(rejected.anschreiben).toBe(
-      path.join(service.paths.absagenRoot, folderName),
-    );
+    expect(rejected.anschreiben).toBe(service.applicationDataPath(folderName));
     await expect(
       readFile(path.join(rejected.anschreiben, "Anschreiben.docx"), "utf8"),
     ).resolves.toBe("cover");
     await expect(
       readFile(path.join(rejected.lebenslauf, "Lebenslauf.docx"), "utf8"),
     ).resolves.toBe("resume");
-    await expect(access(active.anschreiben)).rejects.toThrow();
-    await expect(access(active.lebenslauf)).rejects.toThrow();
-    await expect(access(path.dirname(active.anschreiben))).rejects.toThrow();
-    await expect(access(path.dirname(active.lebenslauf))).rejects.toThrow();
+    expect(active.anschreiben).toBe(rejected.anschreiben);
+    expect(active.lebenslauf).toBe(rejected.lebenslauf);
   });
 
-  it("removes empty rejection parents when an application becomes active again", async () => {
+  it("keeps the consolidated folder when a rejected application becomes active again", async () => {
     const folderName = path.join("Siemens_2026-07-30", "Softwareentwickler");
     const application = {
       folderName,
@@ -285,9 +301,7 @@ describe("FileManagementService", () => {
     await expect(
       readFile(path.join(active.lebenslauf, "Lebenslauf.docx"), "utf8"),
     ).resolves.toBe("resume");
-    await expect(
-      access(path.join(service.paths.absagenRoot, "Siemens_2026-07-30")),
-    ).rejects.toThrow();
+    expect(active.anschreiben).toBe(rejected.anschreiben);
   });
 
   it("deletes all application folders from active and rejection locations", async () => {

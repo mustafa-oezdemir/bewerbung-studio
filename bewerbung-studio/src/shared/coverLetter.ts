@@ -47,3 +47,15 @@ export const coverLetterApplicantFileName = (
     .filter(Boolean)
     .join("_");
 };
+
+export type ApplicationDocumentKind =
+  | "Anschreiben"
+  | "Deckblatt"
+  | "Lebenslauf"
+  | "Mappe";
+
+export const applicantDocumentFileName = (
+  kind: ApplicationDocumentKind,
+  application: Pick<Application, "company" | "createdAt" | "sentAt">,
+  applicantName: string,
+) => coverLetterApplicantFileName(application, applicantName).replace(/^Anschreiben/, kind);

@@ -61,6 +61,7 @@ import {
   getDeckblattDocuments,
 } from "../src/shared/deckblatt";
 import {
+  applicantDocumentFileName,
   coverLetterApplicantFileName,
   createCoverSubject,
   getCoverLetterAttachments,
@@ -291,6 +292,9 @@ export class DataStore {
   async initialize() {
     await this.files.initialize();
     this.workspace = await this.loadWorkspace();
+    for (const application of this.workspace.applications) {
+      await this.files.consolidateLegacyDocumentDirectories(application);
+    }
     this.workspace.applications.forEach((application) =>
       this.syncEvents(application),
     );
@@ -1595,6 +1599,8 @@ export class DataStore {
     };
     const documentDirectories = this.files.documentDirectories(application);
     const applicationBaseName = applicationFileBaseName(application);
+    const documentName = (kind: "Anschreiben" | "Deckblatt" | "Lebenslauf" | "Mappe") =>
+      applicantDocumentFileName(kind, application, applicantName);
     return {
       application,
       targetDirectories: {
@@ -1607,12 +1613,9 @@ export class DataStore {
         applicantName,
       ),
       requestedBaseNames: {
-        anschreiben: coverLetterApplicantFileName(
-          application,
-          applicantName,
-        ),
-        deckblatt: `${applicationBaseName}_Deckblatt`,
-        lebenslauf: `${applicationBaseName}_${sanitizeFileName(application.job.title)}_Lebenslauf`,
+        anschreiben: documentName("Anschreiben"),
+        deckblatt: documentName("Deckblatt"),
+        lebenslauf: documentName("Lebenslauf"),
       },
       data: templateData,
     };
@@ -1641,10 +1644,11 @@ export class DataStore {
 
   getExportDefaultName(id: string, target: string) {
     const application = this.getApplication(id);
-    if (target === "deckblatt") {
-      return `${applicationFileBaseName(application)}_Deckblatt.pdf`;
-    }
-    return `${applicationFileBaseName(application)}_${sanitizeFileName(application.job.title)}_${target}.pdf`;
+    const profile = this.getProfileForApplication(application);
+    const applicantName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
+    const kind = ({ anschreiben: "Anschreiben", deckblatt: "Deckblatt", lebenslauf: "Lebenslauf", mappe: "Mappe" } as const)[target as "anschreiben" | "deckblatt" | "lebenslauf" | "mappe"];
+    if (!kind) throw new Error("Ungültiges Exportziel.");
+    return `${applicantDocumentFileName(kind, application, applicantName)}.pdf`;
   }
 
   async saveTodo(todo: Todo) {
@@ -1681,7 +1685,7 @@ export class DataStore {
     const application = this.getApplication(id);
     const directories = this.files.documentDirectories(application);
     const directory = target === "mappe"
-      ? path.join(this.files.applicationDataPath(application.folderName), "Bewerbungsunterlagen")
+      ? this.files.applicationDataPath(application.folderName)
       : directories[target];
     return path.join(directory, this.getExportDefaultName(id, target));
   }

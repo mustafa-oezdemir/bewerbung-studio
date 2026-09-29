@@ -173,25 +173,10 @@ export class FileManagementService {
     application: Pick<Application, "folderName" | "status">,
   ): DocumentDirectories {
     const applicationData = this.applicationDataPath(application.folderName);
-    if (application.status === "Absage") {
-      const rejectionRoot = this.rejectionPath(application.folderName);
-      return {
-        anschreiben: rejectionRoot,
-        lebenslauf: path.join(rejectionRoot, "Lebenslauf"),
-        deckblatt: path.join(applicationData, "Deckblatt"),
-        email: path.join(applicationData, "Email"),
-      };
-    }
     return {
-      anschreiben: path.join(
-        this.paths.anschreibenDocuments,
-        application.folderName,
-      ),
-      lebenslauf: path.join(
-        this.paths.lebenslaufDocuments,
-        application.folderName,
-      ),
-      deckblatt: path.join(applicationData, "Deckblatt"),
+      anschreiben: applicationData,
+      lebenslauf: applicationData,
+      deckblatt: applicationData,
       email: path.join(applicationData, "Email"),
     };
   }
@@ -215,7 +200,7 @@ export class FileManagementService {
       ]);
       if (occupied.some(Boolean)) continue;
       try {
-        await mkdir(path.join(this.paths.anschreibenDocuments, folderName), {
+        await mkdir(this.applicationDataPath(folderName), {
           recursive: true,
         });
         return folderName;
@@ -436,6 +421,83 @@ export class FileManagementService {
     return { dataRoot };
   }
 
+  /** Move documents created by older versions into the canonical application folder. */
+  async consolidateLegacyDocumentDirectories(
+    application: Pick<Application, "folderName" | "status">,
+  ) {
+    if (application.status === "Absage") return;
+    const targetRoot = this.applicationDataPath(application.folderName);
+    const legacyRoots = [
+      path.join(this.paths.anschreibenDocuments, application.folderName),
+      path.join(this.paths.lebenslaufDocuments, application.folderName),
+    ];
+    const moves: Array<{ source: string; target: string }> = [];
+    for (const [legacyIndex, legacyRoot] of legacyRoots.entries()) {
+      let entries;
+      try {
+        entries = await readdir(legacyRoot, { withFileTypes: true, recursive: true });
+      } catch (error) {
+        const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
+        if (code === "ENOENT") continue;
+        throw error;
+      }
+      for (const entry of entries) {
+        if (!entry.isFile()) continue;
+        const source = path.join(entry.parentPath, entry.name);
+        const relative = path.relative(legacyRoot, source);
+        let target = path.resolve(targetRoot, relative);
+        if (!isPathInside(targetRoot, target)) throw new Error("Ungültiger Dokumentpfad.");
+        if (await pathExists(target)) {
+          const parsed = path.parse(entry.name);
+          const archiveRoot = path.join(
+            targetRoot,
+            "Altbestand",
+            legacyIndex === 0 ? "Anschreiben" : "Lebenslauf",
+          );
+          for (let suffix = 1; suffix < 10_000; suffix += 1) {
+            const candidate = path.join(
+              archiveRoot,
+              `${parsed.name}${suffix === 1 ? "" : `_${suffix}`}${parsed.ext}`,
+            );
+            if (!(await pathExists(candidate))) {
+              target = candidate;
+              break;
+            }
+          }
+        }
+        moves.push({ source, target });
+      }
+    }
+    const completed: typeof moves = [];
+    try {
+      for (const move of moves) {
+        await mkdir(path.dirname(move.target), { recursive: true });
+        await this.withRenameRetry(() => rename(move.source, move.target));
+        completed.push(move);
+      }
+    } catch (error) {
+      for (const move of completed.reverse()) {
+        try {
+          await mkdir(path.dirname(move.source), { recursive: true });
+          await rename(move.target, move.source);
+        } catch {
+          // Preserve the original migration error.
+        }
+      }
+      if (isApplicationFolderLockError(error)) throw new ApplicationFolderLockedError();
+      throw error;
+    }
+    for (const legacyRoot of legacyRoots) {
+      if (await pathExists(legacyRoot)) await rm(legacyRoot, { recursive: true, force: true });
+    }
+    await this.removeEmptyArtifactParents(
+      legacyRoots.map((legacyRoot, index) => ({
+        root: path.resolve(index === 0 ? this.paths.anschreibenDocuments : this.paths.lebenslaufDocuments),
+        path: legacyRoot,
+      })),
+    );
+  }
+
   async synchronizeApplicationArtifactNames(
     previous: Application,
     next: Application,
@@ -452,11 +514,11 @@ export class FileManagementService {
       [formatLocalDate(previousDate), formatLocalDate(nextDate)],
     ].filter(([from, to]) => from !== to);
     const documentDirectories = this.documentDirectories(next);
-    const directoryCandidates = [
+    const directoryCandidates = [...new Set([
       this.applicationDataPath(next.folderName),
       documentDirectories.anschreiben,
       documentDirectories.lebenslauf,
-    ];
+    ])];
     const directories = directoryCandidates.filter(
       (candidate, index) =>
         !directoryCandidates.some(
@@ -584,6 +646,10 @@ export class FileManagementService {
       ...application,
       status: nextStatus,
     });
+    if (
+      current.anschreiben === next.anschreiben &&
+      current.lebenslauf === next.lebenslauf
+    ) return;
     const moves = wasRejected
       ? ([
           [current.lebenslauf, next.lebenslauf],
