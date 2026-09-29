@@ -24,6 +24,7 @@ export type ResumePaginationOptions = {
   firstPageCapacity?: number;
   secondPageCapacity?: number;
   preserveItemOrder?: boolean;
+  keepSectionsTogether?: boolean;
 };
 
 const FIRST_PAGE_CAPACITY = 30;
@@ -226,6 +227,39 @@ export const createResumePagePlan = (
       (total, item) => total + item.weight,
       0,
     );
+  }
+
+  if (options.keepSectionsTogether ?? true) {
+    for (const kind of ["experience", "education"] as const) {
+      const firstPageKindItems = pageOneItems.filter((item) => item.kind === kind);
+      const secondPageHasKind = pageTwoItems.some((item) => item.kind === kind);
+      if (
+        !firstPageKindItems.length ||
+        !secondPageHasKind ||
+        firstPageKindItems.length === pageOneItems.length
+      ) {
+        continue;
+      }
+      const movedWeight = firstPageKindItems.reduce(
+        (total, item) => total + item.weight,
+        0,
+      );
+      const currentSecondPageWeight = pageTwoItems.reduce(
+        (total, item) => total + item.weight,
+        0,
+      );
+      if (currentSecondPageWeight + movedWeight > secondPageCapacity) continue;
+      for (let index = pageOneItems.length - 1; index >= 0; index -= 1) {
+        if (pageOneItems[index].kind === kind) {
+          pageTwoItems.push(pageOneItems.splice(index, 1)[0]);
+        }
+      }
+      pageTwoItems.sort((left, right) => items.indexOf(left) - items.indexOf(right));
+      pageOneWeight = pageOneItems.reduce(
+        (total, item) => total + item.weight,
+        0,
+      );
+    }
   }
 
   const pageTwoWeight = pageTwoItems.reduce(

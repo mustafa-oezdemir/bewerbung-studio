@@ -154,7 +154,30 @@ export function PehlioneResume({
       data-page={plan.pageNumber}
       style={style}>
       <style>{pehlioneContactsCss}</style>
-      {!atsMode && !continuation ? (
+      {!atsMode ? (
+        continuation ? (
+          <aside className="pehlione-sidebar pehlione-sidebar--continuation">
+            <div className="pehlione-continuation-intro">
+              <p>Lebenslauf</p>
+              <h2>{name}</h2>
+              {profile?.title ? <span>{profile.title}</span> : null}
+              <i aria-hidden="true" />
+              <small>Fortsetzung · Seite {plan.pageNumber} von {totalPages}</small>
+            </div>
+            {lastPage && knowledgeSection.visible && (focusGroup?.items.length || technicalFocus.length || (sections.skills && knowledge.length)) ? (
+              <section className="pehlione-sidebar-section pehlione-continuation-knowledge">
+                {heading(<Wrench />, focusGroup?.title || "Technische Schwerpunkte")}
+                {focusGroup && visibleBlockItems(focusGroup).length ? blockContent(focusGroup, true) : <ul className="pehlione-focus-list">{(technicalFocus.length ? technicalFocus : knowledge).map((item, index) => <li key={item}><span>{index % 2 ? <Database /> : <Code2 />}</span>{item}</li>)}</ul>}
+              </section>
+            ) : null}
+            {lastPage && knowledgeSection.visible && sidebarKnowledgeGroups.map((group) => visibleBlockItems(group).length ? (
+              <section className="pehlione-sidebar-section" key={group.id}>
+                {heading(<Lightbulb />, group.title)}
+                {blockContent(group, true)}
+              </section>
+            ) : null)}
+          </aside>
+        ) : (
         <aside className="pehlione-sidebar">
           <div className={`pehlione-hero${photoSource ? " pehlione-hero--with-photo" : ""}`} aria-hidden="true">
             {templateId === "pehlione_white" ? <span className="pehlione-blueprint" dangerouslySetInnerHTML={{ __html: pehlioneBlueprintMarkup }} /> : <><i /><i /><i /></>}
@@ -172,13 +195,13 @@ export function PehlioneResume({
                 : competencyGroups.map((group) => <li key={group.title}><strong>{group.title}:</strong> {group.values.join(" · ")}</li>)}</ul>
             </section>
           ) : null}
-          {knowledgeSection.visible && (focusGroup?.items.length || technicalFocus.length || (sections.skills && knowledge.length)) ? (
+          {totalPages === 1 && knowledgeSection.visible && (focusGroup?.items.length || technicalFocus.length || (sections.skills && knowledge.length)) ? (
             <section className="pehlione-sidebar-section">
               {heading(<Wrench />, focusGroup?.title || "Technische Schwerpunkte")}
               {focusGroup && visibleBlockItems(focusGroup).length ? blockContent(focusGroup, true) : <ul className="pehlione-focus-list">{(technicalFocus.length ? technicalFocus : knowledge).map((item, index) => <li key={item}><span>{index % 2 ? <Database /> : <Code2 />}</span>{item}</li>)}</ul>}
             </section>
           ) : null}
-          {knowledgeSection.visible && sidebarKnowledgeGroups.map((group) => visibleBlockItems(group).length ? (
+          {totalPages === 1 && knowledgeSection.visible && sidebarKnowledgeGroups.map((group) => visibleBlockItems(group).length ? (
             <section className="pehlione-sidebar-section" key={group.id}>
               {heading(<Lightbulb />, group.title)}
               {blockContent(group, true)}
@@ -191,6 +214,7 @@ export function PehlioneResume({
             </section>
           ) : null}
         </aside>
+        )
       ) : null}
       <main className="pehlione-main">
         <header className="pehlione-header">

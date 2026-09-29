@@ -288,6 +288,42 @@ describe("A4 document pagination", () => {
     ]);
   });
 
+  it("moves a complete education section to page two instead of repeating it", () => {
+    const profile = profileSchema.parse({
+      id: crypto.randomUUID(),
+      isDefault: true,
+      firstName: "Mina",
+      lastName: "Kaya",
+      experiences: Array.from({ length: 2 }, (_, index) => ({
+        id: crypto.randomUUID(),
+        from: `${2020 + index}`,
+        to: `${2021 + index}`,
+        role: `Position ${index + 1}`,
+        company: `Unternehmen ${index + 1}`,
+        achievements: ["Messbares Ergebnis erreicht."],
+      })),
+      education: Array.from({ length: 4 }, (_, index) => ({
+        id: crypto.randomUUID(),
+        from: `${2008 + index * 2}`,
+        to: `${2010 + index * 2}`,
+        degree: `Abschluss ${index + 1}`,
+        institution: `Hochschule ${index + 1}`,
+      })),
+      updatedAt: now,
+    });
+
+    const plan = createResumePagePlan(profile, "", {
+      firstPageCapacity: 19,
+      secondPageCapacity: 40,
+      preserveItemOrder: true,
+    });
+
+    expect(plan).toHaveLength(2);
+    expect(plan[0].items.every((item) => item.kind === "experience")).toBe(true);
+    expect(plan[1].items.every((item) => item.kind === "education")).toBe(true);
+    expect(plan[1].items).toHaveLength(4);
+  });
+
   it("keeps Einspaltig experience entries ahead of education after a page split", () => {
     const profile = profileSchema.parse({
       id: crypto.randomUUID(),

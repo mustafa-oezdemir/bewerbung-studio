@@ -280,6 +280,57 @@ describe("Pehlione White Blue", () => {
     expect(render(false, 1)).toContain('src="data:image/png;base64,AA=="');
     expect(render(true, 1)).not.toContain("pehlione-hero__photo");
     expect(render(false, 2)).not.toContain("pehlione-hero__photo");
+    expect(render(false, 2)).toContain("pehlione-sidebar--continuation");
+    expect(render(false, 2)).toContain("Fortsetzung · Seite 2 von 2");
+  });
+
+  it("keeps the visual sidebar and white language title on PDF continuation output", () => {
+    const longProfile = profileSchema.parse({
+      ...profile,
+      languages: ["Deutsch – C1"],
+      experiences: Array.from({ length: 5 }, (_, index) => ({
+        ...profile.experiences[0],
+        id: crypto.randomUUID(),
+        role: `Position ${index + 1}`,
+        achievements: Array.from({ length: 4 }, () => "Messbares Ergebnis mit nachhaltiger Wirkung im Team."),
+      })),
+      education: Array.from({ length: 4 }, (_, index) => ({
+        ...profile.education[0],
+        id: crypto.randomUUID(),
+        degree: `Abschluss ${index + 1}`,
+      })),
+    });
+    const application = applicationSchema.parse({
+      schemaVersion: 1,
+      id: crypto.randomUUID(),
+      folderName: "Test",
+      company: { name: "Firma", city: "Berlin" },
+      contact: {},
+      job: { title: "Entwicklung" },
+      status: "Entwurf",
+      templateId: "pehlione_white_blue",
+      accentColor: "#0b3d86",
+      secondaryColor: "#1f66b3",
+      documents: {},
+      statusHistory: [],
+      createdAt: profile.updatedAt,
+      updatedAt: profile.updatedAt,
+    });
+    const { document } = parseHTML(buildDocumentHtml(application, longProfile, "lebenslauf"));
+    const pages = document.querySelectorAll('[data-template="pehlione_white_blue"]');
+    expect(pages).toHaveLength(2);
+    expect(pages[1].querySelector(".pehlione-pdf-sidebar-continuation")).not.toBeNull();
+    expect(pages[1].querySelector(".pehlione-pdf-main")).not.toBeNull();
+    expect(document.querySelectorAll(".pehlione-pdf-education")).toHaveLength(1);
+    expect(buildDocumentHtml(application, longProfile, "lebenslauf")).toContain(
+      ".pehlione-pdf-sidebar .pehlione-pdf-section h3{color:var(--pehlione-sidebar-text,#fff)}",
+    );
+    expect(pehlioneAppearanceCss).toContain(
+      '.pehlione-pdf-main .pehlione-pdf-section>h3{color:var(--pehlione-section-color,var(--pehlione-primary))}',
+    );
+    expect(pehlioneAppearanceCss).not.toContain(
+      '.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-section>h3{color:',
+    );
   });
 
   it("keeps the original circle when the photo section is hidden", () => {
