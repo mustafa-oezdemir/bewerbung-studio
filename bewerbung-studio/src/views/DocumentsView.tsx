@@ -712,8 +712,12 @@ export function DocumentsView({
       : "no-print-background"
   }`;
   const textContrastIsReadable = hasReadableColorContrast(
-    design.settings.textColor,
-    design.settings.backgroundColor,
+    resumeSpacing.colors.paragraph,
+    resumeSpacing.colors.background,
+  );
+  const sidebarContrastIsReadable = hasReadableColorContrast(
+    design.settings.resumeAppearance?.sidebarTextColor ?? appearanceDefaults.sidebarTextColor,
+    design.settings.resumeAppearance?.sidebarBackgroundColor ?? appearanceDefaults.sidebarBackgroundColor,
   );
 
   const updateDesignSetting = <Key extends keyof DocumentDesignSettings>(
@@ -1693,10 +1697,21 @@ export function DocumentsView({
                           value={design.settings.resumeAppearance?.[key] ?? appearanceDefaults[key]}
                           onChange={(color) => updateResumeAppearance(key, color)} />)}
                       </div>
+                      {!sidebarContrastIsReadable ? <p className="resume-sections-warning" role="status">
+                        Der Kontrast zwischen Seitenspalten-Text und Hintergrund ist zu niedrig.
+                      </p> : null}
                       <div className="advanced-design-grid">
                         <label className="field"><span>Abschnittslinien</span>
                           <input type="checkbox" checked={design.settings.resumeAppearance?.sectionDividerVisible !== false}
                             onChange={(event) => updateResumeAppearance("sectionDividerVisible", event.target.checked)} />
+                        </label>
+                        <label className="field"><span>Linienposition</span>
+                          <select value={design.settings.resumeAppearance?.sectionDividerPosition ?? "template"}
+                            onChange={(event) => updateResumeAppearance("sectionDividerPosition",
+                              event.target.value === "template" ? undefined : event.target.value as "none" | "bottom" | "top" | "both")}>
+                            <option value="template">Vorlage</option><option value="none">Keine</option>
+                            <option value="bottom">Nur unten</option><option value="top">Nur oben</option><option value="both">Oben + unten</option>
+                          </select>
                         </label>
                         <label className="field"><span>Linienstärke (mm)</span>
                           <input type="number" min="0.1" max="2" step="0.1"
@@ -1712,6 +1727,21 @@ export function DocumentsView({
                           <input type="checkbox" checked={design.settings.resumeAppearance?.photoDecorationVisible !== false}
                             onChange={(event) => updateResumeAppearance("photoDecorationVisible", event.target.checked)} />
                         </label>
+                        <label className="field"><span>Ausrichtung Abschnittstitel</span>
+                          <select value={design.settings.resumeAppearance?.sectionHeadingAlignment ?? "template"}
+                            onChange={(event) => updateResumeAppearance("sectionHeadingAlignment",
+                              event.target.value === "template" ? undefined : event.target.value as "left" | "center" | "right")}>
+                            <option value="template">Vorlage</option><option value="left">Links</option>
+                            <option value="center">Mitte</option><option value="right">Rechts</option>
+                          </select>
+                        </label>
+                        {(["sectionHeadingMarginBeforeMm", "sectionHeadingMarginAfterMm"] as const).map((key) => (
+                          <label className="field" key={key}><span>{key === "sectionHeadingMarginBeforeMm" ? "Abstand davor (mm)" : "Abstand danach (mm)"}</span>
+                            <input type="number" min="0" max={key === "sectionHeadingMarginBeforeMm" ? 12 : 8} step="0.5"
+                              placeholder="Vorlage" value={design.settings.resumeAppearance?.[key] ?? ""}
+                              onChange={(event) => updateResumeAppearance(key, event.target.value ? Number(event.target.value) : undefined)} />
+                          </label>
+                        ))}
                       </div>
                       {design.settings.resumeAppearance && <button className="design-color-reset" type="button"
                         onClick={() => setDesign((current) => ({ ...current, settings: { ...current.settings, resumeAppearance: undefined } }))}>
@@ -1776,6 +1806,18 @@ export function DocumentsView({
                               const value = Math.max(cvDesignLimits[key][0], Math.min(cvDesignLimits[key][1], entered));
                               setDesign((current) => updateCvDesignField(current, "typography", key, value));
                             }} /></label>)}
+                        {(["headingWeight", "subheadingWeight", "sectionHeadingWeight"] as const).map((key) => (
+                          <label className="field" key={key}><span>{key === "headingWeight" ? "Name – Gewicht" : key === "subheadingWeight" ? "Untertitel – Gewicht" : "Abschnittstitel – Gewicht"}</span>
+                            <select value={resumeSpacing.typography[key]}
+                              onChange={(event) => setDesign((current) => updateCvDesignField(current, "typography", key, Number(event.target.value)))}>
+                              {[300, 400, 500, 600, 700, 800, 900].map((weight) => <option key={weight} value={weight}>{weight}</option>)}
+                            </select>
+                          </label>
+                        ))}
+                        <label className="field"><span>Abschnittstitel großschreiben</span>
+                          <input type="checkbox" checked={resumeSpacing.typography.sectionHeadingUppercase}
+                            onChange={(event) => setDesign((current) => updateCvDesignField(current, "typography", "sectionHeadingUppercase", event.target.checked))} />
+                        </label>
                       </div>
                     </details>
                     <div className="advanced-design-grid">
@@ -1940,18 +1982,6 @@ export function DocumentsView({
                       </p>
                     ) : null}
                     <div className="advanced-design-grid">
-                      {(["strengthsColumns", "knowledgeColumns"] as const).map((key) => (
-                        <label className="field" key={key}>
-                          <span>{key === "strengthsColumns" ? "Stärken – Darstellung" : "Kenntnisse / Programmiersprachen – Darstellung"}</span>
-                          <select aria-label={key === "strengthsColumns" ? "Stärken – Spalten" : "Kenntnisse – Spalten"}
-                            value={design.settings[key] ?? "auto"}
-                            onChange={(event) => updateDesignSetting(key, event.target.value === "auto" ? "auto" : Number(event.target.value) as 1 | 2 | 3 | 4)}>
-                            <option value="auto">Automatisch</option>
-                            {[1, 2, 3, 4].map((count) => <option key={count} value={count}>{count} {count === 1 ? "Spalte" : "Spalten"}</option>)}
-                          </select>
-                          <small>Automatisch berücksichtigt den verfügbaren Bereich und die Textlänge. Icons: automatisch oder manuell im Inhaltseditor.</small>
-                        </label>
-                      ))}
                       <label className="design-range">
                         <span>
                           Hintergrundintensität{" "}
@@ -2031,17 +2061,14 @@ export function DocumentsView({
                               <option value="right">Rechts</option>
                             </select>
                           </label>
-                          <label className="field">
-                            <span>Spaltenverhältnis</span>
-                            <select aria-label="Spaltenverhältnis"
-                              value={design.settings.resumePresentation?.sidebarWidthPercent ?? "template"}
-                              onChange={(event) => updateResumeLayout("sidebarWidthPercent",
-                                event.target.value === "template" ? undefined : Number(event.target.value) as 20 | 25 | 30 | 35 | 40)}>
-                              <option value="template">Vorlage ({resumeLayout.sidebarWidthPercent}% / {100 - resumeLayout.sidebarWidthPercent}%)</option>
-                              {[20, 25, 30, 35, 40].map((percent) => (
-                                <option key={percent} value={percent}>{percent}% Seitenspalte / {100 - percent}% Hauptspalte</option>
-                              ))}
-                            </select>
+                          <label className="design-range">
+                            <span>Spaltenverhältnis <b>{resumeLayout.sidebarWidthPercent}% / {100 - resumeLayout.sidebarWidthPercent}%</b></span>
+                            <input aria-label="Spaltenverhältnis" type="range" min="20" max="45" step="1"
+                              value={resumeLayout.sidebarWidthPercent}
+                              onChange={(event) => updateResumeLayout("sidebarWidthPercent", Number(event.target.value))} />
+                            <small><i>20% Seitenspalte</i><i>45% Seitenspalte</i></small>
+                            {design.settings.resumePresentation?.sidebarWidthPercent !== undefined ? <button className="design-color-reset" type="button"
+                              onClick={() => updateResumeLayout("sidebarWidthPercent", undefined)}>Vorlagenverhältnis verwenden</button> : null}
                           </label>
                         </div>
                       ) : null}

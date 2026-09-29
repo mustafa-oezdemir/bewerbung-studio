@@ -668,9 +668,7 @@ export const profileSchema = z.object({
   resumeKnowledgeContainer: z
     .object({ showTitle: z.boolean().default(false) })
     .default({ showTitle: false }),
-  resumeColumnRatio: z
-    .union([z.literal(20), z.literal(25), z.literal(30), z.literal(35), z.literal(40)])
-    .default(30),
+  resumeColumnRatio: z.number().int().min(20).max(45).default(30),
   resumeClosing: z
     .object({
       showPlace: z.boolean().default(true),

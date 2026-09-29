@@ -20,7 +20,7 @@ describe("shared resume layout engine", () => {
   });
 
   it("accepts safe ratios, orientation, ATS and serialization", () => {
-    for (const percent of [20, 25, 30, 35, 40] as const) {
+    for (const percent of [20, 25, 30, 33, 35, 40, 45] as const) {
       const settings = { layoutMode: "two-column" as const, sidebarSide: "left" as const, sidebarWidthPercent: percent };
       expect(resolveResumeLayout("einspaltig", JSON.parse(JSON.stringify(settings)))).toMatchObject({
         mode: "two-column", sidebarSide: "left", sidebarWidthPercent: percent, overridden: true,

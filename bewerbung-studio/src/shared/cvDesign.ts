@@ -39,6 +39,9 @@ export const resolveTemplateCvDesign = (templateId: string): CvDesignTokens => {
       bodySizePt: fontSizeToPt[settings.fontSize], headingSizePt: 24,
       subheadingSizePt: 12, sectionHeadingSizePt: 12, entryHeadingSizePt: 11,
       lineHeight: lineHeightLevelToValue[settings.lineHeightLevel],
+      headingWeight: getDocumentFont(settings.headingFontId).headingWeight,
+      subheadingWeight: 600, sectionHeadingWeight: 700,
+      sectionHeadingUppercase: false,
     },
     spacing: {
       pageMarginMm: marginLevelToMm[settings.marginLevel],

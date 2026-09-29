@@ -17,6 +17,8 @@ import { getThemedTechnologyIconMarkup } from "./technologyBrand";
 import { defaultDocumentDesign, type DocumentDesignSettings } from "./documentDesign";
 import { resolveCvDocument, type ResolvedCvDocument } from "./resolveCvDocument";
 import { resolveSectionColumns } from "./resumeSectionLayout";
+import { getCvDesignVariables } from "./cvDesign";
+import type { CvDesignTokens } from "./cvDesignSchema";
 import { ensureKnowledgeSection } from "../features/knowledge/knowledge.service";
 import { visibleKnowledgeItems, formatKnowledgeItem } from "../features/knowledge/knowledge.utils";
 import { knowledgeLevelScores } from "../features/knowledge/knowledge.constants";
@@ -147,6 +149,77 @@ export const applyResumeSectionHeadingColors = (root: Element, settings: Documen
     if (!heading || heading.closest("article") && section.contains(heading.closest("article"))) continue;
     colorize(heading, mainColor);
   }
+};
+
+/** Apply only explicit semantic overrides. Native template CSS remains the
+ * default, while preview and PDF receive the same resolved values. */
+export const applyResumeDesignOverrides = (
+  root: Element,
+  templateId: string,
+  surface: "preview" | "pdf",
+  settings: DocumentDesignSettings,
+  design: CvDesignTokens,
+): void => {
+  const overrides = settings.cvOverrides;
+  if (!overrides || (!overrides.colors && !overrides.typography)) return;
+  const scope = (surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild) ?? root;
+  const variables = getCvDesignVariables(design);
+  const set = (element: Element, property: string, value: string) =>
+    (element as HTMLElement).style.setProperty(property, value, "important");
+  for (const [name, value] of Object.entries(variables))
+    (scope as HTMLElement).style.setProperty(name, value);
+
+  const colors = overrides.colors;
+  if (colors?.background) {
+    set(root, "background-color", design.colors.background);
+    set(scope, "background-color", design.colors.background);
+  }
+  if (colors?.text) set(scope, "color", design.colors.text);
+  if (colors?.paragraph) for (const node of scope.querySelectorAll("p,li")) set(node, "color", design.colors.paragraph);
+  if (colors?.muted) for (const node of scope.querySelectorAll("small,time,[class*='meta'],[class*='date']")) set(node, "color", design.colors.muted);
+  if (colors?.icon) for (const node of scope.querySelectorAll("svg")) {
+    set(node, "color", design.colors.icon);
+    set(node, "stroke", design.colors.icon);
+  }
+
+  const header = scope.querySelector("header,[class*='header']");
+  const name = header?.querySelector("h1");
+  const subtitle = header?.querySelector("h2");
+  if (name && colors?.heading) set(name, "color", design.colors.heading);
+  if (subtitle && colors?.subheading) set(subtitle, "color", design.colors.subheading);
+
+  const sources = resumeSectionStyleSources[surface][resolveTemplateId(templateId) as keyof typeof resumeSectionStyleSources.preview];
+  const sectionHeadings = sources ? scope.querySelectorAll(`${sources[1]},[data-custom-role='heading']`) : scope.querySelectorAll("[data-managed-section]>h2,[data-managed-section]>h3");
+  const entryHeadings = sources ? scope.querySelectorAll(`${sources[2]},[data-custom-role='entry'] h3,[data-custom-role='entry'] h4`) : scope.querySelectorAll("article h3,article h4");
+  if (colors?.sectionHeading) for (const node of sectionHeadings) set(node, "color", design.colors.sectionHeading);
+  if (colors?.entryHeading) for (const node of entryHeadings) set(node, "color", design.colors.entryHeading);
+  if (colors?.divider) for (const node of sectionHeadings) set(node, "border-color", design.colors.divider);
+
+  const typography = overrides.typography;
+  if (!typography) return;
+  if (typography.fontId !== undefined) set(scope, "font-family", variables["--doc-font"]);
+  if (typography.bodySizePt !== undefined) set(scope, "font-size", `${design.typography.bodySizePt}pt`);
+  if (name) {
+    if (typography.headingFontId !== undefined) set(name, "font-family", variables["--doc-heading-font"]);
+    if (typography.headingSizePt !== undefined) set(name, "font-size", `${design.typography.headingSizePt}pt`);
+    if (typography.headingWeight !== undefined) set(name, "font-weight", String(design.typography.headingWeight));
+  }
+  if (subtitle) {
+    if (typography.headingFontId !== undefined) set(subtitle, "font-family", variables["--doc-heading-font"]);
+    if (typography.subheadingSizePt !== undefined) set(subtitle, "font-size", `${design.typography.subheadingSizePt}pt`);
+    if (typography.subheadingWeight !== undefined) set(subtitle, "font-weight", String(design.typography.subheadingWeight));
+  }
+  for (const node of sectionHeadings) {
+    if (typography.headingFontId !== undefined) set(node, "font-family", variables["--doc-heading-font"]);
+    if (typography.sectionHeadingSizePt !== undefined) set(node, "font-size", `${design.typography.sectionHeadingSizePt}pt`);
+    if (typography.sectionHeadingWeight !== undefined) set(node, "font-weight", String(design.typography.sectionHeadingWeight));
+    if (typography.sectionHeadingUppercase !== undefined)
+      set(node, "text-transform", design.typography.sectionHeadingUppercase ? "uppercase" : "none");
+  }
+  if (typography.entryHeadingSizePt !== undefined)
+    for (const node of entryHeadings) set(node, "font-size", `${design.typography.entryHeadingSizePt}pt`);
+  if (typography.headingFontId !== undefined)
+    for (const node of entryHeadings) set(node, "font-family", variables["--doc-heading-font"]);
 };
 
 // Both the React preview and the PDF use this pure HTML projection. It only
@@ -537,7 +610,9 @@ export const applyManagedResumeOutput = (
     }
     applyResumePageLayout(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings,
       profile.resumeColumnRatio, new Map(entries.map((entry) => [entry.id, entry.zone])), resolved.layout);
-    applyResumeSpacingOutput(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings, resolved.design);
+    const surface = root.matches(".cv-sheet") ? "pdf" : "preview";
+    applyResumeSpacingOutput(root, templateId, surface, designSettings, resolved.design);
+    applyResumeDesignOverrides(root, templateId, surface, designSettings, resolved.design);
     applyResumeMetadataLayout(root, profile, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
     applyResumeClosingOutput(root, main, profile, templateId, designSettings, last, enabled("closing"));
     applyGeneralResumeAppearance(root, resolved.templateId, designSettings, main, sidebar);

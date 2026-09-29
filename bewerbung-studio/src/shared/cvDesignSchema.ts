@@ -46,6 +46,10 @@ export const cvTypographySchema = z.object({
   sectionHeadingSizePt: bounded("sectionHeadingSizePt"),
   entryHeadingSizePt: bounded("entryHeadingSizePt"),
   lineHeight: bounded("lineHeight"),
+  headingWeight: z.number().int().min(300).max(900),
+  subheadingWeight: z.number().int().min(300).max(900),
+  sectionHeadingWeight: z.number().int().min(300).max(900),
+  sectionHeadingUppercase: z.boolean(),
 });
 
 export const cvSpacingSchema = z.object({

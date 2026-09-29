@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { parseHTML } from "linkedom";
 import { profileSchema } from "./schema";
-import { applyManagedResumeOutput, applyResumeSectionHeadingColors } from "./resumeManagedOutput";
+import { applyManagedResumeOutput, applyResumeDesignOverrides, applyResumeSectionHeadingColors } from "./resumeManagedOutput";
 import { defaultDocumentDesign } from "./documentDesign";
+import { resolveCvDesign } from "./cvDesign";
 import { createKnowledgeCategory, createKnowledgeItem } from "../features/knowledge/knowledge.utils";
 
 const profile = profileSchema.parse({
@@ -12,6 +13,23 @@ const profile = profileSchema.parse({
 const page = '<section class="cv-sheet"><main><section><h2>Stärken</h2><p>Old content</p></section></main></section>';
 
 describe("shared strengths output", () => {
+  it.each(["preview", "pdf"] as const)("applies semantic typography and color overrides to %s", (surface) => {
+    const markup = surface === "pdf"
+      ? '<section class="cv-sheet"><div class="page-content klassisch-pdf"><header><h1>Mina Kaya</h1><h2>Entwicklerin</h2></header><section class="klassisch-pdf-section" data-managed-section="experience"><h3 class="klassisch-pdf-title">Berufserfahrung</h3><article class="klassisch-pdf-entry"><h3>Rolle</h3><p>Text</p></article></section></div></section>'
+      : '<section><div class="klassisch-template"><header><h1>Mina Kaya</h1><h2>Entwicklerin</h2></header><section class="klassisch-section" data-managed-section="experience"><h2 class="klassisch-section__title">Berufserfahrung</h2><article class="klassisch-career"><h3>Rolle</h3><p>Text</p></article></section></div></section>';
+    const { document } = parseHTML(markup);
+    const root = document.querySelector("section")!;
+    const settings = { ...defaultDocumentDesign, cvOverrides: { colors: { background: "#fafafa", paragraph: "#112233", heading: "#223344", sectionHeading: "#334455" },
+      typography: { headingSizePt: 30, headingWeight: 800, sectionHeadingWeight: 600, sectionHeadingUppercase: true } } };
+    applyResumeDesignOverrides(root, "klassisch", surface, settings, resolveCvDesign("klassisch", settings.cvOverrides));
+    expect(root.getAttribute("style")).toContain("#fafafa");
+    expect(root.querySelector("header h1")?.getAttribute("style")).toContain("30pt");
+    expect(root.querySelector("header h1")?.getAttribute("style")).toContain("800");
+    const heading = root.querySelector('[data-managed-section] > h2,[data-managed-section] > h3');
+    expect(heading?.getAttribute("style")).toContain("uppercase");
+    expect(heading?.getAttribute("style")).toContain("600");
+    expect(root.querySelector("article p")?.getAttribute("style")).toContain("#112233");
+  });
   it.each(["pehlione-sidebar", "elegant-pdf-sidebar", "gepflegt-sidebar"])("colors sidebar section titles in %s independently from body text", (sidebarClass) => {
     const { document } = parseHTML(`<div><aside class="${sidebarClass}"><section><h3><svg></svg><span>Kernkompetenzen</span></h3><p>Text</p><article><h3>Eintrag</h3></article></section><section><h3><span><svg></svg></span>Sprachen</h3></section></aside><main><section><h3>Berufserfahrung</h3></section></main></div>`);
     const root = document.querySelector("div")!;

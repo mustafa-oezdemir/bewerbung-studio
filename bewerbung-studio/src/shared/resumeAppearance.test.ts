@@ -38,4 +38,18 @@ describe("shared resume appearance", () => {
     expect((sidebar.querySelector("li") as HTMLElement).style.color).toBe("#ffffff");
     expect((sidebar as HTMLElement).style.background).toBe("");
   });
+  it("applies section line position, alignment and safe spacing to every managed heading", () => {
+    const { page, main, sidebar } = fixture();
+    applyGeneralResumeAppearance(page, "zweispaltig", { ...defaultDocumentDesign, resumeAppearance: {
+      sectionDividerPosition: "both", sectionDividerWidthMm: 0.6,
+      sectionHeadingAlignment: "center", sectionHeadingMarginBeforeMm: 2,
+      sectionHeadingMarginAfterMm: 3,
+    } }, main, sidebar);
+    const heading = page.querySelector("h2") as HTMLElement;
+    expect(heading.style.borderTopWidth).toBe("0.6mm");
+    expect(heading.style.borderBottomWidth).toBe("0.6mm");
+    expect(heading.style.textAlign).toBe("center");
+    expect(heading.style.marginTop).toBe("2mm");
+    expect(heading.style.marginBottom).toBe("3mm");
+  });
 });

@@ -25,7 +25,7 @@ export const resumePresentationSchema = z.object({
   showKnowledgeTitle: z.boolean().optional(),
   layoutMode: z.enum(["single", "two-column"]).optional(),
   sidebarSide: z.enum(["left", "right"]).optional(),
-  sidebarWidthPercent: z.union([z.literal(20), z.literal(25), z.literal(30), z.literal(35), z.literal(40)]).optional(),
+  sidebarWidthPercent: z.number().int().min(20).max(45).optional(),
 });
 
 export type ResumePresentation = z.infer<typeof resumePresentationSchema>;

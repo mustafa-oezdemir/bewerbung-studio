@@ -11,6 +11,10 @@ export const resumeAppearanceSchema = z.object({
   mainBackgroundColor: color.optional(),
   sectionDividerVisible: z.boolean().optional(),
   sectionDividerWidthMm: z.number().min(0.1).max(2).optional(),
+  sectionDividerPosition: z.enum(["none", "bottom", "top", "both"]).optional(),
+  sectionHeadingAlignment: z.enum(["left", "center", "right"]).optional(),
+  sectionHeadingMarginBeforeMm: z.number().min(0).max(12).optional(),
+  sectionHeadingMarginAfterMm: z.number().min(0).max(8).optional(),
   photoDecorationVisible: z.boolean().optional(),
   photoDecorationColor: color.optional(),
   contactDividerColor: color.optional(),
@@ -51,20 +55,37 @@ export const applyGeneralResumeAppearance = (
     set(sidebar, "color", appearance.sidebarTextColor);
     for (const node of sidebar.querySelectorAll("p,li,small,a")) set(node, "color", appearance.sidebarTextColor);
   }
-  // Pehlione's existing theme projection owns backgrounds and decoration,
-  // while body text follows the same semantic sidebar control as every CV.
-  if (templateId.startsWith("pehlione_")) return;
-  if (appearance.mainBackgroundColor) set(main, "background", appearance.mainBackgroundColor);
-  if (sidebar !== main && appearance.sidebarBackgroundColor)
-    set(sidebar, "background", appearance.sidebarBackgroundColor);
-  if (appearance.sectionDividerVisible === false || appearance.sectionDividerWidthMm !== undefined) {
+  // Pehlione's theme owns its column backgrounds, while all other shared
+  // controls still apply to it just like to every CV.
+  if (!templateId.startsWith("pehlione_")) {
+    if (appearance.mainBackgroundColor) set(main, "background", appearance.mainBackgroundColor);
+    if (sidebar !== main && appearance.sidebarBackgroundColor)
+      set(sidebar, "background", appearance.sidebarBackgroundColor);
+  }
+  if (appearance.sectionDividerVisible === false || appearance.sectionDividerWidthMm !== undefined ||
+      appearance.sectionDividerPosition || appearance.sectionHeadingAlignment ||
+      appearance.sectionHeadingMarginBeforeMm !== undefined || appearance.sectionHeadingMarginAfterMm !== undefined) {
     for (const section of page.querySelectorAll("[data-managed-section]")) {
       const heading = section.querySelector("h2,h3");
       if (!heading || heading.closest("[data-managed-section]") !== section) continue;
+      if (appearance.sectionHeadingAlignment) set(heading, "text-align", appearance.sectionHeadingAlignment);
+      if (appearance.sectionHeadingMarginBeforeMm !== undefined)
+        set(heading, "margin-top", `${appearance.sectionHeadingMarginBeforeMm}mm`);
+      if (appearance.sectionHeadingMarginAfterMm !== undefined)
+        set(heading, "margin-bottom", `${appearance.sectionHeadingMarginAfterMm}mm`);
       for (const node of [heading, ...heading.querySelectorAll("b,span")]) {
-        if (appearance.sectionDividerVisible === false) set(node, "border-bottom-width", "0");
-        else if (appearance.sectionDividerWidthMm !== undefined)
-          set(node, "border-bottom-width", `${appearance.sectionDividerWidthMm}mm`);
+        if (settings.cvOverrides?.colors?.divider)
+          set(node, "border-color", settings.cvOverrides.colors.divider);
+        const position = appearance.sectionDividerVisible === false ? "none" : appearance.sectionDividerPosition;
+        if (position) {
+          set(node, "border-top-width", position === "top" || position === "both" ? `${appearance.sectionDividerWidthMm ?? .3}mm` : "0");
+          set(node, "border-bottom-width", position === "bottom" || position === "both" ? `${appearance.sectionDividerWidthMm ?? .3}mm` : "0");
+          if (position !== "none") {
+            set(node, "border-top-style", "solid");
+            set(node, "border-bottom-style", "solid");
+          }
+        } else if (appearance.sectionDividerVisible === false) set(node, "border-bottom-width", "0");
+        else if (appearance.sectionDividerWidthMm !== undefined) set(node, "border-bottom-width", `${appearance.sectionDividerWidthMm}mm`);
       }
     }
   }
