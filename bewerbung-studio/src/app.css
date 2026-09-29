@@ -4769,7 +4769,7 @@ body.is-resizing-split-view * {
 
 .special-entry-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 38px;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   padding: 13px;
   border: 1px solid var(--line);
@@ -4922,7 +4922,7 @@ body.is-resizing-split-view * {
 
 .resume-editor-card {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) 38px;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
   gap: 10px;
   padding: 14px;
   border: 1px solid var(--line);
@@ -4959,6 +4959,7 @@ body.is-resizing-split-view * {
 .sort-actions {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 6px;
 }
 
@@ -4970,6 +4971,56 @@ body.is-resizing-split-view * {
 .sort-actions .icon-button:disabled {
   cursor: not-allowed;
   opacity: 0.3;
+}
+
+/* Sortierkontrolle: Aufwärts-Aktionen links, Abwärts-Aktionen rechts. */
+.order-controls {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.order-controls__group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.order-controls .icon-button {
+  width: 34px;
+  height: 34px;
+  border-color: color-mix(in srgb, var(--brand) 22%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--brand) 5%, var(--surface));
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink), transparent 92%);
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease,
+    color 150ms ease,
+    transform 100ms ease;
+}
+
+.order-controls .icon-button:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--brand), transparent 35%);
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand-soft), var(--surface) 30%);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--brand), transparent 88%),
+    0 3px 8px color-mix(in srgb, var(--ink), transparent 90%);
+}
+
+.order-controls .icon-button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.order-controls .icon-button:disabled {
+  color: inherit;
+  cursor: not-allowed;
+  opacity: 0.3;
+  box-shadow: none;
 }
 
 .editor-empty {
@@ -7361,6 +7412,7 @@ body.is-resizing-split-view * {
 .manager-block-details[open] { display: grid; gap: 9px; }
 .manager-block-item { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; margin: 8px 0; }
 .manager-block-item input { min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); }
+.manager-item-actions { display: grid; justify-items: center; gap: 6px; }
 .manager-add { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
 .manager-add .field { flex: 1; }
 .manager-media { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
@@ -7834,9 +7886,12 @@ body.is-resizing-split-view * {
 .workspace-setup-card p { margin: 0; }
 
 .workspace-setup-card .button { justify-self: start; }
-.entry-list-editor__row > .sort-actions,
-.certificate-list-editor__card > .sort-actions,
-.language-level-entry > .sort-actions {
+.entry-list-editor__row > .order-controls,
+.certificate-list-editor__card > .order-controls,
+.language-level-entry > .order-controls {
   grid-column: 1 / -1;
-  flex-wrap: wrap;
+}
+
+.resume-data-group > .order-controls {
+  margin: 10px 10px 0;
 }
