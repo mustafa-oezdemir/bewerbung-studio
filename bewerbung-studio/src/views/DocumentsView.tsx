@@ -2,6 +2,7 @@ import { keepResumeLayoutOverrides, resolveResumePresentation, separateResumeDra
 import { applyResumeSpacingPreset, getResumeSpacingPreset, resumeSpacingFields } from "../shared/resumeSpacing";
 import { resolveCvDocument } from "../shared/resolveCvDocument";
 import { cvDesignLimits } from "../shared/cvDesignSchema";
+import { applyCustomCvDesign, createCustomCvDesign, duplicateCustomCvDesign, updateCustomCvDesign } from "../shared/customCvDesign";
 import type { ResumePresentation } from "../shared/resumePresentationSchema";
 import { ContactIcon } from "../components/resume/templates/ContactIcon";
 import { getPehlioneContacts } from "../shared/pehlioneContacts";
@@ -20,6 +21,7 @@ import {
   ArrowLeft,
   ChevronUp,
   Download,
+  Copy,
   Eye,
   EyeOff,
   FileDown,
@@ -30,6 +32,7 @@ import {
   Palette,
   PenLine,
   Save,
+  Plus,
   Trash2,
   UserRound,
   X,
@@ -429,8 +432,13 @@ export function DocumentsView({
   const exportPdf = useAppStore((state) => state.exportPdf);
   const openFolder = useAppStore((state) => state.openFolder);
   const attachments = useAppStore((state) => state.workspace.attachments);
+  const customCvDesigns = useAppStore((state) => state.workspace.customCvDesigns);
+  const saveCustomCvDesign = useAppStore((state) => state.saveCustomCvDesign);
+  const removeCustomCvDesign = useAppStore((state) => state.removeCustomCvDesign);
   const [tab, setTab] = useState<Tab>(initialTab);
   const [designPanelOpen, setDesignPanelOpen] = useState(true);
+  const [customDesignId, setCustomDesignId] = useState<string>();
+  const [customDesignName, setCustomDesignName] = useState("");
   const [resumeSectionPreview, setResumeSectionPreview] = useState<{
     templateId: string;
     profile: ApplicantProfile;
@@ -744,6 +752,39 @@ export function DocumentsView({
       resumePresentation: { ...current.settings.resumePresentation,
         closing: { ...current.settings.resumePresentation?.closing, [key]: value } },
     } }));
+  };
+  const storeCustomDesign = () => {
+    const name = customDesignName.trim();
+    if (!name) return;
+    const existing = customCvDesigns.find((item) => item.id === customDesignId);
+    const saved = existing ? updateCustomCvDesign(existing, name, design) : createCustomCvDesign(name, design);
+    void saveCustomCvDesign(saved);
+    setCustomDesignId(saved.id);
+    setCustomDesignName(saved.name);
+  };
+  const chooseCustomDesign = (id: string) => {
+    const selected = customCvDesigns.find((item) => item.id === id);
+    if (!selected) return;
+    setDesign((current) => applyCustomCvDesign(selected, current));
+    setCustomDesignId(selected.id);
+    setCustomDesignName(selected.name);
+    setResumeSectionPreview(null);
+    setResumeEditorRevision((value) => value + 1);
+  };
+  const copyCustomDesign = () => {
+    const selected = customCvDesigns.find((item) => item.id === customDesignId);
+    if (!selected) return;
+    const copy = duplicateCustomCvDesign(selected);
+    void saveCustomCvDesign(copy);
+    setCustomDesignId(copy.id);
+    setCustomDesignName(copy.name);
+  };
+  const deleteCustomDesign = () => {
+    const selected = customCvDesigns.find((item) => item.id === customDesignId);
+    if (!selected || !window.confirm(`Design „${selected.name}“ wirklich löschen?`)) return;
+    void removeCustomCvDesign(selected.id);
+    setCustomDesignId(undefined);
+    setCustomDesignName("");
   };
 
   const updateDocumentListItem = (
@@ -1536,6 +1577,28 @@ export function DocumentsView({
                         </button>
                       </div>
                     </div>
+                    <details className="custom-design-panel">
+                      <summary><span><strong>Eigenes Design</strong><small>Eigene Vorlage erstellen, speichern und wiederverwenden</small></span></summary>
+                      <div className="custom-design-library">
+                        <label className="field"><span>Gespeicherte Designs</span>
+                          <select aria-label="Gespeichertes eigenes Design" value={customDesignId ?? ""}
+                            onChange={(event) => event.target.value ? chooseCustomDesign(event.target.value) : (setCustomDesignId(undefined), setCustomDesignName(""))}>
+                            <option value="">Neues Design</option>
+                            {customCvDesigns.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                          </select>
+                        </label>
+                        <label className="field"><span>Name</span><input value={customDesignName} maxLength={80} placeholder="z. B. Mein modernes Design"
+                          onChange={(event) => setCustomDesignName(event.target.value)} /></label>
+                        <div className="custom-design-actions">
+                          <button className="button primary" type="button" disabled={!customDesignName.trim()} onClick={storeCustomDesign}>
+                            {customDesignId ? <Save size={15} /> : <Plus size={15} />} {customDesignId ? "Änderungen speichern" : "Design speichern"}
+                          </button>
+                          {customDesignId ? <><button className="button secondary" type="button" onClick={copyCustomDesign}><Copy size={15} /> Duplizieren</button>
+                            <button className="button secondary danger" type="button" onClick={deleteCustomDesign}><Trash2 size={15} /> Löschen</button></> : null}
+                        </div>
+                      </div>
+                      <p>Gespeichert werden Layout, Farben, Schriften, Abstände, Sichtbarkeit, Reihenfolge sowie Foto- und Kopfbereich.</p>
+                    </details>
                     <div className="compact-template-grid">
                       {templates.map((item) => (
                         <button
@@ -1597,10 +1660,16 @@ export function DocumentsView({
                       <summary>Farben und Dekoration</summary>
                       <div className="color-card-grid">
                         {([
-                          ["heading", "Name"],
-                          ["subheading", "Berufsbezeichnung"],
-                          ["sectionHeading", "Abschnittstitel"],
-                          ["entryHeading", "Position / Abschluss"],
+                          ["text", "Lesetext"],
+                          ["paragraph", "Absatztext"],
+                          ["heading", "Überschrift"],
+                          ["subheading", "Unterüberschrift"],
+                          ["sectionHeading", "Hauptabschnitt"],
+                          ["entryHeading", "Unterabschnitt"],
+                          ["accent", "Akzent"],
+                          ["divider", "Linien"],
+                          ["background", "Hintergrund"],
+                          ["surface", "Fläche"],
                         ] as const).map(([key, label]) => <ColorCard key={key} label={label} value={resumeSpacing.colors[key]}
                           onChange={(color) => setDesign((current) => updateCvDesignField(current, "colors", key, color))} />)}
                       </div>
@@ -1693,6 +1762,22 @@ export function DocumentsView({
                         </div>
                       </details>
                     </div>
+                    <details className="resume-spacing-advanced">
+                      <summary>Typografie im Detail</summary>
+                      <div className="advanced-design-grid">
+                        {([
+                          ["bodySizePt", "Lesetext"], ["headingSizePt", "Hauptüberschrift"],
+                          ["subheadingSizePt", "Unterüberschrift"], ["sectionHeadingSizePt", "Abschnittsüberschrift"],
+                          ["entryHeadingSizePt", "Eintragstitel"],
+                        ] as const).map(([key, label]) => <label className="field" key={key}><span>{label} (pt)</span>
+                          <input type="number" step="0.25" min={cvDesignLimits[key][0]} max={cvDesignLimits[key][1]}
+                            value={resumeSpacing.typography[key]} onChange={(event) => {
+                              const entered = Number(event.target.value); if (!Number.isFinite(entered)) return;
+                              const value = Math.max(cvDesignLimits[key][0], Math.min(cvDesignLimits[key][1], entered));
+                              setDesign((current) => updateCvDesignField(current, "typography", key, value));
+                            }} /></label>)}
+                      </div>
+                    </details>
                     <div className="advanced-design-grid">
                       <label className="field">
                         <span>Metadatenlayout · Berufserfahrung / Ausbildung</span>
@@ -1960,6 +2045,18 @@ export function DocumentsView({
                           </label>
                         </div>
                       ) : null}
+                      <div className="advanced-design-grid">
+                        <label className="field"><span>Foto-Layout</span><select
+                          value={design.settings.resumeAppearance?.photoLayout ?? "template"}
+                          onChange={(event) => updateResumeAppearance("photoLayout", event.target.value as NonNullable<DocumentDesignSettings["resumeAppearance"]>["photoLayout"])}>
+                          <option value="template">Vorlage</option><option value="circle">Rund</option><option value="rounded">Abgerundet</option><option value="square">Eckig</option><option value="hidden">Ausblenden</option>
+                        </select></label>
+                        <label className="field"><span>Kopfbereich</span><select
+                          value={design.settings.resumeAppearance?.headerLayout ?? "template"}
+                          onChange={(event) => updateResumeAppearance("headerLayout", event.target.value as NonNullable<DocumentDesignSettings["resumeAppearance"]>["headerLayout"])}>
+                          <option value="template">Vorlage</option><option value="left">Linksbündig</option><option value="center">Zentriert</option><option value="split">Geteilt</option>
+                        </select></label>
+                      </div>
                     </div>
                     <div className="design-option-group">
                       <span>Schriftgröße</span>

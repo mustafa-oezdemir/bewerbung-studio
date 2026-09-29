@@ -14,6 +14,8 @@ export const resumeAppearanceSchema = z.object({
   photoDecorationVisible: z.boolean().optional(),
   photoDecorationColor: color.optional(),
   contactDividerColor: color.optional(),
+  photoLayout: z.enum(["template", "circle", "rounded", "square", "hidden"]).optional(),
+  headerLayout: z.enum(["template", "left", "center", "split"]).optional(),
 });
 
 export type ResumeAppearance = z.infer<typeof resumeAppearanceSchema>;
@@ -27,6 +29,24 @@ export const applyGeneralResumeAppearance = (
   const appearance = resumeAppearanceSchema.parse(settings.resumeAppearance ?? {});
   const set = (element: Element, property: string, value: string) =>
     (element as HTMLElement).style.setProperty(property, value, "important");
+  if (appearance.headerLayout && appearance.headerLayout !== "template") {
+    const header = page.querySelector('header,[class*="header"],[class*="Header"]');
+    if (header) {
+      set(header, "text-align", appearance.headerLayout === "center" ? "center" : "left");
+      if (appearance.headerLayout === "center") set(header, "justify-content", "center");
+      if (appearance.headerLayout === "split") set(header, "justify-content", "space-between");
+    }
+  }
+  if (appearance.photoLayout) {
+    for (const photo of page.querySelectorAll('img[class*="photo"],img[class*="Photo"],img[alt*="foto" i]')) {
+      const target = photo.parentElement?.className && /photo/i.test(String(photo.parentElement.className))
+        ? photo.parentElement : photo;
+      if (appearance.photoLayout === "hidden") set(target, "display", "none");
+      if (appearance.photoLayout === "circle") set(target, "border-radius", "50%");
+      if (appearance.photoLayout === "rounded") set(target, "border-radius", "12px");
+      if (appearance.photoLayout === "square") set(target, "border-radius", "0");
+    }
+  }
   if (sidebar !== main && appearance.sidebarTextColor) {
     set(sidebar, "color", appearance.sidebarTextColor);
     for (const node of sidebar.querySelectorAll("p,li,small,a")) set(node, "color", appearance.sidebarTextColor);

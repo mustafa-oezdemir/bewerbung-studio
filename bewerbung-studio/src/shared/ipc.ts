@@ -8,7 +8,9 @@ import type {
   AttachmentCategory,
   Attachment,
   CalendarEvent,
+  CustomCvDesign,
   RejectionReason,
+  Todo,
   Workspace,
 } from "./schema";
 import type {
@@ -87,6 +89,14 @@ export interface BewerbungsManagerApi {
   };
   events: {
     save: (event: CalendarEvent) => Promise<Workspace>;
+  };
+  todos: {
+    save: (todo: Todo) => Promise<Workspace>;
+    remove: (id: string) => Promise<Workspace>;
+  };
+  customCvDesigns: {
+    save: (design: CustomCvDesign) => Promise<Workspace>;
+    remove: (id: string) => Promise<Workspace>;
   };
   attachments: {
     add: (

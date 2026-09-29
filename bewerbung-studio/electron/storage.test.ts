@@ -230,6 +230,27 @@ describe("DataStore backups", () => {
     ).rejects.toThrow();
   });
 
+  it("persists todos and reusable CV designs across restarts", async () => {
+    const now = "2026-09-29T10:00:00.000Z";
+    const todoId = crypto.randomUUID();
+    const designId = crypto.randomUUID();
+    await store.saveTodo({ id: todoId, title: "Lebenslauf prüfen", description: "", priority: "high",
+      dueDate: "2026-09-30", completed: false, createdAt: now, updatedAt: now });
+    await store.saveCustomCvDesign({ id: designId, name: "Mein Design", baseTemplateId: "modern",
+      accentColor: "#123456", secondaryColor: "#abcdef", settings: defaultDocumentDesign,
+      createdAt: now, updatedAt: now });
+
+    const restarted = new DataStore(root);
+    await restarted.initialize();
+    expect(restarted.getWorkspace().todos.map((item) => item.id)).toContain(todoId);
+    expect(restarted.getWorkspace().customCvDesigns.map((item) => item.id)).toContain(designId);
+
+    await restarted.removeTodo(todoId);
+    await restarted.removeCustomCvDesign(designId);
+    expect(restarted.getWorkspace().todos).toEqual([]);
+    expect(restarted.getWorkspace().customCvDesigns).toEqual([]);
+  });
+
   it("retains section columns and manual technology icons after reopening", async () => {
     const workspace = await store.createApplication(applicationInput("Layout GmbH"));
     const application = workspace.applications[0];

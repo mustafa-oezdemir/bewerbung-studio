@@ -9,7 +9,9 @@ import {
   type Attachment,
   type AttachmentCategory,
   type CalendarEvent,
+  type CustomCvDesign,
   type RejectionReason,
+  type Todo,
   type Workspace,
 } from "../shared/schema";
 
@@ -19,6 +21,8 @@ const emptyWorkspace: Workspace = {
   profiles: [],
   events: [],
   attachments: [],
+  todos: [],
+  customCvDesigns: [],
   settings: defaultSettings,
   updatedAt: new Date().toISOString(),
 };
@@ -47,6 +51,10 @@ type StoreState = {
   removeProfile: (id: string) => Promise<void>;
   saveSettings: (settings: AppSettings) => Promise<void>;
   saveEvent: (event: CalendarEvent) => Promise<void>;
+  saveTodo: (todo: Todo) => Promise<void>;
+  removeTodo: (id: string) => Promise<void>;
+  saveCustomCvDesign: (design: CustomCvDesign) => Promise<void>;
+  removeCustomCvDesign: (id: string) => Promise<void>;
   addAttachment: (
     applicationId: string,
     category: AttachmentCategory,
@@ -218,6 +226,34 @@ export const useAppStore = create<StoreState>((set, get) => {
         () => window.bewerbungsManager.events.save(event),
         "Kalendereintrag wurde aktualisiert.",
       );
+    },
+    async saveTodo(todo) {
+      if (!apiAvailable()) {
+        set((state) => ({ workspace: { ...state.workspace, todos: [todo, ...state.workspace.todos.filter((item) => item.id !== todo.id)] } }));
+        return;
+      }
+      await perform(() => window.bewerbungsManager.todos.save(todo), "Aufgabe wurde gespeichert.");
+    },
+    async removeTodo(id) {
+      if (!apiAvailable()) {
+        set((state) => ({ workspace: { ...state.workspace, todos: state.workspace.todos.filter((item) => item.id !== id) } }));
+        return;
+      }
+      await perform(() => window.bewerbungsManager.todos.remove(id), "Aufgabe wurde gelöscht.");
+    },
+    async saveCustomCvDesign(design) {
+      if (!apiAvailable()) {
+        set((state) => ({ workspace: { ...state.workspace, customCvDesigns: [design, ...state.workspace.customCvDesigns.filter((item) => item.id !== design.id)] } }));
+        return;
+      }
+      await perform(() => window.bewerbungsManager.customCvDesigns.save(design), "Design wurde gespeichert.");
+    },
+    async removeCustomCvDesign(id) {
+      if (!apiAvailable()) {
+        set((state) => ({ workspace: { ...state.workspace, customCvDesigns: state.workspace.customCvDesigns.filter((item) => item.id !== id) } }));
+        return;
+      }
+      await perform(() => window.bewerbungsManager.customCvDesigns.remove(id), "Design wurde gelöscht.");
     },
     async addAttachment(applicationId, category) {
       if (!apiAvailable()) return;

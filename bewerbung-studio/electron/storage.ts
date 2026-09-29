@@ -17,10 +17,12 @@ import {
   applicationDraftSchema,
   applicationSchema,
   appSettingsSchema,
+  customCvDesignSchema,
   attachmentSchema,
   deletedApplicationsArchiveSchema,
   defaultSettings,
   profileSchema,
+  todoSchema,
   workspaceSchema,
   type ApplicantProfile,
   type Application,
@@ -31,9 +33,11 @@ import {
   type Attachment,
   type AttachmentCategory,
   type CalendarEvent,
+  type CustomCvDesign,
   type CalendarEventType,
   type DeletedApplicationsArchive,
   type RejectionReason,
+  type Todo,
   type Workspace,
 } from "../src/shared/schema";
 import { templates } from "../src/shared/templates";
@@ -172,6 +176,8 @@ const emptyWorkspace = (): Workspace => ({
   profiles: [],
   events: [],
   attachments: [],
+  todos: [],
+  customCvDesigns: [],
   settings: defaultSettings,
   updatedAt: nowIso(),
 });
@@ -1639,6 +1645,36 @@ export class DataStore {
       return `${applicationFileBaseName(application)}_Deckblatt.pdf`;
     }
     return `${applicationFileBaseName(application)}_${sanitizeFileName(application.job.title)}_${target}.pdf`;
+  }
+
+  async saveTodo(todo: Todo) {
+    const validated = todoSchema.parse(todo);
+    const index = this.workspace.todos.findIndex((item) => item.id === validated.id);
+    if (index < 0) this.workspace.todos.unshift(validated);
+    else this.workspace.todos[index] = validated;
+    await this.persist();
+    return this.getWorkspace();
+  }
+
+  async removeTodo(id: string) {
+    this.workspace.todos = this.workspace.todos.filter((item) => item.id !== id);
+    await this.persist();
+    return this.getWorkspace();
+  }
+
+  async saveCustomCvDesign(design: CustomCvDesign) {
+    const validated = customCvDesignSchema.parse(design);
+    const index = this.workspace.customCvDesigns.findIndex((item) => item.id === validated.id);
+    if (index < 0) this.workspace.customCvDesigns.unshift(validated);
+    else this.workspace.customCvDesigns[index] = validated;
+    await this.persist();
+    return this.getWorkspace();
+  }
+
+  async removeCustomCvDesign(id: string) {
+    this.workspace.customCvDesigns = this.workspace.customCvDesigns.filter((item) => item.id !== id);
+    await this.persist();
+    return this.getWorkspace();
   }
 
   getAutomaticExportPath(id: string, target: "deckblatt" | "anschreiben" | "lebenslauf" | "mappe") {

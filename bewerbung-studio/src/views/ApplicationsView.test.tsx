@@ -65,6 +65,8 @@ describe("ApplicationsView", () => {
       profiles: [],
       events: [],
       attachments: [],
+      todos: [],
+      customCvDesigns: [],
       settings: defaultSettings,
       updatedAt: now,
     };

@@ -51,6 +51,14 @@ const api: BewerbungsManagerApi = {
   events: {
     save: (event) => ipcRenderer.invoke("events:save", event),
   },
+  todos: {
+    save: (todo) => ipcRenderer.invoke("todos:save", todo),
+    remove: (id) => ipcRenderer.invoke("todos:remove", id),
+  },
+  customCvDesigns: {
+    save: (design) => ipcRenderer.invoke("custom-cv-designs:save", design),
+    remove: (id) => ipcRenderer.invoke("custom-cv-designs:remove", id),
+  },
   attachments: {
     add: (applicationId, category) =>
       ipcRenderer.invoke("attachments:add", applicationId, category),

@@ -8,9 +8,19 @@ import {
   defaultSettings,
   profileSchema,
   workspaceSchema,
+  todoSchema,
 } from "./schema";
 
 describe("BewerbungsManager schemas", () => {
+  it("loads older workspaces with empty todo and custom design collections", () => {
+    const workspace = workspaceSchema.parse({
+      schemaVersion: 1, applications: [], profiles: [], events: [], attachments: [],
+      settings: defaultSettings, updatedAt: "2026-09-29T10:00:00.000Z",
+    });
+    expect(workspace.todos).toEqual([]);
+    expect(workspace.customCvDesigns).toEqual([]);
+    expect(todoSchema.safeParse({ id: crypto.randomUUID(), title: "Unterlagen prüfen", description: "", priority: "high", dueDate: "2026-09-30", completed: false, createdAt: "2026-09-29T10:00:00.000Z", updatedAt: "2026-09-29T10:00:00.000Z" }).success).toBe(true);
+  });
   it("offers self-created and sent application statuses", () => {
     expect(applicationStatuses).toContain("Selbst erstellt");
     expect(applicationStatuses).toContain("Gesendet");

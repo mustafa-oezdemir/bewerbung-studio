@@ -697,6 +697,30 @@ export const calendarEventSchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 
+export const todoPriorities = ["low", "medium", "high"] as const;
+export const todoSchema = z.object({
+  id: z.uuid(),
+  title: z.string().trim().min(1).max(160),
+  description: z.string().max(4000).default(""),
+  priority: z.enum(todoPriorities).default("medium"),
+  dueDate: z.iso.date().optional(),
+  completed: z.boolean().default(false),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+  completedAt: z.iso.datetime().optional(),
+});
+
+export const customCvDesignSchema = z.object({
+  id: z.uuid(),
+  name: z.string().trim().min(1).max(80),
+  baseTemplateId: z.string().min(1),
+  accentColor: hexColorSchema,
+  secondaryColor: hexColorSchema,
+  settings: documentDesignSchema,
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
 export const attachmentSchema = z.object({
   id: z.uuid(),
   applicationId: z.uuid(),
@@ -729,6 +753,8 @@ export const workspaceSchema = z.object({
   profiles: z.array(profileSchema),
   events: z.array(calendarEventSchema),
   attachments: z.array(attachmentSchema),
+  todos: z.array(todoSchema).default([]),
+  customCvDesigns: z.array(customCvDesignSchema).default([]),
   settings: appSettingsSchema,
   updatedAt: z.iso.datetime(),
 });
@@ -757,6 +783,8 @@ export type ApplicationInput = z.infer<typeof applicationInputSchema>;
 export type ApplicationDraft = z.infer<typeof applicationDraftSchema>;
 export type ApplicantProfile = z.infer<typeof profileSchema>;
 export type CalendarEvent = z.infer<typeof calendarEventSchema>;
+export type Todo = z.infer<typeof todoSchema>;
+export type CustomCvDesign = z.infer<typeof customCvDesignSchema>;
 export type Attachment = z.infer<typeof attachmentSchema>;
 export type AppSettings = z.infer<typeof appSettingsSchema>;
 export type Workspace = z.infer<typeof workspaceSchema>;

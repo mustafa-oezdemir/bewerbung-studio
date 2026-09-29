@@ -177,7 +177,8 @@ export const applyManagedResumeOutput = (
       root.querySelectorAll("img").forEach((img) => {
         if (
           img.getAttribute("src") === source ||
-          /photo|foto/i.test(img.className)
+          /photo|foto/i.test(img.className) ||
+          /photo|foto/i.test(img.getAttribute("alt") ?? "")
         ) {
           const frame = img.closest(
             '[class*="__photo"],[class*="-header__photo"],[class*="-header-photo"]',

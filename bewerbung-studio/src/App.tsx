@@ -1,11 +1,13 @@
 import {
   Archive,
+  Bell,
   CalendarDays,
   ChevronDown,
   FileText,
   FolderArchive,
   Home,
   LayoutTemplate,
+  ListTodo,
   Menu,
   MessageSquareText,
   Moon,
@@ -29,9 +31,11 @@ import { LibraryView } from "./views/LibraryView";
 import { ProfileView } from "./views/ProfileView";
 import { SettingsView } from "./views/SettingsView";
 import { TemplatesView } from "./views/TemplatesView";
+import { TodoView } from "./views/TodoView";
 import { useAppStore } from "./store/useAppStore";
 import { resolveSelectedProfile } from "./shared/profileSelection";
 import type { WorkspaceStatus } from "./shared/ipc";
+import { actionableTodos, isTodoOverdue } from "./shared/todos";
 
 type View =
   | "home"
@@ -39,6 +43,7 @@ type View =
   | "interviews"
   | "rejections"
   | "calendar"
+  | "todo"
   | "resume"
   | "cover"
   | "documents"
@@ -52,6 +57,7 @@ const titles: Record<View, string> = {
   interviews: "Vorstellungsgespräche",
   rejections: "Absagen",
   calendar: "Kalender",
+  todo: "ToDo",
   resume: "Lebenslauf",
   cover: "Anschreiben",
   documents: "Dokumente",
@@ -80,7 +86,7 @@ export default function App() {
     (state) => state.selectedApplicationId,
   );
   const selectedProfileId = useAppStore((state) => state.selectedProfileId);
-  const [darkOverride, setDarkOverride] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const activeApplication = workspace.applications.find(
     (application) => application.id === selectedApplicationId,
   );
@@ -131,10 +137,14 @@ export default function App() {
     const dark =
       theme === "dark" ||
       (theme === "system" &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches) ||
-      darkOverride;
+        window.matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.dataset.theme = dark ? "dark" : "light";
-  }, [workspace.settings.theme, darkOverride]);
+  }, [workspace.settings.theme]);
+
+  const darkMode = workspace.settings.theme === "dark" ||
+    (workspace.settings.theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const todoNotifications = useMemo(() => actionableTodos(workspace.todos), [workspace.todos]);
+  const toggleTheme = () => void saveSettings({ ...workspace.settings, theme: darkMode ? "light" : "dark" });
 
   useEffect(() => {
     if (!error && !notice) return;
@@ -286,6 +296,13 @@ export default function App() {
             active={view === "calendar"}
             onClick={() => setView("calendar")}
           />
+          <NavItem
+            icon={ListTodo}
+            label="ToDo"
+            badge={workspace.todos.filter((todo) => !todo.completed).length || undefined}
+            active={view === "todo"}
+            onClick={() => setView("todo")}
+          />
           <p>Bewerbungen</p>
           <NavItem
             icon={FileText}
@@ -369,11 +386,30 @@ export default function App() {
               applications={workspace.applications}
               onSelect={goToApplication}
             />
+            <div className="notification-menu">
+              <button className="icon-button" type="button" aria-label="Benachrichtigungen"
+                aria-expanded={notificationsOpen} title="Benachrichtigungen"
+                onClick={() => setNotificationsOpen((value) => !value)}>
+                <Bell size={18} />
+                {todoNotifications.length ? <span className="notification-badge">{todoNotifications.length}</span> : null}
+              </button>
+              {notificationsOpen && <div className="notification-popover" role="dialog" aria-label="Benachrichtigungen">
+                <header><strong>Benachrichtigungen</strong><small>{todoNotifications.length} aktuell</small></header>
+                {todoNotifications.length ? todoNotifications.slice(0, 5).map((todo) => <button key={todo.id} type="button"
+                  onClick={() => { setView("todo"); setNotificationsOpen(false); }}>
+                  <span className={isTodoOverdue(todo) ? "notification-dot overdue" : "notification-dot"} />
+                  <span><strong>{todo.title}</strong><small>{isTodoOverdue(todo) ? "Überfällig" : "Heute fällig"}</small></span>
+                </button>) : <p>Keine neuen Benachrichtigungen</p>}
+                <button className="notification-all" type="button" onClick={() => { setView("todo"); setNotificationsOpen(false); }}>Alle Aufgaben anzeigen</button>
+              </div>}
+            </div>
             <button
               className="icon-button"
-              onClick={() => setDarkOverride((value) => !value)}
-              title="Farbschema wechseln">
-              {document.documentElement.dataset.theme === "dark" ? (
+              type="button"
+              aria-label={darkMode ? "Zu Hell wechseln" : "Zu Dunkel wechseln"}
+              onClick={toggleTheme}
+              title={darkMode ? "Zu Hell wechseln" : "Zu Dunkel wechseln"}>
+              {darkMode ? (
                 <Sun size={18} />
               ) : (
                 <Moon size={18} />
@@ -420,6 +456,7 @@ export default function App() {
               {view === "calendar" && (
                 <CalendarView onOpenApplication={goToApplication} />
               )}
+              {view === "todo" && <TodoView />}
               {view === "resume" && (
                 <DocumentsView
                   initialTab="lebenslauf"

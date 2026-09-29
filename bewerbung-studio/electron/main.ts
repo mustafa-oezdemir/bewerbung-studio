@@ -1,6 +1,7 @@
 import path from "node:path";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { z } from "zod";
 import {
   app,
   BrowserWindow,
@@ -19,8 +20,10 @@ import {
   applicationStatuses,
   attachmentCategories,
   calendarEventSchema,
+  customCvDesignSchema,
   profileSchema,
   rejectionReasons,
+  todoSchema,
 } from "../src/shared/schema";
 import type { ExportTarget } from "../src/shared/ipc";
 import type {
@@ -403,6 +406,18 @@ const registerIpc = () => {
   );
   ipcMain.handle("events:save", (_event, value: unknown) =>
     store.saveEvent(calendarEventSchema.parse(value)),
+  );
+  ipcMain.handle("todos:save", (_event, value: unknown) =>
+    store.saveTodo(todoSchema.parse(value)),
+  );
+  ipcMain.handle("todos:remove", (_event, id: unknown) =>
+    store.removeTodo(z.string().uuid().parse(id)),
+  );
+  ipcMain.handle("custom-cv-designs:save", (_event, value: unknown) =>
+    store.saveCustomCvDesign(customCvDesignSchema.parse(value)),
+  );
+  ipcMain.handle("custom-cv-designs:remove", (_event, id: unknown) =>
+    store.removeCustomCvDesign(z.string().uuid().parse(id)),
   );
   ipcMain.handle(
     "attachments:add",
