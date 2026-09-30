@@ -124,7 +124,7 @@ werden.
 - sichere PDF-Ablage für Zeugnisse und Zertifikate
 - editierbare Dokumentmetadaten, Kategorien und Bewerbungsmappe-Reihenfolge
 - Vorschau, Ein-/Ausschluss und sicheres Löschen verwalteter PDF-Kopien
-- echte PDF-Zusammenführung in der Reihenfolge Anschreiben, Deckblatt,
+- echte PDF-Zusammenführung in der Reihenfolge Deckblatt, Anschreiben,
   Lebenslauf, Zeugnisse und Zertifikate
 - automatisch erzeugtes und bei Bewerbungs-, Profil- oder Anlagenänderungen
   aktualisiertes, einseitiges Deckblatt als editierbare DOCX

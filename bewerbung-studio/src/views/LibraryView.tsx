@@ -85,7 +85,7 @@ export function LibraryView() {
             {includedPages === 1 ? "" : "s"} ausgewählt
           </h3>
           <p>
-            Exportreihenfolge: Anschreiben, Deckblatt, Lebenslauf, Zeugnisse,
+            Exportreihenfolge: Deckblatt, Anschreiben, Lebenslauf, Zeugnisse,
             Zertifikate.
           </p>
         </div>

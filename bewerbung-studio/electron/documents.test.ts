@@ -233,11 +233,11 @@ describe("Lebenslauf-Dokumente", () => {
     expect(html).not.toContain("Bewerbung als Bewerbung als");
   });
 
-  it("keeps the package order Anschreiben, Deckblatt, Lebenslauf", () => {
+  it("keeps the package order Deckblatt, Anschreiben, Lebenslauf", () => {
     const html = buildDocumentHtml(application, profile, "mappe");
     const body = html.slice(html.indexOf("<body>"));
-    expect(body.indexOf("letter-page")).toBeLessThan(body.indexOf("cover-page"));
-    expect(body.indexOf("cover-page")).toBeLessThan(body.indexOf("cv-sheet"));
+    expect(body.indexOf("cover-page")).toBeLessThan(body.indexOf("letter-page"));
+    expect(body.indexOf("letter-page")).toBeLessThan(body.indexOf("cv-sheet"));
   });
 
   it("validates mandatory applicant data before Deckblatt export", () => {
