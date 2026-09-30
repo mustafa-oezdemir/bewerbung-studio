@@ -1,0 +1,9 @@
+BewerbungsManager
+Copyright 2026 Mustafa Özdemir
+
+Licensed under the Apache License, Version 2.0.
+You may obtain a copy of the License in the LICENSE file of this
+repository or at http://www.apache.org/licenses/LICENSE-2.0.
+
+Third-party dependencies are installed through npm and remain under their
+own licenses.

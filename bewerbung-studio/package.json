@@ -4,6 +4,16 @@
   "version": "1.0.1",
   "description": "Lokale Bewerbungsverwaltung für Deutschland",
   "author": "BewerbungsManager",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mustafa-oezdemir/bewerbung_manager.git",
+    "directory": "bewerbung-studio"
+  },
+  "bugs": {
+    "url": "https://github.com/mustafa-oezdemir/bewerbung_manager/issues"
+  },
+  "homepage": "https://github.com/mustafa-oezdemir/bewerbung_manager#readme",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {

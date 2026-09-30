@@ -32,6 +32,20 @@ pnpm-debug.log*
 .env.*
 !.env.example
 
+# Signing certificates and keys
+*.pfx
+*.p12
+*.pem
+*.key
+electron-builder.env
+
+# Release output
+windows-release/
+
+# Electron runtime data
+CrashDumps/
+ElectronSession/
+
 # Local application data
 data/
 Backups/
