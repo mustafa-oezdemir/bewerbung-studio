@@ -5,7 +5,7 @@ import { applyResumeMetadataLayout, resumeMetadataCss } from "./resumeMetadataLa
 import { applyResumeClosingOutput, resumeClosingCss } from "./resumeClosing";
 import { applyPehlioneAppearance, pehlioneAppearanceCss } from "./pehlioneAppearance";
 import { getPehlioneContacts } from "./pehlioneContacts";
-import { applyResumeSectionPresentation, isPlainListSection, isZoneFlowTemplate, resumeSectionPresentationCss } from "./resumeSectionPresentation";
+import { applyResumeSectionPresentation, isPlainListSection, isZoneFlowTemplate, plainListItemPrefix, resumeSectionPresentationCss } from "./resumeSectionPresentation";
 import {
   keepDatesOnOneLine,
   normalizeContinuationHeader,
@@ -477,7 +477,8 @@ export const applyManagedResumeOutput = (
         }
         const node = existing[0] ?? document.createElement("section");
         node.setAttribute("data-managed-section", entry.id);
-        node.innerHTML = `<${headingTag}>${escape(entry.title)}</${headingTag}><ul data-cv-list>${listed.map((value) => `<li>${escape(value)}</li>`).join("")}</ul>`;
+        const prefix = entry.id === "certifications" ? plainListItemPrefix(resolved.templateId) : "";
+        node.innerHTML = `<${headingTag}>${escape(entry.title)}</${headingTag}><ul data-cv-list>${listed.map((value) => `<li>${prefix ? `<i aria-hidden="true">${escape(prefix)}</i>` : ""}${escape(value)}</li>`).join("")}</ul>`;
         existing.slice(1).forEach((duplicate) => duplicate.remove());
         if (!existing.length) appendSection(entry, node);
         nodes.set(entry.id, [node]);
@@ -490,6 +491,15 @@ export const applyManagedResumeOutput = (
         if (number !== 1) {
           existing.forEach((node) => node.remove());
           nodes.delete(entry.id);
+          continue;
+        }
+        // Kompakt already draws its strengths as branded cards on both surfaces.
+        // Moving that native section must not replace its card layout with the generic grid.
+        if (resolved.templateId === "kompakt" && profile.strengths.filter((item) => item.title.trim()).length <= 4 && !items.length && existing.length) {
+          const heading = existing[0].querySelector("h2,h3");
+          if (heading) setHeadingText(heading, entry.title);
+          existing.slice(1).forEach((node) => node.remove());
+          nodes.set(entry.id, [existing[0]]);
           continue;
         }
         // Read canonical records here: individual templates historically truncated

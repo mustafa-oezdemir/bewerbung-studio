@@ -639,6 +639,9 @@ export const createResumePagePlan = (
           ? plainListHeight(zone, languages)
           : (line(blocks.languages, languages.length) + languages.filter((entry) => entry.length > 22).length * geometry.exp.linePitch) * scale.textHeight,
       home: !flat && geometry.zones.languages === "sidebar" ? "first" : "last",
+      rank: managerRank("languages"),
+      hostable: templateId === "kompakt" && zoneFlow && zone === "sidebar",
+      contHeight: templateId === "kompakt" && zoneFlow ? plainListHeight("main", languages, true) : undefined,
     });
   }
   const projectVisible = find("projects")?.visible ?? true;
@@ -726,7 +729,9 @@ export const createResumePagePlan = (
   // A template that draws no certificates of its own (home "none") still shows them once it follows its columns:
   // the section list offers them, so the user's choice of a column must reach the output.
   if (visible("certifications") && certifications.length && (plain || zoneFlow || certificateHome !== "none")) {
-    const shown = plain ? certifications : certifications.slice(0, certificates.limit ?? certifications.length);
+    const shown = plain || templateId === "kompakt"
+      ? certifications
+      : certifications.slice(0, certificates.limit ?? certifications.length);
     const width = flat ? geometry.text.fullW : certificates.zone === "main" ? certificates.w * scale.mainRatio : certificates.w + scale.sideDelta;
     const wrapped = shown.reduce(
       (total, entry) => total + Math.max(0, linesFor(entry.length, width, certificates.font * scale.font, geometry.text.cw) - 1),

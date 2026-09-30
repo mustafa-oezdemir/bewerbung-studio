@@ -106,7 +106,7 @@ export const sectionSemanticType = (id: string, groupSemanticType?: string): Sec
  * and the closing date comes from the application. Templates join this list one by one, after
  * their look was verified on both surfaces.
  */
-export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "pehlione_white", "zweispaltig", "zeitgenoessisch", "kreativ", "ivy-league", "stilvoll"];
+export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "pehlione_white", "zweispaltig", "zeitgenoessisch", "kreativ", "ivy-league", "stilvoll", "kompakt"];
 
 export const isZoneFlowTemplate = (templateId: string | undefined): boolean =>
   Boolean(templateId && zoneFlowTemplates.includes(templateId));
@@ -166,6 +166,8 @@ export type SectionListTokens = {
   /** Space between the heading and the list (mm), for templates whose list has a margin of its own. */
   marginTop?: number;
   markerColor?: string;
+  /** A template's native marker for canonical plain-list entries. */
+  itemPrefix?: string;
 };
 
 export type SectionPresentation = {
@@ -343,6 +345,28 @@ const ivyLeague: TemplateTokens = {
   sidebar: { icons: false, heading: ivyLeagueHeading, list: ivyLeagueList },
 };
 
+/** Kompakt keeps its small ruled heading in either column; it has no heading icons. */
+const kompaktHeading: SectionHeadingTokens = {
+  iconBox: 0, iconGap: 0, iconRadius: 0, glyphSize: 0, glyphStroke: 0,
+  fontSizePt: { standard: 8.5, compact: 8.5 }, fontWeight: 450, lineHeight: 1,
+  letterSpacing: "0", textTransform: "uppercase",
+  marginBottom: { standard: 2.5, compact: 2.5 }, labelPadding: { standard: 1, compact: 1 },
+  color: "var(--kompakt-muted,var(--managed-muted,#6d757a))",
+  dividerColor: "var(--kompakt-divider,var(--managed-divider,#aeb6ba))", dividerWidth: ".3mm",
+  iconColor: "currentColor", iconBackground: "transparent",
+  sectionGap: { standard: 3.5, compact: 3.5, side: "bottom", expr: "var(--kompakt-section-gap,var(--managed-section-gap,3.5mm))" },
+  height: 5.5,
+};
+const kompaktList: SectionListTokens = {
+  fontSizePt: { standard: 8, compact: 8 }, lineHeight: { standard: 1.25, compact: 1.25 },
+  itemGap: { standard: 4, compact: 4 }, indent: 0, inheritBody: true, layout: "grid",
+  markerColor: "var(--kompakt-accent,var(--managed-accent,#ff6200))", itemPrefix: "★",
+};
+const kompakt: TemplateTokens = {
+  main: { icons: false, heading: kompaktHeading, list: kompaktList },
+  sidebar: { icons: false, heading: kompaktHeading, list: kompaktList },
+};
+
 /**
  * Stilvoll: one light heading and one list for both columns (measured in the PDF: 9.5 pt regular capitals in the
  * muted grey over a 0.3 mm rule, body-size lists with a 4 mm indent like its career bullets). It draws no icons.
@@ -418,6 +442,12 @@ const configByTemplate: Record<string, TemplateConfig> = {
     plainLists: ["certifications"],
     sidebarHero: false,
   },
+  kompakt: {
+    tokens: kompakt,
+    roots: { preview: ".kompakt-template", pdf: '.cv-sheet[data-template="kompakt"]', pdfBody: ".kompakt-pdf" },
+    plainLists: ["certifications"],
+    sidebarHero: false,
+  },
 };
 const tokensByTemplate: Record<string, TemplateTokens> = Object.fromEntries(
   Object.entries(configByTemplate).map(([id, config]) => [id, config.tokens]),
@@ -426,6 +456,9 @@ const tokensByTemplate: Record<string, TemplateTokens> = Object.fromEntries(
 /** Whether `type` is a plain list of this template that the shared output rebuilds as one canonical list. */
 export const isPlainListSection = (templateId: string | undefined, type: SectionSemanticType): boolean =>
   Boolean(templateId && configByTemplate[templateId]?.plainLists.includes(type));
+
+export const plainListItemPrefix = (templateId: string | undefined): string =>
+  templateId ? configByTemplate[templateId]?.tokens.main.list.itemPrefix ?? "" : "";
 
 /** Whether page one of this template's sidebar starts with a hero image and a contact block. */
 export const hasSidebarHero = (templateId: string | undefined): boolean =>
@@ -539,6 +572,9 @@ ${host} .cv-heading__label{display:block;min-width:0;border-bottom:${heading.div
 ${hidden(".cv-heading__label")}{border-bottom:0}
 ${zoneRules("main", main)}
 ${zoneRules("sidebar", sidebar)}
+${templateId === "kompakt" ? `${host} [data-cv-section="certifications"]>[data-cv-list]{list-style:none}
+${host} [data-cv-section="certifications"]>[data-cv-list] li{display:grid;grid-template-columns:5mm minmax(0,1fr);gap:1.5mm;align-items:start}
+${host} [data-cv-section="certifications"]>[data-cv-list] li i{color:var(--kompakt-accent,var(--managed-accent,#ff6200));font-size:11pt;font-style:normal;line-height:1}` : ""}
 ${host} [data-cv-zone="main"]:has(+ ${closingSelector}){margin-bottom:0}
 ${compact(`[data-cv-zone="main"]:has(+ ${closingSelector})`)}{margin-bottom:0}
 ${host} [data-cv-zone="sidebar"] :is(h4,h5,strong,p,li,small){color:inherit}

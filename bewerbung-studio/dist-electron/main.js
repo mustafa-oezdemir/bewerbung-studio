@@ -5547,7 +5547,20 @@ var templateSectionCapabilities = {
 		]
 	},
 	stilvoll: twoColumnCapabilities("stilvoll"),
-	kompakt: mainOnlyCapabilities("kompakt", { compactSinglePage: true }),
+	kompakt: {
+		...twoColumnCapabilities("kompakt"),
+		compactSinglePage: true,
+		allowedZonesBySection: {
+			...twoColumnCapabilities("kompakt").allowedZonesBySection,
+			summary: ["main", "sidebar"],
+			strengths: ["main", "sidebar"],
+			languages: ["main", "sidebar"]
+		},
+		defaultZoneBySection: {
+			...twoColumnCapabilities("kompakt").defaultZoneBySection,
+			languages: "main"
+		}
+	},
 	einspaltig: mainOnlyCapabilities("einspaltig"),
 	klassisch: mainOnlyCapabilities("klassisch"),
 	tabellarisch: mainOnlyCapabilities("tabellarisch", { timelineSections: ["experience", "education"] }),
@@ -9436,7 +9449,8 @@ var zoneFlowTemplates = [
 	"zeitgenoessisch",
 	"kreativ",
 	"ivy-league",
-	"stilvoll"
+	"stilvoll",
+	"kompakt"
 ];
 var isZoneFlowTemplate = (templateId) => Boolean(templateId && zoneFlowTemplates.includes(templateId));
 /** The closing of these templates prints the application date (`Ort, YYYY-MM-DD`), not a profile field. */
@@ -9852,6 +9866,73 @@ var ivyLeague = {
 		list: ivyLeagueList
 	}
 };
+/** Kompakt keeps its small ruled heading in either column; it has no heading icons. */
+var kompaktHeading = {
+	iconBox: 0,
+	iconGap: 0,
+	iconRadius: 0,
+	glyphSize: 0,
+	glyphStroke: 0,
+	fontSizePt: {
+		standard: 8.5,
+		compact: 8.5
+	},
+	fontWeight: 450,
+	lineHeight: 1,
+	letterSpacing: "0",
+	textTransform: "uppercase",
+	marginBottom: {
+		standard: 2.5,
+		compact: 2.5
+	},
+	labelPadding: {
+		standard: 1,
+		compact: 1
+	},
+	color: "var(--kompakt-muted,var(--managed-muted,#6d757a))",
+	dividerColor: "var(--kompakt-divider,var(--managed-divider,#aeb6ba))",
+	dividerWidth: ".3mm",
+	iconColor: "currentColor",
+	iconBackground: "transparent",
+	sectionGap: {
+		standard: 3.5,
+		compact: 3.5,
+		side: "bottom",
+		expr: "var(--kompakt-section-gap,var(--managed-section-gap,3.5mm))"
+	},
+	height: 5.5
+};
+var kompaktList = {
+	fontSizePt: {
+		standard: 8,
+		compact: 8
+	},
+	lineHeight: {
+		standard: 1.25,
+		compact: 1.25
+	},
+	itemGap: {
+		standard: 4,
+		compact: 4
+	},
+	indent: 0,
+	inheritBody: true,
+	layout: "grid",
+	markerColor: "var(--kompakt-accent,var(--managed-accent,#ff6200))",
+	itemPrefix: "★"
+};
+var kompakt = {
+	main: {
+		icons: false,
+		heading: kompaktHeading,
+		list: kompaktList
+	},
+	sidebar: {
+		icons: false,
+		heading: kompaktHeading,
+		list: kompaktList
+	}
+};
 /**
 * Stilvoll: one light heading and one list for both columns (measured in the PDF: 9.5 pt regular capitals in the
 * muted grey over a 0.3 mm rule, body-size lists with a 4 mm indent like its career bullets). It draws no icons.
@@ -9990,11 +10071,22 @@ var configByTemplate = {
 		},
 		plainLists: ["certifications"],
 		sidebarHero: false
+	},
+	kompakt: {
+		tokens: kompakt,
+		roots: {
+			preview: ".kompakt-template",
+			pdf: ".cv-sheet[data-template=\"kompakt\"]",
+			pdfBody: ".kompakt-pdf"
+		},
+		plainLists: ["certifications"],
+		sidebarHero: false
 	}
 };
 var tokensByTemplate = Object.fromEntries(Object.entries(configByTemplate).map(([id, config]) => [id, config.tokens]));
 /** Whether `type` is a plain list of this template that the shared output rebuilds as one canonical list. */
 var isPlainListSection = (templateId, type) => Boolean(templateId && configByTemplate[templateId]?.plainLists.includes(type));
+var plainListItemPrefix = (templateId) => templateId ? configByTemplate[templateId]?.tokens.main.list.itemPrefix ?? "" : "";
 /** Whether page one of this template's sidebar starts with a hero image and a contact block. */
 var hasSidebarHero = (templateId) => Boolean(templateId && configByTemplate[templateId]?.sidebarHero);
 var PT_TO_MM$1 = .3528;
@@ -10081,6 +10173,9 @@ ${host} .cv-heading__label{display:block;min-width:0;border-bottom:${heading.div
 ${hidden(".cv-heading__label")}{border-bottom:0}
 ${zoneRules("main", main)}
 ${zoneRules("sidebar", sidebar)}
+${templateId === "kompakt" ? `${host} [data-cv-section="certifications"]>[data-cv-list]{list-style:none}
+${host} [data-cv-section="certifications"]>[data-cv-list] li{display:grid;grid-template-columns:5mm minmax(0,1fr);gap:1.5mm;align-items:start}
+${host} [data-cv-section="certifications"]>[data-cv-list] li i{color:var(--kompakt-accent,var(--managed-accent,#ff6200));font-size:11pt;font-style:normal;line-height:1}` : ""}
 ${host} [data-cv-zone="main"]:has(+ ${closingSelector}){margin-bottom:0}
 ${compact(`[data-cv-zone="main"]:has(+ ${closingSelector})`)}{margin-bottom:0}
 ${host} [data-cv-zone="sidebar"] :is(h4,h5,strong,p,li,small){color:inherit}
@@ -26612,7 +26707,7 @@ var getManagerSections = (profile, templateId) => {
 		id: type,
 		title: pehlione && type === "strengths" ? "Kernkompetenzen" : pehlione && type === "knowledge" ? "Technische Schwerpunkte" : getResumeSectionTitle(profile, type),
 		visible: isResumeSectionVisible(profile, type),
-		zone: zones.length > 1 && (zone === "sidebar" || ["kompakt", "stilvoll"].includes(templateId) && [
+		zone: zones.length > 1 && (zone === "sidebar" || templateId === "stilvoll" && [
 			"summary",
 			"strengths",
 			"knowledge"
@@ -29038,7 +29133,10 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 			id: "languages",
 			zone,
 			height: context.atsMode ? line(geometry.ats.languages, languages.length) * scale.textHeight : zoneFlow ? plainListHeight(zone, languages) : (line(blocks.languages, languages.length) + languages.filter((entry) => entry.length > 22).length * geometry.exp.linePitch) * scale.textHeight,
-			home: !flat && geometry.zones.languages === "sidebar" ? "first" : "last"
+			home: !flat && geometry.zones.languages === "sidebar" ? "first" : "last",
+			rank: managerRank("languages"),
+			hostable: templateId === "kompakt" && zoneFlow && zone === "sidebar",
+			contHeight: templateId === "kompakt" && zoneFlow ? plainListHeight("main", languages, true) : void 0
 		});
 	}
 	const projectVisible = find("projects")?.visible ?? true;
@@ -29126,7 +29224,7 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 	const plain = Boolean(context.atsMode);
 	const certificateHome = flat ? "last" : certificates.home;
 	if (visible("certifications") && certifications.length && (plain || zoneFlow || certificateHome !== "none")) {
-		const shown = plain ? certifications : certifications.slice(0, certificates.limit ?? certifications.length);
+		const shown = plain || templateId === "kompakt" ? certifications : certifications.slice(0, certificates.limit ?? certifications.length);
 		const width = flat ? geometry.text.fullW : certificates.zone === "main" ? certificates.w * scale.mainRatio : certificates.w + scale.sideDelta;
 		const wrapped = shown.reduce((total, entry) => total + Math.max(0, linesFor(entry.length, width, certificates.font * scale.font, geometry.text.cw) - 1), 0);
 		const model = plain ? geometry.ats.certs : certificates;
@@ -29880,7 +29978,8 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 				}
 				const node = existing[0] ?? document.createElement("section");
 				node.setAttribute("data-managed-section", entry.id);
-				node.innerHTML = `<${headingTag}>${escape(entry.title)}</${headingTag}><ul data-cv-list>${listed.map((value) => `<li>${escape(value)}</li>`).join("")}</ul>`;
+				const prefix = entry.id === "certifications" ? plainListItemPrefix(resolved.templateId) : "";
+				node.innerHTML = `<${headingTag}>${escape(entry.title)}</${headingTag}><ul data-cv-list>${listed.map((value) => `<li>${prefix ? `<i aria-hidden="true">${escape(prefix)}</i>` : ""}${escape(value)}</li>`).join("")}</ul>`;
 				existing.slice(1).forEach((duplicate) => duplicate.remove());
 				if (!existing.length) appendSection(entry, node);
 				nodes.set(entry.id, [node]);
@@ -29891,6 +29990,13 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 				if (number !== 1) {
 					existing.forEach((node) => node.remove());
 					nodes.delete(entry.id);
+					continue;
+				}
+				if (resolved.templateId === "kompakt" && profile.strengths.filter((item) => item.title.trim()).length <= 4 && !items.length && existing.length) {
+					const heading = existing[0].querySelector("h2,h3");
+					if (heading) setHeadingText(heading, entry.title);
+					existing.slice(1).forEach((node) => node.remove());
+					nodes.set(entry.id, [existing[0]]);
 					continue;
 				}
 				const explicit = profile.strengths.filter((item) => item.title.trim());
@@ -31813,7 +31919,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 	const renderKompaktResumePage = (plan) => {
 		if (atsMode) return renderManagedAtsPage(plan, "kompakt");
 		const isContinuation = plan.pageNumber > 1;
-		const isLastPage = plan.pageNumber === resumePlan.length;
+		plan.pageNumber, resumePlan.length;
 		const experiences = plan.items.filter((item) => item.kind === "experience").map((item) => renderManagedCareerEntry(item.id, "experience", "kompakt")).join("");
 		const education = plan.items.filter((item) => item.kind === "education").map((item) => renderManagedCareerEntry(item.id, "education", "kompakt")).join("");
 		const contacts = managedContactValues.map((contact) => {
@@ -31825,7 +31931,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 		const kompaktSkills = sections.skills && kreativSkillValues.length ? `<div class="kompakt-pdf-skills">${kreativSkillValues.map((skill) => `<span class="kompakt-pdf-skill">${escapeHtml(skill)}</span>`).join("")}</div>` : "";
 		const right = isContinuation ? "" : `<aside>${managedSection("Kontaktdaten", `<address class="kompakt-pdf-contacts">${contacts}</address>`)}${sections.profile ? managedSection("Zusammenfassung", `<p>${escapeHtml(managedSummary)}</p>`) : ""}${managedSection("Stärken", kompaktStrengths)}${managedSection("Erfolge", kompaktAchievements)}${managedSection("Fähigkeiten", kompaktSkills)}</aside>`;
 		const photo = !isContinuation && getResumeSemanticSection(profile?.resumeSemanticSections, "photo").visible && photoSource ? `<img class="kompakt-pdf-photo" src="${escapeHtml(photoSource)}" alt="">` : "";
-		return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="kompakt" data-no-fit="true"><div class="page-content managed-pdf kompakt-pdf" data-density="${plan.density}">${designSettings.backgroundId === "abstract" && !isContinuation ? kompaktBackground : ""}<header class="managed-pdf-header kompakt-pdf-header${isContinuation ? " compact" : ""}${photo ? " with-photo" : ""}">${isContinuation ? "<p class=\"kicker\">Lebenslauf · Fortsetzung</p>" : ""}<h1>${escapeHtml(name)}</h1>${managedJobTitle ? `<h2>${escapeHtml(managedJobTitle)}</h2>` : ""}${photo}</header><div class="kompakt-pdf-columns${isContinuation ? " continuation" : ""}"><main>${sections.experience && experiences ? managedSection(`Erfahrung${isContinuation ? " · Fortsetzung" : ""}`, `<div class="managed-pdf-list">${experiences}</div>`) : ""}${sections.education && education ? managedSection("Ausbildung", `<div class="managed-pdf-list">${education}</div>`) : ""}${isLastPage && sections.languages ? managedSection("Sprachen", managedVisualLanguages("kompakt")) : ""}</main>${right}</div>${managedFooter(plan, true)}</div></section>`;
+		return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="kompakt" data-no-fit="true"><div class="page-content managed-pdf kompakt-pdf" data-density="${plan.density}">${designSettings.backgroundId === "abstract" && !isContinuation ? kompaktBackground : ""}<header class="managed-pdf-header kompakt-pdf-header${isContinuation ? " compact" : ""}${photo ? " with-photo" : ""}">${isContinuation ? "<p class=\"kicker\">Lebenslauf · Fortsetzung</p>" : ""}<h1>${escapeHtml(name)}</h1>${managedJobTitle ? `<h2>${escapeHtml(managedJobTitle)}</h2>` : ""}${photo}</header><div class="kompakt-pdf-columns${isContinuation ? " continuation" : ""}"><main>${sections.experience && experiences ? managedSection(`Erfahrung${isContinuation ? " · Fortsetzung" : ""}`, `<div class="managed-pdf-list">${experiences}</div>`) : ""}${sections.education && education ? managedSection("Ausbildung", `<div class="managed-pdf-list">${education}</div>`) : ""}${plan.blocks?.includes("languages") && sections.languages ? managedSection("Sprachen", managedVisualLanguages("kompakt")) : ""}</main>${right}</div>${managedFooter(plan, true)}</div></section>`;
 	};
 	const renderEinspaltigResumePage = (plan) => {
 		if (atsMode) return renderManagedAtsPage(plan, "einfach", "einspaltig");

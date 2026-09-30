@@ -98,7 +98,7 @@ export const getManagerSections = (
       visible: isResumeSectionVisible(profile, type),
       zone: (zones.length > 1 &&
       (zone === "sidebar" ||
-        (["kompakt", "stilvoll"].includes(templateId) &&
+        (templateId === "stilvoll" &&
           ["summary", "strengths", "knowledge"].includes(type)) ||
         (nativeSingleTemplates.has(templateId) && defaultSidebarSections.has(type)))
         ? "sidebar"

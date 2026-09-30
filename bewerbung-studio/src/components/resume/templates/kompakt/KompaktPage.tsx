@@ -111,7 +111,7 @@ export function KompaktPage({
           {sections.education ? (
             <KompaktCareer kind="education" title={getResumeSectionTitle(profile, "education")} items={education} />
           ) : null}
-          {isLastPage && sections.languages ? (
+          {plan.blocks?.includes("languages") && sections.languages ? (
             <KompaktLanguages profile={profile} />
           ) : null}
           {isLastPage ? <ResumeSpecialSections profile={profile} sectionClassName="kompakt-section" headingClassName="kompakt-section__title" /> : null}

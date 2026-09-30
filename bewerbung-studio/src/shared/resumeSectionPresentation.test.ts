@@ -35,7 +35,7 @@ const page = (surface: "preview" | "pdf") => {
 
 describe("section presentation", () => {
   it("names the templates whose sections follow their column", () => {
-    expect(zoneFlowTemplates).toEqual([templateId, "pehlione_white", "zweispaltig", "zeitgenoessisch", "kreativ", "ivy-league", "stilvoll"]);
+    expect(zoneFlowTemplates).toEqual([templateId, "pehlione_white", "zweispaltig", "zeitgenoessisch", "kreativ", "ivy-league", "stilvoll", "kompakt"]);
     for (const joined of zoneFlowTemplates) {
       expect(isZoneFlowTemplate(joined)).toBe(true);
       expect(usesApplicationClosingDate(joined)).toBe(true);

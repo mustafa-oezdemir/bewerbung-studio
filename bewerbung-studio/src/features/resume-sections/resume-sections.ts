@@ -274,7 +274,20 @@ export const templateSectionCapabilities: Record<
   },
   // Stilvoll draws a left sidebar (summary, strengths, languages, knowledge) beside the career column.
   stilvoll: twoColumnCapabilities("stilvoll"),
-  kompakt: mainOnlyCapabilities("kompakt", { compactSinglePage: true }),
+  kompakt: {
+    ...twoColumnCapabilities("kompakt"),
+    compactSinglePage: true,
+    allowedZonesBySection: {
+      ...twoColumnCapabilities("kompakt").allowedZonesBySection,
+      summary: ["main", "sidebar"],
+      strengths: ["main", "sidebar"],
+      languages: ["main", "sidebar"],
+    },
+    defaultZoneBySection: {
+      ...twoColumnCapabilities("kompakt").defaultZoneBySection,
+      languages: "main",
+    },
+  },
   einspaltig: mainOnlyCapabilities("einspaltig"),
   klassisch: mainOnlyCapabilities("klassisch"),
   tabellarisch: mainOnlyCapabilities("tabellarisch", {
