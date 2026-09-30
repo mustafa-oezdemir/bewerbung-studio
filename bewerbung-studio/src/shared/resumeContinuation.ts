@@ -10,6 +10,10 @@ export const resumeContinuationCss = `
 [data-resume-continuation-contact] a{color:inherit!important;text-decoration:none!important;overflow-wrap:anywhere!important}
 [data-resume-header-extra-contact]{display:flex;flex-wrap:wrap;gap:1mm 5mm;margin:1.5mm 0 0;color:inherit;font-size:8pt;font-style:normal;line-height:1.25}
 [data-resume-header-extra-contact] a{color:inherit;text-decoration:none;overflow-wrap:anywhere}
+[data-pehlione-continuation-header]{margin-bottom:5mm!important;padding-bottom:2.5mm!important}
+[data-pehlione-continuation-header] h1{font-size:17pt!important;line-height:1.05!important;letter-spacing:.02em!important;text-transform:uppercase!important}
+[data-pehlione-continuation-header] h2{margin-top:1mm!important;font-size:8.5pt!important;line-height:1.15!important}
+[data-pehlione-continuation-header] [data-resume-header-extra-contact]{margin-top:1.5mm;font-size:6.5pt}
 aside[class*="continuation"]{display:block!important;height:auto!important;min-height:0!important;padding-top:12mm!important}
 [data-managed-section]>:is(h2,h3){break-after:avoid;page-break-after:avoid}
 [data-managed-section] :is(h4,h5){break-after:avoid;page-break-after:avoid}

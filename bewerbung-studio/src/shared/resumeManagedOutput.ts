@@ -4,6 +4,7 @@ import { applyResumeSpacingOutput, resumeSpacingCss } from "./resumeSpacing";
 import { applyResumeMetadataLayout, resumeMetadataCss } from "./resumeMetadataLayout";
 import { applyResumeClosingOutput, resumeClosingCss } from "./resumeClosing";
 import { applyPehlioneAppearance, pehlioneAppearanceCss } from "./pehlioneAppearance";
+import { getPehlioneContacts } from "./pehlioneContacts";
 import { applyResumeSectionPresentation, isZoneFlowTemplate, resumeSectionPresentationCss } from "./resumeSectionPresentation";
 import {
   keepDatesOnOneLine,
@@ -749,11 +750,23 @@ export const applyManagedResumeOutput = (
       const entrySources = resumeSectionStyleSources[root.matches(".cv-sheet") ? "pdf" : "preview"][resolved.templateId as keyof typeof resumeSectionStyleSources.preview];
       applyEntryBreaks(nodes.get("experience") ?? [], entrySources?.[6] ?? "", entrySources?.[2] ?? "", pagePlan.items);
     }
-    if (number === 1 && (pages.length > 1 || totalPages > 1))
+    const pehlioneContinuation = (resolved.templateId === "pehlione_white_blue" || resolved.templateId === "pehlione_white") && (pages.length > 1 || totalPages > 1);
+    if (number === 1 && !pehlioneContinuation && (pages.length > 1 || totalPages > 1))
       ensureResumeHeaderContacts(root, enabled("personalData") ? profile : undefined);
     else if (firstPageHeader) repeatResumeHeader(root, firstPageHeader);
-    else normalizeContinuationHeader(root, number, pages.length > 1 ? pages.length : totalPages,
+    else if (number > 1 || !pehlioneContinuation) normalizeContinuationHeader(root, number, pages.length > 1 ? pages.length : totalPages,
       enabled("personalData") ? profile : undefined);
+    if (pehlioneContinuation && number > 1) {
+      const header = root.querySelector(".pehlione-header,.pehlione-pdf-header");
+      if (header) {
+        header.setAttribute("data-pehlione-continuation-header", "");
+        const contacts = enabled("personalData") ? getPehlioneContacts(profile) : [];
+        ensureResumeHeaderContacts(root, {
+          email: contacts.find((item) => item.key === "email")?.value,
+          phone: contacts.find((item) => item.key === "phone")?.value,
+        });
+      }
+    }
     keepDatesOnOneLine(root);
     // Headings and lists are drawn once the sections stand where the layout and the page plan put them.
     if (zoneFlow) applyResumeSectionPresentation(root, resolved.templateId, {

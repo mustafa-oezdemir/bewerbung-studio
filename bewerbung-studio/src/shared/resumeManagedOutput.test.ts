@@ -13,6 +13,18 @@ const profile = profileSchema.parse({
 const page = '<section class="cv-sheet"><main><section><h2>Stärken</h2><p>Old content</p></section></main></section>';
 
 describe("shared strengths output", () => {
+  it.each(["pehlione_white", "pehlione_white_blue"] as const)("keeps %s contacts in the first sidebar and second-page header only", (templateId) => {
+    const applicant = profileSchema.parse({ ...profile, email: "mina@example.com", phone: "+49 30 123456" });
+    const sheet = (pageNumber: number) => `<section class="page cv-sheet" data-resume-page="${pageNumber}" data-template="${templateId}"><div class="page-content pehlione-pdf"><aside class="pehlione-pdf-sidebar"><section class="pehlione-contacts"><ul><li data-contact-kind="phone">+49 30 123456</li><li data-contact-kind="email">mina@example.com</li></ul></section></aside><main class="pehlione-pdf-main"><header class="pehlione-pdf-header"><h1>Mina Kaya</h1><h2>Entwicklerin</h2></header></main></div></section>`;
+    const { document } = parseHTML(applyManagedResumeOutput(sheet(1) + sheet(2), applicant, templateId, 1, 2));
+    const first = document.querySelector('[data-resume-page="1"]')!;
+    const second = document.querySelector('[data-resume-page="2"]')!;
+    expect(first.querySelectorAll(".pehlione-contacts li")).toHaveLength(2);
+    expect(first.querySelector("header [data-resume-header-extra-contact]")).toBeNull();
+    expect(second.querySelector("header")?.hasAttribute("data-pehlione-continuation-header")).toBe(true);
+    expect(second.querySelector('header a[href="mailto:mina@example.com"]')).not.toBeNull();
+    expect(second.querySelector('header a[href="tel:+4930123456"]')).not.toBeNull();
+  });
   it.each(["preview", "pdf"] as const)("applies semantic typography and color overrides to %s", (surface) => {
     const markup = surface === "pdf"
       ? '<section class="cv-sheet"><div class="page-content klassisch-pdf"><header><h1>Mina Kaya</h1><h2>Entwicklerin</h2></header><section class="klassisch-pdf-section" data-managed-section="experience"><h3 class="klassisch-pdf-title">Berufserfahrung</h3><article class="klassisch-pdf-entry"><h3>Rolle</h3><h4>Firma</h4><p>Text</p><small>Meta</small><svg></svg><div class="project-card">Projekt</div></article></section></div></section>'
