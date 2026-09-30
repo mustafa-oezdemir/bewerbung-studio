@@ -7,8 +7,11 @@ import type { Application } from "../src/shared/schema";
 import {
   ApplicationFolderLockedError,
   FileManagementService,
+  applicationPositionFolder,
   formatLocalDate,
   isApplicationFolderLockError,
+  isNestedFolderName,
+  normalizeFolderName,
   sanitizeFileName,
 } from "./file-management";
 
@@ -86,33 +89,58 @@ describe("FileManagementService", () => {
     expect(sanitizeFileName('  <>:"/\\|?*  ')).toBe("Bewerbung");
   });
 
-  it("groups applications by company/date and adds collision suffixes", async () => {
+  it("shares one company/date folder and gives every position its own subfolder", async () => {
     const date = new Date(2026, 6, 30, 12, 0, 0);
     expect(formatLocalDate(date)).toBe("2026-07-30");
     await expect(
-      service.allocateApplicationFolderName(
-        "Siemens",
-        "Softwareentwickler",
-        date,
-      ),
-    ).resolves.toBe(
-      "Siemens_2026-07-30",
-    );
+      service.allocateApplicationFolderName("Siemens", "Softwareentwickler", date),
+    ).resolves.toBe("Siemens_2026-07-30/Softwareentwickler");
     await expect(
       service.allocateApplicationFolderName("Siemens", "IT Support", date),
-    ).resolves.toBe("Siemens_2026-07-30_2");
+    ).resolves.toBe("Siemens_2026-07-30/IT_Support");
     await expect(
       service.allocateApplicationFolderName("Siemens", "Bewerbung als Lagerist", date),
-    ).resolves.toBe("Siemens_2026-07-30_3");
+    ).resolves.toBe("Siemens_2026-07-30/Lagerist");
+    // Another company, or another day, is another shared folder.
     await expect(
-      service.allocateApplicationFolderName(
-        "Siemens",
-        "Softwareentwickler",
-        date,
-      ),
-    ).resolves.toBe(
-      "Siemens_2026-07-30_4",
-    );
+      service.allocateApplicationFolderName("Bosch", "Softwareentwickler", date),
+    ).resolves.toBe("Bosch_2026-07-30/Softwareentwickler");
+    await expect(
+      service.allocateApplicationFolderName("Siemens", "Softwareentwickler", new Date(2026, 6, 31)),
+    ).resolves.toBe("Siemens_2026-07-31/Softwareentwickler");
+  });
+
+  it("suffixes only the position subfolder when the same position is created again", async () => {
+    const date = new Date(2026, 8, 30, 12, 0, 0);
+    const names = [];
+    for (let index = 0; index < 3; index += 1) {
+      names.push(await service.allocateApplicationFolderName("Temmler Pharma GmbH", "Mitarbeiter Produktion", date));
+    }
+    expect(names).toEqual([
+      "Temmler_Pharma_GmbH_2026-09-30/Mitarbeiter_Produktion",
+      "Temmler_Pharma_GmbH_2026-09-30/Mitarbeiter_Produktion_2",
+      "Temmler_Pharma_GmbH_2026-09-30/Mitarbeiter_Produktion_3",
+    ]);
+    await expect(
+      service.allocateApplicationFolderName("Temmler Pharma GmbH", "Maschinen-Einrichter für die Produktion", date),
+    ).resolves.toBe("Temmler_Pharma_GmbH_2026-09-30/Maschinen-Einrichter_fur_die_Produktion");
+  });
+
+  it("makes a position name safe with the one file-name sanitizer", () => {
+    expect(applicationPositionFolder("Bewerbung als Maschinen-Einrichter für die Produktion")).toBe("Maschinen-Einrichter_fur_die_Produktion");
+    expect(applicationPositionFolder('Softwareentwickler/in – *Workflow-Modellierung*: "UX" | <Team>?')).toBe("Softwareentwickler_in_–_Workflow-Modellierung_UX_Team");
+    expect(applicationPositionFolder("  ..Mitarbeiter Produktion..  ")).toBe("Mitarbeiter_Produktion");
+    expect(applicationPositionFolder(" / \\ ")).toBe("Bewerbung");
+    expect(applicationPositionFolder("CON")).toBe("_CON");
+    // A position name can never add a level to the path.
+    expect(isNestedFolderName(applicationPositionFolder("A/B\\C"))).toBe(false);
+  });
+
+  it("recognizes the one-level older layout and the native separator of the nested one", () => {
+    expect(isNestedFolderName("Siemens_2026-07-30")).toBe(false);
+    expect(isNestedFolderName("Siemens_2026-07-30/Softwareentwickler")).toBe(true);
+    expect(isNestedFolderName(path.join("Siemens_2026-07-30", "Softwareentwickler"))).toBe(true);
+    expect(normalizeFolderName(path.join("Siemens_2026-07-30", "Softwareentwickler"))).toBe("Siemens_2026-07-30/Softwareentwickler");
   });
 
   it("consolidates legacy cover-letter and resume folders without overwriting existing files", async () => {
@@ -242,7 +270,7 @@ describe("FileManagementService", () => {
     );
 
     expect(relocated).toBe(
-      "Siemens_2026-08-22",
+      "Siemens_2026-08-22/Softwareentwickler",
     );
     for (const [index, source] of sourcePaths.entries()) {
       await expect(access(source)).rejects.toThrow();
@@ -298,6 +326,40 @@ describe("FileManagementService", () => {
           ),
           "utf8",
         ),
+      ).resolves.toBe("content");
+    }
+  });
+
+  it("keeps an older one-level folder where it is, and nests it with every artifact only when asked", async () => {
+    const legacyFolderName = "Temmler_Pharma_GmbH_2026-09-30";
+    const application = {
+      folderName: legacyFolderName,
+      status: "Beworben",
+      company: { name: "Temmler Pharma GmbH" },
+      job: { title: "Mitarbeiter Produktion" },
+    } as Application;
+    const legacyPaths = [
+      service.applicationDataPath(legacyFolderName),
+      path.join(service.paths.anschreibenDocuments, legacyFolderName),
+      path.join(service.paths.lebenslaufDocuments, legacyFolderName),
+    ];
+    await Promise.all(
+      legacyPaths.map(async (legacyPath, index) => {
+        await mkdir(legacyPath, { recursive: true });
+        await writeFile(path.join(legacyPath, `Dokument-${index}.txt`), "content");
+      }),
+    );
+    const date = new Date(2026, 8, 30, 12, 0, 0);
+
+    await expect(service.relocateApplicationFolders(application, date)).resolves.toBe(legacyFolderName);
+    await expect(readFile(path.join(legacyPaths[0], "Dokument-0.txt"), "utf8")).resolves.toBe("content");
+
+    const nested = await service.relocateApplicationFolders(application, date, { nest: true });
+    expect(nested).toBe("Temmler_Pharma_GmbH_2026-09-30/Mitarbeiter_Produktion");
+    for (const [index, legacyPath] of legacyPaths.entries()) {
+      await expect(access(path.join(legacyPath, `Dokument-${index}.txt`))).rejects.toThrow();
+      await expect(
+        readFile(path.join(legacyPath, "Mitarbeiter_Produktion", `Dokument-${index}.txt`), "utf8"),
       ).resolves.toBe("content");
     }
   });

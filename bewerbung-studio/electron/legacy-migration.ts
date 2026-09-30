@@ -109,7 +109,10 @@ const isApplicationDataFile = (
   relativePath: string,
   applicationFolderNames: string[],
 ) => {
+  // Folder names are stored with `/`; the relative path uses the separator of the platform.
+  const native = (folderName: string) => folderName.split(/[\\/]+/).join(path.sep);
   const applicationFolder = [...applicationFolderNames]
+    .map(native)
     .sort((left, right) => right.length - left.length)
     .find(
       (folderName) =>

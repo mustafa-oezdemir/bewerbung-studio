@@ -35,12 +35,17 @@ export const sanitizeFileName = (value: string) => {
   return reservedWindowsNames.test(sanitized) ? `_${sanitized}` : sanitized;
 };
 
-export const applicationPositionFolder = (positionName: string) => {
-  const normalizedPosition = positionName
-    .trim()
-    .replace(/^Bewerbung\s+als\s+/i, "");
-  return `Bewerbung_als_${sanitizeFileName(normalizedPosition)}`;
-};
+/** The subfolder of one application: its Stellenbezeichnung, made safe by the one file-name sanitizer. */
+export const applicationPositionFolder = (positionName: string) =>
+  sanitizeFileName(positionName.trim().replace(/^Bewerbung\s+als\s+/i, ""));
+
+/** Folder names are stored with `/` on every platform; older data may still carry the native separator. */
+export const normalizeFolderName = (folderName: string) =>
+  folderName.split(/[\\/]+/).filter(Boolean).join("/");
+
+/** An application folder `<Firma>_<Datum>/<Stellenbezeichnung>`; older folders are one level (`<Firma>_<Datum>`). */
+export const isNestedFolderName = (folderName: string) =>
+  normalizeFolderName(folderName).includes("/");
 
 export const formatLocalDate = (date: Date) => {
   const year = date.getFullYear();
@@ -379,14 +384,29 @@ export class FileManagementService {
     };
   }
 
+  /** The folder that all applications of one company on one day share: `<Firma>_<YYYY-MM-DD>`. */
+  applicationRootFolderName(companyName: string, date: Date) {
+    return `${sanitizeFileName(companyName)}_${formatLocalDate(date)}`;
+  }
+
+  /**
+   * `<Firma>_<YYYY-MM-DD>/<Stellenbezeichnung>`: the company and the day share one folder, each position has its
+   * own subfolder. Only the same position on the same day gets a suffix (`…/<Stellenbezeichnung>_2`), never the
+   * shared folder.
+   */
+  private applicationFolderCandidate(rootFolder: string, positionName: string, suffix: number) {
+    const positionFolder = applicationPositionFolder(positionName);
+    return `${rootFolder}/${suffix === 1 ? positionFolder : `${positionFolder}_${suffix}`}`;
+  }
+
   async allocateApplicationFolderName(
     companyName: string,
-    _positionName: string,
+    positionName: string,
     date = new Date(),
   ) {
-    const baseFolder = `${sanitizeFileName(companyName)}_${formatLocalDate(date)}`;
+    const rootFolder = this.applicationRootFolderName(companyName, date);
     for (let suffix = 1; suffix < 10_000; suffix += 1) {
-      const folderName = suffix === 1 ? baseFolder : `${baseFolder}_${suffix}`;
+      const folderName = this.applicationFolderCandidate(rootFolder, positionName, suffix);
       const occupied = await Promise.all([
         pathExists(this.applicationDataPath(folderName)),
         pathExists(path.join(this.paths.anschreibenDocuments, folderName)),
@@ -475,12 +495,28 @@ export class FileManagementService {
     }
   }
 
-  async relocateApplicationFolders(application: Application, date: Date) {
-    const baseFolder = `${sanitizeFileName(application.company.name)}_${formatLocalDate(date)}`;
+  /**
+   * Moves every artifact of an application to the folder its company, date and position call for. An application
+   * in the `<Firma>_<Datum>/<Stellenbezeichnung>` layout follows a change of company, date or position; an older
+   * one-level folder keeps its layout (nothing is migrated on its own) unless `nest` asks for the new one, which
+   * is what a second position on the same day does to it.
+   */
+  async relocateApplicationFolders(
+    application: Application,
+    date: Date,
+    options: { nest?: boolean } = {},
+  ) {
+    const rootFolder = this.applicationRootFolderName(application.company.name, date);
+    const nested = options.nest === true || isNestedFolderName(application.folderName);
+    const current = normalizeFolderName(application.folderName);
     let targetFolderName = "";
     for (let suffix = 1; suffix < 10_000; suffix += 1) {
-      const candidate = suffix === 1 ? baseFolder : `${baseFolder}_${suffix}`;
-      if (candidate === application.folderName) return application.folderName;
+      const candidate = nested
+        ? this.applicationFolderCandidate(rootFolder, application.job.title, suffix)
+        : suffix === 1
+          ? rootFolder
+          : `${rootFolder}_${suffix}`;
+      if (normalizeFolderName(candidate) === current) return application.folderName;
       if (!(await this.applicationFolderOccupied(candidate))) {
         targetFolderName = candidate;
         break;

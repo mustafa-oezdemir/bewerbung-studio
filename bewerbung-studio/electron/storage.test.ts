@@ -147,17 +147,21 @@ describe("DataStore backups", () => {
   it("creates one company-date folder per application", async () => {
     const first = await store.createApplication(applicationInput("Siemens"));
     const firstApplication = first.applications[0];
-    expect(firstApplication.folderName).toMatch(/^Siemens_\d{4}-\d{2}-\d{2}$/);
+    expect(firstApplication.folderName).toMatch(/^Siemens_\d{4}-\d{2}-\d{2}\/Softwareentwickler$/);
+    const root = firstApplication.folderName.split("/")[0];
 
+    // Another position on the same day shares the company/date folder instead of getting a suffixed one.
     const secondInput = applicationInput("Siemens");
     secondInput.job.title = "IT Support Spezialist";
     const second = await store.createApplication(secondInput);
     const secondApplication = second.applications[0];
-    expect(secondApplication.folderName).toBe(`${firstApplication.folderName}_2`);
+    expect(secondApplication.folderName).toBe(`${root}/IT_Support_Spezialist`);
 
+    // Only the same position on the same day gets a suffix, and only on its own subfolder.
     const third = await store.createApplication(applicationInput("Siemens"));
     const thirdApplication = third.applications[0];
-    expect(thirdApplication.folderName).toBe(`${firstApplication.folderName}_3`);
+    expect(thirdApplication.folderName).toBe(`${root}/Softwareentwickler_2`);
+    expect(store.getWorkspace().applications.map((item) => item.folderName.split("/")[0])).toEqual([root, root, root]);
     await expect(access(path.join(store.files.paths.anschreibenDocuments, firstApplication.folderName))).rejects.toThrow();
     expect(store.getApplicationAnschreibenPath(firstApplication.id)).toBe(
       path.join(store.files.applicationDataPath(firstApplication.folderName), "Anschreiben"),
@@ -314,7 +318,7 @@ describe("DataStore backups", () => {
     );
     const context = store.getTemplateDocumentContext(application.id);
 
-    expect(application.folderName).toBe("Muster_GmbH_2026-09-08");
+    expect(application.folderName).toBe("Muster_GmbH_2026-09-08/Softwareentwickler");
     expect(context.requestedBaseName).toBe(
       "Anschreiben_Muster_GmbH",
     );
@@ -426,7 +430,7 @@ describe("DataStore backups", () => {
     const updated = saved.applications.find((item) => item.id === application.id)!;
     const newAnschreiben = store.files.documentDirectories(updated).anschreiben;
 
-    expect(updated.folderName).toBe("Datum_GmbH_2026-08-22");
+    expect(updated.folderName).toBe("Datum_GmbH_2026-08-22/Softwareentwickler");
     expect(updated.folderName).not.toBe(oldFolderName);
     await expect(access(oldAnschreiben)).rejects.toThrow();
     await expect(
@@ -532,8 +536,9 @@ describe("DataStore backups", () => {
     )!;
     const newAnschreiben = store.files.documentDirectories(updated).anschreiben;
 
+    expect(oldFolderName).toBe("YKK_DEUTSCHLAND_GmbH_2026-08-25/Maschinenbediener");
     expect(updated.folderName).toBe(
-      "YKK_Produktion_GmbH_2026-08-25",
+      "YKK_Produktion_GmbH_2026-08-25/Maschinenbediener",
     );
     expect(updated.folderName).not.toBe(oldFolderName);
     await expect(access(oldAnschreiben)).rejects.toThrow();
@@ -596,7 +601,7 @@ describe("DataStore backups", () => {
     expect(context.targetDirectories.anschreiben).toBe(
       path.join(store.files.applicationDataPath(application.folderName), "Anschreiben"),
     );
-    expect(application.folderName).toBe("Beispiel_GmbH_2024-05-17");
+    expect(application.folderName).toMatch(/^Beispiel_GmbH_2024-05-17\//);
     expect(context.data).toMatchObject({
       ANSPRECHPARTNER: "Herrn Andreas Steck\nFrau Erika Musterfrau",
       ANREDE: "Sehr geehrter Herr Steck, sehr geehrte Frau Musterfrau,",

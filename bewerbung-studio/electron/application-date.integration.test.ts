@@ -129,9 +129,7 @@ describe("central application-date workflow", () => {
       initialContext.requestedBaseName,
       initialContext.data,
     );
-    expect(initial.folderName).toBe(
-      "Muster_GmbH_2026-09-08",
-    );
+    expect(initial.folderName).toMatch(/^Muster_GmbH_2026-09-08\/[^/]+$/);
     expect(path.basename(initialResult.filePath)).toBe(
       "Anschreiben_Muster_GmbH.docx",
     );
@@ -157,7 +155,7 @@ describe("central application-date workflow", () => {
     );
 
     expect(updated.folderName).toBe(
-      "Muster_GmbH_2026-09-15",
+      `Muster_GmbH_2026-09-15/${initial.folderName.split("/")[1]}`,
     );
     expect(path.basename(updatedResult.filePath)).toBe(
       "Anschreiben_Muster_GmbH.docx",

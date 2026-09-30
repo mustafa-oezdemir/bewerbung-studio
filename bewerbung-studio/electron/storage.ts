@@ -83,7 +83,9 @@ import { formatKnowledgeSectionAsText } from "../src/features/knowledge/knowledg
 import { buildDocumentHtml } from "./documents";
 import {
   FileManagementService,
+  isNestedFolderName,
   isPathInside,
+  normalizeFolderName,
 } from "./file-management";
 import { LegacyMigrationService } from "./legacy-migration";
 import type {
@@ -717,13 +719,33 @@ export class DataStore {
     }
   }
 
+  /**
+   * An application of an older version sits directly in `<Firma>_<Datum>`. When a second position of that company
+   * and day needs the shared folder, the older application first gets its own position subfolder, moved with the
+   * same checked, reversible relocation as every other move (nothing is overwritten, locked files stop it).
+   */
+  private async nestLegacyApplicationAt(rootFolder: string, exceptId?: string) {
+    const legacy = this.workspace.applications.find(
+      (item) => item.id !== exceptId && normalizeFolderName(item.folderName) === rootFolder,
+    );
+    if (!legacy) return;
+    legacy.folderName = await this.files.relocateApplicationFolders(
+      legacy,
+      getApplicationDate(legacy),
+      { nest: true },
+    );
+    await this.persist([legacy]);
+  }
+
   async createApplication(rawInput: ApplicationInput) {
     const input = applicationInputSchema.parse(rawInput);
     const now = nowIso();
+    const date = input.sentAt ? new Date(input.sentAt) : new Date();
+    await this.nestLegacyApplicationAt(this.files.applicationRootFolderName(input.company.name, date));
     const folderName = await this.files.allocateApplicationFolderName(
       input.company.name,
       input.job.title,
-      input.sentAt ? new Date(input.sentAt) : new Date(),
+      date,
     );
     const application: Application = {
       schemaVersion: 1,
@@ -806,12 +828,19 @@ export class DataStore {
     }
     const shouldCommitUpdate = applicationContentChanged(current, application);
     await this.files.consolidateLegacyDocumentDirectories(current);
+    const applicationDate = new Date(application.sentAt ?? current.createdAt);
+    if (isNestedFolderName(current.folderName)) {
+      await this.nestLegacyApplicationAt(
+        this.files.applicationRootFolderName(application.company.name, applicationDate),
+        application.id,
+      );
+    }
     application.folderName = await this.files.relocateApplicationFolders(
       {
         ...application,
         folderName: current.folderName,
       },
-      new Date(application.sentAt ?? current.createdAt),
+      applicationDate,
     );
     try {
       await this.files.synchronizeApplicationArtifactNames(current, application);
@@ -895,6 +924,7 @@ export class DataStore {
     const source = this.workspace.applications.find((item) => item.id === id);
     if (!source) throw new Error("Bewerbung wurde nicht gefunden.");
     const now = nowIso();
+    await this.nestLegacyApplicationAt(this.files.applicationRootFolderName(source.company.name, new Date()));
     const folderName = await this.files.allocateApplicationFolderName(
       source.company.name,
       source.job.title,
