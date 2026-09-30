@@ -698,6 +698,8 @@ export const calendarEventSchema = z.object({
 });
 
 export const todoPriorities = ["low", "medium", "high"] as const;
+/** `manual` = created by the user; `application-deadline` = kept in sync with `Application.deadlineAt`. */
+export const todoSources = ["manual", "application-deadline"] as const;
 export const todoSchema = z.object({
   id: z.uuid(),
   title: z.string().trim().min(1).max(160),
@@ -708,6 +710,9 @@ export const todoSchema = z.object({
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   completedAt: z.iso.datetime().optional(),
+  // Both are optional so that todos stored before this field existed load unchanged; a missing source means "manual".
+  applicationId: z.uuid().optional(),
+  source: z.enum(todoSources).optional(),
 });
 
 export const customCvDesignSchema = z.object({

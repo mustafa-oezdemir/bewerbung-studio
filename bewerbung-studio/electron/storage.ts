@@ -10,6 +10,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { defaultDeckblattDesign } from "../src/shared/deckblattDesignIds";
+import { localDateKey } from "../src/shared/todos";
 import { getProfessionalTitle, resolveApplicationProfile } from "../src/shared/profileSelection";
 import { clearProfileDerivedDocumentFields, dropStaleProfileCopies } from "../src/shared/coverSender";
 import path from "node:path";
@@ -101,6 +102,20 @@ const terminalStatuses = new Set<ApplicationStatus>([
   "Zurückgezogen",
   "Archiviert",
 ]);
+
+const isDeadlineTodo = (todo: Todo) => todo.source === "application-deadline";
+
+/** What the automatic deadline todo of an application shows; `deadlineAt` stays the only stored date. */
+const deadlineTodoFields = (application: Application) => {
+  const company = application.company.name;
+  const position = application.job.title;
+  const title = `Bewerbungsfrist · ${company} · ${position}`;
+  return {
+    title: title.length > 160 ? `${title.slice(0, 159)}…` : title,
+    description: `Bewerbungsfrist für ${position} bei ${company}`.slice(0, 4000),
+    dueDate: localDateKey(new Date(application.deadlineAt as string)),
+  };
+};
 
 const applicationContentChanged = (
   current: Application,
@@ -312,6 +327,7 @@ export class DataStore {
     this.workspace.applications.forEach((application) =>
       this.syncEvents(application),
     );
+    this.reconcileApplicationTodos();
     await this.persist();
   }
 
@@ -720,6 +736,63 @@ export class DataStore {
   }
 
   /**
+   * Keeps exactly one automatic todo per application in step with `deadlineAt`, next to the calendar event of
+   * `syncEvents`. Only todos with `source === "application-deadline"` and this `applicationId` are ever touched;
+   * manual todos are never read, changed or removed here. An existing todo keeps its id, priority, completion and
+   * creation date: only title, description and due date follow the application.
+   */
+  private syncApplicationTodo(application: Application) {
+    const linked = this.workspace.todos
+      .filter((todo) => isDeadlineTodo(todo) && todo.applicationId === application.id)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const [existing, ...duplicates] = linked;
+    const drop = new Set<Todo>(duplicates);
+    if (!application.deadlineAt) {
+      if (existing) drop.add(existing);
+    } else {
+      const fields = deadlineTodoFields(application);
+      if (!existing) {
+        const now = nowIso();
+        this.workspace.todos.unshift({
+          id: createId(),
+          ...fields,
+          priority: "high",
+          completed: false,
+          createdAt: now,
+          updatedAt: now,
+          applicationId: application.id,
+          source: "application-deadline",
+        });
+      } else if (
+        existing.title !== fields.title ||
+        existing.description !== fields.description ||
+        existing.dueDate !== fields.dueDate
+      ) {
+        Object.assign(existing, fields, { updatedAt: nowIso() });
+      }
+    }
+    if (drop.size) {
+      this.workspace.todos = this.workspace.todos.filter((todo) => !drop.has(todo));
+    }
+  }
+
+  /** Startup and import: old todos become explicit manual ones, orphaned automatic todos go, every deadline is synced. */
+  private reconcileApplicationTodos() {
+    const applicationIds = new Set(
+      this.workspace.applications.map((application) => application.id),
+    );
+    for (const todo of this.workspace.todos) todo.source ??= "manual";
+    this.workspace.todos = this.workspace.todos.filter(
+      (todo) =>
+        !isDeadlineTodo(todo) ||
+        (todo.applicationId !== undefined && applicationIds.has(todo.applicationId)),
+    );
+    this.workspace.applications.forEach((application) =>
+      this.syncApplicationTodo(application),
+    );
+  }
+
+  /**
    * An application of an older version sits directly in `<Firma>_<Datum>`. When a second position of that company
    * and day needs the shared folder, the older application first gets its own position subfolder, moved with the
    * same checked, reversible relocation as every other move (nothing is overwritten, locked files stop it).
@@ -805,6 +878,7 @@ export class DataStore {
     };
     this.workspace.applications.unshift(applicationSchema.parse(application));
     this.syncEvents(application);
+    this.syncApplicationTodo(application);
     await this.persist([application]);
     this.queueApplicationGitCommit(
       application,
@@ -859,6 +933,7 @@ export class DataStore {
     application.updatedAt = nowIso();
     this.workspace.applications[index] = application;
     this.syncEvents(application);
+    this.syncApplicationTodo(application);
     await this.persist([application]);
     if (shouldCommitUpdate) {
       this.queueApplicationGitCommit(application, "update");
@@ -892,6 +967,7 @@ export class DataStore {
       if (status === "Zurückgezogen") application.withdrawnAt = now;
       if (status === "Archiviert") application.archivedAt = now;
       this.syncEvents(application);
+      this.syncApplicationTodo(application);
       await this.persist([application]);
       this.queueApplicationGitCommit(application, gitActionForStatus(status));
     }
@@ -914,6 +990,9 @@ export class DataStore {
     );
     this.workspace.attachments = this.workspace.attachments.filter(
       (attachment) => attachment.applicationId !== id,
+    );
+    this.workspace.todos = this.workspace.todos.filter(
+      (todo) => !(isDeadlineTodo(todo) && todo.applicationId === id),
     );
     await this.persist();
     this.queueApplicationGitCommit(application, "delete");
@@ -945,6 +1024,7 @@ export class DataStore {
     };
     this.workspace.applications.unshift(duplicate);
     this.syncEvents(duplicate);
+    this.syncApplicationTodo(duplicate);
     await this.persist([duplicate]);
     this.queueApplicationGitCommit(duplicate, "create");
     return this.getWorkspace();
@@ -1719,8 +1799,16 @@ export class DataStore {
   }
 
   async saveTodo(todo: Todo) {
-    const validated = todoSchema.parse(todo);
-    const index = this.workspace.todos.findIndex((item) => item.id === validated.id);
+    const parsed = todoSchema.parse(todo);
+    const index = this.workspace.todos.findIndex((item) => item.id === parsed.id);
+    const current = index < 0 ? undefined : this.workspace.todos[index];
+    // The link to an application is only ever set by the deadline sync: a todo saved from the UI keeps the link it
+    // already has (the edit form does not carry it) and a new one is always manual.
+    const { applicationId: _ignored, ...fields } = parsed;
+    const validated: Todo =
+      current && isDeadlineTodo(current)
+        ? { ...fields, source: current.source, applicationId: current.applicationId }
+        : { ...fields, source: "manual" };
     if (index < 0) this.workspace.todos.unshift(validated);
     else this.workspace.todos[index] = validated;
     await this.persist();
@@ -1846,6 +1934,7 @@ export class DataStore {
           availableIds.has(id),
         );
       });
+      this.reconcileApplicationTodos();
       await this.persist(this.workspace.applications);
       return this.getWorkspace();
     } catch (error) {
