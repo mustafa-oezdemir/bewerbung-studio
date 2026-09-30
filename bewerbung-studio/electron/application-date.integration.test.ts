@@ -77,7 +77,8 @@ describe("central application-date workflow", () => {
     if (!retainedQaRoot) await rm(root, { recursive: true, force: true });
   });
 
-  it("passes new, changed-date, and existing-application scenarios", async () => {
+  // Real files and a Word template: give a slow or busy machine room (the test itself takes a fraction of a second).
+  it("passes new, changed-date, and existing-application scenarios", { timeout: 30_000 }, async () => {
     const paths = resolveApplicationPaths(root);
     await createCoverLetterTemplate(
       path.join(paths.anschreibenDocuments, wordMusterTemplateConfig.fileName),

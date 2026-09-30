@@ -47,3 +47,62 @@ Portable-Ausgabe mit `Get-AuthenticodeSignature` geprüft.
 
 Zertifikate, private Schlüssel und Passwörter dürfen nicht in dieses Repository
 kopiert oder eingecheckt werden.
+
+## GitHub Actions
+
+Die Workflows liegen unter `.github/workflows/` und rufen die vorhandenen
+npm-Skripte auf; es gibt keine eigene Build-Logik.
+
+**CI** (`ci.yml`, Node.js 24, `ubuntu-latest`) läuft bei jedem Pull Request und
+bei jedem Push auf `main`:
+
+```text
+npm ci → npm run release:check   (Typprüfung → Tests → Produktions-Build)
+```
+
+Schlägt einer der Schritte fehl, ist die CI rot. Es werden keine Secrets
+verwendet und es entsteht kein Release.
+
+**Windows Release** (`release.yml`, Node.js 24, `windows-latest`) startet nur bei
+einem Versions-Tag `vX.Y.Z`:
+
+```powershell
+git tag -a v1.0.1 -m "BewerbungsManager v1.0.1"
+git push origin v1.0.1
+```
+
+Danach führt GitHub Actions automatisch aus:
+
+1. Tag und Version in `package.json` und `package-lock.json` vergleichen
+   (Abweichung bricht ab).
+2. `npm run release:check` als Qualitätsschranke.
+3. `npm run dist:win:signed`, wenn die Secrets `WIN_CSC_LINK` und
+   `WIN_CSC_KEY_PASSWORD` gesetzt sind, sonst `npm run dist:win` (unsigniert).
+   Die Secrets stehen nur in diesem Build-Schritt und werden nie ausgegeben.
+4. Dateien prüfen (`scripts/verify-release-artifacts.ps1`): Setup, Portable und
+   `SHA256SUMS.txt` für genau diese Version vorhanden und nicht leer,
+   SHA-256-Werte aus den echten Dateien neu berechnet, keine Schlüsseldateien.
+5. Die drei Dateien als Workflow-Artefakt `bewerbungsmanager-windows-v<Version>`
+   speichern (14 Tage).
+6. Mit dem Schreibrecht nur in diesem Job: Prüfsummen erneut prüfen und mit
+   `gh release create` ein GitHub Release mit Setup, Portable und
+   `SHA256SUMS.txt` veröffentlichen. Existiert das Release schon, bricht der
+   Lauf ab, statt Dateien zu überschreiben.
+
+Ein manueller Lauf (`workflow_dispatch`) baut und speichert nur das Artefakt;
+er veröffentlicht nur, wenn er auf einem `vX.Y.Z`-Tag gestartet und „publish“
+angehakt wird. Pull Requests und Pushes auf `main` erzeugen nie ein Release.
+
+Empfohlener Ablauf: Feature-/Fix-Branch → Pull Request → CI → Merge nach `main`
+→ Versionsanhebung (`npm version patch --no-git-tag-version`, Commit
+`release: vX.Y.Z`) → Tag `vX.Y.Z` → Tag pushen → Windows Release → GitHub Release.
+
+### Empfohlener Branch-Schutz
+
+Unter GitHub → Settings → Branches / Rulesets für `main` einrichten (wird nicht
+vom Repository erzwungen):
+
+- Pull Request erforderlich
+- Status-Check `CI` erforderlich
+- Branch muss aktuell sein („up to date“)
+- Force-Push deaktiviert
