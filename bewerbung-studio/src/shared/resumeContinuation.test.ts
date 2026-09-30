@@ -5,6 +5,7 @@ import {
   keepDatesOnOneLine,
   normalizeContinuationHeader,
   removeContinuationSidebar,
+  removeEmptyCareerHint,
   removeEmptyCareerSections,
   repeatResumeHeader,
 } from "./resumeContinuation";
@@ -123,5 +124,13 @@ describe("date ranges", () => {
     keepDatesOnOneLine(page);
     const marked = Array.from(page.querySelectorAll("[data-resume-nowrap]")).map((node) => node.textContent);
     expect(marked).toEqual(["11/2024 – 06/2025", "2019 – Heute", "01/2020 – 12/2021", "2018 – 2019"]);
+  });
+});
+
+describe("career hint", () => {
+  it("is removed from a page that merely has no career entry", () => {
+    const page = root('<main><p class="muted">Berufserfahrung und Ausbildung im Profil ergänzen.</p><p>Berufserfahrung und Ausbildung im Profil ergänzen, bitte.</p></main>');
+    removeEmptyCareerHint(page);
+    expect(Array.from(page.querySelectorAll("p")).map((node) => node.textContent)).toEqual(["Berufserfahrung und Ausbildung im Profil ergänzen, bitte."]);
   });
 });

@@ -10,12 +10,15 @@ import {
   ensureResumeHeaderContacts,
   repeatResumeHeader,
   removeContinuationSidebar,
+  removeEmptyCareerHint,
   removeEmptyCareerSections,
   resumeContinuationCss,
 } from "./resumeContinuation";
 import { applyGeneralResumeAppearance, resumeAppearanceSchema } from "./resumeAppearance";
 import { resolveTemplateId } from "./templates";
 import { resumeSectionStyleSources } from "./resumeSectionStyleInheritance";
+import { applyEntryBreaks, resumeEntrySplitCss } from "./resumeEntrySplit";
+import type { KnowledgeRange } from "./resumeKnowledgeRange";
 import { parseHTML } from "linkedom";
 import type { ApplicantProfile } from "./schema";
 import {
@@ -97,7 +100,7 @@ export const managedResumeCss = `
 .managed-ats .managed-strength-card,.managed-ats .managed-item{grid-template-columns:minmax(0,1fr)}
 .managed-ats .managed-strength-card strong,.managed-ats .managed-strength-card p{grid-column:1}
 
-.managed-extra:not([data-custom-template]){margin:0 0 4mm;break-inside:avoid;color:inherit;font:inherit}
+.managed-extra:not([data-custom-template]){margin:0 0 4mm;break-inside:auto;color:inherit;font:inherit}
 .managed-extra:not([data-custom-template]) h3{margin:0 0 2mm;font-size:1.08em;color:inherit}
 .managed-extra ul{padding-left:4mm;margin:0}.managed-extra li{margin-bottom:1mm}
 .managed-extra:not([data-custom-template]) small{display:block;font-size:.92em}.managed-extra:not([data-custom-template]) p{margin:1mm 0}
@@ -115,8 +118,8 @@ export const managedResumeCss = `
 :where([data-custom-template]) .resume-special-output__meta{opacity:1}
 :where([data-custom-template="kreativ"]) [data-content-type="list"]>[data-custom-role="entry"]{display:list-item}
 :where([data-custom-template="kreativ"]) [data-content-type="list"]>[data-custom-role="entry"]::marker{color:var(--kreativ-primary,var(--accent,currentColor))}
-[data-managed-section]{break-inside:avoid}
-[data-managed-section][data-custom-template]{break-inside:avoid}
+[data-managed-section]{break-inside:auto}
+[data-managed-section][data-custom-template]{break-inside:auto}
 [data-managed-moved], [data-managed-moved] :is(p,li,small){color:inherit!important}
 [data-managed-section="strengths"] .managed-strengths-grid{display:grid;grid-template-columns:repeat(var(--section-columns,1),minmax(0,1fr));gap:3mm;list-style:none;margin:0;padding:0}
 [data-managed-section="strengths"] .managed-strength-card{display:grid;grid-template-columns:4mm minmax(0,1fr);align-items:start;gap:1mm 1.5mm;min-width:0;margin:0;padding:0;border:0;break-inside:avoid;overflow-wrap:anywhere}
@@ -127,6 +130,7 @@ ${resumeSpacingCss}
 ${resumeMetadataCss}
 ${resumeClosingCss}
 ${resumeContinuationCss}
+${resumeEntrySplitCss}
 ${pehlioneAppearanceCss}`;
 
 /** Resolve section-title colors by column role on both HTML surfaces. */
@@ -392,11 +396,20 @@ export const applyManagedResumeOutput = (
       const columns = columnsFor(entry, values, strengths);
       return `<div class="${strengths ? "managed-strengths-grid" : "managed-item-grid"}" data-columns="${columns}" style="--section-columns:${columns}">${content}</div>`;
     };
-    const renderKnowledge = (entry: ManagerSection) => {
+    const renderKnowledge = (entry: ManagerSection, range?: KnowledgeRange) => {
       const knowledge = ensureKnowledgeSection(profile.knowledgeSection, profile.skills);
       if (!knowledge.isVisible) return "";
-      const list = (items: KnowledgeItem[], category: KnowledgeCategory, mode: KnowledgeDisplayMode) => {
+      // Items are counted in drawing order, exactly like the page planner does (knowledgeLists).
+      let position = 0;
+      const take = (items: KnowledgeItem[]) => {
         const visible = visibleKnowledgeItems(items);
+        const start = position;
+        position += visible.length;
+        const shown = range ? visible.filter((_, index) => start + index >= range.from && start + index < range.to) : visible;
+        return { shown, continued: Boolean(range) && shown.length > 0 && start < (range?.from ?? 0) };
+      };
+      const marker = ' <span data-resume-entry-marker>· Fortsetzung</span>';
+      const list = (visible: KnowledgeItem[], category: KnowledgeCategory, mode: KnowledgeDisplayMode) => {
         if (isAts) return `<p>${visible.map((item) => escape(formatKnowledgeItem(item, category.showLevels, category.showYearsOfExperience, "comma-separated"))).join(", ")}</p>`;
         const content = visible.map((item) => {
           const text = escape(formatKnowledgeItem(item, category.showLevels, category.showYearsOfExperience, mode));
@@ -405,9 +418,19 @@ export const applyManagedResumeOutput = (
         }).join("");
         return grid(entry, visible.map((item) => ({title: item.name, description: item.description})), content);
       };
-      return knowledge.categories.filter((item) => item.isVisible).sort((a,b) => a.sortOrder-b.sortOrder).map((category) =>
-        `<div class="managed-knowledge-category"><h4>${escape(category.title)}</h4>${category.subtitle ? `<small>${escape(category.subtitle)}</small>` : ""}${list(category.items, category, category.displayMode)}${category.subcategories.filter((sub) => sub.isVisible).sort((a,b) => a.sortOrder-b.sortOrder).map((sub) => `<h5>${escape(sub.title)}</h5>${list(sub.items, category, sub.displayMode ?? category.displayMode)}`).join("")}</div>`
-      ).join("");
+      return knowledge.categories.filter((item) => item.isVisible).sort((a,b) => a.sortOrder-b.sortOrder).map((category) => {
+        const own = take(category.items);
+        const subs = category.subcategories.filter((sub) => sub.isVisible).sort((a,b) => a.sortOrder-b.sortOrder)
+          .map((sub) => ({ sub, ...take(sub.items) }));
+        // A category without an item on this page belongs to the other page.
+        if (range && !own.shown.length && !subs.some((entry) => entry.shown.length)) return "";
+        const continued = own.continued || (!own.shown.length && subs.some((entry) => entry.continued));
+        const head = `<h4>${escape(category.title)}${continued ? marker : ""}</h4>`;
+        const body = own.shown.length || !range ? list(own.shown, category, category.displayMode) : "";
+        const subBlocks = subs.filter((entry) => !range || entry.shown.length)
+          .map((entry) => `<h5>${escape(entry.sub.title)}${entry.continued ? marker : ""}</h5>${list(entry.shown, category, entry.sub.displayMode ?? category.displayMode)}`).join("");
+        return `<div class="managed-knowledge-category">${head}${category.subtitle ? `<small>${escape(category.subtitle)}</small>` : ""}${body}${subBlocks}</div>`;
+      }).join("");
     };
     const container = (entry: ManagerSection) =>
       entry.zone === "sidebar" ? sidebar : main;
@@ -483,7 +506,7 @@ export const applyManagedResumeOutput = (
           nodes.delete(entry.id);
           continue;
         }
-        content = renderKnowledge(entry);
+        content = renderKnowledge(entry, planned[number - 1]?.blockRanges?.[entry.id]);
         if (!content) {
           existing.forEach((node) => node.remove());
           nodes.delete(entry.id);
@@ -519,12 +542,14 @@ export const applyManagedResumeOutput = (
         }
       }
 
+      // The second part of a block that breaks between two pages is titled like a continued section.
+      const blockTitle = (planned[number - 1]?.blockRanges?.[entry.id]?.from ?? 0) > 0 ? `${entry.title} · Fortsetzung` : entry.title;
       if (content && (entry.id === "knowledge" || entry.id.startsWith("special:")) && existing.length) {
         const node = existing[0];
-        const heading = node.querySelector("h2,h3")?.outerHTML ?? `<h3>${escape(entry.title)}</h3>`;
+        const heading = node.querySelector("h2,h3")?.outerHTML ?? `<h3>${escape(blockTitle)}</h3>`;
         node.innerHTML = heading + content;
         if (entry.id.startsWith("special:")) node.setAttribute("data-section-type", "main-section");
-        setHeadingText(node.querySelector("h2,h3")!, entry.title);
+        setHeadingText(node.querySelector("h2,h3")!, blockTitle);
         if (isAts) node.classList.add("managed-ats");
         existing.slice(1).forEach((duplicate) => duplicate.remove());
         nodes.set(entry.id, [node]);
@@ -534,7 +559,7 @@ export const applyManagedResumeOutput = (
         node.className = `managed-extra${isAts ? " managed-ats" : ""}`;
         node.setAttribute("data-managed-section", entry.id);
         if (entry.id.startsWith("special:")) node.setAttribute("data-section-type", "main-section");
-        node.innerHTML = `<h3>${escape(entry.title)}</h3>${content}`;
+        node.innerHTML = `<h3>${escape(blockTitle)}</h3>${content}`;
         if (group?.pageBreakBefore) node.style.breakBefore = "page";
         appendSection(entry, node);
         nodes.set(entry.id, [node]);
@@ -675,6 +700,21 @@ export const applyManagedResumeOutput = (
       pagePlan.items.some((item) => item.kind === kind) ||
       !planned.some((page) => page.items.some((item) => item.kind === kind));
     removeEmptyCareerSections(root, { experience: careerPresent("experience"), education: careerPresent("education") });
+    if (planned.some((page) => page.items.length)) removeEmptyCareerHint(root);
+    // A career section that goes on from the previous page says so in its heading.
+    const previousPlan = planned[number - 2];
+    for (const kind of ["experience", "education"] as const) {
+      if (!previousPlan?.items.some((item) => item.kind === kind) || !pagePlan?.items.some((item) => item.kind === kind)) continue;
+      for (const section of nodes.get(kind) ?? []) {
+        const heading = section.querySelector("h2,h3");
+        if (heading && !/Fortsetzung/i.test(heading.textContent ?? "")) setHeadingText(heading, `${(heading.textContent ?? "").trim()} · Fortsetzung`);
+      }
+    }
+    // An experience entry may break between two pages: each page keeps its own bullets.
+    if (pagePlan) {
+      const entrySources = resumeSectionStyleSources[root.matches(".cv-sheet") ? "pdf" : "preview"][resolved.templateId as keyof typeof resumeSectionStyleSources.preview];
+      applyEntryBreaks(nodes.get("experience") ?? [], entrySources?.[6] ?? "", entrySources?.[2] ?? "", pagePlan.items);
+    }
     if (number === 1 && (pages.length > 1 || totalPages > 1))
       ensureResumeHeaderContacts(root, enabled("personalData") ? profile : undefined);
     else if (firstPageHeader) repeatResumeHeader(root, firstPageHeader);

@@ -45,7 +45,10 @@ export type PaginationGeometry = {
   sidebarLeft: boolean;
   /** Native column of the blocks that can move between columns. */
   zones: Record<"summary" | "strengths" | "knowledge" | "languages", PaginationZone>;
-  /** First flow block of the main column: page one / continuation page / ATS page one / ATS continuation page. */
+  /**
+   * First flow block of the main column: page one / continuation page / ATS page one / ATS continuation page.
+   * The ATS offsets were measured with every contact filled (see `ats.header` for stacked contacts).
+   */
   top1: number;
   top2: number;
   atsTop1: number;
@@ -93,9 +96,42 @@ export type PaginationGeometry = {
   /** Strengths and knowledge are modelled per item: a wrapped title costs one more line. */
   items: { strengths: ItemBlockModel; knowledge: ItemBlockModel };
   certs: CertificateModel;
-  /** ATS mode: measured entry height relative to the visual model (1 = same). */
-  ats: { exp: number; edu: number };
-  /** Height factor of the compact / dense CSS modes relative to standard. */
+  /**
+   * A résumé without strengths of its own shows its skills as strengths, where the template draws them:
+   * on page one, only when the whole résumé fits on one page (the plain layouts draw them last), or not at all.
+   */
+  derivedStrengths: { visual: "first" | "never"; ats: "first" | "single" | "never" };
+  /**
+   * ATS mode (plain text, one column): measured entry height relative to the visual model
+   * (1 = same), plus what the plain layout does differently from the visual one.
+   */
+  ats: {
+    exp: number;
+    edu: number;
+    /** Space between two sections and the height of a career section heading, where they differ from the visual layout. */
+    sectionGap?: number;
+    head?: number;
+    /**
+     * The knowledge list is one comma-separated paragraph per category and subcategory:
+     * offset of the first title below the section top, title height, space between two
+     * lists, text metrics of a paragraph and the space behind the last one.
+     */
+    knowledge: { head: number; title: number; gap: number; pitch: number; font: number; w: number; tail: number };
+    /** Templates that stack their contacts one per line: header height = base + perContact × contact lines. */
+    header?: { base: number; perContact: number };
+    /** Plain lists: height = base (heading and spacing) + per entry. Languages and certificates are lines of text here. */
+    languages: [number, number];
+    certs: { base: number; perItem: number };
+    /** Width of the summary paragraph when it differs from `text.atsW` (Pehlione's plain layout spans the page). */
+    summaryW?: number;
+    /** Height factor of the compact / dense CSS modes in the plain layout (see `density`). */
+    density: { compact: number; dense: number };
+  };
+  /**
+   * Height factor of the compact / dense CSS modes relative to standard: the mean shrinkage measured
+   * on random two-page résumés plus one percent, so a page planned as compact does not overflow.
+   * Density changes gaps and some font sizes only, which is why most templates gain just a few percent.
+   */
   density: { compact: number; dense: number };
 };
 
@@ -109,8 +145,8 @@ const geometry: Record<string, PaginationGeometry> = {
     limit: 287,
     sideTop1: 120.2,
     sideLimit: 285,
-    atsTop1: 57.4,
-    atsTop2: 39.2,
+    atsTop1: 57.9,
+    atsTop2: 45.1,
     mainLeft: 63,
     mainRight: 210,
     contentLeft: 73,
@@ -121,8 +157,9 @@ const geometry: Record<string, PaginationGeometry> = {
     blocks: {summary: [12, 3.89], strengths: [9.6, 7.98], knowledge: [14.9, 6.31], languages: [9.7, 5.41], sectionGap: 6, sideGap: 4.5},
     items: {strengths: {w: 43.5, font: 3.104, pitch: 4.04, pad: 0.99, cw: 0.53, cols: 1, head: 11, gap: 3}, knowledge: {w: 43.5, font: 3.104, pitch: 4.04, pad: -0.01, cw: 0.45, cols: 1, head: 16.7, gap: 2}},
     certs: {home: "last", zone: "main", base: 11.5, perItem: 4.38, w: 123.0, font: 3.25, pitch: 3.9},
-    ats: {exp: 1.0, edu: 1.0},
-    density: {compact: 0.85, dense: 0.85},
+    derivedStrengths: {visual: "first", ats: "never"},
+    ats: {exp: 1.0, edu: 1.0, head: 17.5, knowledge: {head: 12, title: 5.53, gap: 3, pitch: 3.9, font: 3.25, w: 178, tail: 0}, languages: [17, 4.4], certs: {base: 17, perItem: 4.4}, summaryW: 178, density: {compact: 0.93, dense: 0.93}},
+    density: {compact: 0.89, dense: 0.89},
   },
   "pehlione_white": {
     columns: 2,
@@ -133,8 +170,8 @@ const geometry: Record<string, PaginationGeometry> = {
     limit: 287,
     sideTop1: 120.2,
     sideLimit: 285,
-    atsTop1: 56.9,
-    atsTop2: 39.2,
+    atsTop1: 57.9,
+    atsTop2: 45.1,
     mainLeft: 63,
     mainRight: 210,
     contentLeft: 73,
@@ -145,8 +182,9 @@ const geometry: Record<string, PaginationGeometry> = {
     blocks: {summary: [12, 3.89], strengths: [6.8, 8.58], knowledge: [14.6, 6.31], languages: [4.4, 5.41], sectionGap: 6, sideGap: 4.5},
     items: {strengths: {w: 43.3, font: 3.104, pitch: 4.04, pad: 0.99, cw: 0.53, cols: 1, head: 10, gap: 3}, knowledge: {w: 43.3, font: 3.104, pitch: 4.04, pad: -0.01, cw: 0.48, cols: 1, head: 16.4, gap: 2}},
     certs: {home: "last", zone: "main", base: 11.5, perItem: 4.38, w: 123.0, font: 3.25, pitch: 3.9},
-    ats: {exp: 1.0, edu: 1.0},
-    density: {compact: 0.85, dense: 0.85},
+    derivedStrengths: {visual: "first", ats: "never"},
+    ats: {exp: 1.0, edu: 1.0, head: 17.5, knowledge: {head: 12, title: 5.53, gap: 3, pitch: 3.9, font: 3.25, w: 178, tail: 0}, languages: [17, 4.4], certs: {base: 17, perItem: 4.4}, summaryW: 178, density: {compact: 0.93, dense: 0.93}},
+    density: {compact: 0.89, dense: 0.89},
   },
   "modern": {
     columns: 2,
@@ -157,8 +195,8 @@ const geometry: Record<string, PaginationGeometry> = {
     limit: 285.3,
     sideTop1: 44.9,
     sideLimit: 284,
-    atsTop1: 54.5,
-    atsTop2: 31.8,
+    atsTop1: 54.8,
+    atsTop2: 39.1,
     mainLeft: 15,
     mainRight: 117,
     contentLeft: 15,
@@ -169,8 +207,9 @@ const geometry: Record<string, PaginationGeometry> = {
     blocks: {summary: [7.6, 3.89], strengths: [4.6, 7.85], knowledge: [13.9, 6], languages: [5.1, 6.26], sectionGap: 7, sideGap: 7},
     items: {strengths: {w: 61.5, font: 2.963, pitch: 3.85, pad: 1, cw: 0.53, cols: 1, head: 7.6, gap: 3}, knowledge: {w: 61.5, font: 2.963, pitch: 3.76, pad: 0.24, cw: 0.45, cols: 1, head: 15.9, gap: 2}},
     certs: {home: "first", zone: "sidebar", base: 3.7, perItem: 8.05, w: 67.0, font: 3.25, pitch: 4.06},
-    ats: {exp: 1.0, edu: 1.0},
-    density: {compact: 0.98, dense: 0.95},
+    derivedStrengths: {visual: "never", ats: "single"},
+    ats: {exp: 1.0, edu: 1.0, sectionGap: 5, head: 6.9, knowledge: {head: 6.9, title: 7.01, gap: 3.24, pitch: 3.9, font: 3.25, w: 180, tail: 0}, languages: [6.55, 4.25], certs: {base: 6.6, perItem: 4.23}, density: {compact: 1, dense: 1}},
+    density: {compact: 0.99, dense: 0.96},
   },
   "elegant": {
     columns: 2,
@@ -181,8 +220,8 @@ const geometry: Record<string, PaginationGeometry> = {
     limit: 285.1,
     sideTop1: 13,
     sideLimit: 283,
-    atsTop1: 82.8,
-    atsTop2: 31.8,
+    atsTop1: 87.9,
+    atsTop2: 87.9,
     mainLeft: 0,
     mainRight: 140,
     contentLeft: 13,
@@ -193,7 +232,8 @@ const geometry: Record<string, PaginationGeometry> = {
     blocks: {summary: [8.9, 3.11], strengths: [-2.3, 13.44], knowledge: [13.4, 10.48], languages: [5.5, 7.94], sectionGap: 4.5, sideGap: 4.5},
     items: {strengths: {w: 40.5, font: 4.233, pitch: 5.5, pad: 1, cw: 0.56, cols: 1, head: 8.9, gap: 3}, knowledge: {w: 40.5, font: 4.233, pitch: 5.08, pad: 0.45, cw: 0.49, cols: 1, head: 27.5, gap: 0}},
     certs: {home: "first", zone: "sidebar", base: 8.9, perItem: 3.12, w: 42.0, font: 2.96, pitch: 3.11},
-    ats: {exp: 1.12, edu: 1.44},
+    derivedStrengths: {visual: "first", ats: "single"},
+    ats: {exp: 1.12, edu: 1.44, knowledge: {head: 9.56, title: 8.49, gap: 3, pitch: 3.11, font: 2.96, w: 184, tail: 0}, header: {base: 40.44, perContact: 9.48}, languages: [5.1, 5.1], certs: {base: 9.4, perItem: 3.1}, density: {compact: 1, dense: 1}},
     density: {compact: 1, dense: 1},
   },
   "zweispaltig": {
@@ -205,8 +245,8 @@ const geometry: Record<string, PaginationGeometry> = {
     limit: 285.5,
     sideTop1: 56.5,
     sideLimit: 284,
-    atsTop1: 88.7,
-    atsTop2: 40.1,
+    atsTop1: 87.8,
+    atsTop2: 87.8,
     mainLeft: 13,
     mainRight: 120.3,
     contentLeft: 13,
@@ -217,8 +257,9 @@ const geometry: Record<string, PaginationGeometry> = {
     blocks: {summary: [9, 3.11], strengths: [6, 7.85], knowledge: [16.6, 6], languages: [6.5, 6.07], sectionGap: 6.5, sideGap: 6.5},
     items: {strengths: {w: 60.2, font: 2.963, pitch: 3.85, pad: 1, cw: 0.53, cols: 1, head: 9, gap: 3}, knowledge: {w: 60.2, font: 2.963, pitch: 3.11, pad: 0.89, cw: 0.45, cols: 1, head: 18.6, gap: 2}},
     certs: {home: "first", zone: "sidebar", base: 8.6, perItem: 3.6, w: 61.2, font: 2.96, pitch: 3.11},
-    ats: {exp: 1.0, edu: 1.0},
-    density: {compact: 0.98, dense: 0.95},
+    derivedStrengths: {visual: "first", ats: "single"},
+    ats: {exp: 1.0, edu: 1.0, knowledge: {head: 9.03, title: 6.07, gap: 3, pitch: 3.11, font: 2.96, w: 184, tail: 0}, header: {base: 39.83, perContact: 8}, languages: [7, 5.1], certs: {base: 8.5, perItem: 3.6}, density: {compact: 0.98, dense: 0.97}},
+    density: {compact: 0.99, dense: 0.98},
   },
   "zeitgenoessisch": {
     columns: 2,
@@ -229,8 +270,8 @@ const geometry: Record<string, PaginationGeometry> = {
     limit: 285.1,
     sideTop1: 112.1,
     sideLimit: 284,
-    atsTop1: 50.2,
-    atsTop2: 32.8,
+    atsTop1: 55.3,
+    atsTop2: 55.3,
     mainLeft: 76.8,
     mainRight: 197,
     contentLeft: 76.8,
@@ -241,7 +282,8 @@ const geometry: Record<string, PaginationGeometry> = {
     blocks: {summary: [9.5, 3.11], strengths: [-5, 13.44], knowledge: [6, 10.16], languages: [6.2, 7.46], sectionGap: 4.5, sideGap: 4.5},
     items: {strengths: {w: 46.8, font: 4.233, pitch: 5.5, pad: 1, cw: 0.61, cols: 1, head: 6.1, gap: 3}, knowledge: {w: 46.8, font: 4.233, pitch: 5.08, pad: 0.45, cw: 0.45, cols: 1, head: 22.8, gap: 0}},
     certs: {home: "first", zone: "sidebar", base: 9.0, perItem: 3.62, w: 47.8, font: 2.96, pitch: 3.11},
-    ats: {exp: 1.0, edu: 1.0},
+    derivedStrengths: {visual: "first", ats: "single"},
+    ats: {exp: 1.0, edu: 1.0, head: 8.7, knowledge: {head: 9.93, title: 8.49, gap: 3, pitch: 3.11, font: 2.96, w: 184, tail: 0}, languages: [8.2, 3.6], certs: {base: 8.2, perItem: 3.6}, density: {compact: 1, dense: 1}},
     density: {compact: 1, dense: 1},
   },
   "kreativ": {
@@ -253,8 +295,8 @@ const geometry: Record<string, PaginationGeometry> = {
     limit: 285.8,
     sideTop1: 53,
     sideLimit: 284,
-    atsTop1: 46.2,
-    atsTop2: 32.7,
+    atsTop1: 53.2,
+    atsTop2: 53.2,
     mainLeft: 12,
     mainRight: 120.7,
     contentLeft: 12,
@@ -265,8 +307,9 @@ const geometry: Record<string, PaginationGeometry> = {
     blocks: {summary: [10.2, 3.11], strengths: [7.2, 7.85], knowledge: [17.8, 6], languages: [7.2, 6.56], sectionGap: 4.5, sideGap: 4.5},
     items: {strengths: {w: 60.8, font: 2.963, pitch: 3.85, pad: 1, cw: 0.53, cols: 1, head: 10.2, gap: 3}, knowledge: {w: 60.8, font: 2.963, pitch: 3.11, pad: 0.89, cw: 0.45, cols: 1, head: 19.8, gap: 2}},
     certs: {home: "first", zone: "sidebar", base: 9.7, perItem: 3.62, w: 61.8, font: 2.96, pitch: 3.11},
-    ats: {exp: 1.0, edu: 1.0},
-    density: {compact: 0.98, dense: 0.95},
+    derivedStrengths: {visual: "first", ats: "single"},
+    ats: {exp: 1.0, edu: 1.0, knowledge: {head: 10.23, title: 6.07, gap: 3, pitch: 3.11, font: 2.96, w: 188, tail: 0}, languages: [9.65, 3.65], certs: {base: 9.7, perItem: 3.6}, density: {compact: 1, dense: 1}},
+    density: {compact: 1, dense: 0.99},
   },
   "gepflegt": {
     columns: 2,
@@ -278,7 +321,7 @@ const geometry: Record<string, PaginationGeometry> = {
     sideTop1: 9,
     sideLimit: 283,
     atsTop1: 46.6,
-    atsTop2: 31.8,
+    atsTop2: 46.6,
     mainLeft: 81,
     mainRight: 200,
     contentLeft: 81,
@@ -289,8 +332,9 @@ const geometry: Record<string, PaginationGeometry> = {
     blocks: {summary: [10.5, 4.03], strengths: [5.7, 8.63], knowledge: [18.8, 6.27], languages: [7.3, 7.08], sectionGap: 7, sideGap: 8.5},
     items: {strengths: {w: 46.5, font: 3.104, pitch: 4.04, pad: 0.99, cw: 0.53, cols: 1, head: 10.5, gap: 3}, knowledge: {w: 46.5, font: 3.104, pitch: 3.97, pad: 0.03, cw: 0.45, cols: 1, head: 20.6, gap: 2}},
     certs: {home: "first", zone: "sidebar", base: 9.2, perItem: 5.05, w: 48.0, font: 3.0, pitch: 3.75},
-    ats: {exp: 1.0, edu: 1.0},
-    density: {compact: 0.94, dense: 0.87},
+    derivedStrengths: {visual: "first", ats: "single"},
+    ats: {exp: 1.0, edu: 1.0, knowledge: {head: 8.44, title: 6.96, gap: 3, pitch: 3.6, font: 3, w: 84, tail: 3}, languages: [8.9, 3.6], certs: {base: 8.4, perItem: 3.6}, density: {compact: 0.94, dense: 0.88}},
+    density: {compact: 0.96, dense: 0.91},
   },
   "kompakt": {
     columns: 2,
@@ -301,8 +345,8 @@ const geometry: Record<string, PaginationGeometry> = {
     limit: 286,
     sideTop1: 80.4,
     sideLimit: 284,
-    atsTop1: 49.5,
-    atsTop2: 31.8,
+    atsTop1: 54.1,
+    atsTop2: 39.7,
     mainLeft: 13,
     mainRight: 121,
     contentLeft: 13,
@@ -313,8 +357,9 @@ const geometry: Record<string, PaginationGeometry> = {
     blocks: {summary: [7.2, 2.96], strengths: [4.2, 7.85], knowledge: [9.7, 6], languages: [7.2, 2.98], sectionGap: 3.5, sideGap: 3.5},
     items: {strengths: {w: 60.5, font: 2.963, pitch: 3.85, pad: 1, cw: 0.53, cols: 1, head: 7.2, gap: 3}, knowledge: {w: 60.5, font: 2.963, pitch: 2.96, pad: 1.04, cw: 0.45, cols: 1, head: 11.7, gap: 2}},
     certs: {home: "first", zone: "sidebar", base: 10.5, perItem: 4.5, w: 60.5, font: 2.96, pitch: 3.17, limit: 2},
-    ats: {exp: 1.0, edu: 1.0},
-    density: {compact: 0.98, dense: 0.95},
+    derivedStrengths: {visual: "first", ats: "single"},
+    ats: {exp: 1.0, edu: 1.0, knowledge: {head: 7.2, title: 5.92, gap: 3, pitch: 2.96, font: 2.96, w: 184, tail: 0}, languages: [7, 3.2], certs: {base: 6.96, perItem: 3.2}, density: {compact: 0.99, dense: 0.99}},
+    density: {compact: 1, dense: 1},
   },
   "stilvoll": {
     columns: 2,
@@ -325,8 +370,8 @@ const geometry: Record<string, PaginationGeometry> = {
     limit: 285.9,
     sideTop1: 46.1,
     sideLimit: 284,
-    atsTop1: 58.4,
-    atsTop2: 34.8,
+    atsTop1: 62.5,
+    atsTop2: 41.7,
     mainLeft: 80,
     mainRight: 195,
     contentLeft: 80,
@@ -337,8 +382,9 @@ const geometry: Record<string, PaginationGeometry> = {
     blocks: {summary: [7.5, 3.11], strengths: [2.8, 8.43], knowledge: [9.3, 6.18], languages: [4.5, 6.11], sectionGap: 6, sideGap: 6},
     items: {strengths: {w: 48.5, font: 2.963, pitch: 3.85, pad: 1, cw: 0.53, cols: 1, head: 7.6, gap: 3}, knowledge: {w: 48.5, font: 2.963, pitch: 3.11, pad: 0.89, cw: 0.45, cols: 1, head: 12.2, gap: 2}},
     certs: {home: "none", zone: "sidebar", base: 0, perItem: 0, w: 48.5, font: 2.96, pitch: 3.11},
-    ats: {exp: 1.0, edu: 1.0},
-    density: {compact: 0.98, dense: 0.95},
+    derivedStrengths: {visual: "first", ats: "single"},
+    ats: {exp: 1.0, edu: 1.0, knowledge: {head: 7.54, title: 6.08, gap: 3, pitch: 3.11, font: 2.96, w: 180, tail: 0}, languages: [7.3, 3.4], certs: {base: 7.3, perItem: 3.4}, density: {compact: 0.99, dense: 0.96}},
+    density: {compact: 1, dense: 0.98},
   },
   "einspaltig": {
     columns: 1,
@@ -349,8 +395,8 @@ const geometry: Record<string, PaginationGeometry> = {
     limit: 285.8,
     sideTop1: null,
     sideLimit: 285.8,
-    atsTop1: 51.5,
-    atsTop2: 31.0,
+    atsTop1: 56.6,
+    atsTop2: 34.7,
     mainLeft: 0,
     mainRight: 210,
     contentLeft: 15,
@@ -361,8 +407,9 @@ const geometry: Record<string, PaginationGeometry> = {
     blocks: {summary: [9, 3.49], strengths: [5.7, 4.77], knowledge: [9.3, 3.21], languages: [9.9, 1.67], sectionGap: 5, sideGap: 4.5},
     items: {strengths: {w: 83, font: 3.387, pitch: 4.4, pad: 1, cw: 0.53, cols: 2, head: 9, gap: 3}, knowledge: {w: 52.5, font: 3.387, pitch: 3.73, pad: 0.27, cw: 0.45, cols: 3, head: 14.2, gap: 0}},
     certs: {home: "last", zone: "main", base: 10.4, perItem: 3.72, w: 169.4, font: 3.39, pitch: 3.73},
-    ats: {exp: 1.0, edu: 1.0},
-    density: {compact: 0.98, dense: 0.95},
+    derivedStrengths: {visual: "first", ats: "single"},
+    ats: {exp: 1.0, edu: 1.0, head: 7.9, knowledge: {head: 7.9, title: 7.11, gap: 3.38, pitch: 3.73, font: 3.39, w: 180, tail: 0}, languages: [7.6, 4], certs: {base: 7.6, perItem: 4}, density: {compact: 1, dense: 0.99}},
+    density: {compact: 1, dense: 0.99},
   },
   "klassisch": {
     columns: 1,
@@ -373,8 +420,8 @@ const geometry: Record<string, PaginationGeometry> = {
     limit: 285.9,
     sideTop1: null,
     sideLimit: 285.9,
-    atsTop1: 53.3,
-    atsTop2: 31.8,
+    atsTop1: 60.1,
+    atsTop2: 39.9,
     mainLeft: 0,
     mainRight: 210,
     contentLeft: 15,
@@ -385,8 +432,9 @@ const geometry: Record<string, PaginationGeometry> = {
     blocks: {summary: [5.9, 3.11], strengths: [2.7, 4.46], knowledge: [5.6, 3.21], languages: [6.5, 2.67], sectionGap: 3.8, sideGap: 4.5},
     items: {strengths: {w: 83, font: 2.963, pitch: 3.85, pad: 1, cw: 0.53, cols: 2, head: 5.9, gap: 3}, knowledge: {w: 83, font: 2.963, pitch: 3.11, pad: 0.89, cw: 0.45, cols: 2, head: 10.5, gap: 2}},
     certs: {home: "last", zone: "main", base: 5.7, perItem: 3.27, w: 175.7, font: 2.96, pitch: 3.11},
-    ats: {exp: 1.0, edu: 1.0},
-    density: {compact: 0.98, dense: 0.95},
+    derivedStrengths: {visual: "first", ats: "single"},
+    ats: {exp: 1.0, edu: 1.0, head: 6.9, knowledge: {head: 6.9, title: 6.08, gap: 3, pitch: 3.11, font: 2.96, w: 180, tail: 0}, languages: [6.1, 4.05], certs: {base: 6.7, perItem: 3.27}, density: {compact: 0.99, dense: 0.98}},
+    density: {compact: 0.99, dense: 0.98},
   },
   "tabellarisch": {
     columns: 1,
@@ -398,7 +446,7 @@ const geometry: Record<string, PaginationGeometry> = {
     sideTop1: null,
     sideLimit: 285.1,
     atsTop1: 63.3,
-    atsTop2: 30.0,
+    atsTop2: 63.3,
     mainLeft: 0,
     mainRight: 210,
     contentLeft: 15,
@@ -409,8 +457,9 @@ const geometry: Record<string, PaginationGeometry> = {
     blocks: {summary: [9.1, 3.57], strengths: [5.8, 4.66], knowledge: [9.8, 3.29], languages: [9.8, 1.83], sectionGap: 6.3, sideGap: 4.5},
     items: {strengths: {w: 83, font: 3.246, pitch: 4.22, pad: 1, cw: 0.53, cols: 2, head: 9, gap: 3}, knowledge: {w: 52.5, font: 3.246, pitch: 4.15, pad: 0, cw: 0.45, cols: 3, head: 14.7, gap: 0}},
     certs: {home: "last", zone: "main", base: 9.0, perItem: 4.02, w: 79.5, font: 3.25, pitch: 3.57},
-    ats: {exp: 1.0, edu: 1.33},
-    density: {compact: 0.98, dense: 0.95},
+    derivedStrengths: {visual: "first", ats: "first"},
+    ats: {exp: 1.0, edu: 1.33, head: 7.6, knowledge: {head: 7.57, title: 7.4, gap: 3.24, pitch: 3.57, font: 3.25, w: 84, tail: 3.25}, languages: [9.8, 1.83], certs: {base: 7.5, perItem: 4.02}, density: {compact: 0.99, dense: 0.95}},
+    density: {compact: 0.99, dense: 0.92},
   },
   "ivy-league": {
     columns: 1,
@@ -421,8 +470,8 @@ const geometry: Record<string, PaginationGeometry> = {
     limit: 285.1,
     sideTop1: null,
     sideLimit: 285.1,
-    atsTop1: 57,
-    atsTop2: 35.5,
+    atsTop1: 58.7,
+    atsTop2: 58.7,
     mainLeft: 0,
     mainRight: 210,
     contentLeft: 11,
@@ -433,8 +482,9 @@ const geometry: Record<string, PaginationGeometry> = {
     blocks: {summary: [9.2, 3.11], strengths: [5.9, 5.39], knowledge: [10.6, 4.03], languages: [10.7, 3.51], sectionGap: 4.5, sideGap: 4.5},
     items: {strengths: {w: 87, font: 4.233, pitch: 5.5, pad: 1, cw: 0.53, cols: 2, head: 9.2, gap: 3}, knowledge: {w: 87, font: 4.233, pitch: 5.08, pad: 0.45, cw: 0.45, cols: 2, head: 16.2, gap: 2}},
     certs: {home: "last", zone: "main", base: 8.9, perItem: 3.45, w: 188.0, font: 4.76, pitch: 5.0},
-    ats: {exp: 1.0, edu: 1.0},
-    density: {compact: 0.98, dense: 0.95},
+    derivedStrengths: {visual: "first", ats: "first"},
+    ats: {exp: 1.0, edu: 1.0, head: 8.3, knowledge: {head: 8.27, title: 7.9, gap: 3, pitch: 3.11, font: 2.96, w: 166, tail: 0}, languages: [7.9, 3.5], certs: {base: 8, perItem: 3.47}, density: {compact: 0.95, dense: 0.94}},
+    density: {compact: 0.95, dense: 0.93},
   },
 };
 

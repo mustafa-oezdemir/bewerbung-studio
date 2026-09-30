@@ -5,6 +5,7 @@ import { resolveCvDocument } from "./resolveCvDocument";
 import { createResumePagePlan, getLetterPageStatus, type ResumePagePlan } from "./documentPagination";
 import { getPaginationGeometry } from "./resumePaginationGeometry";
 import { getTemplateDocumentDesignDefaults } from "./cvDesign";
+import { resolveResumeSectionInstances } from "../features/resume-sections/resume-section-system";
 
 const now = new Date("2026-07-19T10:00:00.000Z").toISOString();
 const signature = "data:image/png;base64,iVBORw0KGgo=";
@@ -35,6 +36,8 @@ const makeProfile = (
     email: "mina@example.com",
     summary: "Erfahrene Entwicklerin mit Schwerpunkt auf skalierbaren Plattformen und verlässlicher Zusammenarbeit.",
     skills: ["TypeScript", "React", "Node.js", "SQL"],
+    // Without strengths of its own a résumé shows its skills as strengths; the fixtures keep both apart.
+    strengths: ["Analytisches Denken", "Strukturierte Arbeitsweise", "Teamfähigkeit"].map((title) => ({ id: crypto.randomUUID(), title, description: "" })),
     languages: ["Deutsch – C1", "Englisch – B2"],
     experiences: Array.from({ length: experiences }, (_, index) => ({
       id: crypto.randomUUID(),
@@ -62,8 +65,28 @@ const resolve = (
   settings: Partial<typeof defaultDocumentDesign> = {},
 ) => resolveCvDocument({ profile, templateId, settings: { ...getTemplateDocumentDesignDefaults(templateId), ...settings } });
 
-const idsOf = (plan: ResumePagePlan[]) => plan.flatMap((page) => page.items.map((item) => item.id));
+/** Career entries in reading order; an entry that breaks between two pages is listed once. */
+const idsOf = (plan: ResumePagePlan[]) => [...new Set(plan.flatMap((page) => page.items.map((item) => item.id)))];
 const filled = (plan: ResumePagePlan[], index: number) => plan[index].fill?.main ?? 0;
+/** The entries that continue on the next page, as [id, bullets on the first page, bullets on the second]. */
+const brokenEntries = (plan: ResumePagePlan[]) =>
+  plan[0].items.flatMap((item) => {
+    const next = plan[1]?.items.find((other) => other.id === item.id);
+    return item.kind === "experience" && item.bullets && next?.kind === "experience" && next.bullets
+      ? [[item.id, item.bullets, next.bullets] as const]
+      : [];
+  });
+/** Every bullet of every experience is drawn exactly once, whichever page it lands on. */
+const expectEveryBulletOnce = (plan: ResumePagePlan[], experiences: { id: string; achievements: string[] }[], cap = Infinity) => {
+  for (const experience of experiences) {
+    const total = Math.min(experience.achievements.filter(Boolean).length, cap);
+    const parts = plan.flatMap((page) => page.items.filter((item) => item.id === experience.id));
+    const ranges = parts.map((item) => (item.kind === "experience" && item.bullets ? [item.bullets.from, item.bullets.to] : [0, total]));
+    expect(ranges[0][0]).toBe(0);
+    expect(ranges[ranges.length - 1][1]).toBe(total);
+    for (let index = 1; index < ranges.length; index += 1) expect(ranges[index][0]).toBe(ranges[index - 1][1]);
+  }
+};
 
 describe("A4 document pagination", () => {
   it("keeps compact resumes on one page", () => {
@@ -74,19 +97,20 @@ describe("A4 document pagination", () => {
     const plan = resolve(makeProfile(1, 2, 1), id).pagePlan;
     expect(plan).toHaveLength(1);
     expect(plan[0].density).toBe("standard");
-    expect(filled(plan, 0)).toBeLessThan(0.8);
+    expect(filled(plan, 0)).toBeLessThan(0.85);
   });
 
-  it("moves whole resume entries to a second page and never creates a third", () => {
+  it("flows a long résumé onto a second page and never creates a third", () => {
     const profile = makeProfile(9, 5, 0);
     for (const id of templateIds) {
       const plan = resolve(profile, id).pagePlan;
       expect(plan).toHaveLength(2);
       expect(idsOf(plan)).toEqual(profile.experiences.map((item) => item.id));
+      expectEveryBulletOnce(plan, profile.experiences, id.startsWith("pehlione_") ? 5 : Infinity);
     }
     const generic = createResumePagePlan(profile);
     expect(generic).toHaveLength(2);
-    expect(new Set(idsOf(generic)).size).toBe(profile.experiences.length);
+    expect(idsOf(generic)).toHaveLength(profile.experiences.length);
   });
 
   it("uses the measured geometry of each template instead of one shared capacity", () => {
@@ -140,15 +164,16 @@ describe("A4 document pagination", () => {
     expect(wide).toBeGreaterThan(base);
   });
 
-  it.each(templateIds)("B. distributes a normal two-page CV without an empty second page in %s", (id) => {
+  it.each(templateIds)("B. fills page one before it starts page two in %s", (id) => {
     const profile = makeProfile(5, 4, 3);
     const plan = resolve(profile, id).pagePlan;
     expect(idsOf(plan)).toEqual([...profile.experiences, ...profile.education].map((item) => item.id));
+    expectEveryBulletOnce(plan, profile.experiences, id.startsWith("pehlione_") ? 5 : Infinity);
     if (plan.length === 2) {
-      // Never “page one 95 % full, page two 30 % full”.
-      expect(filled(plan, 1)).toBeGreaterThanOrEqual(0.35);
-      expect(filled(plan, 0)).toBeGreaterThanOrEqual(0.45);
-      expect(filled(plan, 0) - filled(plan, 1)).toBeLessThan(0.5);
+      // Word-style flow: the first page is used up to the last entry or bullet group that fits.
+      expect(filled(plan, 0)).toBeGreaterThanOrEqual(0.72);
+      expect(filled(plan, 0)).toBeLessThanOrEqual(1.02);
+      expect(plan[1].items.length + (plan[1].blocks?.length ?? 0)).toBeGreaterThan(0);
     }
   });
 
@@ -161,33 +186,97 @@ describe("A4 document pagination", () => {
     expect(plan[0].fill!.main).toBeLessThanOrEqual(1);
   });
 
-  it("splits a section between two entries instead of leaving one page nearly empty", () => {
-    // Five long roles do not fit on one page; the first page must not swallow four of them.
+  it("splits a section after the last entry that fits instead of moving it to page two", () => {
+    // Five long roles do not fit on one page: Berufserfahrung continues on page two.
     const plan = resolve(makeProfile(5, 5, 1), "modern").pagePlan;
     expect(plan).toHaveLength(2);
     expect(plan[0].items.length).toBeGreaterThan(0);
     expect(plan[1].items.length).toBeGreaterThan(0);
-    expect(filled(plan, 1)).toBeGreaterThanOrEqual(0.35);
+    expect(filled(plan, 0)).toBeGreaterThanOrEqual(0.72);
   });
 
-  it.each(templateIds)("C. keeps entries whole and in reading order for very long roles in %s", (id) => {
+  it.each(templateIds)("starts the education on page one when there is room for it in %s", (id) => {
+    // Three short roles leave space below them: Ausbildung must not wait for page two as a whole.
+    const profile = makeProfile(3, 3, 8);
+    const plan = resolve(profile, id).pagePlan;
+    if (plan.length === 2) {
+      expect(plan[0].items.some((item) => item.kind === "education")).toBe(true);
+      expect(filled(plan, 0)).toBeGreaterThanOrEqual(0.72);
+    }
+  });
+
+  it.each(templateIds)("C. lets a very long role continue on the next page in reading order in %s", (id) => {
     const profile = makeProfile(6, 6, 2);
     const plan = resolve(profile, id).pagePlan;
     expect(plan).toHaveLength(2);
     expect(idsOf(plan)).toEqual([...profile.experiences, ...profile.education].map((item) => item.id));
+    expectEveryBulletOnce(plan, profile.experiences, id.startsWith("pehlione_") ? 5 : Infinity);
     // Career items never come back: once education starts, no experience follows.
     const kinds = plan.flatMap((page) => page.items.map((item) => item.kind));
     expect(kinds.join(",")).not.toMatch(/education,experience/);
     for (const page of plan) expect(page.items.length).toBeGreaterThan(0);
+    // An entry breaks between bullets only: the header is repeated and both parts hold bullets.
+    for (const [, first, second] of brokenEntries(plan)) {
+      expect(first.to).toBeGreaterThan(first.from);
+      expect(second.to).toBeGreaterThan(second.from);
+      expect(second.from).toBe(first.to);
+    }
+  });
+
+  it.each(["einspaltig", "modern", "pehlione_white_blue", "zweispaltig", "elegant", "tabellarisch"])("Test 2: a long role that does not fit is split between bullets, not moved as a whole in %s", (id) => {
+    // Somewhere between a full page and two, the page ends inside a role: it continues on page two.
+    let split: ResumePagePlan[] | undefined;
+    let profile = makeProfile(1, 1, 0);
+    for (const roles of [3, 4, 5, 6]) {
+      for (const bullets of [4, 5, 6, 7, 8]) {
+        const candidate = makeProfile(roles, bullets, 1);
+        const plan = resolve(candidate, id).pagePlan;
+        if (plan.length === 2 && brokenEntries(plan).length && !split) {
+          split = plan;
+          profile = candidate;
+        }
+      }
+    }
+    expect(split).toBeDefined();
+    const [, first, second] = brokenEntries(split!)[0];
+    expect(first.from).toBe(0);
+    expect(second.to).toBe(first.total);
+    expect(second.from).toBe(first.to);
+    expectEveryBulletOnce(split!, profile.experiences, id.startsWith("pehlione_") ? 5 : Infinity);
+  });
+
+  it("never breaks an entry whose bullets are too short to leave two lines on either side", () => {
+    // Three one-line bullets cannot be split (2 + 1 would leave a widow), four can (2 + 2).
+    const short = (count: number) => makeProfile(9, count, 0, {
+      experiences: Array.from({ length: 9 }, (_, index) => ({
+        id: crypto.randomUUID(), from: `${2010 + index}`, to: `${2011 + index}`, role: `Position ${index + 1}`, company: `Unternehmen ${index + 1}`,
+        achievements: Array.from({ length: count }, (_, item) => `Aufgabe ${item + 1}`),
+      })),
+    });
+    for (const id of templateIds) {
+      expect(brokenEntries(resolve(short(3), id).pagePlan)).toHaveLength(0);
+    }
+    const four = resolve(short(4), "einspaltig").pagePlan;
+    expect(four).toHaveLength(2);
+    for (const [, first, second] of brokenEntries(four)) expect([first.to - first.from, second.to - second.from]).toEqual([2, 2]);
+  });
+
+  it("does not leave the signature alone on the last page", () => {
+    for (const id of templateIds) {
+      for (let roles = 3; roles <= 8; roles += 1) {
+        const plan = resolve(makeProfile(roles, 4, 2), id).pagePlan;
+        if (plan.length === 2) expect(plan[1].items.length + (plan[1].blocks?.length ?? 0)).toBeGreaterThan(0);
+      }
+    }
   });
 
   it("D. never leaves a page without content when the education is long", () => {
     for (const id of templateIds) {
       const plan = resolve(makeProfile(2, 2, 10), id).pagePlan;
       expect(idsOf(plan)).toHaveLength(12);
-      for (const page of plan) expect(page.items.length).toBeGreaterThan(0);
-      // The last experience and the first education entry never share a lonely page tail.
-      if (plan.length === 2) expect(filled(plan, 1)).toBeGreaterThanOrEqual(0.3);
+      expect(plan[0].items.length).toBeGreaterThan(0);
+      // The last page is never empty: it holds career entries or the blocks that follow them.
+      if (plan.length === 2) expect(plan[1].items.length + (plan[1].blocks?.length ?? 0)).toBeGreaterThan(0);
     }
   });
 
@@ -234,9 +323,10 @@ describe("A4 document pagination", () => {
 
   it("keeps Einspaltig experience entries ahead of education after a page split", () => {
     const plan = createResumePagePlan(makeProfile(6, 4, 2), "", {}, "einspaltig");
-    const kinds = plan.flatMap((page) => page.items.map((item) => item.kind));
+    const first = new Map<string, string>();
+    for (const item of plan.flatMap((page) => page.items)) if (!first.has(item.id)) first.set(item.id, item.kind);
     expect(plan).toHaveLength(2);
-    expect(kinds).toEqual([...Array(6).fill("experience"), ...Array(2).fill("education")]);
+    expect([...first.values()]).toEqual([...Array(6).fill("experience"), ...Array(2).fill("education")]);
   });
 
   it("follows a custom section order from the layout manager", () => {
@@ -258,15 +348,51 @@ describe("A4 document pagination", () => {
   it("counts the summary, the project highlight and other page-one blocks", () => {
     const shortSummary = makeProfile(2, 2, 1, { summary: "Kurz." });
     const longSummary = makeProfile(2, 2, 1, { summary: "Ein sehr ausführliches Profil. ".repeat(40) });
-    const fill = (profile: ReturnType<typeof makeProfile>) => resolve(profile, "einspaltig").pagePlan[0].fill!.main;
+    // A long summary may push the last entry to page two: compare the whole document, not page one alone.
+    const fill = (profile: ReturnType<typeof makeProfile>) => resolve(profile, "einspaltig").pagePlan.reduce((sum, page) => sum + page.fill!.main, 0);
     expect(fill(longSummary)).toBeGreaterThan(fill(shortSummary) + 0.05);
     const withProject = (projects: string[]) => makeProfile(1, 3, 0, { experiences: [{
       id: crypto.randomUUID(), from: "2024", to: "2025", role: "Praktikum", company: "Stadt",
       projects, achievements: [bullet(0), bullet(1), bullet(2)],
     }] });
-    const projectFill = resolve(withProject(["Grafana Datasource Plugin"]), "pehlione_white_blue").pagePlan[0].fill!.main;
-    const withoutProjects = resolve(withProject([]), "pehlione_white_blue").pagePlan[0].fill!.main;
-    expect(projectFill).toBeGreaterThan(withoutProjects);
+    // The project block may move to page two together with the signature: compare the whole document.
+    const total = (projects: string[]) => resolve(withProject(projects), "pehlione_white_blue").pagePlan.reduce((sum, page) => sum + page.fill!.main, 0);
+    expect(total(["Grafana Datasource Plugin"])).toBeGreaterThan(total([]));
+  });
+
+  it("keeps the order of the blocks behind the career entries: Tabellarisch draws languages before knowledge", () => {
+    const many = Array.from({ length: 64 }, (_, index) => `Technologie ${index + 1} im Einsatz`);
+    const profile = makeProfile(3, 3, 1, { skills: many });
+    // Einspaltig draws knowledge first, so its list may start on page one ...
+    const einspaltig = resolve(profile, "einspaltig").pagePlan;
+    expect(einspaltig[0].blockRanges?.knowledge ?? einspaltig[0].blocks?.includes("knowledge")).toBeTruthy();
+    // ... Tabellarisch draws the languages first: the knowledge list must not jump ahead of them.
+    const tabellarisch = resolve(profile, "tabellarisch").pagePlan;
+    expect(tabellarisch[0].blocks ?? []).not.toContain("knowledge");
+    expect(tabellarisch[1].blocks).toContain("knowledge");
+  });
+
+  it("splits the knowledge list at a grid row and shares its items exactly", () => {
+    const many = Array.from({ length: 64 }, (_, index) => `Technologie ${index + 1} im Einsatz`);
+    const plan = resolve(makeProfile(3, 3, 1, { skills: many }), "einspaltig").pagePlan;
+    const first = plan[0].blockRanges?.knowledge;
+    const last = plan[1].blockRanges?.knowledge;
+    expect(first).toBeDefined();
+    expect(last).toBeDefined();
+    expect(first!.from).toBe(0);
+    expect(last!.to).toBe(64);
+    expect(last!.from).toBe(first!.to);
+    // Whole grid rows (three columns) stay on page one, and two rows stay on either side.
+    expect(first!.to % 3).toBe(0);
+    expect(first!.to).toBeGreaterThanOrEqual(6);
+    expect(64 - first!.to).toBeGreaterThanOrEqual(6);
+  });
+
+  it("widens the estimate for a broader sidebar: the profile column ratio takes width from the main column", () => {
+    const narrow = resolve(makeProfile(3, 3, 1, { resumeColumnRatio: 30 }), "pehlione_white_blue").pagePlan;
+    const wide = resolve(makeProfile(3, 3, 1, { resumeColumnRatio: 40 }), "pehlione_white_blue").pagePlan;
+    const firstWeight = (plan: ResumePagePlan[]) => plan[0].items[0].weight;
+    expect(firstWeight(wide)).toBeGreaterThan(firstWeight(narrow));
   });
 
   it("places certificates on the template's actual page and column", () => {
@@ -369,7 +495,8 @@ describe("closing block and output modes", () => {
       expect(plan.length).toBeLessThanOrEqual(2);
       for (const page of plan) expect(page.sidebar).toBe(false);
       expect(idsOf(plan)).toHaveLength(8);
-      if (plan.length === 2) expect(plan[1].blocks).toContain("knowledge");
+      // Knowledge follows the career entries: it starts on page one only if page one has room left.
+      if (plan.length === 2) expect([...(plan[0].blocks ?? []), ...(plan[1].blocks ?? [])]).toContain("knowledge");
     }
   });
 
@@ -382,6 +509,89 @@ describe("closing block and output modes", () => {
     const single = resolve(profile, "pehlione_white_blue", { resumePresentation: { layoutMode: "single" } });
     const native = resolve(profile, "pehlione_white_blue");
     expect(single.pagePlan[0].items[0].weight).toBeLessThan(native.pagePlan[0].items[0].weight);
+  });
+
+  describe("plain (ATS) layout", () => {
+    const ats = { resumeOutputMode: "ats" } as const;
+    const noKnowledge = { resumeSections: { profile: true, strengths: true, experience: true, education: true, skills: false, languages: true, certifications: true } };
+    const contacts = { phone: "+49 30 123456", linkedin: "https://linkedin.com/in/mina", github: "https://github.com/mina", portfolio: "https://mina.example.com" };
+
+    it("stacks the contacts of Elegant and Zweispaltig, so their header grows with every contact", () => {
+      const few = makeProfile(1, 2, 0);
+      const many = makeProfile(1, 2, 0, contacts);
+      for (const id of ["zweispaltig", "elegant"]) {
+        expect(filled(resolve(many, id, ats).pagePlan, 0)).toBeGreaterThan(filled(resolve(few, id, ats).pagePlan, 0) + 0.05);
+      }
+      // A hidden contact block leaves the header at its bare height.
+      const hidden = makeProfile(1, 2, 0, {
+        ...contacts,
+        resumeSemanticSections: resolveResumeSectionInstances([]).map((section) =>
+          section.semanticType === "personalData" ? { ...section, visible: false } : section),
+      });
+      expect(filled(resolve(hidden, "zweispaltig", ats).pagePlan, 0)).toBeLessThan(filled(resolve(makeProfile(1, 2, 0, contacts), "zweispaltig", ats).pagePlan, 0) - 0.05);
+      // The other plain layouts keep one measured header whatever the contacts are.
+      expect(filled(resolve(many, "einspaltig", ats).pagePlan, 0)).toBeCloseTo(filled(resolve(few, "einspaltig", ats).pagePlan, 0), 6);
+    });
+
+    it("draws the knowledge list as one paragraph per category instead of a grid", () => {
+      const skills = Array.from({ length: 60 }, (_, index) => `Technologie ${index + 1} im Einsatz`);
+      const base = makeProfile(1, 2, 0);
+      const rich = makeProfile(1, 2, 0, { skills });
+      const growth = (settings: Partial<typeof defaultDocumentDesign>) =>
+        filled(resolve(rich, "einspaltig", settings).pagePlan, 0) - filled(resolve(base, "einspaltig", settings).pagePlan, 0);
+      expect(resolve(rich, "einspaltig", ats).pagePlan).toHaveLength(1);
+      expect(growth(ats)).toBeGreaterThan(0.1);
+      expect(growth(ats)).toBeLessThan(growth({}) * 0.75);
+    });
+
+    it("counts a paragraph line per wrapped line: longer skill lists take more room", () => {
+      const list = (count: number) => makeProfile(1, 2, 0, { skills: Array.from({ length: count }, (_, index) => `Technologie ${index + 1} im Einsatz`) });
+      const at = (count: number) => filled(resolve(list(count), "klassisch", ats).pagePlan, 0);
+      expect(at(6)).toBeLessThan(at(24));
+      expect(at(24)).toBeLessThan(at(48));
+    });
+
+    it("lists every certificate in the plain layouts, whatever the styled template shows of them", () => {
+      const many = makeProfile(1, 2, 0, { certifications: Array.from({ length: 8 }, (_, index) => `Zertifikat ${index + 1} des Anbieters`) });
+      const none = makeProfile(1, 2, 0);
+      const growth = (id: string, settings: Partial<typeof defaultDocumentDesign> = {}) =>
+        filled(resolve(many, id, settings).pagePlan, 0) - filled(resolve(none, id, settings).pagePlan, 0);
+      // Stilvoll draws none, Kompakt two of them; the plain layouts print all eight.
+      expect(growth("stilvoll")).toBeCloseTo(0, 6);
+      expect(growth("stilvoll", ats)).toBeGreaterThan(0.08);
+      expect(growth("kompakt", ats)).toBeGreaterThan(growth("kompakt") + 0.05);
+    });
+
+    it("measures languages as lines of text: each one costs about the same", () => {
+      const languages = (count: number) => makeProfile(1, 2, 0, { languages: Array.from({ length: count }, (_, index) => `Sprache ${index + 1} – B2`) });
+      const at = (id: string, count: number) => filled(resolve(languages(count), id, ats).pagePlan, 0);
+      for (const id of ["einspaltig", "modern", "elegant"]) {
+        const step = at(id, 4) - at(id, 2);
+        expect(step).toBeGreaterThan(0.03);
+        expect(at(id, 6) - at(id, 4)).toBeCloseTo(step, 2);
+      }
+    });
+
+    it("reserves room for skills shown as strengths only where the template draws them", () => {
+      const withSkills = makeProfile(1, 2, 0, { ...noKnowledge, strengths: [] });
+      const withoutSkills = makeProfile(1, 2, 0, { ...noKnowledge, strengths: [], skills: [] });
+      const growth = (id: string, settings: Partial<typeof defaultDocumentDesign> = {}) =>
+        filled(resolve(withSkills, id, settings).pagePlan, 0) - filled(resolve(withoutSkills, id, settings).pagePlan, 0);
+      expect(growth("einspaltig")).toBeGreaterThan(0.03);
+      expect(growth("modern")).toBeCloseTo(0, 6);
+      expect(growth("pehlione_white_blue", ats)).toBeCloseTo(0, 6);
+      expect(growth("einspaltig", ats)).toBeGreaterThan(0.03);
+      expect(growth("tabellarisch", ats)).toBeGreaterThan(0.03);
+    });
+
+    it("drops skills shown as strengths from a plain résumé that needs a second page", () => {
+      const long = (skills: string[]) => makeProfile(9, 5, 0, { ...noKnowledge, strengths: [], skills });
+      const withSkills = resolve(long(["TypeScript", "React", "Node.js", "SQL"]), "einspaltig", ats).pagePlan;
+      const withoutSkills = resolve(long([]), "einspaltig", ats).pagePlan;
+      expect(withSkills).toHaveLength(2);
+      expect(withSkills.map((page) => page.items.map((item) => item.id).length)).toEqual(withoutSkills.map((page) => page.items.map((item) => item.id).length));
+      expect(filled(withSkills, 0)).toBeCloseTo(filled(withoutSkills, 0), 6);
+    });
   });
 
   it("supports a manual page break", () => {

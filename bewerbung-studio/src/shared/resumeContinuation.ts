@@ -12,6 +12,8 @@ export const resumeContinuationCss = `
 [data-resume-header-extra-contact] a{color:inherit;text-decoration:none;overflow-wrap:anywhere}
 aside[class*="continuation"]{display:block!important;height:auto!important;min-height:0!important;padding-top:12mm!important}
 [data-managed-section]>:is(h2,h3){break-after:avoid;page-break-after:avoid}
+[data-managed-section] :is(h4,h5){break-after:avoid;page-break-after:avoid}
+[data-managed-section] li{break-inside:avoid;page-break-inside:avoid;orphans:2;widows:2}
 [data-resume-nowrap]{white-space:nowrap!important}
 `;
 
@@ -142,6 +144,17 @@ export const removeEmptyCareerSections = (
       const body = (section.textContent ?? "").replace(heading.textContent ?? "", "").trim();
       if (!body) section.remove();
     }
+  }
+};
+
+/**
+ * The “add your career to the profile” hint belongs to a résumé without any career
+ * entry. It must not appear on a page that merely has none of them because the
+ * entries fit on the pages before.
+ */
+export const removeEmptyCareerHint = (root: Element): void => {
+  for (const node of Array.from(root.querySelectorAll("p,div,span"))) {
+    if (node.children.length === 0 && /^Berufserfahrung und Ausbildung im Profil ergänzen\.?$/.test((node.textContent ?? "").trim())) node.remove();
   }
 };
 

@@ -72,7 +72,8 @@ export const resolveCvDocument = ({
       mode: layout.mode,
       sidebarWidthPercent: layout.sidebarWidthPercent,
       overridden: layout.overridden,
-      nativeSidebarWidthPercent: resolveResumeLayout(templateId, undefined, false, sourceProfile?.resumeColumnRatio).sidebarWidthPercent,
+      // The geometry was measured with the template's default sidebar; a profile column ratio widens it.
+      nativeSidebarWidthPercent: resolveResumeLayout(templateId, undefined, false).sidebarWidthPercent,
     },
     sections: managerSections.map(({ id, visible, zone }) => ({ id, visible, zone })),
     closing: profile && {

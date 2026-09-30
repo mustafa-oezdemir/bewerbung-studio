@@ -1,6 +1,7 @@
 import type { ApplicantProfile, DocumentDraft } from "./schema";
 import { ensureKnowledgeSection } from "../features/knowledge/knowledge.service";
-import { flattenKnowledgeNames } from "../features/knowledge/knowledge.utils";
+import { formatKnowledgeItem } from "../features/knowledge/knowledge.utils";
+import { knowledgeLists, type KnowledgeRange } from "./resumeKnowledgeRange";
 import { getCoverLetterMainBody } from "./coverLetter";
 import { getPehlioneProjectHighlight, hasPehlioneCustomProjectHighlight } from "./pehlioneContent";
 import {
@@ -20,13 +21,19 @@ import {
   type PaginationZone,
 } from "./resumePaginationGeometry";
 
+/** Bullets `from`..`to` (exclusive, of `total`) of an experience entry that continues on the next page. */
+export type ResumeBulletRange = { from: number; to: number; total: number };
+
 export type ResumePageItem =
-  | { kind: "experience"; id: string; weight: number }
+  | { kind: "experience"; id: string; weight: number; bullets?: ResumeBulletRange }
   | { kind: "education"; id: string; weight: number };
 
 export type ResumePagePlan = {
   pageNumber: 1 | 2;
-  /** Career items rendered on this page, in reading order. `weight` is the estimated height in mm. */
+  /**
+   * Career items rendered on this page, in reading order. `weight` is the estimated height in mm.
+   * An experience entry that breaks between two pages appears on both with complementary `bullets`.
+   */
   items: ResumePageItem[];
   density: "standard" | "compact" | "dense";
   /**
@@ -34,6 +41,8 @@ export type ResumePagePlan = {
    * `special:*`) that this page renders. Every block appears on exactly one page.
    */
   blocks?: string[];
+  /** A block that breaks between two pages is drawn on both; its items are shared out as ranges. */
+  blockRanges?: Record<string, KnowledgeRange>;
   /** Whether this page keeps its sidebar column. Page one always does. */
   sidebar?: boolean;
   /** Estimated filling (0 = empty, 1 = full) of the flow columns, for diagnostics and tests. */
@@ -50,7 +59,7 @@ export type LetterPageStatus = {
 export type ResumePaginationOptions = {
   /** Career items are always kept in reading order; kept for older callers. */
   preserveItemOrder?: boolean;
-  /** Prefer breaking between sections over breaking inside one (default). */
+  /** Ignored: sections break wherever page one ends (word-processor flow). Kept for older callers. */
   keepSectionsTogether?: boolean;
   /** Force the number of career items on page one (manual page break, tests). */
   firstPageItemCount?: number;
@@ -100,19 +109,45 @@ const SAFETY = 0.97;
 const SIDEBAR_HOST_SHARE = 0.94;
 /** Share of the page a compacted single page may use. */
 const COMPACT_MARGIN = 0.96;
-/** Cost of choosing a compacted single page over two pages. */
-const COMPACT_PAGE_COST = 0.1;
-/** Comfort limits of a two-page split (share of a page): see the cost function below. */
-const MIN_LAST_FILL = 0.45;
-const MIN_FIRST_FILL = 0.72;
-const MAX_FILL_GAP = 0.45;
-const REVERSED_GAP = 0.05;
+/**
+ * The résumé flows like a Word document: page one is filled as far as the content
+ * allows and the rest continues on page two. Two guards keep the result tidy:
+ * the last page never shrinks to a stub (the first page then gives up trailing
+ * content), and a compacted single page beats a second page that would be nearly empty.
+ */
+const MIN_LAST_FILL = 0.15;
+const MIN_FIRST_FILL = 0.55;
+const COMPACT_INSTEAD_OF_LAST_BELOW = 0.5;
+/** Widow/orphan control: an entry breaks between bullets only if this many text lines stay on both sides. */
+const MIN_SPLIT_LINES = 2;
 const CLOSING_MM = { signature: 22, plain: 10 };
 /** Long summaries wrap a little more than the average glyph advance predicts. */
 const SUMMARY_WRAP_SLACK = 1.05;
+/** Comma-separated lists break at every comma: they wrap a little less than running text. */
+const ATS_LIST_WRAP = 0.92;
 /** The managed item grids: 3 mm between columns and a 4 mm icon plus 1.5 mm gap in front of each text. */
 const GRID_COLUMN_GAP_MM = 3;
 const GRID_ICON_MM = 5.5;
+
+/**
+ * Contact lines a plain (ATS) header prints. Elegant and Zweispaltig stack them one per
+ * line, so their header grows with the number of filled contact fields.
+ */
+const atsContactLines = (templateId: string | undefined, profile: ApplicantProfile | undefined) => {
+  if (!profile) return 0;
+  const filled = (value: string | undefined) => Boolean(value?.trim());
+  const location = [profile.postalCode, profile.city, profile.country].some(filled);
+  const birth = filled(profile.birthDate) || filled(profile.birthPlace);
+  // Elegant prints one "website" line for the portfolio, or the GitHub profile when there is none.
+  const web = templateId === "elegant"
+    ? [profile.portfolio || profile.github]
+    : [profile.github, profile.portfolio];
+  return [profile.phone, profile.email, profile.linkedin, ...web].filter(filled).length + Number(location) + Number(birth);
+};
+
+/** The template's own space between two sections; the plain (ATS) layout may differ from the styled one. */
+const nativeSectionGapOf = (geometry: PaginationGeometry, atsMode?: boolean) =>
+  (atsMode ? geometry.ats.sectionGap : undefined) ?? geometry.blocks.sectionGap;
 
 const strip = ({ kind, id, ...item }: MeasuredItem, page: "first" | "cont"): ResumePageItem => ({ kind, id, weight: Math.round(item[page] * 10) / 10 });
 
@@ -122,6 +157,9 @@ type Scale = {
   line: number;
   width: number;
   contWidth: number;
+  /** Main-column text width relative to its measured width, and how many mm the sidebar text grew. */
+  mainRatio: number;
+  sideDelta: number;
   marginInset: number;
   /** Measured entry height of the ATS layout relative to the visual model (1 outside ATS mode). */
   exp: number;
@@ -133,34 +171,49 @@ type Scale = {
 const linesFor = (chars: number, widthMm: number, fontMm: number, cw: number) =>
   chars <= 0 ? 0 : Math.max(1, Math.ceil((chars * cw * fontMm) / Math.max(widthMm, 12)));
 
-type MeasuredItem = ResumePageItem & { first: number; cont: number; gapAfter: number };
+/** Bullet-level view of an experience entry: rendered lines per bullet, and the height of any bullet range. */
+type EntryMetrics = { lines: number[]; height: (from: number, to: number) => number };
+
+type MeasuredItem = ResumePageItem & {
+  first: number;
+  cont: number;
+  gapAfter: number;
+  /** Experience entries can break between bullets: metrics for the first-page and the continuation width. */
+  parts?: { first: EntryMetrics; cont: EntryMetrics };
+};
 
 const trimmedBullets = (experience: ApplicantProfile["experiences"][number]) =>
   experience.achievements.map((value) => value.trim()).filter(Boolean);
 
-const experienceHeight = (
+/** Pehlione shows at most this many bullets per entry; every other template shows all of them. */
+const bulletCapOf = (templateId?: string) => (templateId?.startsWith("pehlione_") ? 5 : Number.POSITIVE_INFINITY);
+
+const experienceMetrics = (
   experience: ApplicantProfile["experiences"][number],
   geometry: PaginationGeometry,
   scale: Scale,
   widthScale: number,
-) => {
+  bulletCap: number,
+): EntryMetrics => {
   const { text, exp } = geometry;
-  const bullets = trimmedBullets(experience);
-  const bulletLines = bullets.reduce(
-    (total, bullet) => total + linesFor(bullet.length, text.bulletW * widthScale, text.bulletFont * scale.font, text.cw),
-    0,
-  );
+  const bullets = trimmedBullets(experience).slice(0, bulletCap);
+  const lines = bullets.map((bullet) => linesFor(bullet.length, text.bulletW * widthScale, text.bulletFont * scale.font, text.cw));
   const titleLines = linesFor(experience.role.trim().length, text.titleW * widthScale, text.titleFont * scale.font, text.cw * 1.08);
   const orgLines = linesFor(experience.company.trim().length, text.orgW * widthScale, text.orgFont * scale.font, text.cw * 1.06);
   const extra = Math.max(0, titleLines - 1) + Math.max(0, orgLines - 1);
-  return (
-    (exp.base +
-      (bullets.length ? exp.list : 0) +
-      exp.perBullet * bullets.length +
-      exp.linePitch * scale.line * bulletLines +
-      exp.extraLine * extra) *
-    scale.exp * scale.textHeight
-  );
+  // Every part of an entry repeats the header (dates, role, company); only the bullets are shared out.
+  const height = (from: number, to: number) => {
+    const shown = lines.slice(from, to);
+    return (
+      (exp.base +
+        (shown.length ? exp.list : 0) +
+        exp.perBullet * shown.length +
+        exp.linePitch * scale.line * shown.reduce((total, value) => total + value, 0) +
+        exp.extraLine * extra) *
+      scale.exp * scale.textHeight
+    );
+  };
+  return { lines, height };
 };
 
 const educationHeight = (
@@ -177,6 +230,19 @@ const educationHeight = (
 
 type ListEntry = { title: string; description?: string };
 
+/** Height of one grid row: the tallest of its items (a wrapped title costs another line). */
+const rowHeight = (model: ItemBlockModel, scale: Scale, row: ReadonlyArray<ListEntry>) => {
+  let tallest = 0;
+  for (const entry of row) {
+    const titleLines = linesFor(entry.title.length, model.w, model.font * scale.font, model.cw);
+    const description = entry.description
+      ? linesFor(entry.description.length, model.w, model.font * scale.font * 0.92, model.cw) * model.pitch * 0.92 + 1
+      : 0;
+    tallest = Math.max(tallest, model.pad + model.pitch * scale.line * titleLines + description);
+  }
+  return tallest;
+};
+
 /** Height of a list block (strengths, knowledge): heading plus rows of wrapped items. */
 const listBlockHeight = (
   model: ItemBlockModel,
@@ -189,15 +255,7 @@ const listBlockHeight = (
   let rowsHeight = 0;
   let rows = 0;
   for (let start = 0; start < entries.length; start += cols) {
-    let tallest = 0;
-    for (const entry of entries.slice(start, start + cols)) {
-      const titleLines = linesFor(entry.title.length, model.w, model.font * scale.font, model.cw);
-      const description = entry.description
-        ? linesFor(entry.description.length, model.w, model.font * scale.font * 0.92, model.cw) * model.pitch * 0.92 + 1
-        : 0;
-      tallest = Math.max(tallest, model.pad + model.pitch * scale.line * titleLines + description);
-    }
-    rowsHeight += tallest;
+    rowsHeight += rowHeight(model, scale, entries.slice(start, start + cols));
     rows += 1;
   }
   return (model.head + extraHeadings * 8 + rowsHeight + model.gap * (rows - 1)) * scale.textHeight;
@@ -232,7 +290,7 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
   const marginInset = Math.max(0, overrides.pageMarginMm !== undefined
     ? overrides.pageMarginMm - defaultMargin : legacyMargin);
   const sectionGap = overrides.sectionGapMm ?? (settings && settings.sectionSpacingLevel !== defaults.sectionSpacingLevel
-    ? geometry.blocks.sectionGap + sectionSpacingLevelToMm[settings.sectionSpacingLevel] - sectionSpacingLevelToMm[defaults.sectionSpacingLevel]
+    ? nativeSectionGapOf(geometry, context.atsMode) + sectionSpacingLevelToMm[settings.sectionSpacingLevel] - sectionSpacingLevelToMm[defaults.sectionSpacingLevel]
     : undefined);
   const single = context.atsMode || context.layout?.mode === "single";
   const factors = context.atsMode ? geometry.ats : { exp: 1, edu: 1 };
@@ -240,18 +298,20 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
   if (single) {
     const width = geometry.text.atsW / geometry.text.bulletW;
     const insetWidth = Math.max(0.55, (geometry.text.atsW - 2 * marginInset) / geometry.text.atsW);
-    return { font, textHeight, line, width: width * insetWidth, contWidth: width * insetWidth, marginInset, ...factors, ...spacing };
+    return { font, textHeight, line, width: width * insetWidth, contWidth: width * insetWidth, mainRatio: insetWidth, sideDelta: 0, marginInset, ...factors, ...spacing };
   }
-  let width = 1;
+  // A wider sidebar takes its extra millimetres from the main column (page width 210 mm).
   const layout = context.layout;
-  if (geometry.columns === 2 && layout?.overridden && layout.nativeSidebarWidthPercent) {
-    width = (100 - layout.sidebarWidthPercent) / Math.max(100 - layout.nativeSidebarWidthPercent, 1);
-  }
+  const sideDelta = geometry.columns === 2 && layout?.nativeSidebarWidthPercent
+    ? (layout.sidebarWidthPercent - layout.nativeSidebarWidthPercent) * 2.1
+    : 0;
+  const bulletRatio = Math.max(0.5, (geometry.text.bulletW - sideDelta) / geometry.text.bulletW);
   // Continuation pages have no sidebar: their main column spans the page.
-  const contWidth = geometry.columns === 2 ? geometry.text.contW / geometry.text.bulletW : width;
+  const contWidth = geometry.columns === 2 ? geometry.text.contW / geometry.text.bulletW : bulletRatio;
   const mainInset = Math.max(0.55, (geometry.text.mainW - 2 * marginInset) / geometry.text.mainW);
   const continuationInset = Math.max(0.55, (geometry.text.contW - 2 * marginInset) / geometry.text.contW);
-  return { font, textHeight, line, width: width * mainInset, contWidth: contWidth * continuationInset, marginInset, ...factors, ...spacing };
+  const mainRatio = Math.max(0.5, (geometry.text.mainW - sideDelta) / geometry.text.mainW) * mainInset;
+  return { font, textHeight, line, width: bulletRatio * mainInset, contWidth: contWidth * continuationInset, mainRatio, sideDelta, marginInset, ...factors, ...spacing };
 };
 
 type SectionId = "summary" | "strengths" | "knowledge" | "languages" | "certifications" | "projects";
@@ -264,8 +324,12 @@ type FlowBlock = {
   home: "first" | "last";
   /** Sidebar block that may be hosted on page one instead of the last page. */
   hostable?: boolean;
+  /** A block the template only draws when the whole résumé fits on one page. */
+  singleOnly?: boolean;
   /** Height when the block flows into the full-width main column of the last page. */
   contHeight?: number;
+  /** A list block whose rows may break between two pages: cumulative item count and height of any row range. */
+  split?: { ends: number[]; height: (from: number, to: number) => number };
 };
 
 const sumHeights = (values: number[], gap: number) =>
@@ -311,15 +375,20 @@ export const createResumePagePlan = (
     : 0;
 
   // --- career items ---------------------------------------------------------
-  const sectionGap = scale.sectionGap ?? geometry.blocks.sectionGap;
+  const sectionGap = scale.sectionGap ?? nativeSectionGapOf(geometry, context.atsMode);
   const experienceGap = geometry.exp.gap > 0 ? (scale.entryGap ?? geometry.exp.gap) : 0;
   const educationGap = geometry.edu.gap > 0 ? (scale.entryGap ?? geometry.edu.gap) : 0;
   const items: MeasuredItem[] = [
-    ...(profile?.experiences ?? []).map((experience): MeasuredItem => ({
-      kind: "experience", id: experience.id, weight: 0, gapAfter: experienceGap,
-      first: experienceHeight(experience, geometry, scale, scale.width),
-      cont: experienceHeight(experience, geometry, scale, scale.contWidth),
-    })),
+    ...(profile?.experiences ?? []).map((experience): MeasuredItem => {
+      const first = experienceMetrics(experience, geometry, scale, scale.width, bulletCapOf(templateId));
+      const cont = experienceMetrics(experience, geometry, scale, scale.contWidth, bulletCapOf(templateId));
+      return {
+        kind: "experience", id: experience.id, weight: 0, gapAfter: experienceGap,
+        first: first.height(0, first.lines.length),
+        cont: cont.height(0, cont.lines.length),
+        parts: { first, cont },
+      };
+    }),
     ...(profile?.education ?? []).map((education): MeasuredItem => ({
       kind: "education", id: education.id, weight: 0, gapAfter: educationGap,
       first: educationHeight(education, geometry, scale, scale.width),
@@ -337,37 +406,51 @@ export const createResumePagePlan = (
     items.sort((left, right) => rank(left.kind) - rank(right.kind));
   }
 
-  const sectionHead = (kind: ResumePageItem["kind"]) => (kind === "experience" ? geometry.exp.head : geometry.edu.head);
-  /** Height of a run of career items on one kind of page, including one heading per section. */
-  const itemsHeight = (list: readonly MeasuredItem[], page: "first" | "cont") => {
+  const sectionHead = (kind: ResumePageItem["kind"]) =>
+    (context.atsMode ? geometry.ats.head : undefined) ?? (kind === "experience" ? geometry.exp.head : geometry.edu.head);
+  /** A career entry as drawn on one page: all of it, or the part of an entry that breaks across pages. */
+  type Shown = { kind: ResumePageItem["kind"]; height: number; gapAfter: number };
+  /** Height of a run of career entries on one page, including one heading per section. */
+  const runHeight = (list: readonly Shown[]) => {
     let total = 0;
     let previousKind: string | undefined;
-    list.forEach((item, index) => {
-      if (item.kind !== previousKind) {
-        total += (index > 0 ? sectionGap : 0) + sectionHead(item.kind);
+    list.forEach((entry, index) => {
+      if (entry.kind !== previousKind) {
+        total += (index > 0 ? sectionGap : 0) + sectionHead(entry.kind);
       } else {
         total += list[index - 1].gapAfter;
       }
-      total += item[page];
-      previousKind = item.kind;
+      total += entry.height;
+      previousKind = entry.kind;
     });
     return total;
   };
+  const wholeShown = (item: MeasuredItem, page: "first" | "cont"): Shown => ({ kind: item.kind, height: item[page], gapAfter: item.gapAfter });
+  const itemsHeight = (list: readonly MeasuredItem[], page: "first" | "cont") => runHeight(list.map((item) => wholeShown(item, page)));
 
   // --- fixed blocks -----------------------------------------------------------
   const summaryText = (resumeProfile || profile?.summary || "").trim();
   const knowledgeSection = profile ? ensureKnowledgeSection(profile.knowledgeSection, profile.skills) : undefined;
-  const knowledgeNames = knowledgeSection ? flattenKnowledgeNames(knowledgeSection) : [];
-  const knowledgeCategories = knowledgeSection?.categories.filter((category) => category.isVisible).length ?? 0;
-  const strengthEntries: ListEntry[] = (profile?.strengths ?? [])
+  const knowledgeGroups = knowledgeSection?.isVisible === false ? [] : knowledgeLists(knowledgeSection ?? { title: "", categories: [], isVisible: true }).filter((list) => list.items.length);
+  const knowledgeItemCount = knowledgeGroups.reduce((total, list) => total + list.items.length, 0);
+  // Without strengths of its own a résumé shows its skills as strengths (see applyManagedResumeOutput).
+  const explicitStrengths = (profile?.strengths ?? [])
     .filter((entry) => entry.title.trim())
     .map((entry) => ({ title: entry.title.trim(), description: entry.description.trim() }));
+  const strengthEntries: ListEntry[] = explicitStrengths.length
+    ? explicitStrengths
+    : [...new Set((profile?.skills ?? []).map((value) => value.trim()).filter(Boolean))].map((value) => {
+        const [title, ...description] = value.split(/\s+(?:–|—|:)\s+/);
+        return { title, description: description.join(" – ") };
+      });
   const languages = (profile?.languages ?? []).filter((entry) => entry.trim());
   const certifications = (profile?.certifications ?? []).filter((entry) => entry.trim());
   const { blocks } = geometry;
   const line = (values: [number, number], count: number) => values[0] + values[1] * count;
   const textWidth = (zone: PaginationZone) =>
-    (zone === "sidebar" && !flat ? geometry.text.sideW : flat ? geometry.text.atsW : geometry.text.mainW) * scale.width;
+    flat ? ((context.atsMode ? geometry.ats.summaryW : undefined) ?? geometry.text.atsW) * scale.mainRatio
+      : zone === "sidebar" ? geometry.text.sideW + scale.sideDelta
+        : geometry.text.mainW * scale.mainRatio;
 
   // Strengths and knowledge are drawn by the managed layer as an item grid. Beside a
   // sidebar the list keeps its measured narrow column; anywhere else the number of
@@ -375,11 +458,11 @@ export const createResumePagePlan = (
   const settings = context.settings ?? defaultDocumentDesign;
   const gridModel = (kind: "strengths" | "knowledge", entries: ListEntry[], zone: PaginationZone, page: "first" | "last"): ItemBlockModel => {
     const model = geometry.items[kind];
-    if (zone === "sidebar" && !flat && page === "first") return model;
+    if (zone === "sidebar" && !flat && page === "first") return { ...model, w: model.w + scale.sideDelta };
     const beside = !flat && page === "first" && geometry.columns === 2;
     const mode = kind === "strengths" ? settings.strengthsColumns : settings.knowledgeColumns;
     const cols = resolveSectionColumns(mode, templateId ?? "", "main", entries, settings, beside);
-    const width = beside ? geometry.text.mainW * scale.width : geometry.text.fullW;
+    const width = beside ? geometry.text.mainW * scale.mainRatio : geometry.text.fullW;
     return {
       ...model,
       cols,
@@ -392,11 +475,21 @@ export const createResumePagePlan = (
   if (visible("summary") && summaryText) {
     const zone = zoneOf("summary");
     const lines = linesFor(summaryText.length, textWidth(zone), geometry.text.sumFont * scale.font, geometry.text.cw * SUMMARY_WRAP_SLACK);
-    flow.push({ id: "summary", zone, height: (blocks.summary[0] + blocks.summary[1] * scale.line * lines) * scale.textHeight, home: "first" });
+    // Every plain section starts with the same heading block as the career sections.
+    const summaryHead = context.atsMode ? geometry.ats.head ?? geometry.exp.head : blocks.summary[0];
+    flow.push({ id: "summary", zone, height: (summaryHead + blocks.summary[1] * scale.line * lines) * scale.textHeight, home: "first" });
   }
-  if (visible("strengths") && strengthEntries.length) {
+  // Skills shown as strengths are only drawn by some templates, and some only on a one-page résumé.
+  const derivedStrengths = explicitStrengths.length ? "first" : geometry.derivedStrengths[context.atsMode ? "ats" : "visual"];
+  if (visible("strengths") && strengthEntries.length && derivedStrengths !== "never") {
     const zone = zoneOf("strengths");
-    flow.push({ id: "strengths", zone, height: listBlockHeight(gridModel("strengths", strengthEntries, zone, "first"), scale, strengthEntries), home: "first" });
+    flow.push({
+      id: "strengths",
+      zone,
+      height: listBlockHeight(gridModel("strengths", strengthEntries, zone, "first"), scale, strengthEntries),
+      home: "first",
+      singleOnly: derivedStrengths === "single",
+    });
   }
   if (visible("languages") && languages.length) {
     const zone = zoneOf("languages");
@@ -404,8 +497,10 @@ export const createResumePagePlan = (
     flow.push({
       id: "languages",
       zone,
-      // Long names such as “Türkisch (Muttersprache) – C2” wrap inside a narrow sidebar.
-      height: (line(blocks.languages, languages.length) + languages.filter((entry) => entry.length > 22).length * geometry.exp.linePitch) * scale.textHeight,
+      // Long names such as “Türkisch (Muttersprache) – C2” wrap inside a narrow sidebar; plain lists span the page.
+      height: context.atsMode
+        ? line(geometry.ats.languages, languages.length) * scale.textHeight
+        : (line(blocks.languages, languages.length) + languages.filter((entry) => entry.length > 22).length * geometry.exp.linePitch) * scale.textHeight,
       home: !flat && geometry.zones.languages === "sidebar" ? "first" : "last",
     });
   }
@@ -423,34 +518,77 @@ export const createResumePagePlan = (
     }
   }
   const knowledgeZone = zoneOf("knowledge");
-  if (visible("knowledge") && knowledgeNames.length) {
-    const names: ListEntry[] = knowledgeNames.map((name) => ({ title: name }));
-    const extraHeadings = Math.max(0, knowledgeCategories - 1);
-    flow.push({
-      id: "knowledge",
-      zone: knowledgeZone,
-      height: listBlockHeight(gridModel("knowledge", names, knowledgeZone, "first"), scale, names, extraHeadings),
-      // On the last page there is no sidebar: the list spreads over the page width.
-      contHeight: listBlockHeight(gridModel("knowledge", names, knowledgeZone, "last"), scale, names, extraHeadings),
-      home: "last",
-      hostable: knowledgeZone === "sidebar" && !flat,
-    });
+  if (visible("knowledge") && knowledgeItemCount) {
+    // The renderer draws one grid per category (and subcategory): its rows are the places a page may end.
+    const knowledgeRows = (page: "first" | "last") => {
+      const rows: Array<{ end: number; height: number; list: number; gap: number }> = [];
+      let shown = 0;
+      knowledgeGroups.forEach((group, list) => {
+        const entries: ListEntry[] = group.items.map((item) => ({ title: item.name, description: item.description }));
+        const model = gridModel("knowledge", entries, knowledgeZone, page);
+        const cols = Math.max(model.cols, 1);
+        for (let start = 0; start < entries.length; start += cols) {
+          const row = entries.slice(start, start + cols);
+          shown += row.length;
+          rows.push({ end: shown, height: rowHeight(model, scale, row), list, gap: model.gap });
+        }
+      });
+      return rows;
+    };
+    const rowsHeight = (rows: ReturnType<typeof knowledgeRows>, from: number, to: number) => {
+      const part = rows.slice(from, to);
+      if (!part.length) return 0;
+      const lists = new Set(part.map((row) => row.list)).size;
+      // The heading and the first category title lead every part; each further category adds a title.
+      return (geometry.items.knowledge.head + 8 * (lists - 1) + part.reduce((total, row) => total + row.height, 0) + part[0].gap * (part.length - lists)) * scale.textHeight;
+    };
+    if (context.atsMode) {
+      // Plain text: one comma-separated paragraph per category and subcategory. It stays whole.
+      const model = geometry.ats.knowledge;
+      const listHeights = knowledgeGroups.map(({ category, items }) => {
+        const characters = items.reduce(
+          (total, item) => total + formatKnowledgeItem(item, category.showLevels, category.showYearsOfExperience, "comma-separated").length,
+          2 * (items.length - 1),
+        );
+        const lines = linesFor(characters, model.w * scale.mainRatio, model.font * scale.font, geometry.text.cw * ATS_LIST_WRAP);
+        return model.title + lines * model.pitch * scale.line;
+      });
+      const height = (model.head + sumHeights(listHeights, model.gap) + model.tail) * scale.textHeight;
+      flow.push({ id: "knowledge", zone: knowledgeZone, height, contHeight: height, home: "last" });
+    } else {
+      const firstRows = knowledgeRows("first");
+      const lastRows = knowledgeRows("last");
+      flow.push({
+        id: "knowledge",
+        zone: knowledgeZone,
+        height: rowsHeight(firstRows, 0, firstRows.length),
+        // On the last page there is no sidebar: the list spreads over the page width.
+        contHeight: rowsHeight(lastRows, 0, lastRows.length),
+        home: "last",
+        hostable: knowledgeZone === "sidebar" && !flat,
+        split: { ends: lastRows.map((row) => row.end), height: (from, to) => rowsHeight(lastRows, from, to) },
+      });
+    }
   }
   const certificates = geometry.certs;
-  if (visible("certifications") && certifications.length && certificates.home !== "none") {
-    const shown = certifications.slice(0, certificates.limit ?? certifications.length);
-    const width = flat ? geometry.text.fullW : certificates.w * (certificates.zone === "main" ? scale.width : 1);
+  // The plain layouts list every certificate, whatever the styled layout shows of them.
+  const plain = Boolean(context.atsMode);
+  const certificateHome = flat ? "last" : certificates.home;
+  if (visible("certifications") && certifications.length && (plain || certificateHome !== "none")) {
+    const shown = plain ? certifications : certifications.slice(0, certificates.limit ?? certifications.length);
+    const width = flat ? geometry.text.fullW : certificates.zone === "main" ? certificates.w * scale.mainRatio : certificates.w + scale.sideDelta;
     const wrapped = shown.reduce(
       (total, entry) => total + Math.max(0, linesFor(entry.length, width, certificates.font * scale.font, geometry.text.cw) - 1),
       0,
     );
+    const model = plain ? geometry.ats.certs : certificates;
     // A template that keeps them in its sidebar draws them on page one; flattened layouts append them.
     const zone = flat ? "main" : ((customLayout ? find("certifications")?.zone : undefined) ?? certificates.zone);
     flow.push({
       id: "certifications",
       zone,
-      height: (certificates.base + certificates.perItem * shown.length + certificates.pitch * scale.line * wrapped) * scale.textHeight,
-      home: flat ? "last" : certificates.home,
+      height: (model.base + model.perItem * shown.length + certificates.pitch * scale.line * wrapped) * scale.textHeight,
+      home: certificateHome === "none" ? "last" : certificateHome,
     });
   }
   const hostedIds: string[] = [];
@@ -474,28 +612,33 @@ export const createResumePagePlan = (
   // first header has no contact block, and the added line exceeds its minimum
   // height; the other templates have room for the shared contact line.
   const contactOnContinuation = find("personalData")?.visible !== false && Boolean(profile?.email?.trim() || profile?.phone?.trim());
-  const kompaktContactHeight = templateId === "kompakt" && contactOnContinuation ? 5.5 : 0;
-  const top1 = (context.atsMode ? geometry.atsTop1 : geometry.top1) + kompaktContactHeight;
-  const top2 = (context.atsMode
-    ? geometry.atsTop2 + geometry.top1 - geometry.top2
-    : geometry.top1) + kompaktContactHeight;
+  const kompaktContactHeight = !context.atsMode && templateId === "kompakt" && contactOnContinuation ? 5.5 : 0;
+  // The plain layouts measured their offsets with every contact filled; a header that stacks
+  // its contacts shrinks with each missing one, and every page repeats it.
+  const stackedHeader = context.atsMode ? geometry.ats.header : undefined;
+  const stackedHeight = stackedHeader
+    ? stackedHeader.base + stackedHeader.perContact * (find("personalData")?.visible === false ? 0 : atsContactLines(templateId, profile))
+    : undefined;
+  const top1 = (context.atsMode ? stackedHeight ?? geometry.atsTop1 : geometry.top1) + kompaktContactHeight;
+  const top2 = (context.atsMode ? stackedHeight ?? geometry.atsTop2 : geometry.top1) + kompaktContactHeight;
   const mainCap1 = (geometry.limit - top1 - 2 * scale.marginInset) * SAFETY;
   const mainCap2 = (geometry.limit - top2 - 2 * scale.marginInset) * SAFETY;
   const sideCap1 = geometry.sideTop1 === null || flat ? 0 : (geometry.sideLimit - geometry.sideTop1 - 2 * scale.marginInset) * SAFETY;
-  const dense = geometry.density;
+  const dense = context.atsMode ? geometry.ats.density : geometry.density;
 
   const blockLoad = (blocksOfZone: FlowBlock[], zone: PaginationZone) => {
     const heights = blocksOfZone.filter((block) => block.zone === zone).map((block) => block.height);
     return sumHeights(heights, zone === "sidebar" ? blocks.sideGap : sectionGap);
   };
-  const firstBlocks = flow.filter((block) => block.home === "first");
+  const firstBlocks = flow.filter((block) => block.home === "first" && !block.singleOnly);
+  const singleOnlyBlocks = flow.filter((block) => block.singleOnly);
   const lastBlocks = flow.filter((block) => block.home === "last");
   const hostable = lastBlocks.filter((block) => block.hostable);
 
   const stack = (fixed: number, run: number) => fixed + run + (fixed > 0 && run > 0 ? sectionGap : 0);
   const wholeMain = () =>
-    stack(blockLoad(firstBlocks, "main"), stack(itemsHeight(items, "first"), blockLoad(lastBlocks, "main"))) + closingHeight;
-  const wholeSide = () => blockLoad([...firstBlocks, ...lastBlocks], "sidebar");
+    stack(blockLoad([...firstBlocks, ...singleOnlyBlocks], "main"), stack(itemsHeight(items, "first"), blockLoad(lastBlocks, "main"))) + closingHeight;
+  const wholeSide = () => blockLoad([...firstBlocks, ...singleOnlyBlocks, ...lastBlocks], "sidebar");
 
   const forced = options.firstPageItemCount;
   const onePage = (density: ResumePagePlan["density"]): ResumePagePlan[] => [
@@ -531,94 +674,181 @@ export const createResumePagePlan = (
   const pageOneFlow = [...firstBlocks, ...lastBlocks.filter((block) => hostedOnFirst.has(block.id))];
   const pageTwoFlow = lastBlocks.filter((block) => !hostedOnFirst.has(block.id));
   // The last page has no sidebar: a sidebar block that stays there flows into the full-width main column.
-  const lastMainFixed = sumHeights(pageTwoFlow.map((block) => block.contHeight ?? block.height), sectionGap);
+  const contOf = (block: FlowBlock) => block.contHeight ?? block.height;
+  // The blocks behind the career entries keep the order their template draws them in. Only
+  // a leading run of blocks the plan can place (Pehlione's project highlight, the knowledge
+  // list) may start on page one; everything after the first fixed block is drawn by the
+  // template itself on the last page. A hand-arranged layout keeps its own order.
+  const nativeTail = templateId === "tabellarisch" && !context.atsMode
+    ? ["certifications", "languages", "knowledge"]
+    : templateId === "gepflegt" && flat
+      ? ["languages", "knowledge"]
+      : ["projects", "knowledge", "languages", "certifications"];
+  const tail: FlowBlock[] = [];
+  if (!customLayout) {
+    for (const id of nativeTail) {
+      const block = pageTwoFlow.find((candidate) => candidate.id === id);
+      if (!block) continue;
+      if ((id === "projects" || id === "knowledge") && (flat || block.zone === "main")) tail.push(block);
+      else break;
+    }
+  }
+  const pinned = pageTwoFlow.filter((block) => !tail.includes(block));
+  const pinnedLoad = sumHeights(pinned.map(contOf), sectionGap);
   const load1Fixed = blockLoad(pageOneFlow, "main");
   const sideLoadOne = blockLoad(pageOneFlow, "sidebar");
   const sideFill = sideCap1 ? sideLoadOne / sideCap1 : 0;
 
-  type Candidate = {
-    count: number;
-    fillOne: number;
-    fillTwo: number;
-    densityOne: ResumePagePlan["density"];
-    densityTwo: ResumePagePlan["density"];
-    cost: number;
+  // --- where page one ends ------------------------------------------------------
+  /**
+   * Page one ends after `count` whole entries, then `kept` bullets of the next experience,
+   * then `tail` whole blocks, then `rows` grid rows of the next block.
+   */
+  type Cut = { count: number; kept: number; tail: number; rows: number };
+  const totalBullets = (item: MeasuredItem) => item.parts?.first.lines.length ?? 0;
+  /** Bullet counts after which an entry may break without leaving a widow or an orphan. */
+  const breakPoints = (item: MeasuredItem): number[] => {
+    if (!item.parts) return [];
+    const points: number[] = [];
+    for (let kept = 1; kept < totalBullets(item); kept += 1) {
+      const before = item.parts.first.lines.slice(0, kept).reduce((total, value) => total + value, 0);
+      const after = item.parts.cont.lines.slice(kept).reduce((total, value) => total + value, 0);
+      if (before >= MIN_SPLIT_LINES && after >= MIN_SPLIT_LINES) points.push(kept);
+    }
+    return points;
   };
+  const shownFirst = ({ count, kept }: Cut): Shown[] => {
+    const list = items.slice(0, count).map((item) => wholeShown(item, "first"));
+    const split = kept ? items[count] : undefined;
+    if (split?.parts) list.push({ kind: split.kind, height: split.parts.first.height(0, kept), gapAfter: split.gapAfter });
+    return list;
+  };
+  const shownLast = ({ count, kept }: Cut): Shown[] => {
+    const split = kept ? items[count] : undefined;
+    const list: Shown[] = [];
+    if (split?.parts) list.push({ kind: split.kind, height: split.parts.cont.height(kept, totalBullets(split)), gapAfter: split.gapAfter });
+    list.push(...items.slice(count + (kept ? 1 : 0)).map((item) => wholeShown(item, "cont")));
+    return list;
+  };
+  /** Heights of the tail blocks drawn on page one / on the last page, including a block that breaks between them. */
+  const tailFirst = ({ tail: whole, rows }: Cut) => [
+    ...tail.slice(0, whole).map((block) => block.height),
+    ...(rows && tail[whole]?.split ? [tail[whole].split!.height(0, rows)] : []),
+  ];
+  const tailLast = ({ tail: whole, rows }: Cut) => [
+    ...(rows && tail[whole]?.split ? [tail[whole].split!.height(rows, tail[whole].split!.ends.length)] : []),
+    ...tail.slice(whole + (rows ? 1 : 0)).map(contOf),
+  ];
+  const loadFirst = (cut: Cut) =>
+    stack(load1Fixed, stack(runHeight(shownFirst(cut)), sumHeights(tailFirst(cut), sectionGap)));
+  const loadLast = (cut: Cut) =>
+    stack(stack(runHeight(shownLast(cut)), sumHeights(tailLast(cut), sectionGap)), pinnedLoad) + closingHeight;
+
+  const cuts: Cut[] = [];
+  for (let count = 0; count <= items.length; count += 1) {
+    cuts.push({ count, kept: 0, tail: 0, rows: 0 });
+    const item = items[count];
+    if (item) for (const kept of breakPoints(item)) cuts.push({ count, kept, tail: 0, rows: 0 });
+  }
+  for (let whole = 1; whole <= tail.length; whole += 1) {
+    // A list block may end page one at any of its rows, keeping two rows on either side.
+    const split = tail[whole - 1].split;
+    if (split) for (let rows = 2; rows <= split.ends.length - 2; rows += 1) cuts.push({ count: items.length, kept: 0, tail: whole - 1, rows });
+    cuts.push({ count: items.length, kept: 0, tail: whole, rows: 0 });
+  }
+  // The signature never travels alone: the last page needs something besides the closing block.
+  const candidates = cuts.filter((cut) => shownLast(cut).length > 0 || tailLast(cut).length > 0 || pinned.length > 0);
+
+  const densityFactor = { standard: 1, compact: dense.compact, dense: dense.dense };
   const densityFor = (fill: number): { density: ResumePagePlan["density"]; overflow: number } => {
     if (fill <= 1) return { density: "standard", overflow: 0 };
     if (fill * dense.compact <= 1) return { density: "compact", overflow: 0 };
     return { density: "dense", overflow: Math.max(0, fill * dense.dense - 1) };
   };
-  const splits = (count: number) => {
-    const before = items[count - 1];
-    const after = items[count];
-    return Boolean(before && after && before.kind === after.kind);
-  };
-  const singleSide = (count: number) => {
-    if (!splits(count)) return false;
-    const kind = items[count].kind;
-    const onFirst = items.slice(0, count).filter((item) => item.kind === kind).length;
-    const onSecond = items.slice(count).filter((item) => item.kind === kind).length;
-    return onFirst === 1 || onSecond === 1;
-  };
-  const candidates: Candidate[] = [];
-  const evaluate = (count: number) => {
-    const load1 = stack(load1Fixed, itemsHeight(items.slice(0, count), "first"));
-    const load2 = stack(lastMainFixed, itemsHeight(items.slice(count), "cont")) + closingHeight;
-    const fillOne = load1 / mainCap1;
-    const fillTwo = load2 / mainCap2;
-    // An overloaded sidebar shrinks the page as much as an overloaded main column.
-    const one = densityFor(Math.max(fillOne, sideFill));
-    const two = densityFor(fillTwo);
-    const preferWhole = options.keepSectionsTogether ?? true;
-    const gap = fillOne - fillTwo;
-    const cost =
-      1000 * (one.overflow + two.overflow) +
-      (one.density === "compact" ? 0.04 : one.density === "dense" ? 0.2 : 0) +
-      (two.density === "compact" ? 0.04 : two.density === "dense" ? 0.2 : 0) +
-      // What a reader dislikes, in this order: an almost empty last page, a first page
-      // that stops long before its end, a last page fuller than the first, and a first
-      // page far fuller than the last.
-      Math.max(0, MIN_LAST_FILL - fillTwo) * 3 +
-      Math.max(0, MIN_FIRST_FILL - fillOne) * 1.5 +
-      Math.max(0, -gap - REVERSED_GAP) * 0.6 +
-      Math.max(0, gap - MAX_FILL_GAP) +
-      // Zweispaltig removes the sidebar on continuation pages. Do not leave a
-      // visibly empty first-page main column just to keep education together.
-      (templateId === "zweispaltig" && !flat ? Math.max(0, 0.85 - fillOne) * 2.4 : 0) +
-      (splits(count) ? (preferWhole ? 0.14 : 0.04) + (singleSide(count) ? 0.05 : 0) : 0);
-    candidates.push({ count, fillOne, fillTwo, densityOne: one.density, densityTwo: two.density, cost });
-  };
-  if (forced !== undefined) evaluate(Math.min(Math.max(forced, 0), items.length));
-  else for (let count = 1; count < items.length; count += 1) evaluate(count);
-  // Ties go to the fuller first page.
-  const best = candidates.reduce((chosen, candidate) =>
-    candidate.cost < chosen.cost - 1e-9 || (Math.abs(candidate.cost - chosen.cost) <= 1e-9 && candidate.count > chosen.count)
-      ? candidate
-      : chosen,
-  );
 
-  if (forced === undefined && fitsCompact && COMPACT_PAGE_COST <= best.cost) return onePage("compact");
+  const assemble = (cut: Cut, densityOne: ResumePagePlan["density"], densityTwo: ResumePagePlan["density"]): ResumePagePlan[] => {
+    const split = cut.kept ? items[cut.count] : undefined;
+    const part = (item: MeasuredItem, from: number, to: number, page: "first" | "cont"): ResumePageItem => ({
+      kind: "experience",
+      id: item.id,
+      weight: Math.round((item.parts?.[page].height(from, to) ?? 0) * 10) / 10,
+      bullets: { from, to, total: totalBullets(item) },
+    });
+    const firstItems: ResumePageItem[] = items.slice(0, cut.count).map((item) => strip(item, "first"));
+    if (split) firstItems.push(part(split, 0, cut.kept, "first"));
+    const lastItems: ResumePageItem[] = [];
+    if (split) lastItems.push(part(split, cut.kept, totalBullets(split), "cont"));
+    lastItems.push(...items.slice(cut.count + (split ? 1 : 0)).map((item) => strip(item, "cont")));
+    // A list block that breaks between the pages is drawn on both, each with its own items.
+    const broken = cut.rows ? tail[cut.tail] : undefined;
+    const total = broken?.split ? knowledgeItemCount : 0;
+    const shown = broken?.split ? broken.split.ends[cut.rows - 1] : 0;
+    const ranges = broken?.split
+      ? { first: { [broken.id]: { from: 0, to: shown, total } }, last: { [broken.id]: { from: shown, to: total, total } } }
+      : undefined;
+    return [
+      {
+        pageNumber: 1,
+        items: firstItems,
+        density: densityOne,
+        blocks: [...pageOneFlow.filter((block) => block.home === "last"), ...tail.slice(0, cut.tail + (broken ? 1 : 0))].map((block) => block.id),
+        ...(ranges ? { blockRanges: ranges.first } : {}),
+        sidebar: geometry.columns === 2 && !flat,
+        fill: { main: loadFirst(cut) / mainCap1, sidebar: sideFill },
+      },
+      {
+        pageNumber: 2,
+        items: lastItems,
+        density: densityTwo,
+        blocks: [...tail.slice(cut.tail), ...pinned].map((block) => block.id),
+        ...(ranges ? { blockRanges: ranges.last } : {}),
+        // Continuation pages never keep a sidebar: what did not fit on page one flows into the main column.
+        sidebar: false,
+        fill: { main: loadLast(cut) / mainCap2, sidebar: 0 },
+      },
+    ];
+  };
 
-  return [
-    {
-      pageNumber: 1,
-      items: items.slice(0, best.count).map((item) => strip(item, "first")),
-      density: best.densityOne,
-      blocks: pageOneFlow.filter((block) => block.home === "last").map((block) => block.id),
-      sidebar: geometry.columns === 2 && !flat,
-      fill: { main: best.fillOne, sidebar: sideFill },
-    },
-    {
-      pageNumber: 2,
-      items: items.slice(best.count).map((item) => strip(item, "cont")),
-      density: best.densityTwo,
-      blocks: pageTwoFlow.map((block) => block.id),
-      // Continuation pages never keep a sidebar: what did not fit on page one flows into the main column.
-      sidebar: false,
-      fill: { main: best.fillTwo, sidebar: 0 },
-    },
-  ];
+  // A manual page break keeps whole entries on either side of it.
+  if (forced !== undefined) {
+    const cut: Cut = { count: Math.min(Math.max(forced, 0), items.length), kept: 0, tail: 0, rows: 0 };
+    return assemble(cut, densityFor(Math.max(loadFirst(cut) / mainCap1, sideFill)).density, densityFor(loadLast(cut) / mainCap2).density);
+  }
+
+  // Fill page one as far as the content allows; compact the whole document only if the
+  // rest does not fit on page two either.
+  const greedy = (density: ResumePagePlan["density"]) => {
+    const factor = densityFactor[density];
+    let index = 0;
+    candidates.forEach((cut, position) => {
+      if (loadFirst(cut) * factor <= mainCap1) index = position;
+    });
+    return index;
+  };
+  let density: ResumePagePlan["density"] = "dense";
+  let index = greedy("dense");
+  for (const attempt of ["standard", "compact"] as const) {
+    // A sidebar that overflows on its own needs the stronger density whatever the cut is.
+    if (sideFill * densityFactor[attempt] > 1) continue;
+    const position = greedy(attempt);
+    if (loadLast(candidates[position]) * densityFactor[attempt] <= mainCap2) {
+      density = attempt;
+      index = position;
+      break;
+    }
+  }
+  // A last page that is only a stub takes back trailing content from page one.
+  const factor = densityFactor[density];
+  while (index > 0 && loadLast(candidates[index]) / mainCap2 < MIN_LAST_FILL) {
+    const earlier = candidates[index - 1];
+    if (loadFirst(earlier) / mainCap1 < MIN_FIRST_FILL || loadLast(earlier) * factor > mainCap2) break;
+    index -= 1;
+  }
+  const best = candidates[index];
+
+  if (fitsCompact && (density !== "standard" || loadLast(best) / mainCap2 < COMPACT_INSTEAD_OF_LAST_BELOW)) return onePage("compact");
+
+  return assemble(best, density, density);
 };
 
 export const getLetterPageStatus = <

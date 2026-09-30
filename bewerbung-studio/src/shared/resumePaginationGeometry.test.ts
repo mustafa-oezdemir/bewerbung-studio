@@ -37,6 +37,25 @@ describe("template pagination geometry", () => {
     }
   });
 
+  it.each(canonical)("describes the plain-text (ATS) layout of %s", (id) => {
+    const { ats, atsTop1, atsTop2, density } = getPaginationGeometry(id);
+    // Plain layouts have no sidebar: the continuation header is at most as tall as the first one.
+    expect(atsTop1).toBeGreaterThan(30);
+    expect(atsTop2).toBeLessThanOrEqual(atsTop1);
+    expect(ats.knowledge.pitch).toBeGreaterThan(2);
+    expect(ats.knowledge.w).toBeGreaterThan(60);
+    expect(ats.knowledge.head).toBeGreaterThan(4);
+    expect(ats.knowledge.title).toBeGreaterThan(3);
+    expect(ats.density.compact).toBeLessThanOrEqual(1);
+    expect(ats.density.dense).toBeLessThanOrEqual(ats.density.compact);
+    // A compact mode never shrinks a plain page more than it shrinks the styled one.
+    expect(ats.density.compact).toBeGreaterThanOrEqual(density.compact - 0.05);
+    if (ats.header) {
+      expect(ats.header.perContact).toBeGreaterThan(5);
+      expect(ats.header.base + ats.header.perContact).toBeLessThan(atsTop1);
+    }
+  });
+
   it("knows the native column of every movable section", () => {
     for (const id of canonical) {
       const zones = getPaginationGeometry(id).zones;
