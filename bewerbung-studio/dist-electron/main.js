@@ -9015,7 +9015,7 @@ var applyResumeClosingOutput = (page, main, profile, templateId, settings, lastP
 	const pehlione = templateId.startsWith("pehlione_");
 	if (pehlione && !choice?.placement && !choice?.alignment) return;
 	const signature = profile.resumeClosing.showSignature ? getProfileMediaSource(profile.signaturePath) : "";
-	const hasExplicitContent = Boolean(profile.applicationPlace.trim() || profile.applicationDate.trim() || signature);
+	const hasExplicitContent = Boolean(profile.applicationPlace.trim() || profile.applicationDate.trim() || signature || closingDate?.trim());
 	if (!pehlione && !hasExplicitContent && !choice) return;
 	const { place, date } = resolveResumeClosingLine(profile, closingDate, germanDate);
 	if (!place && !date && !signature) {
@@ -9029,18 +9029,22 @@ var applyResumeClosingOutput = (page, main, profile, templateId, settings, lastP
 	block.setAttribute("data-resume-closing", "");
 	block.setAttribute("data-resume-closing-placement", placement);
 	block.setAttribute("data-resume-closing-align", choice?.alignment ?? (pehlione ? "distributed" : "left"));
+	const line = closingDate !== void 0 && !pehlione && place && date ? document.createElement("span") : null;
+	line?.setAttribute("data-resume-closing-line", "");
 	if (place) {
 		const element = document.createElement("span");
 		element.setAttribute("data-resume-closing-place", "");
 		element.textContent = place;
-		block.appendChild(element);
+		(line ?? block).appendChild(element);
 	}
+	if (line) line.appendChild(document.createTextNode(", "));
 	if (date) {
 		const element = document.createElement("time");
 		element.setAttribute("data-resume-closing-date", "");
 		element.textContent = date;
-		block.appendChild(element);
+		(line ?? block).appendChild(element);
 	}
+	if (line) block.appendChild(line);
 	if (signature) {
 		const holder = document.createElement("span");
 		holder.setAttribute("data-resume-closing-signature", "");
@@ -9257,6 +9261,100 @@ var pehlioneAppearanceCss = `
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf[data-photo-decoration="hidden"] .pehlione-pdf-hero i{display:none}
 ${pehlioneHeroCss}`;
 //#endregion
+//#region src/shared/contactPresentation.ts
+var internationalDigits = (value) => value.trim().replace(/^00/, "+").replace(/[^\d+]/g, "");
+/** Formats German mobile numbers for display without changing their stored value. */
+var formatPhoneForDisplay = (value = "") => {
+	const digits = internationalDigits(value).replace(/\D/g, "");
+	if (digits.startsWith("49") && /^1\d{9,10}$/.test(digits.slice(2))) return `+49 ${digits.slice(2, 5)} ${digits.slice(5)}`;
+	return value.trim();
+};
+var externalUrl = (value = "") => {
+	const trimmed = value.trim();
+	if (!trimmed) return "";
+	if (/^https?:\/\//i.test(trimmed)) return trimmed;
+	return `https://${trimmed.replace(/^[a-z][a-z\d+.-]*:(?:\/\/)?/i, "")}`;
+};
+/** Keeps the URL readable while the complete URL remains the link destination. */
+var formatUrlForDisplay = (value = "") => externalUrl(value).replace(/^https?:\/\//i, "").replace(/\/$/, "");
+//#endregion
+//#region src/shared/pehlioneContacts.ts
+var icon = (_kind) => "<svg data-contact-icon=\"person\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"7\" r=\"4\"/><path d=\"M4 21a8 8 0 0 1 16 0\"/></svg>";
+var escape$2 = (value) => value.replace(/[&<>"']/g, (char) => ({
+	"&": "&amp;",
+	"<": "&lt;",
+	">": "&gt;",
+	"\"": "&quot;",
+	"'": "&#39;"
+})[char]);
+var getPehlioneContacts = (profile) => {
+	const visible = {
+		...defaultResumePersonalFieldVisibility,
+		...profile?.resumePersonalFieldVisibility
+	};
+	return [
+		{
+			key: "location",
+			label: "Ort",
+			visible: visible.address,
+			value: [profile?.city, profile?.country].filter(Boolean).join(", "),
+			href: ""
+		},
+		{
+			key: "phone",
+			label: "Telefon",
+			visible: visible.phone,
+			value: formatPhoneForDisplay(profile?.phone),
+			href: profile?.phone ? `tel:${profile.phone.replace(/[^\d+]/g, "")}` : ""
+		},
+		{
+			key: "email",
+			label: "E-Mail",
+			visible: visible.email,
+			value: profile?.email || "",
+			href: profile?.email ? `mailto:${profile.email}` : ""
+		},
+		{
+			key: "linkedin",
+			label: "LinkedIn",
+			visible: visible.linkedin,
+			value: formatUrlForDisplay(profile?.linkedin || ""),
+			href: externalUrl(profile?.linkedin || "")
+		},
+		{
+			key: "github",
+			label: "GitHub",
+			visible: visible.github,
+			value: formatUrlForDisplay(profile?.github || ""),
+			href: externalUrl(profile?.github || "")
+		},
+		{
+			key: "website",
+			label: "Website",
+			visible: visible.website,
+			value: formatUrlForDisplay(profile?.portfolio || ""),
+			href: externalUrl(profile?.portfolio || "")
+		}
+	].filter((item) => item.visible && item.value);
+};
+var renderPehlioneContacts = (profile) => {
+	const contacts = getPehlioneContacts(profile);
+	if (!contacts.length) return "";
+	return `<section class="pehlione-contacts"><h3>${icon("person")}<span>Kontakt</span></h3><ul>${contacts.map((item) => `<li data-contact-kind="${item.key}">${renderContactIcon({ kind: item.key })}<div><strong>${item.label}</strong>${item.href ? `<a href="${escape$2(item.href)}">${escape$2(item.value)}</a>` : `<span>${escape$2(item.value)}</span>`}</div></li>`).join("")}</ul></section>`;
+};
+var pehlioneContactsCss = `
+.pehlione-contacts.pehlione-contacts{--contact-heading:var(--pehlione-sidebar-text,#fff);--contact-text:var(--pehlione-sidebar-text,#fff);margin:0 0 4.5mm;color:var(--contact-text);font-family:var(--doc-font,var(--body-font,"Source Sans 3",Arial,sans-serif));font-size:7.8pt;line-height:1.2;break-inside:avoid}
+.pehlione-resume--white .pehlione-contacts,.pehlione-pdf-white .pehlione-contacts{--contact-heading:var(--pehlione-primary,#08245c);--contact-text:#142235}
+.pehlione-contacts.pehlione-contacts h3{display:grid;grid-template-columns:8mm minmax(0,1fr);gap:2mm;align-items:center;margin:0 0 2mm;padding:0 0 1.5mm;border-bottom:.3mm solid var(--contact-heading);color:var(--contact-heading);font-family:inherit;font-size:9.7pt;font-weight:700;line-height:1.1;text-transform:uppercase}
+.pehlione-contacts.pehlione-contacts svg{display:block;width:4.2mm;height:4.2mm;fill:none;stroke:var(--contact-heading);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.pehlione-contacts.pehlione-contacts h3 svg{width:8mm;height:8mm}
+.pehlione-contacts.pehlione-contacts ul{display:grid;gap:1.35mm;margin:0;padding:0;list-style:none;font-size:7.8pt;line-height:1.2}
+.pehlione-contacts.pehlione-contacts li{display:grid;grid-template-columns:5mm minmax(0,1fr);gap:1.5mm;align-items:start;margin:0;padding:0;break-inside:avoid}
+.pehlione-contacts.pehlione-contacts li>div{display:grid;gap:.25mm;min-width:0}
+.pehlione-contacts.pehlione-contacts strong{display:block;color:var(--contact-heading);font-size:7.8pt;font-weight:700;line-height:1.2}
+.pehlione-contacts.pehlione-contacts a,.pehlione-contacts.pehlione-contacts li span{color:var(--contact-text);font-size:7.4pt;line-height:1.2;text-decoration:none;overflow-wrap:anywhere}
+`;
+//#endregion
 //#region src/shared/resumeSectionPresentation.ts
 var lightbulb = "<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\"/><path d=\"M9 18h6\"/><path d=\"M10 22h4\"/>";
 var graduationCap = "<path d=\"M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z\"/><path d=\"M22 10v6\"/><path d=\"M6 12.5V16a6 3 0 0 0 12 0v-3.5\"/>";
@@ -9315,7 +9413,11 @@ var sectionSemanticType = (id, groupSemanticType) => {
 * and the closing date comes from the application. Templates join this list one by one, after
 * their look was verified on both surfaces.
 */
-var zoneFlowTemplates = ["pehlione_white_blue", "pehlione_white"];
+var zoneFlowTemplates = [
+	"pehlione_white_blue",
+	"pehlione_white",
+	"zweispaltig"
+];
 var isZoneFlowTemplate = (templateId) => Boolean(templateId && zoneFlowTemplates.includes(templateId));
 /** The closing of these templates prints the application date (`Ort, YYYY-MM-DD`), not a profile field. */
 var usesApplicationClosingDate = (templateId) => isZoneFlowTemplate(templateId);
@@ -9424,35 +9526,142 @@ var pehlioneWhiteBlue = {
 		}
 	}
 };
-var tokensByTemplate = {
-	pehlione_white_blue: pehlioneWhiteBlue,
-	pehlione_white: {
-		main: {
-			...pehlioneWhiteBlue.main,
-			heading: {
-				...pehlioneWhiteBlue.main.heading,
-				color: "var(--pehlione-section-color,var(--pehlione-primary,#08245c))",
-				dividerColor: "var(--pehlione-divider-color,var(--pehlione-primary,#08245c))",
-				iconBackground: "var(--pehlione-primary,#08245c)"
-			}
-		},
-		sidebar: {
-			...pehlioneWhiteBlue.sidebar,
-			heading: {
-				...pehlioneWhiteBlue.sidebar.heading,
-				iconBox: 8,
-				iconGap: 2,
-				iconRadius: 0,
-				glyphSize: 7,
-				glyphStroke: 1.9,
-				color: "var(--pehlione-primary,#08245c)",
-				dividerColor: "var(--pehlione-divider-color,var(--pehlione-primary,#08245c))",
-				iconColor: "var(--pehlione-primary,#08245c)",
-				iconBackground: "transparent"
-			}
+/**
+* Pehlione White: the main column draws the same boxed headings as White Blue, the white sidebar a bare
+* icon (no box) in the accent colour under a smaller icon column. Lists and spacing are shared.
+*/
+var pehlioneWhite = {
+	main: {
+		...pehlioneWhiteBlue.main,
+		heading: {
+			...pehlioneWhiteBlue.main.heading,
+			color: "var(--pehlione-section-color,var(--pehlione-primary,#08245c))",
+			dividerColor: "var(--pehlione-divider-color,var(--pehlione-primary,#08245c))",
+			iconBackground: "var(--pehlione-primary,#08245c)"
+		}
+	},
+	sidebar: {
+		...pehlioneWhiteBlue.sidebar,
+		heading: {
+			...pehlioneWhiteBlue.sidebar.heading,
+			iconBox: 8,
+			iconGap: 2,
+			iconRadius: 0,
+			glyphSize: 7,
+			glyphStroke: 1.9,
+			color: "var(--pehlione-primary,#08245c)",
+			dividerColor: "var(--pehlione-divider-color,var(--pehlione-primary,#08245c))",
+			iconColor: "var(--pehlione-primary,#08245c)",
+			iconBackground: "transparent"
 		}
 	}
 };
+/**
+* Zweispaltig: one heading and one list for both columns (measured in the PDF, 14 pt titles over a 0.65 mm
+* rule, body-size lists with a 4.5 mm indent). It draws no icons, so no icon is added. The gap between the
+* sections is the template's own top margin, which the design settings and the density keep steering.
+*/
+var zweispaltigHeading = {
+	iconBox: 0,
+	iconGap: 0,
+	iconRadius: 0,
+	glyphSize: 0,
+	glyphStroke: 0,
+	fontSizePt: {
+		standard: 14,
+		compact: 14
+	},
+	fontWeight: 750,
+	lineHeight: 1,
+	letterSpacing: ".015em",
+	textTransform: "uppercase",
+	marginBottom: {
+		standard: 2.5,
+		compact: 2.5
+	},
+	labelPadding: {
+		standard: 1,
+		compact: 1
+	},
+	color: "var(--zweispaltig-heading)",
+	dividerColor: "var(--zweispaltig-heading)",
+	dividerWidth: ".65mm",
+	iconColor: "currentColor",
+	iconBackground: "transparent",
+	sectionGap: {
+		standard: 6.5,
+		compact: 6.5,
+		side: "top",
+		expr: "var(--zweispaltig-section-gap)"
+	},
+	height: 6.53
+};
+var zweispaltigList = {
+	fontSizePt: {
+		standard: 8.4,
+		compact: 8.4
+	},
+	lineHeight: {
+		standard: 1.05,
+		compact: 1.05
+	},
+	itemGap: {
+		standard: .5,
+		compact: .5
+	},
+	indent: 4.5,
+	inheritBody: true,
+	layout: "margins",
+	marginTop: 1.5,
+	markerColor: "var(--zweispaltig-primary)"
+};
+var zweispaltig = {
+	main: {
+		icons: false,
+		heading: zweispaltigHeading,
+		list: zweispaltigList
+	},
+	sidebar: {
+		icons: false,
+		heading: zweispaltigHeading,
+		list: zweispaltigList
+	}
+};
+var pehlioneRoots = (templateId) => ({
+	preview: `.pehlione-resume[data-template="${templateId}"]`,
+	pdf: `.cv-sheet[data-template="${templateId}"]`,
+	pdfBody: ".pehlione-pdf",
+	host: `:is(.pehlione-resume,.cv-sheet)[data-template="${templateId}"]`
+});
+var configByTemplate = {
+	pehlione_white_blue: {
+		tokens: pehlioneWhiteBlue,
+		roots: pehlioneRoots("pehlione_white_blue"),
+		plainLists: ["certifications", "languages"],
+		sidebarHero: true
+	},
+	pehlione_white: {
+		tokens: pehlioneWhite,
+		roots: pehlioneRoots("pehlione_white"),
+		plainLists: ["certifications", "languages"],
+		sidebarHero: true
+	},
+	zweispaltig: {
+		tokens: zweispaltig,
+		roots: {
+			preview: ".zweispaltig-template",
+			pdf: ".cv-sheet[data-template=\"zweispaltig\"]",
+			pdfBody: ".zweispaltig-pdf"
+		},
+		plainLists: ["certifications"],
+		sidebarHero: false
+	}
+};
+var tokensByTemplate = Object.fromEntries(Object.entries(configByTemplate).map(([id, config]) => [id, config.tokens]));
+/** Whether `type` is a plain list of this template that the shared output rebuilds as one canonical list. */
+var isPlainListSection = (templateId, type) => Boolean(templateId && configByTemplate[templateId]?.plainLists.includes(type));
+/** Whether page one of this template's sidebar starts with a hero image and a contact block. */
+var hasSidebarHero = (templateId) => Boolean(templateId && configByTemplate[templateId]?.sidebarHero);
 var PT_TO_MM$1 = .3528;
 /** Millimetres the page planner needs to size a plain list section (heading, entries) drawn in `zone`. */
 var sectionListMetrics = (templateId, zone) => {
@@ -9461,11 +9670,13 @@ var sectionListMetrics = (templateId, zone) => {
 	const { heading, list } = tokens;
 	const fontMm = list.fontSizePt.standard * PT_TO_MM$1;
 	return {
-		headingMm: heading.iconBox + heading.marginBottom.standard,
+		headingMm: (heading.height ?? heading.iconBox) + heading.marginBottom.standard,
 		fontMm,
 		lineMm: fontMm * (list.itemLineHeight ?? list.lineHeight.standard),
 		gapMm: list.itemGap.standard,
-		indentMm: list.indent
+		indentMm: list.indent,
+		/** The list takes the body size of the page: the planner scales it with the design font size. */
+		inheritBody: Boolean(list.inheritBody)
 	};
 };
 /**
@@ -9488,15 +9699,17 @@ var resolveSectionPresentation = (templateId, sectionId, zone, groupSemanticType
 var mm = (value) => `${value}mm`;
 /** The closing line keeps its own distance to the last section (the section's margin would double it). */
 var closingSelector = ":is(.pehlione-closing,.pehlione-pdf-closing,[data-resume-closing])";
-var templateCss = (templateId, tokens) => {
-	const host = `:is(.pehlione-resume,.cv-sheet)[data-template="${templateId}"]`;
-	const compact = (suffix) => `.pehlione-resume[data-template="${templateId}"][data-density="compact"] ${suffix},.cv-sheet[data-template="${templateId}"] .pehlione-pdf[data-density="compact"] ${suffix}`;
-	const hidden = (suffix) => `.pehlione-resume[data-template="${templateId}"][data-section-divider="hidden"] ${suffix},.cv-sheet[data-template="${templateId}"] .pehlione-pdf[data-section-divider="hidden"] ${suffix}`;
+var templateCss = (templateId, { tokens, roots }) => {
+	const host = roots.host ?? `:is(${roots.preview},${roots.pdf})`;
+	const compact = (suffix) => `${roots.preview}[data-density="compact"] ${suffix},${roots.pdf} ${roots.pdfBody}[data-density="compact"] ${suffix}`;
+	const hidden = (suffix) => `${roots.preview}[data-section-divider="hidden"] ${suffix},${roots.pdf} ${roots.pdfBody}[data-section-divider="hidden"] ${suffix}`;
 	const { main, sidebar } = tokens;
 	const zoneRules = (zone, { heading, list }) => {
 		const scope = `[data-cv-zone="${zone}"]`;
 		const listSelector = `${scope} [data-cv-list]`;
-		const gridList = zone === "sidebar";
+		const gridList = (list.layout ?? (zone === "sidebar" ? "grid" : "margins")) === "grid";
+		const listFont = list.inheritBody ? "font-size:inherit;line-height:inherit" : `font-size:${list.fontSizePt.standard}pt;line-height:${list.lineHeight.standard}`;
+		const gapSide = heading.sectionGap.side ?? "bottom";
 		return [
 			[
 				"iconBox",
@@ -9510,15 +9723,16 @@ var templateCss = (templateId, tokens) => {
 				`${host} ${scope}>.cv-heading .cv-heading__icon{width:${mm(heading.iconBox)};height:${mm(heading.iconBox)};border-radius:${mm(heading.iconRadius)}}`,
 				`${host} ${scope}>.cv-heading .cv-heading__icon svg{width:${mm(heading.glyphSize)};height:${mm(heading.glyphSize)};stroke-width:${heading.glyphStroke}}`
 			].join("\n") : "",
-			`${host} ${scope}{margin:0 0 ${mm(heading.sectionGap.standard)}}`,
-			heading.sectionGap.compact !== heading.sectionGap.standard ? `${compact(scope)}{margin-bottom:${mm(heading.sectionGap.compact)}}` : "",
+			gapSide === "top" ? `${host} ${scope}{margin:${heading.sectionGap.expr ?? mm(heading.sectionGap.standard)} 0 0}` : `${host} ${scope}{margin:0 0 ${mm(heading.sectionGap.standard)}}`,
+			!heading.sectionGap.expr && heading.sectionGap.compact !== heading.sectionGap.standard ? `${compact(scope)}{margin-${gapSide === "top" ? "top" : "bottom"}:${mm(heading.sectionGap.compact)}}` : "",
 			`${host} ${scope}>.cv-heading{margin:0 0 ${mm(heading.marginBottom.standard)};color:${heading.color};font-size:${heading.fontSizePt.standard}pt;--cv-divider:${heading.dividerColor};--cv-icon-color:${heading.iconColor};--cv-icon-bg:${heading.iconBackground}}`,
 			`${host} ${scope}>.cv-heading .cv-heading__label{padding-bottom:${mm(heading.labelPadding.standard)}}`,
 			heading.marginBottom.compact !== heading.marginBottom.standard || heading.fontSizePt.compact !== heading.fontSizePt.standard ? `${compact(`${scope}>.cv-heading`)}{margin-bottom:${mm(heading.marginBottom.compact)};font-size:${heading.fontSizePt.compact}pt}` : "",
 			heading.labelPadding.compact !== heading.labelPadding.standard ? `${compact(`${scope}>.cv-heading .cv-heading__label`)}{padding-bottom:${mm(heading.labelPadding.compact)}}` : "",
-			`${host} ${listSelector}{${gridList ? `display:grid;gap:${mm(list.itemGap.standard)};` : ""}margin:0;padding:0 0 0 ${mm(list.indent)};color:inherit;font-size:${list.fontSizePt.standard}pt;line-height:${list.lineHeight.standard};list-style:disc}`,
+			`${host} ${listSelector}{${gridList ? `display:grid;gap:${mm(list.itemGap.standard)};` : ""}margin:${list.marginTop ? `${mm(list.marginTop)} 0 0` : "0"};padding:0 0 0 ${mm(list.indent)};color:inherit;${listFont};list-style:disc}`,
+			list.markerColor ? `${host} ${listSelector} li::marker{color:${list.markerColor}}` : "",
 			`${host} ${listSelector} li{${gridList ? "margin:0;" : `margin:${mm(list.itemGap.standard)} 0;`}color:inherit;font-size:inherit;line-height:${list.itemLineHeight ?? "inherit"};hyphens:auto;break-inside:avoid;page-break-inside:avoid}`,
-			list.fontSizePt.compact !== list.fontSizePt.standard || list.lineHeight.compact !== list.lineHeight.standard ? `${compact(listSelector)}{font-size:${list.fontSizePt.compact}pt;line-height:${list.lineHeight.compact}}` : "",
+			!list.inheritBody && (list.fontSizePt.compact !== list.fontSizePt.standard || list.lineHeight.compact !== list.lineHeight.standard) ? `${compact(listSelector)}{font-size:${list.fontSizePt.compact}pt;line-height:${list.lineHeight.compact}}` : "",
 			!gridList && list.itemGap.compact !== list.itemGap.standard ? `${compact(`${listSelector} li`)}{margin:${mm(list.itemGap.compact)} 0}` : ""
 		].filter(Boolean).join("\n");
 	};
@@ -9528,7 +9742,7 @@ ${host} .cv-heading{display:grid;grid-template-columns:${mm(heading.iconBox)} mi
 ${host} .cv-heading:not(:has(.cv-heading__icon)){grid-template-columns:minmax(0,1fr)}
 ${host} .cv-heading__icon{display:grid;box-sizing:border-box;width:${mm(heading.iconBox)};height:${mm(heading.iconBox)};place-items:center;border-radius:${mm(heading.iconRadius)};color:var(--cv-icon-color,${heading.iconColor});background:var(--cv-icon-bg,${heading.iconBackground});font-style:normal}
 ${host} .cv-heading__icon svg{display:block;width:${mm(heading.glyphSize)};height:${mm(heading.glyphSize)};fill:none;stroke:currentColor;stroke-width:${heading.glyphStroke};stroke-linecap:round;stroke-linejoin:round}
-${host} .cv-heading__label{display:block;min-width:0;border-bottom:var(--pehlione-divider-width,.3mm) solid var(--cv-divider,${heading.dividerColor});color:inherit;font-weight:inherit}
+${host} .cv-heading__label{display:block;min-width:0;border-bottom:${heading.dividerWidth ?? "var(--pehlione-divider-width,.3mm)"} solid var(--cv-divider,${heading.dividerColor});color:inherit;font-weight:inherit}
 ${hidden(".cv-heading__label")}{border-bottom:0}
 ${zoneRules("main", main)}
 ${zoneRules("sidebar", sidebar)}
@@ -9538,7 +9752,7 @@ ${host} [data-cv-zone="sidebar"] :is(h4,h5,strong,p,li,small){color:inherit}
 ${host} [data-cv-zone="sidebar"] p{text-align:left}
 `;
 };
-var resumeSectionPresentationCss = Object.entries(tokensByTemplate).map(([templateId, tokens]) => templateCss(templateId, tokens)).join("");
+var resumeSectionPresentationCss = Object.entries(configByTemplate).map(([templateId, config]) => templateCss(templateId, config)).join("");
 /** Rebuild the heading of a section as the template's heading system draws it in `zone`. */
 var buildSectionHeading = (document, presentation, title, previous) => {
 	const heading = document.createElement(previous?.tagName.toLowerCase() ?? "h3");
@@ -9592,6 +9806,10 @@ var resumeContinuationCss = `
 [data-resume-continuation-contact] a{color:inherit!important;text-decoration:none!important;overflow-wrap:anywhere!important}
 [data-resume-header-extra-contact]{display:flex;flex-wrap:wrap;gap:1mm 5mm;margin:1.5mm 0 0;color:inherit;font-size:8pt;font-style:normal;line-height:1.25}
 [data-resume-header-extra-contact] a{color:inherit;text-decoration:none;overflow-wrap:anywhere}
+[data-pehlione-continuation-header]{margin-bottom:5mm!important;padding-bottom:2.5mm!important}
+[data-pehlione-continuation-header] h1{font-size:17pt!important;line-height:1.05!important;letter-spacing:.02em!important;text-transform:uppercase!important}
+[data-pehlione-continuation-header] h2{margin-top:1mm!important;font-size:8.5pt!important;line-height:1.15!important}
+[data-pehlione-continuation-header] [data-resume-header-extra-contact]{margin-top:1.5mm;font-size:6.5pt}
 aside[class*="continuation"]{display:block!important;height:auto!important;min-height:0!important;padding-top:12mm!important}
 [data-managed-section]>:is(h2,h3){break-after:avoid;page-break-after:avoid}
 [data-managed-section] :is(h4,h5){break-after:avoid;page-break-after:avoid}
@@ -13973,7 +14191,7 @@ var pe = (m) => esca[m];
 *  the input type is unexpected, except for boolean and numbers,
 *  converted as string.
 */
-var escape$2 = (es) => replace.call(es, ca, pe);
+var escape$1 = (es) => replace.call(es, ca, pe);
 //#endregion
 //#region node_modules/linkedom/esm/interface/attr.js
 var QUOTE = /"/g;
@@ -14007,7 +14225,7 @@ var Attr$1 = class Attr$1 extends Node$1 {
 	toString() {
 		const { name, [VALUE]: value } = this;
 		if (emptyAttributes.has(name) && !value) return ignoreCase(this) ? name : `${name}=""`;
-		return `${name}="${(ignoreCase(this) ? value : escape$2(value)).replace(QUOTE, "&quot;")}"`;
+		return `${name}="${(ignoreCase(this) ? value : escape$1(value)).replace(QUOTE, "&quot;")}"`;
 	}
 	toJSON() {
 		const json = [];
@@ -16853,7 +17071,7 @@ var Text$1 = class Text$1 extends CharacterData$1 {
 		return new Text$1(ownerDocument, data);
 	}
 	toString() {
-		return escape$2(this[VALUE]);
+		return escape$1(this[VALUE]);
 	}
 };
 //#endregion
@@ -17687,7 +17905,7 @@ var Element$1 = class extends ParentNode {
 	getAttribute(name) {
 		if (name === "class") return this.className;
 		const attribute = this.getAttributeNode(name);
-		return attribute && (ignoreCase(this) ? attribute.value : escape$2(attribute.value));
+		return attribute && (ignoreCase(this) ? attribute.value : escape$1(attribute.value));
 	}
 	getAttributeNode(name) {
 		let next = this[NEXT];
@@ -26341,100 +26559,6 @@ function resolveSectionColumns(mode, templateId, zone, items, settings = default
 	return Math.max(1, Math.min(3, items.length || 1, Math.floor(width / minWidth)));
 }
 //#endregion
-//#region src/shared/contactPresentation.ts
-var internationalDigits = (value) => value.trim().replace(/^00/, "+").replace(/[^\d+]/g, "");
-/** Formats German mobile numbers for display without changing their stored value. */
-var formatPhoneForDisplay = (value = "") => {
-	const digits = internationalDigits(value).replace(/\D/g, "");
-	if (digits.startsWith("49") && /^1\d{9,10}$/.test(digits.slice(2))) return `+49 ${digits.slice(2, 5)} ${digits.slice(5)}`;
-	return value.trim();
-};
-var externalUrl = (value = "") => {
-	const trimmed = value.trim();
-	if (!trimmed) return "";
-	if (/^https?:\/\//i.test(trimmed)) return trimmed;
-	return `https://${trimmed.replace(/^[a-z][a-z\d+.-]*:(?:\/\/)?/i, "")}`;
-};
-/** Keeps the URL readable while the complete URL remains the link destination. */
-var formatUrlForDisplay = (value = "") => externalUrl(value).replace(/^https?:\/\//i, "").replace(/\/$/, "");
-//#endregion
-//#region src/shared/pehlioneContacts.ts
-var icon = (_kind) => "<svg data-contact-icon=\"person\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"7\" r=\"4\"/><path d=\"M4 21a8 8 0 0 1 16 0\"/></svg>";
-var escape$1 = (value) => value.replace(/[&<>"']/g, (char) => ({
-	"&": "&amp;",
-	"<": "&lt;",
-	">": "&gt;",
-	"\"": "&quot;",
-	"'": "&#39;"
-})[char]);
-var getPehlioneContacts = (profile) => {
-	const visible = {
-		...defaultResumePersonalFieldVisibility,
-		...profile?.resumePersonalFieldVisibility
-	};
-	return [
-		{
-			key: "location",
-			label: "Ort",
-			visible: visible.address,
-			value: [profile?.city, profile?.country].filter(Boolean).join(", "),
-			href: ""
-		},
-		{
-			key: "phone",
-			label: "Telefon",
-			visible: visible.phone,
-			value: formatPhoneForDisplay(profile?.phone),
-			href: profile?.phone ? `tel:${profile.phone.replace(/[^\d+]/g, "")}` : ""
-		},
-		{
-			key: "email",
-			label: "E-Mail",
-			visible: visible.email,
-			value: profile?.email || "",
-			href: profile?.email ? `mailto:${profile.email}` : ""
-		},
-		{
-			key: "linkedin",
-			label: "LinkedIn",
-			visible: visible.linkedin,
-			value: formatUrlForDisplay(profile?.linkedin || ""),
-			href: externalUrl(profile?.linkedin || "")
-		},
-		{
-			key: "github",
-			label: "GitHub",
-			visible: visible.github,
-			value: formatUrlForDisplay(profile?.github || ""),
-			href: externalUrl(profile?.github || "")
-		},
-		{
-			key: "website",
-			label: "Website",
-			visible: visible.website,
-			value: formatUrlForDisplay(profile?.portfolio || ""),
-			href: externalUrl(profile?.portfolio || "")
-		}
-	].filter((item) => item.visible && item.value);
-};
-var renderPehlioneContacts = (profile) => {
-	const contacts = getPehlioneContacts(profile);
-	if (!contacts.length) return "";
-	return `<section class="pehlione-contacts"><h3>${icon("person")}<span>Kontakt</span></h3><ul>${contacts.map((item) => `<li data-contact-kind="${item.key}">${renderContactIcon({ kind: item.key })}<div><strong>${item.label}</strong>${item.href ? `<a href="${escape$1(item.href)}">${escape$1(item.value)}</a>` : `<span>${escape$1(item.value)}</span>`}</div></li>`).join("")}</ul></section>`;
-};
-var pehlioneContactsCss = `
-.pehlione-contacts.pehlione-contacts{--contact-heading:var(--pehlione-sidebar-text,#fff);--contact-text:var(--pehlione-sidebar-text,#fff);margin:0 0 4.5mm;color:var(--contact-text);font-family:var(--doc-font,var(--body-font,"Source Sans 3",Arial,sans-serif));font-size:7.8pt;line-height:1.2;break-inside:avoid}
-.pehlione-resume--white .pehlione-contacts,.pehlione-pdf-white .pehlione-contacts{--contact-heading:var(--pehlione-primary,#08245c);--contact-text:#142235}
-.pehlione-contacts.pehlione-contacts h3{display:grid;grid-template-columns:8mm minmax(0,1fr);gap:2mm;align-items:center;margin:0 0 2mm;padding:0 0 1.5mm;border-bottom:.3mm solid var(--contact-heading);color:var(--contact-heading);font-family:inherit;font-size:9.7pt;font-weight:700;line-height:1.1;text-transform:uppercase}
-.pehlione-contacts.pehlione-contacts svg{display:block;width:4.2mm;height:4.2mm;fill:none;stroke:var(--contact-heading);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.pehlione-contacts.pehlione-contacts h3 svg{width:8mm;height:8mm}
-.pehlione-contacts.pehlione-contacts ul{display:grid;gap:1.35mm;margin:0;padding:0;list-style:none;font-size:7.8pt;line-height:1.2}
-.pehlione-contacts.pehlione-contacts li{display:grid;grid-template-columns:5mm minmax(0,1fr);gap:1.5mm;align-items:start;margin:0;padding:0;break-inside:avoid}
-.pehlione-contacts.pehlione-contacts li>div{display:grid;gap:.25mm;min-width:0}
-.pehlione-contacts.pehlione-contacts strong{display:block;color:var(--contact-heading);font-size:7.8pt;font-weight:700;line-height:1.2}
-.pehlione-contacts.pehlione-contacts a,.pehlione-contacts.pehlione-contacts li span{color:var(--contact-text);font-size:7.4pt;line-height:1.2;text-decoration:none;overflow-wrap:anywhere}
-`;
-//#endregion
 //#region src/shared/resumePaginationGeometry.ts
 var geometry = {
 	"pehlione_white_blue": {
@@ -28463,7 +28587,7 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 			description: description.join(" – ")
 		};
 	});
-	const pehlioneCompetencies = zoneFlow && !explicitStrengths.length && !skillStrengths.length ? getPehlioneCoreCompetencies(profile).map((title) => ({
+	const pehlioneCompetencies = zoneFlow && templateId?.startsWith("pehlione_") && !explicitStrengths.length && !skillStrengths.length ? getPehlioneCoreCompetencies(profile).map((title) => ({
 		title,
 		description: ""
 	})) : [];
@@ -28494,7 +28618,9 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 		const metrics = zoneFlow && templateId ? sectionListMetrics(templateId, zone) : void 0;
 		if (!metrics || !texts.length) return 0;
 		const column = zone === "sidebar" ? geometry.text.sideW + scale.sideDelta : fullWidth ? geometry.text.fullW : geometry.text.mainW * scale.mainRatio;
-		const body = texts.map((text) => listLines(text.length, column - metrics.indentMm, metrics.fontMm)).reduce((total, count) => total + count * metrics.lineMm, 0);
+		const fontMm = metrics.inheritBody ? geometry.text.bulletFont * scale.font : metrics.fontMm;
+		const lineMm = metrics.inheritBody ? fontMm * geometry.text.lineRatio * scale.line : metrics.lineMm;
+		const body = texts.map((text) => listLines(text.length, column - metrics.indentMm, fontMm)).reduce((total, count) => total + count * lineMm, 0);
 		return metrics.headingMm + body + metrics.gapMm * (texts.length - 1);
 	};
 	/**
@@ -28677,7 +28803,7 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 			zone,
 			height: zoneFlow ? plainListHeight(zone, shown) : legacyHeight,
 			contHeight: zoneFlow ? plainListHeight("main", shown, true) : void 0,
-			home: certificateHome === "none" ? "last" : certificateHome,
+			home: zoneFlow ? "last" : certificateHome === "none" ? "last" : certificateHome,
 			rank: managerRank("certifications"),
 			hostable: inSidebar
 		});
@@ -28723,9 +28849,10 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 	const top2 = (context.atsMode ? stackedHeight ?? geometry.atsTop2 : geometry.top1) + kompaktContactHeight;
 	const mainCap1 = (geometry.limit - top1 - 2 * scale.marginInset) * SAFETY;
 	const mainCap2 = (geometry.limit - top2 - 2 * scale.marginInset) * SAFETY;
-	const contactItems = zoneFlow && find("personalData")?.visible !== false ? getPehlioneContacts(profile) : [];
+	const sidebarHero = zoneFlow && hasSidebarHero(templateId);
+	const contactItems = sidebarHero && find("personalData")?.visible !== false ? getPehlioneContacts(profile) : [];
 	const contactValueWidth = geometry.text.sideW + scale.sideDelta - CONTACT_ICON_MM;
-	const sideTop1 = zoneFlow && geometry.sideTop1 !== null ? SIDEBAR_HERO_MM + (contactItems.length ? CONTACT_HEAD_MM + contactItems.reduce((total, item) => total + CONTACT_ITEM_MM + (listLines(item.value.length, contactValueWidth, CONTACT_FONT_MM * scale.font) - 1) * CONTACT_LINE_MM, 0) + CONTACT_GAP_MM : 0) : geometry.sideTop1;
+	const sideTop1 = sidebarHero && geometry.sideTop1 !== null ? SIDEBAR_HERO_MM + (contactItems.length ? CONTACT_HEAD_MM + contactItems.reduce((total, item) => total + CONTACT_ITEM_MM + (listLines(item.value.length, contactValueWidth, CONTACT_FONT_MM * scale.font) - 1) * CONTACT_LINE_MM, 0) + CONTACT_GAP_MM : 0) : geometry.sideTop1;
 	const sideCap1 = sideTop1 === null || flat ? 0 : (geometry.sideLimit - sideTop1 - 2 * scale.marginInset) * (zoneFlow ? ZONE_FLOW_SIDEBAR_SAFETY : SAFETY);
 	const dense = context.atsMode ? geometry.ats.density : geometry.density;
 	const blockLoad = (blocksOfZone, zone) => {
@@ -29407,7 +29534,7 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 				nodes.delete(entry.id);
 				continue;
 			}
-			if (zoneFlow && (entry.id === "certifications" || entry.id === "languages") && !items.length) {
+			if (zoneFlow && (entry.id === "certifications" || entry.id === "languages") && isPlainListSection(resolved.templateId, entry.id) && !items.length) {
 				const listed = (entry.id === "certifications" ? profile.certifications : profile.languages).map((value) => value.trim()).filter(Boolean);
 				const drawn = entry.id === "languages" ? existing.length > 0 && number === 1 : hosts(entry.id);
 				for (const node of existing) for (const closing of Array.from(node.querySelectorAll("footer.pehlione-pdf-closing,footer.pehlione-closing"))) main.appendChild(closing);
@@ -29481,7 +29608,11 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 				const itemHtml = items.map((item) => `${group?.rendererType === "icon-list" && item.icon ? `<span aria-hidden="true">${escape(item.icon)}</span> ` : ""}${escape(item.text)}${item.level ? ` <small>${escape(item.level)}</small>` : ""}${item.description ? `<small>${escape(item.description)}</small>` : ""}`);
 				content = group?.rendererType === "tag-list" ? `<div class="managed-tags">${itemHtml.map((item) => `<span>${item}</span>`).join("")}</div>` : ["two-column-list", "compact-grid"].includes(group?.rendererType ?? "") ? `<div class="managed-columns">${itemHtml.map((item) => `<div>${item}</div>`).join("")}</div>` : group?.rendererType === "text-list" ? itemHtml.map((item) => `<p>${item}</p>`).join("") : `<ul>${itemHtml.map((item) => `<li>${item}</li>`).join("")}</ul>`;
 			}
-			else if (entry.id.startsWith("special:") && (hosts(entry.id) || existing.length)) {
+			else if (zoneFlow && entry.id.startsWith("special:") && existing.length && !hosts(entry.id)) {
+				existing.forEach((node) => node.remove());
+				nodes.delete(entry.id);
+				continue;
+			} else if (entry.id.startsWith("special:") && (hosts(entry.id) || existing.length)) {
 				const special = profile.specialSections.find((item) => item.id === entry.id.slice(8));
 				content = special ? renderCustomSectionContent(special) : "";
 				if (!content) {
@@ -29622,9 +29753,21 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 			const entrySources = resumeSectionStyleSources[root.matches(".cv-sheet") ? "pdf" : "preview"][resolved.templateId];
 			applyEntryBreaks(nodes.get("experience") ?? [], entrySources?.[6] ?? "", entrySources?.[2] ?? "", pagePlan.items);
 		}
-		if (number === 1 && (pages.length > 1 || totalPages > 1)) ensureResumeHeaderContacts(root, enabled("personalData") ? profile : void 0);
+		const pehlioneContinuation = (resolved.templateId === "pehlione_white_blue" || resolved.templateId === "pehlione_white") && (pages.length > 1 || totalPages > 1);
+		if (number === 1 && !pehlioneContinuation && (pages.length > 1 || totalPages > 1)) ensureResumeHeaderContacts(root, enabled("personalData") ? profile : void 0);
 		else if (firstPageHeader) repeatResumeHeader(root, firstPageHeader);
-		else normalizeContinuationHeader(root, number, pages.length > 1 ? pages.length : totalPages, enabled("personalData") ? profile : void 0);
+		else if (number > 1 || !pehlioneContinuation) normalizeContinuationHeader(root, number, pages.length > 1 ? pages.length : totalPages, enabled("personalData") ? profile : void 0);
+		if (pehlioneContinuation && number > 1) {
+			const header = root.querySelector(".pehlione-header,.pehlione-pdf-header");
+			if (header) {
+				header.setAttribute("data-pehlione-continuation-header", "");
+				const contacts = enabled("personalData") ? getPehlioneContacts(profile) : [];
+				ensureResumeHeaderContacts(root, {
+					email: contacts.find((item) => item.key === "email")?.value,
+					phone: contacts.find((item) => item.key === "phone")?.value
+				});
+			}
+		}
 		keepDatesOnOneLine(root);
 		if (zoneFlow) applyResumeSectionPresentation(root, resolved.templateId, {
 			main,

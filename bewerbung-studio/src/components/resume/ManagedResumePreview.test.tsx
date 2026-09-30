@@ -9,6 +9,7 @@ import { buildDocumentHtml } from "../../../electron/documents";
 import { createResumePagePlan } from "../../shared/documentPagination";
 import { resolveCvDocument } from "../../shared/resolveCvDocument";
 import { formatApplicationDateIso } from "../../shared/applicationDate";
+import { usesApplicationClosingDate } from "../../shared/resumeSectionPresentation";
 import { moveManagerSection, updateManagerSection } from "../../features/resume-sections/resume-manager";
 import { resolveResumePresentation } from "../../shared/resumePresentation";
 import { ManagedResumePreview } from "./ManagedResumePreview";
@@ -313,8 +314,8 @@ describe("managed template previews", () => {
         createdAt: now, updatedAt: now, designSettings: settings });
       const resolvedCv = resolveCvDocument({ profile: projected, templateId, settings, presentationAlreadyApplied: true, application });
       const preview = renderToStaticMarkup(<ManagedResumePreview profile={projected} templateId={templateId} pageNumber={1} totalPages={1} designSettings={settings} resolvedCv={resolvedCv}>{child}</ManagedResumePreview>);
-      // The Pehlione templates print the date of the application; the other templates the date typed into the profile.
-      const closingDate = ["pehlione_white_blue", "pehlione_white"].includes(templateId) ? formatApplicationDateIso(application) : "28.09.2026";
+      // The templates that follow their column print the date of the application; the other templates the date typed into the profile.
+      const closingDate = usesApplicationClosingDate(templateId) ? formatApplicationDateIso(application) : "28.09.2026";
       for (const html of [preview, buildDocumentHtml(application, profile, "lebenslauf")]) {
         const document = parseHTML(html).document;
         const block = document.querySelector("[data-resume-closing]");

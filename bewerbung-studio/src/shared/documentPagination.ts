@@ -14,7 +14,7 @@ import {
 } from "./documentDesign";
 import { getTemplateDocumentDesignDefaults } from "./cvDesign";
 import { resolveSectionColumns } from "./resumeSectionLayout";
-import { isZoneFlowTemplate, sectionListMetrics } from "./resumeSectionPresentation";
+import { hasSidebarHero, isZoneFlowTemplate, sectionListMetrics } from "./resumeSectionPresentation";
 import { normalizeCustomSection } from "./resumeCustomSections";
 import { getPehlioneContacts } from "./pehlioneContacts";
 import { resolveKnowledgeGroups } from "../features/resume-sections/resume-section-system";
@@ -486,7 +486,7 @@ export const createResumePagePlan = (
     return { title, description: description.join(" – ") };
   });
   // Pehlione words its core competencies from what the profile says when it lists neither strengths nor skills.
-  const pehlioneCompetencies: ListEntry[] = zoneFlow && !explicitStrengths.length && !skillStrengths.length
+  const pehlioneCompetencies: ListEntry[] = zoneFlow && templateId?.startsWith("pehlione_") && !explicitStrengths.length && !skillStrengths.length
     ? getPehlioneCoreCompetencies(profile).map((title) => ({ title, description: "" }))
     : [];
   const strengthEntries: ListEntry[] = explicitStrengths.length ? explicitStrengths : skillStrengths.length ? skillStrengths : pehlioneCompetencies;
@@ -527,9 +527,12 @@ export const createResumePagePlan = (
     if (!metrics || !texts.length) return 0;
     const column = zone === "sidebar" ? geometry.text.sideW + scale.sideDelta
       : fullWidth ? geometry.text.fullW : geometry.text.mainW * scale.mainRatio;
-    // The lists have fixed sizes: neither the design font size nor the line height reaches them.
-    const lines = texts.map((text) => listLines(text.length, column - metrics.indentMm, metrics.fontMm));
-    const body = lines.reduce((total, count) => total + count * metrics.lineMm, 0);
+    // The lists of Pehlione have fixed sizes: neither the design font size nor the line height reaches them.
+    // A list that takes the body size of the page follows the design settings like the rest of the text.
+    const fontMm = metrics.inheritBody ? geometry.text.bulletFont * scale.font : metrics.fontMm;
+    const lineMm = metrics.inheritBody ? fontMm * geometry.text.lineRatio * scale.line : metrics.lineMm;
+    const lines = texts.map((text) => listLines(text.length, column - metrics.indentMm, fontMm));
+    const body = lines.reduce((total, count) => total + count * lineMm, 0);
     return metrics.headingMm + body + metrics.gapMm * (texts.length - 1);
   };
   /**
@@ -736,7 +739,9 @@ export const createResumePagePlan = (
       height: zoneFlow ? plainListHeight(zone, shown) : legacyHeight,
       // A sidebar block that does not fit beside page one goes to the full-width main column of the last page.
       contHeight: zoneFlow ? plainListHeight("main", shown, true) : undefined,
-      home: certificateHome === "none" ? "last" : certificateHome,
+      // A zone-flow template hosts the certificates on page one when their column has room, whatever home the
+      // template's own geometry gives them (some draw them beside page one, some behind the career).
+      home: zoneFlow ? "last" : certificateHome === "none" ? "last" : certificateHome,
       rank: managerRank("certifications"),
       hostable: inSidebar,
     });
@@ -792,9 +797,10 @@ export const createResumePagePlan = (
   const mainCap1 = (geometry.limit - top1 - 2 * scale.marginInset) * SAFETY;
   const mainCap2 = (geometry.limit - top2 - 2 * scale.marginInset) * SAFETY;
   // Where the first sidebar block starts depends on how many contact entries (and wrapped values) precede it.
-  const contactItems = zoneFlow && find("personalData")?.visible !== false ? getPehlioneContacts(profile) : [];
+  const sidebarHero = zoneFlow && hasSidebarHero(templateId);
+  const contactItems = sidebarHero && find("personalData")?.visible !== false ? getPehlioneContacts(profile) : [];
   const contactValueWidth = geometry.text.sideW + scale.sideDelta - CONTACT_ICON_MM;
-  const sideTop1 = zoneFlow && geometry.sideTop1 !== null
+  const sideTop1 = sidebarHero && geometry.sideTop1 !== null
     ? SIDEBAR_HERO_MM + (contactItems.length
       ? CONTACT_HEAD_MM
         + contactItems.reduce((total, item) => total + CONTACT_ITEM_MM

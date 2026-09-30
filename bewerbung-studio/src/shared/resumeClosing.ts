@@ -62,7 +62,8 @@ export const applyResumeClosingOutput = (
   const pehlione = templateId.startsWith("pehlione_");
   if (pehlione && !choice?.placement && !choice?.alignment) return;
   const signature = profile.resumeClosing.showSignature ? getProfileMediaSource(profile.signaturePath) : "";
-  const hasExplicitContent = Boolean(profile.applicationPlace.trim() || profile.applicationDate.trim() || signature);
+  // The date of the application is content of its own: a template that prints it always has a closing.
+  const hasExplicitContent = Boolean(profile.applicationPlace.trim() || profile.applicationDate.trim() || signature || closingDate?.trim());
   if (!pehlione && !hasExplicitContent && !choice) return;
   const { place, date } = resolveResumeClosingLine(profile, closingDate, germanDate);
   if (!place && !date && !signature) {
@@ -76,18 +77,23 @@ export const applyResumeClosingOutput = (
   block.setAttribute("data-resume-closing", "");
   block.setAttribute("data-resume-closing-placement", placement);
   block.setAttribute("data-resume-closing-align", choice?.alignment ?? (pehlione ? "distributed" : "left"));
+  // With the date of the application place and date are one line, `Marburg, 2026-09-26`.
+  const line = closingDate !== undefined && !pehlione && place && date ? document.createElement("span") : null;
+  line?.setAttribute("data-resume-closing-line", "");
   if (place) {
     const element = document.createElement("span");
     element.setAttribute("data-resume-closing-place", "");
     element.textContent = place;
-    block.appendChild(element);
+    (line ?? block).appendChild(element);
   }
+  if (line) line.appendChild(document.createTextNode(", "));
   if (date) {
     const element = document.createElement("time");
     element.setAttribute("data-resume-closing-date", "");
     element.textContent = date;
-    block.appendChild(element);
+    (line ?? block).appendChild(element);
   }
+  if (line) block.appendChild(line);
   if (signature) {
     const holder = document.createElement("span");
     holder.setAttribute("data-resume-closing-signature", "");

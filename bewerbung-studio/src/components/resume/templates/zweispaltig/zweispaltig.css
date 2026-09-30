@@ -177,7 +177,7 @@
   object-position: center;
 }
 
-.zweispaltig-header__kicker {
+.zweispaltig-template .zweispaltig-header__kicker {
   margin: 0 0 1.5mm;
   color: var(--zweispaltig-primary);
   font-size: 7.3pt;
@@ -301,7 +301,8 @@
   overflow-wrap: anywhere;
 }
 
-.zweispaltig-career-entry__organization {
+/* Scoped like the page text (.document-paper p) so that its size wins in the preview, as it does in the PDF. */
+.zweispaltig-template .zweispaltig-career-entry__organization {
   margin: 0.7mm 0 0;
   color: var(--zweispaltig-accent);
   font-size: 9.5pt;
@@ -310,7 +311,7 @@
   overflow-wrap: anywhere;
 }
 
-.zweispaltig-career-entry__meta {
+.zweispaltig-template .zweispaltig-career-entry__meta {
   display: flex;
   flex-wrap: wrap;
   gap: 1mm 4mm;

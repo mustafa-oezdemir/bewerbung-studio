@@ -5,6 +5,7 @@ import { applicationSchema, profileSchema } from "../../../../shared/schema";
 import { getTemplate } from "../../../../shared/templates";
 import { defaultDocumentDesign } from "../../../../shared/documentDesign";
 import { resolveCvDocument } from "../../../../shared/resolveCvDocument";
+import { formatApplicationDateIso } from "../../../../shared/applicationDate";
 import { ManagedResumePreview } from "../../ManagedResumePreview";
 import { buildDocumentHtml } from "../../../../../electron/documents";
 import { parseHTML } from "linkedom";
@@ -202,7 +203,7 @@ describe("Zweispaltig rendering", () => {
       status: "Entwurf", templateId: "zweispaltig", accentColor: "#0b3d86", secondaryColor: "#58b5f7",
       documents: {}, designSettings: settings, statusHistory: [], createdAt: profile.updatedAt, updatedAt: profile.updatedAt,
     });
-    const resolved = resolveCvDocument({ profile: source, templateId: "zweispaltig", settings: application.designSettings });
+    const resolved = resolveCvDocument({ profile: source, templateId: "zweispaltig", settings: application.designSettings, application });
     const preview = resolved.pagePlan.map((plan) => renderToStaticMarkup(
       <ManagedResumePreview profile={resolved.profile} templateId="zweispaltig" pageNumber={plan.pageNumber}
         totalPages={resolved.pagePlan.length} designSettings={application.designSettings} resolvedCv={resolved}>
@@ -229,7 +230,8 @@ describe("Zweispaltig rendering", () => {
       expect(document.querySelector(`${sidebarSelector}`)?.getAttribute("style")).toContain("#f2f3f4");
       expect(document.querySelector(`${mainSelector}`)?.getAttribute("style")).toContain("#fafafa");
       expect(document.querySelector(`${mainSelector} [data-resume-closing]`)?.textContent).toContain("Berlin");
-      expect(document.querySelector(`${mainSelector} [data-resume-closing]`)?.textContent).toContain("28.09.2026");
+      // Zweispaltig prints the date of the application, as `Ort, YYYY-MM-DD`, not the date typed into the profile.
+      expect(document.querySelector(`${mainSelector} [data-resume-closing]`)?.textContent).toContain(`Berlin, ${formatApplicationDateIso(application)}`);
     }
   });
   it("renders the visual 62/38 composition and optional photo", () => {

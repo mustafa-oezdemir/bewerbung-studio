@@ -4,6 +4,7 @@ import { buildDocumentHtml } from "../../electron/documents";
 import { applicationSchema, profileSchema } from "./schema";
 import { defaultDocumentDesign } from "./documentDesign";
 import { resolveCvDocument } from "./resolveCvDocument";
+import { zoneFlowTemplates } from "./resumeSectionPresentation";
 import { resolveResumePresentation } from "./resumePresentation";
 
 const templateIds = [
@@ -84,7 +85,7 @@ describe("shared CV document resolution", () => {
   it("takes the closing date of the zone-flow templates from the application, and leaves the others alone", () => {
     const profile = makeProfile();
     const application = { sentAt: "2026-09-26T10:00:00.000Z", createdAt: "2026-09-01T09:00:00.000Z" };
-    const joined = ["pehlione_white_blue", "pehlione_white"];
+    const joined = [...zoneFlowTemplates];
     for (const templateId of joined) {
       expect(resolveCvDocument({ profile, templateId, application }).closingDate, templateId).toBe("2026-09-26");
       // Without an application there is no date to print.

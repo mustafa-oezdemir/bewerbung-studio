@@ -5,7 +5,7 @@ import { applyResumeMetadataLayout, resumeMetadataCss } from "./resumeMetadataLa
 import { applyResumeClosingOutput, resumeClosingCss } from "./resumeClosing";
 import { applyPehlioneAppearance, pehlioneAppearanceCss } from "./pehlioneAppearance";
 import { getPehlioneContacts } from "./pehlioneContacts";
-import { applyResumeSectionPresentation, isZoneFlowTemplate, resumeSectionPresentationCss } from "./resumeSectionPresentation";
+import { applyResumeSectionPresentation, isPlainListSection, isZoneFlowTemplate, resumeSectionPresentationCss } from "./resumeSectionPresentation";
 import {
   keepDatesOnOneLine,
   normalizeContinuationHeader,
@@ -463,7 +463,7 @@ export const applyManagedResumeOutput = (
       // Plain lists of a zone-flow template: the page plan says where the certificates are drawn
       // (page one's sidebar, behind the career entries, or the last page) and one markup serves
       // every column; the languages stay where the template draws them and follow their column.
-      if (zoneFlow && (entry.id === "certifications" || entry.id === "languages") && !items.length) {
+      if (zoneFlow && (entry.id === "certifications" || entry.id === "languages") && isPlainListSection(resolved.templateId, entry.id) && !items.length) {
         const listed = (entry.id === "certifications" ? profile.certifications : profile.languages)
           .map((value) => value.trim()).filter(Boolean);
         const drawn = entry.id === "languages" ? existing.length > 0 && number === 1 : hosts(entry.id);
@@ -564,6 +564,11 @@ export const applyManagedResumeOutput = (
                 ? itemHtml.map((item) => `<p>${item}</p>`).join("")
                 : `<ul>${itemHtml.map((item) => `<li>${item}</li>`).join("")}</ul>`;
         }
+      } else if (zoneFlow && entry.id.startsWith("special:") && existing.length && !hosts(entry.id)) {
+        // The plan draws this section on another page; a copy the template drew itself must not stay.
+        existing.forEach((node) => node.remove());
+        nodes.delete(entry.id);
+        continue;
       } else if (entry.id.startsWith("special:") && (hosts(entry.id) || existing.length)) {
         const special = profile.specialSections.find(item => item.id === entry.id.slice(8));
         content = special ? renderCustomSectionContent(special) : "";

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { parseHTML } from "linkedom";
 import {
   applyResumeSectionPresentation,
+  hasSidebarHero,
+  isPlainListSection,
   isZoneFlowTemplate,
   resolveSectionPresentation,
   resumeSectionPresentationCss,
@@ -33,12 +35,12 @@ const page = (surface: "preview" | "pdf") => {
 
 describe("section presentation", () => {
   it("names the templates whose sections follow their column", () => {
-    expect(zoneFlowTemplates).toEqual([templateId, "pehlione_white"]);
+    expect(zoneFlowTemplates).toEqual([templateId, "pehlione_white", "zweispaltig"]);
     for (const joined of zoneFlowTemplates) {
       expect(isZoneFlowTemplate(joined)).toBe(true);
       expect(usesApplicationClosingDate(joined)).toBe(true);
     }
-    for (const other of ["modern", "elegant", "zweispaltig", "klassisch", undefined]) {
+    for (const other of ["modern", "elegant", "zeitgenoessisch", "klassisch", undefined]) {
       expect(isZoneFlowTemplate(other)).toBe(false);
       expect(usesApplicationClosingDate(other)).toBe(false);
       expect(resolveSectionPresentation(other ?? "", "languages", "sidebar")).toBeUndefined();
@@ -195,5 +197,61 @@ describe("section presentation of Pehlione White", () => {
   it("sizes plain list sections of the white sidebar from its own icon column", () => {
     expect(sectionListMetrics(white, "sidebar")!.headingMm).toBe(10);
     expect(sectionListMetrics(white, "main")!.headingMm).toBe(12);
+  });
+});
+
+describe("section presentation of Zweispaltig", () => {
+  const zweispaltig = "zweispaltig";
+
+  it("draws no icon and one heading for both columns", () => {
+    for (const id of ["summary", "strengths", "experience", "education", "knowledge", "certifications", "languages", "special:abc"]) {
+      const main = resolveSectionPresentation(zweispaltig, id, "main")!;
+      const sidebar = resolveSectionPresentation(zweispaltig, id, "sidebar")!;
+      expect(main.icon, id).toBeNull();
+      expect(sidebar.icon, id).toBeNull();
+      expect(sidebar.heading, id).toEqual(main.heading);
+      expect(main.heading.color).toBe("var(--zweispaltig-heading)");
+    }
+  });
+
+  it("rebuilds a heading without an icon, on both surfaces", () => {
+    for (const surface of ["preview", "pdf"] as const) {
+      const { root, node, main, sidebar } = page(surface);
+      applyResumeSectionPresentation(root, zweispaltig, { main, sidebar, sections: [{ id: "languages", nodes: [node("languages")] }, { id: "certifications", nodes: [node("certifications")] }] });
+      for (const id of ["languages", "certifications"]) {
+        expect(node(id).querySelector(".cv-heading__icon"), `${surface} ${id}`).toBeNull();
+        expect(node(id).querySelector(".cv-heading > .cv-heading__label")?.textContent, `${surface} ${id}`).toBe(id === "languages" ? "Sprachen" : "Zertifikate");
+      }
+    }
+  });
+
+  it("keeps the spacing of the template: its own top margin, the divider and the body size of its lists", () => {
+    const rules = resumeSectionPresentationCss.split("\n").filter((line) => line.includes(".zweispaltig-template"));
+    const css = rules.join("\n");
+    expect(css).toContain(':is(.zweispaltig-template,.cv-sheet[data-template="zweispaltig"]) [data-cv-zone="main"]{margin:var(--zweispaltig-section-gap) 0 0}');
+    expect(css).toContain('[data-cv-zone="sidebar"]{margin:var(--zweispaltig-section-gap) 0 0}');
+    expect(css).toContain("border-bottom:.65mm solid");
+    expect(css).toContain("font-size:inherit;line-height:inherit;list-style:disc");
+    expect(css).toContain("li::marker{color:var(--zweispaltig-primary)}");
+    // The density steers the gap through the variable of the template, not through a rule of its own.
+    expect(css).not.toContain('[data-density="compact"] [data-cv-zone="main"]{margin');
+  });
+
+  it("names which plain sections are rebuilt as one list and where the sidebar starts", () => {
+    expect(isPlainListSection(zweispaltig, "certifications")).toBe(true);
+    // Sprachen keeps its own level dots.
+    expect(isPlainListSection(zweispaltig, "languages")).toBe(false);
+    expect(isPlainListSection(templateId, "languages")).toBe(true);
+    expect(isPlainListSection("modern", "certifications")).toBe(false);
+    expect(hasSidebarHero(zweispaltig)).toBe(false);
+    expect(hasSidebarHero(templateId)).toBe(true);
+  });
+
+  it("sizes plain lists from the heading of the template and the body of the page", () => {
+    const metrics = sectionListMetrics(zweispaltig, "sidebar")!;
+    expect(metrics.headingMm).toBeCloseTo(9.03, 2);
+    expect(metrics.inheritBody).toBe(true);
+    expect(sectionListMetrics(zweispaltig, "main")).toEqual(metrics);
+    expect(sectionListMetrics(templateId, "sidebar")!.inheritBody).toBe(false);
   });
 });

@@ -107,6 +107,43 @@ describe.each(["pehlione_white_blue", "pehlione_white"])("zone flow of %s", (tem
   });
 });
 
+describe("zone flow of zweispaltig", () => {
+  const planOf = (profile: Profile) => plan(profile, "zweispaltig");
+  const placed = (profile: Profile, id: string, zone: "main" | "sidebar", index = 0) => place(profile, "zweispaltig", id, zone, index);
+
+  it("hosts the certificates in the sidebar of page one, whichever geometry home the template has", () => {
+    for (const experiences of [3, 5, 7]) {
+      const pages = planOf(makeProfile(experiences));
+      expect(pageOf(pages, "certifications"), `${experiences} experiences`).toBe(1);
+    }
+  });
+
+  it("lets a main-column block follow the career: page one while there is room, then page two", () => {
+    const behind = (experiences: number) => planOf(placed(makeProfile(experiences), "certifications", "main", 99));
+    expect(pageOf(behind(3), "certifications")).toBe(1);
+    for (const experiences of [5, 6, 7]) {
+      expect(behind(experiences), `${experiences} experiences`).toHaveLength(2);
+      expect(pageOf(behind(experiences), "certifications"), `${experiences} experiences`).toBe(2);
+    }
+  });
+
+  it("puts a block above the career sections on page one and brings a pushed block back when the user moves it", () => {
+    const base = makeProfile(6);
+    expect(pageOf(planOf(placed(base, "certifications", "main", 0)), "certifications")).toBe(1);
+    const pushed = placed(base, "certifications", "main", 99);
+    expect(pageOf(planOf(pushed), "certifications")).toBe(2);
+    expect(pageOf(planOf(placed(pushed, "certifications", "sidebar", 0)), "certifications")).toBe(1);
+    expect(planOf(placed(pushed, "certifications", "sidebar", 0))).toEqual(planOf(base));
+  });
+
+  it("draws every block exactly once", () => {
+    const profile = placed(placed(makeProfile(6), "certifications", "main", 99), "languages", "main", 0);
+    const blocks = planOf(profile).flatMap((page) => page.blocks ?? []);
+    expect(new Set(blocks).size).toBe(blocks.length);
+    expect(blocks).toContain("certifications");
+  });
+});
+
 describe("zone flow of the templates that have not joined", () => {
   it("does not plan the certificates as a movable block: they keep the historic home on the last page", () => {
     const profile = place(makeProfile(7), "elegant", "certifications", "sidebar", 0);

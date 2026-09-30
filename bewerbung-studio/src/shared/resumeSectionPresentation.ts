@@ -106,7 +106,7 @@ export const sectionSemanticType = (id: string, groupSemanticType?: string): Sec
  * and the closing date comes from the application. Templates join this list one by one, after
  * their look was verified on both surfaces.
  */
-export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "pehlione_white"];
+export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "pehlione_white", "zweispaltig"];
 
 export const isZoneFlowTemplate = (templateId: string | undefined): boolean =>
   Boolean(templateId && zoneFlowTemplates.includes(templateId));
@@ -135,10 +135,18 @@ export type SectionHeadingTokens = {
   labelPadding: { standard: number; compact: number };
   color: string;
   dividerColor: string;
+  /** Thickness of the divider line under the title. */
+  dividerWidth?: string;
   iconColor: string;
   iconBackground: string;
-  /** Space behind the whole section (mm). */
-  sectionGap: { standard: number; compact: number };
+  /**
+   * Space around the whole section (mm). A template that spaces its sections by a top margin of its own
+   * (Zweispaltig) names the side and may pass the CSS expression its native stylesheet uses, so that the
+   * design settings and the density keep steering it.
+   */
+  sectionGap: { standard: number; compact: number; side?: "top" | "bottom"; expr?: string };
+  /** Height of the heading itself (mm) when it is not the icon box: a plain title with its padding and rule. */
+  height?: number;
 };
 
 export type SectionListTokens = {
@@ -149,6 +157,13 @@ export type SectionListTokens = {
   /** Space between two entries (mm): the item margin in the main column, the grid gap in the sidebar. */
   itemGap: { standard: number; compact: number };
   indent: number;
+  /** Text size and line height come from the body of the page (the design settings steer them). */
+  inheritBody?: boolean;
+  /** `margins` (default in the main column) spaces the entries by their margins, `grid` (sidebar) by a grid gap. */
+  layout?: "margins" | "grid";
+  /** Space between the heading and the list (mm), for templates whose list has a margin of its own. */
+  marginTop?: number;
+  markerColor?: string;
 };
 
 export type SectionPresentation = {
@@ -230,10 +245,70 @@ const pehlioneWhite: TemplateTokens = {
   },
 };
 
-const tokensByTemplate: Record<string, TemplateTokens> = {
-  pehlione_white_blue: pehlioneWhiteBlue,
-  pehlione_white: pehlioneWhite,
+/**
+ * Zweispaltig: one heading and one list for both columns (measured in the PDF, 14 pt titles over a 0.65 mm
+ * rule, body-size lists with a 4.5 mm indent). It draws no icons, so no icon is added. The gap between the
+ * sections is the template's own top margin, which the design settings and the density keep steering.
+ */
+const zweispaltigHeading: SectionHeadingTokens = {
+  iconBox: 0, iconGap: 0, iconRadius: 0, glyphSize: 0, glyphStroke: 0,
+  fontSizePt: { standard: 14, compact: 14 }, fontWeight: 750, lineHeight: 1,
+  letterSpacing: ".015em", textTransform: "uppercase",
+  marginBottom: { standard: 2.5, compact: 2.5 }, labelPadding: { standard: 1, compact: 1 },
+  color: "var(--zweispaltig-heading)", dividerColor: "var(--zweispaltig-heading)", dividerWidth: ".65mm",
+  iconColor: "currentColor", iconBackground: "transparent",
+  sectionGap: { standard: 6.5, compact: 6.5, side: "top", expr: "var(--zweispaltig-section-gap)" },
+  height: 6.53,
 };
+const zweispaltigList: SectionListTokens = {
+  fontSizePt: { standard: 8.4, compact: 8.4 }, lineHeight: { standard: 1.05, compact: 1.05 },
+  itemGap: { standard: 0.5, compact: 0.5 }, indent: 4.5, inheritBody: true, layout: "margins", marginTop: 1.5,
+  markerColor: "var(--zweispaltig-primary)",
+};
+const zweispaltig: TemplateTokens = {
+  main: { icons: false, heading: zweispaltigHeading, list: zweispaltigList },
+  sidebar: { icons: false, heading: zweispaltigHeading, list: zweispaltigList },
+};
+
+/** How a template is reached on both surfaces, and which parts of the shared machinery it takes. */
+type TemplateConfig = {
+  tokens: TemplateTokens;
+  /** Root of the preview page and of the PDF page (`pdfBody` carries the density attribute in the PDF). */
+  roots: { preview: string; pdf: string; pdfBody: string; host?: string };
+  /** Plain sections rebuilt as one canonical list; the others keep their own markup and follow their column. */
+  plainLists: readonly SectionSemanticType[];
+  /** Page one of the sidebar starts with a hero image and a contact block (Pehlione); otherwise at the header line. */
+  sidebarHero: boolean;
+};
+
+const pehlioneRoots = (templateId: string) => ({
+  preview: `.pehlione-resume[data-template="${templateId}"]`,
+  pdf: `.cv-sheet[data-template="${templateId}"]`,
+  pdfBody: ".pehlione-pdf",
+  host: `:is(.pehlione-resume,.cv-sheet)[data-template="${templateId}"]`,
+});
+
+const configByTemplate: Record<string, TemplateConfig> = {
+  pehlione_white_blue: { tokens: pehlioneWhiteBlue, roots: pehlioneRoots("pehlione_white_blue"), plainLists: ["certifications", "languages"], sidebarHero: true },
+  pehlione_white: { tokens: pehlioneWhite, roots: pehlioneRoots("pehlione_white"), plainLists: ["certifications", "languages"], sidebarHero: true },
+  zweispaltig: {
+    tokens: zweispaltig,
+    roots: { preview: ".zweispaltig-template", pdf: '.cv-sheet[data-template="zweispaltig"]', pdfBody: ".zweispaltig-pdf" },
+    plainLists: ["certifications"],
+    sidebarHero: false,
+  },
+};
+const tokensByTemplate: Record<string, TemplateTokens> = Object.fromEntries(
+  Object.entries(configByTemplate).map(([id, config]) => [id, config.tokens]),
+);
+
+/** Whether `type` is a plain list of this template that the shared output rebuilds as one canonical list. */
+export const isPlainListSection = (templateId: string | undefined, type: SectionSemanticType): boolean =>
+  Boolean(templateId && configByTemplate[templateId]?.plainLists.includes(type));
+
+/** Whether page one of this template's sidebar starts with a hero image and a contact block. */
+export const hasSidebarHero = (templateId: string | undefined): boolean =>
+  Boolean(templateId && configByTemplate[templateId]?.sidebarHero);
 
 const PT_TO_MM = 0.3528;
 
@@ -244,11 +319,13 @@ export const sectionListMetrics = (templateId: string, zone: SectionZone) => {
   const { heading, list } = tokens;
   const fontMm = list.fontSizePt.standard * PT_TO_MM;
   return {
-    headingMm: heading.iconBox + heading.marginBottom.standard,
+    headingMm: (heading.height ?? heading.iconBox) + heading.marginBottom.standard,
     fontMm,
     lineMm: fontMm * (list.itemLineHeight ?? list.lineHeight.standard),
     gapMm: list.itemGap.standard,
     indentMm: list.indent,
+    /** The list takes the body size of the page: the planner scales it with the design font size. */
+    inheritBody: Boolean(list.inheritBody),
   };
 };
 
@@ -283,17 +360,21 @@ const mm = (value: number) => `${value}mm`;
 /** The closing line keeps its own distance to the last section (the section's margin would double it). */
 const closingSelector = ":is(.pehlione-closing,.pehlione-pdf-closing,[data-resume-closing])";
 
-const templateCss = (templateId: string, tokens: TemplateTokens) => {
-  const host = `:is(.pehlione-resume,.cv-sheet)[data-template="${templateId}"]`;
+const templateCss = (templateId: string, { tokens, roots }: TemplateConfig) => {
+  const host = roots.host ?? `:is(${roots.preview},${roots.pdf})`;
   const compact = (suffix: string) =>
-    `.pehlione-resume[data-template="${templateId}"][data-density="compact"] ${suffix},.cv-sheet[data-template="${templateId}"] .pehlione-pdf[data-density="compact"] ${suffix}`;
+    `${roots.preview}[data-density="compact"] ${suffix},${roots.pdf} ${roots.pdfBody}[data-density="compact"] ${suffix}`;
   const hidden = (suffix: string) =>
-    `.pehlione-resume[data-template="${templateId}"][data-section-divider="hidden"] ${suffix},.cv-sheet[data-template="${templateId}"] .pehlione-pdf[data-section-divider="hidden"] ${suffix}`;
+    `${roots.preview}[data-section-divider="hidden"] ${suffix},${roots.pdf} ${roots.pdfBody}[data-section-divider="hidden"] ${suffix}`;
   const { main, sidebar } = tokens;
   const zoneRules = (zone: SectionZone, { heading, list }: TemplateTokens[SectionZone]) => {
     const scope = `[data-cv-zone="${zone}"]`;
     const listSelector = `${scope} [data-cv-list]`;
-    const gridList = zone === "sidebar";
+    const gridList = (list.layout ?? (zone === "sidebar" ? "grid" : "margins")) === "grid";
+    const listFont = list.inheritBody
+      ? "font-size:inherit;line-height:inherit"
+      : `font-size:${list.fontSizePt.standard}pt;line-height:${list.lineHeight.standard}`;
+    const gapSide = heading.sectionGap.side ?? "bottom";
     // The icon box of the main column is the base; a column that draws its icon differently overrides it.
     const iconGeometry = (["iconBox", "iconGap", "iconRadius", "glyphSize", "glyphStroke"] as const).some(
       (key) => heading[key] !== main.heading[key],
@@ -307,18 +388,21 @@ const templateCss = (templateId: string, tokens: TemplateTokens) => {
           `${host} ${scope}>.cv-heading .cv-heading__icon svg{width:${mm(heading.glyphSize)};height:${mm(heading.glyphSize)};stroke-width:${heading.glyphStroke}}`,
         ].join("\n")
         : "",
-      `${host} ${scope}{margin:0 0 ${mm(heading.sectionGap.standard)}}`,
-      heading.sectionGap.compact !== heading.sectionGap.standard
-        ? `${compact(scope)}{margin-bottom:${mm(heading.sectionGap.compact)}}` : "",
+      gapSide === "top"
+        ? `${host} ${scope}{margin:${heading.sectionGap.expr ?? mm(heading.sectionGap.standard)} 0 0}`
+        : `${host} ${scope}{margin:0 0 ${mm(heading.sectionGap.standard)}}`,
+      !heading.sectionGap.expr && heading.sectionGap.compact !== heading.sectionGap.standard
+        ? `${compact(scope)}{margin-${gapSide === "top" ? "top" : "bottom"}:${mm(heading.sectionGap.compact)}}` : "",
       `${host} ${scope}>.cv-heading{margin:0 0 ${mm(heading.marginBottom.standard)};color:${heading.color};font-size:${heading.fontSizePt.standard}pt;--cv-divider:${heading.dividerColor};--cv-icon-color:${heading.iconColor};--cv-icon-bg:${heading.iconBackground}}`,
       `${host} ${scope}>.cv-heading .cv-heading__label{padding-bottom:${mm(heading.labelPadding.standard)}}`,
       heading.marginBottom.compact !== heading.marginBottom.standard || heading.fontSizePt.compact !== heading.fontSizePt.standard
         ? `${compact(`${scope}>.cv-heading`)}{margin-bottom:${mm(heading.marginBottom.compact)};font-size:${heading.fontSizePt.compact}pt}` : "",
       heading.labelPadding.compact !== heading.labelPadding.standard
         ? `${compact(`${scope}>.cv-heading .cv-heading__label`)}{padding-bottom:${mm(heading.labelPadding.compact)}}` : "",
-      `${host} ${listSelector}{${gridList ? `display:grid;gap:${mm(list.itemGap.standard)};` : ""}margin:0;padding:0 0 0 ${mm(list.indent)};color:inherit;font-size:${list.fontSizePt.standard}pt;line-height:${list.lineHeight.standard};list-style:disc}`,
+      `${host} ${listSelector}{${gridList ? `display:grid;gap:${mm(list.itemGap.standard)};` : ""}margin:${list.marginTop ? `${mm(list.marginTop)} 0 0` : "0"};padding:0 0 0 ${mm(list.indent)};color:inherit;${listFont};list-style:disc}`,
+      list.markerColor ? `${host} ${listSelector} li::marker{color:${list.markerColor}}` : "",
       `${host} ${listSelector} li{${gridList ? "margin:0;" : `margin:${mm(list.itemGap.standard)} 0;`}color:inherit;font-size:inherit;line-height:${list.itemLineHeight ?? "inherit"};hyphens:auto;break-inside:avoid;page-break-inside:avoid}`,
-      list.fontSizePt.compact !== list.fontSizePt.standard || list.lineHeight.compact !== list.lineHeight.standard
+      !list.inheritBody && (list.fontSizePt.compact !== list.fontSizePt.standard || list.lineHeight.compact !== list.lineHeight.standard)
         ? `${compact(listSelector)}{font-size:${list.fontSizePt.compact}pt;line-height:${list.lineHeight.compact}}` : "",
       !gridList && list.itemGap.compact !== list.itemGap.standard
         ? `${compact(`${listSelector} li`)}{margin:${mm(list.itemGap.compact)} 0}` : "",
@@ -330,7 +414,7 @@ ${host} .cv-heading{display:grid;grid-template-columns:${mm(heading.iconBox)} mi
 ${host} .cv-heading:not(:has(.cv-heading__icon)){grid-template-columns:minmax(0,1fr)}
 ${host} .cv-heading__icon{display:grid;box-sizing:border-box;width:${mm(heading.iconBox)};height:${mm(heading.iconBox)};place-items:center;border-radius:${mm(heading.iconRadius)};color:var(--cv-icon-color,${heading.iconColor});background:var(--cv-icon-bg,${heading.iconBackground});font-style:normal}
 ${host} .cv-heading__icon svg{display:block;width:${mm(heading.glyphSize)};height:${mm(heading.glyphSize)};fill:none;stroke:currentColor;stroke-width:${heading.glyphStroke};stroke-linecap:round;stroke-linejoin:round}
-${host} .cv-heading__label{display:block;min-width:0;border-bottom:var(--pehlione-divider-width,.3mm) solid var(--cv-divider,${heading.dividerColor});color:inherit;font-weight:inherit}
+${host} .cv-heading__label{display:block;min-width:0;border-bottom:${heading.dividerWidth ?? "var(--pehlione-divider-width,.3mm)"} solid var(--cv-divider,${heading.dividerColor});color:inherit;font-weight:inherit}
 ${hidden(".cv-heading__label")}{border-bottom:0}
 ${zoneRules("main", main)}
 ${zoneRules("sidebar", sidebar)}
@@ -341,8 +425,8 @@ ${host} [data-cv-zone="sidebar"] p{text-align:left}
 `;
 };
 
-export const resumeSectionPresentationCss = Object.entries(tokensByTemplate)
-  .map(([templateId, tokens]) => templateCss(templateId, tokens))
+export const resumeSectionPresentationCss = Object.entries(configByTemplate)
+  .map(([templateId, config]) => templateCss(templateId, config))
   .join("");
 
 // ---------------------------------------------------------------------------
