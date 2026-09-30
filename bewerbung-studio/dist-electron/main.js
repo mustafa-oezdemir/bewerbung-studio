@@ -9452,7 +9452,8 @@ var zoneFlowTemplates = [
 	"stilvoll",
 	"kompakt",
 	"einspaltig",
-	"klassisch"
+	"klassisch",
+	"gepflegt"
 ];
 var isZoneFlowTemplate = (templateId) => Boolean(templateId && zoneFlowTemplates.includes(templateId));
 /** The closing of these templates prints the application date (`Ort, YYYY-MM-DD`), not a profile field. */
@@ -10069,6 +10070,118 @@ var klassisch = {
 		list: klassischList
 	}
 };
+/** Gepflegt has a dark title in the main column and a white title in its teal sidebar. */
+var gepflegt = {
+	main: {
+		icons: false,
+		heading: {
+			iconBox: 0,
+			iconGap: 0,
+			iconRadius: 0,
+			glyphSize: 0,
+			glyphStroke: 0,
+			fontSizePt: {
+				standard: 14.5,
+				compact: 14.5
+			},
+			fontWeight: 500,
+			lineHeight: 1,
+			letterSpacing: ".015em",
+			textTransform: "uppercase",
+			fontFamily: "var(--heading-font,var(--gepflegt-font,Arial,sans-serif))",
+			marginBottom: {
+				standard: 3.6,
+				compact: 3.6
+			},
+			labelPadding: {
+				standard: 2.2,
+				compact: 2.2
+			},
+			color: "var(--gepflegt-heading,#354147)",
+			dividerColor: "var(--gepflegt-divider,#c7ced1)",
+			dividerWidth: ".35mm",
+			iconColor: "currentColor",
+			iconBackground: "transparent",
+			sectionGap: {
+				standard: 0,
+				compact: 0
+			},
+			height: 7.3
+		},
+		list: {
+			fontSizePt: {
+				standard: 8.8,
+				compact: 8.8
+			},
+			lineHeight: {
+				standard: 1.28,
+				compact: 1.28
+			},
+			itemGap: {
+				standard: .45,
+				compact: .45
+			},
+			indent: 4.8,
+			inheritBody: true,
+			layout: "grid",
+			markerColor: "var(--gepflegt-muted,#657075)"
+		}
+	},
+	sidebar: {
+		icons: false,
+		heading: {
+			iconBox: 0,
+			iconGap: 0,
+			iconRadius: 0,
+			glyphSize: 0,
+			glyphStroke: 0,
+			fontSizePt: {
+				standard: 12.5,
+				compact: 12.5
+			},
+			fontWeight: 500,
+			lineHeight: 1.05,
+			letterSpacing: ".01em",
+			textTransform: "uppercase",
+			fontFamily: "var(--gepflegt-font,var(--body-font,Arial,sans-serif))",
+			marginBottom: {
+				standard: 3.5,
+				compact: 3.5
+			},
+			labelPadding: {
+				standard: 2.2,
+				compact: 2.2
+			},
+			color: "var(--gepflegt-sidebar-text,#fff)",
+			dividerColor: "rgba(255,255,255,.78)",
+			dividerWidth: ".35mm",
+			iconColor: "currentColor",
+			iconBackground: "transparent",
+			sectionGap: {
+				standard: 8.5,
+				compact: 6.5
+			},
+			height: 7.5
+		},
+		list: {
+			fontSizePt: {
+				standard: 8.5,
+				compact: 8.5
+			},
+			lineHeight: {
+				standard: 1.25,
+				compact: 1.25
+			},
+			itemGap: {
+				standard: 1.3,
+				compact: 1.3
+			},
+			indent: 4,
+			layout: "grid",
+			markerColor: "var(--gepflegt-sidebar-text,#fff)"
+		}
+	}
+};
 /**
 * Stilvoll: one light heading and one list for both columns (measured in the PDF: 9.5 pt regular capitals in the
 * muted grey over a 0.3 mm rule, body-size lists with a 4 mm indent like its career bullets). It draws no icons.
@@ -10237,6 +10350,16 @@ var configByTemplate = {
 		},
 		plainLists: ["certifications"],
 		sidebarHero: false
+	},
+	gepflegt: {
+		tokens: gepflegt,
+		roots: {
+			preview: ".gepflegt-page",
+			pdf: ".cv-sheet[data-template=\"gepflegt\"]",
+			pdfBody: ".gepflegt-pdf"
+		},
+		plainLists: ["certifications"],
+		sidebarHero: false
 	}
 };
 var tokensByTemplate = Object.fromEntries(Object.entries(configByTemplate).map(([id, config]) => [id, config.tokens]));
@@ -10308,7 +10431,7 @@ var templateCss = (templateId, { tokens, roots }) => {
 			].join("\n") : "",
 			gapSide === "top" ? `${host} ${scope}{margin:${heading.sectionGap.expr ?? mm(heading.sectionGap.standard)} 0 0}` : `${host} ${scope}{margin:0 0 ${heading.sectionGap.expr ?? mm(heading.sectionGap.standard)}}`,
 			!heading.sectionGap.expr && heading.sectionGap.compact !== heading.sectionGap.standard ? `${compact(scope)}{margin-${gapSide === "top" ? "top" : "bottom"}:${mm(heading.sectionGap.compact)}}` : "",
-			`${host} ${scope}>.cv-heading{margin:0 0 ${mm(heading.marginBottom.standard)};color:${heading.color};font-size:${heading.fontSizePt.standard}pt;--cv-divider:${heading.dividerColor};--cv-icon-color:${heading.iconColor};--cv-icon-bg:${heading.iconBackground}}`,
+			`${host} ${scope}>.cv-heading{margin:0 0 ${mm(heading.marginBottom.standard)};color:${heading.color};font-size:${heading.fontSizePt.standard}pt;${heading.fontFamily ? `font-family:${heading.fontFamily};` : ""}--cv-divider:${heading.dividerColor};--cv-icon-color:${heading.iconColor};--cv-icon-bg:${heading.iconBackground}}`,
 			`${host} ${scope}>.cv-heading .cv-heading__label{padding-bottom:${mm(heading.labelPadding.standard)};${heading.labelPaddingTop ? `padding-top:${mm(heading.labelPaddingTop)}` : ""}}`,
 			heading.marginBottom.compact !== heading.marginBottom.standard || heading.fontSizePt.compact !== heading.fontSizePt.standard ? `${compact(`${scope}>.cv-heading`)}{margin-bottom:${mm(heading.marginBottom.compact)};font-size:${heading.fontSizePt.compact}pt}` : "",
 			heading.labelPadding.compact !== heading.labelPadding.standard ? `${compact(`${scope}>.cv-heading .cv-heading__label`)}{padding-bottom:${mm(heading.labelPadding.compact)}}` : "",
