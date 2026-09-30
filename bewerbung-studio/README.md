@@ -40,42 +40,41 @@ erhalten.
 
 ```text
 <gewählter Bewerbungsordner>
-├── data
-│   ├── Bewerbungen
-│   │   └── Firma_TT.MM.JJJJ
-│   │       └── Position
-│   │           ├── Email
-│   │           └── Stellenanzeige
-│   ├── Backups
-│   ├── Muster
-│   └── Settings
-├── Anschreiben
-│   └── Firma_TT.MM.JJJJ
-│       └── Position
-├── Lebenslauf
-│   └── Firma_TT.MM.JJJJ
-│       └── Position
-├── Zeugnisse
-├── Zertifikate
-└── Absagen
-    └── Firma_TT.MM.JJJJ
+└── data
+    ├── Bewerbungen
+    │   └── Firma_JJJJ-MM-TT
+    │       └── Stellenbezeichnung
+    │           ├── Anschreiben
+    │           ├── Lebenslauf
+    │           ├── Deckblatt
+    │           ├── Email
+    │           ├── Stellenanzeige
+    │           └── Bewerbungsunterlagen
+    ├── Zeugnisse
+    ├── Zertifikate
+    ├── Absagen
+    └── Setting
+        ├── Settings        (workspace.json)
+        ├── Profile
+        ├── Backups
+        └── Muster
 ```
 
-`data/Settings/workspace.json` ist der zentrale, versionierte Datensatz. Aktive
+`data/Setting/Settings/workspace.json` ist der zentrale, versionierte Datensatz. Aktive
 Bewerbungen, Gespräche und Absagen sind gefilterte Ansichten dieses Datensatzes
 und keine separaten Kopien.
 
 Das Feld `sentAt` ist die zentrale Quelle des Bewerbungsdatums; bei Entwürfen
-wird bis zur Auswahl eines Datums `createdAt` verwendet. Ordner, Anschreiben,
-Word-Inhalt, E-Mail-Dateien und neue Exportnamen werden daraus im Format
-`TT.MM.JJJJ` abgeleitet. Eine Datumsänderung verschiebt die vorhandenen
-Anwendungsordner kollisionssicher und synchronisiert das Anschreiben unter
-`Firma_TT.MM.JJJJ_Anschreiben.docx`.
+wird bis zur Auswahl eines Datums `createdAt` verwendet. Der Firmenordner heißt
+`Firma_JJJJ-MM-TT`; zwei Stellen derselben Firma am selben Tag teilen sich ihn und
+bekommen je einen Unterordner mit der Stellenbezeichnung. Datum in Anschreiben,
+Word-Inhalt und E-Mail-Dateien steht im Format `TT.MM.JJJJ`. Eine Datumsänderung
+verschiebt die vorhandenen Anwendungsordner kollisionssicher.
 
 Zeugnisse und Zertifikate bleiben in ihren zentralen Archivordnern. Eine
 Bewerbung speichert nur die relative Verknüpfung; die Datei wird nicht pro
 Bewerbung kopiert. Bei einer Absage werden firmenspezifische Anschreiben und
-Lebensläufe unter `Absagen/Firma_TT.MM.JJJJ` verschoben, der Datensatz bleibt
+Lebensläufe unter `Absagen` verschoben, der Datensatz bleibt
 erhalten.
 
 Bestehende Daten können in den Einstellungen über **Bisherigen data-Ordner
@@ -110,6 +109,7 @@ werden.
 
 ## Enthaltene Funktionen
 
+- ToDo mit automatischer Bewerbungsfrist-Aufgabe, getrennt von eigenen Aufgaben
 - Dashboard mit Statuszahlen, Erfolgsquote, Fristen und fälligen Aufgaben
 - zentrale Bewerbungslisten mit Suche und Statusfiltern
 - automatische Übergänge für Absage, Gespräch, Zusage und Archiv
@@ -118,7 +118,7 @@ werden.
 - Follow-up nach 7, 10, 14 oder 21 Tagen
 - native Desktop-Benachrichtigungen
 - Bewerbungswizard mit Validierung
-- sechs abgestimmte Dokumentdesigns
+- Lebenslauf-Vorlagen (u. a. Pehlione, Modern, Zweispaltig, Kreativ) und drei Deckblatt-Designs
 - editierbare Anschreiben-, Lebenslauf- und Deckblatttexte
 - PDF-Ausgabe einzelner Dokumente oder der Bewerbungsmappe
 - sichere PDF-Ablage für Zeugnisse und Zertifikate

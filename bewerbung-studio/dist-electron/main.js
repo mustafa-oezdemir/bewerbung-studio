@@ -4295,6 +4295,15 @@ var resumeCustomContentTypes = [
 	"timeline"
 ];
 //#endregion
+//#region src/shared/deckblattDesignIds.ts
+/** The selectable designs of the Deckblatt. The registry with names and markup lives in `deckblattDesigns.ts`. */
+var deckblattDesignIds = [
+	"klassisch",
+	"pastell",
+	"akzentband"
+];
+var defaultDeckblattDesign = "klassisch";
+//#endregion
 //#region src/shared/documentDesign.ts
 var documentFontIds = [
 	"rubik",
@@ -5786,6 +5795,7 @@ var documentDraftSchema = object({
 	coverSenderTitle: optionalText,
 	coverSenderContact: optionalText,
 	coverSheetProfessionalTitle: optionalText,
+	coverSheetDesign: _enum(deckblattDesignIds).default(defaultDeckblattDesign),
 	coverSheetContactVisibility: record(_enum([
 		"address",
 		"phone",
@@ -6164,7 +6174,9 @@ var todoSchema = object({
 	completed: boolean().default(false),
 	createdAt: datetime(),
 	updatedAt: datetime(),
-	completedAt: datetime().optional()
+	completedAt: datetime().optional(),
+	applicationId: uuid().optional(),
+	source: _enum(["manual", "application-deadline"]).optional()
 });
 var customCvDesignSchema = object({
 	id: uuid(),
@@ -6276,6 +6288,96 @@ var resolveApplicationPaths = (rootPath = resolveBewerbungRootPath(), bundledTem
 		systemTemplateCache: path.join(settingRoot, "cache", "system-templates"),
 		bundledTemplatesRoot
 	};
+};
+//#endregion
+//#region src/shared/todos.ts
+/**
+* An application in one of these statuses needs nothing more before its deadline. One definition for the calendar
+* sync (future events are cancelled) and for the todo lists (its automatic todos are not actionable any more).
+*/
+var terminalApplicationStatuses = [
+	"Zusage",
+	"Absage",
+	"Zurückgezogen",
+	"Archiviert"
+];
+var localDateKey = (date = /* @__PURE__ */ new Date()) => {
+	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
+/** A todo stored before `source` existed is a manual one. */
+var todoSourceOf = (todo) => todo.source ?? "manual";
+var isApplicationTodo = (todo) => todoSourceOf(todo) !== "manual";
+//#endregion
+//#region src/shared/profileSelection.ts
+/**
+* The profile a Bewerbung is written with. `application.profileId` is the one persistent link; a missing or
+* deleted link falls back to the default profile. The app, the preview and every export (Anschreiben, Deckblatt,
+* Lebenslauf, Mappe, Word, e-mail) resolve the profile with this function, so they can never disagree.
+*/
+var resolveApplicationProfile = (profiles, applicationProfileId) => profiles.find((profile) => profile.id === applicationProfileId) ?? profiles.find((profile) => profile.isDefault) ?? profiles[0];
+/**
+* The professional title of the applicant, e.g. under the name. It is the `title` of the selected profile and
+* nothing else: the job title of the application is the position applied for, a different thing, and no
+* document falls back to a title of its own.
+*/
+var getProfessionalTitle = (profile) => profile?.title?.trim() ?? "";
+//#endregion
+//#region src/shared/coverSender.ts
+var senderContactLine = (profile) => profile ? [
+	profile.street,
+	`${profile.postalCode} ${profile.city}`.trim(),
+	profile.email,
+	profile.phone
+].filter(Boolean).join(" | ") : "";
+/** What the profile alone yields for the sender block. */
+var coverSenderFromProfile = (profile) => ({
+	name: profile ? `${profile.firstName} ${profile.lastName}`.trim() : "Vorname Nachname",
+	title: getProfessionalTitle(profile),
+	contact: profile ? senderContactLine(profile) : "E-Mail · Telefon"
+});
+var resolveCoverSender = (profile, documents) => {
+	const derived = coverSenderFromProfile(profile);
+	return {
+		name: documents.coverSenderName.trim() || derived.name,
+		title: documents.coverSenderTitle.trim() || derived.title,
+		contact: documents.coverSenderContact.trim() || derived.contact
+	};
+};
+/** Fields of the document draft that only ever held a copy of profile data. */
+var profileDerivedDocumentFields = [
+	"coverSenderName",
+	"coverSenderTitle",
+	"coverSenderContact",
+	"coverSheetProfessionalTitle"
+];
+/** An application that moves to another profile must not keep the old profile's sender and title. */
+var clearProfileDerivedDocumentFields = (documents) => ({
+	...documents,
+	...Object.fromEntries(profileDerivedDocumentFields.map((field) => [field, ""]))
+});
+var derivedValues = (profile) => {
+	const sender = coverSenderFromProfile(profile);
+	return {
+		coverSenderName: sender.name,
+		coverSenderTitle: sender.title,
+		coverSenderContact: sender.contact,
+		coverSheetProfessionalTitle: sender.title
+	};
+};
+/**
+* Drops saved copies of another profile's data: a value that equals what a different profile would print, and
+* not what the profile of the application prints, is a leftover of an earlier profile choice.
+*/
+var dropStaleProfileCopies = (documents, profile, otherProfiles) => {
+	const own = profile ? derivedValues(profile) : void 0;
+	const others = otherProfiles.filter((other) => other.id !== profile?.id).map(derivedValues);
+	const next = { ...documents };
+	for (const field of profileDerivedDocumentFields) {
+		const value = documents[field].trim();
+		if (!value || value === own?.[field]?.trim()) continue;
+		if (others.some((other) => other[field].trim() === value)) next[field] = "";
+	}
+	return next;
 };
 //#endregion
 //#region src/shared/templates.ts
@@ -6901,17 +7003,6 @@ var formatApplicationDate = (application) => new Intl.DateTimeFormat("de-DE", {
 	month: "2-digit",
 	year: "numeric"
 }).format(getApplicationDate(application));
-/**
-* The application date as an ISO calendar date (`YYYY-MM-DD`), in the same local time zone as the
-* other formats. The résumé closing prints it, so the Lebenslauf and the Anschreiben always carry the
-* same day; an unreadable date yields an empty string.
-*/
-var formatApplicationDateIso = (application) => {
-	const date = getApplicationDate(application);
-	if (Number.isNaN(date.getTime())) return "";
-	const pad = (value) => String(value).padStart(2, "0");
-	return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-};
 var formatApplicationDateLong = (application) => new Intl.DateTimeFormat("de-DE", {
 	day: "numeric",
 	month: "long",
@@ -9020,15 +9111,15 @@ var getProfileMediaSource = (value) => value && supportedProfileMedia.test(value
 //#endregion
 //#region src/shared/resumeClosing.ts
 var resumeClosingCss = `
-[data-resume-closing]{display:flex;flex-wrap:wrap;align-items:end;gap:2mm 6mm;grid-column:1/-1;min-width:0;margin-top:5mm;padding-top:2mm;border-top:.2mm solid var(--doc-divider-color,#cbd5e1);break-inside:avoid;font-size:9pt;line-height:1.25}
-[data-resume-closing-placement="footer"]{position:absolute;z-index:3;right:12mm;bottom:12mm;left:12mm;margin-top:0;background:var(--doc-background-color,#fff)}
+[data-resume-closing]{display:flex;flex-wrap:wrap;align-items:end;gap:2mm 6mm;grid-column:1/-1;min-width:0;margin-top:5mm;padding-top:2mm;border-top:0;background:transparent;break-inside:avoid;font-size:9pt;line-height:1.25}
+[data-resume-closing-placement="footer"]{position:absolute;z-index:3;right:12mm;bottom:12mm;left:12mm;margin-top:0;background:transparent}
 [data-resume-closing]>*{min-width:0;overflow-wrap:anywhere}
 [data-resume-closing][data-resume-closing-align="left"]{justify-content:flex-start;text-align:left}
 [data-resume-closing][data-resume-closing-align="center"]{justify-content:center;text-align:center}
 [data-resume-closing][data-resume-closing-align="right"]{justify-content:flex-end;text-align:right}
 [data-resume-closing][data-resume-closing-align="distributed"]{justify-content:space-between;text-align:left}
-[data-resume-closing-signature]{display:flex;flex-direction:column;align-items:inherit;max-width:48mm}
-[data-resume-closing-signature] img{display:block;max-width:48mm;max-height:14mm;width:auto;height:auto;object-fit:contain}
+[data-resume-closing-signature]{display:flex;flex-direction:column;align-items:inherit;max-width:48mm;background:transparent}
+[data-resume-closing-signature] img{display:block;max-width:48mm;max-height:14mm;width:auto;height:auto;object-fit:contain;background:transparent}
 [data-resume-closing-signature] strong{font-size:8pt;font-weight:600}
 `;
 var germanDate = (value) => {
@@ -9036,9 +9127,9 @@ var germanDate = (value) => {
 	return match ? `${match[3]}.${match[2]}.${match[1]}` : value.trim();
 };
 /**
-* Place and date of the closing (`Marburg, 2026-09-26`), in one place for every surface.
+* Place and date of the closing (`Marburg, 26.09.2026`), in one place for every surface.
 *
-* `closingDate` is the date of the application (`formatApplicationDateIso`): the same day the Anschreiben
+* `closingDate` is the date of the application (`formatApplicationDate`): the same day the Anschreiben
 * carries. A template that takes it prints it as it is; a template that passes none keeps printing the
 * date typed into the profile, formatted by `legacyDate`.
 */
@@ -9475,7 +9566,7 @@ var zoneFlowTemplates = [
 	"modern"
 ];
 var isZoneFlowTemplate = (templateId) => Boolean(templateId && zoneFlowTemplates.includes(templateId));
-/** The closing of these templates prints the application date (`Ort, YYYY-MM-DD`), not a profile field. */
+/** The closing of these templates prints the application date (`Ort, DD.MM.YYYY`), not a profile field. */
 var usesApplicationClosingDate = (templateId) => isZoneFlowTemplate(templateId);
 /**
 * Pehlione White Blue: the values of the measured PDF, which is what the pagination geometry was
@@ -10077,7 +10168,7 @@ var klassischList = {
 	marginTop: .8,
 	markerColor: "var(--klassisch-muted,#68747a)"
 };
-var klassisch = {
+var klassisch$1 = {
 	main: {
 		icons: false,
 		heading: klassischHeading,
@@ -10445,7 +10536,7 @@ var configByTemplate = {
 		sidebarHero: false
 	},
 	klassisch: {
-		tokens: klassisch,
+		tokens: klassisch$1,
 		roots: {
 			preview: ".klassisch-template",
 			pdf: ".cv-sheet[data-template=\"klassisch\"]",
@@ -29999,7 +30090,7 @@ var resolveCvDocument = ({ profile: sourceProfile, templateId: requestedTemplate
 		templateId,
 		settings,
 		profile,
-		closingDate: usesApplicationClosingDate(templateId) ? application ? formatApplicationDateIso(application) : "" : void 0,
+		closingDate: usesApplicationClosingDate(templateId) ? application ? formatApplicationDate(application) : "" : void 0,
 		sections,
 		managerSections,
 		knowledgeGroups,
@@ -30637,6 +30728,291 @@ var getResumeIdentityVisibilityCss = (sections) => {
 	return rules.join("\n");
 };
 //#endregion
+//#region src/shared/deckblattDesigns.ts
+var deckblattDesigns = [
+	{
+		id: "klassisch",
+		label: "Klassisch",
+		description: "Titel, Foto und Kurzprofil über einer klaren Linie – das bisherige Deckblatt.",
+		usesDocumentBackground: true
+	},
+	{
+		id: "pastell",
+		label: "Pastell",
+		description: "Weiche, runde Farbflächen, großes Rundfoto, Name groß und Kontakt mit Anlagen unten.",
+		usesDocumentBackground: false
+	},
+	{
+		id: "akzentband",
+		label: "Akzentband",
+		description: "Farbiges Seitenband mit Foto und Kontakt, rechts Betreff, Name, Profil und Anlagen.",
+		usesDocumentBackground: false
+	}
+];
+var getDeckblattDesign = (id) => deckblattDesigns.find((design) => design.id === id) ?? deckblattDesigns[0];
+/** `hex` at the given strength over white, e.g. 0.3 = a soft tint. */
+var tint = (hex, strength) => {
+	return `#${(/^#[0-9a-f]{6}$/i.test(hex) ? [
+		1,
+		3,
+		5
+	].map((index) => Number.parseInt(hex.slice(index, index + 2), 16)) : [
+		0,
+		0,
+		0
+	]).map((channel) => Math.round(255 - (255 - channel) * strength).toString(16).padStart(2, "0")).join("")}`;
+};
+var getDeckblattStyle = (accentColor, secondaryColor, settings) => {
+	const bodyFont = getDocumentFont(settings.fontId);
+	const headingFont = getDocumentFont(settings.headingFontId);
+	return {
+		"--accent": accentColor,
+		"--secondary": secondaryColor,
+		"--on-accent": getReadableTextColor(accentColor),
+		"--tint-strong": tint(accentColor, .6),
+		"--tint-soft": tint(accentColor, .28),
+		"--tint-faint": tint(accentColor, .14),
+		"--tint-dots": tint(accentColor, .55),
+		"--tint-sand": tint(secondaryColor, getReadableTextColor(secondaryColor) === "#ffffff" ? .2 : 1),
+		"--ink": settings.textColor,
+		"--heading": settings.headingColor,
+		"--muted": "#5c6870",
+		"--line": settings.lineColor,
+		"--page-background": settings.backgroundColor,
+		"--doc-margin": `${marginLevelToMm[settings.marginLevel]}mm`,
+		"--body-size": `${fontSizeToPt[settings.fontSize]}pt`,
+		"--body-line": String(lineHeightLevelToValue[settings.lineHeightLevel]),
+		"--body-font": bodyFont.family,
+		"--heading-font": headingFont.family,
+		"--heading-weight": String(headingFont.headingWeight)
+	};
+};
+var buildDeckblattModel = ({ application, profile, documents, attachments, accentColor, secondaryColor, settings }) => ({
+	designId: getDeckblattDesign(documents.coverSheetDesign).id,
+	subject: createCoverSubject(application.job.title),
+	company: application.company.name,
+	location: application.company.city ?? "",
+	date: formatApplicationDate(application),
+	name: profile ? [profile.firstName, profile.lastName].filter(Boolean).join(" ") : "Vorname Nachname",
+	initials: profile ? `${profile.firstName.charAt(0)}${profile.lastName.charAt(0)}`.toUpperCase() : "VN",
+	professionalTitle: getProfessionalTitle(profile),
+	statement: documents.deckblattStatement || profile?.summary || "",
+	photoSource: getProfileMediaSource(profile?.photoPath),
+	contacts: getDeckblattContacts(profile, documents.coverSheetContactVisibility),
+	competencies: getDeckblattCompetencies(profile, application),
+	documents: getDeckblattDocuments(attachments, application.id, documents.documentListSettings),
+	style: getDeckblattStyle(accentColor, secondaryColor, settings)
+});
+var escapeHtml$1 = (value) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;").replaceAll("'", "&#039;");
+var contactKinds = {
+	Adresse: "location",
+	Telefon: "phone",
+	"E-Mail": "email",
+	LinkedIn: "linkedin",
+	GitHub: "github",
+	Website: "portfolio"
+};
+var contactValue = (contact) => {
+	const value = escapeHtml$1(contact.value);
+	return contact.href ? `<a href="${escapeHtml$1(contact.href)}">${value}</a>` : value;
+};
+/** One contact row: icon and value on a single line. */
+var iconContactItem = (contact) => {
+	const kind = contactKinds[contact.label] ?? "portfolio";
+	return `<li data-contact-kind="${kind}"><i aria-hidden="true">${renderContactIcon({ kind })}</i><span>${contactValue(contact)}</span></li>`;
+};
+var iconContactList = (contacts, className = "") => `<ul class="dk-contacts${className ? ` ${className}` : ""}">${contacts.map(iconContactItem).join("")}</ul>`;
+var list = (items) => `<ul>${items.map((item) => `<li>${escapeHtml$1(item)}</li>`).join("")}</ul>`;
+var initialsMarkup = (model) => `<span class="dk-initials" aria-hidden="true">${escapeHtml$1(model.initials)}</span>`;
+var photoMarkup = (model) => model.photoSource ? `<img src="${escapeHtml$1(model.photoSource)}" alt="">` : initialsMarkup(model);
+var metaLines = (model) => [`bei ${escapeHtml$1(model.company)}`, [model.location ? `Standort: ${escapeHtml$1(model.location)}` : "", escapeHtml$1(model.date)].filter(Boolean).join(" · ")];
+var nameSize = (name) => name.length > 32 ? "xlong" : name.length > 22 ? "long" : "normal";
+var klassisch = (model) => `
+  <div class="page-content cover-content">
+    <div class="rule"></div>
+    <section class="cover-hero"><div><h1 class="cover-subject">${escapeHtml$1(model.subject)}</h1><p class="cover-company">bei ${escapeHtml$1(model.company)}</p>${model.location ? `<p class="cover-location">Standort: ${escapeHtml$1(model.location)}</p>` : ""}<p class="cover-location">${escapeHtml$1(model.date)}</p></div>${model.photoSource ? `<img class="cover-photo" src="${escapeHtml$1(model.photoSource)}" alt="">` : ""}</section>
+    <section class="cover-identity"><h2>${escapeHtml$1(model.name)}</h2>${model.professionalTitle ? `<p>${escapeHtml$1(model.professionalTitle)}</p>` : ""}${model.statement ? `<p class="cover-statement">${escapeHtml$1(model.statement)}</p>` : ""}</section>
+    <section class="cover-details"><div><h3>Bewerbungsunterlagen</h3>${list(model.documents)}</div><div>${model.competencies.length ? `<h3>Kernkompetenzen</h3><p class="cover-competencies">${model.competencies.map(escapeHtml$1).join(" · ")}</p>` : ""}${model.contacts.length ? `<h3>Kontakt</h3><ul>${model.contacts.map((contact) => `<li><strong>${escapeHtml$1(contact.label)}</strong> ${contactValue(contact)}</li>`).join("")}</ul>` : ""}</div></section>
+  </div>`;
+var pastell = (model) => `
+  <i class="dk-shape dk-sand"></i><i class="dk-shape dk-mint"></i>
+  <i class="dk-dots dk-dots--corner"></i><i class="dk-dots dk-dots--right"></i>
+  <div class="dk-frame"><div class="dk-photo">${photoMarkup(model)}</div></div>
+  <header class="dk-identity"><h2 class="dk-name dk-name--${nameSize(model.name)}">${escapeHtml$1(model.name)}</h2>${model.professionalTitle ? `<p class="dk-title">${escapeHtml$1(model.professionalTitle)}</p>` : ""}</header>
+  <div class="dk-lower">
+    <p class="dk-subject"><b>${escapeHtml$1(model.subject)}</b>${metaLines(model).map((line) => `<span>${line}</span>`).join("")}</p>
+    <div class="dk-lower-grid">${model.contacts.length ? iconContactList(model.contacts, model.contacts.length > 3 ? "dk-contacts--cols" : "") : "<div></div>"}${model.documents.length ? `<div class="dk-docs${model.documents.length > 6 ? " dk-docs--many" : ""}"><h3>Anlagen:</h3>${list(model.documents)}</div>` : ""}</div>
+  </div>`;
+var akzentband = (model) => `
+  <aside class="dk-band">
+    <div class="dk-band-photo">${photoMarkup(model)}</div>
+    ${model.contacts.length ? `<div class="dk-band-contact"><h3>Kontakt</h3>${iconContactList(model.contacts)}</div>` : ""}
+  </aside>
+  <main class="dk-main">
+    <p class="dk-kicker">Bewerbung</p>
+    <h1 class="dk-subject">${escapeHtml$1(model.subject)}</h1>
+    <p class="dk-meta">${metaLines(model).map((line) => `<span>${line}</span>`).join("")}</p>
+    <i class="dk-rule"></i>
+    <h2 class="dk-name dk-name--${nameSize(model.name)}">${escapeHtml$1(model.name)}</h2>${model.professionalTitle ? `<p class="dk-title">${escapeHtml$1(model.professionalTitle)}</p>` : ""}${model.statement ? `<p class="dk-statement">${escapeHtml$1(model.statement)}</p>` : ""}
+    <div class="dk-bottom${model.documents.length > 6 ? " dk-bottom--many" : ""}">${model.competencies.length ? `<div><h3>Kernkompetenzen</h3><p class="dk-competencies">${model.competencies.map(escapeHtml$1).join(" · ")}</p></div>` : ""}${model.documents.length ? `<div><h3>Anlagen</h3>${list(model.documents)}</div>` : ""}</div>
+  </main>`;
+/**
+* The contact rows of Pastell and Akzentband never wrap. The room they have depends on the text and the document
+* font, so the page measures itself: the text size of the rows shrinks (down to a limit) until every row is whole
+* inside the page, and only when even that is not enough do the rows may wrap instead of leaving the page.
+* The preview runs this source after it has drawn the page, the PDF export inside the exported page - one source,
+* one result on both surfaces.
+*/
+var deckblattFitSource = [
+	"var pages = root.querySelectorAll(\".deckblatt[data-deckblatt-design]\");",
+	"for (var index = 0; index < pages.length; index++) {",
+	"  var page = pages[index];",
+	"  var design = page.getAttribute(\"data-deckblatt-design\");",
+	"  var list = page.querySelector(\".dk-contacts\");",
+	"  if (!list || (design !== \"pastell\" && design !== \"akzentband\")) continue;",
+	"  var perMm = page.getBoundingClientRect().width / 210;",
+	"  var minPt = design === \"pastell\" ? 7.4 : 6.8;",
+	"  var spans = list.querySelectorAll(\"li > span\");",
+	"  var overflows = function () {",
+	"    var right = 0;",
+	"    for (var row = 0; row < spans.length; row++) right = Math.max(right, spans[row].getBoundingClientRect().right);",
+	"    if (design === \"akzentband\") return right > page.querySelector(\".dk-band\").getBoundingClientRect().right - 10.4 * perMm + 0.5;",
+	"    var docs = page.querySelector(\".dk-docs\");",
+	"    var reserve = docs ? (docs.classList.contains(\"dk-docs--many\") ? 66 : 37) : 0;",
+	"    return right + reserve * perMm > page.querySelector(\".dk-lower-grid\").getBoundingClientRect().right + 0.5;",
+	"  };",
+	"  var size = parseFloat(getComputedStyle(list.querySelector(\"li\")).fontSize) * 0.75;",
+	"  var shrink = function (floor) {",
+	"    while (overflows() && size > floor) {",
+	"      size = Math.round((size - 0.2) * 10) / 10;",
+	"      page.style.setProperty(\"--dk-contact-size\", size + \"pt\");",
+	"    }",
+	"  };",
+	"  if (design === \"pastell\" && list.classList.contains(\"dk-contacts--cols\")) {",
+	"    var base = size;",
+	"    shrink(7.8);",
+	"    if (overflows()) {",
+	"      list.classList.remove(\"dk-contacts--cols\");",
+	"      size = base;",
+	"      page.style.setProperty(\"--dk-contact-size\", size + \"pt\");",
+	"    }",
+	"  }",
+	"  shrink(minPt);",
+	"  if (overflows()) list.classList.add(\"dk-contacts--wrap\");",
+	"}"
+].join("\n");
+new Function("root", deckblattFitSource);
+/** The same fitting as a script of the exported page (after the fonts are there, too). */
+var deckblattFitScript = `<script>(function(run){run(document);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){run(document)})})(function(root){${deckblattFitSource}})<\/script>`;
+var renderers = {
+	klassisch,
+	pastell,
+	akzentband
+};
+var styleAttribute = (style) => escapeHtml$1(Object.entries(style).map(([name, value]) => `${name}:${value}`).join(";"));
+/** The markup of the whole Deckblatt page (A4); the preview and the PDF both print exactly this. */
+var renderDeckblattMarkup = (model) => `<div class="deckblatt deckblatt--${model.designId}" data-deckblatt-design="${model.designId}" style="${styleAttribute(model.style)}">${renderers[model.designId](model)}</div>`;
+/**
+* The stylesheet of all designs, scoped to `.deckblatt`. The rules carry the root class so the page rules of
+* either surface (`.document-paper p`, `.page h1`, the browser's paragraph margins) cannot reach the text.
+*/
+var deckblattCss = `
+.deckblatt{position:relative;z-index:1;width:100%;height:100%;overflow:hidden;color:var(--ink);font-family:var(--body-font);font-size:var(--body-size);line-height:normal;text-align:left;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+.deckblatt *{box-sizing:border-box}
+.deckblatt :is(h1,h2,h3,p,ul,li,address,aside,main,header,section){margin:0;padding:0;font-size:var(--body-size);font-weight:400;line-height:normal;letter-spacing:normal;text-transform:none;color:inherit;font-family:inherit}
+.deckblatt ul{list-style:none}
+.deckblatt a{color:inherit;text-decoration:none}
+.deckblatt li{line-height:var(--body-line)}
+.deckblatt img{display:block}
+
+.deckblatt .cover-content{position:relative;z-index:1;width:100%;height:100%;padding:var(--doc-margin)}
+.deckblatt .rule{height:4px;margin-bottom:22mm;background:var(--accent)}
+.deckblatt .cover-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:12mm;padding-bottom:11mm;border-bottom:1px solid var(--line)}
+.deckblatt .cover-subject{max-width:125mm;margin:4mm 0 2mm;font-family:var(--heading-font);font-size:28pt;font-weight:var(--heading-weight);line-height:1.05;color:var(--heading)}
+.deckblatt .cover-company{margin:1em 0;line-height:var(--body-line);color:var(--muted)}
+.deckblatt .cover-location{margin:3mm 0 0;font-size:9pt;line-height:var(--body-line);color:var(--muted)}
+.deckblatt .cover-photo{width:36mm;height:36mm;flex:0 0 auto;border-radius:50%;object-fit:cover}
+.deckblatt .cover-identity{width:100%;margin-top:21mm}
+.deckblatt .cover-identity h2{margin:0 0 2mm;font-family:var(--heading-font);font-size:19pt;font-weight:var(--heading-weight);color:var(--heading)}
+.deckblatt .cover-identity>p{margin:0;line-height:var(--body-line)}
+.deckblatt .cover-statement{width:100%;margin-top:5mm!important;line-height:1.45!important;text-align:justify;text-justify:inter-word;hyphens:auto}
+.deckblatt .cover-details{display:grid;grid-template-columns:34% minmax(0,1fr);gap:0;margin-top:23mm;padding-top:6mm;border-top:1px solid var(--line)}
+.deckblatt .cover-details>div:nth-child(2){padding-left:4mm}
+.deckblatt .cover-details h3{margin:0 0 3mm;font-family:var(--heading-font);font-size:10pt;font-weight:var(--heading-weight);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.deckblatt .cover-details h3:not(:first-child){margin-top:7mm}
+.deckblatt .cover-details ul{display:grid;gap:1.5mm}
+.deckblatt .cover-details li{overflow-wrap:anywhere}
+.deckblatt .cover-details strong{display:inline-block;min-width:18mm;font-weight:700}
+.deckblatt .cover-competencies{margin:0;line-height:1.55}
+
+.deckblatt .dk-name,.deckblatt .dk-subject b,.deckblatt h3{font-family:var(--heading-font)}
+.deckblatt--pastell,.deckblatt--akzentband{background:var(--page-background)}
+.deckblatt .dk-contacts{display:grid;gap:2mm}
+.deckblatt .dk-contacts li{display:flex;align-items:center;gap:3.4mm;font-size:10pt;line-height:1.25;white-space:nowrap;overflow-wrap:normal;word-break:normal}
+.deckblatt .dk-contacts li i{display:grid;flex:0 0 6.4mm;width:6.4mm;height:6.4mm;place-items:center;border-radius:50%;font-style:normal}
+.deckblatt .dk-contacts li span{white-space:nowrap;overflow-wrap:normal;word-break:normal}
+.deckblatt .dk-contacts--wrap li,.deckblatt .dk-contacts--wrap li span{white-space:normal;overflow-wrap:anywhere}
+.deckblatt .dk-initials{display:grid;width:100%;height:100%;place-items:center;font-family:var(--heading-font);font-size:54pt;font-weight:800;color:var(--accent)}
+
+.deckblatt--pastell .dk-shape{position:absolute;display:block}
+.deckblatt--pastell .dk-sand{left:93mm;top:-12mm;width:214mm;height:214mm;border-radius:50%;background:var(--tint-sand)}
+.deckblatt--pastell .dk-mint{left:0;top:112mm;width:111mm;height:111mm;border-radius:0 111mm 0 0;background:var(--tint-soft)}
+.deckblatt .dk-dots{position:absolute;display:block;background-image:radial-gradient(circle at center,var(--tint-dots) 0 34%,transparent 37%);background-size:4.4mm 4.4mm}
+.deckblatt .dk-dots--right{right:0;top:99mm;width:40mm;height:62mm;-webkit-mask-image:linear-gradient(to left,#000 10%,transparent);mask-image:linear-gradient(to left,#000 10%,transparent)}
+.deckblatt .dk-dots--corner{left:16mm;top:14mm;width:30mm;height:30mm;-webkit-mask-image:linear-gradient(135deg,#000 15%,transparent 75%);mask-image:linear-gradient(135deg,#000 15%,transparent 75%)}
+.deckblatt--pastell .dk-frame{position:absolute;left:52mm;top:20mm;width:107mm;height:107mm;border-radius:50% 0 50% 50%;background:var(--tint-strong)}
+.deckblatt--pastell .dk-photo{position:absolute;left:5mm;bottom:5mm;width:97mm;height:97mm;overflow:hidden;border-radius:50%;background:var(--tint-faint)}
+.deckblatt .dk-photo img,.deckblatt .dk-band-photo img{width:100%;height:100%;object-fit:cover}
+.deckblatt--pastell .dk-identity{position:absolute;left:var(--doc-margin);top:140mm;width:98mm;height:76mm;display:flex;flex-direction:column;justify-content:flex-end}
+.deckblatt .dk-name{font-weight:800;line-height:1.08;letter-spacing:.01em;text-transform:uppercase;color:var(--heading);overflow-wrap:anywhere}
+.deckblatt .dk-name--normal{font-size:31pt}.deckblatt .dk-name--long{font-size:25pt}.deckblatt .dk-name--xlong{font-size:20pt}
+.deckblatt--pastell .dk-title{margin-top:5mm;font-size:13pt;letter-spacing:.04em;line-height:1.25;color:var(--ink)}
+.deckblatt--pastell .dk-lower{position:absolute;left:var(--doc-margin);right:var(--doc-margin);bottom:14mm;display:flex;flex-direction:column}
+.deckblatt--pastell .dk-lower-grid{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:7mm;align-items:start}
+.deckblatt--pastell .dk-subject{display:flex;flex-direction:column;gap:.6mm;margin-bottom:5mm;font-size:9pt;line-height:1.3;color:var(--muted)}
+.deckblatt--pastell .dk-subject b{font-size:10pt;font-weight:700;color:var(--ink)}
+.deckblatt--pastell .dk-subject span{font-size:9pt}
+.deckblatt--pastell .dk-contacts li{gap:3mm;font-size:var(--dk-contact-size,10pt)}
+.deckblatt--pastell .dk-contacts li i{flex-basis:5.6mm;width:5.6mm;height:5.6mm;color:var(--accent);background:var(--tint-soft)}
+.deckblatt--pastell .dk-contacts--cols{grid-template-columns:max-content max-content;gap:2mm 7mm}
+.deckblatt--pastell .dk-docs{min-width:0}
+.deckblatt--pastell .dk-docs h3{display:flex;align-items:center;min-height:5.6mm;margin-bottom:1mm;font-size:10.5pt;font-weight:500;line-height:1.25;color:var(--ink)}
+.deckblatt--pastell .dk-docs ul{display:grid;gap:.8mm}
+.deckblatt--pastell .dk-docs--many ul{display:block;column-count:2;column-gap:5mm}
+.deckblatt--pastell .dk-docs--many li{margin-bottom:.8mm;font-size:9pt;break-inside:avoid}
+.deckblatt--pastell .dk-docs li{position:relative;padding-left:4.2mm;font-size:10.5pt;line-height:1.3;overflow-wrap:anywhere}
+.deckblatt--pastell .dk-docs li:before{position:absolute;left:1mm;top:.55em;width:1.3mm;height:1.3mm;border-radius:50%;background:currentColor;content:""}
+
+.deckblatt--akzentband{display:grid;grid-template-columns:fit-content(100mm) minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+.deckblatt--akzentband .dk-band{position:relative;min-width:70mm;padding:24mm 8mm 14mm;border-right:2.4mm solid var(--secondary);background:var(--accent);color:var(--on-accent)}
+.deckblatt--akzentband .dk-band-photo{width:46mm;height:46mm;margin:0 auto;overflow:hidden;border:1.2mm solid color-mix(in srgb,var(--on-accent) 70%,transparent);border-radius:50%;background:color-mix(in srgb,var(--on-accent) 14%,transparent)}
+.deckblatt--akzentband .dk-initials{color:var(--on-accent);font-size:34pt}
+.deckblatt--akzentband .dk-band-contact{margin-top:16mm}
+.deckblatt--akzentband .dk-band-contact h3{margin-bottom:3.4mm;padding-bottom:1.6mm;border-bottom:1px solid color-mix(in srgb,var(--on-accent) 45%,transparent);font-size:8.5pt;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.deckblatt--akzentband .dk-contacts,.deckblatt--akzentband .dk-contacts--grid{display:grid;grid-template-columns:minmax(0,1fr);gap:3mm}
+.deckblatt--akzentband .dk-contacts li{align-items:flex-start;gap:2.6mm;font-size:var(--dk-contact-size,8pt)}
+.deckblatt--akzentband .dk-contacts li i{flex-basis:4.4mm;width:4.4mm;height:4.4mm;border-radius:0;place-items:start center}
+.deckblatt--akzentband .dk-contacts li i svg{width:13px;height:13px}
+.deckblatt--akzentband .dk-main{position:relative;min-width:0;display:flex;flex-direction:column;margin:26mm var(--doc-margin) 16mm 18mm}
+.deckblatt--akzentband .dk-kicker{font-size:9pt;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+.deckblatt--akzentband .dk-subject{margin-top:4mm;font-family:var(--heading-font);font-size:27pt;font-weight:var(--heading-weight);line-height:1.06;color:var(--heading)}
+.deckblatt--akzentband .dk-meta{display:flex;flex-direction:column;gap:.8mm;margin-top:5mm;font-size:9.5pt;line-height:1.3;color:var(--muted)}
+.deckblatt--akzentband .dk-meta span:first-child{font-size:12pt;color:var(--ink)}
+.deckblatt--akzentband .dk-rule{display:block;height:1px;margin:14mm 0 11mm;background:var(--line)}
+.deckblatt--akzentband .dk-name{font-size:21pt;color:var(--accent)}
+.deckblatt--akzentband .dk-name--long{font-size:19pt}.deckblatt--akzentband .dk-name--xlong{font-size:16pt}
+.deckblatt--akzentband .dk-title{margin-top:2mm;font-size:12pt;line-height:1.25;color:var(--ink)}
+.deckblatt--akzentband .dk-statement{margin-top:6mm;line-height:1.45;text-align:justify;text-justify:inter-word;hyphens:auto}
+.deckblatt--akzentband .dk-bottom{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:10mm;margin-top:auto;padding-top:6mm;border-top:1px solid var(--line)}
+.deckblatt--akzentband .dk-bottom h3{margin-bottom:3mm;font-size:9.5pt;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.deckblatt--akzentband .dk-bottom ul{display:grid;gap:1.4mm}
+.deckblatt--akzentband .dk-bottom li{font-size:9.5pt;overflow-wrap:anywhere}
+.deckblatt--akzentband .dk-competencies{line-height:1.55}
+.deckblatt--akzentband .dk-bottom--many{grid-template-columns:minmax(0,1fr);gap:6mm}
+.deckblatt--akzentband .dk-bottom--many ul{display:block;column-count:2;column-gap:8mm}
+.deckblatt--akzentband .dk-bottom--many li{margin-bottom:1.4mm;break-inside:avoid}
+`;
+//#endregion
 //#region src/shared/pehlioneCompetencies.ts
 var unique = (values) => [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 var frontendTechnology = (value) => /^(react|typescript|javascript|html|css|vue|angular)/i.test(value.trim());
@@ -30717,15 +31093,7 @@ var renderKnowledgeSection = (profile, atsMode) => {
 var fullName = (profile) => profile ? `${profile.firstName} ${profile.lastName}`.trim() : "Vorname Nachname";
 var addressBlock = (application, docs) => (docs.coverRecipientAddress.trim() ? docs.coverRecipientAddress.split(/\r?\n/).map((line) => line.trim()).filter(Boolean) : applicationRecipientLines(application)).filter(Boolean).map(escapeHtml).join("<br>");
 var senderHeader = (profile, docs) => {
-	const name = docs.coverSenderName || fullName(profile);
-	const title = docs.coverSenderTitle || profile?.title?.trim();
-	const contact = docs.coverSenderContact || (profile ? [
-		profile.street,
-		`${profile.postalCode} ${profile.city}`.trim(),
-		profile.email,
-		profile.phone
-	].filter(Boolean).join(" | ") : "E-Mail · Telefon");
-	if (!profile) return `<span class="sender-name">${escapeHtml(name || "Vorname Nachname")}</span>` + (title ? `<span class="sender-title">${escapeHtml(title)}</span>` : "") + `<span class="sender-contact">${escapeHtml(contact)}</span>`;
+	const { name, title, contact } = resolveCoverSender(profile, docs);
 	return `<span class="sender-name">${escapeHtml(name)}</span>` + (title ? `<span class="sender-title">${escapeHtml(title)}</span>` : "") + `<span class="sender-contact">${escapeHtml(contact)}</span>`;
 };
 var documentCss = (accent, secondary, onSecondary, settings) => {
@@ -30748,7 +31116,7 @@ var documentCss = (accent, secondary, onSecondary, settings) => {
   .kicker{color:var(--accent);font-size:10pt;text-transform:uppercase;letter-spacing:.16em;font-weight:700}
   h1,h2,h3{font-family:var(--heading-font);font-weight:var(--heading-weight)}h1{font-size:29pt;line-height:1.05;margin:8mm 0 4mm}h2{font-size:14pt;color:var(--accent);margin:8mm 0 3mm}
   h3{font-size:11pt;margin:0 0 1mm}.muted{color:var(--muted)}p,li{font-size:var(--body-size);line-height:var(--body-line)}
-  .cover-content{padding:var(--doc-margin)}.cover-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:12mm;padding-bottom:11mm;border-bottom:1px solid var(--line)}.cover-content h1{max-width:125mm;margin:4mm 0 2mm;font-size:28pt}.cover-location{margin:3mm 0 0;color:var(--muted);font-size:9pt}.cover-photo{width:36mm;height:36mm;flex:0 0 auto;border-radius:50%;object-fit:cover}.cover-identity{width:100%;max-width:none;margin-top:21mm}.cover-identity h2{margin:0 0 2mm;font-size:19pt}.cover-identity>p{margin:0}.cover-statement{width:100%;margin-top:5mm!important;line-height:1.45;text-align:justify;text-justify:inter-word;hyphens:auto}.cover-details{display:grid;grid-template-columns:34% minmax(0,1fr);gap:0;margin-top:23mm;padding-top:6mm;border-top:1px solid var(--line)}.cover-details>div:nth-child(2){padding-left:4mm}.cover-details h3{margin:0 0 3mm;color:var(--accent);font-size:10pt;letter-spacing:.08em;text-transform:uppercase}.cover-details h3:not(:first-child){margin-top:7mm}.cover-details ul{display:grid;gap:1.5mm;margin:0;padding:0;list-style:none}.cover-details li{overflow-wrap:anywhere}.cover-details strong{display:inline-block;min-width:18mm}.cover-details a{color:inherit;text-decoration:none}.cover-competencies{margin:0;line-height:1.55}
+  ${deckblattCss}
   .contact{padding-top:8mm;border-top:1px solid var(--line)}.letter-content{padding:var(--doc-margin);border-top:0}.letter-header{display:flex;min-height:24mm;align-items:flex-start;justify-content:center}.letter-rule{height:4px;margin:0;background:var(--accent)}.sender{width:100%;color:var(--ink);text-align:center}.sender-name,.sender-title,.sender-contact{display:block}.sender-name{color:#000;font-size:16pt;font-weight:800;line-height:1.12}.sender-title{margin-top:.4mm;color:var(--accent);font-size:11pt;font-weight:800;line-height:1.15}.sender-contact{margin-top:.5mm;color:#000;font-size:10pt;line-height:1.2}.recipient{min-height:20mm;margin-top:20mm;font-size:10pt;line-height:1.28}.date{margin:0 0 20mm;text-align:right;font-size:10pt}.letter-gap-1 .date{margin-bottom:16mm}.letter-gap-2 .date{margin-bottom:12mm}.letter-gap-3 .date{margin-bottom:8mm}.letter-gap-4 .date{margin-bottom:4mm}.subject{margin:0 0 6mm;color:var(--accent);font-size:14pt;font-weight:800;line-height:1.2}.letter-content>p:not(.subject,.date){margin:0 0 3.2mm;font-size:11pt;line-height:1.28}.letter-body{text-align:justify;text-justify:inter-word;hyphens:auto;overflow-wrap:break-word}.letter-content>.letter-closing{margin-bottom:0}.signature{display:flex;flex-direction:column;align-items:flex-start;margin-top:3.2mm}.signature p{margin:0;font-size:11pt;line-height:1.28}.signature-image{display:block;width:auto;max-width:48mm;height:auto;max-height:14mm;margin:1mm 0 .5mm;object-fit:contain;object-position:left center}.signature-name{font-size:11pt;font-weight:400;line-height:1.2}.attachments-note{margin-top:4mm!important;color:var(--muted);font-size:9pt!important;font-weight:700}.letter-compact .letter-content>p:not(.subject,.date),.letter-compact .signature{line-height:1.24}.letter-compact .letter-content>p:not(.subject,.date){margin-bottom:2.7mm}.letter-dense .recipient{min-height:18mm;margin-top:17mm}.letter-dense .date{margin-bottom:15mm}.letter-dense.letter-gap-1 .date{margin-bottom:11mm}.letter-dense.letter-gap-2 .date{margin-bottom:7mm}.letter-dense.letter-gap-3 .date{margin-bottom:3mm}.letter-dense.letter-gap-4 .date{margin-bottom:0}.letter-dense .letter-content>p:not(.subject,.date),.letter-dense .signature{font-size:11pt;line-height:1.15}.letter-dense .letter-content>p:not(.subject,.date){margin-bottom:2.2mm}
   .letter-header{min-height:0;padding-bottom:1mm}
   .cv-page{padding:0;display:grid;grid-template:"header header" auto "main side" 1fr/64% 36%;overflow:hidden}
@@ -31106,7 +31474,7 @@ var pehlionePdfLayoutFixes = `
   .pehlione-pdf-white .pehlione-pdf-sidebar{color:#142235;background:#fff;border-right:.25mm solid #d4dbe5}.pehlione-pdf-white .pehlione-pdf-sidebar h3,.pehlione-pdf-white .pehlione-pdf-sidebar .pehlione-pdf-flex-block h3,.pehlione-pdf-white .pehlione-pdf-container-title{color:var(--pehlione-primary);border-color:var(--pehlione-primary)}.pehlione-pdf-white .pehlione-pdf-contact-section strong,.pehlione-pdf-white .pehlione-pdf-contact-section svg,.pehlione-pdf-white .pehlione-pdf-sidebar li::marker{color:var(--pehlione-primary)}.pehlione-pdf-white .pehlione-pdf-hero{background-image:linear-gradient(#fff2 1px,transparent 1px),linear-gradient(90deg,#fff2 1px,transparent 1px);background-size:4mm 4mm}.pehlione-pdf-white .pehlione-pdf-hero:before,.pehlione-pdf-white .pehlione-pdf-hero:after{display:none}.pehlione-pdf-blueprint{position:absolute;inset:0;width:100%;height:100%}
   .pehlione-pdf-hero.with-photo{background-image:linear-gradient(#fff2 1px,transparent 1px),linear-gradient(90deg,#fff2 1px,transparent 1px)}.pehlione-pdf-photo{position:absolute;z-index:1;border-radius:50%;object-fit:cover;object-position:center 30%}
   .pehlione-pdf-sidebar a{color:inherit;text-decoration:none;overflow-wrap:normal;word-break:normal}.pehlione-pdf-sidebar li{break-inside:avoid;page-break-inside:avoid}.pehlione-pdf-sidebar section{margin-bottom:4.5mm}.pehlione-pdf-sidebar h3{margin-bottom:2mm;padding-bottom:1.5mm;font-size:9.7pt}.pehlione-pdf-sidebar ul{gap:1.35mm;font-size:7.8pt;line-height:1.2}.pehlione-pdf-contact-section ul{padding:0;list-style:none}.pehlione-pdf-contact-section li{display:grid;grid-template-columns:5mm minmax(0,1fr);gap:1.5mm;align-items:start}.pehlione-pdf-contact-section svg{width:4.2mm;height:4.2mm;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:2}.pehlione-pdf-contact-section li>span{display:grid;gap:.25mm;min-width:0}.pehlione-pdf-contact-section strong{display:block;color:#fff;font-size:7.8pt}.pehlione-pdf-contact-section a{font-size:7.4pt}.pehlione-pdf-section{break-inside:auto;page-break-inside:auto}.pehlione-pdf-section h3{break-after:avoid;page-break-after:avoid}.pehlione-pdf-section h3:before{display:none}.pehlione-pdf-section-icon{display:grid;width:9mm;height:9mm;place-items:center;border-radius:1mm;color:#fff;background:var(--pehlione-primary);font-style:normal}.pehlione-pdf-section-icon svg{width:5.5mm;height:5.5mm;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.9}.pehlione-pdf-entry{break-inside:auto;page-break-inside:auto}.pehlione-pdf-entry ul{break-inside:auto;page-break-inside:auto}.pehlione-pdf-project{padding:0;border-left:0;background:transparent}.pehlione-pdf-continuation{padding:10mm 16mm 16mm}.pehlione-pdf-continuation .pehlione-pdf-main{padding:0}.pehlione-pdf-header.continuation{margin-bottom:5mm;padding-bottom:2.5mm}.pehlione-pdf-header.continuation h1{font-size:18pt}.pehlione-pdf-header.continuation h2{margin-top:1mm;font-size:9.5pt}.pehlione-pdf[data-density="compact"]{font-size:8.1pt;line-height:1.23}.pehlione-pdf[data-density="compact"] .pehlione-pdf-main{padding:7mm 9mm 8mm}.pehlione-pdf[data-density="compact"] .pehlione-pdf-header{margin-bottom:4mm;padding-bottom:3mm}.pehlione-pdf[data-density="compact"] .pehlione-pdf-header h1{font-size:30pt}.pehlione-pdf[data-density="compact"] .pehlione-pdf-header h2{margin-top:1.2mm;font-size:10.3pt;white-space:nowrap}.pehlione-pdf[data-density="compact"] .pehlione-pdf-section{margin-bottom:3.1mm}.pehlione-pdf[data-density="compact"] .pehlione-pdf-section h3{margin-bottom:2mm;font-size:11.2pt}.pehlione-pdf[data-density="compact"] .pehlione-pdf-section h3 span{padding-bottom:.8mm}.pehlione-pdf[data-density="compact"] .pehlione-pdf-summary{font-size:8.1pt;line-height:1.24}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry{grid-template-columns:27mm minmax(0,1fr);gap:3mm;padding-bottom:2.1mm}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry+.pehlione-pdf-entry{padding-top:2.1mm}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry>p{font-size:7.7pt}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry h4{font-size:9.3pt}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry strong{margin:.6mm 0 1mm;font-size:8.2pt}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry ul,.pehlione-pdf[data-density="compact"] .pehlione-pdf-project ul,.pehlione-pdf[data-density="compact"] .pehlione-pdf-training ul{font-size:7.8pt;line-height:1.2}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry li,.pehlione-pdf[data-density="compact"] .pehlione-pdf-project li,.pehlione-pdf[data-density="compact"] .pehlione-pdf-training li{margin:.15mm 0}.pehlione-pdf[data-density="compact"] .pehlione-pdf-project h4{font-size:9.3pt}.pehlione-pdf[data-density="compact"] .pehlione-pdf-project p{margin:.6mm 0 1mm;font-size:8pt}
-  .pehlione-pdf-closing{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:4mm;margin-top:3mm;padding-top:3mm;border-top:.25mm solid var(--line);font-size:8pt;break-inside:avoid}.pehlione-pdf-closing p{margin:0 0 1mm}.pehlione-pdf-signer{display:flex;grid-column:2;flex-direction:column;align-items:center;width:42mm}.pehlione-pdf-signer img{display:block;width:100%;height:12mm;object-fit:contain}.pehlione-pdf-signer strong{margin-top:1mm;font-size:8pt;font-weight:600;white-space:nowrap}
+  .pehlione-pdf-closing{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:4mm;margin-top:3mm;padding-top:3mm;border-top:0;background:transparent;font-size:8pt;break-inside:avoid}.pehlione-pdf-closing p{margin:0 0 1mm}.pehlione-pdf-signer{display:flex;grid-column:2;flex-direction:column;align-items:center;width:42mm;background:transparent}.pehlione-pdf-signer img{display:block;width:100%;height:12mm;object-fit:contain;background:transparent}.pehlione-pdf-signer strong{margin-top:1mm;font-size:8pt;font-weight:600;white-space:nowrap}
   .pehlione-pdf-container-title{margin:0 0 4mm;padding-bottom:2mm;border-bottom:.5mm solid #dcecff;color:#fff;font-size:8pt;letter-spacing:.08em;text-transform:uppercase}.pehlione-pdf-flex-block{margin:0 0 5mm;break-inside:auto;page-break-inside:auto}.pehlione-pdf-flex-block.page-break-before{break-before:page;page-break-before:always}.pehlione-pdf-flex-block h3{margin:0 0 2mm;color:var(--pehlione-primary);font-size:11pt;text-transform:uppercase}.pehlione-pdf-sidebar .pehlione-pdf-flex-block h3{padding-bottom:1.5mm;border-bottom:.3mm solid #b8d2f4;color:#fff;font-size:9.7pt}.pehlione-pdf-flex-block ul{display:grid;gap:1mm;margin:0;padding-left:4mm}.pehlione-pdf-flex-block li strong,.pehlione-pdf-flex-block li small,.pehlione-pdf-flex-block li em{display:block}.pehlione-pdf-flex-block li small,.pehlione-pdf-flex-block li em{font-size:.88em;font-style:normal;opacity:.82}.pehlione-pdf-flex-block.renderer-tag-list ul,.pehlione-pdf-flex-block.renderer-compact-grid ul,.pehlione-pdf-flex-block.renderer-two-column-list ul{grid-template-columns:repeat(2,minmax(0,1fr));padding:0;list-style:none}.pehlione-pdf-flex-block.renderer-tag-list li{padding:1mm;border-radius:8mm;background:#eaf1f9;text-align:center}.pehlione-pdf-sidebar .pehlione-pdf-flex-block.renderer-tag-list li{color:#082c5d;background:#dcecff}
   .pehlione-pdf-continuation{display:grid;padding:0}.pehlione-pdf-continuation .pehlione-pdf-main{padding:10mm 16mm 16mm}
 `;
@@ -31193,34 +31561,32 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 	const sections = resolvedCv.sections;
 	const name = fullName(profile);
 	const role = application.job.title;
+	const professionalTitle = getProfessionalTitle(profile);
 	const company = application.company.name;
 	const initials = profile ? `${profile.firstName.charAt(0)}${profile.lastName.charAt(0)}`.toUpperCase() : "VN";
 	const photoSource = getProfileMediaSource(profile?.photoPath);
 	const signatureSource = getProfileMediaSource(profile?.signaturePath);
 	const avatarMarkup = (side = false) => atsMode ? "" : photoSource ? `<span class="cv-avatar${side ? " side-avatar" : ""} has-image"><img class="cv-avatar-image" src="${escapeHtml(photoSource)}" alt=""></span>` : `<span class="cv-avatar${side ? " side-avatar" : ""}">${escapeHtml(initials)}</span>`;
 	const resumeContacts = getPehlioneContacts(profile).map((contact) => `<span style="display:inline-flex;align-items:center;gap:1mm;margin-right:3mm">${atsMode ? "" : renderContactIcon({ kind: contact.key })}${contact.href ? `<a href="${escapeHtml(contact.href)}">${escapeHtml(contact.value)}</a>` : escapeHtml(contact.value)}</span>`).join("");
-	const applicationDate = formatApplicationDate(application);
+	formatApplicationDate(application);
 	const applicationPlace = profile?.city || application.company.city;
 	const longApplicationDate = `${applicationPlace ? `${applicationPlace}, ` : ""}den ${formatApplicationDateLong(application)}`;
 	const letterStatus = getLetterPageStatus(docs);
 	const letterTemplateClass = `layout-${template.layout}`;
-	const deckblattContacts = getDeckblattContacts(profile, docs.coverSheetContactVisibility);
-	const deckblattCompetencies = getDeckblattCompetencies(profile, application);
-	const deckblattDocuments = getDeckblattDocuments(attachments, application.id, docs.documentListSettings);
 	const coverLetterAttachments = getCoverLetterAttachments(attachments, application.id, docs.documentListSettings);
-	const deckblattContactMarkup = deckblattContacts.length ? deckblattContacts.map((contact) => {
-		const value = escapeHtml(contact.value);
-		return `<li><strong>${escapeHtml(contact.label)}</strong> ${contact.href ? `<a href="${escapeHtml(contact.href)}">${value}</a>` : value}</li>`;
-	}).join("") : "";
+	const deckblattModel = buildDeckblattModel({
+		application,
+		profile,
+		documents: docs,
+		attachments,
+		accentColor: accent,
+		secondaryColor: secondary,
+		settings: designSettings
+	});
 	const cover = `
     <section class="page cover-page ${designClasses}">
-      ${backgroundLayer}
-      <div class="page-content cover-content">
-        <div class="rule"></div>
-        <section class="cover-hero"><div><h1>${escapeHtml(createCoverSubject(role))}</h1><p class="muted">bei ${escapeHtml(company)}</p>${application.company.city ? `<p class="cover-location">Standort: ${escapeHtml(application.company.city)}</p>` : ""}<p class="cover-location">${escapeHtml(applicationDate)}</p></div>${photoSource ? `<img class="cover-photo" src="${escapeHtml(photoSource)}" alt="">` : ""}</section>
-        <section class="cover-identity"><h2>${escapeHtml(name)}</h2>${docs.coverSheetProfessionalTitle || profile?.title ? `<p>${escapeHtml(docs.coverSheetProfessionalTitle || profile?.title || "")}</p>` : ""}${docs.deckblattStatement || profile?.summary ? `<p class="cover-statement">${escapeHtml(docs.deckblattStatement || profile?.summary || "")}</p>` : ""}</section>
-        <section class="cover-details"><div><h3>Bewerbungsunterlagen</h3><ul>${deckblattDocuments.map((document) => `<li>${escapeHtml(document)}</li>`).join("")}</ul></div><div>${deckblattCompetencies.length ? `<h3>Kernkompetenzen</h3><p class="cover-competencies">${deckblattCompetencies.map(escapeHtml).join(" · ")}</p>` : ""}${deckblattContacts.length ? `<h3>Kontakt</h3><ul>${deckblattContactMarkup}</ul>` : ""}</div></section>
-      </div>
+      ${getDeckblattDesign(deckblattModel.designId).usesDocumentBackground ? backgroundLayer : ""}
+      ${renderDeckblattMarkup(deckblattModel)}
     </section>`;
 	const letter = `
     <section class="page letter-page letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} ${letterTemplateClass} ${designClasses}" data-resume-template="${escapeHtml(template.id)}">
@@ -31319,7 +31685,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
     <header class="elegant-pdf-header${compact ? " elegant-pdf-header-compact" : ""}">
       ${compact ? "<p class=\"kicker\">Lebenslauf · Fortsetzung</p>" : ""}
       <h1>${escapeHtml(name)}</h1>
-      ${profile?.title || role ? `<h2>${escapeHtml(profile?.title || role)}</h2>` : ""}
+      ${professionalTitle ? `<h2>${escapeHtml(professionalTitle)}</h2>` : ""}
       ${compact ? "" : elegantContactMarkup()}
     </header>`;
 	const renderElegantCareerEntry = (id, kind) => {
@@ -31502,7 +31868,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 		}).join("")}</address>`;
 	};
 	const renderZweispaltigHeader = (compact, showPhoto) => {
-		const profession = profile?.title || role;
+		const profession = professionalTitle;
 		return `
       <header class="zweispaltig-pdf-header${compact ? " compact" : ""}">
         <div>
@@ -31711,7 +32077,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
         <div class="zeit-pdf-identity">
           ${compact ? "<p class=\"kicker\">Lebenslauf · Fortsetzung</p>" : ""}
           <h1>${escapeHtml(name)}</h1>
-          ${profile?.title || role ? `<h2>${escapeHtml(profile?.title || role)}</h2>` : ""}
+          ${professionalTitle ? `<h2>${escapeHtml(professionalTitle)}</h2>` : ""}
           ${ats && !compact ? renderZeitContacts(true) : ""}
         </div>
       </header>`;
@@ -31897,7 +32263,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
         <div class="kreativ-pdf-identity">
           ${compact ? "<p class=\"kicker\">Lebenslauf · Fortsetzung</p>" : ""}
           <h1>${escapeHtml(name)}</h1>
-          ${profile?.title || role ? `<h2>${escapeHtml(profile?.title || role)}</h2>` : ""}
+          ${professionalTitle ? `<h2>${escapeHtml(professionalTitle)}</h2>` : ""}
           ${compact ? "" : kreativContactMarkup()}
         </div>
         ${photoMarkup}
@@ -32037,8 +32403,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 			href: ""
 		}
 	].filter((contact) => contact.value.trim());
-	const ivySpecializations = uniqueValues(profile?.skills ?? []).slice(0, 3).map((value) => value.split(/\s+(?:–|—|:)\s+/)[0]).join(" | ");
-	const ivyProfession = [profile?.title || role, ivySpecializations].filter(Boolean).join(" | ");
+	const ivyProfession = [professionalTitle, uniqueValues(profile?.skills ?? []).slice(0, 3).map((value) => value.split(/\s+(?:–|—|:)\s+/)[0]).join(" | ")].filter(Boolean).join(" | ");
 	const ivyContacts = ivyContactValues.length ? `<address class="ivy-pdf-contacts">${ivyContactValues.map((contact) => {
 		const value = contact.href ? `<a href="${escapeHtml(contact.href)}">${escapeHtml(contact.value)}</a>` : `<span>${escapeHtml(contact.value)}</span>`;
 		return `${renderContactIcon(contact)}${value}`;
@@ -32211,7 +32576,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 			href: ""
 		}
 	].filter((contact) => contact.value.trim());
-	const managedJobTitle = (profile?.title || role).trim();
+	const managedJobTitle = professionalTitle;
 	const managedFooter = (plan, hideSinglePageNumber = false) => `<footer class="managed-pdf-footer">${managedPortfolio ? `<a href="${escapeHtml(externalHref(managedPortfolio))}">${escapeHtml(externalHref(managedPortfolio))}</a>` : "<span></span>"}${!hideSinglePageNumber || resumePlan.length > 1 ? `<span>Seite ${plan.pageNumber} / ${resumePlan.length}</span>` : ""}</footer>`;
 	const managedDots = (score) => `<span class="managed-pdf-dots">${Array.from({ length: 6 }, (_, index) => `<i class="${index < score ? "filled" : ""}"></i>`).join("")}</span>`;
 	const renderManagedCareerEntry = (id, kind, variant) => {
@@ -32351,7 +32716,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 		const achievements = item.achievements.length ? `<ul>${item.achievements.map((achievement) => `<li>${escapeHtml(achievement)}</li>`).join("")}</ul>` : "";
 		return `<article class="klassisch-pdf-entry"><div class="klassisch-pdf-entry-head"><div><h3>${escapeHtml(item.title)}</h3><h4>${escapeHtml(item.organization)}</h4></div><p class="klassisch-pdf-entry-meta">${item.city ? `<span>${escapeHtml(item.city)}</span>` : ""}<time>${escapeHtml(formatDateRange(item.from, item.to))}</time></p></div>${achievements}</article>`;
 	};
-	const klassischProfession = (profile?.title || role).trim();
+	const klassischProfession = professionalTitle;
 	const klassischContacts = managedContactValues.map((contact) => {
 		const value = escapeHtml(contact.value);
 		return `<span data-contact-kind="${contact.kind}">${renderContactIcon(contact)}${contact.href ? `<a href="${escapeHtml(contact.href)}">${value}</a>` : value}</span>`;
@@ -32375,7 +32740,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 		return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="klassisch" data-no-fit="true"><div class="page-content klassisch-pdf" data-density="${plan.density}">${designSettings.backgroundId === "classic-soft-blue-waves" && !isContinuation ? klassischBackground : ""}<div class="klassisch-pdf-content">${klassischHeader(isContinuation, true)}${sections.profile && !isContinuation ? klassischSection("Zusammenfassung", `<p>${escapeHtml(managedSummary)}</p>`) : ""}${sections.strengths && !isContinuation ? klassischSection("Stärken", klassischStrengths) : ""}${sections.experience && experiences ? klassischSection(`Erfahrung${isContinuation ? " · Fortsetzung" : ""}`, `<div class="klassisch-pdf-list">${experiences}</div>`) : ""}${sections.education && education ? klassischSection("Ausbildung", `<div class="klassisch-pdf-list">${education}</div>`, "klassisch-pdf-education") : ""}${isLastPage && sections.skills ? klassischSection("Kenntnisse", klassischKnowledge) : ""}${isLastPage && sections.languages ? klassischSection("Sprachen", klassischLanguages) : ""}${isLastPage && sections.certifications ? klassischSection("Zertifikate", managedCertifications) : ""}</div>${klassischFooter(plan)}</div></section>`;
 	};
 	const modernSection = (title, content, extraClass = "") => content ? `<section class="modern-pdf-section ${extraClass}"><h3 class="modern-pdf-title">${escapeHtml(title)}</h3>${content}</section>` : "";
-	const modernProfessionTitle = profile?.title || role;
+	const modernProfessionTitle = professionalTitle;
 	const modernProfession = [modernProfessionTitle, ...modernProfessionTitle.length < 48 ? managedStrengths.slice(0, 2).map((item) => item.title) : []].filter(Boolean).join(" | ");
 	const modernContactItems = [
 		{
@@ -32551,7 +32916,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 		const sidebarKnowledge = knowledgeGroups.filter((group) => group.slot === "sidebar" && group.id !== coreGroup?.id && group.id !== focusGroup?.id).map((group) => blockMarkup(group, true)).join("");
 		const mainKnowledge = knowledgeGroups.filter((group) => group.slot !== "sidebar").map((group) => blockMarkup(group)).join("");
 		const project = getPehlioneProjectHighlight(profile);
-		const header = `<header class="pehlione-pdf-header${continuation ? " continuation" : ""}"><h1>${escapeHtml(name)}</h1>${profile?.title || template.id === "pehlione_white" ? `<h2>${escapeHtml(profile?.title || role)}</h2>` : ""}</header>`;
+		const header = `<header class="pehlione-pdf-header${continuation ? " continuation" : ""}"><h1>${escapeHtml(name)}</h1>${profile?.title || template.id === "pehlione_white" ? `<h2>${escapeHtml(professionalTitle)}</h2>` : ""}</header>`;
 		const closing = profile?.resumeClosing ?? {
 			showPlace: true,
 			showDate: true,
@@ -32686,7 +33051,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 		const experienceItems = plan.items.filter((item) => item.kind === "experience").map((item) => renderTabellarischEntry(item.id, "experience", atsMode)).join("");
 		const educationItems = plan.items.filter((item) => item.kind === "education").map((item) => renderTabellarischEntry(item.id, "education", atsMode)).join("");
 		const photo = !atsMode && !isContinuation && photoSource ? `<img class="tabellarisch-pdf-photo" src="${escapeHtml(photoSource)}" alt="">` : "";
-		const header = isContinuation ? `<header class="tabellarisch-pdf-continuation"><strong>${escapeHtml(name)}</strong><span>${escapeHtml(profile?.title || role)}</span></header>` : `<header class="tabellarisch-pdf-header${photo ? "" : " no-photo"}"><div class="tabellarisch-pdf-identity"><h1>${escapeHtml(name)}</h1>${profile?.title || role ? `<h2>${escapeHtml(profile?.title || role)}</h2>` : ""}${renderTabellarischContacts(atsMode)}</div>${photo}</header>`;
+		const header = isContinuation ? `<header class="tabellarisch-pdf-continuation"><strong>${escapeHtml(name)}</strong><span>${escapeHtml(professionalTitle)}</span></header>` : `<header class="tabellarisch-pdf-header${photo ? "" : " no-photo"}"><div class="tabellarisch-pdf-identity"><h1>${escapeHtml(name)}</h1>${professionalTitle ? `<h2>${escapeHtml(professionalTitle)}</h2>` : ""}${renderTabellarischContacts(atsMode)}</div>${photo}</header>`;
 		const summary = sections.profile && !isContinuation ? tabellarischSection("Zusammenfassung", `<p class="tabellarisch-pdf-summary">${escapeHtml(managedSummary)}</p>`) : "";
 		const strengths = sections.strengths && !isContinuation ? tabellarischSection("Stärken", tabellarischStrengths(atsMode)) : "";
 		const experience = sections.experience && experienceItems ? tabellarischSection("Erfahrung", `<div class="tabellarisch-pdf-timeline${!isLastPage ? " continues" : ""}">${experienceItems}</div>`, "", isContinuation) : "";
@@ -32769,7 +33134,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
     <header class="gepflegt-pdf-header${compact ? " compact" : ""}">
       ${compact ? "<p class=\"kicker\">Lebenslauf · Fortsetzung</p>" : ""}
       <h1>${escapeHtml(name)}</h1>
-      ${profile?.title || role ? `<h2>${escapeHtml(profile?.title || role)}</h2>` : ""}
+      ${professionalTitle ? `<h2>${escapeHtml(professionalTitle)}</h2>` : ""}
       ${compact ? "" : gepflegtContactMarkup(ats)}
     </header>`;
 	const formatGepflegtDateRange = (from, to) => {
@@ -32846,7 +33211,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
             <div>
               <p class="kicker">${isContinuation ? "Lebenslauf · Fortsetzung" : "Lebenslauf"}</p>
               <h1>${escapeHtml(name)}</h1>
-              <h2>${escapeHtml(profile?.title || role)}</h2>
+              <h2>${escapeHtml(professionalTitle)}</h2>
               <p class="cv-contact-line">${resumeContacts}</p>
             </div>
             ${avatarMarkup()}
@@ -32860,11 +33225,11 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 	const cvHtml = target === "mappe" ? buildDocumentHtml(application, profile, "lebenslauf", attachments) : "";
 	const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings, resolvedCv);
 	const selected = target === "mappe" ? [
-		letter,
 		cover,
+		letter,
 		managedResume
 	] : target === "deckblatt" ? [cover] : target === "anschreiben" ? [letter] : [managedResume];
-	return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${zweispaltigDocumentCss}${zeitgenoessischDocumentCss}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}</style></head><body>${selected.join("")}${pageFitScript}</body></html>`;
+	return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${zweispaltigDocumentCss}${zeitgenoessischDocumentCss}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}</style></head><body>${selected.join("")}${pageFitScript}${target === "deckblatt" || target === "mappe" ? deckblattFitScript : ""}</body></html>`;
 };
 //#endregion
 //#region electron/file-management.ts
@@ -32874,6 +33239,12 @@ var sanitizeFileName = (value) => {
 	if (!sanitized) return "Bewerbung";
 	return reservedWindowsNames.test(sanitized) ? `_${sanitized}` : sanitized;
 };
+/** The subfolder of one application: its Stellenbezeichnung, made safe by the one file-name sanitizer. */
+var applicationPositionFolder = (positionName) => sanitizeFileName(positionName.trim().replace(/^Bewerbung\s+als\s+/i, ""));
+/** Folder names are stored with `/` on every platform; older data may still carry the native separator. */
+var normalizeFolderName = (folderName) => folderName.split(/[\\/]+/).filter(Boolean).join("/");
+/** An application folder `<Firma>_<Datum>/<Stellenbezeichnung>`; older folders are one level (`<Firma>_<Datum>`). */
+var isNestedFolderName = (folderName) => normalizeFolderName(folderName).includes("/");
 var formatLocalDate = (date) => {
 	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 };
@@ -33075,10 +33446,23 @@ var FileManagementService = class {
 			backup: path.join(applicationData, "Backup")
 		};
 	}
-	async allocateApplicationFolderName(companyName, _positionName, date = /* @__PURE__ */ new Date()) {
-		const baseFolder = `${sanitizeFileName(companyName)}_${formatLocalDate(date)}`;
+	/** The folder that all applications of one company on one day share: `<Firma>_<YYYY-MM-DD>`. */
+	applicationRootFolderName(companyName, date) {
+		return `${sanitizeFileName(companyName)}_${formatLocalDate(date)}`;
+	}
+	/**
+	* `<Firma>_<YYYY-MM-DD>/<Stellenbezeichnung>`: the company and the day share one folder, each position has its
+	* own subfolder. Only the same position on the same day gets a suffix (`…/<Stellenbezeichnung>_2`), never the
+	* shared folder.
+	*/
+	applicationFolderCandidate(rootFolder, positionName, suffix) {
+		const positionFolder = applicationPositionFolder(positionName);
+		return `${rootFolder}/${suffix === 1 ? positionFolder : `${positionFolder}_${suffix}`}`;
+	}
+	async allocateApplicationFolderName(companyName, positionName, date = /* @__PURE__ */ new Date()) {
+		const rootFolder = this.applicationRootFolderName(companyName, date);
 		for (let suffix = 1; suffix < 1e4; suffix += 1) {
-			const folderName = suffix === 1 ? baseFolder : `${baseFolder}_${suffix}`;
+			const folderName = this.applicationFolderCandidate(rootFolder, positionName, suffix);
 			if ((await Promise.all([
 				pathExists$1(this.applicationDataPath(folderName)),
 				pathExists$1(path.join(this.paths.anschreibenDocuments, folderName)),
@@ -33136,12 +33520,20 @@ var FileManagementService = class {
 			throw error;
 		}
 	}
-	async relocateApplicationFolders(application, date) {
-		const baseFolder = `${sanitizeFileName(application.company.name)}_${formatLocalDate(date)}`;
+	/**
+	* Moves every artifact of an application to the folder its company, date and position call for. An application
+	* in the `<Firma>_<Datum>/<Stellenbezeichnung>` layout follows a change of company, date or position; an older
+	* one-level folder keeps its layout (nothing is migrated on its own) unless `nest` asks for the new one, which
+	* is what a second position on the same day does to it.
+	*/
+	async relocateApplicationFolders(application, date, options = {}) {
+		const rootFolder = this.applicationRootFolderName(application.company.name, date);
+		const nested = options.nest === true || isNestedFolderName(application.folderName);
+		const current = normalizeFolderName(application.folderName);
 		let targetFolderName = "";
 		for (let suffix = 1; suffix < 1e4; suffix += 1) {
-			const candidate = suffix === 1 ? baseFolder : `${baseFolder}_${suffix}`;
-			if (candidate === application.folderName) return application.folderName;
+			const candidate = nested ? this.applicationFolderCandidate(rootFolder, application.job.title, suffix) : suffix === 1 ? rootFolder : `${rootFolder}_${suffix}`;
+			if (normalizeFolderName(candidate) === current) return application.folderName;
 			if (!await this.applicationFolderOccupied(candidate)) {
 				targetFolderName = candidate;
 				break;
@@ -33538,7 +33930,8 @@ var legacyApplicationDocumentDirectories = /* @__PURE__ */ new Set([
 	"Zertifikate"
 ]);
 var isApplicationDataFile = (relativePath, applicationFolderNames) => {
-	const applicationFolder = [...applicationFolderNames].sort((left, right) => right.length - left.length).find((folderName) => relativePath === folderName || relativePath.startsWith(`${folderName}${path.sep}`));
+	const native = (folderName) => folderName.split(/[\\/]+/).join(path.sep);
+	const applicationFolder = [...applicationFolderNames].map(native).sort((left, right) => right.length - left.length).find((folderName) => relativePath === folderName || relativePath.startsWith(`${folderName}${path.sep}`));
 	if (!applicationFolder) return true;
 	const [applicationSubdirectory] = path.relative(applicationFolder, relativePath).split(path.sep);
 	return !legacyApplicationDocumentDirectories.has(applicationSubdirectory);
@@ -33631,12 +34024,21 @@ var LegacyMigrationService = class {
 //#region electron/storage.ts
 var nowIso = () => (/* @__PURE__ */ new Date()).toISOString();
 var createId = () => crypto.randomUUID();
-var terminalStatuses = /* @__PURE__ */ new Set([
-	"Zusage",
-	"Absage",
-	"Zurückgezogen",
-	"Archiviert"
-]);
+var terminalStatuses = new Set(terminalApplicationStatuses);
+var isDeadlineTodo = (todo) => todo.source === "application-deadline";
+/**
+* The system part of the automatic deadline todo; `deadlineAt` stays the only stored date. The description is the
+* note of the user and is never written by the sync.
+*/
+var deadlineTodoFields = (application) => {
+	const title = `Bewerbungsfrist · ${application.company.name} · ${application.job.title}`;
+	return {
+		title: title.length > 160 ? `${title.slice(0, 159)}…` : title,
+		dueDate: localDateKey(new Date(application.deadlineAt))
+	};
+};
+/** The first version of the deadline todo generated this as its description; it is not a note of the user. */
+var generatedDeadlineDescription = (application) => `Bewerbungsfrist für ${application.job.title} bei ${application.company.name}`;
 var applicationContentChanged = (current, next) => JSON.stringify({
 	...current,
 	folderName: "",
@@ -33750,6 +34152,7 @@ var DataStore = class {
 		await this.files.initialize();
 		this.workspace = await this.loadWorkspace();
 		for (const application of this.workspace.applications) {
+			application.documents = dropStaleProfileCopies(application.documents, this.getProfileForApplication(application), this.workspace.profiles);
 			application.folderName = await this.files.relocateApplicationFolders(application, getApplicationDate(application));
 			await this.files.ensureApplicationDataDirectories(application);
 			await this.files.consolidateLegacyDocumentDirectories(application);
@@ -33757,6 +34160,7 @@ var DataStore = class {
 		}
 		await this.files.archiveUnmatchedLegacyDocumentDirectories();
 		this.workspace.applications.forEach((application) => this.syncEvents(application));
+		this.reconcileApplicationTodos();
 		await this.persist();
 	}
 	getWorkspace() {
@@ -33974,15 +34378,68 @@ var DataStore = class {
 			});
 		}
 	}
+	/**
+	* Keeps exactly one automatic todo per application in step with `deadlineAt`, next to the calendar event of
+	* `syncEvents`. Only todos with `source === "application-deadline"` and this `applicationId` are ever touched;
+	* manual todos are never read, changed or removed here. An existing todo keeps its id, priority, completion, note
+	* and creation date: only title and due date follow the application.
+	* A terminal status (see `terminalStatuses`) creates no todo and leaves an existing one as it is: the lists hide
+	* it (`activeTodos`), and a status that is taken back finds the same todo again.
+	*/
+	syncApplicationTodo(application) {
+		const [existing, ...duplicates] = this.workspace.todos.filter((todo) => isDeadlineTodo(todo) && todo.applicationId === application.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+		const drop = new Set(duplicates);
+		if (!application.deadlineAt) {
+			if (existing) drop.add(existing);
+		} else if (!terminalStatuses.has(application.status)) {
+			const fields = deadlineTodoFields(application);
+			if (!existing) {
+				const now = nowIso();
+				this.workspace.todos.unshift({
+					id: createId(),
+					...fields,
+					description: "",
+					priority: "high",
+					completed: false,
+					createdAt: now,
+					updatedAt: now,
+					applicationId: application.id,
+					source: "application-deadline"
+				});
+			} else if (existing.title !== fields.title || existing.dueDate !== fields.dueDate || existing.description === generatedDeadlineDescription(application)) Object.assign(existing, fields, existing.description === generatedDeadlineDescription(application) ? { description: "" } : {}, { updatedAt: nowIso() });
+		}
+		if (drop.size) this.workspace.todos = this.workspace.todos.filter((todo) => !drop.has(todo));
+	}
+	/** Startup and import: old todos become explicit manual ones, orphaned automatic todos go, every deadline is synced. */
+	reconcileApplicationTodos() {
+		const applicationIds = new Set(this.workspace.applications.map((application) => application.id));
+		for (const todo of this.workspace.todos) todo.source ??= "manual";
+		this.workspace.todos = this.workspace.todos.filter((todo) => !isApplicationTodo(todo) || todo.applicationId !== void 0 && applicationIds.has(todo.applicationId));
+		this.workspace.applications.forEach((application) => this.syncApplicationTodo(application));
+	}
+	/**
+	* An application of an older version sits directly in `<Firma>_<Datum>`. When a second position of that company
+	* and day needs the shared folder, the older application first gets its own position subfolder, moved with the
+	* same checked, reversible relocation as every other move (nothing is overwritten, locked files stop it).
+	*/
+	async nestLegacyApplicationAt(rootFolder, exceptId) {
+		const legacy = this.workspace.applications.find((item) => item.id !== exceptId && normalizeFolderName(item.folderName) === rootFolder);
+		if (!legacy) return;
+		legacy.folderName = await this.files.relocateApplicationFolders(legacy, getApplicationDate(legacy), { nest: true });
+		await this.persist([legacy]);
+	}
 	async createApplication(rawInput) {
 		const input = applicationInputSchema.parse(rawInput);
 		const now = nowIso();
-		const folderName = await this.files.allocateApplicationFolderName(input.company.name, input.job.title, input.sentAt ? new Date(input.sentAt) : /* @__PURE__ */ new Date());
+		const date = input.sentAt ? new Date(input.sentAt) : /* @__PURE__ */ new Date();
+		await this.nestLegacyApplicationAt(this.files.applicationRootFolderName(input.company.name, date));
+		const folderName = await this.files.allocateApplicationFolderName(input.company.name, input.job.title, date);
 		const application = {
 			schemaVersion: 1,
 			id: createId(),
 			folderName,
 			...input,
+			profileId: resolveApplicationProfile(this.workspace.profiles, input.profileId)?.id,
 			templateDesigns: {},
 			additionalContacts: input.additionalContacts ?? [],
 			status: input.sentAt ? "Beworben" : "Entwurf",
@@ -33991,6 +34448,7 @@ var DataStore = class {
 				coverSenderTitle: "",
 				coverSenderContact: "",
 				coverSheetProfessionalTitle: "",
+				coverSheetDesign: defaultDeckblattDesign,
 				coverSheetContactVisibility: {
 					address: true,
 					phone: true,
@@ -34031,6 +34489,7 @@ var DataStore = class {
 		};
 		this.workspace.applications.unshift(applicationSchema.parse(application));
 		this.syncEvents(application);
+		this.syncApplicationTodo(application);
 		await this.persist([application]);
 		this.queueApplicationGitCommit(application, input.sentAt ? "bewerbung" : "create");
 		return this.getWorkspace();
@@ -34040,12 +34499,15 @@ var DataStore = class {
 		const index = this.workspace.applications.findIndex((item) => item.id === application.id);
 		if (index < 0) throw new Error("Bewerbung wurde nicht gefunden.");
 		const current = this.workspace.applications[index];
+		if (this.getProfileForApplication(current)?.id !== this.getProfileForApplication(application)?.id) application.documents = clearProfileDerivedDocumentFields(application.documents);
 		const shouldCommitUpdate = applicationContentChanged(current, application);
 		await this.files.consolidateLegacyDocumentDirectories(current);
+		const applicationDate = new Date(application.sentAt ?? current.createdAt);
+		if (isNestedFolderName(current.folderName)) await this.nestLegacyApplicationAt(this.files.applicationRootFolderName(application.company.name, applicationDate), application.id);
 		application.folderName = await this.files.relocateApplicationFolders({
 			...application,
 			folderName: current.folderName
-		}, new Date(application.sentAt ?? current.createdAt));
+		}, applicationDate);
 		try {
 			await this.files.synchronizeApplicationArtifactNames(current, application);
 			await this.files.normalizeLegacyDocumentNames(application, this.applicantDocumentNames(application));
@@ -34060,6 +34522,7 @@ var DataStore = class {
 		application.updatedAt = nowIso();
 		this.workspace.applications[index] = application;
 		this.syncEvents(application);
+		this.syncApplicationTodo(application);
 		await this.persist([application]);
 		if (shouldCommitUpdate) this.queueApplicationGitCommit(application, "update");
 		return this.getWorkspace();
@@ -34091,6 +34554,7 @@ var DataStore = class {
 			if (status === "Zurückgezogen") application.withdrawnAt = now;
 			if (status === "Archiviert") application.archivedAt = now;
 			this.syncEvents(application);
+			this.syncApplicationTodo(application);
 			await this.persist([application]);
 			this.queueApplicationGitCommit(application, gitActionForStatus(status));
 		}
@@ -34104,6 +34568,7 @@ var DataStore = class {
 		this.workspace.applications = this.workspace.applications.filter((application) => application.id !== id);
 		this.workspace.events = this.workspace.events.filter((event) => event.applicationId !== id);
 		this.workspace.attachments = this.workspace.attachments.filter((attachment) => attachment.applicationId !== id);
+		this.workspace.todos = this.workspace.todos.filter((todo) => !(isApplicationTodo(todo) && todo.applicationId === id));
 		await this.persist();
 		this.queueApplicationGitCommit(application, "delete");
 		return this.getWorkspace();
@@ -34112,6 +34577,7 @@ var DataStore = class {
 		const source = this.workspace.applications.find((item) => item.id === id);
 		if (!source) throw new Error("Bewerbung wurde nicht gefunden.");
 		const now = nowIso();
+		await this.nestLegacyApplicationAt(this.files.applicationRootFolderName(source.company.name, /* @__PURE__ */ new Date()));
 		const folderName = await this.files.allocateApplicationFolderName(source.company.name, source.job.title);
 		const duplicate = {
 			...structuredClone(source),
@@ -34133,6 +34599,7 @@ var DataStore = class {
 		};
 		this.workspace.applications.unshift(duplicate);
 		this.syncEvents(duplicate);
+		this.syncApplicationTodo(duplicate);
 		await this.persist([duplicate]);
 		this.queueApplicationGitCommit(duplicate, "create");
 		return this.getWorkspace();
@@ -34158,6 +34625,7 @@ var DataStore = class {
 		const reassignedApplications = this.workspace.applications.filter((application) => application.profileId === id);
 		reassignedApplications.forEach((application) => {
 			application.profileId = replacement?.id;
+			application.documents = clearProfileDerivedDocumentFields(application.documents);
 			application.updatedAt = now;
 		});
 		await this.persist(reassignedApplications);
@@ -34293,7 +34761,7 @@ var DataStore = class {
 		};
 	}
 	getProfileForApplication(application) {
-		return this.workspace.profiles.find((profile) => profile.id === application.profileId || !application.profileId && profile.isDefault);
+		return resolveApplicationProfile(this.workspace.profiles, application.profileId);
 	}
 	getApplication(id) {
 		const application = this.workspace.applications.find((item) => item.id === id);
@@ -34350,7 +34818,7 @@ var DataStore = class {
 		const elegantData = {
 			VORNAME: profile?.firstName ?? "",
 			NACHNAME: profile?.lastName ?? "",
-			BERUFSBEZEICHNUNG: application.documents.coverSheetProfessionalTitle || profile?.title || application.job.title,
+			BERUFSBEZEICHNUNG: getProfessionalTitle(profile),
 			FACHGEBIET_1: profile?.skills[0] ?? "",
 			FACHGEBIET_2: profile?.skills[1] ?? "",
 			FACHGEBIETE: (profile?.skills ?? []).slice(0, 3).join(" | "),
@@ -34570,8 +35038,20 @@ var DataStore = class {
 		return `${applicantDocumentFileName(kind, application, applicantName)}.pdf`;
 	}
 	async saveTodo(todo) {
-		const validated = todoSchema.parse(todo);
-		const index = this.workspace.todos.findIndex((item) => item.id === validated.id);
+		const parsed = todoSchema.parse(todo);
+		const index = this.workspace.todos.findIndex((item) => item.id === parsed.id);
+		const current = index < 0 ? void 0 : this.workspace.todos[index];
+		const { applicationId: _link, source: _source, ...fields } = parsed;
+		const validated = current && isApplicationTodo(current) ? {
+			...fields,
+			title: current.title,
+			dueDate: current.dueDate,
+			source: current.source,
+			applicationId: current.applicationId
+		} : {
+			...fields,
+			source: "manual"
+		};
 		if (index < 0) this.workspace.todos.unshift(validated);
 		else this.workspace.todos[index] = validated;
 		await this.persist();
@@ -34651,6 +35131,7 @@ var DataStore = class {
 			this.workspace.applications.forEach((application) => {
 				application.attachmentIds = application.attachmentIds.filter((id) => availableIds.has(id));
 			});
+			this.reconcileApplicationTodos();
 			await this.persist(this.workspace.applications);
 			return this.getWorkspace();
 		} catch (error) {
