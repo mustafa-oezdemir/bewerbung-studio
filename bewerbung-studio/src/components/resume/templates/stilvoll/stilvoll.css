@@ -318,7 +318,8 @@
   color: var(--stilvoll-primary-dark);
   font-size: 11pt;
   font-weight: 400;
-  line-height: 1.15;
+  /* The PDF draws the career titles in the line height of the page text; so does the preview. */
+  line-height: var(--stilvoll-line-height);
   overflow-wrap: anywhere;
 }
 

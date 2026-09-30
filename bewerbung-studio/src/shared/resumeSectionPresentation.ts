@@ -483,6 +483,11 @@ type TemplateConfig = {
   plainLists: readonly SectionSemanticType[];
   /** Page one of the sidebar starts with a hero image and a contact block (Pehlione); otherwise at the header line. */
   sidebarHero: boolean;
+  /**
+   * Text in the sidebar takes the colour of the sidebar (default). A template whose sidebar elements carry
+   * colours of their own (Stilvoll's language names) turns this off.
+   */
+  sidebarInheritsText?: boolean;
 };
 
 const pehlioneRoots = (templateId: string) => ({
@@ -500,6 +505,7 @@ const configByTemplate: Record<string, TemplateConfig> = {
     roots: { preview: ".stilvoll-template", pdf: '.cv-sheet[data-template="stilvoll"]', pdfBody: ".stilvoll-pdf" },
     plainLists: ["certifications"],
     sidebarHero: false,
+    sidebarInheritsText: false,
   },
   kreativ: {
     tokens: kreativ,
@@ -615,7 +621,7 @@ const mm = (value: number) => `${value}mm`;
 /** The closing line keeps its own distance to the last section (the section's margin would double it). */
 const closingSelector = ":is(.pehlione-closing,.pehlione-pdf-closing,[data-resume-closing])";
 
-const templateCss = (templateId: string, { tokens, roots }: TemplateConfig) => {
+const templateCss = (templateId: string, { tokens, roots, sidebarInheritsText = true }: TemplateConfig) => {
   const host = roots.host ?? `:is(${roots.preview},${roots.pdf})`;
   const compact = (suffix: string) =>
     `${roots.preview}[data-density="compact"] ${suffix},${roots.pdf} ${roots.pdfBody}[data-density="compact"] ${suffix}`;
@@ -678,8 +684,7 @@ ${host} [data-cv-section="certifications"]>[data-cv-list] li{display:grid;grid-t
 ${host} [data-cv-section="certifications"]>[data-cv-list] li i{color:var(--kompakt-accent,var(--managed-accent,#ff6200));font-size:11pt;font-style:normal;line-height:1}` : ""}
 ${host} [data-cv-zone="main"]:has(+ ${closingSelector}){margin-bottom:0}
 ${compact(`[data-cv-zone="main"]:has(+ ${closingSelector})`)}{margin-bottom:0}
-${host} [data-cv-zone="sidebar"] :is(h4,h5,strong,p,li,small){color:inherit}
-${host} [data-cv-zone="sidebar"] p{text-align:left}
+${sidebarInheritsText ? `${host} [data-cv-zone="sidebar"] :is(h4,h5,strong,p,li,small){color:inherit}\n` : ""}${host} [data-cv-zone="sidebar"] p{text-align:left}
 `;
 };
 
