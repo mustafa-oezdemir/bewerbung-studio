@@ -111,7 +111,8 @@ import {
   defaultResumePersonalFieldVisibility,
   getResumeSemanticSection,
 } from "../features/resume-sections/resume-section-system";
-import { resolveSelectedProfile } from "../shared/profileSelection";
+import { getProfessionalTitle, resolveApplicationProfile } from "../shared/profileSelection";
+import { keepCoverSenderOverrides, resolveCoverSender } from "../shared/coverSender";
 import type {
   ApplicantProfile,
   Application,
@@ -262,7 +263,7 @@ function ResumePreviewPage({
             {isContinuation ? "Lebenslauf · Fortsetzung" : "Lebenslauf"}
           </p>
           <h1>{name}</h1>
-          <h2>{profile?.title || application.job.title}</h2>
+          {getProfessionalTitle(profile) ? <h2>{getProfessionalTitle(profile)}</h2> : null}
           <p className="cv-contact-line">
             {getPehlioneContacts(profile).map((contact) => (
               <span key={contact.key} style={{ display: "inline-flex", alignItems: "center", gap: "1mm", marginRight: "3mm" }}>
@@ -437,7 +438,6 @@ export function DocumentsView({
 }) {
   const application = useAppStore(selectCurrentApplication);
   const profiles = useAppStore((state) => state.workspace.profiles);
-  const selectedProfileId = useAppStore((state) => state.selectedProfileId);
   const selectActiveProfile = useAppStore((state) => state.selectProfile);
   const saveApplication = useAppStore((state) => state.saveApplication);
   const syncCoverLetter = useAppStore((state) => state.syncCoverLetter);
@@ -604,11 +604,7 @@ export function DocumentsView({
       </section>
     );
   }
-  const profile = resolveSelectedProfile(
-    profiles,
-    selectedProfileId,
-    application.profileId,
-  );
+  const profile = resolveApplicationProfile(profiles, application.profileId);
   const photoSource = getProfileMediaSource(profile?.photoPath);
   const signatureSource = getProfileMediaSource(profile?.signaturePath);
   const docs =
@@ -675,39 +671,23 @@ export function DocumentsView({
   const name = renderProfile
     ? `${renderProfile.firstName} ${renderProfile.lastName}`
     : "Vorname Nachname";
-  const senderContactDetails = renderProfile
-    ? [
-        renderProfile.street,
-        `${renderProfile.postalCode} ${renderProfile.city}`.trim(),
-        renderProfile.email,
-        renderProfile.phone,
-      ]
-        .filter(Boolean)
-        .join(" | ")
-    : "Adresse | E-Mail | Telefon";
   const recipientLines = docs.coverRecipientAddress.trim()
     ? docs.coverRecipientAddress
         .split(/\r?\n/)
         .map((line) => line.trim())
         .filter(Boolean)
     : applicationRecipientLines(application);
-  const coverSenderName = docs.coverSenderName || name;
-  const coverSenderTitle =
-    docs.coverSenderTitle || renderProfile?.title || application.job.title;
-  const coverSheetProfessionalTitle =
-    docs.coverSheetProfessionalTitle ||
-    renderProfile?.title ||
-    application.job.title;
+  const coverSender = resolveCoverSender(renderProfile, docs);
+  const { name: coverSenderName, title: coverSenderTitle, contact: coverSenderContact } = coverSender;
   const deckblattModel = buildDeckblattModel({
     application,
-    profile,
+    profile: renderProfile,
     documents: docs,
     attachments,
     accentColor: design.accentColor,
     secondaryColor: design.secondaryColor,
     settings: design.settings,
   });
-  const coverSenderContact = docs.coverSenderContact || senderContactDetails;
   const coverGreeting = docs.coverGreeting || applicationGreeting(application);
   const pehlioneResumeProfile = resolvedCv.paginationSummary;
   const resumePlan = resolvedCv.pagePlan;
@@ -930,16 +910,15 @@ export function DocumentsView({
       designSettings: design.settings,
       templateDesigns: design.templateDesigns,
       documents: {
-        coverSenderName: value("coverSenderName", docs.coverSenderName),
-        coverSenderTitle: value("coverSenderTitle", docs.coverSenderTitle),
-        coverSenderContact: value(
-          "coverSenderContact",
-          docs.coverSenderContact,
+        ...keepCoverSenderOverrides(
+          {
+            name: value("coverSenderName", coverSenderName),
+            title: value("coverSenderTitle", coverSenderTitle),
+            contact: value("coverSenderContact", coverSenderContact),
+          },
+          renderProfile,
         ),
-        coverSheetProfessionalTitle: value(
-          "coverSheetProfessionalTitle",
-          docs.coverSheetProfessionalTitle,
-        ),
+        coverSheetProfessionalTitle: docs.coverSheetProfessionalTitle,
         coverSheetDesign: docs.coverSheetDesign,
         coverSheetContactVisibility: docs.coverSheetContactVisibility,
         coverRecipientAddress: value(
@@ -983,6 +962,8 @@ export function DocumentsView({
   const changeDocumentProfile = async (profileId: string) => {
     selectActiveProfile(profileId);
     setResumeSectionPreview(null);
+    setResumeContentDraft(null);
+    setDocumentPreview(null);
     await saveApplication({
       ...applicationSnapshot(formRef.current),
       profileId,
@@ -1117,9 +1098,9 @@ export function DocumentsView({
               ref={formRef}
               onInput={previewDocumentInput}
               onSubmit={(event) => void save(event)}>
-              {tab === "lebenslauf" && profiles.length ? (
+              {profiles.length ? (
                 <label className="field document-profile-selector">
-                  <span>Lebenslaufprofil</span>
+                  <span>Profil dieser Bewerbung</span>
                   <select
                     value={profile?.id ?? ""}
                     onChange={(event) =>
@@ -1133,7 +1114,9 @@ export function DocumentsView({
                     ))}
                   </select>
                   <small>
-                    Die Auswahl aktualisiert Lebenslaufdaten, Vorschau und PDF.
+                    Die Auswahl gilt für Anschreiben, Deckblatt, Lebenslauf und
+                    Mappe – in Vorschau und PDF – und wird bei der Bewerbung
+                    gespeichert.
                   </small>
                 </label>
               ) : null}
@@ -1157,18 +1140,17 @@ export function DocumentsView({
                       }
                     />
                   </section>
-                  <label className="field">
+                  <div className="field">
                     <span>Berufsbezeichnung auf dem Deckblatt</span>
-                    <input
-                      name="coverSheetProfessionalTitle"
-                      defaultValue={coverSheetProfessionalTitle}
-                      placeholder="z. B. Sachbearbeitung / Kundenservice"
-                    />
+                    <output>
+                      {getProfessionalTitle(renderProfile) || "Im Profil nicht angegeben"}
+                    </output>
                     <small>
-                      Nur diese Bewerbung wird geändert; das Masterprofil bleibt
-                      unverändert.
+                      Kommt aus dem gewählten Profil und gilt für alle
+                      Unterlagen dieser Bewerbung; Änderungen erfolgen im
+                      Profil.
                     </small>
-                  </label>
+                  </div>
                   <label className="field">
                     <span>Kurzprofil auf dem Deckblatt</span>
                     <textarea
@@ -1245,6 +1227,7 @@ export function DocumentsView({
                     <label className="field">
                       <span>Name</span>
                       <input
+                        key={profile?.id}
                         name="coverSenderName"
                         defaultValue={coverSenderName}
                       />
@@ -1252,6 +1235,7 @@ export function DocumentsView({
                     <label className="field">
                       <span>Berufsbezeichnung</span>
                       <input
+                        key={profile?.id}
                         name="coverSenderTitle"
                         defaultValue={coverSenderTitle}
                       />
@@ -1259,6 +1243,7 @@ export function DocumentsView({
                     <label className="field">
                       <span>Kontaktzeile</span>
                       <input
+                        key={profile?.id}
                         name="coverSenderContact"
                         defaultValue={coverSenderContact}
                       />

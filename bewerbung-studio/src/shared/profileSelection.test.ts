@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ApplicantProfile } from "./schema";
-import { resolveSelectedProfile } from "./profileSelection";
+import { getProfessionalTitle, resolveApplicationProfile, resolveSelectedProfile } from "./profileSelection";
 
 const profile = (
   id: string,
@@ -31,5 +31,35 @@ describe("resolveSelectedProfile", () => {
     expect(resolveSelectedProfile(profiles, "missing", "also-missing")).toBe(
       defaultProfile,
     );
+  });
+});
+
+describe("resolveApplicationProfile", () => {
+  const defaultProfile = profile("default", "Standard", true);
+  const linked = profile("linked", "Verknüpft");
+  const profiles = [defaultProfile, linked];
+
+  it("is the profile the application is linked to, whatever the profile editor has selected", () => {
+    expect(resolveApplicationProfile(profiles, linked.id)).toBe(linked);
+  });
+
+  it("falls back to the default profile for a missing or deleted link, then to the first profile", () => {
+    expect(resolveApplicationProfile(profiles, undefined)).toBe(defaultProfile);
+    expect(resolveApplicationProfile(profiles, "deleted")).toBe(defaultProfile);
+    expect(resolveApplicationProfile([linked], "deleted")).toBe(linked);
+    expect(resolveApplicationProfile([], "deleted")).toBeUndefined();
+  });
+
+  it("is what the profile editor falls back to when it has no choice of its own", () => {
+    expect(resolveSelectedProfile(profiles, undefined, linked.id)).toBe(resolveApplicationProfile(profiles, linked.id));
+    expect(resolveSelectedProfile(profiles, "unknown", "deleted")).toBe(resolveApplicationProfile(profiles, "deleted"));
+  });
+});
+
+describe("getProfessionalTitle", () => {
+  it("is the trimmed title of the profile and nothing else", () => {
+    expect(getProfessionalTitle({ title: "  Softwareentwickler | Fachinformatiker  " })).toBe("Softwareentwickler | Fachinformatiker");
+    expect(getProfessionalTitle({ title: "" })).toBe("");
+    expect(getProfessionalTitle(undefined)).toBe("");
   });
 });

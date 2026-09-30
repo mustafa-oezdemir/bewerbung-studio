@@ -5,6 +5,7 @@
 
 import type { ModernHeaderProps } from "./modern.types";
 import { parseTemplateStrengths } from "../resume-template-data";
+import { getProfessionalTitle } from "../../../../shared/profileSelection";
 
 export function ModernHeader({
   name,
@@ -16,7 +17,7 @@ export function ModernHeader({
   children,
 }: ModernHeaderProps) {
   const hasPhoto = !compact && !atsMode && photoSource;
-  const title = profile?.title || "Professional";
+  const title = getProfessionalTitle(profile);
   const specialties =
     title.length < 48
       ? parseTemplateStrengths(profile, 2).map((item) => item.title)
@@ -31,7 +32,7 @@ export function ModernHeader({
       <div className="modern-resume-header__identity">
         {compact ? <p className="modern-resume-header__kicker">Lebenslauf · Fortsetzung</p> : null}
         <h1 className="modern-resume-header__name">{name}</h1>
-        <p className="modern-resume-header__profession">{profession}</p>
+        {profession ? <p className="modern-resume-header__profession">{profession}</p> : null}
         {children}
       </div>
       {hasPhoto && (

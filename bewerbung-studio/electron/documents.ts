@@ -35,6 +35,8 @@ import { getProfileMediaSource } from "../src/shared/profileMedia";
 import { getPehlioneContacts, renderPehlioneContacts, pehlioneContactsCss } from "../src/shared/pehlioneContacts";
 import { pehlioneBlueprintMarkup } from "../src/shared/pehlioneBlueprint";
 import { validateDeckblattData } from "../src/shared/deckblatt";
+import { getProfessionalTitle } from "../src/shared/profileSelection";
+import { resolveCoverSender } from "../src/shared/coverSender";
 import {
   buildDeckblattModel,
   deckblattCss,
@@ -239,28 +241,10 @@ const senderHeader = (
   profile: ApplicantProfile | undefined,
   docs: Application["documents"],
 ) => {
-  const name = docs.coverSenderName || fullName(profile);
-  const title = docs.coverSenderTitle || profile?.title?.trim();
-  const contact = docs.coverSenderContact || (profile
-    ? [
-        profile.street,
-        `${profile.postalCode} ${profile.city}`.trim(),
-        profile.email,
-        profile.phone,
-      ].filter(Boolean).join(" | ")
-    : "E-Mail · Telefon");
-  if (!profile) {
-    return (
-      `<span class="sender-name">${escapeHtml(name || "Vorname Nachname")}</span>` +
-      (title ? `<span class="sender-title">${escapeHtml(title)}</span>` : "") +
-      `<span class="sender-contact">${escapeHtml(contact)}</span>`
-    );
-  }
+  const { name, title, contact } = resolveCoverSender(profile, docs);
   return (
     `<span class="sender-name">${escapeHtml(name)}</span>` +
-    (title
-      ? `<span class="sender-title">${escapeHtml(title)}</span>`
-      : "") +
+    (title ? `<span class="sender-title">${escapeHtml(title)}</span>` : "") +
     `<span class="sender-contact">${escapeHtml(contact)}</span>`
   );
 };
@@ -776,6 +760,8 @@ export const buildDocumentHtml = (
   const sections = resolvedCv.sections;
   const name = fullName(profile);
   const role = application.job.title;
+  // The title under the name is the profile's own; the job title is the position applied for.
+  const professionalTitle = getProfessionalTitle(profile);
   const company = application.company.name;
   const initials = profile
     ? `${profile.firstName.charAt(0)}${profile.lastName.charAt(0)}`.toUpperCase()
@@ -942,7 +928,7 @@ export const buildDocumentHtml = (
     <header class="elegant-pdf-header${compact ? " elegant-pdf-header-compact" : ""}">
       ${compact ? '<p class="kicker">Lebenslauf · Fortsetzung</p>' : ""}
       <h1>${escapeHtml(name)}</h1>
-      ${profile?.title || role ? `<h2>${escapeHtml(profile?.title || role)}</h2>` : ""}
+      ${professionalTitle ? `<h2>${escapeHtml(professionalTitle)}</h2>` : ""}
       ${compact ? "" : elegantContactMarkup()}
     </header>`;
 
@@ -1220,7 +1206,7 @@ export const buildDocumentHtml = (
     compact: boolean,
     showPhoto: boolean,
   ) => {
-    const profession = profile?.title || role;
+    const profession = professionalTitle;
     return `
       <header class="zweispaltig-pdf-header${compact ? " compact" : ""}">
         <div>
@@ -1588,7 +1574,7 @@ export const buildDocumentHtml = (
         <div class="zeit-pdf-identity">
           ${compact ? '<p class="kicker">Lebenslauf · Fortsetzung</p>' : ""}
           <h1>${escapeHtml(name)}</h1>
-          ${profile?.title || role ? `<h2>${escapeHtml(profile?.title || role)}</h2>` : ""}
+          ${professionalTitle ? `<h2>${escapeHtml(professionalTitle)}</h2>` : ""}
           ${ats && !compact ? renderZeitContacts(true) : ""}
         </div>
       </header>`;
@@ -1894,7 +1880,7 @@ export const buildDocumentHtml = (
         <div class="kreativ-pdf-identity">
           ${compact ? '<p class="kicker">Lebenslauf · Fortsetzung</p>' : ""}
           <h1>${escapeHtml(name)}</h1>
-          ${profile?.title || role ? `<h2>${escapeHtml(profile?.title || role)}</h2>` : ""}
+          ${professionalTitle ? `<h2>${escapeHtml(professionalTitle)}</h2>` : ""}
           ${compact ? "" : kreativContactMarkup()}
         </div>
         ${photoMarkup}
@@ -2206,7 +2192,7 @@ export const buildDocumentHtml = (
     .slice(0, 3)
     .map((value) => value.split(/\s+(?:–|—|:)\s+/)[0])
     .join(" | ");
-  const ivyProfession = [profile?.title || role, ivySpecializations]
+  const ivyProfession = [professionalTitle, ivySpecializations]
     .filter(Boolean)
     .join(" | ");
   const ivyContacts = ivyContactValues.length
@@ -2492,7 +2478,7 @@ export const buildDocumentHtml = (
       href: "",
     },
   ].filter((contact) => contact.value.trim());
-  const managedJobTitle = (profile?.title || role).trim();
+  const managedJobTitle = professionalTitle;
   const managedFooter = (
     plan: ResumePagePlan,
     hideSinglePageNumber = false,
@@ -2803,7 +2789,7 @@ export const buildDocumentHtml = (
       : "";
     return `<article class="klassisch-pdf-entry"><div class="klassisch-pdf-entry-head"><div><h3>${escapeHtml(item.title)}</h3><h4>${escapeHtml(item.organization)}</h4></div><p class="klassisch-pdf-entry-meta">${item.city ? `<span>${escapeHtml(item.city)}</span>` : ""}<time>${escapeHtml(formatDateRange(item.from, item.to))}</time></p></div>${achievements}</article>`;
   };
-  const klassischProfession = (profile?.title || role).trim();
+  const klassischProfession = professionalTitle;
   const klassischContacts = managedContactValues
     .map((contact) => {
       const value = escapeHtml(contact.value);
@@ -2883,7 +2869,7 @@ export const buildDocumentHtml = (
     content
       ? `<section class="modern-pdf-section ${extraClass}"><h3 class="modern-pdf-title">${escapeHtml(title)}</h3>${content}</section>`
       : "";
-  const modernProfessionTitle = profile?.title || role;
+  const modernProfessionTitle = professionalTitle;
   const modernProfession = [
     modernProfessionTitle,
     ...(modernProfessionTitle.length < 48
@@ -3234,7 +3220,7 @@ export const buildDocumentHtml = (
       .map((group) => blockMarkup(group))
       .join("");
     const project = getPehlioneProjectHighlight(profile);
-    const header = `<header class="pehlione-pdf-header${continuation ? " continuation" : ""}"><h1>${escapeHtml(name)}</h1>${profile?.title || template.id === "pehlione_white" ? `<h2>${escapeHtml(profile?.title || role)}</h2>` : ""}</header>`;
+    const header = `<header class="pehlione-pdf-header${continuation ? " continuation" : ""}"><h1>${escapeHtml(name)}</h1>${profile?.title || template.id === "pehlione_white" ? `<h2>${escapeHtml(professionalTitle)}</h2>` : ""}</header>`;
     const closing = profile?.resumeClosing ?? { showPlace: true, showDate: true, showSignature: true };
     const closingLine = profile ? resolveResumeClosingLine(profile, resolvedCv.closingDate, (value) => value).text : "";
     const closingMarkup = lastPage && closingSection.visible && (closing.showPlace || closing.showDate || closing.showSignature)
@@ -3438,8 +3424,8 @@ export const buildDocumentHtml = (
         ? `<img class="tabellarisch-pdf-photo" src="${escapeHtml(photoSource)}" alt="">`
         : "";
     const header = isContinuation
-      ? `<header class="tabellarisch-pdf-continuation"><strong>${escapeHtml(name)}</strong><span>${escapeHtml(profile?.title || role)}</span></header>`
-      : `<header class="tabellarisch-pdf-header${photo ? "" : " no-photo"}"><div class="tabellarisch-pdf-identity"><h1>${escapeHtml(name)}</h1>${profile?.title || role ? `<h2>${escapeHtml(profile?.title || role)}</h2>` : ""}${renderTabellarischContacts(atsMode)}</div>${photo}</header>`;
+      ? `<header class="tabellarisch-pdf-continuation"><strong>${escapeHtml(name)}</strong><span>${escapeHtml(professionalTitle)}</span></header>`
+      : `<header class="tabellarisch-pdf-header${photo ? "" : " no-photo"}"><div class="tabellarisch-pdf-identity"><h1>${escapeHtml(name)}</h1>${professionalTitle ? `<h2>${escapeHtml(professionalTitle)}</h2>` : ""}${renderTabellarischContacts(atsMode)}</div>${photo}</header>`;
     const summary =
       sections.profile && !isContinuation
         ? tabellarischSection(
@@ -3644,7 +3630,7 @@ export const buildDocumentHtml = (
     <header class="gepflegt-pdf-header${compact ? " compact" : ""}">
       ${compact ? '<p class="kicker">Lebenslauf · Fortsetzung</p>' : ""}
       <h1>${escapeHtml(name)}</h1>
-      ${profile?.title || role ? `<h2>${escapeHtml(profile?.title || role)}</h2>` : ""}
+      ${professionalTitle ? `<h2>${escapeHtml(professionalTitle)}</h2>` : ""}
       ${compact ? "" : gepflegtContactMarkup(ats)}
     </header>`;
   const formatGepflegtDateRange = (from: string, to: string) => {
@@ -3770,7 +3756,7 @@ export const buildDocumentHtml = (
             <div>
               <p class="kicker">${isContinuation ? "Lebenslauf · Fortsetzung" : "Lebenslauf"}</p>
               <h1>${escapeHtml(name)}</h1>
-              <h2>${escapeHtml(profile?.title || role)}</h2>
+              <h2>${escapeHtml(professionalTitle)}</h2>
               <p class="cv-contact-line">${resumeContacts}</p>
             </div>
             ${avatarMarkup()}

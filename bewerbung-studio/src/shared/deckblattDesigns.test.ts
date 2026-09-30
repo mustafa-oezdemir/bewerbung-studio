@@ -131,13 +131,19 @@ describe("Deckblatt designs", () => {
     expect(model.documents).not.toContain("Zertifikat DATEV.pdf");
   });
 
-  it("names the attachments list per design and uses the title the user chose for this application", () => {
+  it("names the attachments list per design; the title under the name is always the profile's", () => {
     expect(build("klassisch").markup).toContain("Bewerbungsunterlagen");
     expect(build("pastell").markup).toContain("Anlagen:");
     expect(build("akzentband").markup).toContain(">Anlagen<");
-    const custom = build("pastell", { documents: { coverSheetProfessionalTitle: "Leitung Finanzen" } });
-    expect(custom.markup).toContain("Leitung Finanzen");
-    expect(custom.markup).not.toContain("Lohnbuchhalterin");
+    for (const id of deckblattDesignIds) {
+      // A title saved with an older Deckblatt does not override the profile, and the job title never stands in.
+      const saved = build(id, { documents: { coverSheetProfessionalTitle: "Leitung Finanzen" } });
+      expect(saved.model.professionalTitle).toBe("Lohnbuchhalterin");
+      expect(saved.markup).not.toContain("Leitung Finanzen");
+      const untitled = build(id, { profile: profile({ title: "" }) });
+      expect(untitled.model.professionalTitle).toBe("");
+      expect(untitled.markup).not.toMatch(/<(?:p|h2|span)[^>]*>Lohnbuchhaltung</);
+    }
   });
 
   it("escapes every value it prints", () => {

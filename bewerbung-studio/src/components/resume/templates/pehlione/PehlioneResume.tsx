@@ -227,7 +227,7 @@ export function PehlioneResume({
       <main className="pehlione-main">
         <header className="pehlione-header">
           <h1>{name}</h1>
-          {profile?.title || templateId === "pehlione_white" ? <h2>{profile?.title || "Fachkraft"}</h2> : null}
+          {profile?.title || templateId === "pehlione_white" ? <h2>{profile?.title}</h2> : null}
         </header>
         {atsMode && !continuation ? (
           <section className="pehlione-ats-contact"><b>Kontakt:</b> {getPehlioneContacts(profile).map((item) => item.value).join(" · ")}</section>

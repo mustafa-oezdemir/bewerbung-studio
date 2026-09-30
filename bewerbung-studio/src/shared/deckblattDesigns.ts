@@ -10,6 +10,7 @@ import { createCoverSubject } from "./coverLetter";
 import { formatApplicationDate } from "./applicationDate";
 import { renderContactIcon } from "./contactIcons";
 import { getProfileMediaSource } from "./profileMedia";
+import { getProfessionalTitle } from "./profileSelection";
 import { getReadableTextColor } from "./templates";
 import {
   getDeckblattCompetencies,
@@ -145,7 +146,7 @@ export const buildDeckblattModel = ({
   date: formatApplicationDate(application),
   name: profile ? [profile.firstName, profile.lastName].filter(Boolean).join(" ") : "Vorname Nachname",
   initials: profile ? `${profile.firstName.charAt(0)}${profile.lastName.charAt(0)}`.toUpperCase() : "VN",
-  professionalTitle: documents.coverSheetProfessionalTitle || profile?.title || application.job.title,
+  professionalTitle: getProfessionalTitle(profile),
   statement: documents.deckblattStatement || profile?.summary || "",
   photoSource: getProfileMediaSource(profile?.photoPath),
   contacts: getDeckblattContacts(profile, documents.coverSheetContactVisibility),

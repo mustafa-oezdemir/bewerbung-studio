@@ -10,6 +10,8 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { defaultDeckblattDesign } from "../src/shared/deckblattDesignIds";
+import { getProfessionalTitle, resolveApplicationProfile } from "../src/shared/profileSelection";
+import { clearProfileDerivedDocumentFields, dropStaleProfileCopies } from "../src/shared/coverSender";
 import path from "node:path";
 import type { ApplicationPaths } from "../src/config/application-paths";
 import { resolveApplicationPaths } from "../src/config/application-paths";
@@ -288,6 +290,11 @@ export class DataStore {
     await this.files.initialize();
     this.workspace = await this.loadWorkspace();
     for (const application of this.workspace.applications) {
+      application.documents = dropStaleProfileCopies(
+        application.documents,
+        this.getProfileForApplication(application),
+        this.workspace.profiles,
+      );
       application.folderName = await this.files.relocateApplicationFolders(
         application,
         getApplicationDate(application),
@@ -723,6 +730,7 @@ export class DataStore {
       id: createId(),
       folderName,
       ...input,
+      profileId: resolveApplicationProfile(this.workspace.profiles, input.profileId)?.id,
       templateDesigns: {},
       additionalContacts: input.additionalContacts ?? [],
       status: input.sentAt ? "Beworben" : "Entwurf",
@@ -790,6 +798,12 @@ export class DataStore {
     );
     if (index < 0) throw new Error("Bewerbung wurde nicht gefunden.");
     const current = this.workspace.applications[index];
+    if (
+      this.getProfileForApplication(current)?.id !==
+      this.getProfileForApplication(application)?.id
+    ) {
+      application.documents = clearProfileDerivedDocumentFields(application.documents);
+    }
     const shouldCommitUpdate = applicationContentChanged(current, application);
     await this.files.consolidateLegacyDocumentDirectories(current);
     application.folderName = await this.files.relocateApplicationFolders(
@@ -944,6 +958,7 @@ export class DataStore {
     );
     reassignedApplications.forEach((application) => {
       application.profileId = replacement?.id;
+      application.documents = clearProfileDerivedDocumentFields(application.documents);
       application.updatedAt = now;
     });
 
@@ -1148,12 +1163,8 @@ export class DataStore {
     };
   }
 
-  getProfileForApplication(application: Application) {
-    return this.workspace.profiles.find(
-      (profile) =>
-        profile.id === application.profileId ||
-        (!application.profileId && profile.isDefault),
-    );
+  getProfileForApplication(application: Pick<Application, "profileId">) {
+    return resolveApplicationProfile(this.workspace.profiles, application.profileId);
   }
 
   getApplication(id: string) {
@@ -1251,10 +1262,7 @@ export class DataStore {
     const elegantData: Record<string, string> = {
       VORNAME: profile?.firstName ?? "",
       NACHNAME: profile?.lastName ?? "",
-      BERUFSBEZEICHNUNG:
-        application.documents.coverSheetProfessionalTitle ||
-        profile?.title ||
-        application.job.title,
+      BERUFSBEZEICHNUNG: getProfessionalTitle(profile),
       FACHGEBIET_1: profile?.skills[0] ?? "",
       FACHGEBIET_2: profile?.skills[1] ?? "",
       FACHGEBIETE: (profile?.skills ?? []).slice(0, 3).join(" | "),
