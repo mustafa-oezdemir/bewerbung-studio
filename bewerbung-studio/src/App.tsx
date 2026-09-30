@@ -35,7 +35,7 @@ import { TodoView } from "./views/TodoView";
 import { useAppStore } from "./store/useAppStore";
 import { resolveSelectedProfile } from "./shared/profileSelection";
 import type { WorkspaceStatus } from "./shared/ipc";
-import { actionableTodos, isTodoOverdue } from "./shared/todos";
+import { actionableTodos, activeTodos, isTodoOverdue, todoCounts } from "./shared/todos";
 
 type View =
   | "home"
@@ -143,7 +143,15 @@ export default function App() {
 
   const darkMode = workspace.settings.theme === "dark" ||
     (workspace.settings.theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-  const todoNotifications = useMemo(() => actionableTodos(workspace.todos), [workspace.todos]);
+  // Todos of a Bewerbung that is closed (Absage, Zusage, ...) are neither notified nor counted.
+  const todoNotifications = useMemo(
+    () => actionableTodos(activeTodos(workspace.todos, workspace.applications)),
+    [workspace.todos, workspace.applications],
+  );
+  const openTodoCount = useMemo(
+    () => todoCounts(workspace.todos, workspace.applications).open,
+    [workspace.todos, workspace.applications],
+  );
   const toggleTheme = () => void saveSettings({ ...workspace.settings, theme: darkMode ? "light" : "dark" });
 
   useEffect(() => {
@@ -299,7 +307,7 @@ export default function App() {
           <NavItem
             icon={ListTodo}
             label="ToDo"
-            badge={workspace.todos.filter((todo) => !todo.completed).length || undefined}
+            badge={openTodoCount || undefined}
             active={view === "todo"}
             onClick={() => setView("todo")}
           />
@@ -456,7 +464,7 @@ export default function App() {
               {view === "calendar" && (
                 <CalendarView onOpenApplication={goToApplication} />
               )}
-              {view === "todo" && <TodoView />}
+              {view === "todo" && <TodoView onOpenApplication={goToApplication} />}
               {view === "resume" && (
                 <DocumentsView
                   initialTab="lebenslauf"

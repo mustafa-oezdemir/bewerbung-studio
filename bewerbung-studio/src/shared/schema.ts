@@ -789,6 +789,7 @@ export type ApplicationDraft = z.infer<typeof applicationDraftSchema>;
 export type ApplicantProfile = z.infer<typeof profileSchema>;
 export type CalendarEvent = z.infer<typeof calendarEventSchema>;
 export type Todo = z.infer<typeof todoSchema>;
+export type TodoSource = (typeof todoSources)[number];
 export type CustomCvDesign = z.infer<typeof customCvDesignSchema>;
 export type Attachment = z.infer<typeof attachmentSchema>;
 export type AppSettings = z.infer<typeof appSettingsSchema>;

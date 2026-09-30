@@ -10,7 +10,11 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { defaultDeckblattDesign } from "../src/shared/deckblattDesignIds";
-import { localDateKey } from "../src/shared/todos";
+import {
+  isApplicationTodo,
+  localDateKey,
+  terminalApplicationStatuses,
+} from "../src/shared/todos";
 import { getProfessionalTitle, resolveApplicationProfile } from "../src/shared/profileSelection";
 import { clearProfileDerivedDocumentFields, dropStaleProfileCopies } from "../src/shared/coverSender";
 import path from "node:path";
@@ -96,26 +100,25 @@ import type {
 
 const nowIso = () => new Date().toISOString();
 const createId = () => crypto.randomUUID();
-const terminalStatuses = new Set<ApplicationStatus>([
-  "Zusage",
-  "Absage",
-  "Zurückgezogen",
-  "Archiviert",
-]);
+const terminalStatuses = new Set<ApplicationStatus>(terminalApplicationStatuses);
 
 const isDeadlineTodo = (todo: Todo) => todo.source === "application-deadline";
 
-/** What the automatic deadline todo of an application shows; `deadlineAt` stays the only stored date. */
+/**
+ * The system part of the automatic deadline todo; `deadlineAt` stays the only stored date. The description is the
+ * note of the user and is never written by the sync.
+ */
 const deadlineTodoFields = (application: Application) => {
-  const company = application.company.name;
-  const position = application.job.title;
-  const title = `Bewerbungsfrist · ${company} · ${position}`;
+  const title = `Bewerbungsfrist · ${application.company.name} · ${application.job.title}`;
   return {
     title: title.length > 160 ? `${title.slice(0, 159)}…` : title,
-    description: `Bewerbungsfrist für ${position} bei ${company}`.slice(0, 4000),
     dueDate: localDateKey(new Date(application.deadlineAt as string)),
   };
 };
+
+/** The first version of the deadline todo generated this as its description; it is not a note of the user. */
+const generatedDeadlineDescription = (application: Application) =>
+  `Bewerbungsfrist für ${application.job.title} bei ${application.company.name}`;
 
 const applicationContentChanged = (
   current: Application,
@@ -738,8 +741,10 @@ export class DataStore {
   /**
    * Keeps exactly one automatic todo per application in step with `deadlineAt`, next to the calendar event of
    * `syncEvents`. Only todos with `source === "application-deadline"` and this `applicationId` are ever touched;
-   * manual todos are never read, changed or removed here. An existing todo keeps its id, priority, completion and
-   * creation date: only title, description and due date follow the application.
+   * manual todos are never read, changed or removed here. An existing todo keeps its id, priority, completion, note
+   * and creation date: only title and due date follow the application.
+   * A terminal status (see `terminalStatuses`) creates no todo and leaves an existing one as it is: the lists hide
+   * it (`activeTodos`), and a status that is taken back finds the same todo again.
    */
   private syncApplicationTodo(application: Application) {
     const linked = this.workspace.todos
@@ -749,13 +754,14 @@ export class DataStore {
     const drop = new Set<Todo>(duplicates);
     if (!application.deadlineAt) {
       if (existing) drop.add(existing);
-    } else {
+    } else if (!terminalStatuses.has(application.status)) {
       const fields = deadlineTodoFields(application);
       if (!existing) {
         const now = nowIso();
         this.workspace.todos.unshift({
           id: createId(),
           ...fields,
+          description: "",
           priority: "high",
           completed: false,
           createdAt: now,
@@ -765,10 +771,17 @@ export class DataStore {
         });
       } else if (
         existing.title !== fields.title ||
-        existing.description !== fields.description ||
-        existing.dueDate !== fields.dueDate
+        existing.dueDate !== fields.dueDate ||
+        existing.description === generatedDeadlineDescription(application)
       ) {
-        Object.assign(existing, fields, { updatedAt: nowIso() });
+        Object.assign(
+          existing,
+          fields,
+          existing.description === generatedDeadlineDescription(application)
+            ? { description: "" }
+            : {},
+          { updatedAt: nowIso() },
+        );
       }
     }
     if (drop.size) {
@@ -784,7 +797,7 @@ export class DataStore {
     for (const todo of this.workspace.todos) todo.source ??= "manual";
     this.workspace.todos = this.workspace.todos.filter(
       (todo) =>
-        !isDeadlineTodo(todo) ||
+        !isApplicationTodo(todo) ||
         (todo.applicationId !== undefined && applicationIds.has(todo.applicationId)),
     );
     this.workspace.applications.forEach((application) =>
@@ -992,7 +1005,7 @@ export class DataStore {
       (attachment) => attachment.applicationId !== id,
     );
     this.workspace.todos = this.workspace.todos.filter(
-      (todo) => !(isDeadlineTodo(todo) && todo.applicationId === id),
+      (todo) => !(isApplicationTodo(todo) && todo.applicationId === id),
     );
     await this.persist();
     this.queueApplicationGitCommit(application, "delete");
@@ -1802,12 +1815,19 @@ export class DataStore {
     const parsed = todoSchema.parse(todo);
     const index = this.workspace.todos.findIndex((item) => item.id === parsed.id);
     const current = index < 0 ? undefined : this.workspace.todos[index];
-    // The link to an application is only ever set by the deadline sync: a todo saved from the UI keeps the link it
-    // already has (the edit form does not carry it) and a new one is always manual.
-    const { applicationId: _ignored, ...fields } = parsed;
+    // The link to an application is only ever set by the deadline sync. A todo that belongs to a Bewerbung keeps its
+    // link, title and due date (they come from the application); the user owns its note, priority and completion.
+    // Every other todo, and every new one, is manual.
+    const { applicationId: _link, source: _source, ...fields } = parsed;
     const validated: Todo =
-      current && isDeadlineTodo(current)
-        ? { ...fields, source: current.source, applicationId: current.applicationId }
+      current && isApplicationTodo(current)
+        ? {
+            ...fields,
+            title: current.title,
+            dueDate: current.dueDate,
+            source: current.source,
+            applicationId: current.applicationId,
+          }
         : { ...fields, source: "manual" };
     if (index < 0) this.workspace.todos.unshift(validated);
     else this.workspace.todos[index] = validated;

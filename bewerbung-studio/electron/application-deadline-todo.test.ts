@@ -68,7 +68,8 @@ describe("Bewerbungsfrist → Kalender + ToDo", () => {
     expect(autoTodos()).toHaveLength(1);
     expect(todo).toMatchObject({
       title: `Bewerbungsfrist · ${temmler} · ${machine}`,
-      description: `Bewerbungsfrist für ${machine} bei ${temmler}`,
+      // The description is the note of the user: the sync starts it empty and never writes it.
+      description: "",
       source: "application-deadline",
       applicationId: application.id,
       dueDate: "2026-10-15",
@@ -113,7 +114,7 @@ describe("Bewerbungsfrist → Kalender + ToDo", () => {
     expect(autoTodos()[0]).toMatchObject({
       id: before.id,
       title: `Bewerbungsfrist · ${temmler} · Schichtleiter Produktion`,
-      description: `Bewerbungsfrist für Schichtleiter Produktion bei ${temmler}`,
+      description: "",
     });
 
     await save(application, { company: { ...current(application.id).company, name: "Temmler Werke" } });
