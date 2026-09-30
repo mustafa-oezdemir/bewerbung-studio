@@ -9451,7 +9451,8 @@ var zoneFlowTemplates = [
 	"ivy-league",
 	"stilvoll",
 	"kompakt",
-	"einspaltig"
+	"einspaltig",
+	"klassisch"
 ];
 var isZoneFlowTemplate = (templateId) => Boolean(templateId && zoneFlowTemplates.includes(templateId));
 /** The closing of these templates prints the application date (`Ort, YYYY-MM-DD`), not a profile field. */
@@ -10001,6 +10002,73 @@ var einspaltig = {
 		list: einspaltigList
 	}
 };
+/** Klassisch keeps its small grey, iconless title and one physical column. */
+var klassischHeading = {
+	iconBox: 0,
+	iconGap: 0,
+	iconRadius: 0,
+	glyphSize: 0,
+	glyphStroke: 0,
+	fontSizePt: {
+		standard: 10.4,
+		compact: 10.4
+	},
+	fontWeight: 750,
+	lineHeight: 1,
+	letterSpacing: "0.01em",
+	textTransform: "uppercase",
+	marginBottom: {
+		standard: 2.2,
+		compact: 2.2
+	},
+	labelPadding: {
+		standard: 0,
+		compact: 0
+	},
+	color: "var(--klassisch-heading,#5a6267)",
+	dividerColor: "transparent",
+	dividerWidth: "0",
+	iconColor: "currentColor",
+	iconBackground: "transparent",
+	sectionGap: {
+		standard: 3.8,
+		compact: 3.8,
+		side: "bottom",
+		expr: "var(--klassisch-section-gap,var(--managed-section-gap,3.8mm))"
+	},
+	height: 4.5
+};
+var klassischList = {
+	fontSizePt: {
+		standard: 8.5,
+		compact: 8.5
+	},
+	lineHeight: {
+		standard: 1.25,
+		compact: 1.25
+	},
+	itemGap: {
+		standard: .15,
+		compact: .15
+	},
+	indent: 4.3,
+	inheritBody: true,
+	layout: "margins",
+	marginTop: .8,
+	markerColor: "var(--klassisch-muted,#68747a)"
+};
+var klassisch = {
+	main: {
+		icons: false,
+		heading: klassischHeading,
+		list: klassischList
+	},
+	sidebar: {
+		icons: false,
+		heading: klassischHeading,
+		list: klassischList
+	}
+};
 /**
 * Stilvoll: one light heading and one list for both columns (measured in the PDF: 9.5 pt regular capitals in the
 * muted grey over a 0.3 mm rule, body-size lists with a 4 mm indent like its career bullets). It draws no icons.
@@ -10156,6 +10224,16 @@ var configByTemplate = {
 			preview: ".einfach-template",
 			pdf: ".cv-sheet[data-template=\"einspaltig\"]",
 			pdfBody: ".einfach-pdf"
+		},
+		plainLists: ["certifications"],
+		sidebarHero: false
+	},
+	klassisch: {
+		tokens: klassisch,
+		roots: {
+			preview: ".klassisch-template",
+			pdf: ".cv-sheet[data-template=\"klassisch\"]",
+			pdfBody: ".klassisch-pdf"
 		},
 		plainLists: ["certifications"],
 		sidebarHero: false
@@ -30070,7 +30148,7 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 					nodes.delete(entry.id);
 					continue;
 				}
-				if (resolved.templateId === "kompakt" && profile.strengths.filter((item) => item.title.trim()).length <= 4 && !items.length && existing.length) {
+				if ((resolved.templateId === "kompakt" && profile.strengths.filter((item) => item.title.trim()).length <= 4 || resolved.templateId === "klassisch" && profile.strengths.filter((item) => item.title.trim()).length > 0 && profile.strengths.filter((item) => item.title.trim()).length <= 3) && !items.length && existing.length) {
 					const heading = existing[0].querySelector("h2,h3");
 					if (heading) setHeadingText(heading, entry.title);
 					existing.slice(1).forEach((node) => node.remove());

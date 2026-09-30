@@ -493,9 +493,12 @@ export const applyManagedResumeOutput = (
           nodes.delete(entry.id);
           continue;
         }
-        // Kompakt already draws its strengths as branded cards on both surfaces.
+        // Kompakt and Klassisch draw explicit strengths as branded cards on both surfaces.
         // Moving that native section must not replace its card layout with the generic grid.
-        if (resolved.templateId === "kompakt" && profile.strengths.filter((item) => item.title.trim()).length <= 4 && !items.length && existing.length) {
+        if (((resolved.templateId === "kompakt" && profile.strengths.filter((item) => item.title.trim()).length <= 4)
+          || (resolved.templateId === "klassisch" && profile.strengths.filter((item) => item.title.trim()).length > 0
+            && profile.strengths.filter((item) => item.title.trim()).length <= 3))
+          && !items.length && existing.length) {
           const heading = existing[0].querySelector("h2,h3");
           if (heading) setHeadingText(heading, entry.title);
           existing.slice(1).forEach((node) => node.remove());
