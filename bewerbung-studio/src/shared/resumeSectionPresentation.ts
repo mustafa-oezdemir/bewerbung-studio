@@ -106,7 +106,7 @@ export const sectionSemanticType = (id: string, groupSemanticType?: string): Sec
  * and the closing date comes from the application. Templates join this list one by one, after
  * their look was verified on both surfaces.
  */
-export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "pehlione_white", "zweispaltig", "kreativ"];
+export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "pehlione_white", "zweispaltig", "zeitgenoessisch", "kreativ"];
 
 export const isZoneFlowTemplate = (templateId: string | undefined): boolean =>
   Boolean(templateId && zoneFlowTemplates.includes(templateId));
@@ -270,6 +270,28 @@ const zweispaltig: TemplateTokens = {
   sidebar: { icons: false, heading: zweispaltigHeading, list: zweispaltigList },
 };
 
+const zeitgenoessischHeading: SectionHeadingTokens = {
+  iconBox: 6.5, iconGap: 2, iconRadius: 1.5, glyphSize: 4, glyphStroke: 1.8,
+  fontSizePt: { standard: 11, compact: 11 }, fontWeight: 750, lineHeight: 1,
+  letterSpacing: ".025em", textTransform: "uppercase",
+  marginBottom: { standard: 3, compact: 3 }, labelPadding: { standard: 0, compact: 0 },
+  color: "var(--zeit-primary-dark,var(--zeit-dark,#075e4e))",
+  dividerColor: "transparent", dividerWidth: "0",
+  iconColor: "var(--zeit-primary-dark,var(--zeit-dark,#075e4e))",
+  iconBackground: "var(--zeit-primary-soft,var(--zeit-soft,#e4f1ed))",
+  sectionGap: { standard: 4.5, compact: 4.5, side: "top", expr: "var(--zeit-section-gap,var(--section-gap,4.5mm))" },
+  height: 6.5,
+};
+const zeitgenoessischList: SectionListTokens = {
+  fontSizePt: { standard: 8.4, compact: 8.4 }, lineHeight: { standard: 1.2, compact: 1.2 },
+  itemGap: { standard: 0.5, compact: 0.5 }, indent: 4.5, inheritBody: true,
+  layout: "margins", marginTop: 1.5, markerColor: "var(--zeit-primary-dark,var(--zeit-dark,#075e4e))",
+};
+const zeitgenoessisch: TemplateTokens = {
+  main: { icons: true, heading: zeitgenoessischHeading, list: zeitgenoessischList },
+  sidebar: { icons: true, heading: zeitgenoessischHeading, list: zeitgenoessischList },
+};
+
 /**
  * Kreativ: one heading and one list for both columns (measured in the PDF: 14 pt titles over a 0.65 mm rule
  * in the dark green of the template, body-size lists with a 4.5 mm indent). It draws no icons. The gap after a
@@ -326,6 +348,12 @@ const configByTemplate: Record<string, TemplateConfig> = {
   zweispaltig: {
     tokens: zweispaltig,
     roots: { preview: ".zweispaltig-template", pdf: '.cv-sheet[data-template="zweispaltig"]', pdfBody: ".zweispaltig-pdf" },
+    plainLists: ["certifications"],
+    sidebarHero: false,
+  },
+  zeitgenoessisch: {
+    tokens: zeitgenoessisch,
+    roots: { preview: ".zeitgenoessisch-template", pdf: '.cv-sheet[data-template="zeitgenoessisch"]', pdfBody: ".zeit-pdf" },
     plainLists: ["certifications"],
     sidebarHero: false,
   },
@@ -525,7 +553,10 @@ export const applyResumeSectionPresentation = (
       );
       if (!previous) continue;
       const title = (previous.textContent ?? "").trim();
-      previous.replaceWith(buildSectionHeading(document, presentation, title, previous));
+      const heading = buildSectionHeading(document, presentation, title, previous);
+      const nativeWrapper = templateId === "zeitgenoessisch" && previous.parentElement?.matches(".zeitgenoessisch-section-heading,.zeit-pdf-heading")
+        ? previous.parentElement : null;
+      (nativeWrapper ?? previous).replaceWith(heading);
     }
   }
 };

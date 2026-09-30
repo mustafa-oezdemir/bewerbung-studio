@@ -660,7 +660,7 @@ export const applyManagedResumeOutput = (
             heading.replaceChildren(icon, label);
           }
         }
-        if (resolvedId === "zeitgenoessisch") {
+        if (resolvedId === "zeitgenoessisch" && !zoneFlow) {
           node.classList.add(surface === "pdf" ? "zeit-pdf-section" : "zeitgenoessisch-section");
           const wrapper = document.createElement("header");
           wrapper.className = surface === "pdf" ? "zeit-pdf-heading" : "zeitgenoessisch-section-heading";

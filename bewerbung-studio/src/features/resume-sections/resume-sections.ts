@@ -237,6 +237,20 @@ const pehlioneCapabilities = (templateId: string): TemplateSectionCapabilities =
   };
 };
 
+const zeitgenoessischCapabilities = (): TemplateSectionCapabilities => {
+  const capabilities = twoColumnCapabilities("zeitgenoessisch");
+  return {
+    ...capabilities,
+    allowedZonesBySection: {
+      ...capabilities.allowedZonesBySection,
+      summary: ["main", "sidebar"],
+      strengths: ["main", "sidebar"],
+      languages: ["main", "sidebar"],
+    },
+    defaultZoneBySection: { ...capabilities.defaultZoneBySection, summary: "main" },
+  };
+};
+
 export const templateSectionCapabilities: Record<
   string,
   TemplateSectionCapabilities
@@ -269,7 +283,7 @@ export const templateSectionCapabilities: Record<
   gepflegt: twoColumnCapabilities("gepflegt"),
   modern: twoColumnCapabilities("modern"),
   elegant: twoColumnCapabilities("elegant"),
-  zeitgenoessisch: twoColumnCapabilities("zeitgenoessisch"),
+  zeitgenoessisch: zeitgenoessischCapabilities(),
   kreativ: twoColumnCapabilities("kreativ"),
 };
 

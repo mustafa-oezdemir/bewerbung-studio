@@ -93,7 +93,7 @@ describe("shared strengths output", () => {
     expect(document.querySelector("main")?.lastElementChild?.tagName).toBe("FOOTER");
     expect(document.querySelector('[data-custom-role="heading-label"]')?.textContent).toBe("Eigener Abschnitt");
   });
-  it.each(["preview", "pdf"])("gives Zeitgenössisch extra sections native %s icon headings", (surface) => {
+  it.each(["preview", "pdf"])("gives Zeitgenössisch extra sections shared %s icon headings", (surface) => {
     const interestsId = crypto.randomUUID();
     const projectsId = crypto.randomUUID();
     const custom = profileSchema.parse({ ...profile, specialSections: [
@@ -105,13 +105,11 @@ describe("shared strengths output", () => {
       ? '<section class="cv-sheet zeit-pdf"><main class="zeit-pdf-main"><section class="zeit-pdf-section"><header class="zeit-pdf-heading"><i><svg></svg></i><h3>Berufserfahrung</h3></header></section></main><aside class="zeit-pdf-left"></aside></section>'
       : '<div class="zeitgenoessisch-template"><main class="zeitgenoessisch-main-column"><section class="zeitgenoessisch-section"><header class="zeitgenoessisch-section-heading"><span class="zeitgenoessisch-section-heading__icon"><svg></svg></span><h2 class="zeitgenoessisch-section-heading__title">Berufserfahrung</h2></header></section></main><aside class="zeitgenoessisch-left-column"></aside></div>';
     const { document } = parseHTML(applyManagedResumeOutput(html, custom, "zeitgenoessisch"));
-    const headingClass = pdf ? "zeit-pdf-heading" : "zeitgenoessisch-section-heading";
-    const iconSelector = pdf ? "i svg path" : ".zeitgenoessisch-section-heading__icon svg path";
     for (const id of [`special:${interestsId}`, `special:${projectsId}`, "strengths"]) {
       const section = document.querySelector(`[data-managed-section="${id}"]`);
-      expect(section?.querySelector(`.${headingClass} ${iconSelector}`)).not.toBeNull();
-      expect(section?.querySelector('[data-custom-role="heading"]')?.tagName).toBe(pdf ? "H3" : "H2");
-      expect(section?.querySelectorAll(`.${headingClass}`)).toHaveLength(1);
+      expect(section?.querySelector(":scope > .cv-heading .cv-heading__icon svg path")).not.toBeNull();
+      expect(["H2", "H3"]).toContain(section?.querySelector('[data-custom-role="heading"]')?.tagName);
+      expect(section?.querySelectorAll(":scope > .cv-heading")).toHaveLength(1);
     }
     expect(document.querySelector('[data-managed-section="experience"] svg')).not.toBeNull();
     expect(document.querySelector(`[data-managed-section="special:${interestsId}"]`)?.textContent).toContain("Fotografie");
