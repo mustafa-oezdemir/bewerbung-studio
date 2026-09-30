@@ -106,7 +106,7 @@ export const sectionSemanticType = (id: string, groupSemanticType?: string): Sec
  * and the closing date comes from the application. Templates join this list one by one, after
  * their look was verified on both surfaces.
  */
-export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "pehlione_white", "zweispaltig"];
+export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "pehlione_white", "zweispaltig", "kreativ"];
 
 export const isZoneFlowTemplate = (templateId: string | undefined): boolean =>
   Boolean(templateId && zoneFlowTemplates.includes(templateId));
@@ -270,6 +270,32 @@ const zweispaltig: TemplateTokens = {
   sidebar: { icons: false, heading: zweispaltigHeading, list: zweispaltigList },
 };
 
+/**
+ * Kreativ: one heading and one list for both columns (measured in the PDF: 14 pt titles over a 0.65 mm rule
+ * in the dark green of the template, body-size lists with a 4.5 mm indent). It draws no icons. The gap after a
+ * section is the template's own bottom margin, which the design settings keep steering.
+ */
+const kreativHeading: SectionHeadingTokens = {
+  iconBox: 0, iconGap: 0, iconRadius: 0, glyphSize: 0, glyphStroke: 0,
+  fontSizePt: { standard: 14, compact: 14 }, fontWeight: 750, lineHeight: 1,
+  letterSpacing: ".025em", textTransform: "uppercase",
+  marginBottom: { standard: 3.5, compact: 3.5 }, labelPadding: { standard: 1.2, compact: 1.2 },
+  // The preview names the colour `--kreativ-heading`, the PDF `--kreativ-dark`.
+  color: "var(--kreativ-heading,var(--kreativ-dark))", dividerColor: "var(--kreativ-heading,var(--kreativ-dark))", dividerWidth: ".65mm",
+  iconColor: "currentColor", iconBackground: "transparent",
+  sectionGap: { standard: 4.5, compact: 4.5, side: "bottom", expr: "var(--kreativ-section-gap)" },
+  height: 6.73,
+};
+const kreativList: SectionListTokens = {
+  fontSizePt: { standard: 8.4, compact: 8.4 }, lineHeight: { standard: 1.05, compact: 1.05 },
+  itemGap: { standard: 0.5, compact: 0.5 }, indent: 4.5, inheritBody: true, layout: "margins",
+  markerColor: "var(--kreativ-primary,var(--accent))",
+};
+const kreativ: TemplateTokens = {
+  main: { icons: false, heading: kreativHeading, list: kreativList },
+  sidebar: { icons: false, heading: kreativHeading, list: kreativList },
+};
+
 /** How a template is reached on both surfaces, and which parts of the shared machinery it takes. */
 type TemplateConfig = {
   tokens: TemplateTokens;
@@ -291,6 +317,12 @@ const pehlioneRoots = (templateId: string) => ({
 const configByTemplate: Record<string, TemplateConfig> = {
   pehlione_white_blue: { tokens: pehlioneWhiteBlue, roots: pehlioneRoots("pehlione_white_blue"), plainLists: ["certifications", "languages"], sidebarHero: true },
   pehlione_white: { tokens: pehlioneWhite, roots: pehlioneRoots("pehlione_white"), plainLists: ["certifications", "languages"], sidebarHero: true },
+  kreativ: {
+    tokens: kreativ,
+    roots: { preview: ".kreativ-template", pdf: '.cv-sheet[data-template="kreativ"]', pdfBody: ".kreativ-pdf" },
+    plainLists: ["certifications"],
+    sidebarHero: false,
+  },
   zweispaltig: {
     tokens: zweispaltig,
     roots: { preview: ".zweispaltig-template", pdf: '.cv-sheet[data-template="zweispaltig"]', pdfBody: ".zweispaltig-pdf" },
@@ -390,7 +422,7 @@ const templateCss = (templateId: string, { tokens, roots }: TemplateConfig) => {
         : "",
       gapSide === "top"
         ? `${host} ${scope}{margin:${heading.sectionGap.expr ?? mm(heading.sectionGap.standard)} 0 0}`
-        : `${host} ${scope}{margin:0 0 ${mm(heading.sectionGap.standard)}}`,
+        : `${host} ${scope}{margin:0 0 ${heading.sectionGap.expr ?? mm(heading.sectionGap.standard)}}`,
       !heading.sectionGap.expr && heading.sectionGap.compact !== heading.sectionGap.standard
         ? `${compact(scope)}{margin-${gapSide === "top" ? "top" : "bottom"}:${mm(heading.sectionGap.compact)}}` : "",
       `${host} ${scope}>.cv-heading{margin:0 0 ${mm(heading.marginBottom.standard)};color:${heading.color};font-size:${heading.fontSizePt.standard}pt;--cv-divider:${heading.dividerColor};--cv-icon-color:${heading.iconColor};--cv-icon-bg:${heading.iconBackground}}`,

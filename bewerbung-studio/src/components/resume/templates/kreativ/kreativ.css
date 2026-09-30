@@ -191,7 +191,7 @@
   font-size: 8.7pt;
 }
 
-.kreativ-header__kicker {
+.kreativ-template .kreativ-header__kicker {
   flex-basis: 100%;
   margin: 0;
   color: var(--kreativ-primary);
@@ -338,7 +338,8 @@
   margin-top: 1mm;
 }
 
-.kreativ-career-entry__meta {
+/* Scoped like the page text (.document-paper p) so that its size wins in the preview, as it does in the PDF. */
+.kreativ-template .kreativ-career-entry__meta {
   margin: 0;
   color: var(--kreativ-muted);
   font-size: var(--kreativ-small-size);
@@ -347,7 +348,7 @@
   white-space: nowrap;
 }
 
-.kreativ-career-entry__location {
+.kreativ-template .kreativ-career-entry__location {
   margin: 0;
   color: var(--kreativ-muted);
   font-size: var(--kreativ-small-size);
