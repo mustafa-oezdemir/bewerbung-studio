@@ -29598,7 +29598,7 @@ var managedResumeCss = `
 :where([data-custom-template]){min-width:0}
 :where([data-custom-template]) [data-custom-role="heading"]{margin:0 0 2mm;break-after:avoid;page-break-after:avoid}
 :where([data-custom-template="zeitgenoessisch"]) [data-custom-role="heading"]{margin:0}
-:where([data-custom-template]) [data-custom-role="heading-label"]{grid-column:1 / -1}
+:where([data-custom-template]) [data-custom-role="heading-label"]:not(.cv-heading__label){grid-column:1 / -1}
 :where([data-custom-template]) [data-custom-role="entries"]{display:grid;gap:3mm;margin:0;padding:0;min-width:0}
 :where([data-custom-template]) :is(ul,ol)[data-custom-role="entries"]{padding-left:4mm}
 :where([data-custom-template]) [data-custom-role="entry"]{display:block;min-width:0;break-inside:avoid;overflow-wrap:anywhere}
