@@ -14,6 +14,8 @@ import { buildDocumentHtml } from "../../../../../electron/documents";
 import { ManagedResumePreview } from "../../ManagedResumePreview";
 import { moveManagerSection } from "../../../../features/resume-sections/resume-manager";
 import { pehlioneAppearanceCss } from "../../../../shared/pehlioneAppearance";
+import { pehlioneHeroCss } from "../../../../shared/pehlioneHero";
+import { readFileSync } from "node:fs";
 import { getTemplateDocumentDesignDefaults } from "../../../../shared/cvDesign";
 
 const experienceId = "81000000-0000-4000-8000-000000000001";
@@ -498,5 +500,58 @@ describe("Pehlione White Blue", () => {
     expect(parseHTML(html).document.querySelector(".pehlione-sidebar")).toBeNull();
     expect(html).toContain("Kontakt:");
     expect(html).toContain("Praktikum Softwareentwicklung");
+  });
+});
+
+describe("Pehlione hero", () => {
+  const photoProfile = profileSchema.parse({
+    ...profile,
+    photoPath: "data:image/png;base64,AA==",
+    resumeSemanticSections: resolveResumeSectionInstances([]).map((section) =>
+      section.semanticType === "photo" ? { ...section, visible: true, enabled: true } : section),
+  });
+  const html = (templateId: "pehlione_white" | "pehlione_white_blue") => {
+    const settings = getTemplateDocumentDesignDefaults(templateId);
+    const template = getTemplate(templateId);
+    const resolved = resolveCvDocument({ profile: photoProfile, templateId, settings });
+    const preview = renderToStaticMarkup(
+      <ManagedResumePreview profile={resolved.profile} templateId={templateId} pageNumber={1} totalPages={resolved.pagePlan.length}
+        designSettings={settings} resolvedCv={resolved}>
+        <PehlioneResume templateId={templateId} profile={resolved.profile} name="Mina Kaya" atsMode={false} plan={resolved.pagePlan[0]}
+          totalPages={resolved.pagePlan.length} accentColor={template.accent} secondaryColor={template.secondary}
+          resumeProfile={resolved.paginationSummary} sections={resolved.sections} />
+      </ManagedResumePreview>,
+    );
+    const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test",
+      company: { name: "Firma", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" },
+      status: "Entwurf", templateId, accentColor: template.accent, secondaryColor: template.secondary,
+      designSettings: settings, documents: {}, statusHistory: [], createdAt: profile.updatedAt, updatedAt: profile.updatedAt,
+    });
+    return { preview, pdf: buildDocumentHtml(application, resolved.profile, "lebenslauf") };
+  };
+  /** Rules of a stylesheet whose selector names the hero, its photo or its artwork. */
+  const heroRules = (css: string) =>
+    Array.from(css.matchAll(/([^{}]+)\{([^{}]*)\}/g))
+      .filter(([, selector]) => /pehlione-(pdf-)?(hero|blueprint|photo)|pehlione-hero__photo/.test(selector))
+      .map(([, selector, declarations]) => ({ selector: selector.trim(), declarations }));
+
+  it.each(["pehlione_white", "pehlione_white_blue"] as const)("centres photo and artwork from one shared block in the preview and the PDF of %s", (templateId) => {
+    const { preview, pdf } = html(templateId);
+    expect(preview).toContain(pehlioneHeroCss);
+    expect(pdf).toContain(pehlioneHeroCss);
+    expect(preview).toContain("pehlione-hero__photo");
+    expect(pdf).toContain("pehlione-pdf-photo");
+    expect(templateId === "pehlione_white" ? preview : pdf).toContain(templateId === "pehlione_white" ? "pehlione-blueprint" : "pehlione-pdf-hero");
+  });
+
+  it("keeps fixed top/left offsets out of every stylesheet of the hero", () => {
+    // Vitest treats CSS imports as empty modules, so the preview stylesheets are read from disk.
+    const source = (file: string) => readFileSync(new URL(file, import.meta.url), "utf8");
+    const stylesheets = { preview: source("./pehlione.css") + source("./pehlione-white.css"), pdf: html("pehlione_white_blue").pdf.match(/<style>([\s\S]*?)<\/style>/)?.[1] ?? "" };
+    for (const [surface, css] of Object.entries(stylesheets)) {
+      const rules = heroRules(css);
+      expect(rules.length, surface).toBeGreaterThan(0);
+      for (const { selector, declarations } of rules) expect(declarations, `${surface}: ${selector}`).not.toMatch(/(^|[;\s])(top|left):\s*-?[0-9.]+mm/);
+    }
   });
 });

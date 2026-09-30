@@ -1,5 +1,6 @@
 import type { DocumentDesignSettings } from "./documentDesign";
 import { resumeAppearanceSchema } from "./resumeAppearance";
+import { pehlioneHeroCss } from "./pehlioneHero";
 
 /** Both Pehlione themes consume the same saved design on both HTML surfaces. */
 export const applyPehlioneAppearance = (root: Element, templateId: string, settings: DocumentDesignSettings) => {
@@ -50,13 +51,11 @@ export const pehlioneAppearanceCss = `
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero.with-photo{background-color:#062b5a;background-image:linear-gradient(#ffffff1e 1px,transparent 1px),linear-gradient(90deg,#ffffff1e 1px,transparent 1px);background-size:4mm 4mm}
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero:before,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero:after{position:absolute;display:block;border:.25mm solid var(--pehlione-photo-decoration-color,#b7d7ff99);border-radius:50%;content:"";transform:none}
-.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero:before{top:8mm;left:10mm;width:28mm;height:28mm}
-.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero:after{top:14mm;left:16mm;width:16mm;height:16mm}
-.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i{position:absolute;top:22mm;left:9mm;width:34mm;border-top:.25mm solid var(--pehlione-photo-decoration-color,#d9ebff99);transform:rotate(var(--angle,0deg));transform-origin:left}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i{position:absolute;width:34mm;border-top:.25mm solid var(--pehlione-photo-decoration-color,#d9ebff99);transform:rotate(var(--angle,0deg));transform-origin:left}
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i:nth-of-type(1){--angle:-27deg}
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i:nth-of-type(2){--angle:18deg}
-.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i:nth-of-type(3){top:11mm;left:29mm;--angle:52deg}
-.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero b{position:absolute;top:17mm;left:21mm;color:#d9ebff;font-size:9mm;font-weight:400}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i:nth-of-type(3){--angle:52deg}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero b{position:absolute;color:#d9ebff;font-size:9mm;font-weight:400}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-main,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-main{background:var(--pehlione-main-background,#fff)}
 .pehlione-resume[data-template="pehlione_white"] .pehlione-main,
@@ -134,4 +133,4 @@ export const pehlioneAppearanceCss = `
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf[data-photo-decoration="hidden"] .pehlione-pdf-hero:before,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf[data-photo-decoration="hidden"] .pehlione-pdf-hero:after,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf[data-photo-decoration="hidden"] .pehlione-pdf-hero i{display:none}
-`;
+${pehlioneHeroCss}`;

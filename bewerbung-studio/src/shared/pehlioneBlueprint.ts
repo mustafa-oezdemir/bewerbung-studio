@@ -1,3 +1,16 @@
+/**
+ * Where the gear sits inside the artwork below, in viewBox units. The gear is not in the middle
+ * of the drawing, so the hero centres the *gear* (see pehlioneHero.ts), not the SVG box.
+ */
+export const pehlioneGear = {
+  viewBox: { width: 240, height: 160 },
+  cx: 76,
+  cy: 91,
+  /** Circle that frames the photo, and the tips of the teeth. */
+  ringRadius: 45,
+  outerRadius: 57,
+} as const;
+
 // Static vector artwork shared by the white template preview and PDF export.
 const gearPoints = Array.from({ length: 64 }, (_, index) => {
   const radius = index % 4 === 0 || index % 4 === 3 ? 49 : 57;

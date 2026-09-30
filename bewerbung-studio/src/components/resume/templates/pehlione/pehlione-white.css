@@ -29,7 +29,6 @@
 .pehlione-resume--white .pehlione-hero::before,
 .pehlione-resume--white .pehlione-hero::after { display: none; }
 .pehlione-blueprint { position: absolute; inset: 0; display: block; }
-.pehlione-blueprint svg { width: 100%; height: 100%; }
 
 .template-thumbnail[data-template="pehlione_white"] .pehlione-thumbnail-sidebar {
   background: repeating-linear-gradient(to bottom, transparent 0 12px, #d4dbe5 12px 14px, transparent 14px 22px), #fff;
