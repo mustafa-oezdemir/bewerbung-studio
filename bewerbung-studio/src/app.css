@@ -3858,10 +3858,16 @@ body.is-resizing-split-view * {
 }
 
 .resume-entry,
-.resume-preview section,
 .letter-signature {
   break-inside: avoid;
   page-break-inside: avoid;
+}
+
+/* A résumé section flows across the page break like a word-processor document;
+   only its heading stays with the entry below it. */
+.resume-preview section {
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .resume-preview section > h3 {

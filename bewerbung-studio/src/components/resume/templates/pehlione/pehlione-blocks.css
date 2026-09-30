@@ -46,5 +46,5 @@
 .pehlione-block-list.renderer-icon-list svg { width: 4mm; height: 4mm; }
 .pehlione-block-list.is-sidebar.renderer-tag-list li { color: #082c5d; background: #dcecff; }
 .pehlione-block-list.is-sidebar.renderer-icon-list li { color: #fff; }
-.pehlione-flex-block { break-inside: avoid; page-break-inside: avoid; }
+.pehlione-flex-block { break-inside: auto; page-break-inside: auto; }
 .pehlione-knowledge-container-title { margin-bottom: 2mm; }

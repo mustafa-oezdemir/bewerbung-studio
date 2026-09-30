@@ -219,8 +219,8 @@
 
 .elegant-career-entry {
   min-width: 0;
-  break-inside: avoid;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .elegant-career-entry__heading {
@@ -334,8 +334,8 @@
 .elegant-sidebar__section,
 .elegant-knowledge--sidebar {
   min-width: 0;
-  break-inside: avoid;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .elegant-sidebar__title {

@@ -103,6 +103,44 @@ describe("Pehlione White Blue", () => {
       expect(text.split("Projekt-Highlight")).toHaveLength(2);
     }
   });
+  it.each(["pehlione_white", "pehlione_white_blue"] as const)("draws Projekt-Highlight on page one when the plan starts it there in preview and PDF for %s", (templateId) => {
+    // The career and the project fit on page one, the long list of certificates goes on to page two.
+    const source = profileSchema.parse({ ...profile,
+      experiences: Array.from({ length: 2 }, (_, index) => ({ ...profile.experiences[0], id: crypto.randomUUID(), role: `Position ${index + 1}`,
+        achievements: Array.from({ length: 2 }, () => "Technische Prozesse geplant, optimiert und mit dem Team dokumentiert.") })),
+      education: Array.from({ length: 2 }, (_, index) => ({ ...profile.education[0], id: crypto.randomUUID(), degree: `Abschluss ${index + 1}` })),
+      certifications: Array.from({ length: 16 }, (_, index) => `Zertifikat ${index + 1}`),
+    });
+    const settings = getTemplateDocumentDesignDefaults(templateId);
+    const template = getTemplate(templateId);
+    const resolved = resolveCvDocument({ profile: source, templateId, settings });
+    expect(resolved.pagePlan).toHaveLength(2);
+    expect(resolved.pagePlan[0].blocks).toContain("projects");
+    expect(resolved.pagePlan[1].items).toHaveLength(0);
+    expect(resolved.pagePlan[1].blocks).not.toContain("projects");
+    const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test",
+      company: { name: "Firma", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" },
+      status: "Entwurf", templateId, accentColor: template.accent, secondaryColor: template.secondary,
+      designSettings: settings, documents: {}, statusHistory: [], createdAt: profile.updatedAt, updatedAt: profile.updatedAt,
+    });
+    const pdfPages = Array.from(parseHTML(buildDocumentHtml(application, source, "lebenslauf")).document.querySelectorAll(".cv-sheet"));
+    const previewPages = resolved.pagePlan.map((page) => parseHTML(renderToStaticMarkup(
+      <ManagedResumePreview profile={resolved.profile} templateId={templateId} pageNumber={page.pageNumber}
+        totalPages={2} designSettings={settings} resolvedCv={resolved}>
+        <PehlioneResume templateId={templateId} profile={resolved.profile} name="Mina Kaya" atsMode={false}
+          plan={page} totalPages={2} accentColor={template.accent} secondaryColor={template.secondary}
+          resumeProfile={resolved.paginationSummary} sections={resolved.sections} />
+      </ManagedResumePreview>,
+    )).document);
+    for (const [pages, selector] of [[pdfPages, ".pehlione-pdf-project"], [previewPages, ".pehlione-project"]] as const) {
+      expect(pages[0].querySelectorAll(selector)).toHaveLength(1);
+      expect(pages[1].querySelector(selector)).toBeNull();
+      // Page two holds no career entry: the “add your career” hint must not appear there.
+      const pageText = ("documentElement" in pages[1] ? pages[1].documentElement : pages[1]).textContent ?? "";
+      expect(pageText).not.toContain("im Profil ergänzen");
+      expect(pages[1].querySelector('[class*="closing"],[data-resume-closing]')).not.toBeNull();
+    }
+  });
   it.each(["pehlione_white_blue", "pehlione_white"])("keeps ATS continuation full-width and renders languages once in %s", (templateId) => {
     const source = profileSchema.parse({ ...profile, languages: ["Deutsch – C1"],
       experiences: Array.from({ length: 6 }, (_, index) => ({ ...profile.experiences[0], id: crypto.randomUUID(), role: `Position ${index + 1}`,

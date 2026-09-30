@@ -75,7 +75,7 @@
 .gepflegt-sidebar__section {
   min-width: 0;
   margin: 0 0 8.5mm;
-  break-inside: avoid;
+  break-inside: auto;
 }
 
 .gepflegt-sidebar__title {
@@ -334,7 +334,7 @@
 
 .gepflegt-entry {
   min-width: 0;
-  break-inside: avoid;
+  break-inside: auto;
 }
 
 .gepflegt-entry__heading,

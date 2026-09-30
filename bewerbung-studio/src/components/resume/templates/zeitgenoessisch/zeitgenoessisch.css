@@ -274,8 +274,8 @@
 .zeitgenoessisch-section {
   min-width: 0;
   margin-top: var(--zeit-section-gap);
-  break-inside: avoid;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .zeitgenoessisch-left-column > .zeitgenoessisch-section:first-child,
@@ -498,8 +498,8 @@
 
 .zeitgenoessisch-career-entry {
   min-width: 0;
-  break-inside: avoid;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .zeitgenoessisch-career-entry__top,

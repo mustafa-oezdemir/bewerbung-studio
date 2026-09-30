@@ -7176,7 +7176,6 @@ var formatKnowledgeItem = (item, showLevel, showYears, mode) => {
 	if (item.description?.trim()) extras.push(item.description.trim());
 	return `${item.name}${extras.length ? ` – ${extras.join(", ")}` : ""}`;
 };
-var flattenKnowledgeNames = (section) => section.categories.filter((category) => category.isVisible).flatMap((category) => [...visibleKnowledgeItems(category.items).map((item) => item.name), ...category.subcategories.filter((subcategory) => subcategory.isVisible).flatMap((subcategory) => visibleKnowledgeItems(subcategory.items).map((item) => item.name))]);
 var formatKnowledgeSectionAsText = (section, atsMode = false) => {
 	if (!section.isVisible) return "";
 	return section.categories.filter((category) => category.isVisible).sort((left, right) => left.sortOrder - right.sortOrder).flatMap((category) => {
@@ -9174,6 +9173,8 @@ var resumeContinuationCss = `
 [data-resume-header-extra-contact] a{color:inherit;text-decoration:none;overflow-wrap:anywhere}
 aside[class*="continuation"]{display:block!important;height:auto!important;min-height:0!important;padding-top:12mm!important}
 [data-managed-section]>:is(h2,h3){break-after:avoid;page-break-after:avoid}
+[data-managed-section] :is(h4,h5){break-after:avoid;page-break-after:avoid}
+[data-managed-section] li{break-inside:avoid;page-break-inside:avoid;orphans:2;widows:2}
 [data-resume-nowrap]{white-space:nowrap!important}
 `;
 /**
@@ -9286,6 +9287,14 @@ var removeEmptyCareerSections = (root, present) => {
 		}
 	}
 };
+/**
+* The “add your career to the profile” hint belongs to a résumé without any career
+* entry. It must not appear on a page that merely has none of them because the
+* entries fit on the pages before.
+*/
+var removeEmptyCareerHint = (root) => {
+	for (const node of Array.from(root.querySelectorAll("p,div,span"))) if (node.children.length === 0 && /^Berufserfahrung und Ausbildung im Profil ergänzen\.?$/.test((node.textContent ?? "").trim())) node.remove();
+};
 var dateRange = /^\s*(?:\d{1,2}\/)?\d{4}\s*[–—-]\s*(?:(?:\d{1,2}\/)?\d{4}|[A-Za-zÄÖÜäöüß.]+)\s*$/;
 /** Date ranges such as “11/2024 – 06/2025” never wrap, whatever the column width. */
 var keepDatesOnOneLine = (root) => {
@@ -9293,6 +9302,43 @@ var keepDatesOnOneLine = (root) => {
 		if (Array.from(node.children).some((child) => child.tagName.toLowerCase() !== "svg")) continue;
 		if (dateRange.test(node.textContent ?? "")) node.setAttribute("data-resume-nowrap", "");
 	}
+};
+//#endregion
+//#region src/shared/resumeEntrySplit.ts
+var resumeEntrySplitCss = `
+[data-resume-entry-marker]{margin-left:.45em!important;font-family:inherit!important;font-size:.72em!important;font-style:normal!important;font-weight:500!important;letter-spacing:.02em!important;text-transform:none!important;white-space:nowrap!important;opacity:.7}
+`;
+var directBullets = (list) => Array.from(list.children).filter((child) => child.tagName.toLowerCase() === "li");
+/**
+* An experience entry that breaks between two pages is drawn on both with the same
+* header (dates, role, company); the page plan says which bullets belong to which
+* page. The second part is marked as a continuation, like a continued section.
+*/
+var applyEntryBreaks = (sections, entrySelector, titleSelector, items) => {
+	const experience = items.filter((item) => item.kind === "experience");
+	if (!entrySelector || !experience.some((item) => item.kind === "experience" && item.bullets)) return;
+	const entries = sections.flatMap((section) => Array.from(section.querySelectorAll(entrySelector)));
+	if (entries.length !== experience.length) return;
+	experience.forEach((item, index) => {
+		if (item.kind !== "experience" || !item.bullets) return;
+		const { from, to, total } = item.bullets;
+		const entry = entries[index];
+		const lists = Array.from(entry.querySelectorAll("ul,ol")).filter((list) => directBullets(list).length === total);
+		for (const list of lists.slice(0, 1)) directBullets(list).forEach((bullet, position) => {
+			if (position < from || position >= to) bullet.remove();
+		});
+		if (to < total) entry.setAttribute("data-resume-entry-continues", "");
+		if (from > 0) {
+			entry.setAttribute("data-resume-entry-continued", "");
+			const title = (titleSelector ? entry.querySelector(titleSelector) : null) ?? entry.querySelector("h3,h4");
+			if (title) {
+				const marker = entry.ownerDocument.createElement("span");
+				marker.setAttribute("data-resume-entry-marker", "");
+				marker.textContent = "· Fortsetzung";
+				title.appendChild(marker);
+			}
+		}
+	});
 };
 //#endregion
 //#region node_modules/linkedom/esm/shared/symbols.js
@@ -25776,6 +25822,22 @@ var getResumeDisplayProfile = (profile) => {
 	};
 };
 //#endregion
+//#region src/shared/resumeKnowledgeRange.ts
+/**
+* The visible item lists of a knowledge section in drawing order: every visible
+* category's own items, then its visible subcategories. The page planner and the
+* renderer both walk this order, so a block that breaks between two pages is cut
+* at the same item on either side.
+*/
+var knowledgeLists = (section) => section.categories.filter((category) => category.isVisible).sort((left, right) => left.sortOrder - right.sortOrder).flatMap((category) => [{
+	category,
+	items: visibleKnowledgeItems(category.items)
+}, ...category.subcategories.filter((subcategory) => subcategory.isVisible).sort((left, right) => left.sortOrder - right.sortOrder).map((subcategory) => ({
+	category,
+	subcategory,
+	items: visibleKnowledgeItems(subcategory.items)
+}))]);
+//#endregion
 //#region src/shared/pehlioneContent.ts
 var unique$1 = (values) => [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 var profileEvidence = (profile) => [
@@ -25874,8 +25936,8 @@ var geometry = {
 		limit: 287,
 		sideTop1: 120.2,
 		sideLimit: 285,
-		atsTop1: 57.4,
-		atsTop2: 39.2,
+		atsTop1: 57.9,
+		atsTop2: 45.1,
 		mainLeft: 63,
 		mainRight: 210,
 		contentLeft: 73,
@@ -25950,13 +26012,37 @@ var geometry = {
 			font: 3.25,
 			pitch: 3.9
 		},
+		derivedStrengths: {
+			visual: "first",
+			ats: "never"
+		},
 		ats: {
 			exp: 1,
-			edu: 1
+			edu: 1,
+			head: 17.5,
+			knowledge: {
+				head: 12,
+				title: 5.53,
+				gap: 3,
+				pitch: 3.9,
+				font: 3.25,
+				w: 178,
+				tail: 0
+			},
+			languages: [17, 4.4],
+			certs: {
+				base: 17,
+				perItem: 4.4
+			},
+			summaryW: 178,
+			density: {
+				compact: .93,
+				dense: .93
+			}
 		},
 		density: {
-			compact: .85,
-			dense: .85
+			compact: .89,
+			dense: .89
 		}
 	},
 	"pehlione_white": {
@@ -25973,8 +26059,8 @@ var geometry = {
 		limit: 287,
 		sideTop1: 120.2,
 		sideLimit: 285,
-		atsTop1: 56.9,
-		atsTop2: 39.2,
+		atsTop1: 57.9,
+		atsTop2: 45.1,
 		mainLeft: 63,
 		mainRight: 210,
 		contentLeft: 73,
@@ -26049,13 +26135,37 @@ var geometry = {
 			font: 3.25,
 			pitch: 3.9
 		},
+		derivedStrengths: {
+			visual: "first",
+			ats: "never"
+		},
 		ats: {
 			exp: 1,
-			edu: 1
+			edu: 1,
+			head: 17.5,
+			knowledge: {
+				head: 12,
+				title: 5.53,
+				gap: 3,
+				pitch: 3.9,
+				font: 3.25,
+				w: 178,
+				tail: 0
+			},
+			languages: [17, 4.4],
+			certs: {
+				base: 17,
+				perItem: 4.4
+			},
+			summaryW: 178,
+			density: {
+				compact: .93,
+				dense: .93
+			}
 		},
 		density: {
-			compact: .85,
-			dense: .85
+			compact: .89,
+			dense: .89
 		}
 	},
 	"modern": {
@@ -26072,8 +26182,8 @@ var geometry = {
 		limit: 285.3,
 		sideTop1: 44.9,
 		sideLimit: 284,
-		atsTop1: 54.5,
-		atsTop2: 31.8,
+		atsTop1: 54.8,
+		atsTop2: 39.1,
 		mainLeft: 15,
 		mainRight: 117,
 		contentLeft: 15,
@@ -26148,13 +26258,37 @@ var geometry = {
 			font: 3.25,
 			pitch: 4.06
 		},
+		derivedStrengths: {
+			visual: "never",
+			ats: "single"
+		},
 		ats: {
 			exp: 1,
-			edu: 1
+			edu: 1,
+			sectionGap: 5,
+			head: 6.9,
+			knowledge: {
+				head: 6.9,
+				title: 7.01,
+				gap: 3.24,
+				pitch: 3.9,
+				font: 3.25,
+				w: 180,
+				tail: 0
+			},
+			languages: [6.55, 4.25],
+			certs: {
+				base: 6.6,
+				perItem: 4.23
+			},
+			density: {
+				compact: 1,
+				dense: 1
+			}
 		},
 		density: {
-			compact: .98,
-			dense: .95
+			compact: .99,
+			dense: .96
 		}
 	},
 	"elegant": {
@@ -26171,8 +26305,8 @@ var geometry = {
 		limit: 285.1,
 		sideTop1: 13,
 		sideLimit: 283,
-		atsTop1: 82.8,
-		atsTop2: 31.8,
+		atsTop1: 87.9,
+		atsTop2: 87.9,
 		mainLeft: 0,
 		mainRight: 140,
 		contentLeft: 13,
@@ -26247,9 +26381,35 @@ var geometry = {
 			font: 2.96,
 			pitch: 3.11
 		},
+		derivedStrengths: {
+			visual: "first",
+			ats: "single"
+		},
 		ats: {
 			exp: 1.12,
-			edu: 1.44
+			edu: 1.44,
+			knowledge: {
+				head: 9.56,
+				title: 8.49,
+				gap: 3,
+				pitch: 3.11,
+				font: 2.96,
+				w: 184,
+				tail: 0
+			},
+			header: {
+				base: 40.44,
+				perContact: 9.48
+			},
+			languages: [5.1, 5.1],
+			certs: {
+				base: 9.4,
+				perItem: 3.1
+			},
+			density: {
+				compact: 1,
+				dense: 1
+			}
 		},
 		density: {
 			compact: 1,
@@ -26270,8 +26430,8 @@ var geometry = {
 		limit: 285.5,
 		sideTop1: 56.5,
 		sideLimit: 284,
-		atsTop1: 88.7,
-		atsTop2: 40.1,
+		atsTop1: 87.8,
+		atsTop2: 87.8,
 		mainLeft: 13,
 		mainRight: 120.3,
 		contentLeft: 13,
@@ -26346,13 +26506,39 @@ var geometry = {
 			font: 2.96,
 			pitch: 3.11
 		},
+		derivedStrengths: {
+			visual: "first",
+			ats: "single"
+		},
 		ats: {
 			exp: 1,
-			edu: 1
+			edu: 1,
+			knowledge: {
+				head: 9.03,
+				title: 6.07,
+				gap: 3,
+				pitch: 3.11,
+				font: 2.96,
+				w: 184,
+				tail: 0
+			},
+			header: {
+				base: 39.83,
+				perContact: 8
+			},
+			languages: [7, 5.1],
+			certs: {
+				base: 8.5,
+				perItem: 3.6
+			},
+			density: {
+				compact: .98,
+				dense: .97
+			}
 		},
 		density: {
-			compact: .98,
-			dense: .95
+			compact: .99,
+			dense: .98
 		}
 	},
 	"zeitgenoessisch": {
@@ -26369,8 +26555,8 @@ var geometry = {
 		limit: 285.1,
 		sideTop1: 112.1,
 		sideLimit: 284,
-		atsTop1: 50.2,
-		atsTop2: 32.8,
+		atsTop1: 55.3,
+		atsTop2: 55.3,
 		mainLeft: 76.8,
 		mainRight: 197,
 		contentLeft: 76.8,
@@ -26445,9 +26631,32 @@ var geometry = {
 			font: 2.96,
 			pitch: 3.11
 		},
+		derivedStrengths: {
+			visual: "first",
+			ats: "single"
+		},
 		ats: {
 			exp: 1,
-			edu: 1
+			edu: 1,
+			head: 8.7,
+			knowledge: {
+				head: 9.93,
+				title: 8.49,
+				gap: 3,
+				pitch: 3.11,
+				font: 2.96,
+				w: 184,
+				tail: 0
+			},
+			languages: [8.2, 3.6],
+			certs: {
+				base: 8.2,
+				perItem: 3.6
+			},
+			density: {
+				compact: 1,
+				dense: 1
+			}
 		},
 		density: {
 			compact: 1,
@@ -26468,8 +26677,8 @@ var geometry = {
 		limit: 285.8,
 		sideTop1: 53,
 		sideLimit: 284,
-		atsTop1: 46.2,
-		atsTop2: 32.7,
+		atsTop1: 53.2,
+		atsTop2: 53.2,
 		mainLeft: 12,
 		mainRight: 120.7,
 		contentLeft: 12,
@@ -26544,13 +26753,35 @@ var geometry = {
 			font: 2.96,
 			pitch: 3.11
 		},
+		derivedStrengths: {
+			visual: "first",
+			ats: "single"
+		},
 		ats: {
 			exp: 1,
-			edu: 1
+			edu: 1,
+			knowledge: {
+				head: 10.23,
+				title: 6.07,
+				gap: 3,
+				pitch: 3.11,
+				font: 2.96,
+				w: 188,
+				tail: 0
+			},
+			languages: [9.65, 3.65],
+			certs: {
+				base: 9.7,
+				perItem: 3.6
+			},
+			density: {
+				compact: 1,
+				dense: 1
+			}
 		},
 		density: {
-			compact: .98,
-			dense: .95
+			compact: 1,
+			dense: .99
 		}
 	},
 	"gepflegt": {
@@ -26568,7 +26799,7 @@ var geometry = {
 		sideTop1: 9,
 		sideLimit: 283,
 		atsTop1: 46.6,
-		atsTop2: 31.8,
+		atsTop2: 46.6,
 		mainLeft: 81,
 		mainRight: 200,
 		contentLeft: 81,
@@ -26643,13 +26874,35 @@ var geometry = {
 			font: 3,
 			pitch: 3.75
 		},
+		derivedStrengths: {
+			visual: "first",
+			ats: "single"
+		},
 		ats: {
 			exp: 1,
-			edu: 1
+			edu: 1,
+			knowledge: {
+				head: 8.44,
+				title: 6.96,
+				gap: 3,
+				pitch: 3.6,
+				font: 3,
+				w: 84,
+				tail: 3
+			},
+			languages: [8.9, 3.6],
+			certs: {
+				base: 8.4,
+				perItem: 3.6
+			},
+			density: {
+				compact: .94,
+				dense: .88
+			}
 		},
 		density: {
-			compact: .94,
-			dense: .87
+			compact: .96,
+			dense: .91
 		}
 	},
 	"kompakt": {
@@ -26666,8 +26919,8 @@ var geometry = {
 		limit: 286,
 		sideTop1: 80.4,
 		sideLimit: 284,
-		atsTop1: 49.5,
-		atsTop2: 31.8,
+		atsTop1: 54.1,
+		atsTop2: 39.7,
 		mainLeft: 13,
 		mainRight: 121,
 		contentLeft: 13,
@@ -26743,13 +26996,35 @@ var geometry = {
 			pitch: 3.17,
 			limit: 2
 		},
+		derivedStrengths: {
+			visual: "first",
+			ats: "single"
+		},
 		ats: {
 			exp: 1,
-			edu: 1
+			edu: 1,
+			knowledge: {
+				head: 7.2,
+				title: 5.92,
+				gap: 3,
+				pitch: 2.96,
+				font: 2.96,
+				w: 184,
+				tail: 0
+			},
+			languages: [7, 3.2],
+			certs: {
+				base: 6.96,
+				perItem: 3.2
+			},
+			density: {
+				compact: .99,
+				dense: .99
+			}
 		},
 		density: {
-			compact: .98,
-			dense: .95
+			compact: 1,
+			dense: 1
 		}
 	},
 	"stilvoll": {
@@ -26766,8 +27041,8 @@ var geometry = {
 		limit: 285.9,
 		sideTop1: 46.1,
 		sideLimit: 284,
-		atsTop1: 58.4,
-		atsTop2: 34.8,
+		atsTop1: 62.5,
+		atsTop2: 41.7,
 		mainLeft: 80,
 		mainRight: 195,
 		contentLeft: 80,
@@ -26842,13 +27117,35 @@ var geometry = {
 			font: 2.96,
 			pitch: 3.11
 		},
+		derivedStrengths: {
+			visual: "first",
+			ats: "single"
+		},
 		ats: {
 			exp: 1,
-			edu: 1
+			edu: 1,
+			knowledge: {
+				head: 7.54,
+				title: 6.08,
+				gap: 3,
+				pitch: 3.11,
+				font: 2.96,
+				w: 180,
+				tail: 0
+			},
+			languages: [7.3, 3.4],
+			certs: {
+				base: 7.3,
+				perItem: 3.4
+			},
+			density: {
+				compact: .99,
+				dense: .96
+			}
 		},
 		density: {
-			compact: .98,
-			dense: .95
+			compact: 1,
+			dense: .98
 		}
 	},
 	"einspaltig": {
@@ -26865,8 +27162,8 @@ var geometry = {
 		limit: 285.8,
 		sideTop1: null,
 		sideLimit: 285.8,
-		atsTop1: 51.5,
-		atsTop2: 31,
+		atsTop1: 56.6,
+		atsTop2: 34.7,
 		mainLeft: 0,
 		mainRight: 210,
 		contentLeft: 15,
@@ -26941,13 +27238,36 @@ var geometry = {
 			font: 3.39,
 			pitch: 3.73
 		},
+		derivedStrengths: {
+			visual: "first",
+			ats: "single"
+		},
 		ats: {
 			exp: 1,
-			edu: 1
+			edu: 1,
+			head: 7.9,
+			knowledge: {
+				head: 7.9,
+				title: 7.11,
+				gap: 3.38,
+				pitch: 3.73,
+				font: 3.39,
+				w: 180,
+				tail: 0
+			},
+			languages: [7.6, 4],
+			certs: {
+				base: 7.6,
+				perItem: 4
+			},
+			density: {
+				compact: 1,
+				dense: .99
+			}
 		},
 		density: {
-			compact: .98,
-			dense: .95
+			compact: 1,
+			dense: .99
 		}
 	},
 	"klassisch": {
@@ -26964,8 +27284,8 @@ var geometry = {
 		limit: 285.9,
 		sideTop1: null,
 		sideLimit: 285.9,
-		atsTop1: 53.3,
-		atsTop2: 31.8,
+		atsTop1: 60.1,
+		atsTop2: 39.9,
 		mainLeft: 0,
 		mainRight: 210,
 		contentLeft: 15,
@@ -27040,13 +27360,36 @@ var geometry = {
 			font: 2.96,
 			pitch: 3.11
 		},
+		derivedStrengths: {
+			visual: "first",
+			ats: "single"
+		},
 		ats: {
 			exp: 1,
-			edu: 1
+			edu: 1,
+			head: 6.9,
+			knowledge: {
+				head: 6.9,
+				title: 6.08,
+				gap: 3,
+				pitch: 3.11,
+				font: 2.96,
+				w: 180,
+				tail: 0
+			},
+			languages: [6.1, 4.05],
+			certs: {
+				base: 6.7,
+				perItem: 3.27
+			},
+			density: {
+				compact: .99,
+				dense: .98
+			}
 		},
 		density: {
-			compact: .98,
-			dense: .95
+			compact: .99,
+			dense: .98
 		}
 	},
 	"tabellarisch": {
@@ -27064,7 +27407,7 @@ var geometry = {
 		sideTop1: null,
 		sideLimit: 285.1,
 		atsTop1: 63.3,
-		atsTop2: 30,
+		atsTop2: 63.3,
 		mainLeft: 0,
 		mainRight: 210,
 		contentLeft: 15,
@@ -27139,13 +27482,36 @@ var geometry = {
 			font: 3.25,
 			pitch: 3.57
 		},
+		derivedStrengths: {
+			visual: "first",
+			ats: "first"
+		},
 		ats: {
 			exp: 1,
-			edu: 1.33
+			edu: 1.33,
+			head: 7.6,
+			knowledge: {
+				head: 7.57,
+				title: 7.4,
+				gap: 3.24,
+				pitch: 3.57,
+				font: 3.25,
+				w: 84,
+				tail: 3.25
+			},
+			languages: [9.8, 1.83],
+			certs: {
+				base: 7.5,
+				perItem: 4.02
+			},
+			density: {
+				compact: .99,
+				dense: .95
+			}
 		},
 		density: {
-			compact: .98,
-			dense: .95
+			compact: .99,
+			dense: .92
 		}
 	},
 	"ivy-league": {
@@ -27162,8 +27528,8 @@ var geometry = {
 		limit: 285.1,
 		sideTop1: null,
 		sideLimit: 285.1,
-		atsTop1: 57,
-		atsTop2: 35.5,
+		atsTop1: 58.7,
+		atsTop2: 58.7,
 		mainLeft: 0,
 		mainRight: 210,
 		contentLeft: 11,
@@ -27238,13 +27604,36 @@ var geometry = {
 			font: 4.76,
 			pitch: 5
 		},
+		derivedStrengths: {
+			visual: "first",
+			ats: "first"
+		},
 		ats: {
 			exp: 1,
-			edu: 1
+			edu: 1,
+			head: 8.3,
+			knowledge: {
+				head: 8.27,
+				title: 7.9,
+				gap: 3,
+				pitch: 3.11,
+				font: 2.96,
+				w: 166,
+				tail: 0
+			},
+			languages: [7.9, 3.5],
+			certs: {
+				base: 8,
+				perItem: 3.47
+			},
+			density: {
+				compact: .95,
+				dense: .94
+			}
 		},
 		density: {
-			compact: .98,
-			dense: .95
+			compact: .95,
+			dense: .93
 		}
 	}
 };
@@ -27262,22 +27651,51 @@ var SAFETY = .97;
 var SIDEBAR_HOST_SHARE = .94;
 /** Share of the page a compacted single page may use. */
 var COMPACT_MARGIN = .96;
-/** Cost of choosing a compacted single page over two pages. */
-var COMPACT_PAGE_COST = .1;
-/** Comfort limits of a two-page split (share of a page): see the cost function below. */
-var MIN_LAST_FILL = .45;
-var MIN_FIRST_FILL = .72;
-var MAX_FILL_GAP = .45;
-var REVERSED_GAP = .05;
+/**
+* The résumé flows like a Word document: page one is filled as far as the content
+* allows and the rest continues on page two. Two guards keep the result tidy:
+* the last page never shrinks to a stub (the first page then gives up trailing
+* content), and a compacted single page beats a second page that would be nearly empty.
+*/
+var MIN_LAST_FILL = .15;
+var MIN_FIRST_FILL = .55;
+var COMPACT_INSTEAD_OF_LAST_BELOW = .5;
+/** Widow/orphan control: an entry breaks between bullets only if this many text lines stay on both sides. */
+var MIN_SPLIT_LINES = 2;
 var CLOSING_MM = {
 	signature: 22,
 	plain: 10
 };
 /** Long summaries wrap a little more than the average glyph advance predicts. */
 var SUMMARY_WRAP_SLACK = 1.05;
+/** Comma-separated lists break at every comma: they wrap a little less than running text. */
+var ATS_LIST_WRAP = .92;
 /** The managed item grids: 3 mm between columns and a 4 mm icon plus 1.5 mm gap in front of each text. */
 var GRID_COLUMN_GAP_MM = 3;
 var GRID_ICON_MM = 5.5;
+/**
+* Contact lines a plain (ATS) header prints. Elegant and Zweispaltig stack them one per
+* line, so their header grows with the number of filled contact fields.
+*/
+var atsContactLines = (templateId, profile) => {
+	if (!profile) return 0;
+	const filled = (value) => Boolean(value?.trim());
+	const location = [
+		profile.postalCode,
+		profile.city,
+		profile.country
+	].some(filled);
+	const birth = filled(profile.birthDate) || filled(profile.birthPlace);
+	const web = templateId === "elegant" ? [profile.portfolio || profile.github] : [profile.github, profile.portfolio];
+	return [
+		profile.phone,
+		profile.email,
+		profile.linkedin,
+		...web
+	].filter(filled).length + Number(location) + Number(birth);
+};
+/** The template's own space between two sections; the plain (ATS) layout may differ from the styled one. */
+var nativeSectionGapOf = (geometry, atsMode) => (atsMode ? geometry.ats.sectionGap : void 0) ?? geometry.blocks.sectionGap;
 var strip = ({ kind, id, ...item }, page) => ({
 	kind,
 	id,
@@ -27285,20 +27703,38 @@ var strip = ({ kind, id, ...item }, page) => ({
 });
 var linesFor = (chars, widthMm, fontMm, cw) => chars <= 0 ? 0 : Math.max(1, Math.ceil(chars * cw * fontMm / Math.max(widthMm, 12)));
 var trimmedBullets = (experience) => experience.achievements.map((value) => value.trim()).filter(Boolean);
-var experienceHeight = (experience, geometry, scale, widthScale) => {
+/** Pehlione shows at most this many bullets per entry; every other template shows all of them. */
+var bulletCapOf = (templateId) => templateId?.startsWith("pehlione_") ? 5 : Number.POSITIVE_INFINITY;
+var experienceMetrics = (experience, geometry, scale, widthScale, bulletCap) => {
 	const { text, exp } = geometry;
-	const bullets = trimmedBullets(experience);
-	const bulletLines = bullets.reduce((total, bullet) => total + linesFor(bullet.length, text.bulletW * widthScale, text.bulletFont * scale.font, text.cw), 0);
+	const lines = trimmedBullets(experience).slice(0, bulletCap).map((bullet) => linesFor(bullet.length, text.bulletW * widthScale, text.bulletFont * scale.font, text.cw));
 	const titleLines = linesFor(experience.role.trim().length, text.titleW * widthScale, text.titleFont * scale.font, text.cw * 1.08);
 	const orgLines = linesFor(experience.company.trim().length, text.orgW * widthScale, text.orgFont * scale.font, text.cw * 1.06);
 	const extra = Math.max(0, titleLines - 1) + Math.max(0, orgLines - 1);
-	return (exp.base + (bullets.length ? exp.list : 0) + exp.perBullet * bullets.length + exp.linePitch * scale.line * bulletLines + exp.extraLine * extra) * scale.exp * scale.textHeight;
+	const height = (from, to) => {
+		const shown = lines.slice(from, to);
+		return (exp.base + (shown.length ? exp.list : 0) + exp.perBullet * shown.length + exp.linePitch * scale.line * shown.reduce((total, value) => total + value, 0) + exp.extraLine * extra) * scale.exp * scale.textHeight;
+	};
+	return {
+		lines,
+		height
+	};
 };
 var educationHeight = (education, geometry, scale, widthScale) => {
 	const { text, edu } = geometry;
 	const titleLines = linesFor(education.degree.trim().length, text.titleW * widthScale, text.titleFont * scale.font, text.cw * 1.08);
 	const orgLines = linesFor(education.institution.trim().length, text.orgW * widthScale, text.orgFont * scale.font, text.cw * 1.06);
 	return (edu.base + edu.extraLine * (Math.max(0, titleLines - 1) + Math.max(0, orgLines - 1))) * scale.edu * scale.textHeight;
+};
+/** Height of one grid row: the tallest of its items (a wrapped title costs another line). */
+var rowHeight = (model, scale, row) => {
+	let tallest = 0;
+	for (const entry of row) {
+		const titleLines = linesFor(entry.title.length, model.w, model.font * scale.font, model.cw);
+		const description = entry.description ? linesFor(entry.description.length, model.w, model.font * scale.font * .92, model.cw) * model.pitch * .92 + 1 : 0;
+		tallest = Math.max(tallest, model.pad + model.pitch * scale.line * titleLines + description);
+	}
+	return tallest;
 };
 /** Height of a list block (strengths, knowledge): heading plus rows of wrapped items. */
 var listBlockHeight = (model, scale, entries, extraHeadings = 0) => {
@@ -27307,13 +27743,7 @@ var listBlockHeight = (model, scale, entries, extraHeadings = 0) => {
 	let rowsHeight = 0;
 	let rows = 0;
 	for (let start = 0; start < entries.length; start += cols) {
-		let tallest = 0;
-		for (const entry of entries.slice(start, start + cols)) {
-			const titleLines = linesFor(entry.title.length, model.w, model.font * scale.font, model.cw);
-			const description = entry.description ? linesFor(entry.description.length, model.w, model.font * scale.font * .92, model.cw) * model.pitch * .92 + 1 : 0;
-			tallest = Math.max(tallest, model.pad + model.pitch * scale.line * titleLines + description);
-		}
-		rowsHeight += tallest;
+		rowsHeight += rowHeight(model, scale, entries.slice(start, start + cols));
 		rows += 1;
 	}
 	return (model.head + extraHeadings * 8 + rowsHeight + model.gap * (rows - 1)) * scale.textHeight;
@@ -27341,7 +27771,7 @@ var buildScale = (geometry, context, templateId) => {
 	const defaultMargin = marginLevelToMm[defaults.marginLevel];
 	const legacyMargin = settings && legacyMarginTemplates.has(templateId ?? "") ? marginLevelToMm[settings.marginLevel] - defaultMargin : 0;
 	const marginInset = Math.max(0, overrides.pageMarginMm !== void 0 ? overrides.pageMarginMm - defaultMargin : legacyMargin);
-	const sectionGap = overrides.sectionGapMm ?? (settings && settings.sectionSpacingLevel !== defaults.sectionSpacingLevel ? geometry.blocks.sectionGap + sectionSpacingLevelToMm[settings.sectionSpacingLevel] - sectionSpacingLevelToMm[defaults.sectionSpacingLevel] : void 0);
+	const sectionGap = overrides.sectionGapMm ?? (settings && settings.sectionSpacingLevel !== defaults.sectionSpacingLevel ? nativeSectionGapOf(geometry, context.atsMode) + sectionSpacingLevelToMm[settings.sectionSpacingLevel] - sectionSpacingLevelToMm[defaults.sectionSpacingLevel] : void 0);
 	const single = context.atsMode || context.layout?.mode === "single";
 	const factors = context.atsMode ? geometry.ats : {
 		exp: 1,
@@ -27360,23 +27790,28 @@ var buildScale = (geometry, context, templateId) => {
 			line,
 			width: width * insetWidth,
 			contWidth: width * insetWidth,
+			mainRatio: insetWidth,
+			sideDelta: 0,
 			marginInset,
 			...factors,
 			...spacing
 		};
 	}
-	let width = 1;
 	const layout = context.layout;
-	if (geometry.columns === 2 && layout?.overridden && layout.nativeSidebarWidthPercent) width = (100 - layout.sidebarWidthPercent) / Math.max(100 - layout.nativeSidebarWidthPercent, 1);
-	const contWidth = geometry.columns === 2 ? geometry.text.contW / geometry.text.bulletW : width;
+	const sideDelta = geometry.columns === 2 && layout?.nativeSidebarWidthPercent ? (layout.sidebarWidthPercent - layout.nativeSidebarWidthPercent) * 2.1 : 0;
+	const bulletRatio = Math.max(.5, (geometry.text.bulletW - sideDelta) / geometry.text.bulletW);
+	const contWidth = geometry.columns === 2 ? geometry.text.contW / geometry.text.bulletW : bulletRatio;
 	const mainInset = Math.max(.55, (geometry.text.mainW - 2 * marginInset) / geometry.text.mainW);
 	const continuationInset = Math.max(.55, (geometry.text.contW - 2 * marginInset) / geometry.text.contW);
+	const mainRatio = Math.max(.5, (geometry.text.mainW - sideDelta) / geometry.text.mainW) * mainInset;
 	return {
 		font,
 		textHeight,
 		line,
-		width: width * mainInset,
+		width: bulletRatio * mainInset,
 		contWidth: contWidth * continuationInset,
+		mainRatio,
+		sideDelta,
 		marginInset,
 		...factors,
 		...spacing
@@ -27406,17 +27841,25 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 		return "main";
 	};
 	const closingHeight = context.closing?.visible ?? Boolean(profile?.resumeClosing && (profile.resumeClosing.showPlace || profile.resumeClosing.showDate || profile.resumeClosing.showSignature)) ? context.closing?.signature ?? Boolean(profile?.signaturePath && profile.resumeClosing?.showSignature) ? CLOSING_MM.signature : CLOSING_MM.plain : 0;
-	const sectionGap = scale.sectionGap ?? geometry.blocks.sectionGap;
+	const sectionGap = scale.sectionGap ?? nativeSectionGapOf(geometry, context.atsMode);
 	const experienceGap = geometry.exp.gap > 0 ? scale.entryGap ?? geometry.exp.gap : 0;
 	const educationGap = geometry.edu.gap > 0 ? scale.entryGap ?? geometry.edu.gap : 0;
-	const items = [...(profile?.experiences ?? []).map((experience) => ({
-		kind: "experience",
-		id: experience.id,
-		weight: 0,
-		gapAfter: experienceGap,
-		first: experienceHeight(experience, geometry, scale, scale.width),
-		cont: experienceHeight(experience, geometry, scale, scale.contWidth)
-	})), ...(profile?.education ?? []).map((education) => ({
+	const items = [...(profile?.experiences ?? []).map((experience) => {
+		const first = experienceMetrics(experience, geometry, scale, scale.width, bulletCapOf(templateId));
+		const cont = experienceMetrics(experience, geometry, scale, scale.contWidth, bulletCapOf(templateId));
+		return {
+			kind: "experience",
+			id: experience.id,
+			weight: 0,
+			gapAfter: experienceGap,
+			first: first.height(0, first.lines.length),
+			cont: cont.height(0, cont.lines.length),
+			parts: {
+				first,
+				cont
+			}
+		};
+	}), ...(profile?.education ?? []).map((education) => ({
 		kind: "education",
 		id: education.id,
 		weight: 0,
@@ -27433,39 +27876,59 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 		};
 		items.sort((left, right) => rank(left.kind) - rank(right.kind));
 	}
-	const sectionHead = (kind) => kind === "experience" ? geometry.exp.head : geometry.edu.head;
-	/** Height of a run of career items on one kind of page, including one heading per section. */
-	const itemsHeight = (list, page) => {
+	const sectionHead = (kind) => (context.atsMode ? geometry.ats.head : void 0) ?? (kind === "experience" ? geometry.exp.head : geometry.edu.head);
+	/** Height of a run of career entries on one page, including one heading per section. */
+	const runHeight = (list) => {
 		let total = 0;
 		let previousKind;
-		list.forEach((item, index) => {
-			if (item.kind !== previousKind) total += (index > 0 ? sectionGap : 0) + sectionHead(item.kind);
+		list.forEach((entry, index) => {
+			if (entry.kind !== previousKind) total += (index > 0 ? sectionGap : 0) + sectionHead(entry.kind);
 			else total += list[index - 1].gapAfter;
-			total += item[page];
-			previousKind = item.kind;
+			total += entry.height;
+			previousKind = entry.kind;
 		});
 		return total;
 	};
+	const wholeShown = (item, page) => ({
+		kind: item.kind,
+		height: item[page],
+		gapAfter: item.gapAfter
+	});
+	const itemsHeight = (list, page) => runHeight(list.map((item) => wholeShown(item, page)));
 	const summaryText = (resumeProfile || profile?.summary || "").trim();
 	const knowledgeSection = profile ? ensureKnowledgeSection(profile.knowledgeSection, profile.skills) : void 0;
-	const knowledgeNames = knowledgeSection ? flattenKnowledgeNames(knowledgeSection) : [];
-	const knowledgeCategories = knowledgeSection?.categories.filter((category) => category.isVisible).length ?? 0;
-	const strengthEntries = (profile?.strengths ?? []).filter((entry) => entry.title.trim()).map((entry) => ({
+	const knowledgeGroups = knowledgeSection?.isVisible === false ? [] : knowledgeLists(knowledgeSection ?? {
+		title: "",
+		categories: [],
+		isVisible: true
+	}).filter((list) => list.items.length);
+	const knowledgeItemCount = knowledgeGroups.reduce((total, list) => total + list.items.length, 0);
+	const explicitStrengths = (profile?.strengths ?? []).filter((entry) => entry.title.trim()).map((entry) => ({
 		title: entry.title.trim(),
 		description: entry.description.trim()
 	}));
+	const strengthEntries = explicitStrengths.length ? explicitStrengths : [...new Set((profile?.skills ?? []).map((value) => value.trim()).filter(Boolean))].map((value) => {
+		const [title, ...description] = value.split(/\s+(?:–|—|:)\s+/);
+		return {
+			title,
+			description: description.join(" – ")
+		};
+	});
 	const languages = (profile?.languages ?? []).filter((entry) => entry.trim());
 	const certifications = (profile?.certifications ?? []).filter((entry) => entry.trim());
 	const { blocks } = geometry;
 	const line = (values, count) => values[0] + values[1] * count;
-	const textWidth = (zone) => (zone === "sidebar" && !flat ? geometry.text.sideW : flat ? geometry.text.atsW : geometry.text.mainW) * scale.width;
+	const textWidth = (zone) => flat ? ((context.atsMode ? geometry.ats.summaryW : void 0) ?? geometry.text.atsW) * scale.mainRatio : zone === "sidebar" ? geometry.text.sideW + scale.sideDelta : geometry.text.mainW * scale.mainRatio;
 	const settings = context.settings ?? defaultDocumentDesign;
 	const gridModel = (kind, entries, zone, page) => {
 		const model = geometry.items[kind];
-		if (zone === "sidebar" && !flat && page === "first") return model;
+		if (zone === "sidebar" && !flat && page === "first") return {
+			...model,
+			w: model.w + scale.sideDelta
+		};
 		const beside = !flat && page === "first" && geometry.columns === 2;
 		const cols = resolveSectionColumns(kind === "strengths" ? settings.strengthsColumns : settings.knowledgeColumns, templateId ?? "", "main", entries, settings, beside);
-		const width = beside ? geometry.text.mainW * scale.width : geometry.text.fullW;
+		const width = beside ? geometry.text.mainW * scale.mainRatio : geometry.text.fullW;
 		return {
 			...model,
 			cols,
@@ -27477,20 +27940,23 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 	if (visible("summary") && summaryText) {
 		const zone = zoneOf("summary");
 		const lines = linesFor(summaryText.length, textWidth(zone), geometry.text.sumFont * scale.font, geometry.text.cw * SUMMARY_WRAP_SLACK);
+		const summaryHead = context.atsMode ? geometry.ats.head ?? geometry.exp.head : blocks.summary[0];
 		flow.push({
 			id: "summary",
 			zone,
-			height: (blocks.summary[0] + blocks.summary[1] * scale.line * lines) * scale.textHeight,
+			height: (summaryHead + blocks.summary[1] * scale.line * lines) * scale.textHeight,
 			home: "first"
 		});
 	}
-	if (visible("strengths") && strengthEntries.length) {
+	const derivedStrengths = explicitStrengths.length ? "first" : geometry.derivedStrengths[context.atsMode ? "ats" : "visual"];
+	if (visible("strengths") && strengthEntries.length && derivedStrengths !== "never") {
 		const zone = zoneOf("strengths");
 		flow.push({
 			id: "strengths",
 			zone,
 			height: listBlockHeight(gridModel("strengths", strengthEntries, zone, "first"), scale, strengthEntries),
-			home: "first"
+			home: "first",
+			singleOnly: derivedStrengths === "single"
 		});
 	}
 	if (visible("languages") && languages.length) {
@@ -27498,7 +27964,7 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 		flow.push({
 			id: "languages",
 			zone,
-			height: (line(blocks.languages, languages.length) + languages.filter((entry) => entry.length > 22).length * geometry.exp.linePitch) * scale.textHeight,
+			height: context.atsMode ? line(geometry.ats.languages, languages.length) * scale.textHeight : (line(blocks.languages, languages.length) + languages.filter((entry) => entry.length > 22).length * geometry.exp.linePitch) * scale.textHeight,
 			home: !flat && geometry.zones.languages === "sidebar" ? "first" : "last"
 		});
 	}
@@ -27516,29 +27982,81 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 		}
 	}
 	const knowledgeZone = zoneOf("knowledge");
-	if (visible("knowledge") && knowledgeNames.length) {
-		const names = knowledgeNames.map((name) => ({ title: name }));
-		const extraHeadings = Math.max(0, knowledgeCategories - 1);
-		flow.push({
-			id: "knowledge",
-			zone: knowledgeZone,
-			height: listBlockHeight(gridModel("knowledge", names, knowledgeZone, "first"), scale, names, extraHeadings),
-			contHeight: listBlockHeight(gridModel("knowledge", names, knowledgeZone, "last"), scale, names, extraHeadings),
-			home: "last",
-			hostable: knowledgeZone === "sidebar" && !flat
-		});
+	if (visible("knowledge") && knowledgeItemCount) {
+		const knowledgeRows = (page) => {
+			const rows = [];
+			let shown = 0;
+			knowledgeGroups.forEach((group, list) => {
+				const entries = group.items.map((item) => ({
+					title: item.name,
+					description: item.description
+				}));
+				const model = gridModel("knowledge", entries, knowledgeZone, page);
+				const cols = Math.max(model.cols, 1);
+				for (let start = 0; start < entries.length; start += cols) {
+					const row = entries.slice(start, start + cols);
+					shown += row.length;
+					rows.push({
+						end: shown,
+						height: rowHeight(model, scale, row),
+						list,
+						gap: model.gap
+					});
+				}
+			});
+			return rows;
+		};
+		const rowsHeight = (rows, from, to) => {
+			const part = rows.slice(from, to);
+			if (!part.length) return 0;
+			const lists = new Set(part.map((row) => row.list)).size;
+			return (geometry.items.knowledge.head + 8 * (lists - 1) + part.reduce((total, row) => total + row.height, 0) + part[0].gap * (part.length - lists)) * scale.textHeight;
+		};
+		if (context.atsMode) {
+			const model = geometry.ats.knowledge;
+			const listHeights = knowledgeGroups.map(({ category, items }) => {
+				const lines = linesFor(items.reduce((total, item) => total + formatKnowledgeItem(item, category.showLevels, category.showYearsOfExperience, "comma-separated").length, 2 * (items.length - 1)), model.w * scale.mainRatio, model.font * scale.font, geometry.text.cw * ATS_LIST_WRAP);
+				return model.title + lines * model.pitch * scale.line;
+			});
+			const height = (model.head + sumHeights(listHeights, model.gap) + model.tail) * scale.textHeight;
+			flow.push({
+				id: "knowledge",
+				zone: knowledgeZone,
+				height,
+				contHeight: height,
+				home: "last"
+			});
+		} else {
+			const firstRows = knowledgeRows("first");
+			const lastRows = knowledgeRows("last");
+			flow.push({
+				id: "knowledge",
+				zone: knowledgeZone,
+				height: rowsHeight(firstRows, 0, firstRows.length),
+				contHeight: rowsHeight(lastRows, 0, lastRows.length),
+				home: "last",
+				hostable: knowledgeZone === "sidebar" && !flat,
+				split: {
+					ends: lastRows.map((row) => row.end),
+					height: (from, to) => rowsHeight(lastRows, from, to)
+				}
+			});
+		}
 	}
 	const certificates = geometry.certs;
-	if (visible("certifications") && certifications.length && certificates.home !== "none") {
-		const shown = certifications.slice(0, certificates.limit ?? certifications.length);
-		const width = flat ? geometry.text.fullW : certificates.w * (certificates.zone === "main" ? scale.width : 1);
+	const plain = Boolean(context.atsMode);
+	const certificateHome = flat ? "last" : certificates.home;
+	if (visible("certifications") && certifications.length && (plain || certificateHome !== "none")) {
+		const shown = plain ? certifications : certifications.slice(0, certificates.limit ?? certifications.length);
+		const width = flat ? geometry.text.fullW : certificates.zone === "main" ? certificates.w * scale.mainRatio : certificates.w + scale.sideDelta;
 		const wrapped = shown.reduce((total, entry) => total + Math.max(0, linesFor(entry.length, width, certificates.font * scale.font, geometry.text.cw) - 1), 0);
+		const model = plain ? geometry.ats.certs : certificates;
 		const zone = flat ? "main" : (customLayout ? find("certifications")?.zone : void 0) ?? certificates.zone;
 		flow.push({
 			id: "certifications",
 			zone,
-			height: (certificates.base + certificates.perItem * shown.length + certificates.pitch * scale.line * wrapped) * scale.textHeight,
-			home: flat ? "last" : certificates.home
+			height: (model.base + model.perItem * shown.length + certificates.pitch * scale.line * wrapped) * scale.textHeight,
+			home: certificateHome === "none" ? "last" : certificateHome
 		});
 	}
 	const hostedIds = [];
@@ -27567,22 +28085,29 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 		hostedIds.push(entry.id);
 	}
 	const contactOnContinuation = find("personalData")?.visible !== false && Boolean(profile?.email?.trim() || profile?.phone?.trim());
-	const kompaktContactHeight = templateId === "kompakt" && contactOnContinuation ? 5.5 : 0;
-	const top1 = (context.atsMode ? geometry.atsTop1 : geometry.top1) + kompaktContactHeight;
-	const top2 = (context.atsMode ? geometry.atsTop2 + geometry.top1 - geometry.top2 : geometry.top1) + kompaktContactHeight;
+	const kompaktContactHeight = !context.atsMode && templateId === "kompakt" && contactOnContinuation ? 5.5 : 0;
+	const stackedHeader = context.atsMode ? geometry.ats.header : void 0;
+	const stackedHeight = stackedHeader ? stackedHeader.base + stackedHeader.perContact * (find("personalData")?.visible === false ? 0 : atsContactLines(templateId, profile)) : void 0;
+	const top1 = (context.atsMode ? stackedHeight ?? geometry.atsTop1 : geometry.top1) + kompaktContactHeight;
+	const top2 = (context.atsMode ? stackedHeight ?? geometry.atsTop2 : geometry.top1) + kompaktContactHeight;
 	const mainCap1 = (geometry.limit - top1 - 2 * scale.marginInset) * SAFETY;
 	const mainCap2 = (geometry.limit - top2 - 2 * scale.marginInset) * SAFETY;
 	const sideCap1 = geometry.sideTop1 === null || flat ? 0 : (geometry.sideLimit - geometry.sideTop1 - 2 * scale.marginInset) * SAFETY;
-	const dense = geometry.density;
+	const dense = context.atsMode ? geometry.ats.density : geometry.density;
 	const blockLoad = (blocksOfZone, zone) => {
 		return sumHeights(blocksOfZone.filter((block) => block.zone === zone).map((block) => block.height), zone === "sidebar" ? blocks.sideGap : sectionGap);
 	};
-	const firstBlocks = flow.filter((block) => block.home === "first");
+	const firstBlocks = flow.filter((block) => block.home === "first" && !block.singleOnly);
+	const singleOnlyBlocks = flow.filter((block) => block.singleOnly);
 	const lastBlocks = flow.filter((block) => block.home === "last");
 	const hostable = lastBlocks.filter((block) => block.hostable);
 	const stack = (fixed, run) => fixed + run + (fixed > 0 && run > 0 ? sectionGap : 0);
-	const wholeMain = () => stack(blockLoad(firstBlocks, "main"), stack(itemsHeight(items, "first"), blockLoad(lastBlocks, "main"))) + closingHeight;
-	const wholeSide = () => blockLoad([...firstBlocks, ...lastBlocks], "sidebar");
+	const wholeMain = () => stack(blockLoad([...firstBlocks, ...singleOnlyBlocks], "main"), stack(itemsHeight(items, "first"), blockLoad(lastBlocks, "main"))) + closingHeight;
+	const wholeSide = () => blockLoad([
+		...firstBlocks,
+		...singleOnlyBlocks,
+		...lastBlocks
+	], "sidebar");
 	const forced = options.firstPageItemCount;
 	const onePage = (density) => [{
 		pageNumber: 1,
@@ -27610,10 +28135,104 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 	}
 	const pageOneFlow = [...firstBlocks, ...lastBlocks.filter((block) => hostedOnFirst.has(block.id))];
 	const pageTwoFlow = lastBlocks.filter((block) => !hostedOnFirst.has(block.id));
-	const lastMainFixed = sumHeights(pageTwoFlow.map((block) => block.contHeight ?? block.height), sectionGap);
+	const contOf = (block) => block.contHeight ?? block.height;
+	const nativeTail = templateId === "tabellarisch" && !context.atsMode ? [
+		"certifications",
+		"languages",
+		"knowledge"
+	] : templateId === "gepflegt" && flat ? ["languages", "knowledge"] : [
+		"projects",
+		"knowledge",
+		"languages",
+		"certifications"
+	];
+	const tail = [];
+	if (!customLayout) for (const id of nativeTail) {
+		const block = pageTwoFlow.find((candidate) => candidate.id === id);
+		if (!block) continue;
+		if ((id === "projects" || id === "knowledge") && (flat || block.zone === "main")) tail.push(block);
+		else break;
+	}
+	const pinned = pageTwoFlow.filter((block) => !tail.includes(block));
+	const pinnedLoad = sumHeights(pinned.map(contOf), sectionGap);
 	const load1Fixed = blockLoad(pageOneFlow, "main");
 	const sideLoadOne = blockLoad(pageOneFlow, "sidebar");
 	const sideFill = sideCap1 ? sideLoadOne / sideCap1 : 0;
+	const totalBullets = (item) => item.parts?.first.lines.length ?? 0;
+	/** Bullet counts after which an entry may break without leaving a widow or an orphan. */
+	const breakPoints = (item) => {
+		if (!item.parts) return [];
+		const points = [];
+		for (let kept = 1; kept < totalBullets(item); kept += 1) {
+			const before = item.parts.first.lines.slice(0, kept).reduce((total, value) => total + value, 0);
+			const after = item.parts.cont.lines.slice(kept).reduce((total, value) => total + value, 0);
+			if (before >= MIN_SPLIT_LINES && after >= MIN_SPLIT_LINES) points.push(kept);
+		}
+		return points;
+	};
+	const shownFirst = ({ count, kept }) => {
+		const list = items.slice(0, count).map((item) => wholeShown(item, "first"));
+		const split = kept ? items[count] : void 0;
+		if (split?.parts) list.push({
+			kind: split.kind,
+			height: split.parts.first.height(0, kept),
+			gapAfter: split.gapAfter
+		});
+		return list;
+	};
+	const shownLast = ({ count, kept }) => {
+		const split = kept ? items[count] : void 0;
+		const list = [];
+		if (split?.parts) list.push({
+			kind: split.kind,
+			height: split.parts.cont.height(kept, totalBullets(split)),
+			gapAfter: split.gapAfter
+		});
+		list.push(...items.slice(count + (kept ? 1 : 0)).map((item) => wholeShown(item, "cont")));
+		return list;
+	};
+	/** Heights of the tail blocks drawn on page one / on the last page, including a block that breaks between them. */
+	const tailFirst = ({ tail: whole, rows }) => [...tail.slice(0, whole).map((block) => block.height), ...rows && tail[whole]?.split ? [tail[whole].split.height(0, rows)] : []];
+	const tailLast = ({ tail: whole, rows }) => [...rows && tail[whole]?.split ? [tail[whole].split.height(rows, tail[whole].split.ends.length)] : [], ...tail.slice(whole + (rows ? 1 : 0)).map(contOf)];
+	const loadFirst = (cut) => stack(load1Fixed, stack(runHeight(shownFirst(cut)), sumHeights(tailFirst(cut), sectionGap)));
+	const loadLast = (cut) => stack(stack(runHeight(shownLast(cut)), sumHeights(tailLast(cut), sectionGap)), pinnedLoad) + closingHeight;
+	const cuts = [];
+	for (let count = 0; count <= items.length; count += 1) {
+		cuts.push({
+			count,
+			kept: 0,
+			tail: 0,
+			rows: 0
+		});
+		const item = items[count];
+		if (item) for (const kept of breakPoints(item)) cuts.push({
+			count,
+			kept,
+			tail: 0,
+			rows: 0
+		});
+	}
+	for (let whole = 1; whole <= tail.length; whole += 1) {
+		const split = tail[whole - 1].split;
+		if (split) for (let rows = 2; rows <= split.ends.length - 2; rows += 1) cuts.push({
+			count: items.length,
+			kept: 0,
+			tail: whole - 1,
+			rows
+		});
+		cuts.push({
+			count: items.length,
+			kept: 0,
+			tail: whole,
+			rows: 0
+		});
+	}
+	const candidates = cuts.filter((cut) => shownLast(cut).length > 0 || tailLast(cut).length > 0 || pinned.length > 0);
+	const densityFactor = {
+		standard: 1,
+		compact: dense.compact,
+		dense: dense.dense
+	};
 	const densityFor = (fill) => {
 		if (fill <= 1) return {
 			density: "standard",
@@ -27628,63 +28247,99 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 			overflow: Math.max(0, fill * dense.dense - 1)
 		};
 	};
-	const splits = (count) => {
-		const before = items[count - 1];
-		const after = items[count];
-		return Boolean(before && after && before.kind === after.kind);
-	};
-	const singleSide = (count) => {
-		if (!splits(count)) return false;
-		const kind = items[count].kind;
-		const onFirst = items.slice(0, count).filter((item) => item.kind === kind).length;
-		const onSecond = items.slice(count).filter((item) => item.kind === kind).length;
-		return onFirst === 1 || onSecond === 1;
-	};
-	const candidates = [];
-	const evaluate = (count) => {
-		const load1 = stack(load1Fixed, itemsHeight(items.slice(0, count), "first"));
-		const load2 = stack(lastMainFixed, itemsHeight(items.slice(count), "cont")) + closingHeight;
-		const fillOne = load1 / mainCap1;
-		const fillTwo = load2 / mainCap2;
-		const one = densityFor(Math.max(fillOne, sideFill));
-		const two = densityFor(fillTwo);
-		const preferWhole = options.keepSectionsTogether ?? true;
-		const gap = fillOne - fillTwo;
-		const cost = 1e3 * (one.overflow + two.overflow) + (one.density === "compact" ? .04 : one.density === "dense" ? .2 : 0) + (two.density === "compact" ? .04 : two.density === "dense" ? .2 : 0) + Math.max(0, MIN_LAST_FILL - fillTwo) * 3 + Math.max(0, MIN_FIRST_FILL - fillOne) * 1.5 + Math.max(0, -gap - REVERSED_GAP) * .6 + Math.max(0, gap - MAX_FILL_GAP) + (templateId === "zweispaltig" && !flat ? Math.max(0, .85 - fillOne) * 2.4 : 0) + (splits(count) ? (preferWhole ? .14 : .04) + (singleSide(count) ? .05 : 0) : 0);
-		candidates.push({
-			count,
-			fillOne,
-			fillTwo,
-			densityOne: one.density,
-			densityTwo: two.density,
-			cost
+	const assemble = (cut, densityOne, densityTwo) => {
+		const split = cut.kept ? items[cut.count] : void 0;
+		const part = (item, from, to, page) => ({
+			kind: "experience",
+			id: item.id,
+			weight: Math.round((item.parts?.[page].height(from, to) ?? 0) * 10) / 10,
+			bullets: {
+				from,
+				to,
+				total: totalBullets(item)
+			}
 		});
+		const firstItems = items.slice(0, cut.count).map((item) => strip(item, "first"));
+		if (split) firstItems.push(part(split, 0, cut.kept, "first"));
+		const lastItems = [];
+		if (split) lastItems.push(part(split, cut.kept, totalBullets(split), "cont"));
+		lastItems.push(...items.slice(cut.count + (split ? 1 : 0)).map((item) => strip(item, "cont")));
+		const broken = cut.rows ? tail[cut.tail] : void 0;
+		const total = broken?.split ? knowledgeItemCount : 0;
+		const shown = broken?.split ? broken.split.ends[cut.rows - 1] : 0;
+		const ranges = broken?.split ? {
+			first: { [broken.id]: {
+				from: 0,
+				to: shown,
+				total
+			} },
+			last: { [broken.id]: {
+				from: shown,
+				to: total,
+				total
+			} }
+		} : void 0;
+		return [{
+			pageNumber: 1,
+			items: firstItems,
+			density: densityOne,
+			blocks: [...pageOneFlow.filter((block) => block.home === "last"), ...tail.slice(0, cut.tail + (broken ? 1 : 0))].map((block) => block.id),
+			...ranges ? { blockRanges: ranges.first } : {},
+			sidebar: geometry.columns === 2 && !flat,
+			fill: {
+				main: loadFirst(cut) / mainCap1,
+				sidebar: sideFill
+			}
+		}, {
+			pageNumber: 2,
+			items: lastItems,
+			density: densityTwo,
+			blocks: [...tail.slice(cut.tail), ...pinned].map((block) => block.id),
+			...ranges ? { blockRanges: ranges.last } : {},
+			sidebar: false,
+			fill: {
+				main: loadLast(cut) / mainCap2,
+				sidebar: 0
+			}
+		}];
 	};
-	if (forced !== void 0) evaluate(Math.min(Math.max(forced, 0), items.length));
-	else for (let count = 1; count < items.length; count += 1) evaluate(count);
-	const best = candidates.reduce((chosen, candidate) => candidate.cost < chosen.cost - 1e-9 || Math.abs(candidate.cost - chosen.cost) <= 1e-9 && candidate.count > chosen.count ? candidate : chosen);
-	if (forced === void 0 && fitsCompact && COMPACT_PAGE_COST <= best.cost) return onePage("compact");
-	return [{
-		pageNumber: 1,
-		items: items.slice(0, best.count).map((item) => strip(item, "first")),
-		density: best.densityOne,
-		blocks: pageOneFlow.filter((block) => block.home === "last").map((block) => block.id),
-		sidebar: geometry.columns === 2 && !flat,
-		fill: {
-			main: best.fillOne,
-			sidebar: sideFill
+	if (forced !== void 0) {
+		const cut = {
+			count: Math.min(Math.max(forced, 0), items.length),
+			kept: 0,
+			tail: 0,
+			rows: 0
+		};
+		return assemble(cut, densityFor(Math.max(loadFirst(cut) / mainCap1, sideFill)).density, densityFor(loadLast(cut) / mainCap2).density);
+	}
+	const greedy = (density) => {
+		const factor = densityFactor[density];
+		let index = 0;
+		candidates.forEach((cut, position) => {
+			if (loadFirst(cut) * factor <= mainCap1) index = position;
+		});
+		return index;
+	};
+	let density = "dense";
+	let index = greedy("dense");
+	for (const attempt of ["standard", "compact"]) {
+		if (sideFill * densityFactor[attempt] > 1) continue;
+		const position = greedy(attempt);
+		if (loadLast(candidates[position]) * densityFactor[attempt] <= mainCap2) {
+			density = attempt;
+			index = position;
+			break;
 		}
-	}, {
-		pageNumber: 2,
-		items: items.slice(best.count).map((item) => strip(item, "cont")),
-		density: best.densityTwo,
-		blocks: pageTwoFlow.map((block) => block.id),
-		sidebar: false,
-		fill: {
-			main: best.fillTwo,
-			sidebar: 0
-		}
-	}];
+	}
+	const factor = densityFactor[density];
+	while (index > 0 && loadLast(candidates[index]) / mainCap2 < MIN_LAST_FILL) {
+		const earlier = candidates[index - 1];
+		if (loadFirst(earlier) / mainCap1 < MIN_FIRST_FILL || loadLast(earlier) * factor > mainCap2) break;
+		index -= 1;
+	}
+	const best = candidates[index];
+	if (fitsCompact && (density !== "standard" || loadLast(best) / mainCap2 < COMPACT_INSTEAD_OF_LAST_BELOW)) return onePage("compact");
+	return assemble(best, density, density);
 };
 var getLetterPageStatus = (documents) => {
 	const characterCount = [
@@ -27736,7 +28391,7 @@ var resolveCvDocument = ({ profile: sourceProfile, templateId: requestedTemplate
 			mode: layout.mode,
 			sidebarWidthPercent: layout.sidebarWidthPercent,
 			overridden: layout.overridden,
-			nativeSidebarWidthPercent: resolveResumeLayout(templateId, void 0, false, sourceProfile?.resumeColumnRatio).sidebarWidthPercent
+			nativeSidebarWidthPercent: resolveResumeLayout(templateId, void 0, false).sidebarWidthPercent
 		},
 		sections: managerSections.map(({ id, visible, zone }) => ({
 			id,
@@ -27828,7 +28483,7 @@ var managedResumeCss = `
 .managed-ats .managed-strength-card,.managed-ats .managed-item{grid-template-columns:minmax(0,1fr)}
 .managed-ats .managed-strength-card strong,.managed-ats .managed-strength-card p{grid-column:1}
 
-.managed-extra:not([data-custom-template]){margin:0 0 4mm;break-inside:avoid;color:inherit;font:inherit}
+.managed-extra:not([data-custom-template]){margin:0 0 4mm;break-inside:auto;color:inherit;font:inherit}
 .managed-extra:not([data-custom-template]) h3{margin:0 0 2mm;font-size:1.08em;color:inherit}
 .managed-extra ul{padding-left:4mm;margin:0}.managed-extra li{margin-bottom:1mm}
 .managed-extra:not([data-custom-template]) small{display:block;font-size:.92em}.managed-extra:not([data-custom-template]) p{margin:1mm 0}
@@ -27846,8 +28501,8 @@ var managedResumeCss = `
 :where([data-custom-template]) .resume-special-output__meta{opacity:1}
 :where([data-custom-template="kreativ"]) [data-content-type="list"]>[data-custom-role="entry"]{display:list-item}
 :where([data-custom-template="kreativ"]) [data-content-type="list"]>[data-custom-role="entry"]::marker{color:var(--kreativ-primary,var(--accent,currentColor))}
-[data-managed-section]{break-inside:avoid}
-[data-managed-section][data-custom-template]{break-inside:avoid}
+[data-managed-section]{break-inside:auto}
+[data-managed-section][data-custom-template]{break-inside:auto}
 [data-managed-moved], [data-managed-moved] :is(p,li,small){color:inherit!important}
 [data-managed-section="strengths"] .managed-strengths-grid{display:grid;grid-template-columns:repeat(var(--section-columns,1),minmax(0,1fr));gap:3mm;list-style:none;margin:0;padding:0}
 [data-managed-section="strengths"] .managed-strength-card{display:grid;grid-template-columns:4mm minmax(0,1fr);align-items:start;gap:1mm 1.5mm;min-width:0;margin:0;padding:0;border:0;break-inside:avoid;overflow-wrap:anywhere}
@@ -27858,6 +28513,7 @@ ${resumeSpacingCss}
 ${resumeMetadataCss}
 ${resumeClosingCss}
 ${resumeContinuationCss}
+${resumeEntrySplitCss}
 ${pehlioneAppearanceCss}`;
 /** Resolve section-title colors by column role on both HTML surfaces. */
 var applyResumeSectionHeadingColors = (root, settings) => {
@@ -28047,11 +28703,22 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 			const columns = columnsFor(entry, values, strengths);
 			return `<div class="${strengths ? "managed-strengths-grid" : "managed-item-grid"}" data-columns="${columns}" style="--section-columns:${columns}">${content}</div>`;
 		};
-		const renderKnowledge = (entry) => {
+		const renderKnowledge = (entry, range) => {
 			const knowledge = ensureKnowledgeSection(profile.knowledgeSection, profile.skills);
 			if (!knowledge.isVisible) return "";
-			const list = (items, category, mode) => {
+			let position = 0;
+			const take = (items) => {
 				const visible = visibleKnowledgeItems(items);
+				const start = position;
+				position += visible.length;
+				const shown = range ? visible.filter((_, index) => start + index >= range.from && start + index < range.to) : visible;
+				return {
+					shown,
+					continued: Boolean(range) && shown.length > 0 && start < (range?.from ?? 0)
+				};
+			};
+			const marker = " <span data-resume-entry-marker>· Fortsetzung</span>";
+			const list = (visible, category, mode) => {
 				if (isAts) return `<p>${visible.map((item) => escape$1(formatKnowledgeItem(item, category.showLevels, category.showYearsOfExperience, "comma-separated"))).join(", ")}</p>`;
 				const content = visible.map((item) => {
 					const text = escape$1(formatKnowledgeItem(item, category.showLevels, category.showYearsOfExperience, mode));
@@ -28063,7 +28730,19 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 					description: item.description
 				})), content);
 			};
-			return knowledge.categories.filter((item) => item.isVisible).sort((a, b) => a.sortOrder - b.sortOrder).map((category) => `<div class="managed-knowledge-category"><h4>${escape$1(category.title)}</h4>${category.subtitle ? `<small>${escape$1(category.subtitle)}</small>` : ""}${list(category.items, category, category.displayMode)}${category.subcategories.filter((sub) => sub.isVisible).sort((a, b) => a.sortOrder - b.sortOrder).map((sub) => `<h5>${escape$1(sub.title)}</h5>${list(sub.items, category, sub.displayMode ?? category.displayMode)}`).join("")}</div>`).join("");
+			return knowledge.categories.filter((item) => item.isVisible).sort((a, b) => a.sortOrder - b.sortOrder).map((category) => {
+				const own = take(category.items);
+				const subs = category.subcategories.filter((sub) => sub.isVisible).sort((a, b) => a.sortOrder - b.sortOrder).map((sub) => ({
+					sub,
+					...take(sub.items)
+				}));
+				if (range && !own.shown.length && !subs.some((entry) => entry.shown.length)) return "";
+				const continued = own.continued || !own.shown.length && subs.some((entry) => entry.continued);
+				const head = `<h4>${escape$1(category.title)}${continued ? marker : ""}</h4>`;
+				const body = own.shown.length || !range ? list(own.shown, category, category.displayMode) : "";
+				const subBlocks = subs.filter((entry) => !range || entry.shown.length).map((entry) => `<h5>${escape$1(entry.sub.title)}${entry.continued ? marker : ""}</h5>${list(entry.shown, category, entry.sub.displayMode ?? category.displayMode)}`).join("");
+				return `<div class="managed-knowledge-category">${head}${category.subtitle ? `<small>${escape$1(category.subtitle)}</small>` : ""}${body}${subBlocks}</div>`;
+			}).join("");
 		};
 		const container = (entry) => entry.zone === "sidebar" ? sidebar : main;
 		const appendSection = (entry, node) => {
@@ -28121,7 +28800,7 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 					nodes.delete(entry.id);
 					continue;
 				}
-				content = renderKnowledge(entry);
+				content = renderKnowledge(entry, planned[number - 1]?.blockRanges?.[entry.id]);
 				if (!content) {
 					existing.forEach((node) => node.remove());
 					nodes.delete(entry.id);
@@ -28146,11 +28825,12 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 					continue;
 				}
 			}
+			const blockTitle = (planned[number - 1]?.blockRanges?.[entry.id]?.from ?? 0) > 0 ? `${entry.title} · Fortsetzung` : entry.title;
 			if (content && (entry.id === "knowledge" || entry.id.startsWith("special:")) && existing.length) {
 				const node = existing[0];
-				node.innerHTML = (node.querySelector("h2,h3")?.outerHTML ?? `<h3>${escape$1(entry.title)}</h3>`) + content;
+				node.innerHTML = (node.querySelector("h2,h3")?.outerHTML ?? `<h3>${escape$1(blockTitle)}</h3>`) + content;
 				if (entry.id.startsWith("special:")) node.setAttribute("data-section-type", "main-section");
-				setHeadingText(node.querySelector("h2,h3"), entry.title);
+				setHeadingText(node.querySelector("h2,h3"), blockTitle);
 				if (isAts) node.classList.add("managed-ats");
 				existing.slice(1).forEach((duplicate) => duplicate.remove());
 				nodes.set(entry.id, [node]);
@@ -28160,7 +28840,7 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 				node.className = `managed-extra${isAts ? " managed-ats" : ""}`;
 				node.setAttribute("data-managed-section", entry.id);
 				if (entry.id.startsWith("special:")) node.setAttribute("data-section-type", "main-section");
-				node.innerHTML = `<h3>${escape$1(entry.title)}</h3>${content}`;
+				node.innerHTML = `<h3>${escape$1(blockTitle)}</h3>${content}`;
 				if (group?.pageBreakBefore) node.style.breakBefore = "page";
 				appendSection(entry, node);
 				nodes.set(entry.id, [node]);
@@ -28262,6 +28942,19 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 			experience: careerPresent("experience"),
 			education: careerPresent("education")
 		});
+		if (planned.some((page) => page.items.length)) removeEmptyCareerHint(root);
+		const previousPlan = planned[number - 2];
+		for (const kind of ["experience", "education"]) {
+			if (!previousPlan?.items.some((item) => item.kind === kind) || !pagePlan?.items.some((item) => item.kind === kind)) continue;
+			for (const section of nodes.get(kind) ?? []) {
+				const heading = section.querySelector("h2,h3");
+				if (heading && !/Fortsetzung/i.test(heading.textContent ?? "")) setHeadingText(heading, `${(heading.textContent ?? "").trim()} · Fortsetzung`);
+			}
+		}
+		if (pagePlan) {
+			const entrySources = resumeSectionStyleSources[root.matches(".cv-sheet") ? "pdf" : "preview"][resolved.templateId];
+			applyEntryBreaks(nodes.get("experience") ?? [], entrySources?.[6] ?? "", entrySources?.[2] ?? "", pagePlan.items);
+		}
 		if (number === 1 && (pages.length > 1 || totalPages > 1)) ensureResumeHeaderContacts(root, enabled("personalData") ? profile : void 0);
 		else if (firstPageHeader) repeatResumeHeader(root, firstPageHeader);
 		else normalizeContinuationHeader(root, number, pages.length > 1 ? pages.length : totalPages, enabled("personalData") ? profile : void 0);
@@ -28563,7 +29256,7 @@ var documentCss = (accent, secondary, onSecondary, settings) => {
   .column-compact-ats{grid-template:"header" auto "side" auto "main" 1fr/1fr}.column-compact-ats .cv-avatar{display:none}.column-compact-ats .cv-header{padding-bottom:5mm;border-bottom:1px solid var(--line)}.column-compact-ats .cv-secondary{display:grid;grid-template-columns:2fr 1fr 1fr;gap:4mm;padding:0 var(--doc-margin)}.column-compact-ats .cv-primary{padding:0 var(--doc-margin) var(--doc-margin)}.column-compact-ats section{margin-top:3.5mm}.column-compact-ats p,.column-compact-ats li{font-size:8.2pt;line-height:1.28}
   .background-soft{background:color-mix(in srgb,var(--accent),white 96%)}.background-geometric{background-color:#fff;background-image:linear-gradient(135deg,color-mix(in srgb,var(--accent),transparent 95%) 25%,transparent 25%),linear-gradient(315deg,color-mix(in srgb,var(--accent),transparent 96%) 25%,transparent 25%);background-size:28mm 28mm}.background-hexagons{background-color:#fff;background-image:radial-gradient(circle at 25% 25%,color-mix(in srgb,var(--accent),transparent 92%) 1px,transparent 1.5px);background-size:8mm 8mm}.background-waves{background:radial-gradient(ellipse at 100% 0,color-mix(in srgb,var(--accent),transparent 88%) 0 18%,transparent 18.2% 25%,color-mix(in srgb,var(--accent),transparent 95%) 25.2% 31%,transparent 31.2%),#fff}.background-lines{background-color:#fff;background-image:linear-gradient(color-mix(in srgb,var(--accent),transparent 96%) 1px,transparent 1px);background-size:100% 8mm}.background-dots{background-color:#fff;background-image:radial-gradient(color-mix(in srgb,var(--accent),transparent 88%) .55px,transparent .7px);background-size:5mm 5mm}.background-abstract{background:radial-gradient(ellipse at 105% 15%,color-mix(in srgb,var(--accent),transparent 86%) 0 12%,transparent 12.2% 18%,color-mix(in srgb,var(--secondary),transparent 94%) 18.2% 24%,transparent 24.2%),#fff}.background-corner{background:linear-gradient(135deg,color-mix(in srgb,var(--accent),white 28%) 0 13%,transparent 13.2%),#fff}.background-pastel-gradient{background:linear-gradient(145deg,color-mix(in srgb,var(--accent),white 93%),#fff 52%,color-mix(in srgb,var(--secondary),white 94%))}.background-top-band{background:linear-gradient(180deg,color-mix(in srgb,var(--accent),white 80%) 0 24mm,#fff 24.2mm)}.background-bottom-band{background:linear-gradient(0deg,color-mix(in srgb,var(--accent),white 82%) 0 18mm,#fff 18.2mm)}
   .page-number{position:absolute;right:10mm;bottom:7mm;color:var(--muted);font-size:7.5pt}
-  .cv-entry,.cv-page section,.signature{break-inside:avoid;page-break-inside:avoid}.cv-page section>h3{break-after:avoid;page-break-after:avoid}
+  .cv-entry,.signature{break-inside:avoid;page-break-inside:avoid}.cv-page section{break-inside:auto;page-break-inside:auto}.cv-page section>h3{break-after:avoid;page-break-after:avoid}
   @media print{body{background:#fff}.page{margin:0}.no-print-background{background:#fff!important}.no-print-background .document-background-layer{display:none!important}}
 `;
 };
@@ -28583,7 +29276,7 @@ var elegantDocumentCss = `
   .elegant-pdf-section{margin-top:var(--section-gap)}
   .elegant-pdf-section>h3,.elegant-pdf-ats .knowledge-section>h3{display:block;margin:0 0 3.2mm;padding-bottom:1.5mm;border-bottom:.3mm solid var(--elegant-line);color:var(--elegant-heading);font-size:12pt;font-weight:500;letter-spacing:.055em;line-height:1.1;text-transform:uppercase}
   .elegant-pdf-list{display:flex;flex-direction:column;gap:5mm}
-  .elegant-pdf-entry{break-inside:avoid;page-break-inside:avoid}
+  .elegant-pdf-entry{break-inside:auto;page-break-inside:auto}
   .elegant-pdf-entry-head{display:grid;grid-template-columns:minmax(0,1fr) max-content;gap:5mm;align-items:start}
   .elegant-pdf-entry-head h4{margin:0;color:var(--elegant-heading);font-family:var(--heading-font);font-size:11pt;font-weight:500;line-height:1.2;overflow-wrap:anywhere}
   .elegant-pdf-entry-head p{margin:.8mm 0 0;color:var(--accent);font-size:11pt;font-weight:400;line-height:1.2;overflow-wrap:anywhere}
@@ -28595,7 +29288,7 @@ var elegantDocumentCss = `
   .elegant-pdf-entry li::marker{color:var(--accent)}
   .elegant-pdf-sidebar{position:relative;display:flex;flex-direction:column;gap:var(--section-gap);min-width:0;height:100%;padding:max(13mm,calc(var(--doc-margin) - 3mm)) max(12mm,calc(var(--doc-margin) - 5mm));overflow:hidden;color:#fff;background:var(--secondary);box-shadow:inset 0 3.5mm 0 #600101}
   .elegant-pdf-photo{display:block;width:27mm;height:27mm;margin:0 auto 8mm;overflow:hidden;border-radius:1.5mm;background:color-mix(in srgb,var(--secondary),white 12%);object-fit:cover}
-  .elegant-pdf-sidebar section{margin:0;break-inside:avoid;page-break-inside:avoid}
+  .elegant-pdf-sidebar section{margin:0;break-inside:auto;page-break-inside:auto}
   .elegant-pdf-sidebar section>h3{position:relative;margin:0 0 2.4mm;padding-bottom:1.6mm;border-bottom:.3mm solid rgb(255 255 255 / 75%);color:#fff;font-size:11.5pt;font-weight:400;letter-spacing:.075em;line-height:1.15;text-transform:uppercase}
   .elegant-pdf-sidebar section p,.elegant-pdf-sidebar section li{color:var(--elegant-sidebar-muted);font-size:var(--body-size);line-height:var(--body-line)}
   .elegant-pdf-sidebar section p{margin:0}
@@ -28653,11 +29346,11 @@ var zweispaltigDocumentCss = `
   .zweispaltig-pdf-columns{display:grid;grid-template-columns:minmax(0,62fr) minmax(0,38fr);column-gap:11mm;min-width:0}
   .zweispaltig-pdf-columns.continuation{grid-template-columns:minmax(0,1fr)}
   .zweispaltig-pdf-main,.zweispaltig-pdf-sidebar{min-width:0}
-  .zweispaltig-pdf-section,.zweispaltig-pdf-sidebar>section,.zweispaltig-pdf-sidebar>.knowledge-section{min-width:0;margin-top:var(--zweispaltig-section-gap);break-inside:avoid;page-break-inside:avoid}
+  .zweispaltig-pdf-section,.zweispaltig-pdf-sidebar>section,.zweispaltig-pdf-sidebar>.knowledge-section{min-width:0;margin-top:var(--zweispaltig-section-gap);break-inside:auto;page-break-inside:auto}
   .zweispaltig-pdf-section>h3,.zweispaltig-pdf-sidebar section>h3,.zweispaltig-pdf-ats section>h3,.zweispaltig-pdf-ats .knowledge-section>h3{margin:0 0 2.5mm;padding-bottom:1mm;border-bottom:.65mm solid var(--zweispaltig-heading);color:var(--zweispaltig-heading);font-size:14pt;font-weight:750;letter-spacing:.015em;line-height:1;text-transform:uppercase}
   .zweispaltig-pdf-summary{margin:0;hyphens:auto;overflow-wrap:break-word}
   .zweispaltig-pdf-list{display:flex;flex-direction:column;gap:var(--zweispaltig-entry-gap)}
-  .zweispaltig-pdf-entry{min-width:0;padding-bottom:3mm;border-bottom:.25mm dashed var(--zweispaltig-divider);break-inside:avoid;page-break-inside:avoid}
+  .zweispaltig-pdf-entry{min-width:0;padding-bottom:3mm;border-bottom:.25mm dashed var(--zweispaltig-divider);break-inside:auto;page-break-inside:auto}
   .zweispaltig-pdf-entry:last-child{padding-bottom:0;border-bottom:0}
   .zweispaltig-pdf-entry h4{margin:0;color:var(--zweispaltig-heading);font-size:11.5pt;font-weight:600;line-height:1.18;overflow-wrap:anywhere}
   .zweispaltig-pdf-entry-organization{margin:.7mm 0 0;color:var(--zweispaltig-accent);font-size:9.5pt;font-weight:750;line-height:1.18;overflow-wrap:anywhere}
@@ -28719,7 +29412,7 @@ var zeitgenoessischDocumentCss = `
   .zeit-pdf-columns:before{display:none}
   .zeit-pdf-columns.continuation{display:block}.zeit-pdf-columns.continuation:before{display:none}
   .zeit-pdf-left{grid-column:1;min-width:0;padding-top:12mm}.zeit-pdf-main{grid-column:3;min-width:0}
-  .zeit-pdf-section,.zeit-pdf-left>section{margin-top:var(--section-gap);break-inside:avoid;page-break-inside:avoid}
+  .zeit-pdf-section,.zeit-pdf-left>section{margin-top:var(--section-gap);break-inside:auto;page-break-inside:auto}
   .zeit-pdf-left>section:first-child,.zeit-pdf-main>.zeit-pdf-section:first-child{margin-top:0}
   .zeit-pdf-heading{display:flex;align-items:center;gap:2mm;margin:0 0 3mm}
   .zeit-pdf-heading i{display:grid;flex:none;width:6.5mm;height:6.5mm;place-items:center;border-radius:1.5mm;color:var(--zeit-dark);background:var(--zeit-soft);font-style:normal}
@@ -28733,7 +29426,7 @@ var zeitgenoessischDocumentCss = `
   .zeit-pdf-strength>i{width:2mm;height:2mm;margin-top:1.2mm;border-radius:50%;background:var(--accent)}.zeit-pdf-strength h4{margin:0;color:var(--zeit-heading);font-size:9.5pt;font-weight:700;line-height:1.2;overflow-wrap:anywhere}.zeit-pdf-strength p{margin:1.2mm 0 0;color:var(--zeit-text);font-size:var(--body-size);line-height:var(--body-line);hyphens:auto;overflow-wrap:break-word}
   .zeit-pdf-languages{display:grid;gap:3mm}.zeit-pdf-language>div{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:1.5mm;min-width:0}.zeit-pdf-language h4{margin:0;color:var(--zeit-dark);font-size:8.8pt;font-weight:750;line-height:1.15;text-transform:uppercase;overflow-wrap:anywhere}
   .zeit-pdf-dots{display:flex;gap:.7mm}.zeit-pdf-dots i{display:block;width:1.35mm;height:1.35mm;border:.25mm solid var(--zeit-muted);border-radius:50%}.zeit-pdf-dots i.filled{border-color:var(--zeit-dark);background:var(--zeit-dark)}
-  .zeit-pdf-list{display:flex;flex-direction:column;gap:5mm}.zeit-pdf-entry{break-inside:avoid;page-break-inside:avoid}
+  .zeit-pdf-list{display:flex;flex-direction:column;gap:5mm}.zeit-pdf-entry{break-inside:auto;page-break-inside:auto}
   .zeit-pdf-entry-top,.zeit-pdf-entry-role{display:grid;grid-template-columns:minmax(0,1fr) minmax(25mm,35mm);gap:5mm;align-items:start}
   .zeit-pdf-entry-top h4,.zeit-pdf-entry-role h5{margin:0;overflow-wrap:anywhere}.zeit-pdf-entry-top h4{color:var(--zeit-heading);font-size:10.5pt;font-weight:750;line-height:1.2}
   .zeit-pdf-entry-top span,.zeit-pdf-entry-role span{color:var(--zeit-muted);font-size:7.8pt;line-height:1.2;text-align:right;overflow-wrap:anywhere}
@@ -28759,10 +29452,10 @@ var kreativDocumentCss = `
   .kreativ-pdf-background{position:absolute;top:46mm;right:-9mm;z-index:1;width:78mm;height:78mm;fill:none;stroke:color-mix(in srgb,var(--accent),transparent 85%);stroke-width:.9;pointer-events:none}.kreativ-pdf-background .wide{stroke-dasharray:1.2 1.5}.kreativ-pdf-background .tight{stroke-dasharray:.8 1.2}
   .kreativ-pdf-content{position:relative;z-index:2;display:grid;grid-template-columns:minmax(0,105fr) minmax(0,64fr);column-gap:var(--kreativ-column-gap);align-items:start;padding:var(--kreativ-header-to-content-gap) var(--kreativ-margin) max(var(--kreativ-footer-clearance),calc(var(--kreativ-margin) - 2mm))}
   .kreativ-pdf-content.continuation{display:block;padding-top:7mm}.kreativ-pdf-left{grid-column:1;min-width:0}.kreativ-pdf-right{position:relative;grid-column:2;min-width:0}
-  .kreativ-pdf-section,.kreativ-pdf-right>section{margin:0 0 var(--kreativ-section-gap);break-inside:avoid;page-break-inside:avoid}
+  .kreativ-pdf-section,.kreativ-pdf-right>section{margin:0 0 var(--kreativ-section-gap);break-inside:auto;page-break-inside:auto}
   .kreativ-pdf-title,.kreativ-pdf-right section>h3,.kreativ-pdf-ats>section>h3,.kreativ-pdf-ats .knowledge-section>h3{margin:0 0 3.5mm;padding-bottom:1.2mm;border-bottom:.65mm solid var(--kreativ-dark);color:var(--kreativ-dark);font-family:var(--heading-font);font-size:14pt;font-weight:750;letter-spacing:.025em;line-height:1;text-transform:uppercase}
   .kreativ-pdf-summary{margin:0;color:var(--kreativ-text);font-size:var(--body-size);line-height:var(--body-line);hyphens:auto;overflow-wrap:break-word}
-  .kreativ-pdf-list{display:flex;flex-direction:column;gap:var(--kreativ-entry-gap)}.kreativ-pdf-entry{padding-bottom:var(--kreativ-entry-divider-gap);border-bottom:.25mm dashed var(--kreativ-light);break-inside:avoid;page-break-inside:avoid}.kreativ-pdf-entry:last-child{padding-bottom:0;border-bottom:0}
+  .kreativ-pdf-list{display:flex;flex-direction:column;gap:var(--kreativ-entry-gap)}.kreativ-pdf-entry{padding-bottom:var(--kreativ-entry-divider-gap);border-bottom:.25mm dashed var(--kreativ-light);break-inside:auto;page-break-inside:auto}.kreativ-pdf-entry:last-child{padding-bottom:0;border-bottom:0}
   .kreativ-pdf-entry h4,.kreativ-pdf-entry h5{margin:0;overflow-wrap:anywhere}.kreativ-pdf-entry h4{color:var(--kreativ-dark);font-size:11pt;font-weight:600;line-height:1.15}.kreativ-pdf-entry h5{color:var(--accent);font-size:9.5pt;font-weight:750;line-height:1.2}
   .kreativ-pdf-entry-heading,.kreativ-pdf-entry-subheading{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:1mm 4mm}.kreativ-pdf-entry-subheading{margin-top:1mm}.kreativ-pdf-entry-meta,.kreativ-pdf-entry-location{margin:0;color:var(--kreativ-muted);font-size:7.8pt;line-height:1.2;text-align:right;white-space:nowrap}
   .kreativ-pdf-entry ul,.kreativ-pdf-right ul,.kreativ-pdf-ats ul{margin:0;padding-left:4.5mm}.kreativ-pdf-entry li,.kreativ-pdf-right li,.kreativ-pdf-ats li{margin:.5mm 0;padding-left:.4mm;hyphens:auto;overflow-wrap:break-word}.kreativ-pdf-entry li::marker,.kreativ-pdf-right li::marker,.kreativ-pdf-ats li::marker{color:var(--accent)}
@@ -28782,7 +29475,7 @@ var ivyLeagueDocumentCss = `
   .ivy-pdf-contacts{display:flex;flex-wrap:wrap;justify-content:center;gap:.7mm 2.3mm;margin:0;color:var(--ivy-text);font-size:7.8pt;font-style:normal;line-height:1.25}.ivy-pdf-contacts a,.ivy-pdf-contacts span{color:inherit;text-decoration:none;overflow-wrap:anywhere}.ivy-pdf-contacts i{color:var(--ivy-text);font-style:normal}.ivy-pdf-header.compact{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;min-height:auto;margin-bottom:5mm;padding-bottom:2.5mm;border-bottom:.3mm solid var(--ivy-divider);text-align:left}.ivy-pdf-header.compact .kicker{flex-basis:100%}.ivy-pdf-header.compact h1{font-size:14pt}.ivy-pdf-header.compact h2{max-width:96mm;margin:0;font-size:8.5pt;text-align:right}
   .ivy-pdf-section,.ivy-pdf>.ivy-pdf-content>.knowledge-section{position:relative;z-index:2;min-width:0;margin:0 0 var(--section-gap)}.ivy-pdf-title,.ivy-pdf .knowledge-section>h3{position:relative;margin:0 0 2.5mm;padding:0 0 1.5mm;border-bottom:.3mm solid var(--ivy-divider);color:var(--ivy-heading);font-family:Georgia,"Times New Roman",serif;font-size:13.5pt;font-weight:700;line-height:1.05;text-align:center;text-transform:none;break-after:avoid;page-break-after:avoid}.ivy-pdf-summary{margin:0;color:var(--ivy-text);font-size:var(--body-size);line-height:var(--body-line);hyphens:auto;overflow-wrap:break-word}
   .ivy-pdf-strengths{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3.5mm 8mm}.ivy-pdf-strength{display:grid;grid-template-columns:5.5mm minmax(0,1fr);gap:1.5mm;min-width:0;break-inside:avoid}.ivy-pdf-strength i{color:var(--ivy-accent);font-size:13pt;font-style:normal;line-height:1}.ivy-pdf-strength h3{margin:0 0 .8mm;color:var(--ivy-heading);font-size:9.5pt;font-weight:600;line-height:1.15;overflow-wrap:anywhere}.ivy-pdf-strength p{margin:0;font-size:var(--body-size);line-height:var(--body-line)}
-  .ivy-pdf-list{display:flex;flex-direction:column;gap:4.5mm}.ivy-pdf-entry{min-width:0;break-inside:avoid;page-break-inside:avoid}.ivy-pdf-entry-top,.ivy-pdf-entry-role{display:grid;grid-template-columns:minmax(0,1fr) minmax(32mm,auto);gap:8mm;align-items:baseline}.ivy-pdf-entry h3,.ivy-pdf-entry h4{margin:0;overflow-wrap:anywhere}.ivy-pdf-entry-top h3{color:var(--ivy-accent);font-size:10.5pt;font-weight:500;line-height:1.15}.ivy-pdf-entry-top span,.ivy-pdf-entry-role span{color:var(--ivy-text);font-size:var(--body-size);line-height:1.2;text-align:right;overflow-wrap:anywhere}.ivy-pdf-entry-top{margin-top:.7mm}.ivy-pdf-entry-role h4{color:var(--ivy-heading);font-size:9.7pt;font-weight:500;line-height:1.18}.ivy-pdf-entry-role span{white-space:nowrap}
+  .ivy-pdf-list{display:flex;flex-direction:column;gap:4.5mm}.ivy-pdf-entry{min-width:0;break-inside:auto;page-break-inside:auto}.ivy-pdf-entry-top,.ivy-pdf-entry-role{display:grid;grid-template-columns:minmax(0,1fr) minmax(32mm,auto);gap:8mm;align-items:baseline}.ivy-pdf-entry h3,.ivy-pdf-entry h4{margin:0;overflow-wrap:anywhere}.ivy-pdf-entry-top h3{color:var(--ivy-accent);font-size:10.5pt;font-weight:500;line-height:1.15}.ivy-pdf-entry-top span,.ivy-pdf-entry-role span{color:var(--ivy-text);font-size:var(--body-size);line-height:1.2;text-align:right;overflow-wrap:anywhere}.ivy-pdf-entry-top{margin-top:.7mm}.ivy-pdf-entry-role h4{color:var(--ivy-heading);font-size:9.7pt;font-weight:500;line-height:1.18}.ivy-pdf-entry-role span{white-space:nowrap}
   .ivy-pdf-entry ul,.ivy-pdf-certifications ul,.ivy-pdf-ats ul{margin:1.3mm 0 0;padding-left:4.5mm}.ivy-pdf-entry li,.ivy-pdf-certifications li,.ivy-pdf-ats li{margin:.35mm 0;padding-left:.5mm;hyphens:auto;overflow-wrap:break-word}.ivy-pdf-entry li::marker,.ivy-pdf-certifications li::marker{color:var(--ivy-heading)}.ivy-pdf-education .ivy-pdf-list{gap:3.2mm}.ivy-pdf-knowledge{margin:0;overflow-wrap:anywhere}
   .ivy-pdf-languages{display:grid;gap:3mm 8mm}.ivy-pdf-languages--columns-1{grid-template-columns:minmax(0,1fr)}.ivy-pdf-languages--columns-2{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:20mm}.ivy-pdf-languages--columns-3{grid-template-columns:repeat(3,minmax(0,1fr))}.ivy-pdf-language{display:grid;grid-template-columns:auto auto;justify-content:start;gap:2mm;align-items:center;min-width:0}.ivy-pdf-language strong{color:var(--ivy-heading);font-weight:600}.ivy-pdf-dots{display:flex;gap:1mm}.ivy-pdf-dots i{display:block;width:2.1mm;height:2.1mm;border-radius:50%;background:var(--ivy-inactive)}.ivy-pdf-dots i.filled{background:var(--ivy-heading)}
   .ivy-pdf-footer{position:absolute;right:var(--ivy-margin);bottom:6mm;left:var(--ivy-margin);z-index:3;display:flex;justify-content:space-between;gap:8mm;color:var(--ivy-muted);font-size:7.1pt}.ivy-pdf-footer a{color:var(--ivy-muted);text-decoration:none}.ivy-pdf-footer span:last-child{margin-left:auto;white-space:nowrap}
@@ -28793,7 +29486,7 @@ var ivyLeagueDocumentCss = `
 var extendedResumeDocumentCss = `
   .kompakt-pdf-header.with-photo h1,.kompakt-pdf-header.with-photo h2{max-width:140mm}.kompakt-pdf-photo{position:absolute;top:9mm;right:var(--managed-margin);width:20mm;height:20mm;border-radius:1mm;object-fit:cover}
   .managed-pdf{position:relative;width:100%;height:100%;overflow:hidden;color:var(--managed-text);background:#fff;font-family:var(--body-font);font-size:var(--body-size);line-height:var(--body-line)}
-  .managed-pdf *{box-sizing:border-box}.managed-pdf a{color:inherit;text-decoration:none}.managed-pdf-content{position:relative;z-index:2;height:100%}.managed-pdf-background{position:absolute;inset:0;z-index:0;width:100%;height:100%;pointer-events:none}.managed-pdf-section{min-width:0;margin:0 0 var(--managed-section-gap);break-inside:avoid}.managed-pdf-title{margin:0 0 3mm;color:var(--managed-muted);font-size:9pt;font-weight:500;line-height:1;text-transform:uppercase;break-after:avoid}.managed-pdf-list{display:flex;flex-direction:column;gap:var(--managed-entry-gap)}.managed-pdf-entry{break-inside:avoid}.managed-pdf-entry h3,.managed-pdf-entry h4{margin:0;overflow-wrap:anywhere}.managed-pdf-entry ul,.managed-pdf-ats ul{margin:1mm 0 0;padding-left:4mm}.managed-pdf-entry li,.managed-pdf-ats li{margin:.25mm 0;padding-left:.4mm;hyphens:auto;overflow-wrap:break-word}.managed-pdf-footer{position:absolute;right:var(--managed-margin);bottom:6mm;left:var(--managed-margin);z-index:3;display:flex;justify-content:space-between;gap:8mm;color:var(--managed-muted);font-size:7pt}.managed-pdf-footer span:last-child{margin-left:auto;white-space:nowrap}
+  .managed-pdf *{box-sizing:border-box}.managed-pdf a{color:inherit;text-decoration:none}.managed-pdf-content{position:relative;z-index:2;height:100%}.managed-pdf-background{position:absolute;inset:0;z-index:0;width:100%;height:100%;pointer-events:none}.managed-pdf-section{min-width:0;margin:0 0 var(--managed-section-gap);break-inside:auto}.managed-pdf-title{margin:0 0 3mm;color:var(--managed-muted);font-size:9pt;font-weight:500;line-height:1;text-transform:uppercase;break-after:avoid}.managed-pdf-list{display:flex;flex-direction:column;gap:var(--managed-entry-gap)}.managed-pdf-entry{break-inside:auto}.managed-pdf-entry h3,.managed-pdf-entry h4{margin:0;overflow-wrap:anywhere}.managed-pdf-entry ul,.managed-pdf-ats ul{margin:1mm 0 0;padding-left:4mm}.managed-pdf-entry li,.managed-pdf-ats li{margin:.25mm 0;padding-left:.4mm;hyphens:auto;overflow-wrap:break-word}.managed-pdf-footer{position:absolute;right:var(--managed-margin);bottom:6mm;left:var(--managed-margin);z-index:3;display:flex;justify-content:space-between;gap:8mm;color:var(--managed-muted);font-size:7pt}.managed-pdf-footer span:last-child{margin-left:auto;white-space:nowrap}
   .stilvoll-pdf{--managed-primary:var(--accent);--managed-dark:var(--secondary);--managed-text:#465156;--managed-muted:#6d777c;--managed-divider:#aeb8b5;--managed-pattern:#dce2df;--managed-margin:max(15mm,var(--doc-margin));--managed-section-gap:var(--section-gap);--managed-entry-gap:5mm}.stilvoll-pdf .managed-pdf-background{color:var(--managed-pattern);opacity:.62}.stilvoll-pdf .managed-pdf-background path{fill:none;stroke:currentColor;stroke-width:.45}.stilvoll-pdf-header{position:relative;z-index:2;display:grid;grid-template-columns:minmax(0,1fr) 28mm;gap:10mm;min-height:36mm;padding:14mm var(--managed-margin) 0}.stilvoll-pdf-header.no-photo{grid-template-columns:1fr}.stilvoll-pdf-header h1{margin:0;color:var(--managed-dark);font-size:23pt;font-weight:400;line-height:1;letter-spacing:.015em;text-transform:uppercase;overflow-wrap:anywhere}.stilvoll-pdf-header h2{margin:2mm 0 2.5mm;color:var(--managed-primary);font-size:12pt;font-weight:400;line-height:1.2}.stilvoll-pdf-contacts{display:flex;flex-wrap:wrap;gap:1mm 3.5mm;margin:0;color:var(--managed-text);font-size:7.8pt;font-style:normal}.stilvoll-pdf-contacts span{display:inline-flex;gap:1mm}.stilvoll-pdf-contacts i{color:var(--managed-muted);font-style:normal}.stilvoll-pdf-photo{width:26mm;height:26mm;overflow:hidden;border-radius:1.5mm;object-fit:cover}.stilvoll-pdf-header.compact{display:flex;flex-wrap:wrap;align-items:baseline;gap:1mm 5mm;min-height:24mm;padding-top:11mm;padding-bottom:3mm;border-bottom:.3mm solid var(--managed-divider)}.stilvoll-pdf-header.compact .kicker{flex-basis:100%;margin:0;color:var(--managed-primary);font-size:7pt;text-transform:uppercase}.stilvoll-pdf-header.compact h1{font-size:15pt}.stilvoll-pdf-header.compact h2{margin:0;font-size:8.5pt}.stilvoll-pdf-columns{display:grid;grid-template-columns:54mm minmax(0,115mm);gap:11mm;padding:10mm var(--managed-margin) 16mm}.stilvoll-pdf-columns.continuation{display:block;padding-top:6mm}.stilvoll-pdf .managed-pdf-title{padding-bottom:1mm;border-bottom:.3mm solid var(--managed-divider)}.stilvoll-pdf-strength{display:grid;grid-template-columns:9mm minmax(0,1fr);gap:3mm;margin-bottom:5mm}.stilvoll-pdf-strength i{display:grid;place-items:center;width:8mm;height:8mm;border-radius:50%;color:var(--managed-primary);background:#f1f3f2;font-style:normal}.stilvoll-pdf-strength h3{margin:0 0 1mm;color:var(--managed-dark);font-size:9.5pt;font-weight:500}.stilvoll-pdf-strength p{margin:0}.stilvoll-pdf-language{display:grid;grid-template-columns:auto minmax(0,1fr) 11mm;gap:2mm;align-items:center;margin-bottom:3mm}.managed-pdf-dots{display:flex;gap:.6mm}.managed-pdf-dots i{display:block;width:1.5mm;height:1.5mm;border-radius:50%;background:#dde2e0}.managed-pdf-dots i.filled{background:var(--managed-dark)}.stilvoll-pdf-entry h3{color:var(--managed-dark);font-size:11pt;font-weight:400}.stilvoll-pdf-heading,.stilvoll-pdf-meta{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:1mm 4mm}.stilvoll-pdf-heading span,.stilvoll-pdf-meta span{color:var(--managed-muted);font-size:7.8pt;text-align:right}.stilvoll-pdf-heading span{white-space:nowrap}.stilvoll-pdf-meta{margin:1mm 0 1.5mm}.stilvoll-pdf-meta strong{color:var(--managed-primary);font-size:9.8pt;font-weight:400}
   .kompakt-pdf{isolation:isolate;--managed-primary:var(--accent);--managed-accent:var(--secondary);--managed-text:#3f494f;--managed-muted:#6d757a;--managed-divider:#aeb6ba;--managed-pattern:#ffd7bc;--managed-margin:max(13mm,calc(var(--doc-margin) - 1mm));--managed-section-gap:max(3.5mm,calc(var(--section-gap) - 1mm));--managed-entry-gap:4mm}.kompakt-pdf .managed-pdf-background{z-index:-1;color:var(--managed-pattern);opacity:.72}.kompakt-pdf .managed-pdf-background path,.kompakt-pdf .managed-pdf-background circle{fill:none;stroke:currentColor;stroke-width:.7}.kompakt-pdf-header{position:relative;z-index:2;min-height:22mm;padding:13mm var(--managed-margin) 0}.kompakt-pdf-header h1{max-width:112mm;margin:0;color:var(--managed-primary);font-size:20pt;font-weight:450;line-height:1}.kompakt-pdf-header.compact{display:flex;flex-wrap:wrap;align-items:baseline;gap:1mm 4mm;padding-top:10mm;border-bottom:.25mm solid var(--managed-divider)}.kompakt-pdf-header.compact .kicker{flex-basis:100%;margin:0;color:var(--managed-accent);font-size:7pt;text-transform:uppercase}.kompakt-pdf-header.compact h1{font-size:14pt}.kompakt-pdf-header h2{margin:1mm 0 0;color:var(--managed-muted);font-size:8.5pt}.kompakt-pdf .managed-pdf-title{padding-bottom:1mm;border-bottom:.3mm solid var(--managed-divider)}.kompakt-pdf-columns{display:grid;grid-template-columns:108mm 66mm;gap:10mm;padding:9mm var(--managed-margin) 15mm}.kompakt-pdf-columns.continuation{display:block;padding-top:6mm}.kompakt-pdf-entry h3{color:var(--managed-primary);font-size:10.5pt;font-weight:550}.kompakt-pdf-entry-heading,.kompakt-pdf-meta{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:.7mm 4mm}.kompakt-pdf-entry-heading time,.kompakt-pdf-meta{color:var(--managed-muted);font-size:7.4pt}.kompakt-pdf-entry-heading time{white-space:nowrap;text-align:right}.kompakt-pdf-meta{margin:.7mm 0 1mm}.kompakt-pdf-meta strong{color:var(--managed-accent);font-size:8.4pt}.kompakt-pdf-meta span{text-align:right}.kompakt-pdf-contacts{display:grid;gap:3.5mm;margin:0;font-style:normal}.kompakt-pdf-contact{display:grid;grid-template-columns:5mm minmax(0,1fr);gap:1.5mm;align-items:center;color:var(--managed-primary);font-size:8.8pt}.kompakt-pdf-contact i{color:var(--managed-accent);font-size:11pt;font-style:normal}.kompakt-pdf-strength{display:grid;grid-template-columns:5mm minmax(0,1fr);gap:1.5mm;margin-bottom:4mm}.kompakt-pdf-strength i{color:var(--managed-accent);font-size:11pt;font-style:normal}.kompakt-pdf-strength h3{margin:0 0 1mm;color:var(--managed-primary);font-size:9pt}.kompakt-pdf-strength p{margin:0}.kompakt-pdf-skills{display:flex;flex-wrap:wrap;gap:2mm 3mm}.kompakt-pdf-skill{padding:0 1.5mm 1mm;border-bottom:.3mm solid var(--managed-divider);color:var(--managed-primary);font-size:7.8pt;font-weight:700}.kompakt-pdf-languages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3mm 8mm}.kompakt-pdf-language{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:1.5mm;align-items:center}.kompakt-pdf-language strong{color:var(--managed-primary)}.kompakt-pdf-language .managed-pdf-dots i{width:2.2mm;height:2.2mm}.kompakt-pdf-language .managed-pdf-dots i.filled{background:var(--managed-accent)}
   .einfach-pdf{isolation:isolate;--managed-primary:var(--accent);--managed-accent:var(--secondary);--managed-text:#3e484e;--managed-muted:#68747a;--managed-divider:var(--accent);--managed-pattern:#eaf5fd;--managed-margin:max(15mm,var(--doc-margin));--managed-section-gap:calc(var(--section-gap) + .5mm);--managed-entry-gap:4.5mm;font-size:calc(var(--body-size) + 1.2pt);line-height:clamp(1.1,calc(var(--body-line) - .25),1.12)}.einfach-pdf p,.einfach-pdf li{font-size:inherit;line-height:inherit}.einfach-pdf .managed-pdf-background{z-index:-1;color:var(--managed-pattern);opacity:.78}.einfach-pdf .managed-pdf-background path{fill:none;stroke:currentColor;stroke-width:4.2}.einfach-pdf-inner{position:relative;z-index:2;height:100%;padding:max(14mm,calc(var(--managed-margin) - 1mm)) var(--managed-margin) 16mm}.einfach-pdf-header{display:grid;grid-template-columns:minmax(0,1fr) 36mm;gap:8mm;min-height:35mm;margin-bottom:3.5mm}.einfach-pdf-header.no-photo{grid-template-columns:1fr}.einfach-pdf-header h1{margin:0;color:var(--managed-primary);font-size:24pt;font-weight:750;line-height:1;text-transform:uppercase}.einfach-pdf-header h2{margin:2mm 0;color:var(--managed-accent);font-size:11.5pt;line-height:1.2}.einfach-pdf-contacts{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:1mm 8mm;width:100%;max-width:132mm;margin:0;font-size:8.2pt;font-style:normal;line-height:1.18}.einfach-pdf-contact{display:grid;grid-template-columns:4mm minmax(0,1fr);gap:1mm;min-width:0}.einfach-pdf-contact i{color:var(--managed-accent);font-style:normal;font-weight:700}.einfach-pdf-contact a,.einfach-pdf-contact span{min-width:0;overflow-wrap:anywhere}.einfach-pdf-contact[data-contact-kind="linkedin"] a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal}.einfach-pdf-photo{width:34mm;height:34mm;border-radius:50%;object-fit:cover}.einfach-pdf-header.compact{display:flex;flex-wrap:wrap;align-items:baseline;gap:1mm 5mm;min-height:auto;margin-bottom:6mm;padding-bottom:3mm;border-bottom:.5mm solid var(--managed-primary)}.einfach-pdf-header.compact .kicker{flex-basis:100%;margin:0;color:var(--managed-accent);font-size:7pt;text-transform:uppercase}.einfach-pdf-header.compact h1{font-size:16pt}.einfach-pdf-header.compact h2{margin:0;font-size:9pt}.einfach-pdf .managed-pdf-section>p{margin:0;hyphens:auto;overflow-wrap:break-word}  .einfach-pdf .managed-pdf-section:first-of-type{margin-top:-1mm}.einfach-pdf .managed-pdf-title,.einfach-pdf .managed-extra>h3{margin-bottom:2mm;padding:1mm 0;border-top:0;border-bottom:.3mm solid var(--managed-primary);color:var(--managed-primary);font-size:13.5pt;font-weight:750;text-transform:uppercase}.einfach-pdf-summary>p{font-size:9pt!important;text-align:justify;text-justify:inter-word}.einfach-pdf-strengths{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4mm 15mm}.einfach-pdf-strength{display:grid;grid-template-columns:7mm minmax(0,1fr);gap:2mm}.einfach-pdf-strength i{color:var(--managed-accent);font-size:14pt;font-style:normal}.einfach-pdf-strength h3{margin:0 0 1.5mm;color:var(--managed-primary);font-size:9.5pt}.einfach-pdf-strength p{margin:0}.einfach-pdf-entry{padding-bottom:3mm;border-bottom:.25mm dashed #d4d9dc}.einfach-pdf-entry:last-child{padding-bottom:0;border-bottom:0}.einfach-pdf-entry h3{color:var(--managed-primary);font-size:11.5pt;font-weight:500;line-height:1.15}.einfach-pdf-entry h4{margin-top:1mm;color:var(--managed-accent);font-size:10pt;line-height:1.15}.einfach-pdf-meta{display:flex;flex-wrap:wrap;gap:1mm 4mm;margin:1mm 0 1.5mm;color:var(--managed-muted);font-size:8.1pt}.einfach-pdf-meta span:first-child:before{margin-right:1.5mm;color:var(--managed-accent);content:"▦"}.einfach-pdf-meta span+span:before{margin-right:1.5mm;color:var(--managed-accent);content:"⌖"}.einfach-pdf-entry li{margin:.3mm 0}.einfach-pdf-languages{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3mm 8mm}.einfach-pdf-language{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:3mm;align-items:center}.einfach-pdf-language strong{color:var(--managed-primary);font-size:9.5pt}.einfach-pdf-language .managed-pdf-dots{gap:1mm}.einfach-pdf-language .managed-pdf-dots i{width:2.8mm;height:2.8mm}.einfach-pdf-language .managed-pdf-dots i.filled{background:var(--managed-accent)}
@@ -28842,9 +29535,9 @@ var klassischDocumentCss = `
   .klassisch-pdf *{box-sizing:border-box}.klassisch-pdf a{color:inherit;text-decoration:none}.klassisch-pdf-background{position:absolute;inset:0;z-index:-1;width:100%;height:100%;pointer-events:none}.klassisch-pdf-background .fill{fill:var(--klassisch-soft)}.klassisch-pdf-background .line{fill:none;stroke:rgba(255,255,255,.92);stroke-width:.28;vector-effect:non-scaling-stroke}.klassisch-pdf-content{position:relative;z-index:2;height:100%;padding:14mm var(--klassisch-margin) 17mm}
   .klassisch-pdf-header{display:grid;grid-template-columns:minmax(0,1fr) 34mm;gap:8mm;align-items:start;min-height:33mm;margin-bottom:7mm}.klassisch-pdf-header.no-photo{grid-template-columns:1fr}.klassisch-pdf-header h1{max-width:138mm;margin:0;color:var(--klassisch-primary);font-size:26pt;font-weight:750;letter-spacing:-.01em;line-height:1;overflow-wrap:anywhere}.klassisch-pdf-header h2{margin:2mm 0 1.5mm;color:var(--klassisch-text);font-size:12.2pt;font-weight:400;line-height:1.12;overflow-wrap:anywhere}.klassisch-pdf-contacts{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:.8mm 8mm;width:100%;max-width:132mm;margin:0;color:var(--klassisch-text);font-size:8pt;font-style:normal;line-height:1.25}.klassisch-pdf-contacts span{min-width:0;overflow-wrap:anywhere}.klassisch-pdf-contacts [data-contact-kind="linkedin"]{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal}.klassisch-pdf-photo{justify-self:end;width:32mm;height:32mm;border-radius:50%;object-fit:cover;background:#edf1f3}
   .klassisch-pdf-header.compact{display:flex;flex-wrap:wrap;align-items:baseline;gap:1mm 5mm;min-height:auto;margin-bottom:6mm;padding-bottom:2.5mm;border-bottom:.3mm solid var(--klassisch-border)}.klassisch-pdf-header.compact .kicker{flex-basis:100%;margin:0;color:var(--klassisch-accent);font-size:7pt;font-weight:700;letter-spacing:.09em;text-transform:uppercase}.klassisch-pdf-header.compact h1{font-size:15.5pt}.klassisch-pdf-header.compact h2{margin:0;font-size:8.8pt}
-  .klassisch-pdf-section{min-width:0;margin:0 0 var(--klassisch-section-gap);break-inside:avoid;page-break-inside:avoid}.klassisch-pdf-title{margin:0 0 3mm;color:var(--klassisch-heading);font-size:10.4pt;font-weight:750;letter-spacing:.01em;line-height:1;text-transform:uppercase;break-after:avoid}.klassisch-pdf-section>p{margin:0;hyphens:auto;overflow-wrap:break-word}
+  .klassisch-pdf-section{min-width:0;margin:0 0 var(--klassisch-section-gap);break-inside:auto;page-break-inside:auto}.klassisch-pdf-title{margin:0 0 3mm;color:var(--klassisch-heading);font-size:10.4pt;font-weight:750;letter-spacing:.01em;line-height:1;text-transform:uppercase;break-after:avoid}.klassisch-pdf-section>p{margin:0;hyphens:auto;overflow-wrap:break-word}
   .klassisch-pdf-strengths{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4mm 9mm}.klassisch-pdf-strength{display:grid;grid-template-columns:6mm minmax(0,1fr);gap:1.5mm}.klassisch-pdf-strength .technology-brand-svg{width:5mm;height:5mm}.klassisch-pdf-strength h3{margin:0 0 1.2mm;color:var(--klassisch-accent);font-size:9.8pt;font-weight:750;line-height:1.1;overflow-wrap:anywhere}.klassisch-pdf-strength p{margin:0;hyphens:auto}
-  .klassisch-pdf-list{display:flex;flex-direction:column;gap:var(--klassisch-entry-gap)}.klassisch-pdf-entry{min-width:0;break-inside:avoid}.klassisch-pdf-entry-head{display:grid;grid-template-columns:minmax(0,1fr) 34mm;gap:7mm;align-items:start}.klassisch-pdf-entry h3,.klassisch-pdf-entry h4{margin:0;overflow-wrap:anywhere}.klassisch-pdf-entry h3{color:var(--klassisch-primary);font-size:12.2pt;font-weight:450;line-height:1.08}.klassisch-pdf-entry h4{margin-top:1mm;color:var(--klassisch-accent);font-size:10pt;font-weight:650;line-height:1.12}.klassisch-pdf-entry-meta{display:flex;flex-direction:column;gap:2mm;margin:0;color:var(--klassisch-muted);font-size:7.8pt;line-height:1.15;text-align:right}.klassisch-pdf-entry ul,.klassisch-pdf-certifications{margin:1.2mm 0 0;padding-left:4.3mm}.klassisch-pdf-entry li,.klassisch-pdf-certifications li{margin:.15mm 0;padding-left:.5mm;hyphens:auto;overflow-wrap:break-word}.klassisch-pdf-education .klassisch-pdf-list{gap:3.5mm}.klassisch-pdf-education .klassisch-pdf-entry h3{font-size:11.7pt}.klassisch-pdf-education .klassisch-pdf-entry h4{color:var(--klassisch-text);font-size:9.4pt;font-weight:450}
+  .klassisch-pdf-list{display:flex;flex-direction:column;gap:var(--klassisch-entry-gap)}.klassisch-pdf-entry{min-width:0;break-inside:auto}.klassisch-pdf-entry-head{display:grid;grid-template-columns:minmax(0,1fr) 34mm;gap:7mm;align-items:start}.klassisch-pdf-entry h3,.klassisch-pdf-entry h4{margin:0;overflow-wrap:anywhere}.klassisch-pdf-entry h3{color:var(--klassisch-primary);font-size:12.2pt;font-weight:450;line-height:1.08}.klassisch-pdf-entry h4{margin-top:1mm;color:var(--klassisch-accent);font-size:10pt;font-weight:650;line-height:1.12}.klassisch-pdf-entry-meta{display:flex;flex-direction:column;gap:2mm;margin:0;color:var(--klassisch-muted);font-size:7.8pt;line-height:1.15;text-align:right}.klassisch-pdf-entry ul,.klassisch-pdf-certifications{margin:1.2mm 0 0;padding-left:4.3mm}.klassisch-pdf-entry li,.klassisch-pdf-certifications li{margin:.15mm 0;padding-left:.5mm;hyphens:auto;overflow-wrap:break-word}.klassisch-pdf-education .klassisch-pdf-list{gap:3.5mm}.klassisch-pdf-education .klassisch-pdf-entry h3{font-size:11.7pt}.klassisch-pdf-education .klassisch-pdf-entry h4{color:var(--klassisch-text);font-size:9.4pt;font-weight:450}
   .klassisch-pdf-languages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2mm 18mm;max-width:112mm}.klassisch-pdf-language{display:flex;gap:3mm;margin:0;color:var(--klassisch-text);font-size:9pt}.klassisch-pdf-language strong{color:var(--klassisch-primary);font-weight:500}.klassisch-pdf-footer{position:absolute;right:var(--klassisch-margin);bottom:6mm;left:var(--klassisch-margin);z-index:3;display:flex;justify-content:space-between;gap:8mm;color:var(--klassisch-muted);font-size:7pt}.klassisch-pdf-footer span:last-child{margin-left:auto}
   .klassisch-pdf[data-density="compact"]{--klassisch-section-gap:max(4.8mm,calc(var(--section-gap) - 1mm));--klassisch-entry-gap:3.5mm}.klassisch-pdf[data-density="dense"]{--klassisch-section-gap:max(3.8mm,calc(var(--section-gap) - 2mm));--klassisch-entry-gap:2.8mm;font-size:max(8pt,calc(var(--body-size) - .3pt))}.klassisch-pdf[data-density="dense"] .klassisch-pdf-header{min-height:29mm;margin-bottom:5mm}.klassisch-pdf[data-density="dense"] .klassisch-pdf-header h1{font-size:23pt}
   .klassisch-pdf-ats{--klassisch-primary:#173b63;--klassisch-accent:#173b63;--klassisch-heading:#173b63;--klassisch-text:#303b42;--klassisch-muted:#626e75;--klassisch-border:#aeb8bf;padding:14mm var(--klassisch-margin) 16mm;background:#fff;font-family:Arial,sans-serif}.klassisch-pdf-ats .klassisch-pdf-header{display:block;min-height:auto;margin:0 0 5mm;padding-bottom:3mm;border-bottom:.3mm solid var(--klassisch-border)}.klassisch-pdf-ats .klassisch-pdf-header h1{font-size:19pt}.klassisch-pdf-ats .klassisch-pdf-header h2{color:var(--klassisch-primary);font-size:10pt}.klassisch-pdf-ats .klassisch-pdf-title{margin-bottom:2mm;padding-bottom:1mm;border-bottom:.3mm solid var(--klassisch-border);font-size:10.5pt}.klassisch-pdf-ats .klassisch-pdf-strengths,.klassisch-pdf-ats .klassisch-pdf-languages{display:block;max-width:none}.klassisch-pdf-ats .klassisch-pdf-strength,.klassisch-pdf-ats .klassisch-pdf-language{margin:.7mm 0}
@@ -28877,18 +29570,18 @@ var pehlionePdfLayoutFixes = `
   .pehlione-pdf-sidebar-heading{display:grid;grid-template-columns:8mm minmax(0,1fr);gap:2mm;align-items:center}.pehlione-pdf-white .pehlione-pdf-sidebar-heading .pehlione-pdf-section-icon{width:8mm;height:8mm;color:var(--pehlione-primary);background:transparent}.pehlione-pdf-white .pehlione-pdf-sidebar-heading svg{width:7mm;height:7mm}
   .pehlione-pdf-white .pehlione-pdf-sidebar{color:#142235;background:#fff;border-right:.25mm solid #d4dbe5}.pehlione-pdf-white .pehlione-pdf-sidebar h3,.pehlione-pdf-white .pehlione-pdf-sidebar .pehlione-pdf-flex-block h3,.pehlione-pdf-white .pehlione-pdf-container-title{color:var(--pehlione-primary);border-color:var(--pehlione-primary)}.pehlione-pdf-white .pehlione-pdf-contact-section strong,.pehlione-pdf-white .pehlione-pdf-contact-section svg,.pehlione-pdf-white .pehlione-pdf-sidebar li::marker{color:var(--pehlione-primary)}.pehlione-pdf-white .pehlione-pdf-hero{background-image:linear-gradient(#fff2 1px,transparent 1px),linear-gradient(90deg,#fff2 1px,transparent 1px);background-size:4mm 4mm}.pehlione-pdf-white .pehlione-pdf-hero:before,.pehlione-pdf-white .pehlione-pdf-hero:after{display:none}.pehlione-pdf-blueprint{position:absolute;inset:0;width:100%;height:100%}.pehlione-pdf-blueprint svg{width:100%;height:100%}
   .pehlione-pdf-hero.with-photo{background-image:linear-gradient(#fff2 1px,transparent 1px),linear-gradient(90deg,#fff2 1px,transparent 1px)}.pehlione-pdf-hero.with-photo:before{position:absolute;top:8mm;left:10mm;width:28mm;height:28mm;border:.25mm solid #d7eaff;border-radius:50%;content:""}.pehlione-pdf-photo{position:absolute;top:8mm;left:10mm;z-index:1;width:28mm;height:28mm;border:.25mm solid #d7eaff;border-radius:50%;object-fit:cover;object-position:center 30%}
-  .pehlione-pdf-sidebar a{color:inherit;text-decoration:none;overflow-wrap:normal;word-break:normal}.pehlione-pdf-sidebar li{break-inside:avoid;page-break-inside:avoid}.pehlione-pdf-sidebar section{margin-bottom:4.5mm}.pehlione-pdf-sidebar h3{margin-bottom:2mm;padding-bottom:1.5mm;font-size:9.7pt}.pehlione-pdf-sidebar ul{gap:1.35mm;font-size:7.8pt;line-height:1.2}.pehlione-pdf-contact-section ul{padding:0;list-style:none}.pehlione-pdf-contact-section li{display:grid;grid-template-columns:5mm minmax(0,1fr);gap:1.5mm;align-items:start}.pehlione-pdf-contact-section svg{width:4.2mm;height:4.2mm;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:2}.pehlione-pdf-contact-section li>span{display:grid;gap:.25mm;min-width:0}.pehlione-pdf-contact-section strong{display:block;color:#fff;font-size:7.8pt}.pehlione-pdf-contact-section a{font-size:7.4pt}.pehlione-pdf-section{break-inside:avoid;page-break-inside:avoid}.pehlione-pdf-section h3{break-after:avoid;page-break-after:avoid}.pehlione-pdf-section h3:before{display:none}.pehlione-pdf-section-icon{display:grid;width:9mm;height:9mm;place-items:center;border-radius:1mm;color:#fff;background:var(--pehlione-primary);font-style:normal}.pehlione-pdf-section-icon svg{width:5.5mm;height:5.5mm;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.9}.pehlione-pdf-entry{break-inside:avoid;page-break-inside:avoid}.pehlione-pdf-entry ul{break-inside:avoid;page-break-inside:avoid}.pehlione-pdf-project{padding:0;border-left:0;background:transparent}.pehlione-pdf-continuation{padding:10mm 16mm 16mm}.pehlione-pdf-continuation .pehlione-pdf-main{padding:0}.pehlione-pdf-header.continuation{margin-bottom:5mm;padding-bottom:2.5mm}.pehlione-pdf-header.continuation h1{font-size:18pt}.pehlione-pdf-header.continuation h2{margin-top:1mm;font-size:9.5pt}.pehlione-pdf[data-density="compact"]{font-size:8.1pt;line-height:1.23}.pehlione-pdf[data-density="compact"] .pehlione-pdf-main{padding:7mm 9mm 8mm}.pehlione-pdf[data-density="compact"] .pehlione-pdf-header{margin-bottom:4mm;padding-bottom:3mm}.pehlione-pdf[data-density="compact"] .pehlione-pdf-header h1{font-size:30pt}.pehlione-pdf[data-density="compact"] .pehlione-pdf-header h2{margin-top:1.2mm;font-size:10.3pt;white-space:nowrap}.pehlione-pdf[data-density="compact"] .pehlione-pdf-section{margin-bottom:3.1mm}.pehlione-pdf[data-density="compact"] .pehlione-pdf-section h3{margin-bottom:2mm;font-size:11.2pt}.pehlione-pdf[data-density="compact"] .pehlione-pdf-section h3 span{padding-bottom:.8mm}.pehlione-pdf[data-density="compact"] .pehlione-pdf-summary{font-size:8.1pt;line-height:1.24}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry{grid-template-columns:27mm minmax(0,1fr);gap:3mm;padding-bottom:2.1mm}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry+.pehlione-pdf-entry{padding-top:2.1mm}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry>p{font-size:7.7pt}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry h4{font-size:9.3pt}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry strong{margin:.6mm 0 1mm;font-size:8.2pt}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry ul,.pehlione-pdf[data-density="compact"] .pehlione-pdf-project ul,.pehlione-pdf[data-density="compact"] .pehlione-pdf-training ul{font-size:7.8pt;line-height:1.2}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry li,.pehlione-pdf[data-density="compact"] .pehlione-pdf-project li,.pehlione-pdf[data-density="compact"] .pehlione-pdf-training li{margin:.15mm 0}.pehlione-pdf[data-density="compact"] .pehlione-pdf-project h4{font-size:9.3pt}.pehlione-pdf[data-density="compact"] .pehlione-pdf-project p{margin:.6mm 0 1mm;font-size:8pt}
+  .pehlione-pdf-sidebar a{color:inherit;text-decoration:none;overflow-wrap:normal;word-break:normal}.pehlione-pdf-sidebar li{break-inside:avoid;page-break-inside:avoid}.pehlione-pdf-sidebar section{margin-bottom:4.5mm}.pehlione-pdf-sidebar h3{margin-bottom:2mm;padding-bottom:1.5mm;font-size:9.7pt}.pehlione-pdf-sidebar ul{gap:1.35mm;font-size:7.8pt;line-height:1.2}.pehlione-pdf-contact-section ul{padding:0;list-style:none}.pehlione-pdf-contact-section li{display:grid;grid-template-columns:5mm minmax(0,1fr);gap:1.5mm;align-items:start}.pehlione-pdf-contact-section svg{width:4.2mm;height:4.2mm;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:2}.pehlione-pdf-contact-section li>span{display:grid;gap:.25mm;min-width:0}.pehlione-pdf-contact-section strong{display:block;color:#fff;font-size:7.8pt}.pehlione-pdf-contact-section a{font-size:7.4pt}.pehlione-pdf-section{break-inside:auto;page-break-inside:auto}.pehlione-pdf-section h3{break-after:avoid;page-break-after:avoid}.pehlione-pdf-section h3:before{display:none}.pehlione-pdf-section-icon{display:grid;width:9mm;height:9mm;place-items:center;border-radius:1mm;color:#fff;background:var(--pehlione-primary);font-style:normal}.pehlione-pdf-section-icon svg{width:5.5mm;height:5.5mm;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.9}.pehlione-pdf-entry{break-inside:auto;page-break-inside:auto}.pehlione-pdf-entry ul{break-inside:auto;page-break-inside:auto}.pehlione-pdf-project{padding:0;border-left:0;background:transparent}.pehlione-pdf-continuation{padding:10mm 16mm 16mm}.pehlione-pdf-continuation .pehlione-pdf-main{padding:0}.pehlione-pdf-header.continuation{margin-bottom:5mm;padding-bottom:2.5mm}.pehlione-pdf-header.continuation h1{font-size:18pt}.pehlione-pdf-header.continuation h2{margin-top:1mm;font-size:9.5pt}.pehlione-pdf[data-density="compact"]{font-size:8.1pt;line-height:1.23}.pehlione-pdf[data-density="compact"] .pehlione-pdf-main{padding:7mm 9mm 8mm}.pehlione-pdf[data-density="compact"] .pehlione-pdf-header{margin-bottom:4mm;padding-bottom:3mm}.pehlione-pdf[data-density="compact"] .pehlione-pdf-header h1{font-size:30pt}.pehlione-pdf[data-density="compact"] .pehlione-pdf-header h2{margin-top:1.2mm;font-size:10.3pt;white-space:nowrap}.pehlione-pdf[data-density="compact"] .pehlione-pdf-section{margin-bottom:3.1mm}.pehlione-pdf[data-density="compact"] .pehlione-pdf-section h3{margin-bottom:2mm;font-size:11.2pt}.pehlione-pdf[data-density="compact"] .pehlione-pdf-section h3 span{padding-bottom:.8mm}.pehlione-pdf[data-density="compact"] .pehlione-pdf-summary{font-size:8.1pt;line-height:1.24}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry{grid-template-columns:27mm minmax(0,1fr);gap:3mm;padding-bottom:2.1mm}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry+.pehlione-pdf-entry{padding-top:2.1mm}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry>p{font-size:7.7pt}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry h4{font-size:9.3pt}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry strong{margin:.6mm 0 1mm;font-size:8.2pt}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry ul,.pehlione-pdf[data-density="compact"] .pehlione-pdf-project ul,.pehlione-pdf[data-density="compact"] .pehlione-pdf-training ul{font-size:7.8pt;line-height:1.2}.pehlione-pdf[data-density="compact"] .pehlione-pdf-entry li,.pehlione-pdf[data-density="compact"] .pehlione-pdf-project li,.pehlione-pdf[data-density="compact"] .pehlione-pdf-training li{margin:.15mm 0}.pehlione-pdf[data-density="compact"] .pehlione-pdf-project h4{font-size:9.3pt}.pehlione-pdf[data-density="compact"] .pehlione-pdf-project p{margin:.6mm 0 1mm;font-size:8pt}
   .pehlione-pdf-closing{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:4mm;margin-top:3mm;padding-top:3mm;border-top:.25mm solid var(--line);font-size:8pt;break-inside:avoid}.pehlione-pdf-closing p{margin:0 0 1mm}.pehlione-pdf-signer{display:flex;grid-column:2;flex-direction:column;align-items:center;width:42mm}.pehlione-pdf-signer img{display:block;width:100%;height:12mm;object-fit:contain}.pehlione-pdf-signer strong{margin-top:1mm;font-size:8pt;font-weight:600;white-space:nowrap}
-  .pehlione-pdf-container-title{margin:0 0 4mm;padding-bottom:2mm;border-bottom:.5mm solid #dcecff;color:#fff;font-size:8pt;letter-spacing:.08em;text-transform:uppercase}.pehlione-pdf-flex-block{margin:0 0 5mm;break-inside:avoid;page-break-inside:avoid}.pehlione-pdf-flex-block.page-break-before{break-before:page;page-break-before:always}.pehlione-pdf-flex-block h3{margin:0 0 2mm;color:var(--pehlione-primary);font-size:11pt;text-transform:uppercase}.pehlione-pdf-sidebar .pehlione-pdf-flex-block h3{padding-bottom:1.5mm;border-bottom:.3mm solid #b8d2f4;color:#fff;font-size:9.7pt}.pehlione-pdf-flex-block ul{display:grid;gap:1mm;margin:0;padding-left:4mm}.pehlione-pdf-flex-block li strong,.pehlione-pdf-flex-block li small,.pehlione-pdf-flex-block li em{display:block}.pehlione-pdf-flex-block li small,.pehlione-pdf-flex-block li em{font-size:.88em;font-style:normal;opacity:.82}.pehlione-pdf-flex-block.renderer-tag-list ul,.pehlione-pdf-flex-block.renderer-compact-grid ul,.pehlione-pdf-flex-block.renderer-two-column-list ul{grid-template-columns:repeat(2,minmax(0,1fr));padding:0;list-style:none}.pehlione-pdf-flex-block.renderer-tag-list li{padding:1mm;border-radius:8mm;background:#eaf1f9;text-align:center}.pehlione-pdf-sidebar .pehlione-pdf-flex-block.renderer-tag-list li{color:#082c5d;background:#dcecff}
+  .pehlione-pdf-container-title{margin:0 0 4mm;padding-bottom:2mm;border-bottom:.5mm solid #dcecff;color:#fff;font-size:8pt;letter-spacing:.08em;text-transform:uppercase}.pehlione-pdf-flex-block{margin:0 0 5mm;break-inside:auto;page-break-inside:auto}.pehlione-pdf-flex-block.page-break-before{break-before:page;page-break-before:always}.pehlione-pdf-flex-block h3{margin:0 0 2mm;color:var(--pehlione-primary);font-size:11pt;text-transform:uppercase}.pehlione-pdf-sidebar .pehlione-pdf-flex-block h3{padding-bottom:1.5mm;border-bottom:.3mm solid #b8d2f4;color:#fff;font-size:9.7pt}.pehlione-pdf-flex-block ul{display:grid;gap:1mm;margin:0;padding-left:4mm}.pehlione-pdf-flex-block li strong,.pehlione-pdf-flex-block li small,.pehlione-pdf-flex-block li em{display:block}.pehlione-pdf-flex-block li small,.pehlione-pdf-flex-block li em{font-size:.88em;font-style:normal;opacity:.82}.pehlione-pdf-flex-block.renderer-tag-list ul,.pehlione-pdf-flex-block.renderer-compact-grid ul,.pehlione-pdf-flex-block.renderer-two-column-list ul{grid-template-columns:repeat(2,minmax(0,1fr));padding:0;list-style:none}.pehlione-pdf-flex-block.renderer-tag-list li{padding:1mm;border-radius:8mm;background:#eaf1f9;text-align:center}.pehlione-pdf-sidebar .pehlione-pdf-flex-block.renderer-tag-list li{color:#082c5d;background:#dcecff}
   .pehlione-pdf-continuation{display:grid;padding:0}.pehlione-pdf-continuation .pehlione-pdf-main{padding:10mm 16mm 16mm}
 `;
 var gepflegtDocumentCss = `
   .gepflegt-pdf{--gepflegt-sidebar:var(--secondary);--gepflegt-accent:var(--accent);--gepflegt-heading:#354147;--gepflegt-text:#3f494e;--gepflegt-muted:#657075;--gepflegt-divider:#c7ced1;--gepflegt-sidebar-text:#fff;--gepflegt-sidebar-muted:#d8f0ef;--gepflegt-sidebar-width:72mm;--gepflegt-section-gap:7mm;--gepflegt-entry-gap:4.5mm;position:relative;display:grid;grid-template-columns:var(--gepflegt-sidebar-width) minmax(0,1fr);width:100%;height:100%;overflow:hidden;color:var(--gepflegt-text);background:#fff;font-family:var(--body-font);font-size:8.8pt;line-height:1.28}
   .gepflegt-pdf *{box-sizing:border-box}.gepflegt-pdf a{color:inherit;text-decoration:none}.gepflegt-pdf:before{position:absolute;top:0;right:0;left:0;z-index:4;height:3.5mm;background:color-mix(in srgb,var(--gepflegt-sidebar),#003f3e 32%);content:""}
-  .gepflegt-pdf-sidebar{min-width:0;height:100%;overflow:hidden;padding:9mm 10mm 13mm;color:var(--gepflegt-sidebar-text);background:var(--gepflegt-sidebar)}.gepflegt-pdf-photo{display:block;width:26mm;height:26mm;margin:0 auto 16mm;border-radius:1.5mm;background:rgba(255,255,255,.16);object-fit:cover}.gepflegt-pdf-sidebar section{margin:0 0 8.5mm;break-inside:avoid}.gepflegt-pdf-sidebar h3{margin:0 0 3.5mm;padding:0 0 2.2mm;border-bottom:.35mm solid rgba(255,255,255,.78);color:var(--gepflegt-sidebar-text);font-size:12.5pt;font-weight:500;letter-spacing:.01em;line-height:1.05;text-transform:uppercase}.gepflegt-pdf-summary,.gepflegt-pdf-knowledge{margin:0;color:var(--gepflegt-sidebar-text);font-size:8.8pt;line-height:1.3;hyphens:auto;overflow-wrap:break-word}
+  .gepflegt-pdf-sidebar{min-width:0;height:100%;overflow:hidden;padding:9mm 10mm 13mm;color:var(--gepflegt-sidebar-text);background:var(--gepflegt-sidebar)}.gepflegt-pdf-photo{display:block;width:26mm;height:26mm;margin:0 auto 16mm;border-radius:1.5mm;background:rgba(255,255,255,.16);object-fit:cover}.gepflegt-pdf-sidebar section{margin:0 0 8.5mm;break-inside:auto}.gepflegt-pdf-sidebar h3{margin:0 0 3.5mm;padding:0 0 2.2mm;border-bottom:.35mm solid rgba(255,255,255,.78);color:var(--gepflegt-sidebar-text);font-size:12.5pt;font-weight:500;letter-spacing:.01em;line-height:1.05;text-transform:uppercase}.gepflegt-pdf-summary,.gepflegt-pdf-knowledge{margin:0;color:var(--gepflegt-sidebar-text);font-size:8.8pt;line-height:1.3;hyphens:auto;overflow-wrap:break-word}
   .gepflegt-pdf-strengths{display:flex;flex-direction:column;gap:5mm}.gepflegt-pdf-strength{display:grid;grid-template-columns:5.5mm minmax(0,1fr);gap:2mm;align-items:start}.gepflegt-pdf-strength svg{width:4mm;height:4mm;margin-top:.4mm;fill:none;stroke:var(--gepflegt-sidebar-text);stroke-linecap:round;stroke-linejoin:round;stroke-width:2.3}.gepflegt-pdf-strength h4{margin:0 0 1.5mm;color:var(--gepflegt-sidebar-text);font-size:10.2pt;font-weight:600;line-height:1.15}.gepflegt-pdf-strength p{margin:0;color:var(--gepflegt-sidebar-muted);font-size:8.5pt;line-height:1.28;hyphens:auto}.gepflegt-pdf-languages{display:flex;flex-direction:column;gap:3.2mm}.gepflegt-pdf-language{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2.5mm;align-items:center}.gepflegt-pdf-language>div{display:flex;min-width:0;justify-content:space-between;gap:2mm}.gepflegt-pdf-language strong,.gepflegt-pdf-language span{font-size:8.6pt;font-weight:400}.gepflegt-pdf-language em{color:var(--gepflegt-sidebar-muted);font-style:normal}.gepflegt-pdf-dots{display:flex;gap:1.05mm}.gepflegt-pdf-dots i{width:1.7mm;height:1.7mm;border:.3mm solid rgba(255,255,255,.7);border-radius:50%}.gepflegt-pdf-dots i.filled{border-color:#fff;background:#fff}.gepflegt-pdf-certifications{margin:0;padding-left:4mm}.gepflegt-pdf-certifications li{margin:0 0 1.3mm;padding-left:.7mm;color:var(--gepflegt-sidebar-text);font-size:8.5pt;line-height:1.25}
   .gepflegt-pdf-content{position:relative;min-width:0;height:100%;overflow:hidden;padding:9mm 10mm 13mm 9mm}.gepflegt-pdf-header{min-width:0;margin:0 0 12mm}.gepflegt-pdf-header h1{margin:0;color:var(--gepflegt-heading);font-family:var(--heading-font);font-size:24pt;font-weight:750;letter-spacing:.005em;line-height:1;text-transform:uppercase;overflow-wrap:anywhere}.gepflegt-pdf-header h2{max-width:120mm;margin:2.4mm 0 0;color:var(--gepflegt-accent);font-size:13.5pt;font-weight:500;line-height:1.15;overflow-wrap:break-word}.gepflegt-pdf-contacts{display:flex;flex-wrap:wrap;gap:2.1mm 4mm;margin:4mm 0 0;color:var(--gepflegt-text);font-size:8.2pt;font-style:normal;font-weight:500;line-height:1.2}.gepflegt-pdf-contact{display:inline-flex;min-width:0;max-width:90mm;align-items:center;gap:1.4mm}.gepflegt-pdf-contact svg{width:3.4mm;height:3.4mm;flex:0 0 auto;fill:none;stroke:#b9bec0;stroke-linecap:round;stroke-linejoin:round;stroke-width:2.7}.gepflegt-pdf-contact span{min-width:0;overflow-wrap:anywhere;white-space:nowrap}
-  .gepflegt-pdf-main{display:flex;min-width:0;flex-direction:column;gap:var(--gepflegt-section-gap)}.gepflegt-pdf-section{min-width:0;break-inside:auto}.gepflegt-pdf-title{margin:0 0 3.6mm;padding:0 0 2.2mm;border-bottom:.35mm solid var(--gepflegt-divider);color:var(--gepflegt-heading);font-family:var(--heading-font);font-size:14.5pt;font-weight:500;letter-spacing:.015em;line-height:1;text-transform:uppercase;break-after:avoid}.gepflegt-pdf-list{display:flex;flex-direction:column;gap:var(--gepflegt-entry-gap)}.gepflegt-pdf-entry{min-width:0;break-inside:avoid}.gepflegt-pdf-entry-heading,.gepflegt-pdf-entry-subheading{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5mm;align-items:baseline}.gepflegt-pdf-entry-heading h4{min-width:0;margin:0;color:var(--gepflegt-heading);font-size:11.5pt;font-weight:500;line-height:1.15;overflow-wrap:anywhere}.gepflegt-pdf-entry-heading span,.gepflegt-pdf-entry-subheading span{max-width:31mm;color:var(--gepflegt-text);font-size:8.8pt;line-height:1.15;text-align:right}.gepflegt-pdf-entry-subheading{margin-top:1.5mm}.gepflegt-pdf-entry-subheading strong{color:var(--gepflegt-accent);font-size:9.8pt;font-weight:600;line-height:1.15;overflow-wrap:anywhere}.gepflegt-pdf-entry ul{margin:2mm 0 0;padding-left:4.8mm}.gepflegt-pdf-entry li{margin:.45mm 0;padding-left:.6mm;color:var(--gepflegt-text);font-size:8.8pt;line-height:1.28;hyphens:auto;overflow-wrap:break-word}
+  .gepflegt-pdf-main{display:flex;min-width:0;flex-direction:column;gap:var(--gepflegt-section-gap)}.gepflegt-pdf-section{min-width:0;break-inside:auto}.gepflegt-pdf-title{margin:0 0 3.6mm;padding:0 0 2.2mm;border-bottom:.35mm solid var(--gepflegt-divider);color:var(--gepflegt-heading);font-family:var(--heading-font);font-size:14.5pt;font-weight:500;letter-spacing:.015em;line-height:1;text-transform:uppercase;break-after:avoid}.gepflegt-pdf-list{display:flex;flex-direction:column;gap:var(--gepflegt-entry-gap)}.gepflegt-pdf-entry{min-width:0;break-inside:auto}.gepflegt-pdf-entry-heading,.gepflegt-pdf-entry-subheading{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5mm;align-items:baseline}.gepflegt-pdf-entry-heading h4{min-width:0;margin:0;color:var(--gepflegt-heading);font-size:11.5pt;font-weight:500;line-height:1.15;overflow-wrap:anywhere}.gepflegt-pdf-entry-heading span,.gepflegt-pdf-entry-subheading span{max-width:31mm;color:var(--gepflegt-text);font-size:8.8pt;line-height:1.15;text-align:right}.gepflegt-pdf-entry-subheading{margin-top:1.5mm}.gepflegt-pdf-entry-subheading strong{color:var(--gepflegt-accent);font-size:9.8pt;font-weight:600;line-height:1.15;overflow-wrap:anywhere}.gepflegt-pdf-entry ul{margin:2mm 0 0;padding-left:4.8mm}.gepflegt-pdf-entry li{margin:.45mm 0;padding-left:.6mm;color:var(--gepflegt-text);font-size:8.8pt;line-height:1.28;hyphens:auto;overflow-wrap:break-word}
   .gepflegt-pdf-footer{position:absolute;right:10mm;bottom:5.5mm;left:9mm;display:flex;justify-content:flex-end;gap:8mm;color:var(--gepflegt-muted);font-size:7.2pt}.gepflegt-pdf-footer span:first-child{margin-right:auto}.gepflegt-pdf-sidebar-continuation{display:flex;align-items:center}.gepflegt-pdf-sidebar-continuation p,.gepflegt-pdf-sidebar-continuation h2,.gepflegt-pdf-sidebar-continuation span,.gepflegt-pdf-sidebar-continuation small{display:block;margin:0}.gepflegt-pdf-sidebar-continuation p{font-size:8pt;letter-spacing:.12em;text-transform:uppercase}.gepflegt-pdf-sidebar-continuation h2{margin-top:2mm;color:#fff;font-size:16pt;line-height:1.05;text-transform:uppercase}.gepflegt-pdf-sidebar-continuation span{margin-top:2mm;color:var(--gepflegt-sidebar-muted)}.gepflegt-pdf-sidebar-continuation i{display:block;width:16mm;height:.5mm;margin:8mm 0;background:#fff}.gepflegt-pdf-header.compact{margin-bottom:8mm;padding-bottom:3mm;border-bottom:.35mm solid var(--gepflegt-divider)}.gepflegt-pdf-header.compact .kicker{margin:0 0 1mm;color:var(--gepflegt-accent);font-size:7.3pt}.gepflegt-pdf-header.compact h1{font-size:16pt}.gepflegt-pdf-header.compact h2{margin-top:1mm;font-size:9.5pt}
   .gepflegt-pdf[data-density="compact"]{--gepflegt-section-gap:5.7mm;--gepflegt-entry-gap:3.6mm;font-size:8.35pt;line-height:1.23}.gepflegt-pdf[data-density="compact"] .gepflegt-pdf-header{margin-bottom:9mm}.gepflegt-pdf[data-density="compact"] .gepflegt-pdf-sidebar section{margin-bottom:6.5mm}.gepflegt-pdf[data-density="compact"] .gepflegt-pdf-entry li{font-size:8.35pt;line-height:1.23}.gepflegt-pdf[data-density="dense"]{--gepflegt-section-gap:4.4mm;--gepflegt-entry-gap:2.8mm;font-size:7.8pt;line-height:1.18}.gepflegt-pdf[data-density="dense"] .gepflegt-pdf-header{margin-bottom:7mm}.gepflegt-pdf[data-density="dense"] .gepflegt-pdf-photo{margin-bottom:10mm}.gepflegt-pdf[data-density="dense"] .gepflegt-pdf-sidebar section{margin-bottom:5mm}.gepflegt-pdf[data-density="dense"] .gepflegt-pdf-entry li{font-size:7.8pt;line-height:1.18}
   .gepflegt-pdf-ats{display:block;padding:14mm 16mm 16mm;background:#fff;font-family:Arial,sans-serif}.gepflegt-pdf-ats:before{display:none}.gepflegt-pdf-ats .gepflegt-pdf-header{margin-bottom:6mm;padding-bottom:3mm;border-bottom:.35mm solid var(--gepflegt-divider)}.gepflegt-pdf-ats .gepflegt-pdf-header h1{font-size:20pt}.gepflegt-pdf-ats .gepflegt-pdf-header h2{color:var(--gepflegt-heading);font-size:10.5pt}.gepflegt-pdf-ats .gepflegt-pdf-contacts{gap:1mm 5mm;margin-top:2mm}.gepflegt-pdf-ats .gepflegt-pdf-contact{max-width:none}.gepflegt-pdf-ats-summary{margin-bottom:var(--gepflegt-section-gap)}.gepflegt-pdf-ats-summary p{margin:0}.gepflegt-pdf-ats-extra{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5mm 10mm;margin-top:var(--gepflegt-section-gap)}.gepflegt-pdf-ats-extra section{margin:0}.gepflegt-pdf-ats-extra h3{margin:0 0 2mm;padding-bottom:1.5mm;border-bottom:.35mm solid var(--gepflegt-divider);color:var(--gepflegt-heading);font-size:10.5pt;text-transform:uppercase}.gepflegt-pdf-ats-extra p,.gepflegt-pdf-ats-extra li{font-size:8.5pt}.gepflegt-pdf-ats-extra ul{margin:0;padding-left:4mm}
@@ -28902,7 +29595,7 @@ var tabellarischDocumentCss = `
   .tabellarisch-pdf-contacts{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:1.15mm 7mm;width:100%;max-width:132mm;margin:2.5mm 0 0;color:var(--tab-text);font-size:8.4pt;font-style:normal;font-weight:600;line-height:1.2}.tabellarisch-pdf-contact{display:grid;grid-template-columns:3.2mm minmax(0,1fr);gap:1.2mm;align-items:center;min-width:0}.tabellarisch-pdf-contact svg{width:3mm;height:3mm;fill:none;stroke:var(--tab-accent);stroke-linecap:round;stroke-linejoin:round;stroke-width:2.4}.tabellarisch-pdf-contact span,.tabellarisch-pdf-contact a{min-width:0;overflow-wrap:anywhere}.tabellarisch-pdf-contact[data-contact-kind="linkedin"] a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal}
   .tabellarisch-pdf-section{min-width:0;margin-top:var(--tab-section-gap);break-inside:auto}.tabellarisch-pdf-title{display:flex;align-items:baseline;gap:2.5mm;margin:0 0 3.5mm;color:var(--tab-primary);font-family:var(--heading-font);font-size:15pt;font-weight:750;letter-spacing:.01em;line-height:1.05;text-transform:uppercase;break-after:avoid}.tabellarisch-pdf-title small{color:var(--tab-muted);font-size:7.5pt;font-weight:600;text-transform:none}.tabellarisch-pdf-summary{margin:0;text-align:justify;text-justify:inter-word;hyphens:auto;overflow-wrap:break-word}
   .tabellarisch-pdf-strengths{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5mm 12mm}.tabellarisch-pdf-strength{display:grid;grid-template-columns:8mm minmax(0,1fr);gap:2.5mm;align-items:start;break-inside:avoid}.tabellarisch-pdf-strength svg{width:6mm;height:6mm;fill:none;stroke:var(--tab-accent);stroke-linecap:round;stroke-linejoin:round;stroke-width:2.1}.tabellarisch-pdf-strength h3{margin:0 0 1.5mm;color:var(--tab-primary);font-size:10.3pt;font-weight:700;line-height:1.2}.tabellarisch-pdf-strength p{margin:0;hyphens:auto;overflow-wrap:break-word}
-  .tabellarisch-pdf-timeline{display:flex;flex-direction:column}.tabellarisch-pdf-entry{display:grid;grid-template-columns:minmax(30mm,35mm) 7mm minmax(0,1fr);gap:4mm;min-width:0;padding-bottom:var(--tab-entry-gap);break-inside:avoid}.tabellarisch-pdf-entry:last-child{padding-bottom:0}.tabellarisch-pdf-meta{padding-top:.45mm}.tabellarisch-pdf-date,.tabellarisch-pdf-location{margin:0}.tabellarisch-pdf-date{color:var(--tab-primary);font-size:10pt;font-weight:750;line-height:1.15}.tabellarisch-pdf-location{margin-top:2mm;color:var(--tab-text);font-size:8.4pt;line-height:1.3}.tabellarisch-pdf-rail{position:relative;display:block;min-height:100%}.tabellarisch-pdf-rail:before{position:absolute;top:2.5mm;bottom:-1mm;left:50%;width:.35mm;background:var(--tab-line);content:"";transform:translateX(-50%)}.tabellarisch-pdf-rail:after{position:absolute;top:.6mm;left:50%;width:2.3mm;height:2.3mm;border-radius:50%;background:var(--tab-primary);content:"";transform:translateX(-50%)}.tabellarisch-pdf-entry-content{min-width:0}.tabellarisch-pdf-entry h3{margin:0;color:var(--tab-primary);font-family:var(--heading-font);font-size:12pt;font-weight:500;line-height:1.15;overflow-wrap:anywhere}.tabellarisch-pdf-organization{margin:1mm 0 1.5mm;color:var(--tab-accent);font-size:10.2pt;font-weight:700;line-height:1.2;overflow-wrap:anywhere}.tabellarisch-pdf-entry ul,.tabellarisch-pdf-list ul,.tabellarisch-pdf-ats ul{margin:0;padding-left:4.5mm}.tabellarisch-pdf-entry li,.tabellarisch-pdf-list li,.tabellarisch-pdf-ats li{margin:.45mm 0;padding-left:.5mm;hyphens:auto;overflow-wrap:break-word}.tabellarisch-pdf-entry li::marker{color:var(--tab-muted)}
+  .tabellarisch-pdf-timeline{display:flex;flex-direction:column}.tabellarisch-pdf-entry{display:grid;grid-template-columns:minmax(30mm,35mm) 7mm minmax(0,1fr);gap:4mm;min-width:0;padding-bottom:var(--tab-entry-gap);break-inside:auto}.tabellarisch-pdf-entry:last-child{padding-bottom:0}.tabellarisch-pdf-meta{padding-top:.45mm}.tabellarisch-pdf-date,.tabellarisch-pdf-location{margin:0}.tabellarisch-pdf-date{color:var(--tab-primary);font-size:10pt;font-weight:750;line-height:1.15}.tabellarisch-pdf-location{margin-top:2mm;color:var(--tab-text);font-size:8.4pt;line-height:1.3}.tabellarisch-pdf-rail{position:relative;display:block;min-height:100%}.tabellarisch-pdf-rail:before{position:absolute;top:2.5mm;bottom:-1mm;left:50%;width:.35mm;background:var(--tab-line);content:"";transform:translateX(-50%)}.tabellarisch-pdf-rail:after{position:absolute;top:.6mm;left:50%;width:2.3mm;height:2.3mm;border-radius:50%;background:var(--tab-primary);content:"";transform:translateX(-50%)}.tabellarisch-pdf-entry-content{min-width:0}.tabellarisch-pdf-entry h3{margin:0;color:var(--tab-primary);font-family:var(--heading-font);font-size:12pt;font-weight:500;line-height:1.15;overflow-wrap:anywhere}.tabellarisch-pdf-organization{margin:1mm 0 1.5mm;color:var(--tab-accent);font-size:10.2pt;font-weight:700;line-height:1.2;overflow-wrap:anywhere}.tabellarisch-pdf-entry ul,.tabellarisch-pdf-list ul,.tabellarisch-pdf-ats ul{margin:0;padding-left:4.5mm}.tabellarisch-pdf-entry li,.tabellarisch-pdf-list li,.tabellarisch-pdf-ats li{margin:.45mm 0;padding-left:.5mm;hyphens:auto;overflow-wrap:break-word}.tabellarisch-pdf-entry li::marker{color:var(--tab-muted)}
   .tabellarisch-pdf-additional{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12mm}.tabellarisch-pdf-list ul.inline{display:flex;flex-wrap:wrap;gap:1mm 6mm;padding:0;list-style:none}.tabellarisch-pdf-list ul.inline li:before{margin-right:1.5mm;color:var(--tab-accent);content:"•"}
   .tabellarisch-pdf-continuation{display:flex;align-items:baseline;justify-content:space-between;gap:8mm;margin-bottom:6mm;padding-bottom:2.5mm;border-bottom:.35mm solid var(--tab-line)}.tabellarisch-pdf-continuation strong{color:var(--tab-primary);font-family:var(--heading-font);font-size:13pt}.tabellarisch-pdf-continuation span{color:var(--tab-accent);font-size:9pt;font-weight:600;text-align:right}.tabellarisch-pdf-footer{position:absolute;right:var(--tab-margin);bottom:6mm;left:var(--tab-margin);z-index:3;display:flex;justify-content:space-between;gap:8mm;color:var(--tab-muted);font-size:7.5pt}.tabellarisch-pdf-footer span:last-child{margin-left:auto;white-space:nowrap}
   .tabellarisch-pdf[data-density="compact"]{--tab-section-gap:5.2mm;--tab-entry-gap:3.4mm;font-size:max(8.3pt,var(--body-size));line-height:max(1.24,var(--body-line))}.tabellarisch-pdf[data-density="dense"]{--tab-section-gap:4.1mm;--tab-entry-gap:2.6mm;--tab-margin:max(13mm,var(--doc-margin));font-size:8pt;line-height:1.22}.tabellarisch-pdf[data-density="dense"] .tabellarisch-pdf-content{padding-top:13mm}.tabellarisch-pdf[data-density="dense"] .tabellarisch-pdf-header{min-height:29mm}.tabellarisch-pdf[data-density="dense"] .tabellarisch-pdf-header h1{font-size:22pt}.tabellarisch-pdf[data-density="dense"] .tabellarisch-pdf-header h2{font-size:12pt}.tabellarisch-pdf[data-density="dense"] .tabellarisch-pdf-title{margin-bottom:2.4mm;font-size:13.5pt}
@@ -30330,7 +31023,8 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 		};
 		const closingMarkup = lastPage && closingSection.visible && (closing.showPlace || closing.showDate || closing.showSignature) ? `<footer class="pehlione-pdf-closing">${closing.showPlace || closing.showDate ? `<p>${escapeHtml([closing.showPlace ? profile?.applicationPlace || profile?.city : "", closing.showDate ? profile?.applicationDate : ""].filter(Boolean).join(", "))}</p>` : ""}${closing.showSignature ? `<div class="pehlione-pdf-signer">${signatureSource ? `<img src="${escapeHtml(signatureSource)}" alt="Unterschrift">` : ""}<strong>${escapeHtml(name)}</strong></div>` : ""}</footer>` : "";
 		const languages = sections.languages ? (profile?.languages ?? []).filter(Boolean).map((item) => `<li>${escapeHtml(item)}</li>`).join("") : "";
-		const main = `${!continuation && summarySection.visible && sections.profile && managedSummary ? `<section class="pehlione-pdf-section pehlione-pdf-summary-section">${sectionHeading(getResumeSemanticTitle(semanticSections, "summary"), "profile")}<p class="pehlione-pdf-summary">${escapeHtml(managedSummary)}</p></section>` : ""}${sections.experience && experience ? `<section class="pehlione-pdf-section pehlione-pdf-experience">${sectionHeading(`${getResumeSemanticTitle(semanticSections, "career")}${continuation ? " · Fortsetzung" : ""}`, "experience")}${experience}</section>` : ""}${sections.education && education ? `<section class="pehlione-pdf-section pehlione-pdf-education">${sectionHeading(getResumeSemanticTitle(semanticSections, "education"), "education")}${education}</section>` : ""}${lastPage && project && !(template.id === "pehlione_white_blue" && hasPehlioneCustomProjectHighlight(profile)) && !knowledgeGroups.some((group) => group.semanticType === "project-highlight" && visibleBlockItems(group).length) ? `<section class="pehlione-pdf-section pehlione-pdf-project">${sectionHeading("Projekt-Highlight", "project")}<h4>${escapeHtml(project.title)}</h4><p>${[project.company, ...project.technologies].filter(Boolean).map(escapeHtml).join(" · ")}</p>${project.achievements.length ? `<ul>${project.achievements.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}</section>` : ""}${lastPage && knowledgeSection.visible && profile?.resumeKnowledgeContainer?.showTitle && mainKnowledge ? `<section class="pehlione-pdf-section">${sectionHeading(getResumeSemanticTitle(semanticSections, "knowledge"), "profile")}</section>` : ""}${lastPage && knowledgeSection.visible ? mainKnowledge : ""}${lastPage && sections.certifications && kreativCertifications.length && !knowledgeGroups.some((group) => ["training", "certificates"].includes(group.semanticType)) ? `<section class="pehlione-pdf-section pehlione-pdf-training">${sectionHeading("Weiterbildungen", "training")}<ul>${kreativCertifications.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}${atsMode && lastPage && languages ? `<section class="pehlione-pdf-section pehlione-pdf-training">${sectionHeading("Sprachen", "languages")}<ul>${languages}</ul></section>` : ""}${closingMarkup}${!experience && !education ? "<p class='muted'>Berufserfahrung und Ausbildung im Profil ergänzen.</p>" : ""}`;
+		const projectHere = atsMode || !plan.blocks ? lastPage : plan.blocks.includes("projects");
+		const main = `${!continuation && summarySection.visible && sections.profile && managedSummary ? `<section class="pehlione-pdf-section pehlione-pdf-summary-section">${sectionHeading(getResumeSemanticTitle(semanticSections, "summary"), "profile")}<p class="pehlione-pdf-summary">${escapeHtml(managedSummary)}</p></section>` : ""}${sections.experience && experience ? `<section class="pehlione-pdf-section pehlione-pdf-experience">${sectionHeading(`${getResumeSemanticTitle(semanticSections, "career")}${continuation ? " · Fortsetzung" : ""}`, "experience")}${experience}</section>` : ""}${sections.education && education ? `<section class="pehlione-pdf-section pehlione-pdf-education">${sectionHeading(getResumeSemanticTitle(semanticSections, "education"), "education")}${education}</section>` : ""}${projectHere && project && !(template.id === "pehlione_white_blue" && hasPehlioneCustomProjectHighlight(profile)) && !knowledgeGroups.some((group) => group.semanticType === "project-highlight" && visibleBlockItems(group).length) ? `<section class="pehlione-pdf-section pehlione-pdf-project">${sectionHeading("Projekt-Highlight", "project")}<h4>${escapeHtml(project.title)}</h4><p>${[project.company, ...project.technologies].filter(Boolean).map(escapeHtml).join(" · ")}</p>${project.achievements.length ? `<ul>${project.achievements.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}</section>` : ""}${lastPage && knowledgeSection.visible && profile?.resumeKnowledgeContainer?.showTitle && mainKnowledge ? `<section class="pehlione-pdf-section">${sectionHeading(getResumeSemanticTitle(semanticSections, "knowledge"), "profile")}</section>` : ""}${lastPage && knowledgeSection.visible ? mainKnowledge : ""}${lastPage && sections.certifications && kreativCertifications.length && !knowledgeGroups.some((group) => ["training", "certificates"].includes(group.semanticType)) ? `<section class="pehlione-pdf-section pehlione-pdf-training">${sectionHeading("Weiterbildungen", "training")}<ul>${kreativCertifications.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}${atsMode && lastPage && languages ? `<section class="pehlione-pdf-section pehlione-pdf-training">${sectionHeading("Sprachen", "languages")}<ul>${languages}</ul></section>` : ""}${closingMarkup}${!experience && !education ? "<p class='muted'>Berufserfahrung und Ausbildung im Profil ergänzen.</p>" : ""}`;
 		const density = plan.density === "dense" ? "compact" : plan.density;
 		if (atsMode) return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="${escapeHtml(template.id)}" data-no-fit="true"><div class="page-content pehlione-pdf${template.id === "pehlione_white" ? " pehlione-pdf-white" : ""} pehlione-pdf-ats" data-density="${density}"><main class="pehlione-pdf-main">${header}${!continuation ? `<p class="pehlione-pdf-ats-contact"><strong>Kontakt:</strong> ${contactItems.map((item) => escapeHtml(item.value)).join(" · ")}</p>` : ""}${main}</main></div></section>`;
 		if (continuation) {

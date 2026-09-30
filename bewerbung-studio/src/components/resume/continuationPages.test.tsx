@@ -57,16 +57,16 @@ const profile = profileSchema.parse({
   updatedAt: now,
 });
 
-const render = (templateId: string) => {
+const render = (templateId: string, source = profile) => {
   const template = getTemplate(templateId);
   const settings = getTemplateDocumentDesignDefaults(templateId);
-  const resolved = resolveCvDocument({ profile, templateId, settings, resumeProfile: "" });
+  const resolved = resolveCvDocument({ profile: source, templateId, settings, resumeProfile: "" });
   const application = applicationSchema.parse({
     schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test", company: { name: "Test", city: "Berlin" }, contact: {},
     job: { title: "Entwicklung" }, status: "Entwurf", templateId, accentColor: template.accent, secondaryColor: template.secondary,
     designSettings: settings, documents: {}, statusHistory: [], createdAt: now, updatedAt: now,
   });
-  const pdfPages = Array.from(parseHTML(buildDocumentHtml(application, profile, "lebenslauf")).document.querySelectorAll(".cv-sheet"));
+  const pdfPages = Array.from(parseHTML(buildDocumentHtml(application, source, "lebenslauf")).document.querySelectorAll(".cv-sheet"));
   const component = components[templateId as keyof typeof components] as unknown as ComponentType<Record<string, unknown>>;
   const previewPages = resolved.pagePlan.map((plan) => parseHTML(`<html><body>${renderToStaticMarkup(
     <ManagedResumePreview
@@ -129,11 +129,26 @@ describe.each(Object.keys(components))("continuation page of %s", (templateId) =
     }
   });
 
-  it("renders every career entry exactly once", () => {
+  it("draws every bullet and degree exactly once, whichever page an entry breaks on", () => {
     const all = pdfPages.map(text).join(" ");
-    for (const role of [...profile.experiences.map((item) => item.role), ...profile.education.map((item) => item.degree)]) {
-      expect(all.split(role).length - 1).toBe(1);
+    // Pehlione shows five bullets per role, every other template all of them.
+    const shown = templateId.startsWith("pehlione_") ? 5 : 6;
+    for (const experience of profile.experiences) {
+      for (const bullet of experience.achievements.slice(0, shown)) expect(all.split(bullet).length - 1).toBe(1);
+      // A role that breaks between two pages repeats its header once, marked as a continuation.
+      const headers = all.split(experience.role).length - 1;
+      expect(headers === 1 || headers === 2).toBe(true);
     }
+    for (const education of profile.education) expect(all.split(education.degree).length - 1).toBe(1);
+  });
+
+  it("breaks an entry at the same bullet in the preview and in the PDF", () => {
+    // Some previews wrap a whole entry in a list item; only the bullets carry the “Ergebnis” text.
+    const bullets = (page: Element) => Array.from(page.querySelectorAll('[data-managed-section="experience"] li')).map(text).filter((entry) => entry.startsWith("Ergebnis"));
+    for (const index of [0, 1]) expect({ page: index + 1, bullets: bullets(previewPages[index]) }).toEqual({ page: index + 1, bullets: bullets(pdfPages[index]) });
+    const continued = (page: Element) => page.querySelectorAll("[data-resume-entry-continued]").length;
+    expect(continued(previewPages[1])).toBe(continued(pdfPages[1]));
+    expect(continued(pdfPages[0])).toBe(0);
   });
 
   it("keeps the closing block on the last page only and inside the page", () => {
@@ -162,4 +177,40 @@ it("renders certificates on their template-specific page, not twice after a spli
   expect(text(elegant[1])).not.toContain("TÜV Sicherheit Unikat");
   expect(text(pehlione[0])).not.toContain("TÜV Sicherheit Unikat");
   expect(text(pehlione[1])).toContain("TÜV Sicherheit Unikat");
+});
+
+// A résumé whose career fits page one but whose knowledge list does not: the list continues on page two.
+const skills = Array.from({ length: 64 }, (_, index) => `Technologie ${index + 1} im Einsatz`);
+const tailProfile = profileSchema.parse({
+  ...profile,
+  skills,
+  experiences: profile.experiences.slice(0, 3).map((item) => ({ ...item, achievements: item.achievements.slice(0, 3) })),
+  education: profile.education.slice(0, 1),
+});
+
+describe.each(["einspaltig", "klassisch", "ivy-league"])("knowledge list that continues on page two of %s", (templateId) => {
+  const { resolved, pdfPages, previewPages } = render(templateId, tailProfile);
+
+  it("flows the list from page one to page two without repeating or dropping an item", () => {
+    expect(resolved.pagePlan).toHaveLength(2);
+    expect(resolved.pagePlan[1].items).toHaveLength(0);
+    expect(resolved.pagePlan[0].blockRanges?.knowledge).toBeDefined();
+    const items = (page: Element) => Array.from(page.querySelectorAll('[data-managed-section="knowledge"] .managed-item-text')).map(text);
+    const shown = pdfPages.flatMap(items);
+    expect(shown).toHaveLength(skills.length);
+    expect(new Set(shown).size).toBe(skills.length);
+    for (const index of [0, 1]) expect(items(previewPages[index])).toEqual(items(pdfPages[index]));
+  });
+
+  it("names the second part of the list a continuation", () => {
+    for (const pages of [pdfPages, previewPages]) {
+      expect(text(pages[1].querySelector('[data-managed-section="knowledge"] h3, [data-managed-section="knowledge"] h2') ?? pages[1])).toContain("Fortsetzung");
+      expect(text(pages[0])).not.toContain("Fortsetzung");
+    }
+  });
+
+  it.each(["preview", "pdf"] as const)("prints no “career missing” hint on a page without career entries in the %s", (surface) => {
+    const page = (surface === "pdf" ? pdfPages : previewPages)[1];
+    expect(text(page)).not.toContain("im Profil ergänzen");
+  });
 });

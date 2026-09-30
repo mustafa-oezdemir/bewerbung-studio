@@ -151,8 +151,8 @@
 .kompakt-section {
   min-width: 0;
   margin: 0 0 var(--kompakt-section-gap);
-  break-inside: avoid;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .kompakt-template .kompakt-section__title {
@@ -192,8 +192,8 @@
 }
 
 .kompakt-career-entry {
-  break-inside: avoid;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .kompakt-career-entry h3 {

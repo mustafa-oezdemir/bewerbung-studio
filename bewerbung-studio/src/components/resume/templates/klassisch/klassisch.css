@@ -191,8 +191,8 @@
 .klassisch-section {
   min-width: 0;
   margin: 0 0 var(--klassisch-section-gap);
-  break-inside: avoid;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .klassisch-template .klassisch-section__title {
@@ -249,8 +249,8 @@
 
 .klassisch-career article {
   min-width: 0;
-  break-inside: avoid;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .klassisch-career__heading {

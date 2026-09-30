@@ -281,8 +281,8 @@
 
 .ivy-league-career-entry {
   min-width: 0;
-  break-inside: avoid;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .ivy-league-career-entry__top,

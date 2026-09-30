@@ -202,8 +202,8 @@
 .stilvoll-section {
   min-width: 0;
   margin: 0 0 var(--stilvoll-section-gap);
-  break-inside: avoid;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .stilvoll-template .stilvoll-section__title {
@@ -309,8 +309,8 @@
 }
 
 .stilvoll-career article {
-  break-inside: avoid;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .stilvoll-career h3 {

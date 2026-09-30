@@ -258,8 +258,8 @@
 .kreativ-section {
   min-width: 0;
   margin-bottom: var(--kreativ-section-gap);
-  break-inside: avoid;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .kreativ-section__title {
@@ -297,8 +297,8 @@
 .kreativ-career-entry {
   padding-bottom: var(--kreativ-entry-divider-gap, 1.5mm);
   border-bottom: 0.25mm dashed var(--kreativ-light-divider);
-  break-inside: avoid;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .kreativ-career-entry:last-child {

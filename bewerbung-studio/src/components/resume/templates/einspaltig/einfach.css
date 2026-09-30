@@ -202,8 +202,8 @@
 .einfach-section {
   min-width: 0;
   margin: 0 0 var(--einfach-section-gap);
-  break-inside: avoid;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .einfach-section__title,
@@ -280,8 +280,8 @@
 .einfach-career article {
   padding-bottom: 3mm;
   border-bottom: 0.25mm dashed #d4d9dc;
-  break-inside: avoid;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .einfach-career article:last-child {

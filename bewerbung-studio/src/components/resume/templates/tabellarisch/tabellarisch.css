@@ -295,8 +295,8 @@
   column-gap: 4mm;
   min-width: 0;
   padding-bottom: var(--tabellarisch-entry-gap);
-  break-inside: avoid;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .tabellarisch-timeline-entry:last-child {
@@ -428,8 +428,8 @@
 
 .tabellarisch-knowledge__category {
   min-width: 0;
-  break-inside: avoid;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .tabellarisch-knowledge__category h3,
