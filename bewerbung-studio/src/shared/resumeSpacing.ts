@@ -158,9 +158,10 @@ export const applyResumeSpacingOutput = (
   const sources = resumeSectionStyleSources[surface][id as keyof typeof resumeSectionStyleSources.preview];
   if (sources) {
     if (spacing?.sectionTitleGapMm !== undefined) {
-      const titleSelector = id === "klassisch"
+      // The headings a zone-flow template rebuilds (`data-cv-heading`) keep following the title gap.
+      const titleSelector = `${id === "klassisch"
         ? `${sources[1]},[data-custom-template="klassisch"] [data-custom-role="heading"]`
-        : sources[1];
+        : sources[1]},[data-cv-heading]`;
       scope.querySelectorAll(titleSelector).forEach(node => node.setAttribute("data-resume-spacing-title", ""));
     }
     if (spacing?.entryContentGapMm !== undefined)

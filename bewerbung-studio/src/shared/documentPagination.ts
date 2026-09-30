@@ -723,7 +723,9 @@ export const createResumePagePlan = (
   // The plain layouts list every certificate, whatever the styled layout shows of them.
   const plain = Boolean(context.atsMode);
   const certificateHome = flat ? "last" : certificates.home;
-  if (visible("certifications") && certifications.length && (plain || certificateHome !== "none")) {
+  // A template that draws no certificates of its own (home "none") still shows them once it follows its columns:
+  // the section list offers them, so the user's choice of a column must reach the output.
+  if (visible("certifications") && certifications.length && (plain || zoneFlow || certificateHome !== "none")) {
     const shown = plain ? certifications : certifications.slice(0, certificates.limit ?? certifications.length);
     const width = flat ? geometry.text.fullW : certificates.zone === "main" ? certificates.w * scale.mainRatio : certificates.w + scale.sideDelta;
     const wrapped = shown.reduce(

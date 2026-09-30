@@ -106,7 +106,7 @@ export const sectionSemanticType = (id: string, groupSemanticType?: string): Sec
  * and the closing date comes from the application. Templates join this list one by one, after
  * their look was verified on both surfaces.
  */
-export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "pehlione_white", "zweispaltig", "zeitgenoessisch", "kreativ", "ivy-league"];
+export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "pehlione_white", "zweispaltig", "zeitgenoessisch", "kreativ", "ivy-league", "stilvoll"];
 
 export const isZoneFlowTemplate = (templateId: string | undefined): boolean =>
   Boolean(templateId && zoneFlowTemplates.includes(templateId));
@@ -343,6 +343,30 @@ const ivyLeague: TemplateTokens = {
   sidebar: { icons: false, heading: ivyLeagueHeading, list: ivyLeagueList },
 };
 
+/**
+ * Stilvoll: one light heading and one list for both columns (measured in the PDF: 9.5 pt regular capitals in the
+ * muted grey over a 0.3 mm rule, body-size lists with a 4 mm indent like its career bullets). It draws no icons.
+ * The preview and the PDF name the colours and the gap between the sections differently.
+ */
+const stilvollHeading: SectionHeadingTokens = {
+  iconBox: 0, iconGap: 0, iconRadius: 0, glyphSize: 0, glyphStroke: 0,
+  fontSizePt: { standard: 9.5, compact: 9.5 }, fontWeight: 400, lineHeight: 1,
+  letterSpacing: "normal", textTransform: "uppercase",
+  marginBottom: { standard: 3, compact: 3 }, labelPadding: { standard: 1, compact: 1 },
+  color: "var(--stilvoll-muted,var(--managed-muted))", dividerColor: "var(--stilvoll-divider,var(--managed-divider))", dividerWidth: ".3mm",
+  iconColor: "currentColor", iconBackground: "transparent",
+  sectionGap: { standard: 6, compact: 5.1, side: "bottom", expr: "var(--managed-section-gap,var(--stilvoll-section-gap))" },
+  height: 4.55,
+};
+const stilvollList: SectionListTokens = {
+  fontSizePt: { standard: 8.4, compact: 8.4 }, lineHeight: { standard: 1.05, compact: 1.05 },
+  itemGap: { standard: 0.3, compact: 0.3 }, indent: 4, inheritBody: true, layout: "margins", marginTop: 0.6,
+};
+const stilvoll: TemplateTokens = {
+  main: { icons: false, heading: stilvollHeading, list: stilvollList },
+  sidebar: { icons: false, heading: stilvollHeading, list: stilvollList },
+};
+
 /** How a template is reached on both surfaces, and which parts of the shared machinery it takes. */
 type TemplateConfig = {
   tokens: TemplateTokens;
@@ -364,6 +388,12 @@ const pehlioneRoots = (templateId: string) => ({
 const configByTemplate: Record<string, TemplateConfig> = {
   pehlione_white_blue: { tokens: pehlioneWhiteBlue, roots: pehlioneRoots("pehlione_white_blue"), plainLists: ["certifications", "languages"], sidebarHero: true },
   pehlione_white: { tokens: pehlioneWhite, roots: pehlioneRoots("pehlione_white"), plainLists: ["certifications", "languages"], sidebarHero: true },
+  stilvoll: {
+    tokens: stilvoll,
+    roots: { preview: ".stilvoll-template", pdf: '.cv-sheet[data-template="stilvoll"]', pdfBody: ".stilvoll-pdf" },
+    plainLists: ["certifications"],
+    sidebarHero: false,
+  },
   kreativ: {
     tokens: kreativ,
     roots: { preview: ".kreativ-template", pdf: '.cv-sheet[data-template="kreativ"]', pdfBody: ".kreativ-pdf" },

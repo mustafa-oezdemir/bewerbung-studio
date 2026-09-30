@@ -272,7 +272,8 @@ export const templateSectionCapabilities: Record<
       "references",
     ],
   },
-  stilvoll: mainOnlyCapabilities("stilvoll"),
+  // Stilvoll draws a left sidebar (summary, strengths, languages, knowledge) beside the career column.
+  stilvoll: twoColumnCapabilities("stilvoll"),
   kompakt: mainOnlyCapabilities("kompakt", { compactSinglePage: true }),
   einspaltig: mainOnlyCapabilities("einspaltig"),
   klassisch: mainOnlyCapabilities("klassisch"),

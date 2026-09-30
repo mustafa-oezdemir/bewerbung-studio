@@ -5512,6 +5512,22 @@ var pehlioneCapabilities = (templateId) => {
 		}
 	};
 };
+var zeitgenoessischCapabilities = () => {
+	const capabilities = twoColumnCapabilities("zeitgenoessisch");
+	return {
+		...capabilities,
+		allowedZonesBySection: {
+			...capabilities.allowedZonesBySection,
+			summary: ["main", "sidebar"],
+			strengths: ["main", "sidebar"],
+			languages: ["main", "sidebar"]
+		},
+		defaultZoneBySection: {
+			...capabilities.defaultZoneBySection,
+			summary: "main"
+		}
+	};
+};
 var templateSectionCapabilities = {
 	pehlione_white_blue: pehlioneCapabilities("pehlione_white_blue"),
 	pehlione_white: pehlioneCapabilities("pehlione_white"),
@@ -5530,7 +5546,7 @@ var templateSectionCapabilities = {
 			"references"
 		]
 	},
-	stilvoll: mainOnlyCapabilities("stilvoll"),
+	stilvoll: twoColumnCapabilities("stilvoll"),
 	kompakt: mainOnlyCapabilities("kompakt", { compactSinglePage: true }),
 	einspaltig: mainOnlyCapabilities("einspaltig"),
 	klassisch: mainOnlyCapabilities("klassisch"),
@@ -5539,7 +5555,7 @@ var templateSectionCapabilities = {
 	gepflegt: twoColumnCapabilities("gepflegt"),
 	modern: twoColumnCapabilities("modern"),
 	elegant: twoColumnCapabilities("elegant"),
-	zeitgenoessisch: twoColumnCapabilities("zeitgenoessisch"),
+	zeitgenoessisch: zeitgenoessischCapabilities(),
 	kreativ: twoColumnCapabilities("kreativ")
 };
 var getTemplateSectionCapabilities = (templateId) => templateSectionCapabilities[templateId] ?? mainOnlyCapabilities(templateId);
@@ -8841,7 +8857,7 @@ var applyResumeSpacingOutput = (page, templateId, surface, settings, resolvedDes
 	const sources = resumeSectionStyleSources[surface][id];
 	if (sources) {
 		if (spacing?.sectionTitleGapMm !== void 0) {
-			const titleSelector = id === "klassisch" ? `${sources[1]},[data-custom-template="klassisch"] [data-custom-role="heading"]` : sources[1];
+			const titleSelector = `${id === "klassisch" ? `${sources[1]},[data-custom-template="klassisch"] [data-custom-role="heading"]` : sources[1]},[data-cv-heading]`;
 			scope.querySelectorAll(titleSelector).forEach((node) => node.setAttribute("data-resume-spacing-title", ""));
 		}
 		if (spacing?.entryContentGapMm !== void 0) scope.querySelectorAll(sources[2]).forEach((node) => node.setAttribute("data-resume-spacing-entry-title", ""));
@@ -9416,7 +9432,11 @@ var sectionSemanticType = (id, groupSemanticType) => {
 var zoneFlowTemplates = [
 	"pehlione_white_blue",
 	"pehlione_white",
-	"zweispaltig"
+	"zweispaltig",
+	"zeitgenoessisch",
+	"kreativ",
+	"ivy-league",
+	"stilvoll"
 ];
 var isZoneFlowTemplate = (templateId) => Boolean(templateId && zoneFlowTemplates.includes(templateId));
 /** The closing of these templates prints the application date (`Ort, YYYY-MM-DD`), not a profile field. */
@@ -9627,6 +9647,281 @@ var zweispaltig = {
 		list: zweispaltigList
 	}
 };
+var zeitgenoessischHeading = {
+	iconBox: 6.5,
+	iconGap: 2,
+	iconRadius: 1.5,
+	glyphSize: 4,
+	glyphStroke: 1.8,
+	fontSizePt: {
+		standard: 11,
+		compact: 11
+	},
+	fontWeight: 750,
+	lineHeight: 1,
+	letterSpacing: ".025em",
+	textTransform: "uppercase",
+	marginBottom: {
+		standard: 3,
+		compact: 3
+	},
+	labelPadding: {
+		standard: 0,
+		compact: 0
+	},
+	color: "var(--zeit-primary-dark,var(--zeit-dark,#075e4e))",
+	dividerColor: "transparent",
+	dividerWidth: "0",
+	iconColor: "var(--zeit-primary-dark,var(--zeit-dark,#075e4e))",
+	iconBackground: "var(--zeit-primary-soft,var(--zeit-soft,#e4f1ed))",
+	sectionGap: {
+		standard: 4.5,
+		compact: 4.5,
+		side: "top",
+		expr: "var(--zeit-section-gap,var(--section-gap,4.5mm))"
+	},
+	height: 6.5
+};
+var zeitgenoessischList = {
+	fontSizePt: {
+		standard: 8.4,
+		compact: 8.4
+	},
+	lineHeight: {
+		standard: 1.2,
+		compact: 1.2
+	},
+	itemGap: {
+		standard: .5,
+		compact: .5
+	},
+	indent: 4.5,
+	inheritBody: true,
+	layout: "margins",
+	marginTop: 1.5,
+	markerColor: "var(--zeit-primary-dark,var(--zeit-dark,#075e4e))"
+};
+var zeitgenoessisch = {
+	main: {
+		icons: true,
+		heading: zeitgenoessischHeading,
+		list: zeitgenoessischList
+	},
+	sidebar: {
+		icons: true,
+		heading: zeitgenoessischHeading,
+		list: zeitgenoessischList
+	}
+};
+/**
+* Kreativ: one heading and one list for both columns (measured in the PDF: 14 pt titles over a 0.65 mm rule
+* in the dark green of the template, body-size lists with a 4.5 mm indent). It draws no icons. The gap after a
+* section is the template's own bottom margin, which the design settings keep steering.
+*/
+var kreativHeading = {
+	iconBox: 0,
+	iconGap: 0,
+	iconRadius: 0,
+	glyphSize: 0,
+	glyphStroke: 0,
+	fontSizePt: {
+		standard: 14,
+		compact: 14
+	},
+	fontWeight: 750,
+	lineHeight: 1,
+	letterSpacing: ".025em",
+	textTransform: "uppercase",
+	marginBottom: {
+		standard: 3.5,
+		compact: 3.5
+	},
+	labelPadding: {
+		standard: 1.2,
+		compact: 1.2
+	},
+	color: "var(--kreativ-heading,var(--kreativ-dark))",
+	dividerColor: "var(--kreativ-heading,var(--kreativ-dark))",
+	dividerWidth: ".65mm",
+	iconColor: "currentColor",
+	iconBackground: "transparent",
+	sectionGap: {
+		standard: 4.5,
+		compact: 4.5,
+		side: "bottom",
+		expr: "var(--kreativ-section-gap)"
+	},
+	height: 6.73
+};
+var kreativList = {
+	fontSizePt: {
+		standard: 8.4,
+		compact: 8.4
+	},
+	lineHeight: {
+		standard: 1.05,
+		compact: 1.05
+	},
+	itemGap: {
+		standard: .5,
+		compact: .5
+	},
+	indent: 4.5,
+	inheritBody: true,
+	layout: "margins",
+	markerColor: "var(--kreativ-primary,var(--accent))"
+};
+var kreativ = {
+	main: {
+		icons: false,
+		heading: kreativHeading,
+		list: kreativList
+	},
+	sidebar: {
+		icons: false,
+		heading: kreativHeading,
+		list: kreativList
+	}
+};
+/** Ivy League is a single-column design: both logical zones use its centered, iconless heading. */
+var ivyLeagueHeading = {
+	iconBox: 0,
+	iconGap: 0,
+	iconRadius: 0,
+	glyphSize: 0,
+	glyphStroke: 0,
+	fontSizePt: {
+		standard: 13.5,
+		compact: 13.5
+	},
+	fontWeight: 700,
+	lineHeight: 1.05,
+	letterSpacing: "0",
+	textTransform: "none",
+	textAlign: "center",
+	fontFamily: "var(--ivy-heading-font,Georgia,\"Times New Roman\",serif)",
+	marginBottom: {
+		standard: 2.5,
+		compact: 2.5
+	},
+	labelPadding: {
+		standard: 1.5,
+		compact: 1.5
+	},
+	color: "var(--ivy-heading,var(--ivy-primary,var(--accent)))",
+	dividerColor: "var(--ivy-divider,var(--accent))",
+	dividerWidth: ".3mm",
+	iconColor: "currentColor",
+	iconBackground: "transparent",
+	sectionGap: {
+		standard: 4.5,
+		compact: 4.5,
+		side: "bottom",
+		expr: "var(--ivy-section-gap,var(--section-gap,4.5mm))"
+	},
+	height: 8.9
+};
+var ivyLeagueList = {
+	fontSizePt: {
+		standard: 9,
+		compact: 9
+	},
+	lineHeight: {
+		standard: 1.25,
+		compact: 1.25
+	},
+	itemGap: {
+		standard: .35,
+		compact: .35
+	},
+	indent: 4.5,
+	inheritBody: true,
+	layout: "margins",
+	marginTop: 1.3,
+	markerColor: "var(--ivy-heading,var(--ivy-primary,var(--accent)))"
+};
+var ivyLeague = {
+	main: {
+		icons: false,
+		heading: ivyLeagueHeading,
+		list: ivyLeagueList
+	},
+	sidebar: {
+		icons: false,
+		heading: ivyLeagueHeading,
+		list: ivyLeagueList
+	}
+};
+/**
+* Stilvoll: one light heading and one list for both columns (measured in the PDF: 9.5 pt regular capitals in the
+* muted grey over a 0.3 mm rule, body-size lists with a 4 mm indent like its career bullets). It draws no icons.
+* The preview and the PDF name the colours and the gap between the sections differently.
+*/
+var stilvollHeading = {
+	iconBox: 0,
+	iconGap: 0,
+	iconRadius: 0,
+	glyphSize: 0,
+	glyphStroke: 0,
+	fontSizePt: {
+		standard: 9.5,
+		compact: 9.5
+	},
+	fontWeight: 400,
+	lineHeight: 1,
+	letterSpacing: "normal",
+	textTransform: "uppercase",
+	marginBottom: {
+		standard: 3,
+		compact: 3
+	},
+	labelPadding: {
+		standard: 1,
+		compact: 1
+	},
+	color: "var(--stilvoll-muted,var(--managed-muted))",
+	dividerColor: "var(--stilvoll-divider,var(--managed-divider))",
+	dividerWidth: ".3mm",
+	iconColor: "currentColor",
+	iconBackground: "transparent",
+	sectionGap: {
+		standard: 6,
+		compact: 5.1,
+		side: "bottom",
+		expr: "var(--managed-section-gap,var(--stilvoll-section-gap))"
+	},
+	height: 4.55
+};
+var stilvollList = {
+	fontSizePt: {
+		standard: 8.4,
+		compact: 8.4
+	},
+	lineHeight: {
+		standard: 1.05,
+		compact: 1.05
+	},
+	itemGap: {
+		standard: .3,
+		compact: .3
+	},
+	indent: 4,
+	inheritBody: true,
+	layout: "margins",
+	marginTop: .6
+};
+var stilvoll = {
+	main: {
+		icons: false,
+		heading: stilvollHeading,
+		list: stilvollList
+	},
+	sidebar: {
+		icons: false,
+		heading: stilvollHeading,
+		list: stilvollList
+	}
+};
 var pehlioneRoots = (templateId) => ({
 	preview: `.pehlione-resume[data-template="${templateId}"]`,
 	pdf: `.cv-sheet[data-template="${templateId}"]`,
@@ -9646,12 +9941,52 @@ var configByTemplate = {
 		plainLists: ["certifications", "languages"],
 		sidebarHero: true
 	},
+	stilvoll: {
+		tokens: stilvoll,
+		roots: {
+			preview: ".stilvoll-template",
+			pdf: ".cv-sheet[data-template=\"stilvoll\"]",
+			pdfBody: ".stilvoll-pdf"
+		},
+		plainLists: ["certifications"],
+		sidebarHero: false
+	},
+	kreativ: {
+		tokens: kreativ,
+		roots: {
+			preview: ".kreativ-template",
+			pdf: ".cv-sheet[data-template=\"kreativ\"]",
+			pdfBody: ".kreativ-pdf"
+		},
+		plainLists: ["certifications"],
+		sidebarHero: false
+	},
 	zweispaltig: {
 		tokens: zweispaltig,
 		roots: {
 			preview: ".zweispaltig-template",
 			pdf: ".cv-sheet[data-template=\"zweispaltig\"]",
 			pdfBody: ".zweispaltig-pdf"
+		},
+		plainLists: ["certifications"],
+		sidebarHero: false
+	},
+	zeitgenoessisch: {
+		tokens: zeitgenoessisch,
+		roots: {
+			preview: ".zeitgenoessisch-template",
+			pdf: ".cv-sheet[data-template=\"zeitgenoessisch\"]",
+			pdfBody: ".zeit-pdf"
+		},
+		plainLists: ["certifications"],
+		sidebarHero: false
+	},
+	"ivy-league": {
+		tokens: ivyLeague,
+		roots: {
+			preview: ".ivy-league-template",
+			pdf: ".cv-sheet[data-template=\"ivy-league\"]",
+			pdfBody: ".ivy-pdf"
 		},
 		plainLists: ["certifications"],
 		sidebarHero: false
@@ -9723,7 +10058,7 @@ var templateCss = (templateId, { tokens, roots }) => {
 				`${host} ${scope}>.cv-heading .cv-heading__icon{width:${mm(heading.iconBox)};height:${mm(heading.iconBox)};border-radius:${mm(heading.iconRadius)}}`,
 				`${host} ${scope}>.cv-heading .cv-heading__icon svg{width:${mm(heading.glyphSize)};height:${mm(heading.glyphSize)};stroke-width:${heading.glyphStroke}}`
 			].join("\n") : "",
-			gapSide === "top" ? `${host} ${scope}{margin:${heading.sectionGap.expr ?? mm(heading.sectionGap.standard)} 0 0}` : `${host} ${scope}{margin:0 0 ${mm(heading.sectionGap.standard)}}`,
+			gapSide === "top" ? `${host} ${scope}{margin:${heading.sectionGap.expr ?? mm(heading.sectionGap.standard)} 0 0}` : `${host} ${scope}{margin:0 0 ${heading.sectionGap.expr ?? mm(heading.sectionGap.standard)}}`,
 			!heading.sectionGap.expr && heading.sectionGap.compact !== heading.sectionGap.standard ? `${compact(scope)}{margin-${gapSide === "top" ? "top" : "bottom"}:${mm(heading.sectionGap.compact)}}` : "",
 			`${host} ${scope}>.cv-heading{margin:0 0 ${mm(heading.marginBottom.standard)};color:${heading.color};font-size:${heading.fontSizePt.standard}pt;--cv-divider:${heading.dividerColor};--cv-icon-color:${heading.iconColor};--cv-icon-bg:${heading.iconBackground}}`,
 			`${host} ${scope}>.cv-heading .cv-heading__label{padding-bottom:${mm(heading.labelPadding.standard)}}`,
@@ -9738,7 +10073,7 @@ var templateCss = (templateId, { tokens, roots }) => {
 	};
 	const { heading } = main;
 	return `
-${host} .cv-heading{display:grid;grid-template-columns:${mm(heading.iconBox)} minmax(0,1fr);gap:${mm(heading.iconGap)};align-items:center;box-sizing:border-box;padding:0;border:0;font-style:normal;font-weight:${heading.fontWeight};line-height:${heading.lineHeight};letter-spacing:${heading.letterSpacing};text-transform:${heading.textTransform};break-after:avoid;page-break-after:avoid}
+${host} .cv-heading{display:grid;grid-template-columns:${mm(heading.iconBox)} minmax(0,1fr);gap:${mm(heading.iconGap)};align-items:center;box-sizing:border-box;padding:0;border:0;font-style:normal;font-weight:${heading.fontWeight};line-height:${heading.lineHeight};letter-spacing:${heading.letterSpacing};text-transform:${heading.textTransform};${heading.textAlign ? `text-align:${heading.textAlign};` : ""}${heading.fontFamily ? `font-family:${heading.fontFamily};` : ""}break-after:avoid;page-break-after:avoid}
 ${host} .cv-heading:not(:has(.cv-heading__icon)){grid-template-columns:minmax(0,1fr)}
 ${host} .cv-heading__icon{display:grid;box-sizing:border-box;width:${mm(heading.iconBox)};height:${mm(heading.iconBox)};place-items:center;border-radius:${mm(heading.iconRadius)};color:var(--cv-icon-color,${heading.iconColor});background:var(--cv-icon-bg,${heading.iconBackground});font-style:normal}
 ${host} .cv-heading__icon svg{display:block;width:${mm(heading.glyphSize)};height:${mm(heading.glyphSize)};fill:none;stroke:currentColor;stroke-width:${heading.glyphStroke};stroke-linecap:round;stroke-linejoin:round}
@@ -9791,8 +10126,8 @@ var applyResumeSectionPresentation = (root, templateId, { main, sidebar, section
 		node.setAttribute("data-cv-section", presentation.sectionType);
 		const previous = Array.from(node.querySelectorAll("h2,h3")).find((candidate) => candidate.closest("section") === node && !(candidate.closest("article") && node.contains(candidate.closest("article"))));
 		if (!previous) continue;
-		const title = (previous.textContent ?? "").trim();
-		previous.replaceWith(buildSectionHeading(document, presentation, title, previous));
+		const heading = buildSectionHeading(document, presentation, (previous.textContent ?? "").trim(), previous);
+		((templateId === "zeitgenoessisch" && previous.parentElement?.matches(".zeitgenoessisch-section-heading,.zeit-pdf-heading") ? previous.parentElement : null) ?? previous).replaceWith(heading);
 	}
 };
 //#endregion
@@ -28508,7 +28843,7 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 		if (id === "summary" || id === "strengths" || id === "knowledge" || id === "languages") return geometry.zones[id];
 		return "main";
 	};
-	const zoneFlow = isZoneFlowTemplate(templateId) && !flat;
+	const zoneFlow = isZoneFlowTemplate(templateId) && !context.atsMode && (!flat || geometry.columns === 1);
 	const managerRank = (id) => {
 		const index = context.sections?.findIndex((section) => section.id === id) ?? -1;
 		return index < 0 ? Number.MAX_SAFE_INTEGER : index;
@@ -28790,7 +29125,7 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 	const certificates = geometry.certs;
 	const plain = Boolean(context.atsMode);
 	const certificateHome = flat ? "last" : certificates.home;
-	if (visible("certifications") && certifications.length && (plain || certificateHome !== "none")) {
+	if (visible("certifications") && certifications.length && (plain || zoneFlow || certificateHome !== "none")) {
 		const shown = plain ? certifications : certifications.slice(0, certificates.limit ?? certifications.length);
 		const width = flat ? geometry.text.fullW : certificates.zone === "main" ? certificates.w * scale.mainRatio : certificates.w + scale.sideDelta;
 		const wrapped = shown.reduce((total, entry) => total + Math.max(0, linesFor(entry.length, width, certificates.font * scale.font, geometry.text.cw) - 1), 0);
@@ -29688,7 +30023,7 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 					heading.replaceChildren(icon, label);
 				}
 			}
-			if (resolvedId === "zeitgenoessisch") {
+			if (resolvedId === "zeitgenoessisch" && !zoneFlow) {
 				node.classList.add(surface === "pdf" ? "zeit-pdf-section" : "zeitgenoessisch-section");
 				const wrapper = document.createElement("header");
 				wrapper.className = surface === "pdf" ? "zeit-pdf-heading" : "zeitgenoessisch-section-heading";
