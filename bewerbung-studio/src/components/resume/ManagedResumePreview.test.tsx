@@ -87,7 +87,7 @@ describe("managed template previews", () => {
     const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test", company: { name: "Test", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" }, status: "Entwurf", templateId: "einspaltig", accentColor: "#123456", documents: {}, statusHistory: [], createdAt: now, updatedAt: now });
     const pdf = buildDocumentHtml(application, profile, "lebenslauf");
     const expected = ["Zusammenfassung", "Stärken", "Berufserfahrung", "Ausbildung", "Sprachen", "Zertifikate", "Ehrenamt"];
-    for (const [html, selector] of [[preview, ".einfach-section__title, .einfach-template .managed-extra > h3"], [pdf, ".managed-pdf-title, .einfach-pdf .managed-extra > h3"]] as const) {
+    for (const [html, selector] of [[preview, ".einfach-section__title, .einfach-template .managed-extra > h3, .cv-heading"], [pdf, ".managed-pdf-title, .einfach-pdf .managed-extra > h3, .cv-heading"]] as const) {
       const { document } = parseHTML(html);
       const headings = Array.from(document.querySelectorAll(`${selector}, [data-custom-role="heading"]`)).map((heading) => heading.textContent?.trim());
       for (const title of expected) expect(headings).toContain(title);

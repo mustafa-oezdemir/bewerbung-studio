@@ -108,7 +108,16 @@ describe.each(Object.keys(components))("continuation page of %s", (templateId) =
     expect(second.querySelector("aside")).toBeNull();
     const firstHeader = first.querySelector("header");
     const secondHeader = second.querySelector("header");
-    expect(secondHeader?.outerHTML).toBe(firstHeader?.outerHTML);
+    // Pehlione keeps its contacts in the sidebar on page one; its continuation header adds a marker and the contact line.
+    const comparable = (header: Element | null) => {
+      const clone = header?.cloneNode(true) as Element | undefined;
+      if (templateId.startsWith("pehlione_")) {
+        clone?.removeAttribute("data-pehlione-continuation-header");
+        clone?.querySelector("[data-resume-header-extra-contact]")?.remove();
+      }
+      return clone?.outerHTML;
+    };
+    expect(comparable(secondHeader)).toBe(comparable(firstHeader));
     expect(secondHeader?.textContent).toContain("Mina Kaya");
     expect(secondHeader?.textContent).toContain(headline);
     expect(secondHeader?.textContent).toContain("mina@example.com");

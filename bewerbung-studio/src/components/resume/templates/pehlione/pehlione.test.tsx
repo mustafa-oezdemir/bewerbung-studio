@@ -66,6 +66,14 @@ const plan: ResumePagePlan = {
   ],
 };
 
+/** The Pehlione continuation header is the first-page header plus its marker and the contact line of page one (contacts stand in the sidebar there). */
+const withoutContinuationAdditions = (header: Element | null | undefined) => {
+  const clone = header?.cloneNode(true) as Element | undefined;
+  clone?.removeAttribute("data-pehlione-continuation-header");
+  clone?.querySelector("[data-resume-header-extra-contact]")?.remove();
+  return clone?.outerHTML;
+};
+
 describe("Pehlione White Blue", () => {
   it.each(["pehlione_white", "pehlione_white_blue"] as const)("places Projekt-Highlight after Ausbildung on the final page in preview and PDF for %s", (templateId) => {
     const source = profileSchema.parse({ ...profile,
@@ -441,7 +449,7 @@ describe("Pehlione White Blue", () => {
     expect(pages[1].querySelector("aside")).toBeNull();
     expect(pages[1].querySelector(".pehlione-pdf-main")).not.toBeNull();
     expect(pages[1].querySelectorAll("h1")).toHaveLength(1);
-    expect(pages[1].querySelector("header")?.outerHTML).toBe(pages[0].querySelector("header")?.outerHTML);
+    expect(withoutContinuationAdditions(pages[1].querySelector("header"))).toBe(withoutContinuationAdditions(pages[0].querySelector("header")));
     expect(pages[1].querySelector("header")?.textContent).toContain(profile.title);
     expect(document.querySelectorAll(".pehlione-pdf-education")).toHaveLength(1);
     expect(buildDocumentHtml(application, longProfile, "lebenslauf")).toContain(

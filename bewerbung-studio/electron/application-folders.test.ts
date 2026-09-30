@@ -204,7 +204,7 @@ describe("one folder per company and day, one subfolder per position", () => {
   });
 
   it("a second position of a duplicated application joins the shared folder as well", async () => {
-    const first = await create(temmler, production);
+    const first = await create(temmler, production, new Date().toISOString());
     await store.duplicateApplication(first.id);
     const folders = store.getWorkspace().applications.map((item) => item.folderName);
     expect(new Set(folders.map((folder) => folder.split("/")[0])).size).toBe(1);
