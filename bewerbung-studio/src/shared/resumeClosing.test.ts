@@ -38,13 +38,13 @@ describe("shared resume closing", () => {
     }, true, true);
     expect(root.querySelector("[data-resume-closing]")?.getAttribute("data-resume-closing-align")).toBe("distributed");
   });
-  it("prints place and the date of the application as Ort, YYYY-MM-DD", () => {
-    expect(resolveResumeClosingLine(profile, "2026-09-26").text).toBe("Marburg, 2026-09-26");
+  it("prints place and the date of the application as Ort, DD.MM.YYYY", () => {
+    expect(resolveResumeClosingLine(profile, "26.09.2026").text).toBe("Marburg, 26.09.2026");
     // The place is the explicit one, else the city of the profile.
-    expect(resolveResumeClosingLine({ ...profile, applicationPlace: "", city: "Kassel" }, "2026-09-26").text).toBe("Kassel, 2026-09-26");
+    expect(resolveResumeClosingLine({ ...profile, applicationPlace: "", city: "Kassel" }, "26.09.2026").text).toBe("Kassel, 26.09.2026");
     // Only what is checked is printed.
-    expect(resolveResumeClosingLine({ ...profile, resumeClosing: { ...profile.resumeClosing, showDate: false } }, "2026-09-26").text).toBe("Marburg");
-    expect(resolveResumeClosingLine({ ...profile, resumeClosing: { ...profile.resumeClosing, showPlace: false } }, "2026-09-26").text).toBe("2026-09-26");
+    expect(resolveResumeClosingLine({ ...profile, resumeClosing: { ...profile.resumeClosing, showDate: false } }, "26.09.2026").text).toBe("Marburg");
+    expect(resolveResumeClosingLine({ ...profile, resumeClosing: { ...profile.resumeClosing, showPlace: false } }, "26.09.2026").text).toBe("26.09.2026");
     // A template that passes no date keeps the date typed into the profile.
     expect(resolveResumeClosingLine(profile).text).toBe("Marburg, 2026-09-28");
     expect(resolveResumeClosingLine(profile, undefined, (value) => value.split("-").reverse().join(".")).text).toBe("Marburg, 28.09.2026");
@@ -56,8 +56,8 @@ describe("shared resume closing", () => {
     const root = document.querySelector(".cv-sheet")!;
     applyResumeClosingOutput(root, root.querySelector("main")!, profile, "pehlione_white_blue", {
       ...defaultDocumentDesign, resumePresentation: { closing: { placement: "main" } },
-    }, true, true, undefined, "2026-09-26");
-    expect(root.querySelector("[data-resume-closing-date]")?.textContent).toBe("2026-09-26");
+    }, true, true, undefined, "26.09.2026");
+    expect(root.querySelector("[data-resume-closing-date]")?.textContent).toBe("26.09.2026");
     expect(root.querySelector("[data-resume-closing-place]")?.textContent).toBe("Marburg");
   });
 });

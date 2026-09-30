@@ -3,15 +3,15 @@ import type { DocumentDesignSettings } from "./documentDesign";
 import { getProfileMediaSource } from "./profileMedia";
 
 export const resumeClosingCss = `
-[data-resume-closing]{display:flex;flex-wrap:wrap;align-items:end;gap:2mm 6mm;grid-column:1/-1;min-width:0;margin-top:5mm;padding-top:2mm;border-top:.2mm solid var(--doc-divider-color,#cbd5e1);break-inside:avoid;font-size:9pt;line-height:1.25}
-[data-resume-closing-placement="footer"]{position:absolute;z-index:3;right:12mm;bottom:12mm;left:12mm;margin-top:0;background:var(--doc-background-color,#fff)}
+[data-resume-closing]{display:flex;flex-wrap:wrap;align-items:end;gap:2mm 6mm;grid-column:1/-1;min-width:0;margin-top:5mm;padding-top:2mm;border-top:0;background:transparent;break-inside:avoid;font-size:9pt;line-height:1.25}
+[data-resume-closing-placement="footer"]{position:absolute;z-index:3;right:12mm;bottom:12mm;left:12mm;margin-top:0;background:transparent}
 [data-resume-closing]>*{min-width:0;overflow-wrap:anywhere}
 [data-resume-closing][data-resume-closing-align="left"]{justify-content:flex-start;text-align:left}
 [data-resume-closing][data-resume-closing-align="center"]{justify-content:center;text-align:center}
 [data-resume-closing][data-resume-closing-align="right"]{justify-content:flex-end;text-align:right}
 [data-resume-closing][data-resume-closing-align="distributed"]{justify-content:space-between;text-align:left}
-[data-resume-closing-signature]{display:flex;flex-direction:column;align-items:inherit;max-width:48mm}
-[data-resume-closing-signature] img{display:block;max-width:48mm;max-height:14mm;width:auto;height:auto;object-fit:contain}
+[data-resume-closing-signature]{display:flex;flex-direction:column;align-items:inherit;max-width:48mm;background:transparent}
+[data-resume-closing-signature] img{display:block;max-width:48mm;max-height:14mm;width:auto;height:auto;object-fit:contain;background:transparent}
 [data-resume-closing-signature] strong{font-size:8pt;font-weight:600}
 `;
 
@@ -21,9 +21,9 @@ const germanDate = (value: string) => {
 };
 
 /**
- * Place and date of the closing (`Marburg, 2026-09-26`), in one place for every surface.
+ * Place and date of the closing (`Marburg, 26.09.2026`), in one place for every surface.
  *
- * `closingDate` is the date of the application (`formatApplicationDateIso`): the same day the Anschreiben
+ * `closingDate` is the date of the application (`formatApplicationDate`): the same day the Anschreiben
  * carries. A template that takes it prints it as it is; a template that passes none keeps printing the
  * date typed into the profile, formatted by `legacyDate`.
  */
@@ -77,7 +77,7 @@ export const applyResumeClosingOutput = (
   block.setAttribute("data-resume-closing", "");
   block.setAttribute("data-resume-closing-placement", placement);
   block.setAttribute("data-resume-closing-align", choice?.alignment ?? (pehlione ? "distributed" : "left"));
-  // With the date of the application place and date are one line, `Marburg, 2026-09-26`.
+  // With the date of the application place and date are one line, `Marburg, 26.09.2026`.
   const line = closingDate !== undefined && !pehlione && place && date ? document.createElement("span") : null;
   line?.setAttribute("data-resume-closing-line", "");
   if (place) {

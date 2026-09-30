@@ -142,18 +142,18 @@ describe("Kreativ: sections follow their column", () => {
 
   it("F. the closing prints the place and the date of the application, in the preview and the PDF", () => {
     const rendered = render(makeProfile(3), {}, "2026-09-26T10:00:00.000Z");
-    expect(rendered.resolved.closingDate).toBe("2026-09-26");
+    expect(rendered.resolved.closingDate).toBe("26.09.2026");
     for (const surface of surfaces) {
       const pages = rendered.surfaces[surface];
       const closing = pages[pages.length - 1].querySelector("[data-resume-closing]");
-      expect(closing?.querySelector("[data-resume-closing-line]")?.textContent, surface).toBe("Marburg, 2026-09-26");
+      expect(closing?.querySelector("[data-resume-closing-line]")?.textContent, surface).toBe("Marburg, 26.09.2026");
       expect(closing?.textContent ?? "").not.toContain("2020-01-01");
     }
     // Without a place typed in the closing falls back to the city of the profile.
     const cityOnly = render(makeProfile(3, { applicationPlace: "" }), {}, "2026-01-05T10:00:00.000Z");
     for (const surface of surfaces) {
       const pages = cityOnly.surfaces[surface];
-      expect(pages[pages.length - 1].querySelector("[data-resume-closing-line]")?.textContent, surface).toBe("Berlin, 2026-01-05");
+      expect(pages[pages.length - 1].querySelector("[data-resume-closing-line]")?.textContent, surface).toBe("Berlin, 05.01.2026");
     }
   });
 

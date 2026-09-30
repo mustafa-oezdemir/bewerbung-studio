@@ -87,11 +87,16 @@ describe("shared CV document resolution", () => {
     const application = { sentAt: "2026-09-26T10:00:00.000Z", createdAt: "2026-09-01T09:00:00.000Z" };
     const joined = [...zoneFlowTemplates];
     for (const templateId of joined) {
-      expect(resolveCvDocument({ profile, templateId, application }).closingDate, templateId).toBe("2026-09-26");
+      expect(resolveCvDocument({ profile, templateId, application }).closingDate, templateId).toBe("26.09.2026");
       // Without an application there is no date to print.
       expect(resolveCvDocument({ profile, templateId }).closingDate, templateId).toBe("");
     }
     for (const templateId of templateIds.filter((id) => !joined.includes(id)))
       expect(resolveCvDocument({ profile, templateId, application }).closingDate, templateId).toBeUndefined();
+  });
+
+  it("prints an October application date in German format", () => {
+    const application = { sentAt: "2026-10-01T10:00:00.000Z", createdAt: "2026-09-30T09:00:00.000Z" };
+    expect(resolveCvDocument({ profile: makeProfile(), templateId: "pehlione_white", application }).closingDate).toBe("01.10.2026");
   });
 });

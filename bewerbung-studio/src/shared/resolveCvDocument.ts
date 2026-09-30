@@ -9,7 +9,7 @@ import { getProfileMediaSource } from "./profileMedia";
 import { getManagerSections } from "../features/resume-sections/resume-manager";
 import { resolveKnowledgeGroups } from "../features/resume-sections/resume-section-system";
 import { createResumePagePlan, type ResumePlanContext } from "./documentPagination";
-import { formatApplicationDateIso, type ApplicationDateSource } from "./applicationDate";
+import { formatApplicationDate, type ApplicationDateSource } from "./applicationDate";
 import { usesApplicationClosingDate } from "./resumeSectionPresentation";
 
 type CvDocumentInput = {
@@ -21,7 +21,7 @@ type CvDocumentInput = {
   jobTitle?: string;
   /** Live section-editor previews have already applied presentation overrides. */
   presentationAlreadyApplied?: boolean;
-  /** The application the résumé belongs to: its date is the date of the closing (`Ort, YYYY-MM-DD`). */
+  /** The application the résumé belongs to: its date is the date of the closing (`Ort, DD.MM.YYYY`). */
   application?: ApplicationDateSource;
 };
 
@@ -102,7 +102,7 @@ export const resolveCvDocument = ({
   // The closing of these templates prints the date of the application, exactly like the Anschreiben;
   // the others keep printing the date typed into the profile.
   const closingDate = usesApplicationClosingDate(templateId)
-    ? application ? formatApplicationDateIso(application) : ""
+    ? application ? formatApplicationDate(application) : ""
     : undefined;
   return {
     templateId,

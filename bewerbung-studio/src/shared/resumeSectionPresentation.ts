@@ -111,7 +111,7 @@ export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "peh
 export const isZoneFlowTemplate = (templateId: string | undefined): boolean =>
   Boolean(templateId && zoneFlowTemplates.includes(templateId));
 
-/** The closing of these templates prints the application date (`Ort, YYYY-MM-DD`), not a profile field. */
+/** The closing of these templates prints the application date (`Ort, DD.MM.YYYY`), not a profile field. */
 export const usesApplicationClosingDate = (templateId: string | undefined): boolean => isZoneFlowTemplate(templateId);
 
 // ---------------------------------------------------------------------------

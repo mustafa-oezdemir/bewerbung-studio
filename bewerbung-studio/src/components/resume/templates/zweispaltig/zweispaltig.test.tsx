@@ -5,7 +5,7 @@ import { applicationSchema, profileSchema } from "../../../../shared/schema";
 import { getTemplate } from "../../../../shared/templates";
 import { defaultDocumentDesign } from "../../../../shared/documentDesign";
 import { resolveCvDocument } from "../../../../shared/resolveCvDocument";
-import { formatApplicationDateIso } from "../../../../shared/applicationDate";
+import { formatApplicationDate } from "../../../../shared/applicationDate";
 import { ManagedResumePreview } from "../../ManagedResumePreview";
 import { buildDocumentHtml } from "../../../../../electron/documents";
 import { parseHTML } from "linkedom";
@@ -230,8 +230,8 @@ describe("Zweispaltig rendering", () => {
       expect(document.querySelector(`${sidebarSelector}`)?.getAttribute("style")).toContain("#f2f3f4");
       expect(document.querySelector(`${mainSelector}`)?.getAttribute("style")).toContain("#fafafa");
       expect(document.querySelector(`${mainSelector} [data-resume-closing]`)?.textContent).toContain("Berlin");
-      // Zweispaltig prints the date of the application, as `Ort, YYYY-MM-DD`, not the date typed into the profile.
-      expect(document.querySelector(`${mainSelector} [data-resume-closing]`)?.textContent).toContain(`Berlin, ${formatApplicationDateIso(application)}`);
+      // Zweispaltig prints the date of the application, as `Ort, DD.MM.YYYY`, not the date typed into the profile.
+      expect(document.querySelector(`${mainSelector} [data-resume-closing]`)?.textContent).toContain(`Berlin, ${formatApplicationDate(application)}`);
     }
   });
   it("renders the visual 62/38 composition and optional photo", () => {

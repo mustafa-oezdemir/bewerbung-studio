@@ -702,7 +702,7 @@ describe("Lebenslauf-Dokumente", () => {
     const body = html.slice(html.indexOf("<body>"));
 
     // The closing prints the date of the application, not the date typed into the profile.
-    expect(body).toContain('<footer class="pehlione-pdf-closing"><p>Marburg, 2026-09-26</p>');
+    expect(body).toContain('<footer class="pehlione-pdf-closing"><p>Marburg, 26.09.2026</p>');
     expect(body).not.toContain("22.09.2026");
     expect(body).toContain('<div class="pehlione-pdf-signer"><img');
     expect(body).toContain('<strong>Mina Kaya</strong></div></footer>');

@@ -80,7 +80,7 @@ describe("Zeitgenössisch: shared document flow", () => {
       expect(languages?.querySelectorAll(":scope > .cv-heading"), surface).toHaveLength(1);
       expect(languages?.querySelector("[data-cv-icon]")?.getAttribute("data-cv-icon"), surface).toBe("languages");
       expect(pages[0].querySelector("[data-resume-closing]"), surface).toBeNull();
-      expect(pages[pages.length - 1].querySelector("[data-resume-closing-line]")?.textContent, surface).toBe("Marburg, 2026-09-26");
+      expect(pages[pages.length - 1].querySelector("[data-resume-closing-line]")?.textContent, surface).toBe("Marburg, 26.09.2026");
     }
     const icon = (surface: "preview" | "pdf") => section(output.surfaces[surface][0], "languages")?.querySelector(".cv-heading__icon")?.innerHTML;
     expect(icon("preview")).toBe(icon("pdf"));

@@ -14,8 +14,8 @@ export const formatApplicationDate = (application: ApplicationDateSource) =>
 
 /**
  * The application date as an ISO calendar date (`YYYY-MM-DD`), in the same local time zone as the
- * other formats. The résumé closing prints it, so the Lebenslauf and the Anschreiben always carry the
- * same day; an unreadable date yields an empty string.
+ * other formats. Kept for callers that need the ISO representation;
+ * an unreadable date yields an empty string.
  */
 export const formatApplicationDateIso = (application: ApplicationDateSource) => {
   const date = getApplicationDate(application);

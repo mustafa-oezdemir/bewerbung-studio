@@ -81,7 +81,7 @@ describe("Kompakt: shared document flow", () => {
           expect(node.querySelector("[data-cv-icon]"), surface).toBeNull();
         }
       expect(pages[0].querySelector("[data-resume-closing]"), surface).toBeNull();
-      expect(pages[pages.length - 1].querySelector("[data-resume-closing-line]")?.textContent, surface).toBe("Marburg, 2026-09-26");
+      expect(pages[pages.length - 1].querySelector("[data-resume-closing-line]")?.textContent, surface).toBe("Marburg, 26.09.2026");
     }
   });
 
