@@ -3012,7 +3012,7 @@ export const buildDocumentHtml = (
               : undefined;
           })();
     if (!item) return "";
-    return `<article class="modern-pdf-entry"><h3>${escapeHtml(item.title)}</h3><p class="modern-pdf-entry-meta"><strong>${escapeHtml(item.organization)}</strong><span class="modern-pdf-entry-date"><i aria-hidden="true">▦</i>${escapeHtml(formatDateRange(item.from, item.to))}</span>${item.city ? `<span class="modern-pdf-entry-location"><i aria-hidden="true">●</i>${escapeHtml(item.city)}</span>` : ""}</p>${item.achievements.length ? `<ul>${item.achievements.map((achievement) => `<li>${escapeHtml(achievement)}</li>`).join("")}</ul>` : ""}</article>`;
+    return `<article class="modern-pdf-entry"><h3>${escapeHtml(item.title)}</h3><p class="modern-pdf-entry-meta"><strong>${escapeHtml(item.organization)}</strong><span class="modern-pdf-entry-date">${renderContactIcon({ kind: "calendar" })}${escapeHtml(formatDateRange(item.from, item.to))}</span>${item.city ? `<span class="modern-pdf-entry-location">${renderContactIcon({ kind: "location" })}${escapeHtml(item.city)}</span>` : ""}</p>${item.achievements.length ? `<ul>${item.achievements.map((achievement) => `<li>${escapeHtml(achievement)}</li>`).join("")}</ul>` : ""}</article>`;
   };
   const modernDescribedStrengths = managedStrengths.filter(
     (item) => item.description,

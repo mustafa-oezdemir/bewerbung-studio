@@ -13,6 +13,7 @@ export function ModernHeader({
   photoSource,
   atsMode,
   compact = false,
+  children,
 }: ModernHeaderProps) {
   const hasPhoto = !compact && !atsMode && photoSource;
   const title = profile?.title || "Professional";
@@ -31,6 +32,7 @@ export function ModernHeader({
         {compact ? <p className="modern-resume-header__kicker">Lebenslauf · Fortsetzung</p> : null}
         <h1 className="modern-resume-header__name">{name}</h1>
         <p className="modern-resume-header__profession">{profession}</p>
+        {children}
       </div>
       {hasPhoto && (
         <div className="modern-resume-header__photo">

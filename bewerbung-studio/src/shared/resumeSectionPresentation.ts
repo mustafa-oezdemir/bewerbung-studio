@@ -106,7 +106,7 @@ export const sectionSemanticType = (id: string, groupSemanticType?: string): Sec
  * and the closing date comes from the application. Templates join this list one by one, after
  * their look was verified on both surfaces.
  */
-export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "pehlione_white", "zweispaltig", "zeitgenoessisch", "kreativ", "ivy-league", "stilvoll", "kompakt", "einspaltig", "klassisch", "gepflegt"];
+export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "pehlione_white", "zweispaltig", "zeitgenoessisch", "kreativ", "ivy-league", "stilvoll", "kompakt", "einspaltig", "klassisch", "gepflegt", "modern"];
 
 export const isZoneFlowTemplate = (templateId: string | undefined): boolean =>
   Boolean(templateId && zoneFlowTemplates.includes(templateId));
@@ -169,6 +169,11 @@ export type SectionListTokens = {
   markerColor?: string;
   /** A template's native marker for canonical plain-list entries. */
   itemPrefix?: string;
+  /** `list-style` of the list (default `disc`); a template whose entries are plain lines passes `none`. */
+  listStyle?: string;
+  /** With `inheritBody`: the text size / line height of the page body as this template's stylesheet names them. */
+  fontExpr?: string;
+  lineHeightExpr?: string;
 };
 
 export type SectionPresentation = {
@@ -474,6 +479,32 @@ const stilvoll: TemplateTokens = {
   sidebar: { icons: false, heading: stilvollHeading, list: stilvollList },
 };
 
+/**
+ * Modern: one small heading and one list for both columns (measured in the PDF: 9.2 pt capitals in the muted grey
+ * over a 0.35 mm rule; certificates are plain lines 4 mm apart). It draws no icons. The two column stacks space
+ * their sections with a gap of their own, so a section adds no margin; the preview's sections are flex stacks
+ * with an extra gap under the heading that the PDF does not have.
+ */
+const modernHeading: SectionHeadingTokens = {
+  iconBox: 0, iconGap: 0, iconRadius: 0, glyphSize: 0, glyphStroke: 0,
+  fontSizePt: { standard: 9.2, compact: 9.2 }, fontWeight: 500, lineHeight: 1,
+  letterSpacing: ".5px", textTransform: "uppercase",
+  marginBottom: { standard: 3.2, compact: 3.2 }, labelPadding: { standard: 1, compact: 1 },
+  color: "var(--modern-muted)", dividerColor: "var(--modern-divider)", dividerWidth: ".35mm",
+  iconColor: "currentColor", iconBackground: "transparent",
+  sectionGap: { standard: 0, compact: 0 },
+  height: 4.44,
+};
+const modernList: SectionListTokens = {
+  fontSizePt: { standard: 9.2, compact: 9.2 }, lineHeight: { standard: 1.25, compact: 1.25 },
+  itemGap: { standard: 4, compact: 4 }, indent: 0, inheritBody: true, layout: "grid", listStyle: "none",
+  fontExpr: "var(--body-size,var(--doc-body-size,9.2pt))", lineHeightExpr: "1.25",
+};
+const modern: TemplateTokens = {
+  main: { icons: false, heading: modernHeading, list: modernList },
+  sidebar: { icons: false, heading: modernHeading, list: modernList },
+};
+
 /** How a template is reached on both surfaces, and which parts of the shared machinery it takes. */
 type TemplateConfig = {
   tokens: TemplateTokens;
@@ -488,6 +519,8 @@ type TemplateConfig = {
    * colours of their own (Stilvoll's language names) turns this off.
    */
   sidebarInheritsText?: boolean;
+  /** Extra rules of a template that the tokens cannot express; `host` is the selector that scopes both surfaces. */
+  zoneCss?: (host: string) => string;
 };
 
 const pehlioneRoots = (templateId: string) => ({
@@ -500,6 +533,14 @@ const pehlioneRoots = (templateId: string) => ({
 const configByTemplate: Record<string, TemplateConfig> = {
   pehlione_white_blue: { tokens: pehlioneWhiteBlue, roots: pehlioneRoots("pehlione_white_blue"), plainLists: ["certifications", "languages"], sidebarHero: true },
   pehlione_white: { tokens: pehlioneWhite, roots: pehlioneRoots("pehlione_white"), plainLists: ["certifications", "languages"], sidebarHero: true },
+  modern: {
+    tokens: modern,
+    roots: { preview: ".modern-resume-page", pdf: '.cv-sheet[data-template="modern"]', pdfBody: ".modern-pdf" },
+    plainLists: ["certifications"],
+    sidebarHero: false,
+    sidebarInheritsText: false,
+    zoneCss: (host) => `${host} [data-cv-zone]{display:block;gap:0}`,
+  },
   stilvoll: {
     tokens: stilvoll,
     roots: { preview: ".stilvoll-template", pdf: '.cv-sheet[data-template="stilvoll"]', pdfBody: ".stilvoll-pdf" },
@@ -621,7 +662,7 @@ const mm = (value: number) => `${value}mm`;
 /** The closing line keeps its own distance to the last section (the section's margin would double it). */
 const closingSelector = ":is(.pehlione-closing,.pehlione-pdf-closing,[data-resume-closing])";
 
-const templateCss = (templateId: string, { tokens, roots, sidebarInheritsText = true }: TemplateConfig) => {
+const templateCss = (templateId: string, { tokens, roots, sidebarInheritsText = true, zoneCss }: TemplateConfig) => {
   const host = roots.host ?? `:is(${roots.preview},${roots.pdf})`;
   const compact = (suffix: string) =>
     `${roots.preview}[data-density="compact"] ${suffix},${roots.pdf} ${roots.pdfBody}[data-density="compact"] ${suffix}`;
@@ -633,7 +674,7 @@ const templateCss = (templateId: string, { tokens, roots, sidebarInheritsText = 
     const listSelector = `${scope} [data-cv-list]`;
     const gridList = (list.layout ?? (zone === "sidebar" ? "grid" : "margins")) === "grid";
     const listFont = list.inheritBody
-      ? "font-size:inherit;line-height:inherit"
+      ? `font-size:${list.fontExpr ?? "inherit"};line-height:${list.lineHeightExpr ?? "inherit"}`
       : `font-size:${list.fontSizePt.standard}pt;line-height:${list.lineHeight.standard}`;
     const gapSide = heading.sectionGap.side ?? "bottom";
     // The icon box of the main column is the base; a column that draws its icon differently overrides it.
@@ -660,7 +701,7 @@ const templateCss = (templateId: string, { tokens, roots, sidebarInheritsText = 
         ? `${compact(`${scope}>.cv-heading`)}{margin-bottom:${mm(heading.marginBottom.compact)};font-size:${heading.fontSizePt.compact}pt}` : "",
       heading.labelPadding.compact !== heading.labelPadding.standard
         ? `${compact(`${scope}>.cv-heading .cv-heading__label`)}{padding-bottom:${mm(heading.labelPadding.compact)}}` : "",
-      `${host} ${listSelector}{${gridList ? `display:grid;gap:${mm(list.itemGap.standard)};` : ""}margin:${list.marginTop ? `${mm(list.marginTop)} 0 0` : "0"};padding:0 0 0 ${mm(list.indent)};color:inherit;${listFont};list-style:disc}`,
+      `${host} ${listSelector}{${gridList ? `display:grid;gap:${mm(list.itemGap.standard)};` : ""}margin:${list.marginTop ? `${mm(list.marginTop)} 0 0` : "0"};padding:0 0 0 ${mm(list.indent)};color:inherit;${listFont};list-style:${list.listStyle ?? "disc"}}`,
       list.markerColor ? `${host} ${listSelector} li::marker{color:${list.markerColor}}` : "",
       `${host} ${listSelector} li{${gridList ? "margin:0;" : `margin:${mm(list.itemGap.standard)} 0;`}color:inherit;font-size:inherit;line-height:${list.itemLineHeight ?? "inherit"};hyphens:auto;break-inside:avoid;page-break-inside:avoid}`,
       !list.inheritBody && (list.fontSizePt.compact !== list.fontSizePt.standard || list.lineHeight.compact !== list.lineHeight.standard)
@@ -685,6 +726,7 @@ ${host} [data-cv-section="certifications"]>[data-cv-list] li i{color:var(--kompa
 ${host} [data-cv-zone="main"]:has(+ ${closingSelector}){margin-bottom:0}
 ${compact(`[data-cv-zone="main"]:has(+ ${closingSelector})`)}{margin-bottom:0}
 ${sidebarInheritsText ? `${host} [data-cv-zone="sidebar"] :is(h4,h5,strong,p,li,small){color:inherit}\n` : ""}${host} [data-cv-zone="sidebar"] p{text-align:left}
+${zoneCss ? zoneCss(host) : ""}
 `;
 };
 

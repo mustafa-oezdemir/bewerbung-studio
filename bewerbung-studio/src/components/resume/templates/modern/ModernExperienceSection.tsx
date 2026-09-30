@@ -5,7 +5,7 @@
 
 import type { ModernExperienceSectionProps } from "./modern.types";
 import type { ApplicantProfile } from "../../../../shared/schema";
-import { CalendarDays, MapPin } from "lucide-react";
+import { ContactIcon } from "../ContactIcon";
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
 
 export function ModernExperienceSection({
@@ -28,12 +28,12 @@ export function ModernExperienceSection({
                   {exp.company}
                 </span>
                 <span className="modern-experience-entry__date">
-                  <CalendarDays size={13} aria-hidden="true" />
+                  <ContactIcon kind="calendar" />
                   {exp.from} – {exp.to}
                 </span>
                 {exp.city && (
                   <span className="modern-experience-entry__location">
-                    <MapPin size={13} aria-hidden="true" />
+                    <ContactIcon kind="location" />
                     {exp.city}
                   </span>
                 )}

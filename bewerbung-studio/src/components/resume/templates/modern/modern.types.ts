@@ -2,6 +2,7 @@
  * Modern template TypeScript type definitions
  */
 
+import type { ReactNode } from "react";
 import type { ApplicantProfile } from "../../../../shared/schema";
 import type { ResumePagePlan } from "../../../../shared/documentPagination";
 
@@ -25,6 +26,8 @@ export interface ModernHeaderProps {
   photoSource?: string;
   atsMode: boolean;
   compact?: boolean;
+  /** Details under the profession (the contact line of page one). */
+  children?: ReactNode;
 }
 
 export interface ModernLeftColumnProps {

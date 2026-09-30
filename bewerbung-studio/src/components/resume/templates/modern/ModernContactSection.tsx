@@ -6,6 +6,16 @@
 import { ContactIcon } from "../ContactIcon";
 import type { ModernContactSectionProps } from "./modern.types";
 
+/** The links the PDF draws for the same details. */
+const contactHref = (key: string, value: string) => {
+  const trimmed = value.trim();
+  if (key === "phone") return `tel:${trimmed.replace(/[^\d+]/g, "")}`;
+  if (key === "email") return `mailto:${trimmed}`;
+  if (!["linkedin", "website", "github"].includes(key)) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed.replace(/^[a-z][a-z\d+.-]*:(?:\/\/)?/i, "")}`;
+};
+
 export function ModernContactSection({
   profile,
   accentColor,
@@ -87,16 +97,11 @@ export function ModernContactSection({
     return null;
   }
 
-  const hasProfessionalLink = contactItems.some(
-    (item) => item.key === "linkedin",
-  );
+  // The PDF draws the same four details under the name; the website stands in the footer.
+  const href = (item: { key: string; value?: string }) => contactHref(item.key, item.value ?? "");
   const visibleItems = inline
     ? contactItems
-        .filter(
-          (item) =>
-            ["phone", "email", "linkedin", "location"].includes(item.key) ||
-            (item.key === "website" && !hasProfessionalLink),
-        )
+        .filter((item) => ["phone", "email", "linkedin", "location"].includes(item.key))
         .slice(0, 4)
     : contactItems;
 
@@ -124,7 +129,9 @@ export function ModernContactSection({
                 <ContactIcon kind={item.key} />
               </div>
             ) : null}
-            <span className="modern-contact-item__value">{item.value}</span>
+            <span className="modern-contact-item__value">
+              {href(item) ? <a href={href(item)}>{item.value}</a> : item.value}
+            </span>
           </li>
         ))}
       </ul>

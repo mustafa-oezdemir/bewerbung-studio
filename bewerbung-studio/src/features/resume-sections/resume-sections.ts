@@ -237,6 +237,17 @@ const pehlioneCapabilities = (templateId: string): TemplateSectionCapabilities =
   };
 };
 
+// Modern draws its summary at the top of the career column; the section list must show it there, and a
+// layout the user saves must not move it into the sidebar.
+const modernCapabilities = (): TemplateSectionCapabilities => {
+  const capabilities = twoColumnCapabilities("modern");
+  return {
+    ...capabilities,
+    allowedZonesBySection: { ...capabilities.allowedZonesBySection, summary: ["main", "sidebar", "full"] },
+    defaultZoneBySection: { ...capabilities.defaultZoneBySection, summary: "main" },
+  };
+};
+
 const zeitgenoessischCapabilities = (): TemplateSectionCapabilities => {
   const capabilities = twoColumnCapabilities("zeitgenoessisch");
   return {
@@ -295,7 +306,7 @@ export const templateSectionCapabilities: Record<
   }),
   zweispaltig: twoColumnCapabilities("zweispaltig"),
   gepflegt: twoColumnCapabilities("gepflegt"),
-  modern: twoColumnCapabilities("modern"),
+  modern: modernCapabilities(),
   elegant: twoColumnCapabilities("elegant"),
   zeitgenoessisch: zeitgenoessischCapabilities(),
   kreativ: twoColumnCapabilities("kreativ"),

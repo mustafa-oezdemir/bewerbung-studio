@@ -35,12 +35,12 @@ const page = (surface: "preview" | "pdf") => {
 
 describe("section presentation", () => {
   it("names the templates whose sections follow their column", () => {
-    expect(zoneFlowTemplates).toEqual([templateId, "pehlione_white", "zweispaltig", "zeitgenoessisch", "kreativ", "ivy-league", "stilvoll", "kompakt", "einspaltig", "klassisch", "gepflegt"]);
+    expect(zoneFlowTemplates).toEqual([templateId, "pehlione_white", "zweispaltig", "zeitgenoessisch", "kreativ", "ivy-league", "stilvoll", "kompakt", "einspaltig", "klassisch", "gepflegt", "modern"]);
     for (const joined of zoneFlowTemplates) {
       expect(isZoneFlowTemplate(joined)).toBe(true);
       expect(usesApplicationClosingDate(joined)).toBe(true);
     }
-    for (const other of ["modern", "elegant", undefined]) {
+    for (const other of ["elegant", undefined]) {
       expect(isZoneFlowTemplate(other)).toBe(false);
       expect(usesApplicationClosingDate(other)).toBe(false);
       expect(resolveSectionPresentation(other ?? "", "languages", "sidebar")).toBeUndefined();
@@ -134,7 +134,7 @@ describe("section presentation", () => {
   it("leaves the headings of other templates untouched", () => {
     const { root, node, main, sidebar } = page("pdf");
     const before = root.innerHTML;
-    applyResumeSectionPresentation(root, "modern", { main, sidebar, sections: [{ id: "languages", nodes: [node("languages")] }] });
+    applyResumeSectionPresentation(root, "elegant", { main, sidebar, sections: [{ id: "languages", nodes: [node("languages")] }] });
     expect(root.innerHTML).toBe(before);
   });
 
@@ -242,7 +242,7 @@ describe("section presentation of Zweispaltig", () => {
     // Sprachen keeps its own level dots.
     expect(isPlainListSection(zweispaltig, "languages")).toBe(false);
     expect(isPlainListSection(templateId, "languages")).toBe(true);
-    expect(isPlainListSection("modern", "certifications")).toBe(false);
+    expect(isPlainListSection("elegant", "certifications")).toBe(false);
     expect(hasSidebarHero(zweispaltig)).toBe(false);
     expect(hasSidebarHero(templateId)).toBe(true);
   });

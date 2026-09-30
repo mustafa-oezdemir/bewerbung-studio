@@ -30,6 +30,11 @@
    ========================================================================= */
 
 .modern-resume-page {
+  /* The PDF sets its base text to the body size; text without a size of its own (strength cards, knowledge items)
+     must not fall back to the size of the page around the preview. */
+  font-size: var(--modern-body-size);
+  line-height: var(--modern-line-height);
+  color: var(--modern-text);
   --modern-primary: #06b6c9;
   --modern-primary-soft: #c7f1f5;
   --modern-secondary: #e8fafb;
@@ -88,6 +93,8 @@
 
 .modern-resume-container {
   position: relative;
+  /* Keeps the content's top margin inside the page, so the footer's bottom offset counts from the sheet. */
+  display: flow-root;
   width: 100%;
   height: 100%;
 }
@@ -152,11 +159,11 @@
 .modern-resume-header {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 32mm;
-  column-gap: 10mm;
+  grid-template-columns: minmax(0, 1fr) 29mm;
+  column-gap: 9mm;
   align-items: start;
   min-height: 25mm;
-  margin-bottom: 0;
+  margin-bottom: 4mm;
   page-break-after: avoid;
   break-after: avoid;
 }
@@ -297,6 +304,22 @@
   break-inside: auto;
 }
 
+/* The preview's page rules (.document-paper h1, h3, p) are more specific than the single classes below:
+   name, entry titles and the profession keep the colour and size the PDF gives them. */
+.modern-resume-page :is(.modern-resume-header__name, .modern-experience-entry__role, .modern-education-entry__degree, .modern-strengths-item__title) {
+  color: var(--modern-heading);
+}
+
+.modern-resume-page :is(.modern-experience-entry__role, .modern-education-entry__degree, .modern-strengths-item__title) {
+  letter-spacing: normal;
+}
+
+.modern-resume-page[data-ats-mode="false"] .modern-resume-header:not(.modern-resume-header--compact) .modern-resume-header__profession {
+  color: var(--modern-primary);
+  font-size: var(--modern-profession-size);
+  line-height: 1.18;
+}
+
 .modern-section__title {
   margin: 0;
   padding-bottom: 1mm;
@@ -323,9 +346,9 @@
 .modern-contact-section--inline {
   position: relative;
   z-index: 3;
-  width: min(calc(100% - 34mm), 132mm);
-  margin-top: -7mm;
-  margin-bottom: 8mm;
+  width: 100%;
+  max-width: 132mm;
+  margin: 3mm 0 0;
 }
 
 .modern-contact-section--inline .modern-contact-list {
@@ -346,14 +369,17 @@
 .modern-contact-section--inline .modern-contact-item__icon {
   display: block;
   width: 3.2mm;
-  height: 3.2mm;
+  height: auto;
   color: var(--modern-muted) !important;
   background: transparent;
 }
 
 .modern-contact-section--inline .modern-contact-item__icon svg {
-  width: 3.2mm;
-  height: 3.2mm;
+  /* Same icon box as the PDF (14px, inline, centred on the line), so both rows are equally high. */
+  display: inline-block;
+  width: 3.7mm;
+  height: 3.7mm;
+  vertical-align: middle;
 }
 
 .modern-contact-section--inline .modern-contact-item__value {
@@ -370,6 +396,11 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   overflow-wrap: normal;
+}
+
+.modern-contact-item__value a {
+  color: inherit;
+  text-decoration: none;
 }
 
 .modern-contact-item {
@@ -477,7 +508,7 @@
   padding: 0 2mm 1mm;
   border-bottom: 0.3mm solid var(--modern-divider);
   color: var(--modern-text);
-  font-size: var(--modern-body-size);
+  font-size: 8.2pt;
   line-height: 1.15;
 }
 
@@ -603,7 +634,7 @@
 }
 
 .modern-experience-entry__company {
-  margin: 0;
+  margin: 0 auto 0 0;
   padding: 0;
   color: var(--modern-primary);
   font-weight: 600;
@@ -640,6 +671,7 @@
 .modern-experience-entry__achievements {
   margin: 0;
   padding-left: 4mm;
+  list-style: disc;
   color: var(--modern-text);
   font-size: var(--modern-body-size);
   line-height: var(--modern-line-height);
@@ -681,13 +713,13 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 1mm 4mm;
-  margin-bottom: 0;
+  margin-bottom: 1.5mm;
   color: var(--modern-muted);
   font-size: var(--modern-small-size);
 }
 
 .modern-education-entry__institution {
-  margin: 0;
+  margin: 0 auto 0 0;
   padding: 0;
   color: var(--modern-primary);
   font-weight: 600;
@@ -718,9 +750,9 @@
 
 .modern-resume-footer {
   position: absolute;
-  right: 17mm;
+  right: 15mm;
   bottom: 6mm;
-  left: 17mm;
+  left: 15mm;
   z-index: 3;
   display: flex;
   justify-content: space-between;
@@ -848,9 +880,11 @@
   font-size: 19pt;
 }
 
-.modern-resume-ats .modern-resume-header__profession {
+.modern-resume-page .modern-resume-ats .modern-resume-header__profession {
+  margin-top: 1mm;
   color: var(--modern-heading);
   font-size: 10pt;
+  line-height: 1.18;
 }
 
 .modern-resume-ats .modern-section {

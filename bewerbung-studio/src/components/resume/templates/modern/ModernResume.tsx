@@ -246,15 +246,16 @@ export function ModernResume({
             photoSource={photoSource}
             atsMode={false}
             compact={isContinuation}
-          />
-          {!isContinuation ? (
-            <ModernContactSection
-              profile={profile}
-              accentColor={accentColor}
-              atsMode={false}
-              inline
-            />
-          ) : null}
+          >
+            {!isContinuation ? (
+              <ModernContactSection
+                profile={profile}
+                accentColor={accentColor}
+                atsMode={false}
+                inline
+              />
+            ) : null}
+          </ModernHeader>
           <div
             className="modern-resume-main"
             data-continuation={isContinuation}
@@ -285,7 +286,6 @@ export function ModernResume({
               )
             ) : null}
           </div>
-          {isLastPage ? <ResumeSpecialSections profile={profile} sectionClassName="modern-section" headingClassName="modern-section__title" /> : null}
         </div>
         <ModernFooter
           pageNumber={plan.pageNumber}
