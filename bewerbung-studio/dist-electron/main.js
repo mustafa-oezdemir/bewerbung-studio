@@ -10231,7 +10231,7 @@ var templateCss = (templateId, { tokens, roots }) => {
 			gapSide === "top" ? `${host} ${scope}{margin:${heading.sectionGap.expr ?? mm(heading.sectionGap.standard)} 0 0}` : `${host} ${scope}{margin:0 0 ${heading.sectionGap.expr ?? mm(heading.sectionGap.standard)}}`,
 			!heading.sectionGap.expr && heading.sectionGap.compact !== heading.sectionGap.standard ? `${compact(scope)}{margin-${gapSide === "top" ? "top" : "bottom"}:${mm(heading.sectionGap.compact)}}` : "",
 			`${host} ${scope}>.cv-heading{margin:0 0 ${mm(heading.marginBottom.standard)};color:${heading.color};font-size:${heading.fontSizePt.standard}pt;--cv-divider:${heading.dividerColor};--cv-icon-color:${heading.iconColor};--cv-icon-bg:${heading.iconBackground}}`,
-			`${host} ${scope}>.cv-heading .cv-heading__label{padding:${mm(heading.labelPaddingTop ?? 0)} 0 ${mm(heading.labelPadding.standard)}}`,
+			`${host} ${scope}>.cv-heading .cv-heading__label{padding-bottom:${mm(heading.labelPadding.standard)};${heading.labelPaddingTop ? `padding-top:${mm(heading.labelPaddingTop)}` : ""}}`,
 			heading.marginBottom.compact !== heading.marginBottom.standard || heading.fontSizePt.compact !== heading.fontSizePt.standard ? `${compact(`${scope}>.cv-heading`)}{margin-bottom:${mm(heading.marginBottom.compact)};font-size:${heading.fontSizePt.compact}pt}` : "",
 			heading.labelPadding.compact !== heading.labelPadding.standard ? `${compact(`${scope}>.cv-heading .cv-heading__label`)}{padding-bottom:${mm(heading.labelPadding.compact)}}` : "",
 			`${host} ${listSelector}{${gridList ? `display:grid;gap:${mm(list.itemGap.standard)};` : ""}margin:${list.marginTop ? `${mm(list.marginTop)} 0 0` : "0"};padding:0 0 0 ${mm(list.indent)};color:inherit;${listFont};list-style:disc}`,

@@ -577,7 +577,7 @@ const templateCss = (templateId: string, { tokens, roots }: TemplateConfig) => {
       !heading.sectionGap.expr && heading.sectionGap.compact !== heading.sectionGap.standard
         ? `${compact(scope)}{margin-${gapSide === "top" ? "top" : "bottom"}:${mm(heading.sectionGap.compact)}}` : "",
       `${host} ${scope}>.cv-heading{margin:0 0 ${mm(heading.marginBottom.standard)};color:${heading.color};font-size:${heading.fontSizePt.standard}pt;--cv-divider:${heading.dividerColor};--cv-icon-color:${heading.iconColor};--cv-icon-bg:${heading.iconBackground}}`,
-      `${host} ${scope}>.cv-heading .cv-heading__label{padding:${mm(heading.labelPaddingTop ?? 0)} 0 ${mm(heading.labelPadding.standard)}}`,
+      `${host} ${scope}>.cv-heading .cv-heading__label{padding-bottom:${mm(heading.labelPadding.standard)};${heading.labelPaddingTop ? `padding-top:${mm(heading.labelPaddingTop)}` : ""}}`,
       heading.marginBottom.compact !== heading.marginBottom.standard || heading.fontSizePt.compact !== heading.fontSizePt.standard
         ? `${compact(`${scope}>.cv-heading`)}{margin-bottom:${mm(heading.marginBottom.compact)};font-size:${heading.fontSizePt.compact}pt}` : "",
       heading.labelPadding.compact !== heading.labelPadding.standard
