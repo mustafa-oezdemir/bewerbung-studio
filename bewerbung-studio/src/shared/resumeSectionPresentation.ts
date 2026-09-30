@@ -106,7 +106,7 @@ export const sectionSemanticType = (id: string, groupSemanticType?: string): Sec
  * and the closing date comes from the application. Templates join this list one by one, after
  * their look was verified on both surfaces.
  */
-export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "pehlione_white", "zweispaltig", "zeitgenoessisch", "kreativ", "ivy-league", "stilvoll", "kompakt"];
+export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "pehlione_white", "zweispaltig", "zeitgenoessisch", "kreativ", "ivy-league", "stilvoll", "kompakt", "einspaltig"];
 
 export const isZoneFlowTemplate = (templateId: string | undefined): boolean =>
   Boolean(templateId && zoneFlowTemplates.includes(templateId));
@@ -135,6 +135,7 @@ export type SectionHeadingTokens = {
   /** Space under the heading and under the divider line (mm). */
   marginBottom: { standard: number; compact: number };
   labelPadding: { standard: number; compact: number };
+  labelPaddingTop?: number;
   color: string;
   dividerColor: string;
   /** Thickness of the divider line under the title. */
@@ -367,6 +368,28 @@ const kompakt: TemplateTokens = {
   sidebar: { icons: false, heading: kompaktHeading, list: kompaktList },
 };
 
+/** Einspaltig has one physical column and a large blue ruled heading without an icon. */
+const einspaltigHeading: SectionHeadingTokens = {
+  iconBox: 0, iconGap: 0, iconRadius: 0, glyphSize: 0, glyphStroke: 0,
+  fontSizePt: { standard: 13.5, compact: 13.5 }, fontWeight: 750, lineHeight: 1,
+  letterSpacing: "0", textTransform: "uppercase",
+  marginBottom: { standard: 2, compact: 2 }, labelPadding: { standard: 1, compact: 1 }, labelPaddingTop: 1,
+  color: "var(--einfach-primary,var(--managed-primary,#0b3485))",
+  dividerColor: "var(--einfach-primary,var(--managed-primary,#0b3485))", dividerWidth: ".3mm",
+  iconColor: "currentColor", iconBackground: "transparent",
+  sectionGap: { standard: 6, compact: 6, side: "bottom", expr: "var(--einfach-section-gap,var(--managed-section-gap,6mm))" },
+  height: 7,
+};
+const einspaltigList: SectionListTokens = {
+  fontSizePt: { standard: 9.2, compact: 9.2 }, lineHeight: { standard: 1.12, compact: 1.12 },
+  itemGap: { standard: 0.3, compact: 0.3 }, indent: 4.5, inheritBody: true,
+  layout: "margins", markerColor: "var(--einfach-primary,var(--managed-primary,#0b3485))",
+};
+const einspaltig: TemplateTokens = {
+  main: { icons: false, heading: einspaltigHeading, list: einspaltigList },
+  sidebar: { icons: false, heading: einspaltigHeading, list: einspaltigList },
+};
+
 /**
  * Stilvoll: one light heading and one list for both columns (measured in the PDF: 9.5 pt regular capitals in the
  * muted grey over a 0.3 mm rule, body-size lists with a 4 mm indent like its career bullets). It draws no icons.
@@ -445,6 +468,12 @@ const configByTemplate: Record<string, TemplateConfig> = {
   kompakt: {
     tokens: kompakt,
     roots: { preview: ".kompakt-template", pdf: '.cv-sheet[data-template="kompakt"]', pdfBody: ".kompakt-pdf" },
+    plainLists: ["certifications"],
+    sidebarHero: false,
+  },
+  einspaltig: {
+    tokens: einspaltig,
+    roots: { preview: ".einfach-template", pdf: '.cv-sheet[data-template="einspaltig"]', pdfBody: ".einfach-pdf" },
     plainLists: ["certifications"],
     sidebarHero: false,
   },
@@ -548,7 +577,7 @@ const templateCss = (templateId: string, { tokens, roots }: TemplateConfig) => {
       !heading.sectionGap.expr && heading.sectionGap.compact !== heading.sectionGap.standard
         ? `${compact(scope)}{margin-${gapSide === "top" ? "top" : "bottom"}:${mm(heading.sectionGap.compact)}}` : "",
       `${host} ${scope}>.cv-heading{margin:0 0 ${mm(heading.marginBottom.standard)};color:${heading.color};font-size:${heading.fontSizePt.standard}pt;--cv-divider:${heading.dividerColor};--cv-icon-color:${heading.iconColor};--cv-icon-bg:${heading.iconBackground}}`,
-      `${host} ${scope}>.cv-heading .cv-heading__label{padding-bottom:${mm(heading.labelPadding.standard)}}`,
+      `${host} ${scope}>.cv-heading .cv-heading__label{padding:${mm(heading.labelPaddingTop ?? 0)} 0 ${mm(heading.labelPadding.standard)}}`,
       heading.marginBottom.compact !== heading.marginBottom.standard || heading.fontSizePt.compact !== heading.fontSizePt.standard
         ? `${compact(`${scope}>.cv-heading`)}{margin-bottom:${mm(heading.marginBottom.compact)};font-size:${heading.fontSizePt.compact}pt}` : "",
       heading.labelPadding.compact !== heading.labelPadding.standard

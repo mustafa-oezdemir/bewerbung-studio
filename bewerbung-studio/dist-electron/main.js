@@ -9450,7 +9450,8 @@ var zoneFlowTemplates = [
 	"kreativ",
 	"ivy-league",
 	"stilvoll",
-	"kompakt"
+	"kompakt",
+	"einspaltig"
 ];
 var isZoneFlowTemplate = (templateId) => Boolean(templateId && zoneFlowTemplates.includes(templateId));
 /** The closing of these templates prints the application date (`Ort, YYYY-MM-DD`), not a profile field. */
@@ -9933,6 +9934,73 @@ var kompakt = {
 		list: kompaktList
 	}
 };
+/** Einspaltig has one physical column and a large blue ruled heading without an icon. */
+var einspaltigHeading = {
+	iconBox: 0,
+	iconGap: 0,
+	iconRadius: 0,
+	glyphSize: 0,
+	glyphStroke: 0,
+	fontSizePt: {
+		standard: 13.5,
+		compact: 13.5
+	},
+	fontWeight: 750,
+	lineHeight: 1,
+	letterSpacing: "0",
+	textTransform: "uppercase",
+	marginBottom: {
+		standard: 2,
+		compact: 2
+	},
+	labelPadding: {
+		standard: 1,
+		compact: 1
+	},
+	labelPaddingTop: 1,
+	color: "var(--einfach-primary,var(--managed-primary,#0b3485))",
+	dividerColor: "var(--einfach-primary,var(--managed-primary,#0b3485))",
+	dividerWidth: ".3mm",
+	iconColor: "currentColor",
+	iconBackground: "transparent",
+	sectionGap: {
+		standard: 6,
+		compact: 6,
+		side: "bottom",
+		expr: "var(--einfach-section-gap,var(--managed-section-gap,6mm))"
+	},
+	height: 7
+};
+var einspaltigList = {
+	fontSizePt: {
+		standard: 9.2,
+		compact: 9.2
+	},
+	lineHeight: {
+		standard: 1.12,
+		compact: 1.12
+	},
+	itemGap: {
+		standard: .3,
+		compact: .3
+	},
+	indent: 4.5,
+	inheritBody: true,
+	layout: "margins",
+	markerColor: "var(--einfach-primary,var(--managed-primary,#0b3485))"
+};
+var einspaltig = {
+	main: {
+		icons: false,
+		heading: einspaltigHeading,
+		list: einspaltigList
+	},
+	sidebar: {
+		icons: false,
+		heading: einspaltigHeading,
+		list: einspaltigList
+	}
+};
 /**
 * Stilvoll: one light heading and one list for both columns (measured in the PDF: 9.5 pt regular capitals in the
 * muted grey over a 0.3 mm rule, body-size lists with a 4 mm indent like its career bullets). It draws no icons.
@@ -10081,6 +10149,16 @@ var configByTemplate = {
 		},
 		plainLists: ["certifications"],
 		sidebarHero: false
+	},
+	einspaltig: {
+		tokens: einspaltig,
+		roots: {
+			preview: ".einfach-template",
+			pdf: ".cv-sheet[data-template=\"einspaltig\"]",
+			pdfBody: ".einfach-pdf"
+		},
+		plainLists: ["certifications"],
+		sidebarHero: false
 	}
 };
 var tokensByTemplate = Object.fromEntries(Object.entries(configByTemplate).map(([id, config]) => [id, config.tokens]));
@@ -10153,7 +10231,7 @@ var templateCss = (templateId, { tokens, roots }) => {
 			gapSide === "top" ? `${host} ${scope}{margin:${heading.sectionGap.expr ?? mm(heading.sectionGap.standard)} 0 0}` : `${host} ${scope}{margin:0 0 ${heading.sectionGap.expr ?? mm(heading.sectionGap.standard)}}`,
 			!heading.sectionGap.expr && heading.sectionGap.compact !== heading.sectionGap.standard ? `${compact(scope)}{margin-${gapSide === "top" ? "top" : "bottom"}:${mm(heading.sectionGap.compact)}}` : "",
 			`${host} ${scope}>.cv-heading{margin:0 0 ${mm(heading.marginBottom.standard)};color:${heading.color};font-size:${heading.fontSizePt.standard}pt;--cv-divider:${heading.dividerColor};--cv-icon-color:${heading.iconColor};--cv-icon-bg:${heading.iconBackground}}`,
-			`${host} ${scope}>.cv-heading .cv-heading__label{padding-bottom:${mm(heading.labelPadding.standard)}}`,
+			`${host} ${scope}>.cv-heading .cv-heading__label{padding:${mm(heading.labelPaddingTop ?? 0)} 0 ${mm(heading.labelPadding.standard)}}`,
 			heading.marginBottom.compact !== heading.marginBottom.standard || heading.fontSizePt.compact !== heading.fontSizePt.standard ? `${compact(`${scope}>.cv-heading`)}{margin-bottom:${mm(heading.marginBottom.compact)};font-size:${heading.fontSizePt.compact}pt}` : "",
 			heading.labelPadding.compact !== heading.labelPadding.standard ? `${compact(`${scope}>.cv-heading .cv-heading__label`)}{padding-bottom:${mm(heading.labelPadding.compact)}}` : "",
 			`${host} ${listSelector}{${gridList ? `display:grid;gap:${mm(list.itemGap.standard)};` : ""}margin:${list.marginTop ? `${mm(list.marginTop)} 0 0` : "0"};padding:0 0 0 ${mm(list.indent)};color:inherit;${listFont};list-style:disc}`,
