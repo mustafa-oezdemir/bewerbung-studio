@@ -5502,9 +5502,19 @@ var twoColumnCapabilities = (templateId) => ({
 		references: "main"
 	}
 });
+var pehlioneCapabilities = (templateId) => {
+	const capabilities = twoColumnCapabilities(templateId);
+	return {
+		...capabilities,
+		defaultZoneBySection: {
+			...capabilities.defaultZoneBySection,
+			certifications: "main"
+		}
+	};
+};
 var templateSectionCapabilities = {
-	pehlione_white_blue: twoColumnCapabilities("pehlione_white_blue"),
-	pehlione_white: twoColumnCapabilities("pehlione_white"),
+	pehlione_white_blue: pehlioneCapabilities("pehlione_white_blue"),
+	pehlione_white: pehlioneCapabilities("pehlione_white"),
 	"ivy-league": {
 		...mainOnlyCapabilities("ivy-league"),
 		defaultSectionOrder: [
@@ -6844,6 +6854,17 @@ var formatApplicationDate = (application) => new Intl.DateTimeFormat("de-DE", {
 	month: "2-digit",
 	year: "numeric"
 }).format(getApplicationDate(application));
+/**
+* The application date as an ISO calendar date (`YYYY-MM-DD`), in the same local time zone as the
+* other formats. The résumé closing prints it, so the Lebenslauf and the Anschreiben always carry the
+* same day; an unreadable date yields an empty string.
+*/
+var formatApplicationDateIso = (application) => {
+	const date = getApplicationDate(application);
+	if (Number.isNaN(date.getTime())) return "";
+	const pad = (value) => String(value).padStart(2, "0");
+	return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
 var formatApplicationDateLong = (application) => new Intl.DateTimeFormat("de-DE", {
 	day: "numeric",
 	month: "long",
@@ -8967,8 +8988,24 @@ var germanDate = (value) => {
 	const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
 	return match ? `${match[3]}.${match[2]}.${match[1]}` : value.trim();
 };
+/**
+* Place and date of the closing (`Marburg, 2026-09-26`), in one place for every surface.
+*
+* `closingDate` is the date of the application (`formatApplicationDateIso`): the same day the Anschreiben
+* carries. A template that takes it prints it as it is; a template that passes none keeps printing the
+* date typed into the profile, formatted by `legacyDate`.
+*/
+var resolveResumeClosingLine = (profile, closingDate, legacyDate = (value) => value.trim()) => {
+	const place = profile.resumeClosing.showPlace ? (profile.applicationPlace || profile.city).trim() : "";
+	const date = profile.resumeClosing.showDate ? closingDate !== void 0 ? closingDate.trim() : legacyDate(profile.applicationDate) : "";
+	return {
+		place,
+		date,
+		text: [place, date].filter(Boolean).join(", ")
+	};
+};
 /** Add one shared closing on the final page while retaining an untouched Pehlione default. */
-var applyResumeClosingOutput = (page, main, profile, templateId, settings, lastPage, visible, inset) => {
+var applyResumeClosingOutput = (page, main, profile, templateId, settings, lastPage, visible, inset, closingDate) => {
 	const native = page.querySelectorAll("footer.pehlione-closing,footer.pehlione-pdf-closing");
 	if (!lastPage || !visible) {
 		native.forEach((node) => node.remove());
@@ -8980,8 +9017,7 @@ var applyResumeClosingOutput = (page, main, profile, templateId, settings, lastP
 	const signature = profile.resumeClosing.showSignature ? getProfileMediaSource(profile.signaturePath) : "";
 	const hasExplicitContent = Boolean(profile.applicationPlace.trim() || profile.applicationDate.trim() || signature);
 	if (!pehlione && !hasExplicitContent && !choice) return;
-	const place = profile.resumeClosing.showPlace ? (profile.applicationPlace || profile.city).trim() : "";
-	const date = profile.resumeClosing.showDate ? germanDate(profile.applicationDate) : "";
+	const { place, date } = resolveResumeClosingLine(profile, closingDate, germanDate);
 	if (!place && !date && !signature) {
 		native.forEach((node) => node.remove());
 		return;
@@ -9176,6 +9212,9 @@ var pehlioneAppearanceCss = `
 .pehlione-resume.pehlione-resume[data-template="pehlione_white"][data-density="compact"] .pehlione-header h2{white-space:normal}
 .pehlione-resume[data-template^="pehlione_"] .pehlione-header,
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-header{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary))}
+.pehlione-resume:is([data-template="pehlione_white_blue"],[data-template="pehlione_white"])[data-page="2"]:not([data-density="compact"]) .pehlione-header{margin-bottom:7mm;padding-bottom:4mm}
+.pehlione-resume:is([data-template="pehlione_white_blue"],[data-template="pehlione_white"])[data-page="2"]:not([data-density="compact"]) .pehlione-header h1{font-size:29pt}
+.pehlione-resume:is([data-template="pehlione_white_blue"],[data-template="pehlione_white"])[data-page="2"]:not([data-density="compact"]) .pehlione-header h2{margin-top:2mm;font-size:13pt}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-entry{border-bottom-color:var(--pehlione-divider-color,#b8c3d0)}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry,
@@ -9217,6 +9256,331 @@ var pehlioneAppearanceCss = `
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf[data-photo-decoration="hidden"] .pehlione-pdf-hero:after,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf[data-photo-decoration="hidden"] .pehlione-pdf-hero i{display:none}
 ${pehlioneHeroCss}`;
+//#endregion
+//#region src/shared/resumeSectionPresentation.ts
+var lightbulb = "<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\"/><path d=\"M9 18h6\"/><path d=\"M10 22h4\"/>";
+var graduationCap = "<path d=\"M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z\"/><path d=\"M22 10v6\"/><path d=\"M6 12.5V16a6 3 0 0 0 12 0v-3.5\"/>";
+var sectionIcons = {
+	profile: "<circle cx=\"12\" cy=\"8\" r=\"5\"/><path d=\"M20 21a8 8 0 0 0-16 0\"/>",
+	competencies: lightbulb,
+	technical: "<path d=\"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z\"/>",
+	experience: "<path d=\"M12 12h.01\"/><path d=\"M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2\"/><path d=\"M22 13a18.15 18.15 0 0 1-20 0\"/><rect width=\"20\" height=\"14\" x=\"2\" y=\"6\" rx=\"2\"/>",
+	education: graduationCap,
+	certificates: graduationCap,
+	languages: "<path d=\"m5 8 6 6\"/><path d=\"m4 14 6-6 2-3\"/><path d=\"M2 5h12\"/><path d=\"M7 2h1\"/><path d=\"m22 22-5-10-5 10\"/><path d=\"M14 18h6\"/>",
+	project: lightbulb,
+	generic: "<path d=\"M12 2 3 12l9 10 9-10Z\"/>"
+};
+/** The icon glyph as inline SVG; sizes, stroke width and colours come from the presentation CSS. */
+var sectionIconSvg = (key) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${sectionIcons[key]}</svg>`;
+var iconOfType = {
+	summary: "profile",
+	strengths: "competencies",
+	experience: "experience",
+	education: "education",
+	knowledge: "technical",
+	certifications: "certificates",
+	languages: "languages",
+	projects: "project",
+	custom: "generic"
+};
+/**
+* The semantic type of a managed section id. Knowledge groups that stand for a built-in
+* section (`core-competencies`, `training`, ...) count as that section; everything the user
+* added (special sections, free groups) is `custom`.
+*/
+var builtInSections = [
+	"summary",
+	"strengths",
+	"experience",
+	"education",
+	"knowledge",
+	"certifications",
+	"languages",
+	"projects"
+];
+var sectionSemanticType = (id, groupSemanticType) => {
+	if (builtInSections.includes(id)) return id;
+	if (id.startsWith("group:")) {
+		if (groupSemanticType === "core-competencies") return "strengths";
+		if (groupSemanticType === "technical-focus") return "knowledge";
+		if (groupSemanticType === "training" || groupSemanticType === "certificates") return "certifications";
+		if (groupSemanticType === "project-highlight") return "projects";
+	}
+	return "custom";
+};
+/**
+* Templates whose sections follow their column: a section's preferred column (`main` or `sidebar`)
+* is independent of the page the pagination puts it on, the headings are resolved per column,
+* and the closing date comes from the application. Templates join this list one by one, after
+* their look was verified on both surfaces.
+*/
+var zoneFlowTemplates = ["pehlione_white_blue", "pehlione_white"];
+var isZoneFlowTemplate = (templateId) => Boolean(templateId && zoneFlowTemplates.includes(templateId));
+/** The closing of these templates prints the application date (`Ort, YYYY-MM-DD`), not a profile field. */
+var usesApplicationClosingDate = (templateId) => isZoneFlowTemplate(templateId);
+/**
+* Pehlione White Blue: the values of the measured PDF, which is what the pagination geometry was
+* fitted to. The preview takes exactly the same numbers.
+*/
+var pehlioneWhiteBlue = {
+	main: {
+		icons: true,
+		heading: {
+			iconBox: 9,
+			iconGap: 3,
+			iconRadius: 1.2,
+			glyphSize: 5.5,
+			glyphStroke: 1.9,
+			fontSizePt: {
+				standard: 13,
+				compact: 11.2
+			},
+			fontWeight: 700,
+			lineHeight: 1.1,
+			letterSpacing: "0",
+			textTransform: "uppercase",
+			marginBottom: {
+				standard: 3,
+				compact: 2
+			},
+			labelPadding: {
+				standard: 1.2,
+				compact: .8
+			},
+			color: "var(--pehlione-section-color,var(--pehlione-primary,#0b3d86))",
+			dividerColor: "var(--pehlione-divider-color,var(--pehlione-primary,#0b3d86))",
+			iconColor: "#fff",
+			iconBackground: "var(--pehlione-primary,#0b3d86)",
+			sectionGap: {
+				standard: 6,
+				compact: 3.1
+			}
+		},
+		list: {
+			fontSizePt: {
+				standard: 8.8,
+				compact: 7.8
+			},
+			lineHeight: {
+				standard: 1.3,
+				compact: 1.2
+			},
+			itemGap: {
+				standard: .5,
+				compact: .15
+			},
+			indent: 4
+		}
+	},
+	sidebar: {
+		icons: true,
+		heading: {
+			iconBox: 9,
+			iconGap: 3,
+			iconRadius: 1.2,
+			glyphSize: 5.5,
+			glyphStroke: 1.9,
+			fontSizePt: {
+				standard: 9.7,
+				compact: 9.7
+			},
+			fontWeight: 700,
+			lineHeight: 1.1,
+			letterSpacing: "0",
+			textTransform: "uppercase",
+			marginBottom: {
+				standard: 2,
+				compact: 2
+			},
+			labelPadding: {
+				standard: 1.2,
+				compact: 1.2
+			},
+			color: "var(--pehlione-sidebar-text,#fff)",
+			dividerColor: "var(--pehlione-divider-color,#b8d2f4)",
+			iconColor: "#fff",
+			iconBackground: "var(--pehlione-primary,#0b3d86)",
+			sectionGap: {
+				standard: 4.5,
+				compact: 4.5
+			}
+		},
+		list: {
+			fontSizePt: {
+				standard: 7.8,
+				compact: 7.8
+			},
+			lineHeight: {
+				standard: 1.2,
+				compact: 1.2
+			},
+			itemLineHeight: 1.25,
+			itemGap: {
+				standard: 1.35,
+				compact: 1.35
+			},
+			indent: 4
+		}
+	}
+};
+var tokensByTemplate = {
+	pehlione_white_blue: pehlioneWhiteBlue,
+	pehlione_white: {
+		main: {
+			...pehlioneWhiteBlue.main,
+			heading: {
+				...pehlioneWhiteBlue.main.heading,
+				color: "var(--pehlione-section-color,var(--pehlione-primary,#08245c))",
+				dividerColor: "var(--pehlione-divider-color,var(--pehlione-primary,#08245c))",
+				iconBackground: "var(--pehlione-primary,#08245c)"
+			}
+		},
+		sidebar: {
+			...pehlioneWhiteBlue.sidebar,
+			heading: {
+				...pehlioneWhiteBlue.sidebar.heading,
+				iconBox: 8,
+				iconGap: 2,
+				iconRadius: 0,
+				glyphSize: 7,
+				glyphStroke: 1.9,
+				color: "var(--pehlione-primary,#08245c)",
+				dividerColor: "var(--pehlione-divider-color,var(--pehlione-primary,#08245c))",
+				iconColor: "var(--pehlione-primary,#08245c)",
+				iconBackground: "transparent"
+			}
+		}
+	}
+};
+var PT_TO_MM$1 = .3528;
+/** Millimetres the page planner needs to size a plain list section (heading, entries) drawn in `zone`. */
+var sectionListMetrics = (templateId, zone) => {
+	const tokens = tokensByTemplate[templateId]?.[zone];
+	if (!tokens) return void 0;
+	const { heading, list } = tokens;
+	const fontMm = list.fontSizePt.standard * PT_TO_MM$1;
+	return {
+		headingMm: heading.iconBox + heading.marginBottom.standard,
+		fontMm,
+		lineMm: fontMm * (list.itemLineHeight ?? list.lineHeight.standard),
+		gapMm: list.itemGap.standard,
+		indentMm: list.indent
+	};
+};
+/**
+* How `sectionId` looks in `zone` of `templateId`. `groupSemanticType` is the type of the
+* knowledge group behind a `group:*` section.
+*/
+var resolveSectionPresentation = (templateId, sectionId, zone, groupSemanticType) => {
+	const tokens = tokensByTemplate[templateId]?.[zone];
+	if (!tokens) return void 0;
+	const sectionType = sectionSemanticType(sectionId, groupSemanticType);
+	return {
+		templateId,
+		sectionType,
+		zone,
+		icon: tokens.icons ? iconOfType[sectionType] : null,
+		heading: tokens.heading,
+		list: tokens.list
+	};
+};
+var mm = (value) => `${value}mm`;
+/** The closing line keeps its own distance to the last section (the section's margin would double it). */
+var closingSelector = ":is(.pehlione-closing,.pehlione-pdf-closing,[data-resume-closing])";
+var templateCss = (templateId, tokens) => {
+	const host = `:is(.pehlione-resume,.cv-sheet)[data-template="${templateId}"]`;
+	const compact = (suffix) => `.pehlione-resume[data-template="${templateId}"][data-density="compact"] ${suffix},.cv-sheet[data-template="${templateId}"] .pehlione-pdf[data-density="compact"] ${suffix}`;
+	const hidden = (suffix) => `.pehlione-resume[data-template="${templateId}"][data-section-divider="hidden"] ${suffix},.cv-sheet[data-template="${templateId}"] .pehlione-pdf[data-section-divider="hidden"] ${suffix}`;
+	const { main, sidebar } = tokens;
+	const zoneRules = (zone, { heading, list }) => {
+		const scope = `[data-cv-zone="${zone}"]`;
+		const listSelector = `${scope} [data-cv-list]`;
+		const gridList = zone === "sidebar";
+		return [
+			[
+				"iconBox",
+				"iconGap",
+				"iconRadius",
+				"glyphSize",
+				"glyphStroke"
+			].some((key) => heading[key] !== main.heading[key]) ? [
+				`${host} ${scope}>.cv-heading{grid-template-columns:${mm(heading.iconBox)} minmax(0,1fr);gap:${mm(heading.iconGap)}}`,
+				`${host} ${scope}>.cv-heading:not(:has(.cv-heading__icon)){grid-template-columns:minmax(0,1fr)}`,
+				`${host} ${scope}>.cv-heading .cv-heading__icon{width:${mm(heading.iconBox)};height:${mm(heading.iconBox)};border-radius:${mm(heading.iconRadius)}}`,
+				`${host} ${scope}>.cv-heading .cv-heading__icon svg{width:${mm(heading.glyphSize)};height:${mm(heading.glyphSize)};stroke-width:${heading.glyphStroke}}`
+			].join("\n") : "",
+			`${host} ${scope}{margin:0 0 ${mm(heading.sectionGap.standard)}}`,
+			heading.sectionGap.compact !== heading.sectionGap.standard ? `${compact(scope)}{margin-bottom:${mm(heading.sectionGap.compact)}}` : "",
+			`${host} ${scope}>.cv-heading{margin:0 0 ${mm(heading.marginBottom.standard)};color:${heading.color};font-size:${heading.fontSizePt.standard}pt;--cv-divider:${heading.dividerColor};--cv-icon-color:${heading.iconColor};--cv-icon-bg:${heading.iconBackground}}`,
+			`${host} ${scope}>.cv-heading .cv-heading__label{padding-bottom:${mm(heading.labelPadding.standard)}}`,
+			heading.marginBottom.compact !== heading.marginBottom.standard || heading.fontSizePt.compact !== heading.fontSizePt.standard ? `${compact(`${scope}>.cv-heading`)}{margin-bottom:${mm(heading.marginBottom.compact)};font-size:${heading.fontSizePt.compact}pt}` : "",
+			heading.labelPadding.compact !== heading.labelPadding.standard ? `${compact(`${scope}>.cv-heading .cv-heading__label`)}{padding-bottom:${mm(heading.labelPadding.compact)}}` : "",
+			`${host} ${listSelector}{${gridList ? `display:grid;gap:${mm(list.itemGap.standard)};` : ""}margin:0;padding:0 0 0 ${mm(list.indent)};color:inherit;font-size:${list.fontSizePt.standard}pt;line-height:${list.lineHeight.standard};list-style:disc}`,
+			`${host} ${listSelector} li{${gridList ? "margin:0;" : `margin:${mm(list.itemGap.standard)} 0;`}color:inherit;font-size:inherit;line-height:${list.itemLineHeight ?? "inherit"};hyphens:auto;break-inside:avoid;page-break-inside:avoid}`,
+			list.fontSizePt.compact !== list.fontSizePt.standard || list.lineHeight.compact !== list.lineHeight.standard ? `${compact(listSelector)}{font-size:${list.fontSizePt.compact}pt;line-height:${list.lineHeight.compact}}` : "",
+			!gridList && list.itemGap.compact !== list.itemGap.standard ? `${compact(`${listSelector} li`)}{margin:${mm(list.itemGap.compact)} 0}` : ""
+		].filter(Boolean).join("\n");
+	};
+	const { heading } = main;
+	return `
+${host} .cv-heading{display:grid;grid-template-columns:${mm(heading.iconBox)} minmax(0,1fr);gap:${mm(heading.iconGap)};align-items:center;box-sizing:border-box;padding:0;border:0;font-style:normal;font-weight:${heading.fontWeight};line-height:${heading.lineHeight};letter-spacing:${heading.letterSpacing};text-transform:${heading.textTransform};break-after:avoid;page-break-after:avoid}
+${host} .cv-heading:not(:has(.cv-heading__icon)){grid-template-columns:minmax(0,1fr)}
+${host} .cv-heading__icon{display:grid;box-sizing:border-box;width:${mm(heading.iconBox)};height:${mm(heading.iconBox)};place-items:center;border-radius:${mm(heading.iconRadius)};color:var(--cv-icon-color,${heading.iconColor});background:var(--cv-icon-bg,${heading.iconBackground});font-style:normal}
+${host} .cv-heading__icon svg{display:block;width:${mm(heading.glyphSize)};height:${mm(heading.glyphSize)};fill:none;stroke:currentColor;stroke-width:${heading.glyphStroke};stroke-linecap:round;stroke-linejoin:round}
+${host} .cv-heading__label{display:block;min-width:0;border-bottom:var(--pehlione-divider-width,.3mm) solid var(--cv-divider,${heading.dividerColor});color:inherit;font-weight:inherit}
+${hidden(".cv-heading__label")}{border-bottom:0}
+${zoneRules("main", main)}
+${zoneRules("sidebar", sidebar)}
+${host} [data-cv-zone="main"]:has(+ ${closingSelector}){margin-bottom:0}
+${compact(`[data-cv-zone="main"]:has(+ ${closingSelector})`)}{margin-bottom:0}
+${host} [data-cv-zone="sidebar"] :is(h4,h5,strong,p,li,small){color:inherit}
+${host} [data-cv-zone="sidebar"] p{text-align:left}
+`;
+};
+var resumeSectionPresentationCss = Object.entries(tokensByTemplate).map(([templateId, tokens]) => templateCss(templateId, tokens)).join("");
+/** Rebuild the heading of a section as the template's heading system draws it in `zone`. */
+var buildSectionHeading = (document, presentation, title, previous) => {
+	const heading = document.createElement(previous?.tagName.toLowerCase() ?? "h3");
+	for (const attribute of Array.from(previous?.attributes ?? [])) if (attribute.name !== "class" && attribute.name !== "style") heading.setAttribute(attribute.name, attribute.value);
+	heading.setAttribute("class", "cv-heading");
+	heading.setAttribute("data-cv-heading", presentation.sectionType);
+	if (presentation.icon) {
+		const box = document.createElement("i");
+		box.setAttribute("class", "cv-heading__icon");
+		box.setAttribute("aria-hidden", "true");
+		box.setAttribute("data-cv-icon", presentation.icon);
+		box.setAttribute("data-cv-icon-style", presentation.heading.iconBackground === "transparent" ? "bare" : "boxed");
+		box.innerHTML = sectionIconSvg(presentation.icon);
+		heading.appendChild(box);
+	}
+	const label = document.createElement("b");
+	label.setAttribute("class", "cv-heading__label");
+	if (previous?.hasAttribute("data-custom-role")) label.setAttribute("data-custom-role", "heading-label");
+	label.textContent = title;
+	heading.appendChild(label);
+	return heading;
+};
+/**
+* Draw the headings of every managed section in the column it really stands in. A section that the
+* layout moved into (or out of) the sidebar, or that the pagination pushed to a page without a
+* sidebar, gets the heading of the column it is in now.
+*/
+var applyResumeSectionPresentation = (root, templateId, { main, sidebar, sections }) => {
+	if (!isZoneFlowTemplate(templateId)) return;
+	const document = root.ownerDocument;
+	for (const { id, nodes, groupSemanticType } of sections) for (const node of nodes) {
+		const zone = sidebar !== main && sidebar.contains(node) ? "sidebar" : "main";
+		const presentation = resolveSectionPresentation(templateId, id, zone, groupSemanticType);
+		if (!presentation) continue;
+		node.setAttribute("data-cv-zone", zone);
+		node.setAttribute("data-cv-section", presentation.sectionType);
+		const previous = Array.from(node.querySelectorAll("h2,h3")).find((candidate) => candidate.closest("section") === node && !(candidate.closest("article") && node.contains(candidate.closest("article"))));
+		if (!previous) continue;
+		const title = (previous.textContent ?? "").trim();
+		previous.replaceWith(buildSectionHeading(document, presentation, title, previous));
+	}
+};
 //#endregion
 //#region src/shared/resumeContinuation.ts
 var resumeContinuationCss = `
@@ -25977,6 +26341,100 @@ function resolveSectionColumns(mode, templateId, zone, items, settings = default
 	return Math.max(1, Math.min(3, items.length || 1, Math.floor(width / minWidth)));
 }
 //#endregion
+//#region src/shared/contactPresentation.ts
+var internationalDigits = (value) => value.trim().replace(/^00/, "+").replace(/[^\d+]/g, "");
+/** Formats German mobile numbers for display without changing their stored value. */
+var formatPhoneForDisplay = (value = "") => {
+	const digits = internationalDigits(value).replace(/\D/g, "");
+	if (digits.startsWith("49") && /^1\d{9,10}$/.test(digits.slice(2))) return `+49 ${digits.slice(2, 5)} ${digits.slice(5)}`;
+	return value.trim();
+};
+var externalUrl = (value = "") => {
+	const trimmed = value.trim();
+	if (!trimmed) return "";
+	if (/^https?:\/\//i.test(trimmed)) return trimmed;
+	return `https://${trimmed.replace(/^[a-z][a-z\d+.-]*:(?:\/\/)?/i, "")}`;
+};
+/** Keeps the URL readable while the complete URL remains the link destination. */
+var formatUrlForDisplay = (value = "") => externalUrl(value).replace(/^https?:\/\//i, "").replace(/\/$/, "");
+//#endregion
+//#region src/shared/pehlioneContacts.ts
+var icon = (_kind) => "<svg data-contact-icon=\"person\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"7\" r=\"4\"/><path d=\"M4 21a8 8 0 0 1 16 0\"/></svg>";
+var escape$1 = (value) => value.replace(/[&<>"']/g, (char) => ({
+	"&": "&amp;",
+	"<": "&lt;",
+	">": "&gt;",
+	"\"": "&quot;",
+	"'": "&#39;"
+})[char]);
+var getPehlioneContacts = (profile) => {
+	const visible = {
+		...defaultResumePersonalFieldVisibility,
+		...profile?.resumePersonalFieldVisibility
+	};
+	return [
+		{
+			key: "location",
+			label: "Ort",
+			visible: visible.address,
+			value: [profile?.city, profile?.country].filter(Boolean).join(", "),
+			href: ""
+		},
+		{
+			key: "phone",
+			label: "Telefon",
+			visible: visible.phone,
+			value: formatPhoneForDisplay(profile?.phone),
+			href: profile?.phone ? `tel:${profile.phone.replace(/[^\d+]/g, "")}` : ""
+		},
+		{
+			key: "email",
+			label: "E-Mail",
+			visible: visible.email,
+			value: profile?.email || "",
+			href: profile?.email ? `mailto:${profile.email}` : ""
+		},
+		{
+			key: "linkedin",
+			label: "LinkedIn",
+			visible: visible.linkedin,
+			value: formatUrlForDisplay(profile?.linkedin || ""),
+			href: externalUrl(profile?.linkedin || "")
+		},
+		{
+			key: "github",
+			label: "GitHub",
+			visible: visible.github,
+			value: formatUrlForDisplay(profile?.github || ""),
+			href: externalUrl(profile?.github || "")
+		},
+		{
+			key: "website",
+			label: "Website",
+			visible: visible.website,
+			value: formatUrlForDisplay(profile?.portfolio || ""),
+			href: externalUrl(profile?.portfolio || "")
+		}
+	].filter((item) => item.visible && item.value);
+};
+var renderPehlioneContacts = (profile) => {
+	const contacts = getPehlioneContacts(profile);
+	if (!contacts.length) return "";
+	return `<section class="pehlione-contacts"><h3>${icon("person")}<span>Kontakt</span></h3><ul>${contacts.map((item) => `<li data-contact-kind="${item.key}">${renderContactIcon({ kind: item.key })}<div><strong>${item.label}</strong>${item.href ? `<a href="${escape$1(item.href)}">${escape$1(item.value)}</a>` : `<span>${escape$1(item.value)}</span>`}</div></li>`).join("")}</ul></section>`;
+};
+var pehlioneContactsCss = `
+.pehlione-contacts.pehlione-contacts{--contact-heading:var(--pehlione-sidebar-text,#fff);--contact-text:var(--pehlione-sidebar-text,#fff);margin:0 0 4.5mm;color:var(--contact-text);font-family:var(--doc-font,var(--body-font,"Source Sans 3",Arial,sans-serif));font-size:7.8pt;line-height:1.2;break-inside:avoid}
+.pehlione-resume--white .pehlione-contacts,.pehlione-pdf-white .pehlione-contacts{--contact-heading:var(--pehlione-primary,#08245c);--contact-text:#142235}
+.pehlione-contacts.pehlione-contacts h3{display:grid;grid-template-columns:8mm minmax(0,1fr);gap:2mm;align-items:center;margin:0 0 2mm;padding:0 0 1.5mm;border-bottom:.3mm solid var(--contact-heading);color:var(--contact-heading);font-family:inherit;font-size:9.7pt;font-weight:700;line-height:1.1;text-transform:uppercase}
+.pehlione-contacts.pehlione-contacts svg{display:block;width:4.2mm;height:4.2mm;fill:none;stroke:var(--contact-heading);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.pehlione-contacts.pehlione-contacts h3 svg{width:8mm;height:8mm}
+.pehlione-contacts.pehlione-contacts ul{display:grid;gap:1.35mm;margin:0;padding:0;list-style:none;font-size:7.8pt;line-height:1.2}
+.pehlione-contacts.pehlione-contacts li{display:grid;grid-template-columns:5mm minmax(0,1fr);gap:1.5mm;align-items:start;margin:0;padding:0;break-inside:avoid}
+.pehlione-contacts.pehlione-contacts li>div{display:grid;gap:.25mm;min-width:0}
+.pehlione-contacts.pehlione-contacts strong{display:block;color:var(--contact-heading);font-size:7.8pt;font-weight:700;line-height:1.2}
+.pehlione-contacts.pehlione-contacts a,.pehlione-contacts.pehlione-contacts li span{color:var(--contact-text);font-size:7.4pt;line-height:1.2;text-decoration:none;overflow-wrap:anywhere}
+`;
+//#endregion
 //#region src/shared/resumePaginationGeometry.ts
 var geometry = {
 	"pehlione_white_blue": {
@@ -27706,6 +28164,35 @@ var PT_TO_MM = .3528;
 var SAFETY = .97;
 /** Sidebar blocks must fit with this share of the column to be hosted on page one. */
 var SIDEBAR_HOST_SHARE = .94;
+/** Zone-flow templates size the sidebar blocks from their tokens, so they may fill the whole column. */
+var ZONE_FLOW_HOST_SHARE = 1;
+/**
+* Wrapping of a plain list entry, fitted to 570 measured lists (no underestimate): the average glyph advance
+* (em) and the room (em) that the ragged end of a line wastes.
+*/
+var LIST_CW = .44;
+var LIST_WASTE_EM = 4;
+/** Lines of a list entry in a column of `columnMm` (its indent already taken off). */
+var listLines = (chars, columnMm, fontMm) => chars <= 0 ? 0 : Math.max(1, Math.ceil(chars * LIST_CW * fontMm / Math.max(columnMm - LIST_WASTE_EM * fontMm, 12)));
+/** The same for the body paragraphs of a special section (long compound words wrap a little wider). */
+var SPECIAL_CW = .5;
+/**
+* The sidebar of page one of a zone-flow template: the hero ends at 54 mm, the contact block is a heading (11 mm)
+* with 8 mm per entry (a value that wraps adds a line), and 4.5 mm separate it from the first section.
+*/
+var SIDEBAR_HERO_MM = 54;
+var CONTACT_HEAD_MM = 11;
+var CONTACT_ITEM_MM = 8;
+var CONTACT_LINE_MM = 3.13;
+var CONTACT_FONT_MM = 2.61;
+var CONTACT_ICON_MM = 6.5;
+var CONTACT_GAP_MM = 4.5;
+/** The measured lists leave no reserve to shave off the column. */
+var ZONE_FLOW_SIDEBAR_SAFETY = 1;
+/** The project highlight: a bold title (10.4 pt) and a bold company line. */
+var PROJECT_TITLE_MM = 3.669;
+var PROJECT_TITLE_CW = .55;
+var PROJECT_COMPANY_CW = .52;
 /** Share of the page a compacted single page may use. */
 var COMPACT_MARGIN = .96;
 /**
@@ -27897,6 +28384,11 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 		if (id === "summary" || id === "strengths" || id === "knowledge" || id === "languages") return geometry.zones[id];
 		return "main";
 	};
+	const zoneFlow = isZoneFlowTemplate(templateId) && !flat;
+	const managerRank = (id) => {
+		const index = context.sections?.findIndex((section) => section.id === id) ?? -1;
+		return index < 0 ? Number.MAX_SAFE_INTEGER : index;
+	};
 	const closingHeight = context.closing?.visible ?? Boolean(profile?.resumeClosing && (profile.resumeClosing.showPlace || profile.resumeClosing.showDate || profile.resumeClosing.showSignature)) ? context.closing?.signature ?? Boolean(profile?.signaturePath && profile.resumeClosing?.showSignature) ? CLOSING_MM.signature : CLOSING_MM.plain : 0;
 	const sectionGap = scale.sectionGap ?? nativeSectionGapOf(geometry, context.atsMode);
 	const experienceGap = geometry.exp.gap > 0 ? scale.entryGap ?? geometry.exp.gap : 0;
@@ -27964,13 +28456,18 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 		title: entry.title.trim(),
 		description: entry.description.trim()
 	}));
-	const strengthEntries = explicitStrengths.length ? explicitStrengths : [...new Set((profile?.skills ?? []).map((value) => value.trim()).filter(Boolean))].map((value) => {
+	const skillStrengths = [...new Set((profile?.skills ?? []).map((value) => value.trim()).filter(Boolean))].map((value) => {
 		const [title, ...description] = value.split(/\s+(?:–|—|:)\s+/);
 		return {
 			title,
 			description: description.join(" – ")
 		};
 	});
+	const pehlioneCompetencies = zoneFlow && !explicitStrengths.length && !skillStrengths.length ? getPehlioneCoreCompetencies(profile).map((title) => ({
+		title,
+		description: ""
+	})) : [];
+	const strengthEntries = explicitStrengths.length ? explicitStrengths : skillStrengths.length ? skillStrengths : pehlioneCompetencies;
 	const languages = (profile?.languages ?? []).filter((entry) => entry.trim());
 	const certifications = (profile?.certifications ?? []).filter((entry) => entry.trim());
 	const { blocks } = geometry;
@@ -27993,15 +28490,73 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 			gap: kind === "strengths" ? 3 : 2
 		};
 	};
+	const plainListHeight = (zone, texts, fullWidth = false) => {
+		const metrics = zoneFlow && templateId ? sectionListMetrics(templateId, zone) : void 0;
+		if (!metrics || !texts.length) return 0;
+		const column = zone === "sidebar" ? geometry.text.sideW + scale.sideDelta : fullWidth ? geometry.text.fullW : geometry.text.mainW * scale.mainRatio;
+		const body = texts.map((text) => listLines(text.length, column - metrics.indentMm, metrics.fontMm)).reduce((total, count) => total + count * metrics.lineMm, 0);
+		return metrics.headingMm + body + metrics.gapMm * (texts.length - 1);
+	};
+	/**
+	* A special section: its entries are drawn like career entries (the template's entry spacing between them)
+	* with paragraphs in the body font, in whichever column the section stands.
+	*/
+	const specialHeight = (zone, section, fullWidth = false) => {
+		const metrics = zoneFlow && templateId ? sectionListMetrics(templateId, zone) : void 0;
+		if (!metrics) return 0;
+		const normalized = normalizeCustomSection(section);
+		const listed = normalized.contentType === "list" || normalized.contentType === "skills" || normalized.contentType === "timeline";
+		const column = zone === "sidebar" ? geometry.text.sideW + scale.sideDelta : fullWidth ? geometry.text.fullW : geometry.text.mainW * scale.mainRatio;
+		const font = geometry.text.bulletFont * scale.font;
+		const pitch = font * geometry.text.lineRatio * scale.line;
+		const lines = (text, indent = 0) => text.trim() ? linesFor(text.trim().length, column - indent, font, SPECIAL_CW) : 0;
+		const headed = normalized.contentType === "entries" || normalized.contentType === "timeline";
+		const entries = normalized.entries.map((entry) => {
+			const indent = listed ? metrics.indentMm : 0;
+			const meta = [entry.location, entry.date.trim() || [entry.from, entry.to].filter((value) => value.trim()).join(" – ")].filter((value) => value.trim()).join(" · ");
+			return (headed ? lines(entry.title, indent) * pitch * 1.13 + (entry.subtitle.trim() ? 6.7 : 0) + (meta ? 4.1 : 0) : lines(entry.title, indent) * pitch + lines(entry.subtitle, indent) * pitch + lines(meta, indent) * pitch) + lines(entry.description, indent) * pitch + entry.bullets.reduce((total, value) => total + lines(value, indent + metrics.indentMm) * pitch, 0) + lines(entry.url, indent) * pitch;
+		});
+		const between = geometry.exp.gap + (zone === "sidebar" && listed ? metrics.gapMm : 3);
+		return (metrics.headingMm + entries.reduce((total, value) => total + value, 0) + between * Math.max(0, entries.length - 1)) * scale.textHeight;
+	};
+	/**
+	* The project highlight in the sidebar: the title, the company line and the bullets keep their body sizes,
+	* only the column is narrow (the main-column model is calibrated on the wide column).
+	*/
+	const sidebarProjectHeight = (project) => {
+		const metrics = zoneFlow && templateId ? sectionListMetrics(templateId, "sidebar") : void 0;
+		if (!metrics) return 0;
+		const column = geometry.text.sideW + scale.sideDelta;
+		const bodyFont = geometry.text.bulletFont * scale.font;
+		const titleFont = PROJECT_TITLE_MM * scale.font;
+		const titleLines = linesFor(project.title.length, column, titleFont, PROJECT_TITLE_CW);
+		const company = [project.company, ...project.technologies].filter(Boolean).join(" · ");
+		const companyLines = company ? linesFor(company.length, column, bodyFont, PROJECT_COMPANY_CW) : 0;
+		const bullets = project.achievements.map((entry) => listLines(entry.length, column - metrics.indentMm, bodyFont));
+		const bulletPitch = bodyFont * 1.25 * scale.line;
+		const list = bullets.reduce((total, lines) => total + lines * bulletPitch + 1, 0) + (bullets.length > 1 ? 1.35 * (bullets.length - 1) : 0);
+		return (metrics.headingMm + titleLines * titleFont * 1.3 * scale.line + (companyLines ? companyLines * bodyFont * 1.2 * scale.line + 2.5 : 0) + list) * scale.textHeight;
+	};
+	/** A free knowledge group: its items as a plain list (level and description under the text). */
+	const groupHeight = (zone, id, fullWidth = false) => {
+		const items = (resolveKnowledgeGroups(templateId ?? "", profile?.resumeKnowledgeGroups).find((candidate) => `group:${candidate.id}` === id)?.items ?? []).filter((item) => item.visible && item.text.trim());
+		if (!items.length) return 30;
+		return plainListHeight(zone, items.map((item) => [
+			item.text,
+			item.level,
+			item.description
+		].filter(Boolean).join(" ")), fullWidth) * 1.15;
+	};
 	const flow = [];
 	if (visible("summary") && summaryText) {
 		const zone = zoneOf("summary");
 		const lines = linesFor(summaryText.length, textWidth(zone), geometry.text.sumFont * scale.font, geometry.text.cw * SUMMARY_WRAP_SLACK);
 		const summaryHead = context.atsMode ? geometry.ats.head ?? geometry.exp.head : blocks.summary[0];
+		const summaryScale = zoneFlow && scale.font < 1 ? scale.font : scale.textHeight;
 		flow.push({
 			id: "summary",
 			zone,
-			height: (summaryHead + blocks.summary[1] * scale.line * lines) * scale.textHeight,
+			height: zoneFlow ? summaryHead * scale.textHeight + blocks.summary[1] * scale.line * lines * summaryScale : (summaryHead + blocks.summary[1] * scale.line * lines) * scale.textHeight,
 			home: "first"
 		});
 	}
@@ -28021,7 +28576,7 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 		flow.push({
 			id: "languages",
 			zone,
-			height: context.atsMode ? line(geometry.ats.languages, languages.length) * scale.textHeight : (line(blocks.languages, languages.length) + languages.filter((entry) => entry.length > 22).length * geometry.exp.linePitch) * scale.textHeight,
+			height: context.atsMode ? line(geometry.ats.languages, languages.length) * scale.textHeight : zoneFlow ? plainListHeight(zone, languages) : (line(blocks.languages, languages.length) + languages.filter((entry) => entry.length > 22).length * geometry.exp.linePitch) * scale.textHeight,
 			home: !flat && geometry.zones.languages === "sidebar" ? "first" : "last"
 		});
 	}
@@ -28029,12 +28584,17 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 	if (templateId?.startsWith("pehlione_") && projectVisible && !context.atsMode) {
 		const project = getPehlioneProjectHighlight(profile);
 		if (project && !(templateId === "pehlione_white_blue" && hasPehlioneCustomProjectHighlight(profile))) {
-			const lines = project.achievements.reduce((total, entry) => total + linesFor(entry.length, geometry.text.bulletW, geometry.text.bulletFont, geometry.text.cw), 0);
+			const mainHeight = (24 + project.achievements.reduce((total, entry) => total + linesFor(entry.length, geometry.text.bulletW, geometry.text.bulletFont, geometry.text.cw), 0) * geometry.exp.linePitch) * scale.textHeight;
+			const zone = zoneFlow ? zoneOf("projects") : "main";
+			const inSidebar = zoneFlow && zone === "sidebar";
 			flow.push({
 				id: "projects",
-				zone: "main",
-				height: (24 + lines * geometry.exp.linePitch) * scale.textHeight,
-				home: "last"
+				zone,
+				height: inSidebar ? sidebarProjectHeight(project) : mainHeight,
+				contHeight: inSidebar ? mainHeight : void 0,
+				home: "last",
+				rank: managerRank("projects"),
+				hostable: inSidebar
 			});
 		}
 	}
@@ -28092,6 +28652,7 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 				height: rowsHeight(firstRows, 0, firstRows.length),
 				contHeight: rowsHeight(lastRows, 0, lastRows.length),
 				home: "last",
+				rank: managerRank("knowledge"),
 				hostable: knowledgeZone === "sidebar" && !flat,
 				split: {
 					ends: lastRows.map((row) => row.end),
@@ -28109,35 +28670,48 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 		const wrapped = shown.reduce((total, entry) => total + Math.max(0, linesFor(entry.length, width, certificates.font * scale.font, geometry.text.cw) - 1), 0);
 		const model = plain ? geometry.ats.certs : certificates;
 		const zone = flat ? "main" : (customLayout ? find("certifications")?.zone : void 0) ?? certificates.zone;
+		const legacyHeight = (model.base + model.perItem * shown.length + certificates.pitch * scale.line * wrapped) * scale.textHeight;
+		const inSidebar = zoneFlow && zone === "sidebar";
 		flow.push({
 			id: "certifications",
 			zone,
-			height: (model.base + model.perItem * shown.length + certificates.pitch * scale.line * wrapped) * scale.textHeight,
-			home: certificateHome === "none" ? "last" : certificateHome
+			height: zoneFlow ? plainListHeight(zone, shown) : legacyHeight,
+			contHeight: zoneFlow ? plainListHeight("main", shown, true) : void 0,
+			home: certificateHome === "none" ? "last" : certificateHome,
+			rank: managerRank("certifications"),
+			hostable: inSidebar
 		});
 	}
 	const hostedIds = [];
 	for (const special of profile?.specialSections ?? []) {
 		const entry = find(`special:${special.id}`);
 		if (!special.isVisible || entry?.visible === false) continue;
-		const zone = entry?.zone ?? "main";
+		const zone = flat ? "main" : entry?.zone ?? "main";
 		const height = 9 + special.entries.reduce((total, item) => total + 9 + (item.description ? 3.5 : 0), 0);
+		const inSidebar = zoneFlow && zone === "sidebar";
 		flow.push({
 			id: `special:${special.id}`,
-			zone: flat ? "main" : zone,
-			height,
-			home: "last"
+			zone,
+			height: zoneFlow ? specialHeight(zone, special) : height,
+			contHeight: zoneFlow ? specialHeight("main", special, true) : void 0,
+			home: "last",
+			rank: managerRank(`special:${special.id}`),
+			hostable: inSidebar
 		});
 		hostedIds.push(`special:${special.id}`);
 	}
 	for (const entry of context.sections ?? []) {
 		if (!entry.id.startsWith("group:") || !entry.visible) continue;
 		const zone = flat ? "main" : entry.zone;
+		const inSidebar = zoneFlow && zone === "sidebar";
 		flow.push({
 			id: entry.id,
 			zone,
-			height: 30,
-			home: "last"
+			height: zoneFlow ? groupHeight(zone, entry.id) : 30,
+			contHeight: zoneFlow ? groupHeight("main", entry.id, true) : void 0,
+			home: "last",
+			rank: managerRank(entry.id),
+			hostable: inSidebar
 		});
 		hostedIds.push(entry.id);
 	}
@@ -28149,7 +28723,10 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 	const top2 = (context.atsMode ? stackedHeight ?? geometry.atsTop2 : geometry.top1) + kompaktContactHeight;
 	const mainCap1 = (geometry.limit - top1 - 2 * scale.marginInset) * SAFETY;
 	const mainCap2 = (geometry.limit - top2 - 2 * scale.marginInset) * SAFETY;
-	const sideCap1 = geometry.sideTop1 === null || flat ? 0 : (geometry.sideLimit - geometry.sideTop1 - 2 * scale.marginInset) * SAFETY;
+	const contactItems = zoneFlow && find("personalData")?.visible !== false ? getPehlioneContacts(profile) : [];
+	const contactValueWidth = geometry.text.sideW + scale.sideDelta - CONTACT_ICON_MM;
+	const sideTop1 = zoneFlow && geometry.sideTop1 !== null ? SIDEBAR_HERO_MM + (contactItems.length ? CONTACT_HEAD_MM + contactItems.reduce((total, item) => total + CONTACT_ITEM_MM + (listLines(item.value.length, contactValueWidth, CONTACT_FONT_MM * scale.font) - 1) * CONTACT_LINE_MM, 0) + CONTACT_GAP_MM : 0) : geometry.sideTop1;
+	const sideCap1 = sideTop1 === null || flat ? 0 : (geometry.sideLimit - sideTop1 - 2 * scale.marginInset) * (zoneFlow ? ZONE_FLOW_SIDEBAR_SAFETY : SAFETY);
 	const dense = context.atsMode ? geometry.ats.density : geometry.density;
 	const blockLoad = (blocksOfZone, zone) => {
 		return sumHeights(blocksOfZone.filter((block) => block.zone === zone).map((block) => block.height), zone === "sidebar" ? blocks.sideGap : sectionGap);
@@ -28158,6 +28735,7 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 	const singleOnlyBlocks = flow.filter((block) => block.singleOnly);
 	const lastBlocks = flow.filter((block) => block.home === "last");
 	const hostable = lastBlocks.filter((block) => block.hostable);
+	if (zoneFlow && customLayout) hostable.sort((left, right) => (left.rank ?? 0) - (right.rank ?? 0));
 	const stack = (fixed, run) => fixed + run + (fixed > 0 && run > 0 ? sectionGap : 0);
 	const wholeMain = () => stack(blockLoad([...firstBlocks, ...singleOnlyBlocks], "main"), stack(itemsHeight(items, "first"), blockLoad(lastBlocks, "main"))) + closingHeight;
 	const wholeSide = () => blockLoad([
@@ -28178,20 +28756,23 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 		}
 	}];
 	if (wholeMain() <= mainCap1 && (sideCap1 === 0 || wholeSide() <= sideCap1) && forced === void 0 || items.length <= 1) return onePage("standard");
-	const fitsCompact = wholeMain() * dense.compact <= mainCap1 * COMPACT_MARGIN && (sideCap1 === 0 || wholeSide() * dense.compact <= sideCap1 * COMPACT_MARGIN);
+	const sideShrink = (factor) => zoneFlow ? 1 : factor;
+	const fitsCompact = wholeMain() * dense.compact <= mainCap1 * COMPACT_MARGIN && (sideCap1 === 0 || wholeSide() * sideShrink(dense.compact) <= sideCap1 * COMPACT_MARGIN);
 	const hostedOnFirst = /* @__PURE__ */ new Set();
 	if (sideCap1) {
 		let sideLoad = blockLoad(firstBlocks, "sidebar");
 		for (const block of hostable) {
 			const next = sideLoad + (sideLoad > 0 ? blocks.sideGap : 0) + block.height;
-			if (next <= sideCap1 * SIDEBAR_HOST_SHARE) {
+			if (next <= sideCap1 * (zoneFlow ? ZONE_FLOW_HOST_SHARE : SIDEBAR_HOST_SHARE)) {
 				hostedOnFirst.add(block.id);
 				sideLoad = next;
 			}
 		}
 	}
-	const pageOneFlow = [...firstBlocks, ...lastBlocks.filter((block) => hostedOnFirst.has(block.id))];
-	const pageTwoFlow = lastBlocks.filter((block) => !hostedOnFirst.has(block.id));
+	const careerRank = Math.min(managerRank("experience"), managerRank("education"));
+	const headBlocks = zoneFlow && customLayout ? lastBlocks.filter((block) => !hostedOnFirst.has(block.id) && block.zone === "main" && (block.rank ?? Number.MAX_SAFE_INTEGER) < careerRank) : [];
+	const pageOneFlow = [...firstBlocks, ...lastBlocks.filter((block) => hostedOnFirst.has(block.id) || headBlocks.includes(block))];
+	const pageTwoFlow = lastBlocks.filter((block) => !hostedOnFirst.has(block.id) && !headBlocks.includes(block));
 	const contOf = (block) => block.contHeight ?? block.height;
 	const nativeTail = templateId === "tabellarisch" && !context.atsMode ? [
 		"certifications",
@@ -28204,7 +28785,10 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 		"certifications"
 	];
 	const tail = [];
-	if (!customLayout) for (const id of nativeTail) {
+	if (zoneFlow) {
+		const nativeRank = (id) => id === "projects" ? 0 : id === "knowledge" ? 1 : id.startsWith("group:") ? 2 : id === "certifications" ? 3 : 4;
+		tail.push(...pageTwoFlow.filter((block) => block.zone === "main").sort((left, right) => customLayout ? (left.rank ?? Number.MAX_SAFE_INTEGER) - (right.rank ?? Number.MAX_SAFE_INTEGER) : nativeRank(left.id) - nativeRank(right.id)));
+	} else if (!customLayout) for (const id of nativeTail) {
 		const block = pageTwoFlow.find((candidate) => candidate.id === id);
 		if (!block) continue;
 		if ((id === "projects" || id === "knowledge") && (flat || block.zone === "main")) tail.push(block);
@@ -28380,7 +28964,7 @@ var createResumePagePlan = (profile, resumeProfile = "", options = {}, templateI
 	let density = "dense";
 	let index = greedy("dense");
 	for (const attempt of ["standard", "compact"]) {
-		if (sideFill * densityFactor[attempt] > 1) continue;
+		if (sideFill * sideShrink(densityFactor[attempt]) > 1) continue;
 		const position = greedy(attempt);
 		if (loadLast(candidates[position]) * densityFactor[attempt] <= mainCap2) {
 			density = attempt;
@@ -28417,7 +29001,7 @@ var getLetterPageStatus = (documents) => {
 //#endregion
 //#region src/shared/resolveCvDocument.ts
 /** The sole CV projection used by both preview and print renderers. */
-var resolveCvDocument = ({ profile: sourceProfile, templateId: requestedTemplateId, settings = defaultDocumentDesign, resumeProfile = "", deckblattStatement = "", jobTitle = "", presentationAlreadyApplied = false }) => {
+var resolveCvDocument = ({ profile: sourceProfile, templateId: requestedTemplateId, settings = defaultDocumentDesign, resumeProfile = "", deckblattStatement = "", jobTitle = "", presentationAlreadyApplied = false, application }) => {
 	const templateId = resolveTemplateId(requestedTemplateId);
 	const profile = getResumeDisplayProfile(presentationAlreadyApplied ? sourceProfile : resolveResumePresentation(sourceProfile, templateId, settings.resumePresentation));
 	const sections = { ...profile?.resumeSections ?? {
@@ -28468,10 +29052,12 @@ var resolveCvDocument = ({ profile: sourceProfile, templateId: requestedTemplate
 		},
 		settings
 	};
+	const pagePlan = createResumePagePlan(paginatedProfile, paginationSummary || resumeProfile, {}, templateId, planContext);
 	return {
 		templateId,
 		settings,
 		profile,
+		closingDate: usesApplicationClosingDate(templateId) ? application ? formatApplicationDateIso(application) : "" : void 0,
 		sections,
 		managerSections,
 		knowledgeGroups,
@@ -28479,12 +29065,12 @@ var resolveCvDocument = ({ profile: sourceProfile, templateId: requestedTemplate
 		layout,
 		design,
 		paginationSummary,
-		pagePlan: createResumePagePlan(paginatedProfile, paginationSummary || resumeProfile, {}, templateId, planContext)
+		pagePlan
 	};
 };
 //#endregion
 //#region src/shared/resumeManagedOutput.ts
-var escape$1 = (value) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;");
+var escape = (value) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;");
 var aliases = {
 	summary: [
 		"Zusammenfassung",
@@ -28571,7 +29157,8 @@ ${resumeMetadataCss}
 ${resumeClosingCss}
 ${resumeContinuationCss}
 ${resumeEntrySplitCss}
-${pehlioneAppearanceCss}`;
+${pehlioneAppearanceCss}
+${resumeSectionPresentationCss}`;
 /** Resolve section-title colors by column role on both HTML surfaces. */
 var applyResumeSectionHeadingColors = (root, settings) => {
 	const appearance = resumeAppearanceSchema.parse(settings.resumeAppearance ?? {});
@@ -28582,6 +29169,7 @@ var applyResumeSectionHeadingColors = (root, settings) => {
 	const colorize = (heading, color) => {
 		heading.style.setProperty("color", color, "important");
 		for (const icon of heading.querySelectorAll("svg")) {
+			if (icon.closest(".cv-heading__icon[data-cv-icon-style=\"boxed\"]")) continue;
 			icon.style.setProperty("color", color, "important");
 			icon.style.setProperty("stroke", color, "important");
 		}
@@ -28667,7 +29255,7 @@ var applyResumeDesignOverrides = (root, templateId, surface, settings, design) =
 	if (name && colors?.heading) set(name, "color", design.colors.heading);
 	if (subtitle && colors?.subheading) set(subtitle, "color", design.colors.subheading);
 	const sources = resumeSectionStyleSources[surface][resolveTemplateId(templateId)];
-	const sectionHeadings = sources ? scope.querySelectorAll(`${sources[1]},[data-custom-role='heading']`) : scope.querySelectorAll("[data-managed-section]>h2,[data-managed-section]>h3");
+	const sectionHeadings = sources ? scope.querySelectorAll(`${sources[1]},[data-custom-role='heading'],[data-cv-heading]`) : scope.querySelectorAll("[data-managed-section]>h2,[data-managed-section]>h3");
 	const entryHeadings = sources ? scope.querySelectorAll(`${sources[2]},[data-custom-role='entry'] h3,[data-custom-role='entry'] h4`) : scope.querySelectorAll("article h3,article h4");
 	const supporting = sources ? scope.querySelectorAll(sources[3]) : scope.querySelectorAll("[class*='company'],[class*='organization']");
 	if (colors?.sectionHeading) for (const node of sectionHeadings) set(node, "color", design.colors.sectionHeading);
@@ -28728,8 +29316,12 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 		const number = pages.length > 1 ? rootIndex + 1 : pageNumber;
 		const last = pages.length > 1 ? rootIndex === pages.length - 1 : number === totalPages;
 		const planned = resolved.pagePlan;
+		const isAts = designSettings.resumeOutputMode === "ats" || designSettings.columnLayout === "compact-ats" || Boolean(root.querySelector("[data-renderer=\"ats\"], [class*=\"-ats\"]"));
+		const zoneFlow = isZoneFlowTemplate(resolved.templateId) && !isAts;
+		const surface = root.matches(".cv-sheet") ? "pdf" : "preview";
+		const headingTag = surface === "pdf" ? "h3" : "h2";
 		const hosts = (id) => {
-			if (!(id === "knowledge" || id.startsWith("group:") || id.startsWith("special:")) || !planned.some((page) => page.blocks?.includes(id))) return last;
+			if (!(id === "knowledge" || id.startsWith("group:") || id.startsWith("special:") || zoneFlow && id === "certifications") || !planned.some((page) => page.blocks?.includes(id))) return last;
 			return Boolean(planned[number - 1]?.blocks?.includes(id));
 		};
 		if (number > 1) removeContinuationSidebar(root);
@@ -28747,7 +29339,6 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 				nodes.set(entry.id, [...nodes.get(entry.id) ?? [], node]);
 			}
 		}
-		const isAts = designSettings.resumeOutputMode === "ats" || designSettings.columnLayout === "compact-ats" || Boolean(root.querySelector("[data-renderer=\"ats\"], [class*=\"-ats\"]"));
 		const main = root.querySelector(".pehlione-main,.pehlione-pdf-main,.elegant-main,.elegant-pdf-main,.modern-resume-left-column,.modern-pdf-left,.zweispaltig-main,.zweispaltig-pdf-main,.zeitgenoessisch-main,.zeit-pdf-main,.kreativ-main,.kreativ-pdf-main,.gepflegt-main,.gepflegt-pdf-main,.kompakt-left,.kompakt-pdf-columns>main,main") ?? ([
 			"einspaltig",
 			"ivy-league",
@@ -28776,9 +29367,9 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 			};
 			const marker = " <span data-resume-entry-marker>· Fortsetzung</span>";
 			const list = (visible, category, mode) => {
-				if (isAts) return `<p>${visible.map((item) => escape$1(formatKnowledgeItem(item, category.showLevels, category.showYearsOfExperience, "comma-separated"))).join(", ")}</p>`;
+				if (isAts) return `<p>${visible.map((item) => escape(formatKnowledgeItem(item, category.showLevels, category.showYearsOfExperience, "comma-separated"))).join(", ")}</p>`;
 				const content = visible.map((item) => {
-					const text = escape$1(formatKnowledgeItem(item, category.showLevels, category.showYearsOfExperience, mode));
+					const text = escape(formatKnowledgeItem(item, category.showLevels, category.showYearsOfExperience, mode));
 					const bar = !isAts && category.showLevels && mode === "level-bars" ? `<i class="managed-item-level" aria-hidden="true"><b style="width:${knowledgeLevelScores[item.level] * 20}%"></b></i>` : "";
 					return `<div class="managed-item">${isAts ? "" : getThemedTechnologyIconMarkup(item.name, item.iconId)}<span class="managed-item-text">${text}${bar}</span></div>`;
 				}).join("");
@@ -28795,10 +29386,10 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 				}));
 				if (range && !own.shown.length && !subs.some((entry) => entry.shown.length)) return "";
 				const continued = own.continued || !own.shown.length && subs.some((entry) => entry.continued);
-				const head = `<h4>${escape$1(category.title)}${continued ? marker : ""}</h4>`;
+				const head = `<h4>${escape(category.title)}${continued ? marker : ""}</h4>`;
 				const body = own.shown.length || !range ? list(own.shown, category, category.displayMode) : "";
-				const subBlocks = subs.filter((entry) => !range || entry.shown.length).map((entry) => `<h5>${escape$1(entry.sub.title)}${entry.continued ? marker : ""}</h5>${list(entry.shown, category, entry.sub.displayMode ?? category.displayMode)}`).join("");
-				return `<div class="managed-knowledge-category">${head}${category.subtitle ? `<small>${escape$1(category.subtitle)}</small>` : ""}${body}${subBlocks}</div>`;
+				const subBlocks = subs.filter((entry) => !range || entry.shown.length).map((entry) => `<h5>${escape(entry.sub.title)}${entry.continued ? marker : ""}</h5>${list(entry.shown, category, entry.sub.displayMode ?? category.displayMode)}`).join("");
+				return `<div class="managed-knowledge-category">${head}${category.subtitle ? `<small>${escape(category.subtitle)}</small>` : ""}${body}${subBlocks}</div>`;
 			}).join("");
 		};
 		const container = (entry) => entry.zone === "sidebar" ? sidebar : main;
@@ -28814,6 +29405,23 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 			if (!entry.visible) {
 				existing.forEach((node) => node.remove());
 				nodes.delete(entry.id);
+				continue;
+			}
+			if (zoneFlow && (entry.id === "certifications" || entry.id === "languages") && !items.length) {
+				const listed = (entry.id === "certifications" ? profile.certifications : profile.languages).map((value) => value.trim()).filter(Boolean);
+				const drawn = entry.id === "languages" ? existing.length > 0 && number === 1 : hosts(entry.id);
+				for (const node of existing) for (const closing of Array.from(node.querySelectorAll("footer.pehlione-pdf-closing,footer.pehlione-closing"))) main.appendChild(closing);
+				if (!listed.length || !drawn) {
+					existing.forEach((node) => node.remove());
+					nodes.delete(entry.id);
+					continue;
+				}
+				const node = existing[0] ?? document.createElement("section");
+				node.setAttribute("data-managed-section", entry.id);
+				node.innerHTML = `<${headingTag}>${escape(entry.title)}</${headingTag}><ul data-cv-list>${listed.map((value) => `<li>${escape(value)}</li>`).join("")}</ul>`;
+				existing.slice(1).forEach((duplicate) => duplicate.remove());
+				if (!existing.length) appendSection(entry, node);
+				nodes.set(entry.id, [node]);
 				continue;
 			}
 			let content = "";
@@ -28839,11 +29447,11 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 				});
 				if (strengths.length) {
 					const node = existing[0] ?? document.createElement("section");
-					const heading = node.querySelector("h2,h3")?.outerHTML ?? `<h3>${escape$1(entry.title)}</h3>`;
+					const heading = node.querySelector("h2,h3")?.outerHTML ?? `<h3>${escape(entry.title)}</h3>`;
 					node.setAttribute("data-managed-section", "strengths");
 					if (!existing.length) node.className = "managed-extra";
 					if (isAts) node.classList.add("managed-ats");
-					node.innerHTML = `${heading}${grid(entry, strengths, strengths.map((item) => `<article class="managed-strength-card">${isAts ? "" : getThemedTechnologyIconMarkup(item.title, item.iconId)}<strong>${escape$1(item.title)}</strong>${item.description ? `<p>${escape$1(item.description)}</p>` : ""}</article>`).join(""), true)}`;
+					node.innerHTML = `${heading}${grid(entry, strengths, strengths.map((item) => `<article class="managed-strength-card">${isAts ? "" : getThemedTechnologyIconMarkup(item.title, item.iconId)}<strong>${escape(item.title)}</strong>${item.description ? `<p>${escape(item.description)}</p>` : ""}</article>`).join(""), true)}`;
 					setHeadingText(node.querySelector("h2,h3"), entry.title);
 					existing.slice(1).forEach((duplicate) => duplicate.remove());
 					if (!existing.length) appendSection(entry, node);
@@ -28864,13 +29472,13 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 					continue;
 				}
 			} else if (items.length && hosts(entry.id)) if (entry.id === "knowledge" || /knowledge|skills|technologies|tools|methods|technical/.test(group?.semanticType ?? "")) {
-				const itemHtml = items.map((item) => `<div class="managed-item">${isAts ? "" : item.icon ? `<span aria-hidden="true">${escape$1(item.icon)}</span>` : getThemedTechnologyIconMarkup(item.text)}<span class="managed-item-text">${escape$1(item.text)}${item.level ? ` <small>${escape$1(item.level)}</small>` : ""}${item.description ? `<small>${escape$1(item.description)}</small>` : ""}</span></div>`);
+				const itemHtml = items.map((item) => `<div class="managed-item">${isAts ? "" : item.icon ? `<span aria-hidden="true">${escape(item.icon)}</span>` : getThemedTechnologyIconMarkup(item.text)}<span class="managed-item-text">${escape(item.text)}${item.level ? ` <small>${escape(item.level)}</small>` : ""}${item.description ? `<small>${escape(item.description)}</small>` : ""}</span></div>`);
 				content = grid(entry, items.map((item) => ({
 					title: item.text,
 					description: item.description
 				})), itemHtml.join(""));
 			} else {
-				const itemHtml = items.map((item) => `${group?.rendererType === "icon-list" && item.icon ? `<span aria-hidden="true">${escape$1(item.icon)}</span> ` : ""}${escape$1(item.text)}${item.level ? ` <small>${escape$1(item.level)}</small>` : ""}${item.description ? `<small>${escape$1(item.description)}</small>` : ""}`);
+				const itemHtml = items.map((item) => `${group?.rendererType === "icon-list" && item.icon ? `<span aria-hidden="true">${escape(item.icon)}</span> ` : ""}${escape(item.text)}${item.level ? ` <small>${escape(item.level)}</small>` : ""}${item.description ? `<small>${escape(item.description)}</small>` : ""}`);
 				content = group?.rendererType === "tag-list" ? `<div class="managed-tags">${itemHtml.map((item) => `<span>${item}</span>`).join("")}</div>` : ["two-column-list", "compact-grid"].includes(group?.rendererType ?? "") ? `<div class="managed-columns">${itemHtml.map((item) => `<div>${item}</div>`).join("")}</div>` : group?.rendererType === "text-list" ? itemHtml.map((item) => `<p>${item}</p>`).join("") : `<ul>${itemHtml.map((item) => `<li>${item}</li>`).join("")}</ul>`;
 			}
 			else if (entry.id.startsWith("special:") && (hosts(entry.id) || existing.length)) {
@@ -28885,7 +29493,7 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 			const blockTitle = (planned[number - 1]?.blockRanges?.[entry.id]?.from ?? 0) > 0 ? `${entry.title} · Fortsetzung` : entry.title;
 			if (content && (entry.id === "knowledge" || entry.id.startsWith("special:")) && existing.length) {
 				const node = existing[0];
-				node.innerHTML = (node.querySelector("h2,h3")?.outerHTML ?? `<h3>${escape$1(blockTitle)}</h3>`) + content;
+				node.innerHTML = (node.querySelector("h2,h3")?.outerHTML ?? `<h3>${escape(blockTitle)}</h3>`) + content;
 				if (entry.id.startsWith("special:")) node.setAttribute("data-section-type", "main-section");
 				setHeadingText(node.querySelector("h2,h3"), blockTitle);
 				if (isAts) node.classList.add("managed-ats");
@@ -28897,7 +29505,7 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 				node.className = `managed-extra${isAts ? " managed-ats" : ""}`;
 				node.setAttribute("data-managed-section", entry.id);
 				if (entry.id.startsWith("special:")) node.setAttribute("data-section-type", "main-section");
-				node.innerHTML = `<h3>${escape$1(blockTitle)}</h3>${content}`;
+				node.innerHTML = `<h3>${escape(blockTitle)}</h3>${content}`;
 				if (group?.pageBreakBefore) node.style.breakBefore = "page";
 				appendSection(entry, node);
 				nodes.set(entry.id, [node]);
@@ -28937,15 +29545,17 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 			heading.setAttribute("data-custom-role", "heading");
 			if (resolvedId.startsWith("pehlione_")) {
 				node.classList.add(surface === "pdf" ? "pehlione-pdf-section" : "pehlione-main-section");
-				if (surface === "preview") heading.classList.add("pehlione-section-heading");
-				const icon = document.createElement(surface === "pdf" ? "i" : "span");
-				if (surface === "pdf") icon.className = "pehlione-pdf-section-icon";
-				icon.setAttribute("aria-hidden", "true");
-				icon.innerHTML = "<svg viewBox=\"0 0 24 24\"><path d=\"M12 2 3 12l9 10 9-10Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/></svg>";
-				const label = document.createElement(surface === "pdf" ? "span" : "b");
-				label.setAttribute("data-custom-role", "heading-label");
-				label.textContent = heading.textContent;
-				heading.replaceChildren(icon, label);
+				if (!zoneFlow) {
+					if (surface === "preview") heading.classList.add("pehlione-section-heading");
+					const icon = document.createElement(surface === "pdf" ? "i" : "span");
+					if (surface === "pdf") icon.className = "pehlione-pdf-section-icon";
+					icon.setAttribute("aria-hidden", "true");
+					icon.innerHTML = "<svg viewBox=\"0 0 24 24\"><path d=\"M12 2 3 12l9 10 9-10Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/></svg>";
+					const label = document.createElement(surface === "pdf" ? "span" : "b");
+					label.setAttribute("data-custom-role", "heading-label");
+					label.textContent = heading.textContent;
+					heading.replaceChildren(icon, label);
+				}
 			}
 			if (resolvedId === "zeitgenoessisch") {
 				node.classList.add(surface === "pdf" ? "zeit-pdf-section" : "zeitgenoessisch-section");
@@ -29016,8 +29626,16 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 		else if (firstPageHeader) repeatResumeHeader(root, firstPageHeader);
 		else normalizeContinuationHeader(root, number, pages.length > 1 ? pages.length : totalPages, enabled("personalData") ? profile : void 0);
 		keepDatesOnOneLine(root);
+		if (zoneFlow) applyResumeSectionPresentation(root, resolved.templateId, {
+			main,
+			sidebar,
+			sections: Array.from(nodes, ([id, list]) => ({
+				id,
+				nodes: list,
+				groupSemanticType: groups.find((group) => group.id === entries.find((entry) => entry.id === id)?.groupId)?.semanticType
+			}))
+		});
 		applyResumePageLayout(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings, profile.resumeColumnRatio, new Map(entries.map((entry) => [entry.id, entry.zone])), resolved.layout);
-		const surface = root.matches(".cv-sheet") ? "pdf" : "preview";
 		applyResumeSpacingOutput(root, templateId, surface, designSettings, resolved.design);
 		applyResumeDesignOverrides(root, templateId, surface, designSettings, resolved.design);
 		applyResumeMetadataLayout(root, profile, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
@@ -29031,7 +29649,7 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 			left: Math.max(12, Math.round(geometry.contentLeft)),
 			right: Math.max(12, Math.round(210 - geometry.contentRight))
 		};
-		applyResumeClosingOutput(root, main, profile, templateId, designSettings, last, enabled("closing"), closingInset);
+		applyResumeClosingOutput(root, main, profile, templateId, designSettings, last, enabled("closing"), closingInset, resolved.closingDate);
 		applyGeneralResumeAppearance(root, resolved.templateId, designSettings, main, sidebar);
 		applyPehlioneAppearance(root, resolved.templateId, designSettings);
 		applyResumeSectionHeadingColors(root, designSettings);
@@ -29052,100 +29670,6 @@ var getResumeIdentityVisibilityCss = (sections) => {
 	if (hidden("personalData")) rules.push(`${scope} :is(address,[data-element-id$=".contacts"],[data-resume-personal],.resume-personal-data,.pehlione-contacts,.pehlione-ats-contact,.pehlione-pdf-ats-contact,.zeitgenoessisch-contacts),${scope} section:has(>address),${scope} section:has(>.modern-contact-list){display:none!important}`);
 	return rules.join("\n");
 };
-//#endregion
-//#region src/shared/contactPresentation.ts
-var internationalDigits = (value) => value.trim().replace(/^00/, "+").replace(/[^\d+]/g, "");
-/** Formats German mobile numbers for display without changing their stored value. */
-var formatPhoneForDisplay = (value = "") => {
-	const digits = internationalDigits(value).replace(/\D/g, "");
-	if (digits.startsWith("49") && /^1\d{9,10}$/.test(digits.slice(2))) return `+49 ${digits.slice(2, 5)} ${digits.slice(5)}`;
-	return value.trim();
-};
-var externalUrl = (value = "") => {
-	const trimmed = value.trim();
-	if (!trimmed) return "";
-	if (/^https?:\/\//i.test(trimmed)) return trimmed;
-	return `https://${trimmed.replace(/^[a-z][a-z\d+.-]*:(?:\/\/)?/i, "")}`;
-};
-/** Keeps the URL readable while the complete URL remains the link destination. */
-var formatUrlForDisplay = (value = "") => externalUrl(value).replace(/^https?:\/\//i, "").replace(/\/$/, "");
-//#endregion
-//#region src/shared/pehlioneContacts.ts
-var icon = (_kind) => "<svg data-contact-icon=\"person\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"7\" r=\"4\"/><path d=\"M4 21a8 8 0 0 1 16 0\"/></svg>";
-var escape = (value) => value.replace(/[&<>"']/g, (char) => ({
-	"&": "&amp;",
-	"<": "&lt;",
-	">": "&gt;",
-	"\"": "&quot;",
-	"'": "&#39;"
-})[char]);
-var getPehlioneContacts = (profile) => {
-	const visible = {
-		...defaultResumePersonalFieldVisibility,
-		...profile?.resumePersonalFieldVisibility
-	};
-	return [
-		{
-			key: "location",
-			label: "Ort",
-			visible: visible.address,
-			value: [profile?.city, profile?.country].filter(Boolean).join(", "),
-			href: ""
-		},
-		{
-			key: "phone",
-			label: "Telefon",
-			visible: visible.phone,
-			value: formatPhoneForDisplay(profile?.phone),
-			href: profile?.phone ? `tel:${profile.phone.replace(/[^\d+]/g, "")}` : ""
-		},
-		{
-			key: "email",
-			label: "E-Mail",
-			visible: visible.email,
-			value: profile?.email || "",
-			href: profile?.email ? `mailto:${profile.email}` : ""
-		},
-		{
-			key: "linkedin",
-			label: "LinkedIn",
-			visible: visible.linkedin,
-			value: formatUrlForDisplay(profile?.linkedin || ""),
-			href: externalUrl(profile?.linkedin || "")
-		},
-		{
-			key: "github",
-			label: "GitHub",
-			visible: visible.github,
-			value: formatUrlForDisplay(profile?.github || ""),
-			href: externalUrl(profile?.github || "")
-		},
-		{
-			key: "website",
-			label: "Website",
-			visible: visible.website,
-			value: formatUrlForDisplay(profile?.portfolio || ""),
-			href: externalUrl(profile?.portfolio || "")
-		}
-	].filter((item) => item.visible && item.value);
-};
-var renderPehlioneContacts = (profile) => {
-	const contacts = getPehlioneContacts(profile);
-	if (!contacts.length) return "";
-	return `<section class="pehlione-contacts"><h3>${icon("person")}<span>Kontakt</span></h3><ul>${contacts.map((item) => `<li data-contact-kind="${item.key}">${renderContactIcon({ kind: item.key })}<div><strong>${item.label}</strong>${item.href ? `<a href="${escape(item.href)}">${escape(item.value)}</a>` : `<span>${escape(item.value)}</span>`}</div></li>`).join("")}</ul></section>`;
-};
-var pehlioneContactsCss = `
-.pehlione-contacts.pehlione-contacts{--contact-heading:var(--pehlione-sidebar-text,#fff);--contact-text:var(--pehlione-sidebar-text,#fff);margin:0 0 4.5mm;color:var(--contact-text);font-family:var(--doc-font,var(--body-font,"Source Sans 3",Arial,sans-serif));font-size:7.8pt;line-height:1.2;break-inside:avoid}
-.pehlione-resume--white .pehlione-contacts,.pehlione-pdf-white .pehlione-contacts{--contact-heading:var(--pehlione-primary,#08245c);--contact-text:#142235}
-.pehlione-contacts.pehlione-contacts h3{display:grid;grid-template-columns:8mm minmax(0,1fr);gap:2mm;align-items:center;margin:0 0 2mm;padding:0 0 1.5mm;border-bottom:.3mm solid var(--contact-heading);color:var(--contact-heading);font-family:inherit;font-size:9.7pt;font-weight:700;line-height:1.1;text-transform:uppercase}
-.pehlione-contacts.pehlione-contacts svg{display:block;width:4.2mm;height:4.2mm;fill:none;stroke:var(--contact-heading);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.pehlione-contacts.pehlione-contacts h3 svg{width:8mm;height:8mm}
-.pehlione-contacts.pehlione-contacts ul{display:grid;gap:1.35mm;margin:0;padding:0;list-style:none;font-size:7.8pt;line-height:1.2}
-.pehlione-contacts.pehlione-contacts li{display:grid;grid-template-columns:5mm minmax(0,1fr);gap:1.5mm;align-items:start;margin:0;padding:0;break-inside:avoid}
-.pehlione-contacts.pehlione-contacts li>div{display:grid;gap:.25mm;min-width:0}
-.pehlione-contacts.pehlione-contacts strong{display:block;color:var(--contact-heading);font-size:7.8pt;font-weight:700;line-height:1.2}
-.pehlione-contacts.pehlione-contacts a,.pehlione-contacts.pehlione-contacts li span{color:var(--contact-text);font-size:7.4pt;line-height:1.2;text-decoration:none;overflow-wrap:anywhere}
-`;
 //#endregion
 //#region src/shared/pehlioneCompetencies.ts
 var unique = (values) => [...new Set(values.map((value) => value.trim()).filter(Boolean))];
@@ -29686,7 +30210,8 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 		settings: application.designSettings,
 		resumeProfile: application.documents.resumeProfile,
 		deckblattStatement: application.documents.deckblattStatement,
-		jobTitle: application.job.title
+		jobTitle: application.job.title,
+		application
 	});
 	if (target === "lebenslauf") profile = resolvedCv.profile;
 	const template = getTemplate(application.templateId);
@@ -31066,7 +31591,8 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 			showDate: true,
 			showSignature: true
 		};
-		const closingMarkup = lastPage && closingSection.visible && (closing.showPlace || closing.showDate || closing.showSignature) ? `<footer class="pehlione-pdf-closing">${closing.showPlace || closing.showDate ? `<p>${escapeHtml([closing.showPlace ? profile?.applicationPlace || profile?.city : "", closing.showDate ? profile?.applicationDate : ""].filter(Boolean).join(", "))}</p>` : ""}${closing.showSignature ? `<div class="pehlione-pdf-signer">${signatureSource ? `<img src="${escapeHtml(signatureSource)}" alt="Unterschrift">` : ""}<strong>${escapeHtml(name)}</strong></div>` : ""}</footer>` : "";
+		const closingLine = profile ? resolveResumeClosingLine(profile, resolvedCv.closingDate, (value) => value).text : "";
+		const closingMarkup = lastPage && closingSection.visible && (closing.showPlace || closing.showDate || closing.showSignature) ? `<footer class="pehlione-pdf-closing">${closing.showPlace || closing.showDate ? `<p>${escapeHtml(closingLine)}</p>` : ""}${closing.showSignature ? `<div class="pehlione-pdf-signer">${signatureSource ? `<img src="${escapeHtml(signatureSource)}" alt="Unterschrift">` : ""}<strong>${escapeHtml(name)}</strong></div>` : ""}</footer>` : "";
 		const languages = sections.languages ? (profile?.languages ?? []).filter(Boolean).map((item) => `<li>${escapeHtml(item)}</li>`).join("") : "";
 		const projectHere = atsMode || !plan.blocks ? lastPage : plan.blocks.includes("projects");
 		const main = `${!continuation && summarySection.visible && sections.profile && managedSummary ? `<section class="pehlione-pdf-section pehlione-pdf-summary-section">${sectionHeading(getResumeSemanticTitle(semanticSections, "summary"), "profile")}<p class="pehlione-pdf-summary">${escapeHtml(managedSummary)}</p></section>` : ""}${sections.experience && experience ? `<section class="pehlione-pdf-section pehlione-pdf-experience">${sectionHeading(`${getResumeSemanticTitle(semanticSections, "career")}${continuation ? " · Fortsetzung" : ""}`, "experience")}${experience}</section>` : ""}${sections.education && education ? `<section class="pehlione-pdf-section pehlione-pdf-education">${sectionHeading(getResumeSemanticTitle(semanticSections, "education"), "education")}${education}</section>` : ""}${projectHere && project && !(template.id === "pehlione_white_blue" && hasPehlioneCustomProjectHighlight(profile)) && !knowledgeGroups.some((group) => group.semanticType === "project-highlight" && visibleBlockItems(group).length) ? `<section class="pehlione-pdf-section pehlione-pdf-project">${sectionHeading("Projekt-Highlight", "project")}<h4>${escapeHtml(project.title)}</h4><p>${[project.company, ...project.technologies].filter(Boolean).map(escapeHtml).join(" · ")}</p>${project.achievements.length ? `<ul>${project.achievements.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}</section>` : ""}${lastPage && knowledgeSection.visible && profile?.resumeKnowledgeContainer?.showTitle && mainKnowledge ? `<section class="pehlione-pdf-section">${sectionHeading(getResumeSemanticTitle(semanticSections, "knowledge"), "profile")}</section>` : ""}${lastPage && knowledgeSection.visible ? mainKnowledge : ""}${lastPage && sections.certifications && kreativCertifications.length && !knowledgeGroups.some((group) => ["training", "certificates"].includes(group.semanticType)) ? `<section class="pehlione-pdf-section pehlione-pdf-training">${sectionHeading("Weiterbildungen", "training")}<ul>${kreativCertifications.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}${atsMode && lastPage && languages ? `<section class="pehlione-pdf-section pehlione-pdf-training">${sectionHeading("Sprachen", "languages")}<ul>${languages}</ul></section>` : ""}${closingMarkup}${!experience && !education ? "<p class='muted'>Berufserfahrung und Ausbildung im Profil ergänzen.</p>" : ""}`;

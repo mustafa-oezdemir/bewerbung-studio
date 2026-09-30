@@ -9,6 +9,8 @@ import { getProfileMediaSource } from "./profileMedia";
 import { getManagerSections } from "../features/resume-sections/resume-manager";
 import { resolveKnowledgeGroups } from "../features/resume-sections/resume-section-system";
 import { createResumePagePlan, type ResumePlanContext } from "./documentPagination";
+import { formatApplicationDateIso, type ApplicationDateSource } from "./applicationDate";
+import { usesApplicationClosingDate } from "./resumeSectionPresentation";
 
 type CvDocumentInput = {
   profile: ApplicantProfile | undefined;
@@ -19,6 +21,8 @@ type CvDocumentInput = {
   jobTitle?: string;
   /** Live section-editor previews have already applied presentation overrides. */
   presentationAlreadyApplied?: boolean;
+  /** The application the résumé belongs to: its date is the date of the closing (`Ort, YYYY-MM-DD`). */
+  application?: ApplicationDateSource;
 };
 
 /** The sole CV projection used by both preview and print renderers. */
@@ -30,6 +34,7 @@ export const resolveCvDocument = ({
   deckblattStatement = "",
   jobTitle = "",
   presentationAlreadyApplied = false,
+  application,
 }: CvDocumentInput) => {
   const templateId = resolveTemplateId(requestedTemplateId);
   const projected = presentationAlreadyApplied
@@ -94,10 +99,16 @@ export const resolveCvDocument = ({
   const pagePlan = createResumePagePlan(
     paginatedProfile, paginationSummary || resumeProfile, {}, templateId, planContext,
   );
+  // The closing of these templates prints the date of the application, exactly like the Anschreiben;
+  // the others keep printing the date typed into the profile.
+  const closingDate = usesApplicationClosingDate(templateId)
+    ? application ? formatApplicationDateIso(application) : ""
+    : undefined;
   return {
     templateId,
     settings,
     profile,
+    closingDate,
     sections,
     managerSections,
     knowledgeGroups,

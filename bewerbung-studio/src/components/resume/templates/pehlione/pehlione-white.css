@@ -1,3 +1,10 @@
+/* The PDF sets its base text to 8.8pt / 1.3; text without a size of its own (strength cards, knowledge items)
+   must not fall back to the size of the page around the preview. Compact density keeps its own base. */
+.pehlione-resume--white {
+  font-size: 8.8pt;
+  line-height: 1.3;
+}
+
 .pehlione-resume--white .pehlione-sidebar {
   color: #142235;
   background: #fff;

@@ -12,6 +12,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { getTemplateKnowledge, parseTemplateStrengths, resolveTemplateSummary } from "../resume-template-data";
 import type { ApplicantProfile } from "../../../../shared/schema";
 import type { ResumePagePlan } from "../../../../shared/documentPagination";
+import { resolveResumeClosingLine } from "../../../../shared/resumeClosing";
 
 import { groupPehlioneCompetencies } from "../../../../shared/pehlioneCompetencies";
 import {
@@ -43,6 +44,8 @@ type Props = {
   secondaryColor: string;
   resumeProfile: string;
   sections: ApplicantProfile["resumeSections"];
+  /** Date of the application, for the templates whose closing prints it (`ResolvedCvDocument.closingDate`). */
+  closingDate?: string;
 };
 
 const heading = (icon: ReactNode, title: string, className = "") => (
@@ -63,6 +66,7 @@ export function PehlioneResume({
   secondaryColor,
   resumeProfile,
   sections,
+  closingDate,
 }: Props) {
   const continuation = plan.pageNumber > 1;
   const lastPage = plan.pageNumber === totalPages;
@@ -98,6 +102,7 @@ export function PehlioneResume({
   );
   const mainKnowledgeGroups = visibleKnowledgeGroups.filter((group) => group.slot !== "sidebar");
   const closing = profile?.resumeClosing ?? { showPlace: true, showDate: true, showSignature: true };
+  const closingLine = profile ? resolveResumeClosingLine(profile, closingDate, (value) => value).text : "";
   const signatureSource = getProfileMediaSource(profile?.signaturePath);
   const style = {
     "--pehlione-primary": accentColor,
@@ -240,7 +245,7 @@ export function PehlioneResume({
         ))}
         {lastPage && closingSection.visible && (closing.showPlace || closing.showDate || closing.showSignature) ? (
           <footer className="pehlione-closing">
-            {(closing.showPlace || closing.showDate) ? <p>{[closing.showPlace ? profile?.applicationPlace || profile?.city : "", closing.showDate ? profile?.applicationDate : ""].filter(Boolean).join(", ")}</p> : null}
+            {(closing.showPlace || closing.showDate) ? <p>{closingLine}</p> : null}
             {closing.showSignature ? (
               <div className="pehlione-closing__signer">
                 {signatureSource ? <img src={signatureSource} alt="Unterschrift" /> : null}

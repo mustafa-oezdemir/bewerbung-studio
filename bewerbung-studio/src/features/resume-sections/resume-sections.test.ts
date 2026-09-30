@@ -6,6 +6,7 @@ import {
   resolveResumeSectionLayout,
 } from "./resume-sections";
 import { profileSchema } from "../../shared/schema";
+import { getManagerSections } from "./resume-manager";
 
 describe("resume section capabilities", () => {
   it("keeps single-column templates in their natural flow", () => {
@@ -61,5 +62,16 @@ describe("resume section capabilities", () => {
     expect(getResumeSectionTitle(profile, "knowledge")).toBe(
       "Technische Kompetenzen",
     );
+  });
+
+  it("lists the certificates of the Pehlione templates where the output draws them", () => {
+    const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", certifications: ["IBM"], updatedAt: new Date().toISOString() });
+    const zoneOf = (templateId: string) => getManagerSections(profile, templateId).find((entry) => entry.id === "certifications")?.zone;
+    for (const templateId of ["pehlione_white_blue", "pehlione_white"]) {
+      expect(zoneOf(templateId), templateId).toBe("main");
+      expect(getTemplateSectionCapabilities(templateId).allowedZonesBySection.certifications, templateId).toEqual(["main", "sidebar"]);
+    }
+    // The other two-column templates keep their own defaults.
+    expect(zoneOf("modern")).toBe("sidebar");
   });
 });

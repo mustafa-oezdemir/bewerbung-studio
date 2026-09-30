@@ -34,6 +34,7 @@ import {
 import { normalizeResumeDataDraft, ResumeDataEditor } from "./ResumeDataEditor";
 import { validateKnowledgeSection } from "../../features/knowledge/knowledge.validation";
 import { getProfileMediaSource } from "../../shared/profileMedia";
+import { usesApplicationClosingDate } from "../../shared/resumeSectionPresentation";
 
 const noop = () => {};
 type Props = {
@@ -221,21 +222,27 @@ export function ResumeSectionsPanel({
                   ["applicationPlace", "Ort"],
                   ["applicationDate", "Datum"],
                 ] as const
-              ).map(([key, label]) => (
-                <label className="field" key={key}>
-                  <span>{label}</span>
-                  <input
-                    type={key === "applicationDate" ? "date" : "text"}
-                    value={draft[key]}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        [key]: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-              ))}
+              ).map(([key, label]) => {
+                // Some templates print the date of the application (like the Anschreiben), not a date typed here.
+                const fromApplication = key === "applicationDate" && usesApplicationClosingDate(templateId);
+                return (
+                  <label className="field" key={key}>
+                    <span>{fromApplication ? "Datum (Bewerbungsdatum)" : label}</span>
+                    <input
+                      type={key === "applicationDate" ? "date" : "text"}
+                      value={fromApplication ? "" : draft[key]}
+                      disabled={fromApplication}
+                      title={fromApplication ? "Das Datum stammt aus dem Bewerbungsdatum, wie im Anschreiben." : undefined}
+                      onChange={(event) =>
+                        setDraft((current) => ({
+                          ...current,
+                          [key]: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                );
+              })}
             </div>
             <div className="visibility-checkbox-grid">
               {(

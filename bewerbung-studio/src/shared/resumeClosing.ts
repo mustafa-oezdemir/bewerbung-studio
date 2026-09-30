@@ -20,6 +20,25 @@ const germanDate = (value: string) => {
   return match ? `${match[3]}.${match[2]}.${match[1]}` : value.trim();
 };
 
+/**
+ * Place and date of the closing (`Marburg, 2026-09-26`), in one place for every surface.
+ *
+ * `closingDate` is the date of the application (`formatApplicationDateIso`): the same day the Anschreiben
+ * carries. A template that takes it prints it as it is; a template that passes none keeps printing the
+ * date typed into the profile, formatted by `legacyDate`.
+ */
+export const resolveResumeClosingLine = (
+  profile: Pick<ApplicantProfile, "applicationPlace" | "applicationDate" | "city" | "resumeClosing">,
+  closingDate?: string,
+  legacyDate: (value: string) => string = (value) => value.trim(),
+) => {
+  const place = profile.resumeClosing.showPlace ? (profile.applicationPlace || profile.city).trim() : "";
+  const date = profile.resumeClosing.showDate
+    ? closingDate !== undefined ? closingDate.trim() : legacyDate(profile.applicationDate)
+    : "";
+  return { place, date, text: [place, date].filter(Boolean).join(", ") };
+};
+
 /** Add one shared closing on the final page while retaining an untouched Pehlione default. */
 export const applyResumeClosingOutput = (
   page: Element,
@@ -31,6 +50,8 @@ export const applyResumeClosingOutput = (
   visible: boolean,
   /** Millimetres to keep clear of a sidebar column, so a footer never covers it. */
   inset?: { left: number; right: number },
+  /** Date of the application, for the templates whose closing prints it instead of a profile field. */
+  closingDate?: string,
 ): void => {
   const native = page.querySelectorAll("footer.pehlione-closing,footer.pehlione-pdf-closing");
   if (!lastPage || !visible) {
@@ -43,8 +64,7 @@ export const applyResumeClosingOutput = (
   const signature = profile.resumeClosing.showSignature ? getProfileMediaSource(profile.signaturePath) : "";
   const hasExplicitContent = Boolean(profile.applicationPlace.trim() || profile.applicationDate.trim() || signature);
   if (!pehlione && !hasExplicitContent && !choice) return;
-  const place = profile.resumeClosing.showPlace ? (profile.applicationPlace || profile.city).trim() : "";
-  const date = profile.resumeClosing.showDate ? germanDate(profile.applicationDate) : "";
+  const { place, date } = resolveResumeClosingLine(profile, closingDate, germanDate);
   if (!place && !date && !signature) {
     native.forEach(node => node.remove());
     return;

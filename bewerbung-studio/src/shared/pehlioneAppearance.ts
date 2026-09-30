@@ -93,6 +93,9 @@ export const pehlioneAppearanceCss = `
 .pehlione-resume.pehlione-resume[data-template="pehlione_white"][data-density="compact"] .pehlione-header h2{white-space:normal}
 .pehlione-resume[data-template^="pehlione_"] .pehlione-header,
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-header{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary))}
+.pehlione-resume:is([data-template="pehlione_white_blue"],[data-template="pehlione_white"])[data-page="2"]:not([data-density="compact"]) .pehlione-header{margin-bottom:7mm;padding-bottom:4mm}
+.pehlione-resume:is([data-template="pehlione_white_blue"],[data-template="pehlione_white"])[data-page="2"]:not([data-density="compact"]) .pehlione-header h1{font-size:29pt}
+.pehlione-resume:is([data-template="pehlione_white_blue"],[data-template="pehlione_white"])[data-page="2"]:not([data-density="compact"]) .pehlione-header h2{margin-top:2mm;font-size:13pt}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-entry{border-bottom-color:var(--pehlione-divider-color,#b8c3d0)}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry,

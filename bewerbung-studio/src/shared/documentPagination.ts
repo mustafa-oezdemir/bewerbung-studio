@@ -3,7 +3,7 @@ import { ensureKnowledgeSection } from "../features/knowledge/knowledge.service"
 import { formatKnowledgeItem } from "../features/knowledge/knowledge.utils";
 import { knowledgeLists, type KnowledgeRange } from "./resumeKnowledgeRange";
 import { getCoverLetterMainBody } from "./coverLetter";
-import { getPehlioneProjectHighlight, hasPehlioneCustomProjectHighlight } from "./pehlioneContent";
+import { getPehlioneCoreCompetencies, getPehlioneProjectHighlight, hasPehlioneCustomProjectHighlight } from "./pehlioneContent";
 import {
   defaultDocumentDesign,
   fontSizeToPt,
@@ -14,6 +14,10 @@ import {
 } from "./documentDesign";
 import { getTemplateDocumentDesignDefaults } from "./cvDesign";
 import { resolveSectionColumns } from "./resumeSectionLayout";
+import { isZoneFlowTemplate, sectionListMetrics } from "./resumeSectionPresentation";
+import { normalizeCustomSection } from "./resumeCustomSections";
+import { getPehlioneContacts } from "./pehlioneContacts";
+import { resolveKnowledgeGroups } from "../features/resume-sections/resume-section-system";
 import {
   getPaginationGeometry,
   type ItemBlockModel,
@@ -107,6 +111,36 @@ const PT_TO_MM = 0.3528;
 const SAFETY = 0.97;
 /** Sidebar blocks must fit with this share of the column to be hosted on page one. */
 const SIDEBAR_HOST_SHARE = 0.94;
+/** Zone-flow templates size the sidebar blocks from their tokens, so they may fill the whole column. */
+const ZONE_FLOW_HOST_SHARE = 1;
+/**
+ * Wrapping of a plain list entry, fitted to 570 measured lists (no underestimate): the average glyph advance
+ * (em) and the room (em) that the ragged end of a line wastes.
+ */
+const LIST_CW = 0.44;
+const LIST_WASTE_EM = 4;
+/** Lines of a list entry in a column of `columnMm` (its indent already taken off). */
+const listLines = (chars: number, columnMm: number, fontMm: number) =>
+  chars <= 0 ? 0 : Math.max(1, Math.ceil((chars * LIST_CW * fontMm) / Math.max(columnMm - LIST_WASTE_EM * fontMm, 12)));
+/** The same for the body paragraphs of a special section (long compound words wrap a little wider). */
+const SPECIAL_CW = 0.5;
+/**
+ * The sidebar of page one of a zone-flow template: the hero ends at 54 mm, the contact block is a heading (11 mm)
+ * with 8 mm per entry (a value that wraps adds a line), and 4.5 mm separate it from the first section.
+ */
+const SIDEBAR_HERO_MM = 54;
+const CONTACT_HEAD_MM = 11;
+const CONTACT_ITEM_MM = 8;
+const CONTACT_LINE_MM = 3.13;
+const CONTACT_FONT_MM = 2.61;
+const CONTACT_ICON_MM = 6.5;
+const CONTACT_GAP_MM = 4.5;
+/** The measured lists leave no reserve to shave off the column. */
+const ZONE_FLOW_SIDEBAR_SAFETY = 1;
+/** The project highlight: a bold title (10.4 pt) and a bold company line. */
+const PROJECT_TITLE_MM = 3.669;
+const PROJECT_TITLE_CW = 0.55;
+const PROJECT_COMPANY_CW = 0.52;
 /** Share of the page a compacted single page may use. */
 const COMPACT_MARGIN = 0.96;
 /**
@@ -322,6 +356,8 @@ type FlowBlock = {
   zone: PaginationZone;
   height: number;
   home: "first" | "last";
+  /** Position in the manager's order (a hand-arranged layout); blocks the manager does not know come last. */
+  rank?: number;
   /** Sidebar block that may be hosted on page one instead of the last page. */
   hostable?: boolean;
   /** A block the template only draws when the whole résumé fits on one page. */
@@ -365,6 +401,14 @@ export const createResumePagePlan = (
     if (configured) return configured;
     if (id === "summary" || id === "strengths" || id === "knowledge" || id === "languages") return geometry.zones[id];
     return "main";
+  };
+  // Zone-flow templates keep a section in the column the user gave it, whatever page the pagination
+  // ends up giving it: a sidebar block is hosted on page one whenever that column has room, and the
+  // blocks of the main column flow behind the career entries.
+  const zoneFlow = isZoneFlowTemplate(templateId) && !flat;
+  const managerRank = (id: string) => {
+    const index = context.sections?.findIndex((section) => section.id === id) ?? -1;
+    return index < 0 ? Number.MAX_SAFE_INTEGER : index;
   };
 
   const closingVisible = context.closing?.visible ?? Boolean(profile?.resumeClosing && (profile.resumeClosing.showPlace || profile.resumeClosing.showDate || profile.resumeClosing.showSignature));
@@ -437,12 +481,15 @@ export const createResumePagePlan = (
   const explicitStrengths = (profile?.strengths ?? [])
     .filter((entry) => entry.title.trim())
     .map((entry) => ({ title: entry.title.trim(), description: entry.description.trim() }));
-  const strengthEntries: ListEntry[] = explicitStrengths.length
-    ? explicitStrengths
-    : [...new Set((profile?.skills ?? []).map((value) => value.trim()).filter(Boolean))].map((value) => {
-        const [title, ...description] = value.split(/\s+(?:–|—|:)\s+/);
-        return { title, description: description.join(" – ") };
-      });
+  const skillStrengths: ListEntry[] = [...new Set((profile?.skills ?? []).map((value) => value.trim()).filter(Boolean))].map((value) => {
+    const [title, ...description] = value.split(/\s+(?:–|—|:)\s+/);
+    return { title, description: description.join(" – ") };
+  });
+  // Pehlione words its core competencies from what the profile says when it lists neither strengths nor skills.
+  const pehlioneCompetencies: ListEntry[] = zoneFlow && !explicitStrengths.length && !skillStrengths.length
+    ? getPehlioneCoreCompetencies(profile).map((title) => ({ title, description: "" }))
+    : [];
+  const strengthEntries: ListEntry[] = explicitStrengths.length ? explicitStrengths : skillStrengths.length ? skillStrengths : pehlioneCompetencies;
   const languages = (profile?.languages ?? []).filter((entry) => entry.trim());
   const certifications = (profile?.certifications ?? []).filter((entry) => entry.trim());
   const { blocks } = geometry;
@@ -471,13 +518,96 @@ export const createResumePagePlan = (
     };
   };
 
+  // A plain list section (certificates, languages, special sections, the project highlight) of a
+  // zone-flow template: heading plus wrapped entries, sized from the same tokens that draw it.
+  // The entries wrap at the text width of the column they stand in — the narrow sidebar, the main
+  // column beside it, or the full page width on the last page.
+  const plainListHeight = (zone: PaginationZone, texts: readonly string[], fullWidth = false) => {
+    const metrics = zoneFlow && templateId ? sectionListMetrics(templateId, zone) : undefined;
+    if (!metrics || !texts.length) return 0;
+    const column = zone === "sidebar" ? geometry.text.sideW + scale.sideDelta
+      : fullWidth ? geometry.text.fullW : geometry.text.mainW * scale.mainRatio;
+    // The lists have fixed sizes: neither the design font size nor the line height reaches them.
+    const lines = texts.map((text) => listLines(text.length, column - metrics.indentMm, metrics.fontMm));
+    const body = lines.reduce((total, count) => total + count * metrics.lineMm, 0);
+    return metrics.headingMm + body + metrics.gapMm * (texts.length - 1);
+  };
+  /**
+   * A special section: its entries are drawn like career entries (the template's entry spacing between them)
+   * with paragraphs in the body font, in whichever column the section stands.
+   */
+  const specialHeight = (zone: PaginationZone, section: NonNullable<typeof profile>["specialSections"][number], fullWidth = false) => {
+    const metrics = zoneFlow && templateId ? sectionListMetrics(templateId, zone) : undefined;
+    if (!metrics) return 0;
+    const normalized = normalizeCustomSection(section);
+    const listed = normalized.contentType === "list" || normalized.contentType === "skills" || normalized.contentType === "timeline";
+    const column = zone === "sidebar" ? geometry.text.sideW + scale.sideDelta
+      : fullWidth ? geometry.text.fullW : geometry.text.mainW * scale.mainRatio;
+    const font = geometry.text.bulletFont * scale.font;
+    const pitch = font * geometry.text.lineRatio * scale.line;
+    const lines = (text: string, indent = 0) => (text.trim() ? linesFor(text.trim().length, column - indent, font, SPECIAL_CW) : 0);
+    const headed = normalized.contentType === "entries" || normalized.contentType === "timeline";
+    const entries = normalized.entries.map((entry) => {
+      const indent = listed ? metrics.indentMm : 0;
+      const meta = [entry.location, entry.date.trim() || [entry.from, entry.to].filter((value) => value.trim()).join(" – ")].filter((value) => value.trim()).join(" · ");
+      const head = headed
+        ? lines(entry.title, indent) * pitch * 1.13 + (entry.subtitle.trim() ? 6.7 : 0) + (meta ? 4.1 : 0)
+        : lines(entry.title, indent) * pitch + lines(entry.subtitle, indent) * pitch + lines(meta, indent) * pitch;
+      return head
+        + lines(entry.description, indent) * pitch
+        + entry.bullets.reduce((total, value) => total + lines(value, indent + metrics.indentMm) * pitch, 0)
+        + lines(entry.url, indent) * pitch;
+    });
+    const between = geometry.exp.gap + (zone === "sidebar" && listed ? metrics.gapMm : 3);
+    return (metrics.headingMm + entries.reduce((total, value) => total + value, 0) + between * Math.max(0, entries.length - 1)) * scale.textHeight;
+  };
+  /**
+   * The project highlight in the sidebar: the title, the company line and the bullets keep their body sizes,
+   * only the column is narrow (the main-column model is calibrated on the wide column).
+   */
+  const sidebarProjectHeight = (project: NonNullable<ReturnType<typeof getPehlioneProjectHighlight>>) => {
+    const metrics = zoneFlow && templateId ? sectionListMetrics(templateId, "sidebar") : undefined;
+    if (!metrics) return 0;
+    const column = geometry.text.sideW + scale.sideDelta;
+    const bodyFont = geometry.text.bulletFont * scale.font;
+    const titleFont = PROJECT_TITLE_MM * scale.font;
+    const titleLines = linesFor(project.title.length, column, titleFont, PROJECT_TITLE_CW);
+    const company = [project.company, ...project.technologies].filter(Boolean).join(" · ");
+    const companyLines = company ? linesFor(company.length, column, bodyFont, PROJECT_COMPANY_CW) : 0;
+    const bullets = project.achievements.map((entry) => listLines(entry.length, column - metrics.indentMm, bodyFont));
+    const bulletPitch = bodyFont * 1.25 * scale.line;
+    const list = bullets.reduce((total, lines) => total + lines * bulletPitch + 1, 0) + (bullets.length > 1 ? 1.35 * (bullets.length - 1) : 0);
+    return (
+      metrics.headingMm
+      + titleLines * titleFont * 1.3 * scale.line
+      + (companyLines ? companyLines * bodyFont * 1.2 * scale.line + 2.5 : 0)
+      + list
+    ) * scale.textHeight;
+  };
+  /** A free knowledge group: its items as a plain list (level and description under the text). */
+  const groupHeight = (zone: PaginationZone, id: string, fullWidth = false) => {
+    const group = resolveKnowledgeGroups(templateId ?? "", profile?.resumeKnowledgeGroups).find((candidate) => `group:${candidate.id}` === id);
+    const items = (group?.items ?? []).filter((item) => item.visible && item.text.trim());
+    if (!items.length) return 30;
+    return plainListHeight(zone, items.map((item) => [item.text, item.level, item.description].filter(Boolean).join(" ")), fullWidth) * 1.15;
+  };
+
   const flow: FlowBlock[] = [];
   if (visible("summary") && summaryText) {
     const zone = zoneOf("summary");
     const lines = linesFor(summaryText.length, textWidth(zone), geometry.text.sumFont * scale.font, geometry.text.cw * SUMMARY_WRAP_SLACK);
     // Every plain section starts with the same heading block as the career sections.
     const summaryHead = context.atsMode ? geometry.ats.head ?? geometry.exp.head : blocks.summary[0];
-    flow.push({ id: "summary", zone, height: (summaryHead + blocks.summary[1] * scale.line * lines) * scale.textHeight, home: "first" });
+    // The lines of a summary follow the body font exactly; only enlarged text keeps its reserve.
+    const summaryScale = zoneFlow && scale.font < 1 ? scale.font : scale.textHeight;
+    flow.push({
+      id: "summary",
+      zone,
+      height: zoneFlow
+        ? summaryHead * scale.textHeight + blocks.summary[1] * scale.line * lines * summaryScale
+        : (summaryHead + blocks.summary[1] * scale.line * lines) * scale.textHeight,
+      home: "first",
+    });
   }
   // Skills shown as strengths are only drawn by some templates, and some only on a one-page résumé.
   const derivedStrengths = explicitStrengths.length ? "first" : geometry.derivedStrengths[context.atsMode ? "ats" : "visual"];
@@ -500,7 +630,9 @@ export const createResumePagePlan = (
       // Long names such as “Türkisch (Muttersprache) – C2” wrap inside a narrow sidebar; plain lists span the page.
       height: context.atsMode
         ? line(geometry.ats.languages, languages.length) * scale.textHeight
-        : (line(blocks.languages, languages.length) + languages.filter((entry) => entry.length > 22).length * geometry.exp.linePitch) * scale.textHeight,
+        : zoneFlow
+          ? plainListHeight(zone, languages)
+          : (line(blocks.languages, languages.length) + languages.filter((entry) => entry.length > 22).length * geometry.exp.linePitch) * scale.textHeight,
       home: !flat && geometry.zones.languages === "sidebar" ? "first" : "last",
     });
   }
@@ -514,7 +646,18 @@ export const createResumePagePlan = (
       );
       // Pehlione renders its project highlight after education. When education
       // continues on page two, the project must follow it there as well.
-      flow.push({ id: "projects", zone: "main", height: (24 + lines * geometry.exp.linePitch) * scale.textHeight, home: "last" });
+      const mainHeight = (24 + lines * geometry.exp.linePitch) * scale.textHeight;
+      const zone = zoneFlow ? zoneOf("projects") : "main";
+      const inSidebar = zoneFlow && zone === "sidebar";
+      flow.push({
+        id: "projects",
+        zone,
+        height: inSidebar ? sidebarProjectHeight(project) : mainHeight,
+        contHeight: inSidebar ? mainHeight : undefined,
+        home: "last",
+        rank: managerRank("projects"),
+        hostable: inSidebar,
+      });
     }
   }
   const knowledgeZone = zoneOf("knowledge");
@@ -565,6 +708,7 @@ export const createResumePagePlan = (
         // On the last page there is no sidebar: the list spreads over the page width.
         contHeight: rowsHeight(lastRows, 0, lastRows.length),
         home: "last",
+        rank: managerRank("knowledge"),
         hostable: knowledgeZone === "sidebar" && !flat,
         split: { ends: lastRows.map((row) => row.end), height: (from, to) => rowsHeight(lastRows, from, to) },
       });
@@ -584,26 +728,50 @@ export const createResumePagePlan = (
     const model = plain ? geometry.ats.certs : certificates;
     // A template that keeps them in its sidebar draws them on page one; flattened layouts append them.
     const zone = flat ? "main" : ((customLayout ? find("certifications")?.zone : undefined) ?? certificates.zone);
+    const legacyHeight = (model.base + model.perItem * shown.length + certificates.pitch * scale.line * wrapped) * scale.textHeight;
+    const inSidebar = zoneFlow && zone === "sidebar";
     flow.push({
       id: "certifications",
       zone,
-      height: (model.base + model.perItem * shown.length + certificates.pitch * scale.line * wrapped) * scale.textHeight,
+      height: zoneFlow ? plainListHeight(zone, shown) : legacyHeight,
+      // A sidebar block that does not fit beside page one goes to the full-width main column of the last page.
+      contHeight: zoneFlow ? plainListHeight("main", shown, true) : undefined,
       home: certificateHome === "none" ? "last" : certificateHome,
+      rank: managerRank("certifications"),
+      hostable: inSidebar,
     });
   }
   const hostedIds: string[] = [];
   for (const special of profile?.specialSections ?? []) {
     const entry = find(`special:${special.id}`);
     if (!special.isVisible || entry?.visible === false) continue;
-    const zone = entry?.zone ?? "main";
+    const zone = flat ? "main" : entry?.zone ?? "main";
     const height = 9 + special.entries.reduce((total, item) => total + 9 + (item.description ? 3.5 : 0), 0);
-    flow.push({ id: `special:${special.id}`, zone: flat ? "main" : zone, height, home: "last" });
+    const inSidebar = zoneFlow && zone === "sidebar";
+    flow.push({
+      id: `special:${special.id}`,
+      zone,
+      height: zoneFlow ? specialHeight(zone, special) : height,
+      contHeight: zoneFlow ? specialHeight("main", special, true) : undefined,
+      home: "last",
+      rank: managerRank(`special:${special.id}`),
+      hostable: inSidebar,
+    });
     hostedIds.push(`special:${special.id}`);
   }
   for (const entry of context.sections ?? []) {
     if (!entry.id.startsWith("group:") || !entry.visible) continue;
     const zone = flat ? "main" : entry.zone;
-    flow.push({ id: entry.id, zone, height: 30, home: "last" });
+    const inSidebar = zoneFlow && zone === "sidebar";
+    flow.push({
+      id: entry.id,
+      zone,
+      height: zoneFlow ? groupHeight(zone, entry.id) : 30,
+      contHeight: zoneFlow ? groupHeight("main", entry.id, true) : undefined,
+      home: "last",
+      rank: managerRank(entry.id),
+      hostable: inSidebar,
+    });
     hostedIds.push(entry.id);
   }
 
@@ -623,7 +791,20 @@ export const createResumePagePlan = (
   const top2 = (context.atsMode ? stackedHeight ?? geometry.atsTop2 : geometry.top1) + kompaktContactHeight;
   const mainCap1 = (geometry.limit - top1 - 2 * scale.marginInset) * SAFETY;
   const mainCap2 = (geometry.limit - top2 - 2 * scale.marginInset) * SAFETY;
-  const sideCap1 = geometry.sideTop1 === null || flat ? 0 : (geometry.sideLimit - geometry.sideTop1 - 2 * scale.marginInset) * SAFETY;
+  // Where the first sidebar block starts depends on how many contact entries (and wrapped values) precede it.
+  const contactItems = zoneFlow && find("personalData")?.visible !== false ? getPehlioneContacts(profile) : [];
+  const contactValueWidth = geometry.text.sideW + scale.sideDelta - CONTACT_ICON_MM;
+  const sideTop1 = zoneFlow && geometry.sideTop1 !== null
+    ? SIDEBAR_HERO_MM + (contactItems.length
+      ? CONTACT_HEAD_MM
+        + contactItems.reduce((total, item) => total + CONTACT_ITEM_MM
+          + (listLines(item.value.length, contactValueWidth, CONTACT_FONT_MM * scale.font) - 1) * CONTACT_LINE_MM, 0)
+        + CONTACT_GAP_MM
+      : 0)
+    : geometry.sideTop1;
+  const sideCap1 = sideTop1 === null || flat
+    ? 0
+    : (geometry.sideLimit - sideTop1 - 2 * scale.marginInset) * (zoneFlow ? ZONE_FLOW_SIDEBAR_SAFETY : SAFETY);
   const dense = context.atsMode ? geometry.ats.density : geometry.density;
 
   const blockLoad = (blocksOfZone: FlowBlock[], zone: PaginationZone) => {
@@ -634,6 +815,8 @@ export const createResumePagePlan = (
   const singleOnlyBlocks = flow.filter((block) => block.singleOnly);
   const lastBlocks = flow.filter((block) => block.home === "last");
   const hostable = lastBlocks.filter((block) => block.hostable);
+  // The sidebar fills in the order of the user's layout.
+  if (zoneFlow && customLayout) hostable.sort((left, right) => (left.rank ?? 0) - (right.rank ?? 0));
 
   const stack = (fixed: number, run: number) => fixed + run + (fixed > 0 && run > 0 ? sectionGap : 0);
   const wholeMain = () =>
@@ -655,9 +838,11 @@ export const createResumePagePlan = (
   if ((fitsOnePage && forced === undefined) || items.length <= 1) return onePage("standard");
   // A slightly compacted single page beats a second page that would be nearly empty,
   // but only with a real margin: the estimate must not be trusted to the last millimetre.
+  // The lists of a zone-flow sidebar keep their size in every density: compaction earns that column nothing.
+  const sideShrink = (factor: number) => (zoneFlow ? 1 : factor);
   const fitsCompact =
     wholeMain() * dense.compact <= mainCap1 * COMPACT_MARGIN &&
-    (sideCap1 === 0 || wholeSide() * dense.compact <= sideCap1 * COMPACT_MARGIN);
+    (sideCap1 === 0 || wholeSide() * sideShrink(dense.compact) <= sideCap1 * COMPACT_MARGIN);
 
   // Sidebar blocks move to page one whenever that column has room for them.
   const hostedOnFirst = new Set<string>();
@@ -665,14 +850,21 @@ export const createResumePagePlan = (
     let sideLoad = blockLoad(firstBlocks, "sidebar");
     for (const block of hostable) {
       const next = sideLoad + (sideLoad > 0 ? blocks.sideGap : 0) + block.height;
-      if (next <= sideCap1 * SIDEBAR_HOST_SHARE) {
+      if (next <= sideCap1 * (zoneFlow ? ZONE_FLOW_HOST_SHARE : SIDEBAR_HOST_SHARE)) {
         hostedOnFirst.add(block.id);
         sideLoad = next;
       }
     }
   }
-  const pageOneFlow = [...firstBlocks, ...lastBlocks.filter((block) => hostedOnFirst.has(block.id))];
-  const pageTwoFlow = lastBlocks.filter((block) => !hostedOnFirst.has(block.id));
+  // Zone flow: the main column keeps the order of the user's layout. A block that stands above the
+  // career sections belongs to page one; the others follow the career entries, and start on page one
+  // for as long as it has room.
+  const careerRank = Math.min(managerRank("experience"), managerRank("education"));
+  const headBlocks = zoneFlow && customLayout
+    ? lastBlocks.filter((block) => !hostedOnFirst.has(block.id) && block.zone === "main" && (block.rank ?? Number.MAX_SAFE_INTEGER) < careerRank)
+    : [];
+  const pageOneFlow = [...firstBlocks, ...lastBlocks.filter((block) => hostedOnFirst.has(block.id) || headBlocks.includes(block))];
+  const pageTwoFlow = lastBlocks.filter((block) => !hostedOnFirst.has(block.id) && !headBlocks.includes(block));
   // The last page has no sidebar: a sidebar block that stays there flows into the full-width main column.
   const contOf = (block: FlowBlock) => block.contHeight ?? block.height;
   // The blocks behind the career entries keep the order their template draws them in. Only
@@ -685,7 +877,20 @@ export const createResumePagePlan = (
       ? ["languages", "knowledge"]
       : ["projects", "knowledge", "languages", "certifications"];
   const tail: FlowBlock[] = [];
-  if (!customLayout) {
+  if (zoneFlow) {
+    // Every block of the main column can start on page one: the project highlight and the knowledge
+    // list first, then the free groups, the certificates and the special sections (the order the
+    // template draws them in), or the order of the user's layout.
+    const nativeRank = (id: string) =>
+      id === "projects" ? 0 : id === "knowledge" ? 1 : id.startsWith("group:") ? 2 : id === "certifications" ? 3 : 4;
+    tail.push(
+      ...pageTwoFlow
+        .filter((block) => block.zone === "main")
+        .sort((left, right) => customLayout
+          ? (left.rank ?? Number.MAX_SAFE_INTEGER) - (right.rank ?? Number.MAX_SAFE_INTEGER)
+          : nativeRank(left.id) - nativeRank(right.id)),
+    );
+  } else if (!customLayout) {
     for (const id of nativeTail) {
       const block = pageTwoFlow.find((candidate) => candidate.id === id);
       if (!block) continue;
@@ -829,7 +1034,7 @@ export const createResumePagePlan = (
   let index = greedy("dense");
   for (const attempt of ["standard", "compact"] as const) {
     // A sidebar that overflows on its own needs the stronger density whatever the cut is.
-    if (sideFill * densityFactor[attempt] > 1) continue;
+    if (sideFill * sideShrink(densityFactor[attempt]) > 1) continue;
     const position = greedy(attempt);
     if (loadLast(candidates[position]) * densityFactor[attempt] <= mainCap2) {
       density = attempt;

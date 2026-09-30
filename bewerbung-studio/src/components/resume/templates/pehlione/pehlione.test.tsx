@@ -182,11 +182,16 @@ describe("Pehlione White Blue", () => {
     for (const id of ["summary", "certifications"]) {
       const node = document.querySelector(`.pehlione-pdf-sidebar [data-managed-section="${id}"]`);
       expect(node).not.toBeNull();
-      expect(node?.querySelector("h3>span")).not.toBeNull();
+      expect(node?.getAttribute("data-cv-zone")).toBe("sidebar");
+      // A section that stands in the sidebar is drawn with the sidebar's heading: icon box and label.
+      expect(node?.querySelector("h3.cv-heading > .cv-heading__label")).not.toBeNull();
+      expect(node?.querySelector("h3.cv-heading > .cv-heading__icon svg")).not.toBeNull();
     }
     expect(document.querySelector(".pehlione-pdf-closing")?.parentElement?.classList.contains("pehlione-pdf-main")).toBe(true);
     expect(document.querySelector(".pehlione-pdf-sidebar .pehlione-pdf-closing")).toBeNull();
-    expect(document.querySelector('.pehlione-pdf-main [data-managed-section="languages"] .pehlione-pdf-language-heading svg')).not.toBeNull();
+    const moved = document.querySelector('.pehlione-pdf-main [data-managed-section="languages"]');
+    expect(moved?.getAttribute("data-cv-zone")).toBe("main");
+    expect(moved?.querySelector(".cv-heading > .cv-heading__icon svg")).not.toBeNull();
   });
   it("keeps profile data, career rows, custom sections and appearance in preview and PDF", () => {
     const projectId = "85000000-0000-4000-8000-000000000001";
@@ -238,13 +243,13 @@ describe("Pehlione White Blue", () => {
         const heading = Array.from(sidebar.querySelectorAll("h2,h3")).find(node => node.textContent?.includes(title));
         expect(heading?.getAttribute("style")).toContain("color:#cc0000");
       }
-      const languagesHeading = sidebar.querySelector(".pehlione-language-heading,.pehlione-pdf-language-heading");
+      const languagesHeading = sidebar.querySelector('[data-cv-heading="languages"]');
       expect(languagesHeading?.textContent).toBe("Sprachen");
-      expect(languagesHeading?.querySelector("svg")).not.toBeNull();
-      expect(languagesHeading?.querySelector("span")).not.toBeNull();
-      const competenciesHeading = sidebar.querySelector(".pehlione-competencies-heading,.pehlione-pdf-competencies-heading");
+      expect(languagesHeading?.querySelector(".cv-heading__icon svg")).not.toBeNull();
+      expect(languagesHeading?.querySelector(".cv-heading__label")).not.toBeNull();
+      const competenciesHeading = sidebar.querySelector('[data-cv-heading="strengths"]');
       expect(competenciesHeading?.textContent).toContain("Kernkompetenzen");
-      expect(competenciesHeading?.querySelector("svg")).not.toBeNull();
+      expect(competenciesHeading?.querySelector(".cv-heading__icon svg")).not.toBeNull();
       expect(host.getAttribute("style")).toContain("--pehlione-title-color:#112233");
       expect(host.getAttribute("style")).toContain("--pehlione-contact-divider-color:#aabbcc");
       expect(host.getAttribute("data-section-divider")).toBe("hidden");
@@ -318,14 +323,21 @@ describe("Pehlione White Blue", () => {
       expect(custom?.querySelector('[data-custom-role="heading"]')?.getAttribute("style")).toContain("#cc0000");
       expect(document.querySelector('[data-managed-section="experience"]')?.textContent).toContain("Praktikum Softwareentwicklung");
     }
-    const { document } = parseHTML(pdf);
-    for (const id of ["certifications", `special:${customId}`]) {
-      const heading = document.querySelector(`.pehlione-pdf-sidebar [data-managed-section="${id}"] h3`);
-      expect(heading?.classList.contains("pehlione-pdf-sidebar-heading")).toBe(true);
-      expect(heading?.querySelector(".pehlione-pdf-section-icon svg")).not.toBeNull();
-      expect(heading?.querySelector(":scope > span")).not.toBeNull();
+    for (const html of [preview, pdf]) {
+      const { document } = parseHTML(html);
+      const tag = ":is(h2,h3)";
+      for (const id of ["certifications", `special:${customId}`]) {
+        const heading = document.querySelector(`[data-managed-section="${id}"] ${tag}`);
+        expect(heading?.classList.contains("cv-heading"), id).toBe(true);
+        expect(heading?.querySelector(":scope > .cv-heading__icon svg"), id).not.toBeNull();
+        expect(heading?.querySelector(":scope > .cv-heading__label"), id).not.toBeNull();
+        // The white sidebar draws a bare icon that follows the colour the user gave the sidebar titles.
+        expect(heading?.querySelector('.cv-heading__icon[data-cv-icon-style="bare"]'), id).not.toBeNull();
+        expect(heading?.querySelector("svg")?.getAttribute("style"), id).toContain("#cc0000");
+      }
+      expect(document.querySelector(`[data-managed-section="certifications"] ${tag} svg path`)?.getAttribute("d")).toContain("M21.42 10.922");
     }
-    expect(document.querySelector('.pehlione-pdf-sidebar [data-managed-section="certifications"] h3 svg path')?.getAttribute("d")).toContain("m2 10 10-5");
+    const { document } = parseHTML(pdf);
     expect(document.querySelector(".pehlione-pdf-closing")?.parentElement?.classList.contains("pehlione-pdf-main")).toBe(true);
     expect(pehlioneAppearanceCss).toContain('.pehlione-contacts h3 svg{stroke:var(--pehlione-primary,#08245c)}');
     expect(pehlioneAppearanceCss).toContain('h3{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary,#08245c))');

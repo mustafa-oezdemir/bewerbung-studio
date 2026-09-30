@@ -7,6 +7,8 @@ import { applicationSchema, profileSchema } from "../../shared/schema";
 import { defaultDocumentDesign } from "../../shared/documentDesign";
 import { buildDocumentHtml } from "../../../electron/documents";
 import { createResumePagePlan } from "../../shared/documentPagination";
+import { resolveCvDocument } from "../../shared/resolveCvDocument";
+import { formatApplicationDateIso } from "../../shared/applicationDate";
 import { moveManagerSection, updateManagerSection } from "../../features/resume-sections/resume-manager";
 import { resolveResumePresentation } from "../../shared/resumePresentation";
 import { ManagedResumePreview } from "./ManagedResumePreview";
@@ -306,10 +308,13 @@ describe("managed template previews", () => {
       const plan = createResumePagePlan(projected, "", {}, templateId)[0];
       const child = createElement(component as unknown as ComponentType<Record<string, unknown>>, { profile: projected, templateId, name: "Mina Kaya", atsMode: false,
         plan, totalPages: 1, accentColor: "#123456", secondaryColor: "#234567", photoSource: null, resumeProfile: "", sections: projected.resumeSections, backgroundId: "white" });
-      const preview = renderToStaticMarkup(<ManagedResumePreview profile={projected} templateId={templateId} pageNumber={1} totalPages={1} designSettings={settings}>{child}</ManagedResumePreview>);
       const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test", company: { name: "Test", city: "Berlin" }, contact: {},
         job: { title: "Entwicklung" }, status: "Entwurf", templateId, accentColor: "#123456", secondaryColor: "#234567", documents: {}, statusHistory: [],
         createdAt: now, updatedAt: now, designSettings: settings });
+      const resolvedCv = resolveCvDocument({ profile: projected, templateId, settings, presentationAlreadyApplied: true, application });
+      const preview = renderToStaticMarkup(<ManagedResumePreview profile={projected} templateId={templateId} pageNumber={1} totalPages={1} designSettings={settings} resolvedCv={resolvedCv}>{child}</ManagedResumePreview>);
+      // The Pehlione templates print the date of the application; the other templates the date typed into the profile.
+      const closingDate = ["pehlione_white_blue", "pehlione_white"].includes(templateId) ? formatApplicationDateIso(application) : "28.09.2026";
       for (const html of [preview, buildDocumentHtml(application, profile, "lebenslauf")]) {
         const document = parseHTML(html).document;
         const block = document.querySelector("[data-resume-closing]");
@@ -317,7 +322,7 @@ describe("managed template previews", () => {
         expect(block?.getAttribute("data-resume-closing-placement")).toBe(closing.placement);
         expect(block?.getAttribute("data-resume-closing-align")).toBe(closing.alignment);
         expect(block?.querySelector("[data-resume-closing-place]")?.textContent).toBe(closing.showPlace === false ? undefined : "Marburg");
-        expect(block?.querySelector("[data-resume-closing-date]")?.textContent).toBe(closing.showDate === false ? undefined : "28.09.2026");
+        expect(block?.querySelector("[data-resume-closing-date]")?.textContent).toBe(closing.showDate === false ? undefined : closingDate);
         expect(block?.querySelector("[data-resume-closing-signature] img")?.getAttribute("src")).toBe(closing.showSignature === false ? undefined : profile.signaturePath);
       }
     }

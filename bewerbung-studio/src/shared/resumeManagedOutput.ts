@@ -4,6 +4,7 @@ import { applyResumeSpacingOutput, resumeSpacingCss } from "./resumeSpacing";
 import { applyResumeMetadataLayout, resumeMetadataCss } from "./resumeMetadataLayout";
 import { applyResumeClosingOutput, resumeClosingCss } from "./resumeClosing";
 import { applyPehlioneAppearance, pehlioneAppearanceCss } from "./pehlioneAppearance";
+import { applyResumeSectionPresentation, isZoneFlowTemplate, resumeSectionPresentationCss } from "./resumeSectionPresentation";
 import {
   keepDatesOnOneLine,
   normalizeContinuationHeader,
@@ -131,7 +132,8 @@ ${resumeMetadataCss}
 ${resumeClosingCss}
 ${resumeContinuationCss}
 ${resumeEntrySplitCss}
-${pehlioneAppearanceCss}`;
+${pehlioneAppearanceCss}
+${resumeSectionPresentationCss}`;
 
 /** Resolve section-title colors by column role on both HTML surfaces. */
 export const applyResumeSectionHeadingColors = (root: Element, settings: DocumentDesignSettings): void => {
@@ -144,7 +146,9 @@ export const applyResumeSectionHeadingColors = (root: Element, settings: Documen
   );
   const colorize = (heading: Element, color: string) => {
     (heading as HTMLElement).style.setProperty("color", color, "important");
+    // The glyph of a boxed icon keeps its own contrast against the box; only a bare icon follows the title.
     for (const icon of heading.querySelectorAll("svg")) {
+      if (icon.closest('.cv-heading__icon[data-cv-icon-style="boxed"]')) continue;
       (icon as SVGElement).style.setProperty("color", color, "important");
       (icon as SVGElement).style.setProperty("stroke", color, "important");
     }
@@ -228,7 +232,7 @@ export const applyResumeDesignOverrides = (
   if (subtitle && colors?.subheading) set(subtitle, "color", design.colors.subheading);
 
   const sources = resumeSectionStyleSources[surface][resolveTemplateId(templateId) as keyof typeof resumeSectionStyleSources.preview];
-  const sectionHeadings = sources ? scope.querySelectorAll(`${sources[1]},[data-custom-role='heading']`) : scope.querySelectorAll("[data-managed-section]>h2,[data-managed-section]>h3");
+  const sectionHeadings = sources ? scope.querySelectorAll(`${sources[1]},[data-custom-role='heading'],[data-cv-heading]`) : scope.querySelectorAll("[data-managed-section]>h2,[data-managed-section]>h3");
   const entryHeadings = sources ? scope.querySelectorAll(`${sources[2]},[data-custom-role='entry'] h3,[data-custom-role='entry'] h4`) : scope.querySelectorAll("article h3,article h4");
   const supporting = sources ? scope.querySelectorAll(sources[3]) : scope.querySelectorAll("[class*='company'],[class*='organization']");
   if (colors?.sectionHeading) for (const node of sectionHeadings) set(node, "color", design.colors.sectionHeading);
@@ -327,8 +331,15 @@ export const applyManagedResumeOutput = (
     // to page one when that column has room). Blocks unknown to the plan keep
     // their historic home on the last page.
     const planned = resolved.pagePlan;
+    const isAts = designSettings.resumeOutputMode === "ats" || designSettings.columnLayout === "compact-ats" || Boolean(
+      root.querySelector('[data-renderer="ats"], [class*="-ats"]'),
+    );
+    // Zone-flow templates draw every section in the column the user gave it, on the page the plan names.
+    const zoneFlow = isZoneFlowTemplate(resolved.templateId) && !isAts;
+    const surface = root.matches(".cv-sheet") ? "pdf" : "preview";
+    const headingTag = surface === "pdf" ? "h3" : "h2";
     const hosts = (id: string) => {
-      const movable = id === "knowledge" || id.startsWith("group:") || id.startsWith("special:");
+      const movable = id === "knowledge" || id.startsWith("group:") || id.startsWith("special:") || (zoneFlow && id === "certifications");
       if (!movable || !planned.some((page) => page.blocks?.includes(id))) return last;
       return Boolean(planned[number - 1]?.blocks?.includes(id));
     };
@@ -369,9 +380,6 @@ export const applyManagedResumeOutput = (
         nodes.set(entry.id, [...(nodes.get(entry.id) ?? []), node]);
       }
     }
-    const isAts = designSettings.resumeOutputMode === "ats" || designSettings.columnLayout === "compact-ats" || Boolean(
-      root.querySelector('[data-renderer="ats"], [class*="-ats"]'),
-    );
     const main =
       root.querySelector(
         ".pehlione-main,.pehlione-pdf-main,.elegant-main,.elegant-pdf-main,.modern-resume-left-column,.modern-pdf-left,.zweispaltig-main,.zweispaltig-pdf-main,.zeitgenoessisch-main,.zeit-pdf-main,.kreativ-main,.kreativ-pdf-main,.gepflegt-main,.gepflegt-pdf-main,.kompakt-left,.kompakt-pdf-columns>main,main",
@@ -449,6 +457,29 @@ export const applyManagedResumeOutput = (
       if (!entry.visible) {
         existing.forEach((node) => node.remove());
         nodes.delete(entry.id);
+        continue;
+      }
+      // Plain lists of a zone-flow template: the page plan says where the certificates are drawn
+      // (page one's sidebar, behind the career entries, or the last page) and one markup serves
+      // every column; the languages stay where the template draws them and follow their column.
+      if (zoneFlow && (entry.id === "certifications" || entry.id === "languages") && !items.length) {
+        const listed = (entry.id === "certifications" ? profile.certifications : profile.languages)
+          .map((value) => value.trim()).filter(Boolean);
+        const drawn = entry.id === "languages" ? existing.length > 0 && number === 1 : hosts(entry.id);
+        // The PDF markup of the certificates leaves its section open, so the closing is written inside it.
+        for (const node of existing)
+          for (const closing of Array.from(node.querySelectorAll("footer.pehlione-pdf-closing,footer.pehlione-closing"))) main.appendChild(closing);
+        if (!listed.length || !drawn) {
+          existing.forEach((node) => node.remove());
+          nodes.delete(entry.id);
+          continue;
+        }
+        const node = existing[0] ?? document.createElement("section");
+        node.setAttribute("data-managed-section", entry.id);
+        node.innerHTML = `<${headingTag}>${escape(entry.title)}</${headingTag}><ul data-cv-list>${listed.map((value) => `<li>${escape(value)}</li>`).join("")}</ul>`;
+        existing.slice(1).forEach((duplicate) => duplicate.remove());
+        if (!existing.length) appendSection(entry, node);
+        nodes.set(entry.id, [node]);
         continue;
       }
       // Template-independent blocks appear once; native career entries remain
@@ -610,15 +641,18 @@ export const applyManagedResumeOutput = (
         heading.setAttribute("data-custom-role", "heading");
         if (resolvedId.startsWith("pehlione_")) {
           node.classList.add(surface === "pdf" ? "pehlione-pdf-section" : "pehlione-main-section");
-          if (surface === "preview") heading.classList.add("pehlione-section-heading");
-          const icon = document.createElement(surface === "pdf" ? "i" : "span");
-          if (surface === "pdf") icon.className = "pehlione-pdf-section-icon";
-          icon.setAttribute("aria-hidden", "true");
-          icon.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 2 3 12l9 10 9-10Z" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
-          const label = document.createElement(surface === "pdf" ? "span" : "b");
-          label.setAttribute("data-custom-role", "heading-label");
-          label.textContent = heading.textContent;
-          heading.replaceChildren(icon, label);
+          // A zone-flow template draws this heading (icon included) from the presentation registry.
+          if (!zoneFlow) {
+            if (surface === "preview") heading.classList.add("pehlione-section-heading");
+            const icon = document.createElement(surface === "pdf" ? "i" : "span");
+            if (surface === "pdf") icon.className = "pehlione-pdf-section-icon";
+            icon.setAttribute("aria-hidden", "true");
+            icon.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 2 3 12l9 10 9-10Z" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+            const label = document.createElement(surface === "pdf" ? "span" : "b");
+            label.setAttribute("data-custom-role", "heading-label");
+            label.textContent = heading.textContent;
+            heading.replaceChildren(icon, label);
+          }
         }
         if (resolvedId === "zeitgenoessisch") {
           node.classList.add(surface === "pdf" ? "zeit-pdf-section" : "zeitgenoessisch-section");
@@ -721,9 +755,18 @@ export const applyManagedResumeOutput = (
     else normalizeContinuationHeader(root, number, pages.length > 1 ? pages.length : totalPages,
       enabled("personalData") ? profile : undefined);
     keepDatesOnOneLine(root);
+    // Headings and lists are drawn once the sections stand where the layout and the page plan put them.
+    if (zoneFlow) applyResumeSectionPresentation(root, resolved.templateId, {
+      main,
+      sidebar,
+      sections: Array.from(nodes, ([id, list]) => ({
+        id,
+        nodes: list,
+        groupSemanticType: groups.find((group) => group.id === entries.find((entry) => entry.id === id)?.groupId)?.semanticType,
+      })),
+    });
     applyResumePageLayout(root, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings,
       profile.resumeColumnRatio, new Map(entries.map((entry) => [entry.id, entry.zone])), resolved.layout);
-    const surface = root.matches(".cv-sheet") ? "pdf" : "preview";
     applyResumeSpacingOutput(root, templateId, surface, designSettings, resolved.design);
     applyResumeDesignOverrides(root, templateId, surface, designSettings, resolved.design);
     applyResumeMetadataLayout(root, profile, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
@@ -737,7 +780,7 @@ export const applyManagedResumeOutput = (
       : resolved.layout.overridden
         ? { left: resolved.layout.sidebarSide === "left" ? Math.round(sidebarMm + 8) : 12, right: resolved.layout.sidebarSide === "right" ? Math.round(sidebarMm + 8) : 12 }
         : { left: Math.max(12, Math.round(geometry.contentLeft)), right: Math.max(12, Math.round(210 - geometry.contentRight)) };
-    applyResumeClosingOutput(root, main, profile, templateId, designSettings, last, enabled("closing"), closingInset);
+    applyResumeClosingOutput(root, main, profile, templateId, designSettings, last, enabled("closing"), closingInset, resolved.closingDate);
     applyGeneralResumeAppearance(root, resolved.templateId, designSettings, main, sidebar);
     applyPehlioneAppearance(root, resolved.templateId, designSettings);
     applyResumeSectionHeadingColors(root, designSettings);

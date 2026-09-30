@@ -5,6 +5,7 @@ import { kompaktDefaults } from "../src/shared/cvTemplateDefaults/kompakt.defaul
 import { stilvollDefaults } from "../src/shared/cvTemplateDefaults/stilvoll.defaults";
 import { renderContactIcon } from "../src/shared/contactIcons";
 import { applyManagedResumeOutput, managedResumeCss } from "../src/shared/resumeManagedOutput";
+import { resolveResumeClosingLine } from "../src/shared/resumeClosing";
 import { resolveCvDocument } from "../src/shared/resolveCvDocument";
 import { getResumeIdentityVisibilityCss } from "../src/shared/resumeIdentityVisibility";
 import type {
@@ -749,6 +750,7 @@ export const buildDocumentHtml = (
     resumeProfile: application.documents.resumeProfile,
     deckblattStatement: application.documents.deckblattStatement,
     jobTitle: application.job.title,
+    application,
   });
   if (target === "lebenslauf") profile = resolvedCv.profile;
   const template = getTemplate(application.templateId);
@@ -3250,8 +3252,9 @@ export const buildDocumentHtml = (
     const project = getPehlioneProjectHighlight(profile);
     const header = `<header class="pehlione-pdf-header${continuation ? " continuation" : ""}"><h1>${escapeHtml(name)}</h1>${profile?.title || template.id === "pehlione_white" ? `<h2>${escapeHtml(profile?.title || role)}</h2>` : ""}</header>`;
     const closing = profile?.resumeClosing ?? { showPlace: true, showDate: true, showSignature: true };
+    const closingLine = profile ? resolveResumeClosingLine(profile, resolvedCv.closingDate, (value) => value).text : "";
     const closingMarkup = lastPage && closingSection.visible && (closing.showPlace || closing.showDate || closing.showSignature)
-      ? `<footer class="pehlione-pdf-closing">${closing.showPlace || closing.showDate ? `<p>${escapeHtml([closing.showPlace ? profile?.applicationPlace || profile?.city : "", closing.showDate ? profile?.applicationDate : ""].filter(Boolean).join(", "))}</p>` : ""}${closing.showSignature ? `<div class="pehlione-pdf-signer">${signatureSource ? `<img src="${escapeHtml(signatureSource)}" alt="Unterschrift">` : ""}<strong>${escapeHtml(name)}</strong></div>` : ""}</footer>`
+      ? `<footer class="pehlione-pdf-closing">${closing.showPlace || closing.showDate ? `<p>${escapeHtml(closingLine)}</p>` : ""}${closing.showSignature ? `<div class="pehlione-pdf-signer">${signatureSource ? `<img src="${escapeHtml(signatureSource)}" alt="Unterschrift">` : ""}<strong>${escapeHtml(name)}</strong></div>` : ""}</footer>`
       : "";
     const languages = sections.languages
       ? (profile?.languages ?? []).filter(Boolean).map((item) => `<li>${escapeHtml(item)}</li>`).join("")

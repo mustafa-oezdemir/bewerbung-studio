@@ -227,12 +227,22 @@ const twoColumnCapabilities = (
   },
 });
 
+// The Pehlione templates draw their certificates in the main column until the user moves them; the
+// section list must show them where the output has them.
+const pehlioneCapabilities = (templateId: string): TemplateSectionCapabilities => {
+  const capabilities = twoColumnCapabilities(templateId);
+  return {
+    ...capabilities,
+    defaultZoneBySection: { ...capabilities.defaultZoneBySection, certifications: "main" },
+  };
+};
+
 export const templateSectionCapabilities: Record<
   string,
   TemplateSectionCapabilities
 > = {
-  pehlione_white_blue: twoColumnCapabilities("pehlione_white_blue"),
-  pehlione_white: twoColumnCapabilities("pehlione_white"),
+  pehlione_white_blue: pehlioneCapabilities("pehlione_white_blue"),
+  pehlione_white: pehlioneCapabilities("pehlione_white"),
   "ivy-league": {
     ...mainOnlyCapabilities("ivy-league"),
     defaultSectionOrder: [

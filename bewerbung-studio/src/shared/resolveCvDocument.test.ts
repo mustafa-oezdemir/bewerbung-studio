@@ -80,4 +80,17 @@ describe("shared CV document resolution", () => {
     const { document } = parseHTML(buildDocumentHtml(application, profile, "lebenslauf"));
     expect(document.querySelectorAll(".cv-sheet")).toHaveLength(resolved.pagePlan.length);
   });
+
+  it("takes the closing date of the zone-flow templates from the application, and leaves the others alone", () => {
+    const profile = makeProfile();
+    const application = { sentAt: "2026-09-26T10:00:00.000Z", createdAt: "2026-09-01T09:00:00.000Z" };
+    const joined = ["pehlione_white_blue", "pehlione_white"];
+    for (const templateId of joined) {
+      expect(resolveCvDocument({ profile, templateId, application }).closingDate, templateId).toBe("2026-09-26");
+      // Without an application there is no date to print.
+      expect(resolveCvDocument({ profile, templateId }).closingDate, templateId).toBe("");
+    }
+    for (const templateId of templateIds.filter((id) => !joined.includes(id)))
+      expect(resolveCvDocument({ profile, templateId, application }).closingDate, templateId).toBeUndefined();
+  });
 });

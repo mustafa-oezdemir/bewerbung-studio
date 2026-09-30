@@ -12,6 +12,18 @@ export const formatApplicationDate = (application: ApplicationDateSource) =>
     year: "numeric",
   }).format(getApplicationDate(application));
 
+/**
+ * The application date as an ISO calendar date (`YYYY-MM-DD`), in the same local time zone as the
+ * other formats. The résumé closing prints it, so the Lebenslauf and the Anschreiben always carry the
+ * same day; an unreadable date yields an empty string.
+ */
+export const formatApplicationDateIso = (application: ApplicationDateSource) => {
+  const date = getApplicationDate(application);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
 export const formatApplicationDateFolder = (date: Date) =>
   new Intl.DateTimeFormat("de-DE", {
     day: "2-digit",

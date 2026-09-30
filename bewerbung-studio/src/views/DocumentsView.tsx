@@ -650,6 +650,7 @@ export function DocumentsView({
     deckblattStatement: docs.deckblattStatement,
     jobTitle: application.job.title,
     presentationAlreadyApplied: true,
+    application,
   });
   const resumeRenderProfile = resolvedCv.profile;
   const resumeLayout = resolvedCv.layout;
@@ -2730,6 +2731,7 @@ export function DocumentsView({
                           secondaryColor={design.secondaryColor}
                           resumeProfile={pehlioneResumeProfile}
                           sections={sections}
+                          closingDate={resolvedCv.closingDate}
                         />
                       ) : template.id === "modern" ? (
                         <ModernResume
