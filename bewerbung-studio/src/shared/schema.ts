@@ -1,4 +1,5 @@
 import { resumeCustomContentTypes } from "./resumeCustomSectionTypes";
+import { deckblattDesignIds, defaultDeckblattDesign } from "./deckblattDesignIds";
 import { z } from "zod";
 import { cvDesignOverridesSchema } from "./cvDesignSchema";
 import { resumeAppearanceSchema } from "./resumeAppearance";
@@ -227,6 +228,7 @@ export const documentDraftSchema = z.object({
   coverSenderTitle: optionalText,
   coverSenderContact: optionalText,
   coverSheetProfessionalTitle: optionalText,
+  coverSheetDesign: z.enum(deckblattDesignIds).default(defaultDeckblattDesign),
   coverSheetContactVisibility: z
     .record(
       z.enum(["address", "phone", "email", "linkedin", "github", "website"]),

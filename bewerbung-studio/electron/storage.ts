@@ -9,6 +9,7 @@ import {
   stat,
   writeFile,
 } from "node:fs/promises";
+import { defaultDeckblattDesign } from "../src/shared/deckblattDesignIds";
 import path from "node:path";
 import type { ApplicationPaths } from "../src/config/application-paths";
 import { resolveApplicationPaths } from "../src/config/application-paths";
@@ -730,6 +731,7 @@ export class DataStore {
         coverSenderTitle: "",
         coverSenderContact: "",
         coverSheetProfessionalTitle: "",
+        coverSheetDesign: defaultDeckblattDesign,
         coverSheetContactVisibility: {
           address: true,
           phone: true,

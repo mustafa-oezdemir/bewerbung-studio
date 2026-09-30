@@ -98,11 +98,13 @@ import {
   type DocumentDesignSettings,
 } from "../shared/documentDesign";
 import { calculateA4PreviewScale } from "../shared/documentPreview";
+import { getDeckblattDocuments } from "../shared/deckblatt";
 import {
-  getDeckblattCompetencies,
-  getDeckblattContacts,
-  getDeckblattDocuments,
-} from "../shared/deckblatt";
+  buildDeckblattModel,
+  getDeckblattDesign,
+} from "../shared/deckblattDesigns";
+import { DeckblattDesignPicker } from "../components/document/DeckblattDesignPicker";
+import { DeckblattPreview } from "../components/document/DeckblattPreview";
 import type { ProfileMediaKind } from "../shared/ipc";
 import { getProfileMediaSource } from "../shared/profileMedia";
 import {
@@ -613,11 +615,6 @@ export function DocumentsView({
     documentPreview?.applicationId === application.id
       ? documentPreview.documents
       : application.documents;
-  const deckblattContacts = getDeckblattContacts(
-    profile,
-    docs.coverSheetContactVisibility,
-  );
-  const deckblattCompetencies = getDeckblattCompetencies(profile, application);
   const deckblattDocuments = getDeckblattDocuments(
     attachments,
     application.id,
@@ -701,6 +698,15 @@ export function DocumentsView({
     docs.coverSheetProfessionalTitle ||
     renderProfile?.title ||
     application.job.title;
+  const deckblattModel = buildDeckblattModel({
+    application,
+    profile,
+    documents: docs,
+    attachments,
+    accentColor: design.accentColor,
+    secondaryColor: design.secondaryColor,
+    settings: design.settings,
+  });
   const coverSenderContact = docs.coverSenderContact || senderContactDetails;
   const coverGreeting = docs.coverGreeting || applicationGreeting(application);
   const pehlioneResumeProfile = resolvedCv.paginationSummary;
@@ -934,6 +940,7 @@ export function DocumentsView({
           "coverSheetProfessionalTitle",
           docs.coverSheetProfessionalTitle,
         ),
+        coverSheetDesign: docs.coverSheetDesign,
         coverSheetContactVisibility: docs.coverSheetContactVisibility,
         coverRecipientAddress: value(
           "coverRecipientAddress",
@@ -1132,6 +1139,24 @@ export function DocumentsView({
               ) : null}
               {tab === "deckblatt" && (
                 <div className="cover-letter-editor-sections">
+                  <section className="cover-letter-editor-section">
+                    <header>
+                      <b>Design des Deckblatts</b>
+                      <small>
+                        Farben, Schrift und alle Angaben kommen aus Profil und
+                        Designeinstellungen.
+                      </small>
+                    </header>
+                    <DeckblattDesignPicker
+                      value={deckblattModel.designId}
+                      onChange={(id) =>
+                        setDocumentPreview({
+                          applicationId: application.id,
+                          documents: { ...docs, coverSheetDesign: id },
+                        })
+                      }
+                    />
+                  </section>
                   <label className="field">
                     <span>Berufsbezeichnung auf dem Deckblatt</span>
                     <input
@@ -2302,84 +2327,13 @@ export function DocumentsView({
               <div
                 className={`document-paper document-deckblatt layout-${template.layout} ${designClassName}`}
                 style={paperStyle}>
-                <DocumentBackgroundLayer
-                  backgroundId={design.settings.backgroundId}
-                  atsMode={isAtsMode}
-                />
-                <div className="deckblatt-preview">
-                  <i className="paper-rule" />
-                  <section className="deckblatt-preview__hero">
-                    <div>
-                      <h1>{createCoverSubject(application.job.title)}</h1>
-                      <p className="paper-muted">
-                        bei {application.company.name}
-                      </p>
-                      {application.company.city ? (
-                        <p className="deckblatt-preview__location">
-                          Standort: {application.company.city}
-                        </p>
-                      ) : null}
-                      <p className="deckblatt-preview__location">
-                        {formatApplicationDate(application)}
-                      </p>
-                    </div>
-                    {photoSource ? (
-                      <img
-                        className="deckblatt-preview__photo"
-                        src={photoSource}
-                        alt={`Bewerbungsfoto von ${name}`}
-                      />
-                    ) : null}
-                  </section>
-                  <section className="deckblatt-preview__identity">
-                    <h2>{name}</h2>
-                    {coverSheetProfessionalTitle ? (
-                      <p>{coverSheetProfessionalTitle}</p>
-                    ) : null}
-                    {docs.deckblattStatement || profile?.summary ? (
-                      <p className="deckblatt-preview__statement">
-                        {docs.deckblattStatement || profile?.summary}
-                      </p>
-                    ) : null}
-                  </section>
-                  <section className="deckblatt-preview__details">
-                    <div>
-                      <h3>Bewerbungsunterlagen</h3>
-                      <ul>
-                        {deckblattDocuments.map((document) => (
-                          <li key={document}>{document}</li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      {deckblattCompetencies.length ? (
-                        <>
-                          <h3>Kernkompetenzen</h3>
-                          <p className="deckblatt-preview__competencies">
-                            {deckblattCompetencies.join(" · ")}
-                          </p>
-                        </>
-                      ) : null}
-                      {deckblattContacts.length ? (
-                        <>
-                          <h3>Kontakt</h3>
-                          <ul>
-                            {deckblattContacts.map((contact) => (
-                              <li key={contact.label}>
-                                <strong>{contact.label}</strong>{" "}
-                                {contact.href ? (
-                                  <a href={contact.href}>{contact.value}</a>
-                                ) : (
-                                  contact.value
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        </>
-                      ) : null}
-                    </div>
-                  </section>
-                </div>
+                {getDeckblattDesign(deckblattModel.designId).usesDocumentBackground ? (
+                  <DocumentBackgroundLayer
+                    backgroundId={design.settings.backgroundId}
+                    atsMode={isAtsMode}
+                  />
+                ) : null}
+                <DeckblattPreview model={deckblattModel} />
               </div>
             )}
             {tab === "anschreiben" && (

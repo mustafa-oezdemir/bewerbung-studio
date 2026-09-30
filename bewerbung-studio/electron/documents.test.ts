@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { applicationSchema, profileSchema } from "../src/shared/schema";
 import { resolveResumeSectionInstances } from "../src/features/resume-sections/resume-section-system";
 import { buildDocumentHtml } from "./documents";
+import { buildDeckblattModel, deckblattCss, deckblattDesignIds, deckblattFitScript, renderDeckblattMarkup } from "../src/shared/deckblattDesigns";
 import { templates } from "../src/shared/templates";
 import { getTemplateDocumentDesignDefaults } from "../src/shared/cvDesign";
 import { createDocumentDesignDraft, resetDocumentDesign } from "../src/shared/documentEditorState";
@@ -205,18 +206,60 @@ describe("Lebenslauf-Dokumente", () => {
     expect(html).toContain("<li>Anschreiben</li>");
     expect(html).toContain("<li>Lebenslauf</li>");
     expect(html).toContain(
-      ".cover-identity{width:100%;max-width:none;margin-top:21mm}",
+      ".deckblatt .cover-identity{width:100%;margin-top:21mm}",
     );
     expect(html).toContain(
-      ".cover-statement{width:100%;margin-top:5mm!important;line-height:1.45;text-align:justify;text-justify:inter-word;hyphens:auto}",
+      ".deckblatt .cover-statement{width:100%;margin-top:5mm!important;line-height:1.45!important;text-align:justify;text-justify:inter-word;hyphens:auto}",
     );
     expect(html).toContain(
-      ".cover-details{display:grid;grid-template-columns:34% minmax(0,1fr);gap:0",
+      ".deckblatt .cover-details{display:grid;grid-template-columns:34% minmax(0,1fr);gap:0",
     );
     expect(html).toContain(
-      ".cover-details>div:nth-child(2){padding-left:4mm}",
+      ".deckblatt .cover-details>div:nth-child(2){padding-left:4mm}",
     );
     expect(html).toContain("<li>Arbeitszeugnis.pdf</li>");
+  });
+
+  it("prints the chosen Deckblatt design with the very markup and stylesheet of the preview", () => {
+    const attachments = [{
+      id: "50f9a46a-f5f6-4101-9eb0-bbef5b9dc557", applicationId: application.id, category: "Zeugnisse" as const, fileName: "Arbeitszeugnis.pdf",
+      description: "", documentDate: "", order: 0, includedInPackage: true, createdAt: now,
+    }];
+    const designProfile = profileSchema.parse({ ...profile, street: "Musterstraße 1", postalCode: "10115", phone: "+49 30 123456", photoPath: "data:image/png;base64,AA==" });
+    for (const designId of deckblattDesignIds) {
+      const chosen = applicationSchema.parse({ ...application, documents: { ...application.documents, coverSheetDesign: designId } });
+      const html = buildDocumentHtml(chosen, designProfile, "deckblatt", attachments);
+      const model = buildDeckblattModel({
+        application: chosen, profile: designProfile, documents: chosen.documents, attachments,
+        accentColor: chosen.accentColor, secondaryColor: chosen.secondaryColor, settings: chosen.designSettings,
+      });
+      expect(html, designId).toContain(renderDeckblattMarkup(model));
+      expect(html, designId).toContain(deckblattCss);
+      expect(html, designId).toContain(`deckblatt--${designId}`);
+      // The theme colour of the application reaches the page.
+      expect(html, designId).toContain("--accent:#ff5a00");
+    }
+    // Only the classic design sits on the background of the document design.
+    const withBackground = (designId: string) => {
+      const chosen = applicationSchema.parse({
+        ...application, documents: { ...application.documents, coverSheetDesign: designId },
+        designSettings: { ...application.designSettings, backgroundId: "programming-languages-bg" },
+      });
+      const html = buildDocumentHtml(chosen, designProfile, "deckblatt", attachments);
+      return html.slice(html.indexOf('class="page cover-page'));
+    };
+    expect(withBackground("klassisch")).toContain("document-background-layer");
+    expect(withBackground("pastell")).not.toContain("document-background-layer");
+    expect(withBackground("akzentband")).not.toContain("document-background-layer");
+  });
+
+  it("fits the contact rows of the Deckblatt inside the exported page, and only there", () => {
+    for (const target of ["deckblatt", "mappe"] as const) {
+      expect(buildDocumentHtml(application, profile, target), target).toContain(deckblattFitScript);
+    }
+    for (const target of ["anschreiben", "lebenslauf"] as const) {
+      expect(buildDocumentHtml(application, profile, target), target).not.toContain(deckblattFitScript);
+    }
   });
 
   it("does not repeat the Bewerbung-als prefix on the Deckblatt", () => {

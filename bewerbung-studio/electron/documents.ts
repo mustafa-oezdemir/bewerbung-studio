@@ -34,12 +34,14 @@ import {
 import { getProfileMediaSource } from "../src/shared/profileMedia";
 import { getPehlioneContacts, renderPehlioneContacts, pehlioneContactsCss } from "../src/shared/pehlioneContacts";
 import { pehlioneBlueprintMarkup } from "../src/shared/pehlioneBlueprint";
+import { validateDeckblattData } from "../src/shared/deckblatt";
 import {
-  getDeckblattCompetencies,
-  getDeckblattContacts,
-  getDeckblattDocuments,
-  validateDeckblattData,
-} from "../src/shared/deckblatt";
+  buildDeckblattModel,
+  deckblattCss,
+  deckblattFitScript,
+  getDeckblattDesign,
+  renderDeckblattMarkup,
+} from "../src/shared/deckblattDesigns";
 import { getTechnologyBrandIconMarkup } from "../src/shared/technologyBrand";
 import { getReadableTextColor, getTemplate } from "../src/shared/templates";
 import {
@@ -289,7 +291,7 @@ const documentCss = (
   .kicker{color:var(--accent);font-size:10pt;text-transform:uppercase;letter-spacing:.16em;font-weight:700}
   h1,h2,h3{font-family:var(--heading-font);font-weight:var(--heading-weight)}h1{font-size:29pt;line-height:1.05;margin:8mm 0 4mm}h2{font-size:14pt;color:var(--accent);margin:8mm 0 3mm}
   h3{font-size:11pt;margin:0 0 1mm}.muted{color:var(--muted)}p,li{font-size:var(--body-size);line-height:var(--body-line)}
-  .cover-content{padding:var(--doc-margin)}.cover-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:12mm;padding-bottom:11mm;border-bottom:1px solid var(--line)}.cover-content h1{max-width:125mm;margin:4mm 0 2mm;font-size:28pt}.cover-location{margin:3mm 0 0;color:var(--muted);font-size:9pt}.cover-photo{width:36mm;height:36mm;flex:0 0 auto;border-radius:50%;object-fit:cover}.cover-identity{width:100%;max-width:none;margin-top:21mm}.cover-identity h2{margin:0 0 2mm;font-size:19pt}.cover-identity>p{margin:0}.cover-statement{width:100%;margin-top:5mm!important;line-height:1.45;text-align:justify;text-justify:inter-word;hyphens:auto}.cover-details{display:grid;grid-template-columns:34% minmax(0,1fr);gap:0;margin-top:23mm;padding-top:6mm;border-top:1px solid var(--line)}.cover-details>div:nth-child(2){padding-left:4mm}.cover-details h3{margin:0 0 3mm;color:var(--accent);font-size:10pt;letter-spacing:.08em;text-transform:uppercase}.cover-details h3:not(:first-child){margin-top:7mm}.cover-details ul{display:grid;gap:1.5mm;margin:0;padding:0;list-style:none}.cover-details li{overflow-wrap:anywhere}.cover-details strong{display:inline-block;min-width:18mm}.cover-details a{color:inherit;text-decoration:none}.cover-competencies{margin:0;line-height:1.55}
+  ${deckblattCss}
   .contact{padding-top:8mm;border-top:1px solid var(--line)}.letter-content{padding:var(--doc-margin);border-top:0}.letter-header{display:flex;min-height:24mm;align-items:flex-start;justify-content:center}.letter-rule{height:4px;margin:0;background:var(--accent)}.sender{width:100%;color:var(--ink);text-align:center}.sender-name,.sender-title,.sender-contact{display:block}.sender-name{color:#000;font-size:16pt;font-weight:800;line-height:1.12}.sender-title{margin-top:.4mm;color:var(--accent);font-size:11pt;font-weight:800;line-height:1.15}.sender-contact{margin-top:.5mm;color:#000;font-size:10pt;line-height:1.2}.recipient{min-height:20mm;margin-top:20mm;font-size:10pt;line-height:1.28}.date{margin:0 0 20mm;text-align:right;font-size:10pt}.letter-gap-1 .date{margin-bottom:16mm}.letter-gap-2 .date{margin-bottom:12mm}.letter-gap-3 .date{margin-bottom:8mm}.letter-gap-4 .date{margin-bottom:4mm}.subject{margin:0 0 6mm;color:var(--accent);font-size:14pt;font-weight:800;line-height:1.2}.letter-content>p:not(.subject,.date){margin:0 0 3.2mm;font-size:11pt;line-height:1.28}.letter-body{text-align:justify;text-justify:inter-word;hyphens:auto;overflow-wrap:break-word}.letter-content>.letter-closing{margin-bottom:0}.signature{display:flex;flex-direction:column;align-items:flex-start;margin-top:3.2mm}.signature p{margin:0;font-size:11pt;line-height:1.28}.signature-image{display:block;width:auto;max-width:48mm;height:auto;max-height:14mm;margin:1mm 0 .5mm;object-fit:contain;object-position:left center}.signature-name{font-size:11pt;font-weight:400;line-height:1.2}.attachments-note{margin-top:4mm!important;color:var(--muted);font-size:9pt!important;font-weight:700}.letter-compact .letter-content>p:not(.subject,.date),.letter-compact .signature{line-height:1.24}.letter-compact .letter-content>p:not(.subject,.date){margin-bottom:2.7mm}.letter-dense .recipient{min-height:18mm;margin-top:17mm}.letter-dense .date{margin-bottom:15mm}.letter-dense.letter-gap-1 .date{margin-bottom:11mm}.letter-dense.letter-gap-2 .date{margin-bottom:7mm}.letter-dense.letter-gap-3 .date{margin-bottom:3mm}.letter-dense.letter-gap-4 .date{margin-bottom:0}.letter-dense .letter-content>p:not(.subject,.date),.letter-dense .signature{font-size:11pt;line-height:1.15}.letter-dense .letter-content>p:not(.subject,.date){margin-bottom:2.2mm}
   .letter-header{min-height:0;padding-bottom:1mm}
   .cv-page{padding:0;display:grid;grid-template:"header header" auto "main side" 1fr/64% 36%;overflow:hidden}
@@ -794,42 +796,24 @@ export const buildDocumentHtml = (
   const longApplicationDate = `${applicationPlace ? `${applicationPlace}, ` : ""}den ${formatApplicationDateLong(application)}`;
   const letterStatus = getLetterPageStatus(docs);
   const letterTemplateClass = `layout-${template.layout}`;
-  const deckblattContacts = getDeckblattContacts(
-    profile,
-    docs.coverSheetContactVisibility,
-  );
-  const deckblattCompetencies = getDeckblattCompetencies(profile, application);
-  const deckblattDocuments = getDeckblattDocuments(
-    attachments,
-    application.id,
-    docs.documentListSettings,
-  );
   const coverLetterAttachments = getCoverLetterAttachments(
     attachments,
     application.id,
     docs.documentListSettings,
   );
-  const deckblattContactMarkup = deckblattContacts.length
-    ? deckblattContacts
-        .map((contact) => {
-          const value = escapeHtml(contact.value);
-          return `<li><strong>${escapeHtml(contact.label)}</strong> ${
-            contact.href
-              ? `<a href="${escapeHtml(contact.href)}">${value}</a>`
-              : value
-          }</li>`;
-        })
-        .join("")
-    : "";
+  const deckblattModel = buildDeckblattModel({
+    application,
+    profile,
+    documents: docs,
+    attachments,
+    accentColor: accent,
+    secondaryColor: secondary,
+    settings: designSettings,
+  });
   const cover = `
     <section class="page cover-page ${designClasses}">
-      ${backgroundLayer}
-      <div class="page-content cover-content">
-        <div class="rule"></div>
-        <section class="cover-hero"><div><h1>${escapeHtml(createCoverSubject(role))}</h1><p class="muted">bei ${escapeHtml(company)}</p>${application.company.city ? `<p class="cover-location">Standort: ${escapeHtml(application.company.city)}</p>` : ""}<p class="cover-location">${escapeHtml(applicationDate)}</p></div>${photoSource ? `<img class="cover-photo" src="${escapeHtml(photoSource)}" alt="">` : ""}</section>
-        <section class="cover-identity"><h2>${escapeHtml(name)}</h2>${docs.coverSheetProfessionalTitle || profile?.title ? `<p>${escapeHtml(docs.coverSheetProfessionalTitle || profile?.title || "")}</p>` : ""}${docs.deckblattStatement || profile?.summary ? `<p class="cover-statement">${escapeHtml(docs.deckblattStatement || profile?.summary || "")}</p>` : ""}</section>
-        <section class="cover-details"><div><h3>Bewerbungsunterlagen</h3><ul>${deckblattDocuments.map((document) => `<li>${escapeHtml(document)}</li>`).join("")}</ul></div><div>${deckblattCompetencies.length ? `<h3>Kernkompetenzen</h3><p class="cover-competencies">${deckblattCompetencies.map(escapeHtml).join(" · ")}</p>` : ""}${deckblattContacts.length ? `<h3>Kontakt</h3><ul>${deckblattContactMarkup}</ul>` : ""}</div></section>
-      </div>
+      ${getDeckblattDesign(deckblattModel.designId).usesDocumentBackground ? backgroundLayer : ""}
+      ${renderDeckblattMarkup(deckblattModel)}
     </section>`;
   const letter = `
     <section class="page letter-page letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} ${letterTemplateClass} ${designClasses}" data-resume-template="${escapeHtml(template.id)}">
@@ -3830,7 +3814,7 @@ export const buildDocumentHtml = (
   const cvHtml = target === "mappe" ? buildDocumentHtml(application, profile, "lebenslauf", attachments) : "";
   const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings, resolvedCv);
   const selected = target === "mappe" ? [cover, letter, managedResume] : target === "deckblatt" ? [cover] : target === "anschreiben" ? [letter] : [managedResume];
-  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${zweispaltigDocumentCss}${zeitgenoessischDocumentCss}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}</style></head><body>${selected.join("")}${pageFitScript}</body></html>`;
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${zweispaltigDocumentCss}${zeitgenoessischDocumentCss}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}</style></head><body>${selected.join("")}${pageFitScript}${target === "deckblatt" || target === "mappe" ? deckblattFitScript : ""}</body></html>`;
 };
 
 export const buildCoverLetterMarkdown = (
