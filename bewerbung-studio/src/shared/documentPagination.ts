@@ -405,7 +405,9 @@ export const createResumePagePlan = (
   // Zone-flow templates keep a section in the column the user gave it, whatever page the pagination
   // ends up giving it: a sidebar block is hosted on page one whenever that column has room, and the
   // blocks of the main column flow behind the career entries.
-  const zoneFlow = isZoneFlowTemplate(templateId) && !flat;
+  // A native one-column template still needs managed page flow. `flat` only removes
+  // the physical sidebar; it must not pin movable blocks to the last page.
+  const zoneFlow = isZoneFlowTemplate(templateId) && !context.atsMode && (!flat || geometry.columns === 1);
   const managerRank = (id: string) => {
     const index = context.sections?.findIndex((section) => section.id === id) ?? -1;
     return index < 0 ? Number.MAX_SAFE_INTEGER : index;

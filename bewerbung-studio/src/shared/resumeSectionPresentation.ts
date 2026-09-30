@@ -106,7 +106,7 @@ export const sectionSemanticType = (id: string, groupSemanticType?: string): Sec
  * and the closing date comes from the application. Templates join this list one by one, after
  * their look was verified on both surfaces.
  */
-export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "pehlione_white", "zweispaltig", "zeitgenoessisch", "kreativ"];
+export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "pehlione_white", "zweispaltig", "zeitgenoessisch", "kreativ", "ivy-league"];
 
 export const isZoneFlowTemplate = (templateId: string | undefined): boolean =>
   Boolean(templateId && zoneFlowTemplates.includes(templateId));
@@ -130,6 +130,8 @@ export type SectionHeadingTokens = {
   lineHeight: number;
   letterSpacing: string;
   textTransform: "uppercase" | "none";
+  textAlign?: "left" | "center";
+  fontFamily?: string;
   /** Space under the heading and under the divider line (mm). */
   marginBottom: { standard: number; compact: number };
   labelPadding: { standard: number; compact: number };
@@ -318,6 +320,29 @@ const kreativ: TemplateTokens = {
   sidebar: { icons: false, heading: kreativHeading, list: kreativList },
 };
 
+/** Ivy League is a single-column design: both logical zones use its centered, iconless heading. */
+const ivyLeagueHeading: SectionHeadingTokens = {
+  iconBox: 0, iconGap: 0, iconRadius: 0, glyphSize: 0, glyphStroke: 0,
+  fontSizePt: { standard: 13.5, compact: 13.5 }, fontWeight: 700, lineHeight: 1.05,
+  letterSpacing: "0", textTransform: "none", textAlign: "center",
+  fontFamily: 'var(--ivy-heading-font,Georgia,"Times New Roman",serif)',
+  marginBottom: { standard: 2.5, compact: 2.5 }, labelPadding: { standard: 1.5, compact: 1.5 },
+  color: "var(--ivy-heading,var(--ivy-primary,var(--accent)))",
+  dividerColor: "var(--ivy-divider,var(--accent))", dividerWidth: ".3mm",
+  iconColor: "currentColor", iconBackground: "transparent",
+  sectionGap: { standard: 4.5, compact: 4.5, side: "bottom", expr: "var(--ivy-section-gap,var(--section-gap,4.5mm))" },
+  height: 8.9,
+};
+const ivyLeagueList: SectionListTokens = {
+  fontSizePt: { standard: 9, compact: 9 }, lineHeight: { standard: 1.25, compact: 1.25 },
+  itemGap: { standard: 0.35, compact: 0.35 }, indent: 4.5, inheritBody: true,
+  layout: "margins", marginTop: 1.3, markerColor: "var(--ivy-heading,var(--ivy-primary,var(--accent)))",
+};
+const ivyLeague: TemplateTokens = {
+  main: { icons: false, heading: ivyLeagueHeading, list: ivyLeagueList },
+  sidebar: { icons: false, heading: ivyLeagueHeading, list: ivyLeagueList },
+};
+
 /** How a template is reached on both surfaces, and which parts of the shared machinery it takes. */
 type TemplateConfig = {
   tokens: TemplateTokens;
@@ -354,6 +379,12 @@ const configByTemplate: Record<string, TemplateConfig> = {
   zeitgenoessisch: {
     tokens: zeitgenoessisch,
     roots: { preview: ".zeitgenoessisch-template", pdf: '.cv-sheet[data-template="zeitgenoessisch"]', pdfBody: ".zeit-pdf" },
+    plainLists: ["certifications"],
+    sidebarHero: false,
+  },
+  "ivy-league": {
+    tokens: ivyLeague,
+    roots: { preview: ".ivy-league-template", pdf: '.cv-sheet[data-template="ivy-league"]', pdfBody: ".ivy-pdf" },
     plainLists: ["certifications"],
     sidebarHero: false,
   },
@@ -470,7 +501,7 @@ const templateCss = (templateId: string, { tokens, roots }: TemplateConfig) => {
   };
   const { heading } = main;
   return `
-${host} .cv-heading{display:grid;grid-template-columns:${mm(heading.iconBox)} minmax(0,1fr);gap:${mm(heading.iconGap)};align-items:center;box-sizing:border-box;padding:0;border:0;font-style:normal;font-weight:${heading.fontWeight};line-height:${heading.lineHeight};letter-spacing:${heading.letterSpacing};text-transform:${heading.textTransform};break-after:avoid;page-break-after:avoid}
+${host} .cv-heading{display:grid;grid-template-columns:${mm(heading.iconBox)} minmax(0,1fr);gap:${mm(heading.iconGap)};align-items:center;box-sizing:border-box;padding:0;border:0;font-style:normal;font-weight:${heading.fontWeight};line-height:${heading.lineHeight};letter-spacing:${heading.letterSpacing};text-transform:${heading.textTransform};${heading.textAlign ? `text-align:${heading.textAlign};` : ""}${heading.fontFamily ? `font-family:${heading.fontFamily};` : ""}break-after:avoid;page-break-after:avoid}
 ${host} .cv-heading:not(:has(.cv-heading__icon)){grid-template-columns:minmax(0,1fr)}
 ${host} .cv-heading__icon{display:grid;box-sizing:border-box;width:${mm(heading.iconBox)};height:${mm(heading.iconBox)};place-items:center;border-radius:${mm(heading.iconRadius)};color:var(--cv-icon-color,${heading.iconColor});background:var(--cv-icon-bg,${heading.iconBackground});font-style:normal}
 ${host} .cv-heading__icon svg{display:block;width:${mm(heading.glyphSize)};height:${mm(heading.glyphSize)};fill:none;stroke:currentColor;stroke-width:${heading.glyphStroke};stroke-linecap:round;stroke-linejoin:round}
