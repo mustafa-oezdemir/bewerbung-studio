@@ -4,7 +4,7 @@ import { createServer } from 'vite';
 
 // Renders every Lebenslauf template natively and with the workspace's shared Lebenslauf design, as preview and as PDF,
 // so that scripts/check-design-system-qa.cjs can measure the result in Chromium: the typed native values against the
-// pixels, and the shared layer against its effect.
+// pixels, the shared layer against its effect, and the page margin against the inner padding (each alone and both).
 const out = resolve('tmp/design-system-qa');
 await mkdir(out, { recursive: true });
 const vite = await createServer({ configFile: false, root: process.cwd(), appType: 'custom', logLevel: 'error', esbuild: { jsx: 'automatic' }, server: { middlewareMode: true } });
@@ -48,8 +48,17 @@ try {
     };
     const settings = { ...getTemplateDocumentDesignDefaults(id), resumeOutputMode: 'visual' };
     const application = applicationSchema.parse({ schemaVersion: 1, id: uuid(), folderName: 'QA', company: { name: 'QA', city: 'Berlin' }, contact: {}, job: { title: 'Entwicklung' }, status: 'Entwurf', templateId: id, accentColor: template.accent, secondaryColor: template.secondary, designSettings: settings, documents: {}, statusHistory: [], createdAt: now, updatedAt: now });
-    for (const variant of ['native', 'shared']) {
-      const globalDesign = variant === 'shared' ? layer : undefined;
+    // "Seitenränder" and "Innenabstand" alone and together: the content edge must move by the margin's difference to the
+    // template's own margin plus the padding, whichever of them is set.
+    const spacingVariants = {
+      margin: { pageMarginMm: native.spacing.pageMarginMm + 3 },
+      smaller: { pageMarginMm: native.spacing.pageMarginMm - 2 },
+      inner: { innerPaddingMm: 2.5 },
+      both: { pageMarginMm: native.spacing.pageMarginMm + 3, innerPaddingMm: 2.5 },
+      smallerBoth: { pageMarginMm: native.spacing.pageMarginMm - 2, innerPaddingMm: 2.5 },
+    };
+    for (const variant of ['native', 'shared', ...Object.keys(spacingVariants)]) {
+      const globalDesign = variant === 'shared' ? layer : variant in spacingVariants ? { cvOverrides: { spacing: spacingVariants[variant] } } : undefined;
       const resolved = resolveCvDocument({ profile, templateId: id, settings, globalDesign });
       const plan = resolved.pagePlan[0];
       const child = h(component, { profile: resolved.profile, templateId: id, name: 'Mina Kaya', atsMode: false, plan, totalPages: 1, accentColor: template.accent, secondaryColor: template.secondary, photoSource: null, resumeProfile: '', sections: resolved.sections, backgroundId: settings.backgroundId });
@@ -62,7 +71,7 @@ try {
         const file = `${id}-${variant}-${surface}`;
         await writeFile(resolve(out, `${file}.html`), html);
         manifest.push({
-          file, id, surface, variant, native,
+          file, id, surface, variant, native, spacing: spacingVariants[variant],
           marginAdjustment: getPageMarginAdjustment(id, native.spacing.pageMarginMm + sharedValues.marginShiftMm),
         });
       }

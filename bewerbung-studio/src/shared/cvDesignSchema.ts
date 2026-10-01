@@ -53,6 +53,11 @@ export const cvTypographySchema = z.object({
   sectionHeadingUppercase: z.boolean(),
 });
 
+/**
+ * `pageMarginMm` is the distance between the sheet edge and the content, `innerPaddingMm` an extra inset inside the
+ * columns. They never overlap: whatever padding a template draws itself counts into its margin, so its native inner
+ * padding is 0 and a chosen inner padding is added on top.
+ */
 export const cvSpacingSchema = z.object({
   pageMarginMm: bounded("pageMarginMm"),
   innerPaddingMm: bounded("innerPaddingMm"),

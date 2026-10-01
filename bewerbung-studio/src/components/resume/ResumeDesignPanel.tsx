@@ -186,6 +186,10 @@ const spacingTitles: Record<string, string> = {
   pageMarginMm: "Seitenränder", innerPaddingMm: "Innenabstand", sectionGapMm: "Abschnittsabstand", entryGapMm: "Eintragsabstand",
   sectionTitleGapMm: "Abstand nach Abschnittstitel", entryContentGapMm: "Abstand nach Eintragstitel", columnGapMm: "Spaltenabstand",
 };
+const spacingNotes: Record<string, string> = {
+  pageMarginMm: "Abstand der Inhalte zum Blattrand.",
+  innerPaddingMm: "Kommt zusätzlich zum Seitenrand hinzu und ändert ihn nicht.",
+};
 
 /**
  * The Lebenslauf design in one panel for every template: the same controls, the same resolver. Each control shows the
@@ -367,7 +371,7 @@ export function ResumeDesignPanel({ templateId, templateName, settings, global, 
       </section>
       <Sub title="Abstände">
         {resumeSpacingFields.filter(({ key }) => key !== "sectionTitleGapMm").map(({ key }) => tokenNumber(
-          "spacing", key, spacingTitles[key], "mm", cvDesignLimits[key][0], cvDesignLimits[key][1], 0.1))}
+          "spacing", key, spacingTitles[key], "mm", cvDesignLimits[key][0], cvDesignLimits[key][1], 0.1, spacingNotes[key]))}
       </Sub>
       <p className="rds-note">Der Abstand nach dem Abschnittstitel und die Zeilenhöhe stehen nur einmal im Panel: unter „Abschnittstitel“ bzw. „Typografie im Detail“.</p>
     </Group>

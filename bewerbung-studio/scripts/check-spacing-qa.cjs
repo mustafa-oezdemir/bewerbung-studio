@@ -26,7 +26,9 @@ app.whenReady().then(async () => {
       const entryTitle = scope?.querySelector('[data-resume-spacing-entry-title]');
       const paragraph = scope?.querySelector('[data-managed-section] p');
       const host = scope?.querySelector('[style*="column-gap"]') || (scope?.style.columnGap ? scope : null);
-      const inner = scope?.querySelector('[style*="padding-inline"]');
+      // The inner padding insets the children of a marked column; the column or host itself keeps the padding that forms the page margin.
+      const innerHost = scope?.querySelector('[data-resume-spacing-inner]');
+      const inner = innerHost?.firstElementChild;
       const px = value => parseFloat(value) / (96 / 25.4);
       return { scope: !!scope, title: title ? px(getComputedStyle(title).marginBottom) : null,
         entry: entry ? px(getComputedStyle(entry).marginTop) : null,
@@ -38,6 +40,7 @@ app.whenReady().then(async () => {
         variables: scope ? ['--doc-inner-padding','--doc-entry-content-gap','--doc-column-gap','--doc-line-height'].map(key => getComputedStyle(scope).getPropertyValue(key).trim()) : [],
         columnGap: host ? px(getComputedStyle(host).columnGap) : null,
         innerPadding: inner ? px(getComputedStyle(inner).paddingLeft) : null,
+        carrierPadding: innerHost ? (innerHost.style.paddingInline || innerHost.style.paddingLeft || innerHost.style.paddingRight || '') : null,
         lineHeightRatio: paragraph ? parseFloat(getComputedStyle(paragraph).lineHeight) / parseFloat(getComputedStyle(paragraph).fontSize) : null };
     })()`);
     checked++;
@@ -50,6 +53,7 @@ app.whenReady().then(async () => {
       || JSON.stringify(result.variables) !== JSON.stringify(['4mm','1.5mm','8mm','1.3'])
       || (result.columnGap !== null && Math.abs(result.columnGap - 8) > .2)
       || (result.innerPadding !== null && Math.abs(result.innerPadding - 4) > .2)
+      || (result.carrierPadding !== null && result.carrierPadding !== '')
       || (result.lineHeightRatio !== null && Math.abs(result.lineHeightRatio - 1.3) > .06)) failures.push({ file, result });
   }
   if (Object.values(coverage).some(value => value === 0)) failures.push({ missingCoverage: coverage });

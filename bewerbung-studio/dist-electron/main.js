@@ -6086,6 +6086,11 @@ var cvTypographySchema = object({
 	sectionHeadingWeight: number().int().min(300).max(900),
 	sectionHeadingUppercase: boolean()
 });
+/**
+* `pageMarginMm` is the distance between the sheet edge and the content, `innerPaddingMm` an extra inset inside the
+* columns. They never overlap: whatever padding a template draws itself counts into its margin, so its native inner
+* padding is 0 and a chosen inner padding is added on top.
+*/
 var cvSpacingSchema = object({
 	pageMarginMm: bounded$1("pageMarginMm"),
 	innerPaddingMm: bounded$1("innerPaddingMm"),
@@ -11390,7 +11395,10 @@ var resumeSpacingCss = `
 [data-resume-spacing-title-gap] [data-resume-spacing-title]{margin-block-end:var(--doc-section-title-gap)!important}
 [data-resume-spacing-content-gap] [data-resume-spacing-entry-title]{margin-block-end:var(--doc-entry-content-gap)!important}
 [data-resume-spacing-line-height] :is(p,li){line-height:var(--doc-line-height)!important}
+[data-resume-spacing-inner]>*{padding-inline:var(--doc-inner-padding)!important}
 `;
+/** The columns of a two-column layout; a one-column template has none and its host carries the content directly. */
+var layoutZoneSelector = "main,aside,[data-resume-layout-zone],[class*=\"-content\"],[class*=\"-column\"],[class*=\"-sidebar\"]";
 /** These templates pad their whole page by `--doc-margin` themselves, so a chosen margin is simply that variable. */
 var marginFromVariable = /* @__PURE__ */ new Set(["zweispaltig", "zeitgenoessisch"]);
 /**
@@ -11473,10 +11481,9 @@ var applyResumeSpacingOutput = (page, templateId, surface, settings, resolvedDes
 	}
 	const host = getResumeLayoutHost(scope, id, surface);
 	if (spacing?.columnGapMm !== void 0 && host) host.style.columnGap = variables["--doc-column-gap"];
-	if (spacing?.innerPaddingMm !== void 0) {
-		const zones = host ? Array.from(host.children).filter((child) => child.matches("main,aside,[data-resume-layout-zone],[class*=\"-content\"],[class*=\"-column\"],[class*=\"-sidebar\"]")) : [];
-		if (zones.length) for (const zone of zones) zone.style.paddingInline = variables["--doc-inner-padding"];
-		else if (host && host !== scope) host.style.paddingInline = variables["--doc-inner-padding"];
+	if (spacing?.innerPaddingMm !== void 0 && host) {
+		const zones = Array.from(host.children).filter((child) => child.matches(layoutZoneSelector));
+		for (const carrier of zones.length ? zones : host !== scope ? [host] : []) carrier.setAttribute("data-resume-spacing-inner", "");
 	}
 };
 //#endregion

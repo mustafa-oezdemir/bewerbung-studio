@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { appSettingsSchema, applicationSchema, defaultSettings, workspaceSchema } from "./schema";
 import {
   createDocumentDesignDraft, editCvDesignField, editResumeAppearanceField, resetResumeDesign, selectDocumentTemplate,
-  updateCvDesignField, type DesignEditState,
+  updateCvDesignField, type DesignEditState, type DesignScope,
 } from "./documentEditorState";
 import { getTemplateDocumentDesignDefaults, resolveTemplateCvDesign } from "./cvDesign";
 import { resolveResumeDesignView } from "./resumeDesignSystem";
@@ -164,5 +164,188 @@ describe("editing the Lebenslauf design", () => {
       expect(edited.settings.cvOverrides).toEqual({ spacing: { sectionGapMm: 5, entryGapMm: 6 } });
       expect(edited.settings.marginLevel).toBe(7);
     });
+  });
+});
+
+/** "Seitenränder" and "Innenabstand" are two settings: each has its own override, source, reset and saved record. */
+describe("Seitenränder and Innenabstand", () => {
+  type Key = "pageMarginMm" | "innerPaddingMm";
+  const view = (state: DesignEditState) => resolveResumeDesignView(state.draft.templateId, state.draft.settings, state.global);
+  const effective = (state: DesignEditState) => view(state).effective.tokens.spacing;
+  const sourceOf = (state: DesignEditState, key: Key) => view(state).sourceOfToken("spacing", key);
+  const stored = (state: DesignEditState, scope: DesignScope) =>
+    scope === "global" ? state.global?.cvOverrides?.spacing : state.draft.settings.cvOverrides?.spacing;
+  const set = (state: DesignEditState, scope: DesignScope, key: Key, value: number | undefined) =>
+    editCvDesignField(state, scope, "spacing", key, value);
+  const templateMargin = (templateId: string) => resolveTemplateCvDesign(templateId).spacing.pageMarginMm;
+
+  it.each(["document", "global"] as const)("keeps Innenabstand while Seitenränder changes (%s scope)", (scope) => {
+    const other: DesignScope = scope === "global" ? "document" : "global";
+    let state = set(start(), scope, "innerPaddingMm", 2.5);
+    for (const value of [10, 16, 12.5]) {
+      state = set(state, scope, "pageMarginMm", value);
+      expect(effective(state), String(value)).toMatchObject({ pageMarginMm: value, innerPaddingMm: 2.5 });
+      expect(sourceOf(state, "pageMarginMm")).toBe(scope);
+      expect(sourceOf(state, "innerPaddingMm")).toBe(scope);
+      expect(stored(state, scope)).toEqual({ pageMarginMm: value, innerPaddingMm: 2.5 });
+      expect(stored(state, other)).toBeUndefined();
+    }
+    // Resetting the margin removes the margin only.
+    state = set(state, scope, "pageMarginMm", undefined);
+    expect(stored(state, scope)).toEqual({ innerPaddingMm: 2.5 });
+    expect(effective(state)).toMatchObject({ pageMarginMm: templateMargin("klassisch"), innerPaddingMm: 2.5 });
+    expect(sourceOf(state, "pageMarginMm")).toBe("template");
+    expect(sourceOf(state, "innerPaddingMm")).toBe(scope);
+  });
+
+  it.each(["document", "global"] as const)("keeps Seitenränder while Innenabstand changes (%s scope)", (scope) => {
+    const other: DesignScope = scope === "global" ? "document" : "global";
+    let state = set(start(), scope, "pageMarginMm", 16);
+    for (const value of [2.5, 2, 5]) {
+      state = set(state, scope, "innerPaddingMm", value);
+      expect(effective(state), String(value)).toMatchObject({ pageMarginMm: 16, innerPaddingMm: value });
+      expect(sourceOf(state, "pageMarginMm")).toBe(scope);
+      expect(sourceOf(state, "innerPaddingMm")).toBe(scope);
+      expect(stored(state, scope)).toEqual({ pageMarginMm: 16, innerPaddingMm: value });
+      expect(stored(state, other)).toBeUndefined();
+    }
+    state = set(state, scope, "innerPaddingMm", undefined);
+    expect(stored(state, scope)).toEqual({ pageMarginMm: 16 });
+    expect(effective(state)).toMatchObject({ pageMarginMm: 16, innerPaddingMm: resolveTemplateCvDesign("klassisch").spacing.innerPaddingMm });
+    expect(sourceOf(state, "innerPaddingMm")).toBe("template");
+  });
+
+  it("follows the reported sequence: margin 10 and padding 2,5, margin 16 and padding 2,5, then padding 2", () => {
+    let state = set(set(start("klassisch"), "document", "pageMarginMm", 10), "document", "innerPaddingMm", 2.5);
+    expect(effective(state)).toMatchObject({ pageMarginMm: 10, innerPaddingMm: 2.5 });
+    state = set(state, "document", "pageMarginMm", 16);
+    expect(effective(state)).toMatchObject({ pageMarginMm: 16, innerPaddingMm: 2.5 });
+    state = set(state, "document", "innerPaddingMm", 2);
+    expect(effective(state)).toMatchObject({ pageMarginMm: 16, innerPaddingMm: 2 });
+    expect(state.draft.settings.cvOverrides).toEqual({ spacing: { pageMarginMm: 16, innerPaddingMm: 2 } });
+    expect(state.global).toBeUndefined();
+  });
+
+  it.each(templates)("changes one of the two without touching the other in $name", ({ id }) => {
+    const native = resolveTemplateCvDesign(id).spacing;
+    const both = set(set(start(id), "document", "pageMarginMm", 20), "document", "innerPaddingMm", 3);
+    expect(effective(both)).toMatchObject({ pageMarginMm: 20, innerPaddingMm: 3 });
+    const withoutPadding = set(both, "document", "innerPaddingMm", undefined);
+    expect(withoutPadding.draft.settings.cvOverrides).toEqual({ spacing: { pageMarginMm: 20 } });
+    expect(effective(withoutPadding)).toMatchObject({ pageMarginMm: 20, innerPaddingMm: native.innerPaddingMm });
+    const withoutMargin = set(both, "document", "pageMarginMm", undefined);
+    expect(withoutMargin.draft.settings.cvOverrides).toEqual({ spacing: { innerPaddingMm: 3 } });
+    expect(effective(withoutMargin)).toMatchObject({ pageMarginMm: native.pageMarginMm, innerPaddingMm: 3 });
+  });
+
+  it("combines a shared margin with the document's own padding", () => {
+    let state = set(start(), "global", "pageMarginMm", 16);
+    state = set(state, "document", "innerPaddingMm", 2.5);
+    expect(state.global).toEqual({ cvOverrides: { spacing: { pageMarginMm: 16 } } });
+    expect(state.draft.settings.cvOverrides).toEqual({ spacing: { innerPaddingMm: 2.5 } });
+    expect(effective(state)).toMatchObject({ pageMarginMm: 16, innerPaddingMm: 2.5 });
+    expect(sourceOf(state, "pageMarginMm")).toBe("global");
+    expect(sourceOf(state, "innerPaddingMm")).toBe("document");
+
+    // The own padding changes: the shared layer is the very same object and the margin stays.
+    const shared = state.global;
+    state = set(state, "document", "innerPaddingMm", 2);
+    expect(state.global).toBe(shared);
+    expect(state.draft.settings.cvOverrides).toEqual({ spacing: { innerPaddingMm: 2 } });
+    expect(effective(state)).toMatchObject({ pageMarginMm: 16, innerPaddingMm: 2 });
+
+    // The shared margin changes: the document keeps its padding.
+    state = set(state, "global", "pageMarginMm", 12);
+    expect(state.draft.settings.cvOverrides).toEqual({ spacing: { innerPaddingMm: 2 } });
+    expect(effective(state)).toMatchObject({ pageMarginMm: 12, innerPaddingMm: 2 });
+
+    // Resetting the own padding returns to the template's padding and keeps the shared margin.
+    state = set(state, "document", "innerPaddingMm", undefined);
+    expect(state.draft.settings.cvOverrides).toBeUndefined();
+    expect(state.global).toEqual({ cvOverrides: { spacing: { pageMarginMm: 12 } } });
+    expect(effective(state)).toMatchObject({ pageMarginMm: 12, innerPaddingMm: resolveTemplateCvDesign("klassisch").spacing.innerPaddingMm });
+    expect(sourceOf(state, "innerPaddingMm")).toBe("template");
+    expect(sourceOf(state, "pageMarginMm")).toBe("global");
+  });
+
+  it("combines a shared padding with the document's own margin", () => {
+    let state = set(start(), "global", "innerPaddingMm", 2.5);
+    state = set(state, "document", "pageMarginMm", 10);
+    expect(state.global).toEqual({ cvOverrides: { spacing: { innerPaddingMm: 2.5 } } });
+    expect(state.draft.settings.cvOverrides).toEqual({ spacing: { pageMarginMm: 10 } });
+    expect(effective(state)).toMatchObject({ pageMarginMm: 10, innerPaddingMm: 2.5 });
+    expect(sourceOf(state, "pageMarginMm")).toBe("document");
+    expect(sourceOf(state, "innerPaddingMm")).toBe("global");
+
+    // The shared padding changes: the document keeps its margin.
+    state = set(state, "global", "innerPaddingMm", 2);
+    expect(state.draft.settings.cvOverrides).toEqual({ spacing: { pageMarginMm: 10 } });
+    expect(effective(state)).toMatchObject({ pageMarginMm: 10, innerPaddingMm: 2 });
+
+    // The own margin changes: the shared layer is the very same object.
+    const shared = state.global;
+    state = set(state, "document", "pageMarginMm", 16);
+    expect(state.global).toBe(shared);
+    expect(effective(state)).toMatchObject({ pageMarginMm: 16, innerPaddingMm: 2 });
+
+    // Resetting the own margin returns to the template's margin, whatever the shared padding is.
+    state = set(state, "document", "pageMarginMm", undefined);
+    expect(state.draft.settings.cvOverrides).toBeUndefined();
+    expect(effective(state)).toMatchObject({ pageMarginMm: templateMargin("klassisch"), innerPaddingMm: 2 });
+    expect(sourceOf(state, "pageMarginMm")).toBe("template");
+    expect(sourceOf(state, "innerPaddingMm")).toBe("global");
+  });
+
+  it("resets one field without touching the other, in both scopes", () => {
+    let both = set(set(start(), "global", "pageMarginMm", 16), "global", "innerPaddingMm", 2.5);
+    both = set(set(both, "document", "pageMarginMm", 10), "document", "innerPaddingMm", 2);
+    const klassisch = resolveTemplateCvDesign("klassisch").spacing;
+    expect(effective(both)).toMatchObject({ pageMarginMm: 10, innerPaddingMm: 2 });
+
+    // Own padding: the shared padding shows again, the margin stays.
+    const ownPadding = set(both, "document", "innerPaddingMm", undefined);
+    expect(ownPadding.draft.settings.cvOverrides).toEqual({ spacing: { pageMarginMm: 10 } });
+    expect(ownPadding.global).toEqual(both.global);
+    expect(effective(ownPadding)).toMatchObject({ pageMarginMm: 10, innerPaddingMm: 2.5 });
+
+    // Own margin: the shared margin shows again, the padding stays.
+    const ownMargin = set(both, "document", "pageMarginMm", undefined);
+    expect(ownMargin.draft.settings.cvOverrides).toEqual({ spacing: { innerPaddingMm: 2 } });
+    expect(ownMargin.global).toEqual(both.global);
+    expect(effective(ownMargin)).toMatchObject({ pageMarginMm: 16, innerPaddingMm: 2 });
+
+    // Shared padding: it leaves the layer and this document's own padding with it; the margins stay.
+    const sharedPadding = set(both, "global", "innerPaddingMm", undefined);
+    expect(sharedPadding.global).toEqual({ cvOverrides: { spacing: { pageMarginMm: 16 } } });
+    expect(sharedPadding.draft.settings.cvOverrides).toEqual({ spacing: { pageMarginMm: 10 } });
+    expect(effective(sharedPadding)).toMatchObject({ pageMarginMm: 10, innerPaddingMm: klassisch.innerPaddingMm });
+
+    // Shared margin: the same the other way round.
+    const sharedMargin = set(both, "global", "pageMarginMm", undefined);
+    expect(sharedMargin.global).toEqual({ cvOverrides: { spacing: { innerPaddingMm: 2.5 } } });
+    expect(sharedMargin.draft.settings.cvOverrides).toEqual({ spacing: { innerPaddingMm: 2 } });
+    expect(effective(sharedMargin)).toMatchObject({ pageMarginMm: klassisch.pageMarginMm, innerPaddingMm: 2 });
+  });
+
+  it("keeps the old slider level of the other field when one of them is edited", () => {
+    const { draft } = start("klassisch");
+    const state: DesignEditState = { draft: { ...draft, settings: { ...draft.settings, marginLevel: 7, paddingLevel: 3 } }, global: undefined };
+    expect(effective(state)).toMatchObject({ pageMarginMm: 20, innerPaddingMm: 2.5 });
+    const padded = set(state, "document", "innerPaddingMm", 2);
+    expect(effective(padded)).toMatchObject({ pageMarginMm: 20, innerPaddingMm: 2 });
+    expect(padded.draft.settings.cvOverrides).toEqual({ spacing: { innerPaddingMm: 2 } });
+    expect(padded.draft.settings.marginLevel).toBe(7);
+    const margined = set(state, "document", "pageMarginMm", 12);
+    expect(effective(margined)).toMatchObject({ pageMarginMm: 12, innerPaddingMm: 2.5 });
+    expect(margined.draft.settings.cvOverrides).toEqual({ spacing: { pageMarginMm: 12 } });
+    expect(margined.draft.settings.paddingLevel).toBe(3);
+  });
+
+  it("counts a template's own paddings into its margin, so no template starts with an inner padding", () => {
+    for (const { id } of templates) expect(resolveTemplateCvDesign(id).spacing.innerPaddingMm, id).toBe(0);
+    // The presets therefore never scale an inner padding, and a chosen padding is always added to the margin.
+    const compact = applyResumeSpacingPreset(start("gepflegt").draft, "compact");
+    expect(compact.settings.cvOverrides?.spacing?.innerPaddingMm).toBeUndefined();
+    expect(compact.settings.cvOverrides?.spacing?.pageMarginMm).toBe(8);
   });
 });

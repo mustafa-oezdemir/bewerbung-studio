@@ -88,7 +88,11 @@ export const resumeSpacingCss = `
 [data-resume-spacing-title-gap] [data-resume-spacing-title]{margin-block-end:var(--doc-section-title-gap)!important}
 [data-resume-spacing-content-gap] [data-resume-spacing-entry-title]{margin-block-end:var(--doc-entry-content-gap)!important}
 [data-resume-spacing-line-height] :is(p,li){line-height:var(--doc-line-height)!important}
+[data-resume-spacing-inner]>*{padding-inline:var(--doc-inner-padding)!important}
 `;
+
+/** The columns of a two-column layout; a one-column template has none and its host carries the content directly. */
+const layoutZoneSelector = 'main,aside,[data-resume-layout-zone],[class*="-content"],[class*="-column"],[class*="-sidebar"]';
 
 /** These templates pad their whole page by `--doc-margin` themselves, so a chosen margin is simply that variable. */
 const marginFromVariable: ReadonlySet<string> = new Set(["zweispaltig", "zeitgenoessisch"]);
@@ -196,9 +200,11 @@ export const applyResumeSpacingOutput = (
   }
   const host = getResumeLayoutHost(scope, id, surface) as HTMLElement | null;
   if (spacing?.columnGapMm !== undefined && host) host.style.columnGap = variables["--doc-column-gap"];
-  if (spacing?.innerPaddingMm !== undefined) {
-    const zones = host ? Array.from(host.children).filter(child => child.matches('main,aside,[data-resume-layout-zone],[class*="-content"],[class*="-column"],[class*="-sidebar"]')) : [];
-    if (zones.length) for (const zone of zones) (zone as HTMLElement).style.paddingInline = variables["--doc-inner-padding"];
-    else if (host && host !== scope) host.style.paddingInline = variables["--doc-inner-padding"];
+  if (spacing?.innerPaddingMm !== undefined && host) {
+    // The inner padding insets what stands *inside* a column (`resumeSpacingCss` pads the carrier's children). The column
+    // itself, or the single-column host, keeps its own padding: in most templates that padding is the page margin, so it
+    // belongs to "Seitenränder" and the inner padding must never replace it.
+    const zones = Array.from(host.children).filter(child => child.matches(layoutZoneSelector));
+    for (const carrier of zones.length ? zones : host !== scope ? [host] : []) carrier.setAttribute("data-resume-spacing-inner", "");
   }
 };

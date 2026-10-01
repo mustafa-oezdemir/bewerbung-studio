@@ -526,3 +526,39 @@ bestehen unverändert seit dem Stand vor dieser Phase. Elegant, Gepflegt und Tab
 der Vorschau mit der allgemeinen Überschriftenfarbe (`.document-paper h2` schlägt die Vorlagenregel); das PDF verwendet
 die Vorlagenfarben, die die Vorlagenwerte beschreiben. Pehlione und die übrigen Stylesheets enthalten ihre Zahlen
 weiterhin selbst; ein Test hält die Pehlione-Palette mit dem typisierten Modul in Übereinstimmung.
+
+## Phase 24: Seitenränder und Innenabstand getrennt (01.10.2026)
+
+„Seitenränder (mm)“ und „Innenabstand (mm)“ sind zwei unabhängige Werte: jeder hat seinen eigenen Override
+(`pageMarginMm` / `innerPaddingMm`), seine eigene Herkunft (Vorlage / Global / Bewerbung), sein eigenes
+„Auf Vorlagenwert zurücksetzen“ und seinen eigenen Eintrag in der sparsamen Speicherung. Die Zustands-, Resolver- und
+Panel-Schicht hat beide Werte schon getrennt behandelt; die Verwechslung entstand in der Ausgabe.
+
+**Ursache.** Der Abstandsadapter (`applyResumeSpacingOutput`) setzte den Innenabstand als `padding-inline` auf den
+Layout-Host bzw. die Spalten und ersetzte damit deren Padding. Genau dieses Padding ist bei den meisten Vorlagen der
+Seitenrand (Host-Padding bei Einspaltig, Klassisch, Tabellarisch, Ivy League; Spaltenpadding bei Elegant, Gepflegt,
+Pehlione). Ein gesetzter Innenabstand überschrieb also den Seitenrand: Einspaltig mit Rand 10 mm und Innenabstand
+2,5 mm zeichnete den Text bei −2,5 mm (außerhalb des Blatts), mit Rand 16 mm bei 3,5 mm.
+
+**Modell.** Der Seitenrand ist der Abstand zwischen Blattkante und Inhalt, der Innenabstand ein zusätzlicher Abstand
+innerhalb der Spalten. Was eine Vorlage selbst als Padding zeichnet, zählt zu ihrem Seitenrand; deshalb ist der native
+Innenabstand aller Vorlagen 0 (vorher 13 / 10 / 7 bei Elegant, Gepflegt, Pehlione) und ein gewählter Innenabstand
+kommt hinzu. Der Seitenrand bewegt wie zuvor nur den Scope der Seite (`getPageMarginAdjustment`); der Innenabstand
+markiert die Spalten (bei einer einspaltigen Vorlage den Host) mit `data-resume-spacing-inner`, und eine Regel in
+`resumeSpacingCss` (`[data-resume-spacing-inner]>*{padding-inline:var(--doc-inner-padding)!important}`) rückt deren
+Kinder ein. Host und Spalten behalten ihr eigenes Padding. Der linke Inhaltsrand liegt dadurch bei jeder Vorlage bei
+„Rand der Vorlage + (gewählter Seitenrand − Seitenrand der Vorlage) + Innenabstand“, die Ränder der Inhalte rücken
+beidseitig um den Innenabstand ein. Das Panel nennt unter beiden Feldern, was sie bedeuten.
+
+**Prüfung.** `resumeDesignEditing` (Zustand: jede Richtung, beide Bereiche, geteilter Rand mit eigenem Innenabstand und
+umgekehrt, Zurücksetzen je Feld, alte Reglerstufen), `ResumeDesignPanel` (angezeigte Werte und Herkunft gleich der
+Resolver-Ausgabe, nur das bearbeitete Feld ändert sich, Zurücksetzen nur am Feld mit Override), `resumeSpacing`
+(Adapter: Host-Padding bleibt unberührt) und `resumeDesignOutput` (14 Vorlagen: Vorschau und PDF lesen dieselben Werte,
+nie wird ein Padding der Vorlage beschrieben, geteilte und eigene Werte zeichnen identisch). `design-system-qa` misst
+zusätzlich je Vorlage und Ausgabe Rand allein, kleineren Rand, Innenabstand allein und beide zusammen (504 Messungen);
+`check-spacing-qa.cjs` prüft die Spalten- bzw. Host-Markierung.
+
+**Bekannt, nicht Teil dieser Phase.** Bei Stilvoll, Kompakt, Elegant und Modern folgt die rechte Kante des Inhalts einem
+geänderten Seitenrand nicht symmetrisch (feste Spaltenbreiten); die linke Kante ist exakt. Bei Vorlagen, deren Kopf
+außerhalb der Spalten steht (Zweispaltig, Zeitgenössisch, Kreativ, Stilvoll, Kompakt, Modern), rückt der Innenabstand nur
+die Spalten ein, nicht den Kopf.

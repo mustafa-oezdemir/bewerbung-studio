@@ -127,3 +127,86 @@ describe("the shared Lebenslauf design in the outputs", () => {
     }
   });
 });
+
+/**
+ * "Seitenränder" and "Innenabstand" reach both outputs through separate channels: the margin moves the page-level scope,
+ * the padding marks the columns whose content it insets. The paddings a template draws itself form its margin and are
+ * never written to.
+ */
+describe("Seitenränder and Innenabstand in preview and PDF", () => {
+  type Spacing = { pageMarginMm?: number; innerPaddingMm?: number };
+  const own = (id: string, spacing: Spacing) => ({ ...getTemplateDocumentDesignDefaults(id), ...(Object.keys(spacing).length ? { cvOverrides: { spacing } } : {}) });
+  const outputs = (id: string, settings: ReturnType<typeof own>, global?: ResumeDesignLayer) => ({
+    pdf: buildDocumentHtml(applicationFor(id, settings), profile, "lebenslauf", [], global),
+    preview: previewHtml(id, settings, global),
+  });
+  const scopeOf = (html: string, surface: "pdf" | "preview") => surface === "pdf"
+    ? pdfPages(html)[0].querySelector(".page-content")
+    : parseHTML(`<body>${html}</body>`).document.querySelector(".managed-resume-preview")?.firstElementChild ?? null;
+  const styleOf = (element: Element | null): Record<string, string> => Object.fromEntries((element?.getAttribute("style") ?? "").split(";").filter(Boolean).map((part) => {
+    const at = part.indexOf(":");
+    return [part.slice(0, at).trim(), part.slice(at + 1).trim()];
+  }));
+  const only = (style: Record<string, string>, names: string[]) => Object.fromEntries(names.filter((name) => style[name] !== undefined).map((name) => [name, style[name]]));
+  const marginStyle = (scope: Element | null) => only(styleOf(scope), ["--doc-page-margin", "--doc-margin", "padding", "margin", "width", "height"]);
+  const paddingStyle = (scope: Element | null) => only(styleOf(scope), ["--doc-inner-padding", "--doc-padding"]);
+  const carriers = (scope: Element | null) => scope?.querySelectorAll("[data-resume-spacing-inner]").length ?? 0;
+  const inlinePaddings = (scope: Element | null) => scope?.querySelectorAll('[style*="padding-inline"],[style*="padding-left"],[style*="padding-right"]').length ?? 0;
+  const rule = "[data-resume-spacing-inner]>*{padding-inline:var(--doc-inner-padding)!important}";
+
+  it.each(templates)("applies each setting on its own and both as their sum, alike in preview and PDF of $name", ({ id }) => {
+    const native = outputs(id, own(id, {}));
+    const changes = {
+      margin: outputs(id, own(id, { pageMarginMm: 16 })),
+      smaller: outputs(id, own(id, { pageMarginMm: 6 })),
+      padding: outputs(id, own(id, { innerPaddingMm: 2.5 })),
+      both: outputs(id, own(id, { pageMarginMm: 16, innerPaddingMm: 2.5 })),
+      bothLess: outputs(id, own(id, { pageMarginMm: 16, innerPaddingMm: 2 })),
+      smallerBoth: outputs(id, own(id, { pageMarginMm: 6, innerPaddingMm: 2 })),
+    };
+    for (const surface of ["pdf", "preview"] as const) {
+      const scope = (name: keyof typeof changes) => scopeOf(changes[name][surface], surface);
+      const nativeScope = scopeOf(native[surface], surface);
+      for (const name of ["margin", "smaller"] as const) {
+        // The margin moves the scope and sets its own variable; it marks no column and sets none of the padding's variables.
+        expect(marginStyle(scope(name)), `${surface} ${name}`).not.toEqual(marginStyle(nativeScope));
+        expect(paddingStyle(scope(name)), `${surface} ${name}`).toEqual(paddingStyle(nativeScope));
+        expect(carriers(scope(name)), `${surface} ${name}`).toBe(0);
+      }
+      // The padding marks the columns and sets its own variables; the page margin stays the template's.
+      expect(paddingStyle(scope("padding")), surface).toEqual({ "--doc-inner-padding": "2.5mm", "--doc-padding": "2.5mm" });
+      expect(marginStyle(scope("padding")), surface).toEqual(marginStyle(nativeScope));
+      expect(carriers(scope("padding")), surface).toBeGreaterThan(0);
+      // Both together are the sum of the two, and a new padding leaves the margin exactly as it was.
+      expect(marginStyle(scope("both")), surface).toEqual(marginStyle(scope("margin")));
+      expect(paddingStyle(scope("both")), surface).toEqual(paddingStyle(scope("padding")));
+      expect(carriers(scope("both")), surface).toBe(carriers(scope("padding")));
+      expect(marginStyle(scope("bothLess")), surface).toEqual(marginStyle(scope("both")));
+      expect(paddingStyle(scope("bothLess")), surface).toEqual({ "--doc-inner-padding": "2mm", "--doc-padding": "2mm" });
+      expect(marginStyle(scope("smallerBoth")), surface).toEqual(marginStyle(scope("smaller")));
+      // No setting writes a padding onto an element of the template: the ones that form its margin stay as they are.
+      for (const name of Object.keys(changes) as (keyof typeof changes)[])
+        expect(inlinePaddings(scope(name)), `${surface} ${name}`).toBe(inlinePaddings(nativeScope));
+      // The single rule that applies the padding is part of the output.
+      expect(changes.padding[surface], surface).toContain(rule);
+    }
+    // Preview and PDF read the same values and mark the same number of columns.
+    for (const [name, output] of Object.entries(changes)) {
+      const preview = scopeOf(output.preview, "preview");
+      const pdf = scopeOf(output.pdf, "pdf");
+      expect(marginStyle(preview), name).toEqual(marginStyle(pdf));
+      expect(paddingStyle(preview), name).toEqual(paddingStyle(pdf));
+      expect(carriers(preview), name).toBe(carriers(pdf));
+    }
+  });
+
+  it.each(templates)("draws a shared margin with an own padding, and the reverse, like two own values in $name", ({ id }) => {
+    const both = outputs(id, own(id, { pageMarginMm: 16, innerPaddingMm: 2.5 }));
+    const sharedMargin = outputs(id, own(id, { innerPaddingMm: 2.5 }), { cvOverrides: { spacing: { pageMarginMm: 16 } } });
+    const sharedPadding = outputs(id, own(id, { pageMarginMm: 16 }), { cvOverrides: { spacing: { innerPaddingMm: 2.5 } } });
+    for (const surface of ["pdf", "preview"] as const) {
+      expect(sharedMargin[surface], `${surface}: shared margin, own padding`).toBe(both[surface]);
+      expect(sharedPadding[surface], `${surface}: shared padding, own margin`).toBe(both[surface]);
+    }
+  });
+});

@@ -6,6 +6,7 @@ import { getTemplateDocumentDesignDefaults, resolveTemplateCvDesign } from "../.
 import {
   createDocumentDesignDraft, editCvDesignField, editResumeAppearanceField, resetResumeDesign, selectDocumentTemplate, type DesignEditState,
 } from "../../shared/documentEditorState";
+import { resolveResumeDesignView } from "../../shared/resumeDesignSystem";
 import { applicationSchema } from "../../shared/schema";
 import { getTemplate, templates } from "../../shared/templates";
 import { ResumeDesignPanel } from "./ResumeDesignPanel";
@@ -124,5 +125,75 @@ describe("Lebenslauf design panel", () => {
     expect(field(single, "Seitenspalte").hasAttribute("disabled")).toBe(true);
     expect(single.querySelector(".rds-note")?.textContent).toContain("zweispaltigen Layout");
     expect(controls(single)).toEqual(controls(withSidebar));
+  });
+});
+
+describe("Seitenränder and Innenabstand in the panel", () => {
+  const labels = { pageMarginMm: "Seitenränder (mm)", innerPaddingMm: "Innenabstand (mm)" } as const;
+  type Key = keyof typeof labels;
+  const german = (value: number) => value.toLocaleString("de-DE", { maximumFractionDigits: 2, useGrouping: false });
+  const set = (state: DesignEditState, scope: "global" | "document", key: Key, value?: number) => editCvDesignField(state, scope, "spacing", key, value);
+  const origin = { template: null, global: "Global", document: "Bewerbung" } as const;
+  const frame = (state: DesignEditState, key: Key) => frameOf(panel(state), labels[key]);
+
+  const scenarios: [string, (state: DesignEditState) => DesignEditState, [string, string], [string | null, string | null]][] = [
+    ["own margin 10 and own padding 2,5", (state) => set(set(state, "document", "pageMarginMm", 10), "document", "innerPaddingMm", 2.5), ["10", "2,5"], ["Bewerbung", "Bewerbung"]],
+    ["own margin 16 and own padding 2,5", (state) => set(set(state, "document", "pageMarginMm", 16), "document", "innerPaddingMm", 2.5), ["16", "2,5"], ["Bewerbung", "Bewerbung"]],
+    ["own margin 16 and own padding 2", (state) => set(set(state, "document", "pageMarginMm", 16), "document", "innerPaddingMm", 2), ["16", "2"], ["Bewerbung", "Bewerbung"]],
+    ["shared margin 16 and own padding 2,5", (state) => set(set(state, "global", "pageMarginMm", 16), "document", "innerPaddingMm", 2.5), ["16", "2,5"], ["Global", "Bewerbung"]],
+    ["shared padding 2,5 and own margin 10", (state) => set(set(state, "global", "innerPaddingMm", 2.5), "document", "pageMarginMm", 10), ["10", "2,5"], ["Bewerbung", "Global"]],
+    ["shared margin 12 and shared padding 3", (state) => set(set(state, "global", "pageMarginMm", 12), "global", "innerPaddingMm", 3), ["12", "3"], ["Global", "Global"]],
+    ["nothing changed", (state) => state, ["15", "0"], [null, null]],
+  ];
+
+  it.each(scenarios)("shows what the resolver returns for both fields: %s", (_name, build, [margin, padding], [marginOrigin, paddingOrigin]) => {
+    const state = build(stateFor("klassisch"));
+    const view = resolveResumeDesignView("klassisch", state.draft.settings, state.global);
+    const document = panel(state);
+    for (const key of Object.keys(labels) as Key[]) {
+      expect(valueOf(document, labels[key]), key).toBe(german(view.effective.tokens.spacing[key]));
+      expect(frameOf(document, labels[key]).querySelector(".rds-badge")?.textContent ?? null, key).toBe(origin[view.sourceOfToken("spacing", key)]);
+      expect(frameOf(document, labels[key]).textContent, key).toContain(`Vorlage: ${german(view.native.tokens.spacing[key])} mm`);
+    }
+    expect(valueOf(document, labels.pageMarginMm)).toBe(margin);
+    expect(valueOf(document, labels.innerPaddingMm)).toBe(padding);
+    expect(frameOf(document, labels.pageMarginMm).querySelector(".rds-badge")?.textContent ?? null).toBe(marginOrigin);
+    expect(frameOf(document, labels.innerPaddingMm).querySelector(".rds-badge")?.textContent ?? null).toBe(paddingOrigin);
+  });
+
+  it.each(templates)("shows the template's own margin and no inner padding for $name", ({ id }) => {
+    const native = resolveTemplateCvDesign(id).spacing;
+    const document = panel(stateFor(id));
+    expect(valueOf(document, labels.pageMarginMm)).toBe(german(native.pageMarginMm));
+    expect(valueOf(document, labels.innerPaddingMm)).toBe("0");
+    for (const key of Object.keys(labels) as Key[]) expect(frameOf(document, labels[key]).querySelector(".rds-badge"), key).toBeNull();
+    // The panel says what the two values are, so that the padding is not mistaken for part of the margin.
+    expect(frameOf(document, labels.pageMarginMm).textContent).toContain("Abstand der Inhalte zum Blattrand");
+    expect(frameOf(document, labels.innerPaddingMm).textContent).toContain("zusätzlich zum Seitenrand hinzu und ändert ihn nicht");
+  });
+
+  it("redraws only the field that was edited", () => {
+    const base = set(set(stateFor("klassisch"), "document", "pageMarginMm", 16), "document", "innerPaddingMm", 2.5);
+    const sameFrame = (first: DesignEditState, second: DesignEditState, key: Key) => frame(first, key).outerHTML === frame(second, key).outerHTML;
+    for (const scope of ["document", "global"] as const) {
+      const padding = set(base, scope, "innerPaddingMm", 2);
+      expect(sameFrame(base, padding, "pageMarginMm"), `padding in ${scope}`).toBe(true);
+      expect(sameFrame(base, padding, "innerPaddingMm"), `padding in ${scope}`).toBe(false);
+      const margin = set(base, scope, "pageMarginMm", 10);
+      expect(sameFrame(base, margin, "innerPaddingMm"), `margin in ${scope}`).toBe(true);
+      expect(sameFrame(base, margin, "pageMarginMm"), `margin in ${scope}`).toBe(false);
+    }
+  });
+
+  it("offers the reset only on the field that has an override", () => {
+    const reset = (state: DesignEditState, key: Key) => frame(state, key).querySelector(".rds-link")?.textContent ?? null;
+    const padded = set(stateFor("klassisch"), "document", "innerPaddingMm", 2.5);
+    expect(reset(padded, "pageMarginMm")).toBeNull();
+    expect(reset(padded, "innerPaddingMm")).toContain("Auf Vorlagenwert zurücksetzen");
+    const both = set(padded, "global", "pageMarginMm", 16);
+    expect(reset(both, "pageMarginMm")).toContain("Auf Vorlagenwert zurücksetzen");
+    expect(reset(set(both, "global", "pageMarginMm", undefined), "pageMarginMm")).toBeNull();
+    expect(reset(set(both, "document", "innerPaddingMm", undefined), "innerPaddingMm")).toBeNull();
+    expect(reset(set(both, "document", "innerPaddingMm", undefined), "pageMarginMm")).toContain("Auf Vorlagenwert zurücksetzen");
   });
 });
