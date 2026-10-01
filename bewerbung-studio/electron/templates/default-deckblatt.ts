@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "../security/secure-fs";
 import path from "node:path";
 import PizZip from "pizzip";
 import type { CreatedDocumentResult } from "../../src/features/templates/template.types";

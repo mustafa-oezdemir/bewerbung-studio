@@ -7,13 +7,13 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mustafa-oezdemir/bewerbung_manager.git",
+    "url": "git+https://github.com/mustafa-oezdemir/bewerbung-studio.git",
     "directory": "bewerbung-studio"
   },
   "bugs": {
-    "url": "https://github.com/mustafa-oezdemir/bewerbung_manager/issues"
+    "url": "https://github.com/mustafa-oezdemir/bewerbung-studio/issues"
   },
-  "homepage": "https://github.com/mustafa-oezdemir/bewerbung_manager#readme",
+  "homepage": "https://github.com/mustafa-oezdemir/bewerbung-studio#readme",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@noble/hashes": "2.2.0",
     "date-fns": "^4.1.0",
     "devicon": "^2.17.0",
     "docxtemplater": "^3.69.0",

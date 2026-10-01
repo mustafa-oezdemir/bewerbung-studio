@@ -22,10 +22,19 @@ import type {
 } from "../features/templates/template.types";
 export type WorkspaceStatus =
   | { state: "ready"; root: string }
+  | { state: "locked"; root: string; migration?: "enable" | "disable" }
   | { state: "setup" }
   | { state: "missing"; root: string }
   | { state: "error"; root: string; message: string };
 export type WorkspaceChangeMode = "move" | "copy" | "new";
+
+export type SecurityStatus = {
+  mode: "plaintext" | "locked" | "unlocked" | "migration";
+  onboardingRequired: boolean;
+  rememberDevice: boolean;
+  autoLockMinutes: 0 | 5 | 15 | 30 | 60;
+  pendingSwitch: boolean;
+};
 
 export type ExportTarget = "deckblatt" | "anschreiben" | "lebenslauf" | "mappe";
 export type ProfileMediaKind = "photo" | "signature";
@@ -43,6 +52,20 @@ export type PickedProfileMedia = {
 };
 
 export interface BewerbungsManagerApi {
+  security: {
+    status: () => Promise<SecurityStatus>;
+    completeOnboarding: () => Promise<void>;
+    unlock: (credential: string, kind: "password" | "recovery") => Promise<WorkspaceStatus>;
+    cancelPending: () => Promise<WorkspaceStatus>;
+    touch: () => Promise<void>;
+    enable: (password: string) => Promise<string>;
+    lock: () => Promise<void>;
+    changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
+    rotateRecoveryKey: (password: string) => Promise<string>;
+    disable: (password: string) => Promise<void>;
+    setRememberDevice: (enabled: boolean) => Promise<boolean>;
+    saveRecoveryKey: (key: string) => Promise<string | null>;
+  };
   workspace: {
     get: () => Promise<Workspace>;
   };
@@ -127,7 +150,11 @@ export interface BewerbungsManagerApi {
     dataPath: () => Promise<string>;
     workspaceStatus: () => Promise<WorkspaceStatus>;
     chooseWorkspace: () => Promise<WorkspaceStatus>;
+    openExistingWorkspace: () => Promise<WorkspaceStatus>;
     openWorkspace: () => Promise<void>;
+    openWorkspaceFile: () => Promise<void>;
+    workspaceDetails: () => Promise<{ filePath: string; modifiedAt: string }>;
+    copyWorkspace: () => Promise<string | null>;
     backupWorkspace: () => Promise<string>;
     openBackups: () => Promise<void>;
     changeWorkspace: (mode: WorkspaceChangeMode) => Promise<WorkspaceStatus>;

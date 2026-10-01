@@ -4,7 +4,7 @@ import {
   mkdir,
   readFile,
   writeFile,
-} from "node:fs/promises";
+} from "../security/secure-fs";
 import { constants as fsConstants } from "node:fs";
 import path from "node:path";
 import type { ApplicationPaths } from "../../src/config/application-paths";

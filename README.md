@@ -1,284 +1,318 @@
 # BewerbungsManager
 
-> Lokale Desktop-Anwendung zur strukturierten Verwaltung und Erstellung von Bewerbungen.
+> Bewerbungen erstellen, organisieren und als professionelle Unterlagen exportieren – lokal auf Ihrem Windows-PC.
 
-[![CI](https://github.com/mustafa-oezdemir/bewerbung_manager/actions/workflows/ci.yml/badge.svg)](https://github.com/mustafa-oezdemir/bewerbung_manager/actions/workflows/ci.yml)
-[![GitHub Release](https://img.shields.io/github/v/release/mustafa-oezdemir/bewerbung_manager)](https://github.com/mustafa-oezdemir/bewerbung_manager/releases/latest)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
-![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?logo=electron&logoColor=white)
+[![CI](https://github.com/mustafa-oezdemir/bewerbung-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/mustafa-oezdemir/bewerbung-studio/actions/workflows/ci.yml)
+[![Latest Release](https://img.shields.io/github/v/release/mustafa-oezdemir/bewerbung-studio)](https://github.com/mustafa-oezdemir/bewerbung-studio/releases/latest)
+[![Lizenz: Apache-2.0](https://img.shields.io/badge/Lizenz-Apache_2.0-blue.svg)](LICENSE)
+![Windows 10/11 x64](https://img.shields.io/badge/Windows-10%20%2F%2011%20x64-0078D4)
 
-BewerbungsManager unterstützt den vollständigen Bewerbungsworkflow: von Stellenanzeige und Profil über Anschreiben,
-Deckblatt und Lebenslauf bis zu Bewerbungsmappe, Kalender und Aufgabenverwaltung. Alle Daten liegen lokal auf dem
-eigenen Rechner.
+BewerbungsManager ist eine Desktop-Anwendung für den gesamten Bewerbungsablauf: von der Stellenanzeige und dem
+Profil über Anschreiben, Deckblatt und Lebenslauf bis zur fertigen Bewerbungsmappe, mit Kalender und Aufgabenliste.
+Alle Daten bleiben in einem Ordner auf Ihrem Rechner. Die Oberfläche ist auf Deutsch.
 
-## Überblick
+**[➡ Aktuelle Windows-Version herunterladen](https://github.com/mustafa-oezdemir/bewerbung-studio/releases/latest)**
 
-Jede Bewerbung ist ein Datensatz aus Firma, Stelle, Status und Terminen. Unterlagen werden aus dem gewählten Profil
-und den Bewerbungsdaten erzeugt, sodass Anschreiben, Deckblatt, Lebenslauf und Mappe dieselben Angaben verwenden.
+## Download
 
-```mermaid
-flowchart LR
-    P[Profil] --> B[Bewerbung]
-    J[Stellenanzeige] --> B
-    B --> A[Anschreiben DOCX]
-    B --> D[Deckblatt]
-    B --> L[Lebenslauf]
-    A & D & L --> M[Bewerbungsmappe PDF]
-    B --> K[Kalender und ToDo]
-```
+Die aktuelle Version finden Sie unter [GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases/latest).
 
-Die Oberfläche ist auf Deutsch. Gebaut und veröffentlicht wird ausschließlich für Windows (x64).
+| Datei | Verwendung |
+| --- | --- |
+| `BewerbungsManager-<Version>-x64-Setup.exe` | Normale Installation unter Windows: Installationsordner wählbar, Startmenü- und Desktop-Verknüpfung |
+| `BewerbungsManager-<Version>-x64-Portable.exe` | Startet ohne Installation |
+| `SHA256SUMS.txt` | Prüfsummen zur Integritätskontrolle |
+
+Beide Varianten enthalten dieselbe Anwendung. Ihre Bewerbungsdaten liegen in einem Ordner, den Sie selbst wählen,
+also außerhalb des Installationsordners.
+
+> Die veröffentlichten Windows-Dateien sind derzeit nicht code-signiert. Windows kann deshalb eine
+> SmartScreen-Warnung anzeigen. Prüfen Sie im Zweifel die SHA-256-Prüfsumme mit der veröffentlichten
+> `SHA256SUMS.txt`:
+>
+> ```powershell
+> Get-FileHash .\BewerbungsManager-<Version>-x64-Setup.exe -Algorithm SHA256
+> ```
+
+> **Funktionsstand:** Die Abschnitte [Workspace & Computerwechsel](#workspace--computerwechsel) und
+> [Datensicherheit & Verschlüsselung](#datensicherheit--verschlüsselung) beschreiben den Stand nach Version 1.0.2,
+> einschließlich der überarbeiteten Einstellungen. In Version 1.0.2 selbst sind Workspace-Auswahl, Computerwechsel
+> und Verschlüsselung noch nicht enthalten.
+
+## Warum BewerbungsManager?
+
+- **Alles an einem Ort:** Firma, Stelle, Status, Termine, Dokumente und Aufgaben jeder Bewerbung.
+- **Profil einmal pflegen:** Anschreiben, Deckblatt und Lebenslauf verwenden dieselben Profildaten.
+- **Fertige Unterlagen:** Anschreiben als Word-Datei, Deckblatt und Lebenslauf als PDF, dazu eine komplette
+  Bewerbungsmappe als ein PDF.
+- **Fristen im Blick:** Bewerbungsfristen erscheinen automatisch im Kalender und in der Aufgabenliste.
+- **Daten unter Ihrer Kontrolle:** lokaler Ordner, kein Benutzerkonto, optional mit Master-Passwort geschützt.
 
 ## Funktionen
 
-### Bewerbung
+### Bewerbungen
 
-- Bewerbungs-Assistent mit Validierung; ein angefangener Entwurf wird lokal zwischengespeichert
+- Assistent zum Anlegen mit Validierung; ein angefangener Entwurf wird lokal zwischengespeichert
 - Firma, Ansprechpartner und Stelle mit Referenz, Quelle, Link, Anzeigentext, Arbeitsmodell, Vertragsart und Gehalt
 - Statusverlauf von *Entwurf* bis *Zusage*, *Absage*, *Zurückgezogen* oder *Archiviert*; Absagen mit Begründung
-- Mehrere Bewerberprofile; jede Bewerbung verwendet genau ein Profil für alle ihre Dokumente
-- Dashboard mit Statuszahlen und Erfolgsquote, Suche und Filter über alle Bewerbungen
+- Bewerbungsfrist, Gesprächs- und Vertragstermine
+- Dashboard mit Statuszahlen und Erfolgsquote; Suche und Filter über alle Bewerbungen
 - Abgleich der Stellenanzeige mit den Kenntnissen im Profil
 
 ### Dokumente
 
-- **Anschreiben** als editierbare Word-Datei (DOCX) aus einer Vorlage, befüllt mit den Bewerbungsdaten
+- **Anschreiben** als bearbeitbare Word-Datei (DOCX), befüllt mit den Bewerbungsdaten
 - **Deckblatt** in drei Designs (Klassisch, Pastell, Akzentband); Vorschau und PDF nutzen dieselbe Darstellung
-- **Lebenslauf** in mehreren Designs mit Editor für Abschnitte (ein- und ausblendbar, sortierbar) und automatischem
-  Seitenumbruch
+- **Lebenslauf** in mehreren Designs, mit Editor für Abschnitte (ein- und ausblendbar, sortierbar) und
+  automatischem Seitenumbruch
 - **Bewerbungsmappe** als ein zusammengeführtes PDF: Deckblatt, Anschreiben, Lebenslauf, Zeugnisse, Zertifikate
-- **Anlagen:** Zeugnisse und Zertifikate liegen einmal zentral als PDF und werden pro Bewerbung nur verknüpft
+- **Zeugnisse und Zertifikate** liegen einmal zentral als PDF und werden pro Bewerbung nur verknüpft
 - E-Mail-Text zur Bewerbung als Markdown-Datei
+
+Mitgelieferte Word-Muster für den Lebenslauf (Beispieldaten) liegen in
+[`bewerbung-studio/public/templates`](bewerbung-studio/public/templates):
+
+<p>
+  <img src="bewerbung-studio/public/templates/Klassisch_Lebenslauf_Muster.preview.png" alt="Lebenslauf-Muster Klassisch" width="180">
+  <img src="bewerbung-studio/public/templates/Kreativ_Lebenslauf_Muster.preview.png" alt="Lebenslauf-Muster Kreativ" width="180">
+  <img src="bewerbung-studio/public/templates/Ivy_League_Lebenslauf_Muster.preview.png" alt="Lebenslauf-Muster Ivy League" width="180">
+</p>
 
 ### Organisation
 
-- **Kalender** als Monats- und Agendaansicht; Termine entstehen automatisch aus Bewerbungs-, Gesprächs-,
-  Vertrags- und Fristdaten
-- **Bewerbungsfrist** erscheint im Kalender und als automatische Aufgabe im ToDo
-- **ToDo** mit Priorität, Fälligkeit und Notiz; Aufgaben zu Bewerbungen und eigene Aufgaben sind getrennt filterbar.
-  Bei Absage, Zusage, Rücknahme oder Archivierung werden die Aufgaben der Bewerbung nicht mehr als aktiv geführt
+- **Kalender** als Monats- und Agendaansicht
+- **Bewerbungsfrist:** Sie erzeugt automatisch einen Kalendertermin und eine Aufgabe mit hoher Priorität im ToDo;
+  ändern oder entfernen Sie die Frist, folgen beide
+- **ToDo** mit Priorität, Fälligkeit und Notiz; Aufgaben zu Bewerbungen und eigene Aufgaben sind getrennt filterbar
+- Nach *Absage*, *Zusage*, *Zurückgezogen* oder *Archiviert* gelten die automatischen Aufgaben der Bewerbung nicht
+  mehr als aktiv; wird der Status zurückgenommen, erscheinen sie wieder
 - Erinnerung zum Nachfassen nach einer einstellbaren Anzahl von Tagen
-- Desktop-Benachrichtigungen für Kalendertermine mit Erinnerung; fällige Aufgaben zeigt das Benachrichtigungsmenü der App
+- Desktop-Benachrichtigungen für Kalendertermine mit Erinnerung
 
-### Desktop & Daten
+### Datenverwaltung
 
-- Lokale Datenspeicherung in einem frei wählbaren Ordner
-- Automatische Sicherungen (eine pro Tag, einstellbare Aufbewahrung) sowie Export und Import per JSON
+- Mehrere Profile; jede Bewerbung verwendet genau ein Profil für alle ihre Dokumente
+- Frei wählbarer Bewerbungsordner (Workspace) und Computerwechsel
+- Automatische tägliche Sicherung, vollständige Sicherung und JSON-Export
+- Optionale Verschlüsselung mit Master-Passwort
 - Hell-, Dunkel- und Systemdesign
-- Windows-Installer und portable Version
-- Optionale Git-Automatisierung (siehe [Daten &amp; Datenschutz](#daten--datenschutz))
 
-## Technologie
+## Schnellstart
 
-| Bereich     | Technologie                                                     |
-| ----------- | --------------------------------------------------------------- |
-| Desktop     | Electron                                                        |
-| Oberfläche | React, Tailwind CSS                                             |
-| Sprache     | TypeScript (strict)                                             |
-| Build       | Vite, electron-builder                                          |
-| State       | Zustand                                                         |
-| Validierung | Zod                                                             |
-| Dokumente   | docxtemplater und PizZip (DOCX), pdf-lib (PDF-Zusammenführung) |
-| Tests       | Vitest                                                          |
-
-Die genauen Versionen stehen in [`bewerbung-studio/package.json`](bewerbung-studio/package.json).
-
-## Architektur
-
-```mermaid
-flowchart TB
-    UI["React UI (src)"] -->|typisierte API| PL["Preload (contextBridge)"]
-    PL -->|IPC| MP["Electron Main Process (electron)"]
-    MP --> ST["Storage: workspace.json"]
-    MP --> FS["Dateiverwaltung: Ordner, Anlagen, Backups"]
-    MP --> DOC["Dokumente: PDF und DOCX"]
-```
-
-- **Oberfläche:** React-Views in `src/views`, gemeinsamer Zustand in Zustand-Stores
-- **Preload:** stellt dem Renderer nur freigegebene, typisierte Methoden bereit
-- **Main Process:** Dateisystem, Dialoge, PDF-Export, Benachrichtigungen und der zentrale Datenspeicher
-- **Geteilter Code:** Schemas (Zod), Fachregeln und Seitenumbruch in `src/shared` werden von Oberfläche und Main
-  Process gemeinsam genutzt, damit Vorschau und PDF übereinstimmen
-- **Sicherheit:** `contextIsolation` und `sandbox` sind aktiv, `nodeIntegration` ist aus; externe Links sind auf
-  HTTP/HTTPS beschränkt
-
-## Voraussetzungen
-
-- Windows 10 oder neuer (x64)
-- Für die Entwicklung: [Node.js](https://nodejs.org/) 24 (wie in der CI) und npm
-- Git
-
-## Installation
-
-### Fertige Version
-
-Die aktuelle Version steht unter [Releases](https://github.com/mustafa-oezdemir/bewerbung_manager/releases/latest):
-
-- `BewerbungsManager-<Version>-x64-Setup.exe`: Installer
-- `BewerbungsManager-<Version>-x64-Portable.exe`: läuft ohne Installation
-- `SHA256SUMS.txt`: Prüfsummen der Dateien
-
-Die veröffentlichten Windows-Dateien sind derzeit nicht code-signiert; Windows SmartScreen kann deshalb warnen.
-Prüfe vor dem Start die Prüfsumme, zum Beispiel mit `Get-FileHash <Datei> -Algorithm SHA256`.
-
-### Aus dem Quellcode
-
-```bash
-git clone https://github.com/mustafa-oezdemir/bewerbung-studio.git
-cd bewerbung_manager/bewerbung-studio
-npm ci
-npm run dev
-```
-
-## Entwicklung
-
-`npm run dev` startet Vite mit dem Electron-Plugin: Oberfläche und Main Process werden gebaut und die
-Desktop-Anwendung öffnet sich. `npm start` startet dagegen die bereits gebaute Anwendung (`electron .`) und braucht
-vorher `npm run build`.
-
-Nur die Oberfläche im Browser, ohne Electron:
-
-```bash
-# PowerShell
-$env:VITE_RENDERER_ONLY="1"; npm run dev
-```
-
-Für Entwicklung und Tests lässt sich der Datenordner über die Umgebungsvariable `BEWERBUNG_ROOT_PATH` setzen.
-Verwende dafür nie deine echten Bewerbungsdaten.
-
-## Verfügbare npm-Skripte
-
-Alle Skripte laufen in `bewerbung-studio`.
-
-| Befehl                         | Zweck                                                   |
-| ------------------------------ | ------------------------------------------------------- |
-| `npm run dev`                | Entwicklungsmodus mit Electron                          |
-| `npm start`                  | Gebaute Electron-Anwendung starten                      |
-| `npm run typecheck`          | TypeScript prüfen                                      |
-| `npm test`                   | Tests ausführen (Vitest)                               |
-| `npm run build`              | Typprüfung und Production Build                        |
-| `npm run release:check`      | Typecheck, Tests und Build                              |
-| `npm run dist:win`           | Windows-Release erzeugen (Setup, Portable, Prüfsummen) |
-| `npm run dist:win:signed`    | Wie`dist:win`, mit Code-Signing (Zertifikat nötig)   |
-| `npm run dist:win:installer` | Nur den Installer bauen                                 |
-| `npm run dist:win:portable`  | Nur die portable Version bauen                          |
+1. Setup- oder Portable-Version herunterladen und die Prüfsumme kontrollieren.
+2. Anwendung starten.
+3. Den Bewerbungsordner wählen, in dem alle Bewerbungsdaten gespeichert werden.
+4. Optional die Verschlüsselung aktivieren.
+5. Ein Profil anlegen.
+6. Die erste Bewerbung erstellen.
 
 ## Daten & Datenschutz
 
 BewerbungsManager verarbeitet persönliche Daten wie Adresse, Telefonnummer, E-Mail, Lebenslauf, Zeugnisse und
 Bewerbungsunterlagen.
 
-- Die Daten liegen lokal im gewählten Bewerbungsordner. Es gibt kein Benutzerkonto und keine Cloud-Synchronisierung;
-  der Code enthält keine Telemetrie und keinen automatischen Update-Abruf.
-- Beim ersten Start wählst du den Bewerbungsordner; der Pfad wird in `bootstrap.json` im Electron-`userData`-Ordner
-  gespeichert. Den Ordner kannst du später in den Einstellungen wechseln, vorher wird eine Sicherung erstellt.
-- Die optionale Git-Automatisierung ist nur aktiv, wenn der Bewerbungsordner bereits ein Git-Repository ist. Sie
-  committet Änderungen, setzt `origin` auf das im Code fest hinterlegte Repository (`APPLICATION_DATA_REMOTE` in
-  `bewerbung-studio/electron/git-automation.ts`) und pusht dorthin. Mache den Bewerbungsordner deshalb nur dann zu
-  einem Git-Repository, wenn du das ausdrücklich willst, und passe vorher das Ziel an.
-- **Committe keine echten Bewerbungsdaten in dieses Repository** und veröffentliche sie nicht in Issues oder Pull
-  Requests. Die `.gitignore` schließt die Datenordner aus; prüfe trotzdem vor jedem Commit, was du hinzufügst.
+- Die Daten liegen lokal im gewählten Bewerbungsordner. Sie können ihn jederzeit wechseln.
+- Es gibt kein Benutzerkonto und keine Cloud-Synchronisierung.
+- Der Quellcode enthält keine Telemetrie und keinen automatischen Update-Abruf. Netzwerkzugriffe gibt es nur über
+  Links, die Sie selbst öffnen, und über die optionale Git-Automatisierung.
+- Automatische und manuelle Sicherungen sind eingebaut, die Verschlüsselung ist optional (siehe unten).
 
-## Ordnerstruktur
+> Wenn Sie die optionale Git-Automatisierung verwenden, prüfen Sie das konfigurierte Remote sorgfältig.
+> Bewerbungsdaten enthalten personenbezogene Informationen.
 
-Struktur des Bewerbungsordners:
+Die Git-Automatisierung ist nur aktiv, wenn der Bewerbungsordner bereits ein Git-Repository ist und die
+Verschlüsselung nicht aktiviert ist. Sie committet Änderungen, setzt `origin` auf das im Quellcode fest hinterlegte
+Repository (`APPLICATION_DATA_REMOTE` in
+[`bewerbung-studio/electron/git-automation.ts`](bewerbung-studio/electron/git-automation.ts)) und pusht auf `main`.
+Machen Sie den Bewerbungsordner deshalb nur dann zu einem Git-Repository, wenn Sie das ausdrücklich wollen, und
+passen Sie vorher das Ziel an.
+
+## Workspace & Computerwechsel
+
+BewerbungsManager führt den gesamten Datenbestand zentral in der Datei `workspace.json`. Diese Datei enthält
+Bewerbungen, Profile, Aufgaben und Einstellungen, aber **nicht** die Dokumente selbst. Anschreiben, Zeugnisse und
+andere Dateien liegen als eigene Dateien im Bewerbungsordner.
+
+### Auf einem anderen Computer weiterarbeiten
+
+1. Unter **Einstellungen → Übertragen & Sicherung** mit **Für anderen Computer kopieren …** den vollständigen
+   Datenbestand in einen Zielordner kopieren, oder den gesamten Bewerbungsordner selbst kopieren bzw. sicher
+   synchronisieren.
+2. BewerbungsManager auf dem neuen Computer starten.
+3. Auf dem Startbildschirm oder unter **Einstellungen → Datenbestand & Workspace** die Schaltfläche
+   **Workspace-Datei auswählen …** wählen und die `workspace.json` aus dem kopierten Ordner auswählen.
+4. Der Datenbestand wird aus dem neuen Speicherort geladen. Ist er verschlüsselt, folgt die Abfrage von
+   Master-Passwort oder Wiederherstellungsschlüssel.
+
+Mit **Einstellungen → Speicherort → Speicherort ändern …** verlegen Sie den Bewerbungsordner auf demselben Computer.
+Vorher wird eine vollständige Sicherung erstellt; der bisherige Ordner bleibt erhalten. Bei aktiver Verschlüsselung
+kopieren Sie den Datenbestand stattdessen und öffnen die Kopie über **Workspace-Datei auswählen …**.
+
+### Aufbau des Bewerbungsordners
 
 ```text
-<Bewerbungsordner>
-└── data
-    ├── Bewerbungen
-    │   └── Firma_JJJJ-MM-TT              Firma und Bewerbungsdatum
-    │       └── Stellenbezeichnung        eine Stelle pro Unterordner
-    │           ├── Anschreiben
-    │           ├── Lebenslauf
-    │           ├── Deckblatt
-    │           ├── Email
-    │           ├── Stellenanzeige
-    │           └── Bewerbungsunterlagen
-    ├── Zeugnisse
-    ├── Zertifikate
-    ├── Absagen
-    └── Setting
-        ├── Settings                      workspace.json (zentraler Datensatz)
-        ├── Profile
-        ├── Backups
-        └── Muster                        Vorlagen
+<Bewerbungsordner>/
+└── data/
+    ├── Bewerbungen/            eine Stelle pro Unterordner: Anschreiben, Lebenslauf, Deckblatt, E-Mail, ...
+    ├── Zeugnisse/
+    ├── Zertifikate/
+    ├── Absagen/
+    └── Setting/
+        ├── Settings/
+        │   └── workspace.json  zentraler Datensatz
+        ├── Profile/
+        ├── Backups/
+        └── Muster/             Vorlagen
 ```
 
 Weitere Hintergründe zur Ablage stehen in [`bewerbung-studio/README.md`](bewerbung-studio/README.md).
 
-## PDF- und Dokumentexport
+## Datensicherheit & Verschlüsselung
 
-- Der PDF-Export nutzt `printToPDF` von Electron. Vorschau und PDF verwenden dieselbe Darstellung und dieselbe
-  Seitenumbruch-Logik.
-- Das Anschreiben wird als DOCX aus einer Vorlage erzeugt und bleibt in Word bearbeitbar.
-- Die Bewerbungsmappe wird mit pdf-lib aus den einzelnen PDFs zusammengeführt.
-- Mitgelieferte Word-Muster für den Lebenslauf liegen in
-  [`bewerbung-studio/public/templates`](bewerbung-studio/public/templates), zum Beispiel:
+Optional kann der Datenbestand mit einem Master-Passwort geschützt werden. Sie wählen das beim ersten Einrichten
+oder später unter **Einstellungen → Datensicherheit & Verschlüsselung**.
 
-<p>
-  <img src="bewerbung-studio/public/templates/Klassisch_Lebenslauf_Muster.preview.png" alt="Lebenslauf-Muster Klassisch" width="200">
-  <img src="bewerbung-studio/public/templates/Kreativ_Lebenslauf_Muster.preview.png" alt="Lebenslauf-Muster Kreativ" width="200">
-  <img src="bewerbung-studio/public/templates/Ivy_League_Lebenslauf_Muster.preview.png" alt="Lebenslauf-Muster Ivy League" width="200">
-</p>
+- **Verfahren:** AES-256-GCM für Daten und Dateien; Argon2id leitet aus dem Master-Passwort den Schlüssel ab, der
+  einen zufälligen Datenschlüssel schützt.
+- **Master-Passwort:** mindestens 14 Zeichen.
+- **Wiederherstellungsschlüssel:** wird bei der Aktivierung angezeigt, lässt sich kopieren oder als TXT speichern
+  und entsperrt den Datenbestand, wenn das Passwort fehlt. Verlieren Sie Passwort und Schlüssel, gibt es keine
+  Wiederherstellung.
+- **Automatisch sperren:** nach 5, 15 (Standard), 30 oder 60 Minuten oder nie; der Datenbestand lässt sich auch
+  manuell sperren.
+- **Auf diesem Gerät merken:** optional, über den Windows-Geräteschutz (Electron `safeStorage`). Der Schlüssel liegt
+  nicht im Bewerbungsordner.
+- **Sicherungen:** die verwalteten Sicherungen im Datenordner werden mitverschlüsselt.
+- **Computerwechsel:** der Datenbestand bleibt portabel. Auf dem neuen Computer entsperren Sie ihn mit
+  Master-Passwort oder Wiederherstellungsschlüssel.
 
-## CI/CD
+### Grenzen
 
-Die Workflows liegen in [`.github/workflows`](.github/workflows).
+Die Verschlüsselung schützt die Inhalte des verwalteten `data`-Ordners. Sie ist kein Schutz gegen alles:
 
-**CI** ([`ci.yml`](.github/workflows/ci.yml)): bei jedem Pull Request und Push auf `main`
+- Ordner- und Dateinamen bleiben sichtbar.
+- Dateien, die Sie bewusst aus dem Datenbestand exportieren (PDF, DOCX, JSON-Sicherung, Einstellungen), liegen
+  außerhalb davon unverschlüsselt vor.
+- Öffnen Sie ein Dokument in einem externen Programm (zum Beispiel Word), liegt dafür vorübergehend eine
+  entschlüsselte Kopie außerhalb des Bewerbungsordners. Sie wird nach einer Stunde sowie beim Beenden und beim
+  nächsten Start entfernt. Auf SSDs lässt sich das Löschen nicht garantieren.
+- Frühere unverschlüsselte Dateiversionen, Kopien und Git-Commits werden nicht rückwirkend entfernt.
+- Bei entsperrter Anwendung oder einem kompromittierten Betriebssystem bietet die Verschlüsselung keinen
+  vollständigen Schutz.
+- Bei aktiver Verschlüsselung ist die Git-Automatisierung ausgeschaltet.
 
-```text
-npm ci → npm run release:check (Typecheck → Tests → Build)
-```
+Legen Sie vor der ersten Aktivierung zusätzlich eine eigene externe Sicherung an.
 
-**Release** ([`release.yml`](.github/workflows/release.yml)): bei einem Tag `vX.Y.Z` oder manuell
+## Backup & Wiederherstellung
 
-```text
-Tag und package.json-Version prüfen → release:check → Windows-Build (Setup und Portable)
-→ SHA-256-Prüfsummen prüfen → Workflow-Artefakt → GitHub Release (nur für einen Tag)
-```
+Unter **Einstellungen → Übertragen & Sicherung**:
 
-Ohne hinterlegte Signing-Secrets baut der Workflow unsignierte Dateien.
+- **Tägliche automatische JSON-Sicherung** des Datenbestands (`workspace-JJJJ-MM-TT.json`) im Ordner
+  `data/Setting/Backups`; die Zahl der aufbewahrten Sicherungen ist einstellbar (3 bis 50).
+- **Jetzt sichern** erstellt eine vollständige Sicherung des Bewerbungsordners im Backup-Ordner, mit Prüfsummen
+  aller Dateien.
+- **JSON-Sicherung exportieren** und **Sicherung wiederherstellen** (der aktuelle Stand wird vorher automatisch
+  gesichert) sowie Export und Import der Einstellungen.
+- Beim Löschen einer Bewerbung werden ihre Daten zuvor als JSON archiviert (Ordner `Silinenler`).
 
-## Windows Release
+Eine eigene Sicherung des gesamten Bewerbungsordners an einem zweiten Ort bleibt empfehlenswert.
+
+## Systemvoraussetzungen
+
+- Windows 10 oder 11, 64 Bit (x64)
+
+Andere Betriebssysteme und Architekturen werden nicht veröffentlicht.
+
+## Entwicklung
+
+Voraussetzungen: [Node.js](https://nodejs.org/) 24 (wie in der CI), npm und Git. Die Anwendung liegt im
+Unterordner `bewerbung-studio`.
 
 ```bash
-cd bewerbung-studio
-npm run dist:win
+git clone https://github.com/mustafa-oezdemir/bewerbung-studio.git
+cd bewerbung-studio/bewerbung-studio
+npm ci
+npm run dev
 ```
 
-Das Ergebnis liegt in `bewerbung-studio/windows-release`. Checkliste, Signierung und den GitHub-Actions-Ablauf
-beschreibt [RELEASE.md](bewerbung-studio/RELEASE.md).
+`npm run dev` startet Vite mit dem Electron-Plugin und öffnet die Desktop-Anwendung. `npm start` startet die bereits
+gebaute Anwendung und braucht vorher `npm run build`. Nur die Oberfläche im Browser, ohne Electron:
+
+```powershell
+$env:VITE_RENDERER_ONLY="1"; npm run dev
+```
+
+Für Entwicklung und Tests lässt sich der Datenordner über die Umgebungsvariable `BEWERBUNG_ROOT_PATH` setzen.
+Verwenden Sie dafür nie Ihre echten Bewerbungsdaten.
+
+### Skripte
+
+Alle Skripte laufen im Anwendungsordner, also dem Ordner mit der `package.json`.
+
+| Befehl | Zweck |
+| --- | --- |
+| `npm run dev` | Entwicklungsmodus mit Electron |
+| `npm start` | Gebaute Electron-Anwendung starten |
+| `npm run build` | Typprüfung und Production Build |
+| `npm run typecheck` | TypeScript prüfen |
+| `npm test` | Tests ausführen (Vitest) |
+| `npm run release:check` | Typecheck, Tests und Build |
+| `npm run dist:win` | Windows-Release erzeugen (Setup, Portable, Prüfsummen) |
+| `npm run dist:win:signed` | Wie `dist:win`, mit Code-Signing (Zertifikat nötig) |
+| `npm run dist:win:installer` | Nur den Installer bauen |
+| `npm run dist:win:portable` | Nur die portable Version bauen |
+
+Die Technik im Überblick: Electron, React, TypeScript (strict), Vite, Tailwind CSS, Zustand und Zod; Dokumente mit
+docxtemplater, PizZip und pdf-lib. Die genauen Versionen stehen in
+[`bewerbung-studio/package.json`](bewerbung-studio/package.json).
 
 ## Tests
 
 ```bash
-cd bewerbung-studio
 npm test
 ```
 
-Die Tests laufen mit Vitest und liegen neben dem Code (`*.test.ts` und `*.test.tsx`). Sie prüfen unter anderem
-Schemas, Speicherlogik, Dokumenterzeugung und Seitenumbruch. Vor einem Pull Request sollte `npm run release:check`
-durchlaufen.
+im Anwendungsordner (siehe [Entwicklung](#entwicklung)). Die Tests laufen mit Vitest und liegen neben dem Code (`*.test.ts`, `*.test.tsx`). Vor einem Pull Request sollte
+`npm run release:check` durchlaufen.
+
+## CI/CD & Release
+
+```text
+PR / main
+→ CI
+→ Typecheck
+→ Tests
+→ Build
+
+vX.Y.Z (Tag)
+→ Windows Release
+→ Setup
+→ Portable
+→ SHA256
+→ GitHub Release
+```
+
+Die Workflows [`ci.yml`](.github/workflows/ci.yml) und [`release.yml`](.github/workflows/release.yml) rufen die
+vorhandenen npm-Skripte auf. Ohne hinterlegte Signing-Secrets entstehen unsignierte Dateien. Checkliste, Signierung
+und der genaue Ablauf stehen in [`bewerbung-studio/RELEASE.md`](bewerbung-studio/RELEASE.md). Änderungen einer
+einzelnen Version stehen in den Release Notes auf GitHub, nicht in dieser Datei.
 
 ## Projektstruktur
 
 ```text
-bewerbung_manager
-├── .github
-│   ├── ISSUE_TEMPLATE
-│   ├── workflows
+bewerbung-studio/
+├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   ├── workflows/               CI und Windows-Release
 │   └── pull_request_template.md
-├── bewerbung-studio
-│   ├── electron            Main Process, Speicher, Dateien, PDF, Vorlagen
-│   ├── src
-│   │   ├── views           Dashboard, Bewerbungen, Kalender, ToDo, Dokumente, Profil
-│   │   ├── components      Assistent, Lebenslauf-Vorlagen, Deckblatt
-│   │   └── shared          Schemas, Fachregeln, Seitenumbruch
-│   ├── scripts             Release-Build, Prüfsummen, QA-Skripte
-│   ├── public/templates    Word-Muster
+├── bewerbung-studio/            die Anwendung
+│   ├── electron/                Main Process: Speicher, Dateien, PDF/DOCX, Vorlagen, Verschlüsselung
+│   ├── src/
+│   │   ├── views/               Dashboard, Bewerbungen, Kalender, ToDo, Dokumente, Profil, Einstellungen
+│   │   ├── components/          Assistent, Lebenslauf-Vorlagen, Deckblatt
+│   │   └── shared/              Schemas, Fachregeln, Seitenumbruch
+│   ├── scripts/                 Release-Build, Prüfsummen, QA-Skripte
+│   ├── public/templates/        Word-Muster
 │   ├── package.json
 │   └── RELEASE.md
 ├── CODE_OF_CONDUCT.md
@@ -291,15 +325,17 @@ bewerbung_manager
 
 ## Mitwirken
 
-Beiträge sind willkommen. Details stehen in [CONTRIBUTING.md](CONTRIBUTING.md). Es gilt der
-[Verhaltenskodex](CODE_OF_CONDUCT.md).
+Beiträge sind willkommen. Siehe [CONTRIBUTING.md](CONTRIBUTING.md). Es gilt der
+[Verhaltenskodex](CODE_OF_CONDUCT.md). Committen Sie keine echten Bewerbungsdaten und veröffentlichen Sie sie nicht in
+Issues oder Pull Requests.
 
 ## Sicherheit
 
-Sicherheitslücken bitte nicht als öffentliche Issue melden. Siehe [SECURITY.md](SECURITY.md).
+Sicherheitslücken bitte nicht öffentlich melden.
+Weitere Informationen: [SECURITY.md](SECURITY.md)
 
 ## Lizenz
 
-Dieses Projekt ist unter der Apache License 2.0 lizenziert.
+BewerbungsManager ist unter der Apache License 2.0 veröffentlicht.
 
 Siehe [LICENSE](LICENSE) und [NOTICE](NOTICE).

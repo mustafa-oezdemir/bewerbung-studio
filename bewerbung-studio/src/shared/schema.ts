@@ -748,6 +748,7 @@ export const appSettingsSchema = z.object({
   autoBackupEnabled: z.boolean().default(true),
   backupRetention: z.number().int().min(3).max(50).default(10),
   autoSaveDelaySeconds: z.number().int().min(1).max(30).default(2),
+  autoLockMinutes: z.union([z.literal(0), z.literal(5), z.literal(15), z.literal(30), z.literal(60)]).default(15),
   sidebarCollapsed: z.boolean().default(false),
   language: z.literal("de"),
 });
@@ -809,6 +810,7 @@ export const defaultSettings: AppSettings = {
   autoBackupEnabled: true,
   backupRetention: 10,
   autoSaveDelaySeconds: 2,
+  autoLockMinutes: 15,
   sidebarCollapsed: false,
   language: "de",
 };

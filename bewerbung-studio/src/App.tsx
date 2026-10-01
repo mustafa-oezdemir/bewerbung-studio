@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { NewApplicationWizard } from "./components/NewApplicationWizard";
+import { SecurityControls } from "./components/SecurityControls";
 import { GlobalApplicationSearch } from "./components/GlobalApplicationSearch";
 import { ApplicationsView } from "./views/ApplicationsView";
 import { CalendarView } from "./views/CalendarView";
@@ -34,7 +35,7 @@ import { TemplatesView } from "./views/TemplatesView";
 import { TodoView } from "./views/TodoView";
 import { useAppStore } from "./store/useAppStore";
 import { resolveSelectedProfile } from "./shared/profileSelection";
-import type { WorkspaceStatus } from "./shared/ipc";
+import type { SecurityStatus, WorkspaceStatus } from "./shared/ipc";
 import { actionableTodos, activeTodos, isTodoOverdue, todoCounts } from "./shared/todos";
 
 type View =
@@ -70,6 +71,10 @@ export default function App() {
   const [workspaceStatus, setWorkspaceStatus] =
     useState<WorkspaceStatus | null>(null);
   const [setupError, setSetupError] = useState("");
+  const [securityStatus, setSecurityStatus] = useState<SecurityStatus | null>(null);
+  const [unlockCredential, setUnlockCredential] = useState("");
+  const [unlockKind, setUnlockKind] = useState<"password" | "recovery">("password");
+  const [unlockBusy, setUnlockBusy] = useState(false);
   const [view, setView] = useState<View>("home");
   const [wizardOpen, setWizardOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -100,13 +105,18 @@ export default function App() {
     if (!window.bewerbungsManager) {
       void hydrate();
       setWorkspaceStatus({ state: "ready", root: "" });
+      setSecurityStatus({ mode: "plaintext", onboardingRequired: false, rememberDevice: false, autoLockMinutes: 15, pendingSwitch: false });
       return;
     }
     void window.bewerbungsManager.system
       .workspaceStatus()
       .then((status) => {
         setWorkspaceStatus(status);
-        if (status.state === "ready") void hydrate();
+        if (status.state === "ready") void window.bewerbungsManager.security.status().then((security) => {
+          setSecurityStatus(security);
+          if (!security.onboardingRequired) void hydrate();
+        });
+        if (status.state === "locked") void window.bewerbungsManager.security.status().then(setSecurityStatus);
       })
       .catch((error: unknown) =>
         setSetupError(
@@ -122,13 +132,28 @@ export default function App() {
     try {
       const status = await window.bewerbungsManager.system.chooseWorkspace();
       setWorkspaceStatus(status);
-      if (status.state === "ready") await hydrate();
+      if (status.state === "ready") {
+        const security = await window.bewerbungsManager.security.status();
+        setSecurityStatus(security);
+        if (!security.onboardingRequired) await hydrate();
+      }
     } catch (error) {
       setSetupError(
         error instanceof Error
           ? error.message
           : "Der Ordner konnte nicht eingerichtet werden.",
       );
+    }
+  };
+
+  const openExistingWorkspace = async () => {
+    setSetupError("");
+    try {
+      const status = await window.bewerbungsManager.system.openExistingWorkspace();
+      setWorkspaceStatus(status);
+      if (status.state === "ready") window.location.reload();
+    } catch (error) {
+      setSetupError(error instanceof Error ? error.message : "Der Datenbestand konnte nicht geöffnet werden.");
     }
   };
 
@@ -189,6 +214,56 @@ export default function App() {
     setView("active");
   };
 
+  const unlockWorkspace = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSetupError("");
+    setUnlockBusy(true);
+    try {
+      const status = await window.bewerbungsManager.security.unlock(unlockCredential, unlockKind);
+      setWorkspaceStatus(status);
+      setUnlockCredential("");
+      if (status.state === "ready") window.location.reload();
+    } catch (error) {
+      setSetupError(error instanceof Error ? error.message : "Der Datenbestand konnte nicht entsperrt werden.");
+    } finally {
+      setUnlockCredential("");
+      setUnlockBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (workspaceStatus?.state !== "ready" || !window.bewerbungsManager) return;
+    let last = 0;
+    const touch = () => {
+      if (Date.now() - last < 5000) return;
+      last = Date.now();
+      void window.bewerbungsManager.security.touch();
+    };
+    window.addEventListener("pointerdown", touch);
+    window.addEventListener("keydown", touch);
+    return () => { window.removeEventListener("pointerdown", touch); window.removeEventListener("keydown", touch); };
+  }, [workspaceStatus]);
+
+  if (workspaceStatus?.state === "locked") return <main className="workspace-setup"><div className="surface workspace-setup-card">
+    <span className="eyebrow">BewerbungsManager</span>
+    <h1>Datenbestand entsperren</h1>
+    <p>Dieser Datenbestand ist verschlüsselt. Geben Sie Ihr Master-Passwort oder den Wiederherstellungsschlüssel ein.</p>
+    {workspaceStatus.migration && <p>Eine unterbrochene Umstellung wird nach dem Entsperren sicher fortgesetzt.</p>}
+    <form onSubmit={(event) => void unlockWorkspace(event)}>
+      <label className="field"><span>{unlockKind === "password" ? "Master-Passwort" : "Wiederherstellungsschlüssel"}</span><input autoFocus type={unlockKind === "password" ? "password" : "text"} value={unlockCredential} onChange={(event) => setUnlockCredential(event.target.value)} /></label>
+      <button className="button primary" type="submit" disabled={unlockBusy || !unlockCredential}>{unlockBusy ? "Bitte warten …" : "Entsperren"}</button>
+    </form>
+    <button className="button secondary" type="button" onClick={() => { setUnlockCredential(""); setUnlockKind(unlockKind === "password" ? "recovery" : "password"); }}>{unlockKind === "password" ? "Wiederherstellungsschlüssel verwenden" : "Master-Passwort verwenden"}</button>
+    {securityStatus?.pendingSwitch && <button className="button secondary" type="button" onClick={() => void window.bewerbungsManager.security.cancelPending().then(setWorkspaceStatus)}>Abbrechen</button>}
+    {setupError && <p role="alert" className="field-error">{setupError}</p>}
+  </div></main>;
+
+  if (workspaceStatus?.state === "ready" && !securityStatus) return <main className="workspace-setup"><div className="surface workspace-setup-card">Sicherheitseinstellungen werden geladen …</div></main>;
+
+  if (workspaceStatus?.state === "ready" && securityStatus?.onboardingRequired) return <main className="workspace-setup"><div className="surface workspace-setup-card"><SecurityControls initial onComplete={() => {
+    void window.bewerbungsManager.security.status().then((status) => { setSecurityStatus(status); void hydrate(); });
+  }} /></div></main>;
+
   if (workspaceStatus?.state !== "ready") {
     return (
       <main className="workspace-setup">
@@ -227,7 +302,11 @@ export default function App() {
             className="button primary"
             type="button"
             onClick={() => void chooseWorkspace()}>
-            <FolderArchive size={18} /> Ordner auswählen
+            <FolderArchive size={18} /> Neuen Bewerbungsordner auswählen
+          </button>
+          <button className="button secondary" type="button"
+            onClick={() => void openExistingWorkspace()}>
+            Workspace-Datei auswählen …
           </button>
           {(workspaceStatus?.state === "missing" ||
             workspaceStatus?.state === "error") && (

@@ -2,6 +2,20 @@ import { contextBridge, ipcRenderer } from "electron";
 import type { BewerbungsManagerApi } from "../src/shared/ipc";
 
 const api: BewerbungsManagerApi = {
+  security: {
+    status: () => ipcRenderer.invoke("security:status"),
+    completeOnboarding: () => ipcRenderer.invoke("security:complete-onboarding"),
+    unlock: (credential, kind) => ipcRenderer.invoke("security:unlock", credential, kind),
+    cancelPending: () => ipcRenderer.invoke("security:cancel-pending"),
+    touch: () => ipcRenderer.invoke("security:touch"),
+    enable: (password) => ipcRenderer.invoke("security:enable", password),
+    lock: () => ipcRenderer.invoke("security:lock"),
+    changePassword: (oldPassword, newPassword) => ipcRenderer.invoke("security:change-password", oldPassword, newPassword),
+    rotateRecoveryKey: (password) => ipcRenderer.invoke("security:rotate-recovery", password),
+    disable: (password) => ipcRenderer.invoke("security:disable", password),
+    setRememberDevice: (enabled) => ipcRenderer.invoke("security:remember-device", enabled),
+    saveRecoveryKey: (key) => ipcRenderer.invoke("security:save-recovery-key", key),
+  },
   workspace: {
     get: () => ipcRenderer.invoke("workspace:get"),
   },
@@ -89,7 +103,11 @@ const api: BewerbungsManagerApi = {
     dataPath: () => ipcRenderer.invoke("system:data-path"),
     workspaceStatus: () => ipcRenderer.invoke("system:workspace-status"),
     chooseWorkspace: () => ipcRenderer.invoke("system:choose-workspace"),
+    openExistingWorkspace: () => ipcRenderer.invoke("system:open-existing-workspace"),
     openWorkspace: () => ipcRenderer.invoke("system:open-workspace"),
+    openWorkspaceFile: () => ipcRenderer.invoke("system:open-workspace-file"),
+    workspaceDetails: () => ipcRenderer.invoke("system:workspace-details"),
+    copyWorkspace: () => ipcRenderer.invoke("system:copy-workspace"),
     backupWorkspace: () => ipcRenderer.invoke("system:backup-workspace"),
     openBackups: () => ipcRenderer.invoke("system:open-backups"),
     changeWorkspace: (mode) => ipcRenderer.invoke("system:change-workspace", mode),

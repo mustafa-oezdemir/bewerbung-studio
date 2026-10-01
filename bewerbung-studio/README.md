@@ -26,6 +26,43 @@ Erstellung eines konsistenten Sets aus Deckblatt, Anschreiben und Lebenslauf.
 - JSON wird in eine temporäre Datei geschrieben, synchronisiert und mit
   Sicherung ersetzt
 
+### Optionale Workspace-Verschlüsselung
+
+Beim ersten Öffnen eines Datenbestands kann die Verschlüsselung gewählt oder
+übersprungen werden. Später steht sie unter **Einstellungen → Datensicherheit &
+Verschlüsselung** zur Verfügung. Ein Master-Passwort mit mindestens 14 Zeichen
+und ein getrennt aufzubewahrender Wiederherstellungsschlüssel entsperren den
+Datenbestand. Bei Verlust beider Zugangsmöglichkeiten gibt es keinen
+Hintereingang.
+
+Die Anwendung schützt die Inhalte des verwalteten `data`-Ordners einschließlich
+`workspace.json`, `bewerbung.json`, Dokumenten und verwalteten Sicherungen mit
+AES-256-GCM. Argon2id leitet aus dem Passwort einen Schlüssel ab, der einen
+zufälligen Datenschlüssel schützt. Passwort, Wiederherstellungsschlüssel und
+unverschlüsselter Datenschlüssel werden nicht im Bewerbungsordner gespeichert.
+Eine unterbrochene Umstellung wird mit einem Journal beim nächsten Entsperren
+fortgesetzt. Vor der Aktivierung legt die Anwendung eine geprüfte vollständige
+Sicherung an. Die Umstellung wurde mit temporären Testdaten geprüft; sichern Sie
+Ihren eigenen Datenbestand zusätzlich vor der ersten Aktivierung extern.
+
+**Grenzen:** Ordner- und Dateinamen bleiben sichtbar. Frühere unverschlüsselte
+Dateiversionen, Kopien und Git-Commits werden nicht rückwirkend entfernt.
+Entschlüsselte Dateien, die in externen Programmen geöffnet werden, liegen dort
+vorübergehend im Klartext; beim regulären Beenden und beim nächsten Start werden
+solche temporären Kopien entfernt. Eine sichere Löschung auf SSDs kann nicht
+garantiert werden. Bewusst außerhalb des Datenbestands exportierte PDFs und
+Einstellungen sind unverschlüsselt. Bei entsperrter Anwendung oder einem
+kompromittierten Betriebssystem bietet die Verschlüsselung keinen vollständigen
+Schutz.
+
+Die optionale Geräteentsperrung verwendet Electron `safeStorage` außerhalb des
+Bewerbungsordners. Beim Kopieren auf einen anderen Computer bleiben Master-Passwort
+und Wiederherstellungsschlüssel die portablen Zugangsmöglichkeiten.
+
+Technische Referenzen: [OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html),
+[NIST SP 800-38D](https://csrc.nist.gov/pubs/sp/800/38/d/final),
+[Electron safeStorage](https://www.electronjs.org/docs/latest/api/safe-storage).
+
 ## Datenablage
 
 Beim ersten Start wählen Sie einen Bewerbungsordner. Die Anwendung speichert

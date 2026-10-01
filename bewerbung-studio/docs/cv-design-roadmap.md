@@ -11,23 +11,23 @@ und App-Funktionen. Jeder abgeschlossene Schritt wird geprüft und separat gepus
 
 Ausgangscommit: `1ce2cc8`. Keine visuelle Änderung in diesem Schritt.
 
-| Bereich | Bestehende Implementierung | Folgerung |
-| --- | --- | --- |
-| Daten und Validierung | `src/shared/schema.ts`, Zod | Profile und Bewerbungen bleiben kompatibel. |
-| Vorlagen | `src/shared/templates.ts`, `src/components/resume/templates/*` | Bestehende Defaults erweitern, keine zweite Vorlagenregistrierung. |
-| Design | `src/shared/documentDesign.ts` | Vorhandene Farben, Schrift-, Abstands- und CSS-Variablen erweitern. |
-| Designzustand | `src/shared/documentEditorState.ts`, `templateDesigns` in Application | Vorlagenwechsel kann nicht definierte Einstellungen übernehmen; Reset setzt Farben bisher nicht zurück. |
-| Speicherung | `electron/storage.ts` (DataStore), `src/store/useAppStore.ts`, IPC | Zod-validierte JSON-Dateien, atomare Speicherung und Sicherungen weiterverwenden. |
-| Vorschau | `src/views/DocumentsView.tsx`, React-Vorlagen, `ManagedResumePreview.tsx` | Gemeinsame Auflösung vor der Ausgabe einbinden. |
-| PDF | `electron/documents.ts`, HTML/CSS und Chromium | Eigenständiges Markup; gemeinsame Projektion über `resumeManagedOutput.ts` bereits vorhanden. |
-| Word | `electron/templates/*`, Platzhalter in `electron/storage.ts` | Bestehende Engine beibehalten; gebündelte DOCX-Dateien fehlen derzeit. |
-| Eigene Abschnitte | `specialSections`, `ResumeSpecialSections.tsx`, `resumeManagedOutput.ts` | React verwendet teilweise Vorlagenklassen, PDF erzeugt generische `managed-extra`-Blöcke. |
-| Reihenfolge/Sichtbarkeit/Spalten | `features/resume-sections/resume-manager.ts`, `resume-section-system.ts` | Vorhandene Metadaten und Organizer weiterverwenden. |
-| Profil/Design-Trennung | Präsentationsfelder teilweise im Profil; `resume-editor-settings.ts` schützt Entwürfe | Keine destruktive Migration; kompatible Adapter notwendig. |
-| Dichte/Seiten | `documentPagination.ts`, `resumeSectionLayout.ts`, Vorlagen-CSS | Vorlagenspezifische Ausgangswerte erhalten; Abschnitts- und Eintragsabstände getrennt behandeln. |
-| Icons/Stärken | `technologyBrand.ts`, `strengthSymbols.ts`, `resumeSectionLayout.ts` | Auto-/manuelle Icons und 1–4 Spalten existieren bereits (Commit `86ba317`). |
-| Abschluss | `resumeClosing`, Profil-Unterschrift; Pehlione unterstützt einzelne Schalter | Für alle Vorlagen vereinheitlichen. |
-| App-Shell | `src/App.tsx`, Settings-Theme | Hell/Dunkel existiert teilweise, lokaler Toggle ist nicht vollständig persistiert; ToDo/Notizen fehlen. |
+| Bereich                          | Bestehende Implementierung                                                                | Folgerung                                                                                                 |
+| -------------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Daten und Validierung            | `src/shared/schema.ts`, Zod                                                             | Profile und Bewerbungen bleiben kompatibel.                                                               |
+| Vorlagen                         | `src/shared/templates.ts`, `src/components/resume/templates/*`                        | Bestehende Defaults erweitern, keine zweite Vorlagenregistrierung.                                        |
+| Design                           | `src/shared/documentDesign.ts`                                                          | Vorhandene Farben, Schrift-, Abstands- und CSS-Variablen erweitern.                                       |
+| Designzustand                    | `src/shared/documentEditorState.ts`, `templateDesigns` in Application                 | Vorlagenwechsel kann nicht definierte Einstellungen übernehmen; Reset setzt Farben bisher nicht zurück. |
+| Speicherung                      | `electron/storage.ts` (DataStore), `src/store/useAppStore.ts`, IPC                    | Zod-validierte JSON-Dateien, atomare Speicherung und Sicherungen weiterverwenden.                         |
+| Vorschau                         | `src/views/DocumentsView.tsx`, React-Vorlagen, `ManagedResumePreview.tsx`             | Gemeinsame Auflösung vor der Ausgabe einbinden.                                                          |
+| PDF                              | `electron/documents.ts`, HTML/CSS und Chromium                                          | Eigenständiges Markup; gemeinsame Projektion über`resumeManagedOutput.ts` bereits vorhanden.          |
+| Word                             | `electron/templates/*`, Platzhalter in `electron/storage.ts`                          | Bestehende Engine beibehalten; gebündelte DOCX-Dateien fehlen derzeit.                                   |
+| Eigene Abschnitte                | `specialSections`, `ResumeSpecialSections.tsx`, `resumeManagedOutput.ts`            | React verwendet teilweise Vorlagenklassen, PDF erzeugt generische`managed-extra`-Blöcke.               |
+| Reihenfolge/Sichtbarkeit/Spalten | `features/resume-sections/resume-manager.ts`, `resume-section-system.ts`              | Vorhandene Metadaten und Organizer weiterverwenden.                                                       |
+| Profil/Design-Trennung           | Präsentationsfelder teilweise im Profil;`resume-editor-settings.ts` schützt Entwürfe | Keine destruktive Migration; kompatible Adapter notwendig.                                                |
+| Dichte/Seiten                    | `documentPagination.ts`, `resumeSectionLayout.ts`, Vorlagen-CSS                       | Vorlagenspezifische Ausgangswerte erhalten; Abschnitts- und Eintragsabstände getrennt behandeln.         |
+| Icons/Stärken                   | `technologyBrand.ts`, `strengthSymbols.ts`, `resumeSectionLayout.ts`                | Auto-/manuelle Icons und 1–4 Spalten existieren bereits (Commit`86ba317`).                             |
+| Abschluss                        | `resumeClosing`, Profil-Unterschrift; Pehlione unterstützt einzelne Schalter           | Für alle Vorlagen vereinheitlichen.                                                                      |
+| App-Shell                        | `src/App.tsx`, Settings-Theme                                                           | Hell/Dunkel existiert teilweise, lokaler Toggle ist nicht vollständig persistiert; ToDo/Notizen fehlen.  |
 
 Aktive Vorlagen: Pehlione White, Pehlione White Blue, Zweispaltig, Gepflegt,
 Tabellarisch, Modern, Elegant, Zeitgenössisch, Kreativ, Ivy League, Stilvoll,
@@ -47,15 +47,15 @@ Quality Gate darf erst nach Wiederherstellung und Prüfung dieser Dateien gemeld
 
 ## Weitere Schritte
 
-- [x] 0: Architektur und Baseline dokumentieren.
-- [x] 1: Gemeinsame semantische Designauflösung, ohne Defaultansichten zu verändern.
-- [x] 2: Vorlagenbezogene Overrides und vollständiger Reset.
-- [x] 3: Profildaten und Darstellung kompatibel trennen.
-- [x] 4: Eigene Abschnitte normalisieren.
-- [x] 5: Vorlagenstile für eigene Abschnitte vererben.
-- [x] 6–7: Gemeinsame Spalten, Platzierung, Reihenfolge und Sichtbarkeit.
-- [x] 8–9: Abstände und Metadatenlayout.
-- [x] 10–11: Bestehende Stärken-/Icon-Lösung gegen gemeinsame Anforderungen prüfen.
+- [X] 0: Architektur und Baseline dokumentieren.
+- [X] 1: Gemeinsame semantische Designauflösung, ohne Defaultansichten zu verändern.
+- [X] 2: Vorlagenbezogene Overrides und vollständiger Reset.
+- [X] 3: Profildaten und Darstellung kompatibel trennen.
+- [X] 4: Eigene Abschnitte normalisieren.
+- [X] 5: Vorlagenstile für eigene Abschnitte vererben.
+- [X] 6–7: Gemeinsame Spalten, Platzierung, Reihenfolge und Sichtbarkeit.
+- [X] 8–9: Abstände und Metadatenlayout.
+- [X] 10–11: Bestehende Stärken-/Icon-Lösung gegen gemeinsame Anforderungen prüfen.
 - [ ] 12–13: Abschlussblock und gemeinsame Vorschau-/PDF-Auflösung.
 - [ ] 14–24: Vorlagen einzeln anhand ihrer Referenzen prüfen und korrigieren.
 - [ ] 25–28: Designpanel, eigene Designs, Word-Anbindung und Editor.
@@ -186,6 +186,8 @@ Seitenspalten links/rechts und die sicheren Verhältnisse 20/80 bis 40/60 in
 Fünferschritten. Ohne gespeicherte Layoutauswahl bleibt das native Layout jeder
 Vorlage samt eigener Breite unverändert. Eine Wahl im Designpanel wird pro
 Bewerbung gespeichert; „Vorlage“ entfernt Modus-, Seiten- und Breiten-Overrides
+
+
 und stellt die ursprüngliche Vorlage wieder her. Bestehende Pehlione-Profilbreiten
 bleiben bei einem reinen Seitenwechsel erhalten.
 

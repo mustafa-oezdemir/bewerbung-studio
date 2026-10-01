@@ -9,7 +9,7 @@ import {
   rename,
   rm,
   rmdir,
-} from "node:fs/promises";
+} from "./security/secure-fs";
 import path from "node:path";
 import type { Application, ApplicationStatus } from "../src/shared/schema";
 import type { ApplicationPaths } from "../src/config/application-paths";

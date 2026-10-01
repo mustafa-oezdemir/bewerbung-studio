@@ -1,4 +1,4 @@
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile } from "../security/secure-fs";
 import path from "node:path";
 import type { ApplicationPaths } from "../../src/config/application-paths";
 import {

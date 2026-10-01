@@ -1,4 +1,4 @@
-import { copyFile, readFile, writeFile } from "node:fs/promises";
+import { copyFile, readFile, writeFile } from "../security/secure-fs";
 import path from "node:path";
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";

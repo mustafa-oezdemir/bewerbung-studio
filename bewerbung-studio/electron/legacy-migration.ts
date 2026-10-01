@@ -4,7 +4,7 @@ import {
   readdir,
   readFile,
   stat,
-} from "node:fs/promises";
+} from "./security/secure-fs";
 import path from "node:path";
 import type { ApplicationPaths } from "../src/config/application-paths";
 import type { LegacyMigrationPreview } from "../src/shared/ipc";

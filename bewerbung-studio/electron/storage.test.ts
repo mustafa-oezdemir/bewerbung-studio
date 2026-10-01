@@ -74,6 +74,33 @@ describe("DataStore backups", () => {
     ).toBe(true);
   });
 
+  it("does not overwrite a workspace changed by another process", async () => {
+    const file = path.join(root, "data", "Setting", "Settings", "workspace.json");
+    const changed = JSON.parse(await readFile(file, "utf8"));
+    changed.updatedAt = new Date(Date.now() + 60_000).toISOString();
+    await writeFile(file, JSON.stringify(changed));
+    await expect(store.createApplication(applicationInput("Concurrent GmbH"))).rejects.toThrow("extern geändert");
+    expect(await readFile(file, "utf8")).toBe(JSON.stringify(changed));
+  });
+
+  it("does not save after another instance takes the workspace lock", async () => {
+    const file = path.join(root, "data", "Setting", "Settings", "workspace.json");
+    const before = await readFile(file, "utf8");
+    await writeFile(path.join(root, ".workspace.lock"), JSON.stringify({ hostname: "other-computer", pid: 42 }));
+    await expect(store.createApplication(applicationInput("Locked GmbH"))).rejects.toThrow("gesperrt");
+    expect(await readFile(file, "utf8")).toBe(before);
+  });
+
+  it("requires its acquired lock to remain present while saving", async () => {
+    const lockedStore = new DataStore(root, undefined, "session-token");
+    await writeFile(path.join(root, ".workspace.lock"), JSON.stringify({
+      hostname: (await import("node:os")).hostname(), pid: process.pid, lockId: "session-token",
+    }));
+    await lockedStore.initialize();
+    await rm(path.join(root, ".workspace.lock"));
+    await expect(lockedStore.createApplication(applicationInput("Missing lock GmbH"))).rejects.toThrow("gesperrt");
+  });
+
   it("restores a validated workspace and keeps a pre-import snapshot", async () => {
     await store.createApplication(applicationInput("Erste GmbH"));
     const backupPath = path.join(root, "workspace-export.json");

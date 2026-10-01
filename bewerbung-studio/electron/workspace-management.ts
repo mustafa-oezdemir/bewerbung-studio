@@ -2,9 +2,12 @@ import { createHash, randomUUID } from "node:crypto";
 import { constants, createReadStream } from "node:fs";
 import { copyFile, lstat, mkdir, open, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import os from "node:os";
 import { z } from "zod";
 import { resolveApplicationPaths, DEFAULT_BEWERBUNG_ROOT_PATH, BEWERBUNG_ROOT_PATH_ENV } from "../src/config/application-paths";
 import { workspaceSchema } from "../src/shared/schema";
+import { parseEncryptedWorkspace } from "./security/encryption-service";
+import { encodeForManagedWrite } from "./security/secure-fs";
 import { FileManagementService, isPathInside } from "./file-management";
 import type { WorkspaceChangeMode, WorkspaceStatus } from "../src/shared/ipc";
 
@@ -15,6 +18,11 @@ const bootstrapSchema = z.object({
 
 const exists = async (candidate: string) => {
   try { await stat(candidate); return true; } catch { return false; }
+};
+
+const isDirectory = async (candidate: string) => {
+  const info = await lstat(candidate).catch(() => null);
+  return Boolean(info?.isDirectory() && !info.isSymbolicLink());
 };
 
 const hashFile = async (filePath: string) => {
@@ -33,9 +41,43 @@ const workspacePaths = (root: string) => {
   ];
 };
 
+export const resolveWorkspaceRootFromFile = (filePath: string) => {
+  const selected = path.resolve(filePath);
+  if (path.basename(selected).toLowerCase() !== "workspace.json") return null;
+  const settings = path.dirname(selected);
+  const parent = path.dirname(settings);
+  const data = path.dirname(parent);
+  if (path.basename(settings).toLowerCase() === "settings" &&
+      path.basename(parent).toLowerCase() === "setting" &&
+      path.basename(data).toLowerCase() === "data") return path.dirname(data);
+  if (path.basename(settings).toLowerCase() === "settings" &&
+      path.basename(parent).toLowerCase() === "data") return path.dirname(parent);
+  return null;
+};
+
+const safeFolderName = (name: string) =>
+  !path.isAbsolute(name) && !path.win32.isAbsolute(name) &&
+  !name.split(/[\\/]+/).some((part) => !part || part === "." || part === ".." || part.includes(":"));
+
+type WorkspaceInspection = {
+  root: string;
+  filePath: string;
+  warnings: string[];
+  recoveryAvailable: boolean;
+  encrypted: boolean;
+};
+
+type LockMetadata = { hostname: string; pid: number; openedAt: string; appVersion: string };
+
+export const sameWorkspaceRoot = (left: string, right: string) => {
+  const a = path.resolve(left);
+  const b = path.resolve(right);
+  return process.platform === "win32" ? a.toLowerCase() === b.toLowerCase() : a === b;
+};
+
 const existingWorkspacePath = async (root: string) => {
   for (const candidate of workspacePaths(root)) {
-    if (await exists(candidate)) return candidate;
+    if (await exists(candidate) || await exists(`${candidate}.bak`)) return candidate;
   }
   return workspacePaths(root)[0];
 };
@@ -48,6 +90,7 @@ const listFiles = async (root: string, excluded?: string): Promise<string[]> => 
     for (const entry of await readdir(current, { withFileTypes: true })) {
       const candidate = path.join(current, entry.name);
       if (excluded && isPathInside(excluded, candidate)) continue;
+      if (entry.name === ".workspace.lock") continue;
       if (entry.isSymbolicLink()) throw new Error("Verknüpfungen im Bewerbungsordner können nicht sicher kopiert werden.");
       if (entry.isDirectory()) pending.push(candidate);
       else if (entry.isFile()) files.push(candidate);
@@ -69,6 +112,8 @@ const copyAndVerify = async (source: string, target: string) => {
 
 export class WorkspaceManager {
   readonly bootstrapPath: string;
+  private readonly lockId = randomUUID();
+  private readonly lockedRoots = new Set<string>();
 
   constructor(
     private readonly userDataPath: string,
@@ -92,6 +137,168 @@ export class WorkspaceManager {
     const temporary = `${this.bootstrapPath}.${randomUUID()}.tmp`;
     await writeFile(temporary, JSON.stringify({ workspaceRootPath: root, setupCompleted: true }, null, 2), "utf8");
     await rename(temporary, this.bootstrapPath);
+  }
+
+  async workspaceDetails(root: string) {
+    const filePath = await existingWorkspacePath(root);
+    const info = await stat(filePath).catch(() => stat(`${filePath}.bak`));
+    return { filePath, modifiedAt: info.mtime.toISOString() };
+  }
+
+  async inspectWorkspaceFile(filePath: string): Promise<WorkspaceInspection> {
+    const root = resolveWorkspaceRootFromFile(filePath);
+    if (!root) throw new Error("Die Workspace-Datei wurde erkannt, aber der zugehörige Bewerbungsordner konnte nicht vollständig gefunden werden.");
+    await this.validateRoot(root, false);
+    const paths = resolveApplicationPaths(root);
+    if (!(await isDirectory(paths.dataRoot)) || !(await isDirectory(path.dirname(filePath)))) {
+      throw new Error("Die Workspace-Datei wurde erkannt, aber der zugehörige Bewerbungsordner konnte nicht vollständig gefunden werden.");
+    }
+    const companionRoots = [paths.applicationsData, paths.profileRoot, paths.musterRoot,
+      paths.zeugnisseArchive, paths.zertifikateArchive, path.join(paths.dataRoot, "Profile")];
+    if (!(await Promise.all(companionRoots.map(isDirectory))).some(Boolean)) {
+      throw new Error("Die Workspace-Datei wurde erkannt, aber der zugehörige Bewerbungsordner konnte nicht vollständig gefunden werden.");
+    }
+    const parse = async (candidate: string) => {
+      try {
+        const raw = JSON.parse(await readFile(candidate, "utf8")) as unknown;
+        const envelope = parseEncryptedWorkspace(raw);
+        return envelope ? { encrypted: true as const, workspace: null } :
+          { encrypted: false as const, workspace: workspaceSchema.parse(raw) };
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("neueren Version")) throw error;
+        return null;
+      }
+    };
+    let parsed = await parse(filePath);
+    let recoveryAvailable = false;
+    if (!parsed) {
+      parsed = await parse(`${filePath}.bak`);
+      if (!parsed) throw new Error("Der ausgewählte Datenbestand ist ungültig oder beschädigt.");
+      recoveryAvailable = true;
+    }
+    if (parsed.encrypted) return { root, filePath: path.resolve(filePath), warnings: [], recoveryAvailable, encrypted: true };
+    const workspace = parsed.workspace;
+    const warnings: string[] = [];
+    const profiles = new Set(workspace.profiles.map((profile) => profile.id));
+    for (const application of workspace.applications) {
+      if (!safeFolderName(application.folderName)) throw new Error(`Ungültiger Bewerbungsordner: ${application.folderName}`);
+      if (application.profileId && !profiles.has(application.profileId))
+        warnings.push(`Profilverknüpfung fehlt: ${application.company.name}`);
+      const folder = path.resolve(paths.applicationsData, application.folderName);
+      if (!isPathInside(paths.applicationsData, folder)) throw new Error(`Ungültiger Bewerbungsordner: ${application.folderName}`);
+      if ((await lstat(folder).catch(() => null))?.isSymbolicLink())
+        throw new Error(`Ungültiger Bewerbungsordner: ${application.folderName}`);
+      if (!(await isDirectory(folder))) warnings.push(`Bewerbungsordner fehlt: ${application.folderName}`);
+    }
+    for (const attachment of workspace.attachments) {
+      let file: string | null = null;
+      if (attachment.archiveRelativePath) {
+        const archive = attachment.category === "Zeugnisse" ? paths.zeugnisseArchive : paths.zertifikateArchive;
+        file = path.resolve(archive, attachment.archiveRelativePath);
+        if (!isPathInside(archive, file)) throw new Error("Ungültiger Dokumentpfad im Datenbestand.");
+      } else if (attachment.storedName) {
+        const application = workspace.applications.find((item) => item.id === attachment.applicationId);
+        if (application) {
+          if (path.basename(attachment.storedName) !== attachment.storedName) throw new Error("Ungültiger Dokumentpfad im Datenbestand.");
+          file = path.join(paths.applicationsData, application.folderName, attachment.category, attachment.storedName);
+        } else warnings.push(`Anhang ohne Bewerbung: ${attachment.fileName}`);
+      } else {
+        warnings.push(`Anhang ohne gespeicherten Pfad: ${attachment.fileName}`);
+      }
+      if (file && !(await exists(file))) warnings.push(`Anhang fehlt: ${attachment.fileName}`);
+    }
+    return { root, filePath: path.resolve(filePath), warnings, recoveryAvailable, encrypted: false };
+  }
+
+  async restoreWorkspaceBackup(filePath: string) {
+    const inspection = await this.inspectWorkspaceFile(filePath);
+    if (!inspection.recoveryAvailable) return inspection;
+    const saved = `${filePath}.beschädigt-${timestamp()}-${randomUUID().slice(0, 8)}`;
+    if (await exists(filePath)) await copyFile(filePath, saved);
+    const temporary = `${filePath}.${randomUUID()}.tmp`;
+    await copyFile(`${filePath}.bak`, temporary);
+    await rename(temporary, filePath);
+    return this.inspectWorkspaceFile(filePath);
+  }
+
+  private lockPath(root: string) { return path.join(root, ".workspace.lock"); }
+
+  lockToken(root: string) {
+    return [...this.lockedRoots].some((locked) => sameWorkspaceRoot(locked, root)) ? this.lockId : undefined;
+  }
+
+  async lockConflict(root: string) {
+    if ([...this.lockedRoots].some((locked) => sameWorkspaceRoot(locked, root))) return false;
+    const lockPath = this.lockPath(root);
+    let raw: string;
+    try { raw = await readFile(lockPath, "utf8"); }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+      return true;
+    }
+    let metadata: LockMetadata;
+    try { metadata = JSON.parse(raw) as LockMetadata; }
+    catch { return Date.now() - (await stat(lockPath)).mtimeMs < 120_000; }
+    if (typeof metadata.hostname !== "string" || !Number.isInteger(metadata.pid) || metadata.pid <= 0)
+      return Date.now() - (await stat(lockPath)).mtimeMs < 120_000;
+    if (metadata.hostname === os.hostname()) {
+      if (metadata.pid === process.pid) return false;
+      try { process.kill(metadata.pid, 0); return true; }
+      catch (error) { return (error as NodeJS.ErrnoException).code === "EPERM"; }
+    }
+    return Date.now() - (await stat(lockPath)).mtimeMs < 120_000;
+  }
+
+  async acquireLock(root: string, appVersion: string, force = false) {
+    const resolved = path.resolve(root);
+    if ([...this.lockedRoots].some((locked) => sameWorkspaceRoot(locked, resolved))) return;
+    if (await this.lockConflict(resolved)) {
+      if (!force) throw new Error("Dieser Datenbestand scheint bereits auf einem anderen Computer oder in einer anderen Instanz geöffnet zu sein.");
+    }
+    const lockPath = this.lockPath(resolved);
+    if (await exists(lockPath)) {
+      if (await this.lockConflict(resolved) && !force)
+        throw new Error("Dieser Datenbestand scheint bereits auf einem anderen Computer oder in einer anderen Instanz geöffnet zu sein.");
+      await rm(lockPath);
+    }
+    const metadata = { hostname: os.hostname(), pid: process.pid, openedAt: new Date().toISOString(), appVersion, lockId: this.lockId };
+    await writeFile(lockPath, JSON.stringify(metadata, null, 2), { flag: "wx" });
+    this.lockedRoots.add(resolved);
+  }
+
+  async refreshLock() {
+    for (const root of this.lockedRoots) {
+      const lockPath = this.lockPath(root);
+      try {
+        const metadata = JSON.parse(await readFile(lockPath, "utf8")) as { lockId?: string };
+        if (metadata.lockId !== this.lockId) continue;
+        const now = new Date();
+        const { utimes } = await import("node:fs/promises");
+        await utimes(lockPath, now, now);
+      } catch { /* A lost lock is detected by the next save. */ }
+    }
+  }
+
+  async releaseLock(root: string) {
+    root = path.resolve(root);
+    if (!this.lockedRoots.has(root)) return;
+    this.lockedRoots.delete(root);
+    const lockPath = this.lockPath(root);
+    try {
+      const metadata = JSON.parse(await readFile(lockPath, "utf8")) as { lockId?: string };
+      if (metadata.lockId === this.lockId) await rm(lockPath);
+    } catch { /* The lock may already have been removed. */ }
+  }
+
+  async releaseAllLocks() {
+    for (const root of [...this.lockedRoots]) await this.releaseLock(root);
+  }
+
+  async prepareExistingWorkspace(filePath: string, currentRoot?: string) {
+    const inspection = await this.inspectWorkspaceFile(filePath);
+    if (inspection.recoveryAvailable) throw new Error("Die Workspace-Datei ist beschädigt, aber eine gültige Sicherung wurde gefunden.");
+    if (currentRoot && !sameWorkspaceRoot(currentRoot, inspection.root)) await this.fullBackup(currentRoot);
+    return inspection;
   }
 
   private async repairNestedApplicationsRoot(root: string) {
@@ -242,6 +449,10 @@ export class WorkspaceManager {
     await this.writeBootstrap(path.resolve(root));
   }
 
+  async deactivate() {
+    await rm(this.bootstrapPath, { force: true });
+  }
+
   async fullBackup(rootPath: string, oldSchemaVersion = 1, newSchemaVersion = 1, migratedFields: string[] = []) {
     const root = await this.validateRoot(rootPath, false);
     const backupRoot = path.join(resolveApplicationPaths(root).backupsRoot, `Migration_${timestamp()}_${randomUUID().slice(0, 8)}`);
@@ -263,7 +474,8 @@ export class WorkspaceManager {
         sourcePath: root, backupPath: backupRoot, migratedFields,
         warnings: [], errors: [], files: entries,
       };
-      await writeFile(path.join(backupRoot, "migration-manifest.json"), JSON.stringify(manifest, null, 2), "utf8");
+      const manifestPath = path.join(backupRoot, "migration-manifest.json");
+      await writeFile(manifestPath, encodeForManagedWrite(manifestPath, Buffer.from(JSON.stringify(manifest, null, 2))));
       return backupRoot;
     } catch (error) {
       await rm(backupRoot, { recursive: true, force: true });
@@ -271,18 +483,18 @@ export class WorkspaceManager {
     }
   }
 
-  async changeRoot(currentRootPath: string, nextRootPath: string, mode: WorkspaceChangeMode) {
+  async changeRoot(currentRootPath: string, nextRootPath: string, mode: WorkspaceChangeMode, activate = true) {
     if (!["move", "copy", "new"].includes(mode)) throw new Error("Ungültige Speicherort-Aktion.");
     if (!path.isAbsolute(nextRootPath)) throw new Error("Bitte wählen Sie einen gültigen Ordner.");
     const prospectiveSource = path.resolve(currentRootPath);
     const prospectiveTarget = path.resolve(nextRootPath);
-    if (prospectiveSource !== prospectiveTarget &&
+    if (!sameWorkspaceRoot(prospectiveSource, prospectiveTarget) &&
       (isPathInside(prospectiveSource, prospectiveTarget) || isPathInside(prospectiveTarget, prospectiveSource))) {
       throw new Error("Der neue Bewerbungsordner darf nicht im bisherigen Ordner liegen.");
     }
     const source = await this.validateRoot(currentRootPath, false);
     const target = await this.validateRoot(nextRootPath, true);
-    if (source === target) return target;
+    if (sameWorkspaceRoot(source, target)) return source;
     if (mode !== "new") {
       const existing = await readdir(target);
       if (existing.length) throw new Error("Der neue Bewerbungsordner muss leer sein, damit keine Dateien überschrieben werden.");
@@ -294,8 +506,9 @@ export class WorkspaceManager {
         const workspacePath = await existingWorkspacePath(target);
         if (await exists(workspacePath)) {
           try {
-            const parsed = workspaceSchema.safeParse(JSON.parse(await readFile(workspacePath, "utf8")));
-            if (!parsed.success) throw new Error("invalid");
+            const raw = JSON.parse(await readFile(workspacePath, "utf8")) as unknown;
+            const parsed = workspaceSchema.safeParse(raw);
+            if (!parsed.success && !parseEncryptedWorkspace(raw)) throw new Error("invalid");
           } catch {
             throw new Error("Die Daten im neuen Bewerbungsordner sind ungültig.");
           }
@@ -317,7 +530,7 @@ export class WorkspaceManager {
       await new FileManagementService(resolveApplicationPaths(target)).initialize();
       await this.preservePersonalData(source, target);
     }
-    await this.writeBootstrap(target);
+    if (activate) await this.writeBootstrap(target);
     // A move keeps the old root as a recoverable copy. Explicit cleanup can follow separately.
     return target;
   }

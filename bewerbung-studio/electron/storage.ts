@@ -8,7 +8,11 @@ import {
   rm,
   stat,
   writeFile,
-} from "node:fs/promises";
+} from "./security/secure-fs";
+import { encodeForManagedWrite, activeEncryption } from "./security/secure-fs";
+import { parseEncryptedWorkspace } from "./security/encryption-service";
+import { createHash } from "node:crypto";
+import os from "node:os";
 import { defaultDeckblattDesign } from "../src/shared/deckblattDesignIds";
 import {
   isApplicationTodo,
@@ -282,7 +286,8 @@ export class DataStore {
   readonly dataPath: string;
   readonly files: FileManagementService;
   readonly migration: LegacyMigrationService;
-  private readonly workspacePath: string;
+  private workspacePath: string;
+  private loadedWorkspaceHash: string | null = null;
   private readonly applicationDraftPath: string;
   private readonly deletedApplicationsPath: string;
   private workspace: Workspace = emptyWorkspace();
@@ -290,6 +295,7 @@ export class DataStore {
   constructor(
     rootOrPaths: string | ApplicationPaths,
     private readonly gitAutomation?: ApplicationGitCommitQueue,
+    private readonly expectedLockId?: string,
   ) {
     const paths =
       typeof rootOrPaths === "string"
@@ -308,6 +314,13 @@ export class DataStore {
 
   async initialize() {
     await this.files.initialize();
+    const legacyWorkspacePath = path.join(this.dataPath, "Settings", "workspace.json");
+    if (!(await stat(this.workspacePath).catch(() => null)) &&
+        !(await stat(`${this.workspacePath}.bak`).catch(() => null)) &&
+        ((await stat(legacyWorkspacePath).catch(() => null)) ||
+         (await stat(`${legacyWorkspacePath}.bak`).catch(() => null)))) {
+      this.workspacePath = legacyWorkspacePath;
+    }
     this.workspace = await this.loadWorkspace();
     for (const application of this.workspace.applications) {
       application.documents = dropStaleProfileCopies(
@@ -338,6 +351,11 @@ export class DataStore {
     return structuredClone(this.workspace);
   }
 
+  clearForLock() {
+    this.workspace = emptyWorkspace();
+    this.loadedWorkspaceHash = null;
+  }
+
   async getApplicationDraft() {
     try {
       const parsed: unknown = JSON.parse(
@@ -366,7 +384,8 @@ export class DataStore {
     let foundExisting = false;
     for (const candidate of [this.workspacePath, `${this.workspacePath}.bak`]) {
       try {
-        const parsed: unknown = JSON.parse(await readFile(candidate, "utf8"));
+        const content = await readFile(candidate, "utf8");
+        const parsed: unknown = JSON.parse(content);
         foundExisting = true;
         const result = workspaceSchema.safeParse(parsed);
         if (result.success) {
@@ -379,6 +398,11 @@ export class DataStore {
             }
             await copyFile(candidate, path.join(recoveryRoot, `wiederhergestellt-workspace-${recoveryId}.json`));
           }
+          const activeContent = candidate === this.workspacePath
+            ? content
+            : await readFile(this.workspacePath, "utf8").catch(() => null);
+          this.loadedWorkspaceHash = activeContent === null ? null
+            : createHash("sha256").update(activeContent).digest("hex");
           return result.data;
         }
       } catch {
@@ -448,16 +472,27 @@ export class DataStore {
     );
   }
 
-  private async atomicWrite(filePath: string, content: string) {
+  private async atomicWrite(filePath: string, content: string, expectedHash?: string | null) {
     await mkdir(path.dirname(filePath), { recursive: true });
     const temporaryPath = `${filePath}.${createId()}.tmp`;
     const backupPath = `${filePath}.bak`;
     const handle = await open(temporaryPath, "w");
     try {
-      await handle.writeFile(content, "utf8");
+      await handle.writeFile(encodeForManagedWrite(filePath, Buffer.from(content, "utf8")));
       await handle.sync();
     } finally {
       await handle.close();
+    }
+    if (expectedHash !== undefined) {
+      const current = await readFile(filePath, "utf8").catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return null;
+        throw error;
+      });
+      const currentHash = current === null ? null : createHash("sha256").update(current).digest("hex");
+      if (currentHash !== expectedHash) {
+        await rm(temporaryPath, { force: true });
+        throw new Error("Der Datenbestand wurde seit dem Öffnen extern geändert. Bitte laden Sie ihn neu oder erstellen Sie zuerst eine Sicherung.");
+      }
     }
     try {
       await copyFile(filePath, backupPath);
@@ -475,12 +510,38 @@ export class DataStore {
   private async persist(applicationsToPersist: readonly Application[] = []) {
     // Application documents are snapshots. Unrelated workspace saves must not
     // rewrite older application folders or their modification timestamps.
+    const lockPath = path.join(path.dirname(this.dataPath), ".workspace.lock");
+    const lockContent = await readFile(lockPath, "utf8").catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    });
+    if (this.expectedLockId && !lockContent)
+      throw new Error("Der Datenbestand ist durch eine andere Instanz gesperrt.");
+    if (lockContent) {
+      let lock: { hostname?: string; pid?: number; lockId?: string };
+      try { lock = JSON.parse(lockContent) as { hostname?: string; pid?: number; lockId?: string }; }
+      catch { throw new Error("Der Datenbestand ist durch eine andere Instanz gesperrt."); }
+      if (lock.hostname !== os.hostname() || lock.pid !== process.pid ||
+          (this.expectedLockId && lock.lockId !== this.expectedLockId))
+        throw new Error("Der Datenbestand ist durch eine andere Instanz gesperrt.");
+    }
+    const diskContent = await readFile(this.workspacePath, "utf8").catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    });
+    const diskHash = diskContent === null ? null : createHash("sha256").update(diskContent).digest("hex");
+    if (diskHash !== this.loadedWorkspaceHash) {
+      throw new Error("Der Datenbestand wurde seit dem Öffnen extern geändert. Bitte laden Sie ihn neu oder erstellen Sie zuerst eine Sicherung.");
+    }
     this.workspace.updatedAt = nowIso();
     const validated = workspaceSchema.parse(this.workspace);
+    const content = JSON.stringify(validated, null, 2);
     await this.atomicWrite(
       this.workspacePath,
-      JSON.stringify(validated, null, 2),
+      content,
+      this.loadedWorkspaceHash,
     );
+    this.loadedWorkspaceHash = createHash("sha256").update(content).digest("hex");
     await Promise.all(
       applicationsToPersist.map((application) =>
         this.persistApplicationFiles(applicationSchema.parse(application)),
@@ -1865,9 +1926,10 @@ export class DataStore {
   }
 
   async writeBackup(filePath: string) {
+    const content = JSON.stringify(workspaceSchema.parse(this.workspace), null, 2);
     await writeFile(
       filePath,
-      JSON.stringify(workspaceSchema.parse(this.workspace), null, 2),
+      activeEncryption()?.encryptWorkspace(content) ?? content,
       "utf8",
     );
   }
@@ -1927,7 +1989,10 @@ export class DataStore {
 
   async importBackup(filePath: string) {
     const parsed: unknown = JSON.parse(await readFile(filePath, "utf8"));
-    const imported = workspaceSchema.parse(parsed);
+    const envelope = parseEncryptedWorkspace(parsed);
+    const imported = workspaceSchema.parse(envelope
+      ? JSON.parse(activeEncryption()?.decryptWorkspace(envelope) ?? "null")
+      : parsed);
     const emergencyPath = path.join(
       this.files.paths.backupsRoot,
       `vor-import-${timestamp()}.json`,
