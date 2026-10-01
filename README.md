@@ -67,20 +67,20 @@ Die Oberfläche ist auf Deutsch. Gebaut und veröffentlicht wird ausschließlich
 - Automatische Sicherungen (eine pro Tag, einstellbare Aufbewahrung) sowie Export und Import per JSON
 - Hell-, Dunkel- und Systemdesign
 - Windows-Installer und portable Version
-- Optionale Git-Automatisierung (siehe [Daten & Datenschutz](#daten--datenschutz))
+- Optionale Git-Automatisierung (siehe [Daten &amp; Datenschutz](#daten--datenschutz))
 
 ## Technologie
 
-| Bereich | Technologie |
-| --- | --- |
-| Desktop | Electron |
-| Oberfläche | React, Tailwind CSS |
-| Sprache | TypeScript (strict) |
-| Build | Vite, electron-builder |
-| State | Zustand |
-| Validierung | Zod |
-| Dokumente | docxtemplater und PizZip (DOCX), pdf-lib (PDF-Zusammenführung) |
-| Tests | Vitest |
+| Bereich     | Technologie                                                     |
+| ----------- | --------------------------------------------------------------- |
+| Desktop     | Electron                                                        |
+| Oberfläche | React, Tailwind CSS                                             |
+| Sprache     | TypeScript (strict)                                             |
+| Build       | Vite, electron-builder                                          |
+| State       | Zustand                                                         |
+| Validierung | Zod                                                             |
+| Dokumente   | docxtemplater und PizZip (DOCX), pdf-lib (PDF-Zusammenführung) |
+| Tests       | Vitest                                                          |
 
 Die genauen Versionen stehen in [`bewerbung-studio/package.json`](bewerbung-studio/package.json).
 
@@ -125,7 +125,7 @@ Prüfe vor dem Start die Prüfsumme, zum Beispiel mit `Get-FileHash <Datei> -Alg
 ### Aus dem Quellcode
 
 ```bash
-git clone https://github.com/mustafa-oezdemir/bewerbung_manager.git
+git clone https://github.com/mustafa-oezdemir/bewerbung-studio.git
 cd bewerbung_manager/bewerbung-studio
 npm ci
 npm run dev
@@ -151,18 +151,18 @@ Verwende dafür nie deine echten Bewerbungsdaten.
 
 Alle Skripte laufen in `bewerbung-studio`.
 
-| Befehl | Zweck |
-| --- | --- |
-| `npm run dev` | Entwicklungsmodus mit Electron |
-| `npm start` | Gebaute Electron-Anwendung starten |
-| `npm run typecheck` | TypeScript prüfen |
-| `npm test` | Tests ausführen (Vitest) |
-| `npm run build` | Typprüfung und Production Build |
-| `npm run release:check` | Typecheck, Tests und Build |
-| `npm run dist:win` | Windows-Release erzeugen (Setup, Portable, Prüfsummen) |
-| `npm run dist:win:signed` | Wie `dist:win`, mit Code-Signing (Zertifikat nötig) |
-| `npm run dist:win:installer` | Nur den Installer bauen |
-| `npm run dist:win:portable` | Nur die portable Version bauen |
+| Befehl                         | Zweck                                                   |
+| ------------------------------ | ------------------------------------------------------- |
+| `npm run dev`                | Entwicklungsmodus mit Electron                          |
+| `npm start`                  | Gebaute Electron-Anwendung starten                      |
+| `npm run typecheck`          | TypeScript prüfen                                      |
+| `npm test`                   | Tests ausführen (Vitest)                               |
+| `npm run build`              | Typprüfung und Production Build                        |
+| `npm run release:check`      | Typecheck, Tests und Build                              |
+| `npm run dist:win`           | Windows-Release erzeugen (Setup, Portable, Prüfsummen) |
+| `npm run dist:win:signed`    | Wie`dist:win`, mit Code-Signing (Zertifikat nötig)   |
+| `npm run dist:win:installer` | Nur den Installer bauen                                 |
+| `npm run dist:win:portable`  | Nur die portable Version bauen                          |
 
 ## Daten & Datenschutz
 
