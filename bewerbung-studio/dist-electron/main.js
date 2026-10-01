@@ -5892,81 +5892,14 @@ var fontSizeToPt = {
 };
 var getDocumentFont = (id) => documentFonts.find((font) => font.id === id) ?? documentFonts.find((font) => font.id === "source-sans") ?? documentFonts[0];
 //#endregion
-//#region src/shared/cvDesignSchema.ts
-var color$2 = string().regex(/^#[0-9a-f]{6}$/i);
-var cvColorsSchema = object({
-	text: color$2,
-	paragraph: color$2,
-	heading: color$2,
-	subheading: color$2,
-	sectionHeading: color$2,
-	entryHeading: color$2,
-	divider: color$2,
-	background: color$2,
-	accent: color$2,
-	surface: color$2,
-	muted: color$2,
-	icon: color$2
-});
-/** Physical units are shared by controls, validation and both output adapters. */
-var cvDesignLimits = {
-	bodySizePt: [7, 14],
-	headingSizePt: [14, 36],
-	subheadingSizePt: [8, 20],
-	sectionHeadingSizePt: [8, 22],
-	entryHeadingSizePt: [8, 18],
-	lineHeight: [1, 1.8],
-	pageMarginMm: [8, 30],
-	innerPaddingMm: [0, 12],
-	sectionGapMm: [0, 16],
-	entryGapMm: [0, 12],
-	sectionTitleGapMm: [0, 8],
-	entryContentGapMm: [0, 8],
-	columnGapMm: [3, 18]
-};
-var bounded$1 = (key) => number().min(cvDesignLimits[key][0]).max(cvDesignLimits[key][1]);
-var cvTypographySchema = object({
-	fontId: _enum(documentFontIds),
-	headingFontId: _enum(documentFontIds),
-	bodySizePt: bounded$1("bodySizePt"),
-	headingSizePt: bounded$1("headingSizePt"),
-	subheadingSizePt: bounded$1("subheadingSizePt"),
-	sectionHeadingSizePt: bounded$1("sectionHeadingSizePt"),
-	entryHeadingSizePt: bounded$1("entryHeadingSizePt"),
-	lineHeight: bounded$1("lineHeight"),
-	headingWeight: number().int().min(300).max(900),
-	subheadingWeight: number().int().min(300).max(900),
-	sectionHeadingWeight: number().int().min(300).max(900),
-	sectionHeadingUppercase: boolean()
-});
-var cvSpacingSchema = object({
-	pageMarginMm: bounded$1("pageMarginMm"),
-	innerPaddingMm: bounded$1("innerPaddingMm"),
-	sectionGapMm: bounded$1("sectionGapMm"),
-	entryGapMm: bounded$1("entryGapMm"),
-	sectionTitleGapMm: bounded$1("sectionTitleGapMm"),
-	entryContentGapMm: bounded$1("entryContentGapMm"),
-	columnGapMm: bounded$1("columnGapMm")
-});
-object({
-	colors: cvColorsSchema,
-	typography: cvTypographySchema,
-	spacing: cvSpacingSchema
-});
-var cvDesignOverridesSchema = object({
-	colors: cvColorsSchema.partial().optional(),
-	typography: cvTypographySchema.partial().optional(),
-	spacing: cvSpacingSchema.partial().optional()
-});
-//#endregion
 //#region src/shared/resumeAppearance.ts
-var color$1 = string().regex(/^#[0-9a-f]{6}$/i);
+var color$2 = string().regex(/^#[0-9a-f]{6}$/i);
 /** Sparse, reusable visual controls. Missing values preserve the native template. */
 var resumeAppearanceSchema = object({
-	sidebarBackgroundColor: color$1.optional(),
-	sidebarTextColor: color$1.optional(),
-	sidebarSectionHeadingColor: color$1.optional(),
-	mainBackgroundColor: color$1.optional(),
+	sidebarBackgroundColor: color$2.optional(),
+	sidebarTextColor: color$2.optional(),
+	sidebarSectionHeadingColor: color$2.optional(),
+	mainBackgroundColor: color$2.optional(),
 	sectionDividerVisible: boolean().optional(),
 	sectionDividerWidthMm: number().min(.1).max(2).optional(),
 	sectionDividerPosition: _enum([
@@ -5981,10 +5914,11 @@ var resumeAppearanceSchema = object({
 		"right"
 	]).optional(),
 	sectionHeadingMarginBeforeMm: number().min(0).max(12).optional(),
+	/** Legacy alias of the spacing token `sectionTitleGapMm`: both set the space under a section title. */
 	sectionHeadingMarginAfterMm: number().min(0).max(8).optional(),
 	photoDecorationVisible: boolean().optional(),
-	photoDecorationColor: color$1.optional(),
-	contactDividerColor: color$1.optional(),
+	photoDecorationColor: color$2.optional(),
+	contactDividerColor: color$2.optional(),
 	photoLayout: _enum([
 		"template",
 		"circle",
@@ -5999,9 +5933,53 @@ var resumeAppearanceSchema = object({
 		"split"
 	]).optional()
 });
+/** Physical limits shared by the controls and the sparse schema above. */
+var resumeAppearanceLimits = {
+	sectionDividerWidthMm: [.1, 2],
+	sectionHeadingMarginBeforeMm: [0, 12],
+	sectionHeadingMarginAfterMm: [0, 8]
+};
+/**
+* What a template draws when nothing is overridden. Every field has a value: the design panel shows it as the
+* effective value, and a sparse `ResumeAppearance` replaces single fields of it. The space below a section title is
+* the spacing token `sectionTitleGapMm`, so it is not repeated here; "divider visible" is `sectionDividerPosition !== "none"`.
+*/
+var nativeResumeAppearanceSchema = object({
+	sidebarBackgroundColor: color$2,
+	sidebarTextColor: color$2,
+	sidebarSectionHeadingColor: color$2,
+	mainBackgroundColor: color$2,
+	sectionDividerPosition: _enum([
+		"none",
+		"bottom",
+		"top",
+		"both"
+	]),
+	sectionDividerWidthMm: number().min(0).max(resumeAppearanceLimits.sectionDividerWidthMm[1]),
+	sectionHeadingAlignment: _enum([
+		"left",
+		"center",
+		"right"
+	]),
+	sectionHeadingMarginBeforeMm: number().min(0).max(resumeAppearanceLimits.sectionHeadingMarginBeforeMm[1]),
+	photoDecorationVisible: boolean(),
+	photoDecorationColor: color$2,
+	contactDividerColor: color$2,
+	photoLayout: _enum([
+		"circle",
+		"rounded",
+		"square",
+		"hidden"
+	]),
+	headerLayout: _enum([
+		"left",
+		"center",
+		"split"
+	])
+});
 /** Project optional appearance controls onto the existing template columns.
 * Native CSS remains authoritative when a field has no saved override. */
-var applyGeneralResumeAppearance = (page, templateId, settings, main, sidebar) => {
+var applyGeneralResumeAppearance = (page, templateId, settings, main, sidebar, dividerColor) => {
 	const appearance = resumeAppearanceSchema.parse(settings.resumeAppearance ?? {});
 	const set = (element, property, value) => element.style.setProperty(property, value, "important");
 	if (appearance.headerLayout && appearance.headerLayout !== "template") {
@@ -6036,6 +6014,7 @@ var applyGeneralResumeAppearance = (page, templateId, settings, main, sidebar) =
 		for (const node of [heading, ...heading.querySelectorAll("b,span")]) {
 			if (settings.cvOverrides?.colors?.divider) set(node, "border-color", settings.cvOverrides.colors.divider);
 			const position = appearance.sectionDividerVisible === false ? "none" : appearance.sectionDividerPosition;
+			if (position && position !== "none" && dividerColor && !settings.cvOverrides?.colors?.divider) set(node, "border-color", dividerColor);
 			if (position) {
 				set(node, "border-top-width", position === "top" || position === "both" ? `${appearance.sectionDividerWidthMm ?? .3}mm` : "0");
 				set(node, "border-bottom-width", position === "bottom" || position === "both" ? `${appearance.sectionDividerWidthMm ?? .3}mm` : "0");
@@ -6059,6 +6038,85 @@ var applyGeneralResumeAppearance = (page, templateId, settings, main, sidebar) =
 		else if (appearance.photoDecorationColor) set(decoration, "background-color", appearance.photoDecorationColor);
 	}
 };
+//#endregion
+//#region src/shared/cvDesignSchema.ts
+var color$1 = string().regex(/^#[0-9a-f]{6}$/i);
+var cvColorsSchema = object({
+	text: color$1,
+	paragraph: color$1,
+	heading: color$1,
+	subheading: color$1,
+	sectionHeading: color$1,
+	entryHeading: color$1,
+	divider: color$1,
+	background: color$1,
+	accent: color$1,
+	surface: color$1,
+	muted: color$1,
+	icon: color$1
+});
+/** Physical units are shared by controls, validation and both output adapters. */
+var cvDesignLimits = {
+	bodySizePt: [7, 14],
+	headingSizePt: [14, 36],
+	subheadingSizePt: [8, 20],
+	sectionHeadingSizePt: [8, 22],
+	entryHeadingSizePt: [8, 18],
+	lineHeight: [1, 1.8],
+	pageMarginMm: [5, 30],
+	innerPaddingMm: [0, 16],
+	sectionGapMm: [0, 16],
+	entryGapMm: [0, 12],
+	sectionTitleGapMm: [0, 8],
+	entryContentGapMm: [0, 8],
+	columnGapMm: [0, 18]
+};
+var bounded$1 = (key) => number().min(cvDesignLimits[key][0]).max(cvDesignLimits[key][1]);
+var cvTypographySchema = object({
+	fontId: _enum(documentFontIds),
+	headingFontId: _enum(documentFontIds),
+	bodySizePt: bounded$1("bodySizePt"),
+	headingSizePt: bounded$1("headingSizePt"),
+	subheadingSizePt: bounded$1("subheadingSizePt"),
+	sectionHeadingSizePt: bounded$1("sectionHeadingSizePt"),
+	entryHeadingSizePt: bounded$1("entryHeadingSizePt"),
+	lineHeight: bounded$1("lineHeight"),
+	headingWeight: number().int().min(300).max(900),
+	subheadingWeight: number().int().min(300).max(900),
+	sectionHeadingWeight: number().int().min(300).max(900),
+	sectionHeadingUppercase: boolean()
+});
+var cvSpacingSchema = object({
+	pageMarginMm: bounded$1("pageMarginMm"),
+	innerPaddingMm: bounded$1("innerPaddingMm"),
+	sectionGapMm: bounded$1("sectionGapMm"),
+	entryGapMm: bounded$1("entryGapMm"),
+	sectionTitleGapMm: bounded$1("sectionTitleGapMm"),
+	entryContentGapMm: bounded$1("entryContentGapMm"),
+	columnGapMm: bounded$1("columnGapMm")
+});
+var cvDesignTokensSchema = object({
+	colors: cvColorsSchema,
+	typography: cvTypographySchema,
+	spacing: cvSpacingSchema
+});
+var cvDesignOverridesSchema = object({
+	colors: cvColorsSchema.partial().optional(),
+	typography: cvTypographySchema.partial().optional(),
+	spacing: cvSpacingSchema.partial().optional()
+});
+object({
+	tokens: cvDesignTokensSchema,
+	appearance: nativeResumeAppearanceSchema
+});
+/**
+* The shared Lebenslauf layer of a workspace: sparse overrides that apply to every template and every Bewerbung.
+* Like the document-level overrides it never stores a default; absence means "use the template's own value".
+*/
+var resumeDesignLayerSchema = object({
+	cvOverrides: cvDesignOverridesSchema.optional(),
+	resumeAppearance: resumeAppearanceSchema.optional()
+});
 //#endregion
 //#region src/features/resume-sections/knowledge-block-registry.ts
 var resumeBlockRendererTypes = [
@@ -7467,6 +7525,8 @@ var appSettingsSchema = object({
 		literal(60)
 	]).default(15),
 	sidebarCollapsed: boolean().default(false),
+	/** Shared Lebenslauf design: sparse overrides valid for every template and Bewerbung; absent = every template's own look. */
+	resumeDesign: resumeDesignLayerSchema.optional(),
 	language: literal("de")
 });
 var workspaceSchema = object({
@@ -9425,6 +9485,64 @@ var klassischDefaults = {
 		inactive: "#E4E8EA"
 	}
 };
+/** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */
+var klassischDesignColors = {
+	text: klassischDefaults.colors.text,
+	paragraph: klassischDefaults.colors.text,
+	heading: klassischDefaults.colors.primary,
+	subheading: klassischDefaults.colors.text,
+	sectionHeading: klassischDefaults.colors.heading,
+	entryHeading: klassischDefaults.colors.primary,
+	divider: klassischDefaults.colors.border,
+	background: "#FFFFFF",
+	accent: klassischDefaults.colors.accent,
+	surface: klassischDefaults.colors.softBackground,
+	muted: klassischDefaults.colors.muted,
+	icon: klassischDefaults.colors.accent
+};
+var klassischDesign = {
+	tokens: {
+		colors: klassischDesignColors,
+		typography: {
+			fontId: "source-sans",
+			headingFontId: "source-sans",
+			bodySizePt: 8.4,
+			headingSizePt: 26,
+			subheadingSizePt: 12.2,
+			sectionHeadingSizePt: 10.4,
+			entryHeadingSizePt: 12.2,
+			lineHeight: 1.05,
+			headingWeight: 750,
+			subheadingWeight: 400,
+			sectionHeadingWeight: 750,
+			sectionHeadingUppercase: true
+		},
+		spacing: {
+			pageMarginMm: klassischDefaults.page.marginLeftMm,
+			innerPaddingMm: 0,
+			sectionGapMm: klassischDefaults.layout.sectionGapMm,
+			entryGapMm: klassischDefaults.layout.entryGapMm,
+			sectionTitleGapMm: klassischDefaults.layout.sectionTitleGapMm,
+			entryContentGapMm: klassischDefaults.layout.entryContentGapMm,
+			columnGapMm: 0
+		}
+	},
+	appearance: {
+		sidebarBackgroundColor: klassischDesignColors.background,
+		sidebarTextColor: klassischDesignColors.text,
+		sidebarSectionHeadingColor: klassischDesignColors.sectionHeading,
+		mainBackgroundColor: klassischDesignColors.background,
+		sectionDividerPosition: "none",
+		sectionDividerWidthMm: 0,
+		sectionHeadingAlignment: "left",
+		sectionHeadingMarginBeforeMm: 0,
+		photoDecorationVisible: false,
+		photoDecorationColor: klassischDesignColors.accent,
+		contactDividerColor: klassischDesignColors.divider,
+		photoLayout: "circle",
+		headerLayout: "left"
+	}
+};
 //#endregion
 //#region src/shared/cvTemplateDefaults/kreativ.defaults.ts
 var kreativDefaults = {
@@ -9473,6 +9591,64 @@ var kreativDefaults = {
 		lineHeight: 1.3
 	}
 };
+/** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */
+var kreativDesignColors = {
+	text: kreativDefaults.colors.text,
+	paragraph: kreativDefaults.colors.text,
+	heading: "#FFFFFF",
+	subheading: "#FFFFFF",
+	sectionHeading: kreativDefaults.colors.heading,
+	entryHeading: kreativDefaults.colors.heading,
+	divider: "#075D4E",
+	background: kreativDefaults.colors.pageBackground,
+	accent: kreativDefaults.colors.primary,
+	surface: kreativDefaults.colors.primarySoft,
+	muted: kreativDefaults.colors.mutedText,
+	icon: kreativDefaults.colors.primary
+};
+var kreativDesign = {
+	tokens: {
+		colors: kreativDesignColors,
+		typography: {
+			fontId: "source-sans",
+			headingFontId: "source-sans",
+			bodySizePt: 8.4,
+			headingSizePt: kreativDefaults.typography.nameSizePt,
+			subheadingSizePt: kreativDefaults.typography.professionSizePt,
+			sectionHeadingSizePt: kreativDefaults.typography.sectionTitleSizePt,
+			entryHeadingSizePt: kreativDefaults.typography.entryTitleSizePt,
+			lineHeight: 1.05,
+			headingWeight: 750,
+			subheadingWeight: 650,
+			sectionHeadingWeight: 750,
+			sectionHeadingUppercase: true
+		},
+		spacing: {
+			pageMarginMm: 12,
+			innerPaddingMm: 0,
+			sectionGapMm: kreativDefaults.layout.sectionGapMm,
+			entryGapMm: kreativDefaults.layout.entryGapMm,
+			sectionTitleGapMm: 3.5,
+			entryContentGapMm: 0,
+			columnGapMm: kreativDefaults.layout.columnGapMm
+		}
+	},
+	appearance: {
+		sidebarBackgroundColor: kreativDesignColors.background,
+		sidebarTextColor: kreativDesignColors.text,
+		sidebarSectionHeadingColor: kreativDesignColors.sectionHeading,
+		mainBackgroundColor: kreativDesignColors.background,
+		sectionDividerPosition: "bottom",
+		sectionDividerWidthMm: .65,
+		sectionHeadingAlignment: "left",
+		sectionHeadingMarginBeforeMm: 0,
+		photoDecorationVisible: false,
+		photoDecorationColor: kreativDesignColors.accent,
+		contactDividerColor: "#B8C4C0",
+		photoLayout: "rounded",
+		headerLayout: "left"
+	}
+};
 //#endregion
 //#region src/shared/cvTemplateDefaults/kompakt.defaults.ts
 var kompaktDefaults = {
@@ -9507,6 +9683,64 @@ var kompaktDefaults = {
 		inactive: "#E1E5E7"
 	}
 };
+/** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */
+var kompaktDesignColors = {
+	text: kompaktDefaults.colors.text,
+	paragraph: kompaktDefaults.colors.text,
+	heading: kompaktDefaults.colors.primary,
+	subheading: kompaktDefaults.colors.muted,
+	sectionHeading: kompaktDefaults.colors.muted,
+	entryHeading: kompaktDefaults.colors.primary,
+	divider: kompaktDefaults.colors.divider,
+	background: "#FFFFFF",
+	accent: kompaktDefaults.colors.accent,
+	surface: kompaktDefaults.colors.pattern,
+	muted: kompaktDefaults.colors.muted,
+	icon: kompaktDefaults.colors.accent
+};
+var kompaktDesign = {
+	tokens: {
+		colors: kompaktDesignColors,
+		typography: {
+			fontId: "source-sans",
+			headingFontId: "source-sans",
+			bodySizePt: 8.4,
+			headingSizePt: 20,
+			subheadingSizePt: 8.5,
+			sectionHeadingSizePt: 8.5,
+			entryHeadingSizePt: 10.5,
+			lineHeight: 1,
+			headingWeight: 450,
+			subheadingWeight: 500,
+			sectionHeadingWeight: 450,
+			sectionHeadingUppercase: true
+		},
+		spacing: {
+			pageMarginMm: kompaktDefaults.page.marginLeftMm,
+			innerPaddingMm: 0,
+			sectionGapMm: kompaktDefaults.layout.sectionGapMm,
+			entryGapMm: kompaktDefaults.layout.entryGapMm,
+			sectionTitleGapMm: 2.5,
+			entryContentGapMm: kompaktDefaults.layout.entryContentGapMm,
+			columnGapMm: kompaktDefaults.layout.columnGapMm
+		}
+	},
+	appearance: {
+		sidebarBackgroundColor: kompaktDesignColors.background,
+		sidebarTextColor: kompaktDesignColors.text,
+		sidebarSectionHeadingColor: kompaktDesignColors.sectionHeading,
+		mainBackgroundColor: kompaktDesignColors.background,
+		sectionDividerPosition: "bottom",
+		sectionDividerWidthMm: .3,
+		sectionHeadingAlignment: "left",
+		sectionHeadingMarginBeforeMm: 0,
+		photoDecorationVisible: false,
+		photoDecorationColor: kompaktDesignColors.accent,
+		contactDividerColor: kompaktDesignColors.divider,
+		photoLayout: "rounded",
+		headerLayout: "left"
+	}
+};
 //#endregion
 //#region src/shared/cvTemplateDefaults/stilvoll.defaults.ts
 var stilvollDefaults = {
@@ -9539,6 +9773,64 @@ var stilvollDefaults = {
 		divider: "#AEB8B5",
 		pattern: "#DCE2DF",
 		inactive: "#DDE2E0"
+	}
+};
+/** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */
+var stilvollDesignColors = {
+	text: stilvollDefaults.colors.text,
+	paragraph: stilvollDefaults.colors.text,
+	heading: "#075E50",
+	subheading: stilvollDefaults.colors.primary,
+	sectionHeading: stilvollDefaults.colors.muted,
+	entryHeading: stilvollDefaults.colors.primaryDark,
+	divider: stilvollDefaults.colors.divider,
+	background: "#FFFFFF",
+	accent: stilvollDefaults.colors.primary,
+	surface: stilvollDefaults.colors.primarySoft,
+	muted: stilvollDefaults.colors.muted,
+	icon: stilvollDefaults.colors.primary
+};
+var stilvollDesign = {
+	tokens: {
+		colors: stilvollDesignColors,
+		typography: {
+			fontId: "source-sans",
+			headingFontId: "source-sans",
+			bodySizePt: 8.4,
+			headingSizePt: 23,
+			subheadingSizePt: 12,
+			sectionHeadingSizePt: 9.5,
+			entryHeadingSizePt: 11,
+			lineHeight: 1.05,
+			headingWeight: 400,
+			subheadingWeight: 400,
+			sectionHeadingWeight: 400,
+			sectionHeadingUppercase: true
+		},
+		spacing: {
+			pageMarginMm: stilvollDefaults.page.marginLeftMm,
+			innerPaddingMm: 0,
+			sectionGapMm: stilvollDefaults.layout.sectionGapMm,
+			entryGapMm: stilvollDefaults.layout.entryGapMm,
+			sectionTitleGapMm: stilvollDefaults.layout.sectionTitleGapMm,
+			entryContentGapMm: stilvollDefaults.layout.entryContentGapMm,
+			columnGapMm: stilvollDefaults.layout.columnGapMm
+		}
+	},
+	appearance: {
+		sidebarBackgroundColor: stilvollDesignColors.background,
+		sidebarTextColor: stilvollDesignColors.text,
+		sidebarSectionHeadingColor: stilvollDesignColors.sectionHeading,
+		mainBackgroundColor: stilvollDesignColors.background,
+		sectionDividerPosition: "bottom",
+		sectionDividerWidthMm: .3,
+		sectionHeadingAlignment: "left",
+		sectionHeadingMarginBeforeMm: 0,
+		photoDecorationVisible: false,
+		photoDecorationColor: stilvollDesignColors.accent,
+		contactDividerColor: stilvollDesignColors.divider,
+		photoLayout: "rounded",
+		headerLayout: "left"
 	}
 };
 //#endregion
@@ -9811,6 +10103,98 @@ var applyResumePageLayout = (page, templateId, surface, settings, legacySidebarP
 	sidebar.style.width = "auto";
 };
 //#endregion
+//#region src/shared/cvTemplateDefaults/legacyGeneric.defaults.ts
+/**
+* The generic `.cv-page` renderer in electron/documents.ts draws the retired templates (`modern-sidebar`,
+* `classic-professional`, ...). It has no stylesheet of its own: its sizes are fixed in that CSS block and its spacing
+* and colours come from the document settings, so the settings are this renderer's native design.
+*/
+var genericRenderer = {
+	nameSizePt: 25,
+	subheadingSizePt: 14,
+	sectionHeadingSizePt: 11,
+	entryHeadingSizePt: 11.5,
+	subheadingWeight: 500,
+	sectionHeadingWeight: 600,
+	sectionHeadingColor: "#535C5B",
+	dividerColor: "#AEB6B5",
+	mutedColor: "#5C6870",
+	sectionTitleGapMm: 3,
+	entryContentGapMm: 1,
+	/** `.cv-entry` is spaced by this share of the section gap. */
+	entryGapShare: .8,
+	dividerWidthMm: .26
+};
+var mix = (first, second, share) => {
+	const channel = (hex, index) => Number.parseInt(hex.slice(1 + index * 2, 3 + index * 2), 16);
+	return `#${[
+		0,
+		1,
+		2
+	].map((index) => Math.round(channel(first, index) * share + channel(second, index) * (1 - share)).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+};
+var round = (value) => Math.round(value * 10) / 10;
+var legacyGenericDesign = (settings, accent, secondary, centered) => {
+	const sectionGapMm = sectionSpacingLevelToMm[settings.sectionSpacingLevel];
+	const renderer = genericRenderer;
+	return {
+		tokens: {
+			colors: {
+				text: settings.textColor,
+				paragraph: settings.textColor,
+				heading: settings.headingColor,
+				subheading: accent,
+				sectionHeading: renderer.sectionHeadingColor,
+				entryHeading: mix(accent, "#172125", .76),
+				divider: renderer.dividerColor,
+				background: settings.backgroundColor,
+				accent,
+				surface: secondary,
+				muted: renderer.mutedColor,
+				icon: accent
+			},
+			typography: {
+				fontId: settings.fontId,
+				headingFontId: settings.headingFontId,
+				bodySizePt: fontSizeToPt[settings.fontSize],
+				headingSizePt: renderer.nameSizePt,
+				subheadingSizePt: renderer.subheadingSizePt,
+				sectionHeadingSizePt: renderer.sectionHeadingSizePt,
+				entryHeadingSizePt: renderer.entryHeadingSizePt,
+				lineHeight: lineHeightLevelToValue[settings.lineHeightLevel],
+				headingWeight: getDocumentFont(settings.headingFontId).headingWeight,
+				subheadingWeight: renderer.subheadingWeight,
+				sectionHeadingWeight: renderer.sectionHeadingWeight,
+				sectionHeadingUppercase: true
+			},
+			spacing: {
+				pageMarginMm: marginLevelToMm[settings.marginLevel],
+				innerPaddingMm: paddingLevelToMm[settings.paddingLevel],
+				sectionGapMm,
+				entryGapMm: round(sectionGapMm * renderer.entryGapShare),
+				sectionTitleGapMm: renderer.sectionTitleGapMm,
+				entryContentGapMm: renderer.entryContentGapMm,
+				columnGapMm: 0
+			}
+		},
+		appearance: {
+			sidebarBackgroundColor: secondary,
+			sidebarTextColor: getReadableTextColor(secondary).toUpperCase(),
+			sidebarSectionHeadingColor: getReadableTextColor(secondary).toUpperCase(),
+			mainBackgroundColor: settings.backgroundColor,
+			sectionDividerPosition: "bottom",
+			sectionDividerWidthMm: renderer.dividerWidthMm,
+			sectionHeadingAlignment: "left",
+			sectionHeadingMarginBeforeMm: 0,
+			photoDecorationVisible: false,
+			photoDecorationColor: accent,
+			contactDividerColor: renderer.dividerColor,
+			photoLayout: "circle",
+			headerLayout: centered ? "center" : "left"
+		}
+	};
+};
+//#endregion
 //#region src/shared/cvTemplateDefaults/einfach.defaults.ts
 var einspaltigDefaults = {
 	page: {
@@ -9835,6 +10219,64 @@ var einspaltigDefaults = {
 		muted: "#68747A",
 		pattern: "#EAF5FD",
 		inactive: "#E3E7EA"
+	}
+};
+/** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */
+var einspaltigDesignColors = {
+	text: einspaltigDefaults.colors.text,
+	paragraph: einspaltigDefaults.colors.text,
+	heading: einspaltigDefaults.colors.primary,
+	subheading: einspaltigDefaults.colors.accent,
+	sectionHeading: einspaltigDefaults.colors.primary,
+	entryHeading: einspaltigDefaults.colors.primary,
+	divider: einspaltigDefaults.colors.primary,
+	background: "#FFFFFF",
+	accent: einspaltigDefaults.colors.accent,
+	surface: einspaltigDefaults.colors.pattern,
+	muted: einspaltigDefaults.colors.muted,
+	icon: einspaltigDefaults.colors.accent
+};
+var einspaltigDesign = {
+	tokens: {
+		colors: einspaltigDesignColors,
+		typography: {
+			fontId: "source-sans",
+			headingFontId: "source-sans",
+			bodySizePt: 9.6,
+			headingSizePt: 24,
+			subheadingSizePt: 11.5,
+			sectionHeadingSizePt: 13.5,
+			entryHeadingSizePt: 11.5,
+			lineHeight: 1.1,
+			headingWeight: 750,
+			subheadingWeight: 700,
+			sectionHeadingWeight: 750,
+			sectionHeadingUppercase: true
+		},
+		spacing: {
+			pageMarginMm: einspaltigDefaults.page.marginLeftMm,
+			innerPaddingMm: 0,
+			sectionGapMm: 5,
+			entryGapMm: einspaltigDefaults.layout.entryGapMm,
+			sectionTitleGapMm: 2,
+			entryContentGapMm: 0,
+			columnGapMm: 0
+		}
+	},
+	appearance: {
+		sidebarBackgroundColor: einspaltigDesignColors.background,
+		sidebarTextColor: einspaltigDesignColors.text,
+		sidebarSectionHeadingColor: einspaltigDesignColors.sectionHeading,
+		mainBackgroundColor: einspaltigDesignColors.background,
+		sectionDividerPosition: "bottom",
+		sectionDividerWidthMm: .3,
+		sectionHeadingAlignment: "left",
+		sectionHeadingMarginBeforeMm: 0,
+		photoDecorationVisible: false,
+		photoDecorationColor: einspaltigDesignColors.accent,
+		contactDividerColor: einspaltigDesignColors.divider,
+		photoLayout: "circle",
+		headerLayout: "left"
 	}
 };
 //#endregion
@@ -9882,6 +10324,64 @@ var elegantDefaults = {
 		lineHeight: 1.3
 	},
 	multipage: { sidebarContinuationMode: "compact" }
+};
+/** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */
+var elegantDesignColors = {
+	text: elegantDefaults.colors.text,
+	paragraph: elegantDefaults.colors.text,
+	heading: elegantDefaults.colors.heading,
+	subheading: elegantDefaults.colors.primary,
+	sectionHeading: elegantDefaults.colors.heading,
+	entryHeading: elegantDefaults.colors.heading,
+	divider: elegantDefaults.colors.divider,
+	background: elegantDefaults.colors.pageBackground,
+	accent: elegantDefaults.colors.primary,
+	surface: elegantDefaults.colors.pageBackground,
+	muted: elegantDefaults.colors.mutedText,
+	icon: elegantDefaults.colors.primary
+};
+var elegantDesign = {
+	tokens: {
+		colors: elegantDesignColors,
+		typography: {
+			fontId: "source-sans",
+			headingFontId: "source-sans",
+			bodySizePt: 8.4,
+			headingSizePt: elegantDefaults.typography.nameSizePt,
+			subheadingSizePt: elegantDefaults.typography.professionSizePt,
+			sectionHeadingSizePt: elegantDefaults.typography.sectionTitleSizePt,
+			entryHeadingSizePt: elegantDefaults.typography.entryTitleSizePt,
+			lineHeight: 1.05,
+			headingWeight: 500,
+			subheadingWeight: 400,
+			sectionHeadingWeight: 500,
+			sectionHeadingUppercase: true
+		},
+		spacing: {
+			pageMarginMm: 13,
+			innerPaddingMm: 13,
+			sectionGapMm: 4.5,
+			entryGapMm: elegantDefaults.layout.entryGapMm,
+			sectionTitleGapMm: 3.2,
+			entryContentGapMm: .8,
+			columnGapMm: 0
+		}
+	},
+	appearance: {
+		sidebarBackgroundColor: elegantDefaults.colors.sidebarBackground,
+		sidebarTextColor: elegantDefaults.colors.sidebarText,
+		sidebarSectionHeadingColor: "#FFFFFF",
+		mainBackgroundColor: elegantDesignColors.background,
+		sectionDividerPosition: "bottom",
+		sectionDividerWidthMm: .3,
+		sectionHeadingAlignment: "left",
+		sectionHeadingMarginBeforeMm: 0,
+		photoDecorationVisible: false,
+		photoDecorationColor: elegantDesignColors.accent,
+		contactDividerColor: elegantDesignColors.divider,
+		photoLayout: "rounded",
+		headerLayout: "left"
+	}
 };
 //#endregion
 //#region src/shared/cvTemplateDefaults/gepflegt.defaults.ts
@@ -9941,6 +10441,64 @@ var gepflegtDefaults = {
 		supportsFreeform: true
 	}
 };
+/** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */
+var gepflegtDesignColors = {
+	text: gepflegtDefaults.colors.text,
+	paragraph: gepflegtDefaults.colors.text,
+	heading: gepflegtDefaults.colors.heading,
+	subheading: gepflegtDefaults.colors.accent,
+	sectionHeading: gepflegtDefaults.colors.heading,
+	entryHeading: gepflegtDefaults.colors.heading,
+	divider: gepflegtDefaults.colors.divider,
+	background: gepflegtDefaults.colors.pageBackground,
+	accent: gepflegtDefaults.colors.accent,
+	surface: gepflegtDefaults.colors.pageBackground,
+	muted: gepflegtDefaults.colors.mutedText,
+	icon: gepflegtDefaults.colors.accent
+};
+var gepflegtDesign = {
+	tokens: {
+		colors: gepflegtDesignColors,
+		typography: {
+			fontId: "source-sans",
+			headingFontId: "source-sans",
+			bodySizePt: gepflegtDefaults.typography.bodySizePt,
+			headingSizePt: gepflegtDefaults.typography.nameSizePt,
+			subheadingSizePt: gepflegtDefaults.typography.jobTitleSizePt,
+			sectionHeadingSizePt: gepflegtDefaults.typography.sectionTitleSizePt,
+			entryHeadingSizePt: gepflegtDefaults.typography.entryTitleSizePt,
+			lineHeight: gepflegtDefaults.typography.bodyLineHeight,
+			headingWeight: gepflegtDefaults.typography.nameWeight,
+			subheadingWeight: 500,
+			sectionHeadingWeight: 500,
+			sectionHeadingUppercase: true
+		},
+		spacing: {
+			pageMarginMm: 10,
+			innerPaddingMm: 10,
+			sectionGapMm: gepflegtDefaults.spacing.sectionGapMm,
+			entryGapMm: gepflegtDefaults.spacing.entryGapMm,
+			sectionTitleGapMm: 3.6,
+			entryContentGapMm: 0,
+			columnGapMm: 0
+		}
+	},
+	appearance: {
+		sidebarBackgroundColor: gepflegtDefaults.colors.sidebarBackground,
+		sidebarTextColor: gepflegtDefaults.colors.sidebarText,
+		sidebarSectionHeadingColor: "#FFFFFF",
+		mainBackgroundColor: gepflegtDesignColors.background,
+		sectionDividerPosition: "bottom",
+		sectionDividerWidthMm: .35,
+		sectionHeadingAlignment: "left",
+		sectionHeadingMarginBeforeMm: 0,
+		photoDecorationVisible: false,
+		photoDecorationColor: gepflegtDesignColors.accent,
+		contactDividerColor: gepflegtDesignColors.divider,
+		photoLayout: "rounded",
+		headerLayout: "left"
+	}
+};
 //#endregion
 //#region src/shared/cvTemplateDefaults/ivy-league.defaults.ts
 var ivyLeagueDefaults = {
@@ -9983,6 +10541,64 @@ var ivyLeagueDefaults = {
 		lineHeight: 1.34
 	},
 	background: { opacity: .58 }
+};
+/** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */
+var ivyLeagueDesignColors = {
+	text: ivyLeagueDefaults.colors.text,
+	paragraph: ivyLeagueDefaults.colors.text,
+	heading: ivyLeagueDefaults.colors.primary,
+	subheading: ivyLeagueDefaults.colors.accent,
+	sectionHeading: ivyLeagueDefaults.colors.heading,
+	entryHeading: ivyLeagueDefaults.colors.primary,
+	divider: ivyLeagueDefaults.colors.divider,
+	background: ivyLeagueDefaults.colors.pageBackground,
+	accent: ivyLeagueDefaults.colors.accent,
+	surface: ivyLeagueDefaults.colors.pageBackground,
+	muted: ivyLeagueDefaults.colors.mutedText,
+	icon: ivyLeagueDefaults.colors.accent
+};
+var ivyLeagueDesign = {
+	tokens: {
+		colors: ivyLeagueDesignColors,
+		typography: {
+			fontId: "source-sans",
+			headingFontId: "georgia",
+			bodySizePt: 8.4,
+			headingSizePt: ivyLeagueDefaults.typography.nameSizePt,
+			subheadingSizePt: ivyLeagueDefaults.typography.professionSizePt,
+			sectionHeadingSizePt: ivyLeagueDefaults.typography.sectionTitleSizePt,
+			entryHeadingSizePt: 9.7,
+			lineHeight: 1.05,
+			headingWeight: 700,
+			subheadingWeight: 400,
+			sectionHeadingWeight: 700,
+			sectionHeadingUppercase: false
+		},
+		spacing: {
+			pageMarginMm: 11,
+			innerPaddingMm: 0,
+			sectionGapMm: 4.5,
+			entryGapMm: ivyLeagueDefaults.layout.entryGapMm,
+			sectionTitleGapMm: 2.5,
+			entryContentGapMm: 0,
+			columnGapMm: 0
+		}
+	},
+	appearance: {
+		sidebarBackgroundColor: ivyLeagueDesignColors.background,
+		sidebarTextColor: ivyLeagueDesignColors.text,
+		sidebarSectionHeadingColor: ivyLeagueDesignColors.sectionHeading,
+		mainBackgroundColor: ivyLeagueDesignColors.background,
+		sectionDividerPosition: "bottom",
+		sectionDividerWidthMm: .3,
+		sectionHeadingAlignment: "center",
+		sectionHeadingMarginBeforeMm: 0,
+		photoDecorationVisible: false,
+		photoDecorationColor: ivyLeagueDesignColors.accent,
+		contactDividerColor: ivyLeagueDesignColors.divider,
+		photoLayout: "hidden",
+		headerLayout: "center"
+	}
 };
 //#endregion
 //#region src/shared/cvTemplateDefaults/modern.defaults.ts
@@ -10067,6 +10683,182 @@ var modernTemplateDefaults = {
 		summaryBottomGapMm: 1
 	}
 };
+/** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */
+var modernDesignColors = {
+	text: modernTemplateDefaults.colors.text,
+	paragraph: modernTemplateDefaults.colors.text,
+	heading: modernTemplateDefaults.colors.heading,
+	subheading: modernTemplateDefaults.colors.primary,
+	sectionHeading: "#686F73",
+	entryHeading: modernTemplateDefaults.colors.heading,
+	divider: modernTemplateDefaults.colors.divider,
+	background: modernTemplateDefaults.colors.pageBackground,
+	accent: modernTemplateDefaults.colors.primary,
+	surface: modernTemplateDefaults.colors.secondary,
+	muted: modernTemplateDefaults.colors.mutedText,
+	icon: modernTemplateDefaults.colors.primary
+};
+var modernDesign = {
+	tokens: {
+		colors: modernDesignColors,
+		typography: {
+			fontId: "source-sans",
+			headingFontId: "source-sans",
+			bodySizePt: 9.2,
+			headingSizePt: modernTemplateDefaults.typography.nameSizePt,
+			subheadingSizePt: 12,
+			sectionHeadingSizePt: modernTemplateDefaults.typography.sectionTitleSizePt,
+			entryHeadingSizePt: modernTemplateDefaults.typography.entryTitleSizePt,
+			lineHeight: 1.2,
+			headingWeight: modernTemplateDefaults.typography.nameWeight,
+			subheadingWeight: modernTemplateDefaults.typography.professionWeight,
+			sectionHeadingWeight: modernTemplateDefaults.typography.sectionTitleWeight,
+			sectionHeadingUppercase: true
+		},
+		spacing: {
+			pageMarginMm: modernTemplateDefaults.page.marginLeftMm,
+			innerPaddingMm: 0,
+			sectionGapMm: modernTemplateDefaults.layout.sectionGapMm,
+			entryGapMm: 4.5,
+			sectionTitleGapMm: 3.2,
+			entryContentGapMm: 1,
+			columnGapMm: 0
+		}
+	},
+	appearance: {
+		sidebarBackgroundColor: modernDesignColors.background,
+		sidebarTextColor: modernDesignColors.text,
+		sidebarSectionHeadingColor: modernDesignColors.sectionHeading,
+		mainBackgroundColor: modernDesignColors.background,
+		sectionDividerPosition: "bottom",
+		sectionDividerWidthMm: .35,
+		sectionHeadingAlignment: "left",
+		sectionHeadingMarginBeforeMm: 0,
+		photoDecorationVisible: false,
+		photoDecorationColor: modernDesignColors.accent,
+		contactDividerColor: modernDesignColors.divider,
+		photoLayout: "circle",
+		headerLayout: "left"
+	}
+};
+//#endregion
+//#region src/shared/cvTemplateDefaults/pehlione.defaults.ts
+/**
+* Pehlione's stylesheets (pehlione*.css and the PDF block in electron/documents.ts) own its look, so there is no
+* layout module like the other templates have. These are the values those stylesheets draw; the design resolver, the
+* design panel and the override adapters read the template from here and nowhere else.
+*/
+var pehlioneWhiteBlueDefaults = {
+	colors: {
+		primary: "#0B3D86",
+		text: "#142235",
+		subtitle: "#12294E",
+		surface: "#F1F6FC",
+		muted: "#526272",
+		divider: "#B8C3D0",
+		background: "#FFFFFF",
+		sidebarBackground: "#0B3D86",
+		sidebarText: "#FFFFFF",
+		sidebarSectionHeading: "#FFFFFF",
+		contactDivider: "#FFFFFF",
+		photoDecoration: "#D9EBFF"
+	},
+	typography: { entryHeadingSizePt: 9 },
+	layout: {
+		sidebarMarginMm: 7,
+		sectionGapMm: 6,
+		entryGapMm: 4,
+		sectionTitleGapMm: 3,
+		entryContentGapMm: 1
+	},
+	/** The sidebar draws smaller, tighter section titles than the main column. */
+	sidebar: {
+		sectionHeadingSizePt: 9.7,
+		sectionGapMm: 4.5,
+		sectionTitleGapMm: 2
+	}
+};
+var pehlioneWhiteDefaults = {
+	colors: {
+		primary: "#08245C",
+		text: "#142235",
+		subtitle: "#12294E",
+		surface: "#F1F6FC",
+		muted: "#526272",
+		divider: "#B8C3D0",
+		background: "#FFFFFF",
+		sidebarBackground: "#FFFFFF",
+		sidebarText: "#142235",
+		sidebarSectionHeading: "#08245C",
+		contactDivider: "#08245C",
+		photoDecoration: "#DCECFF"
+	},
+	typography: { entryHeadingSizePt: 10.4 },
+	layout: pehlioneWhiteBlueDefaults.layout,
+	sidebar: pehlioneWhiteBlueDefaults.sidebar
+};
+/** Both themes share typography and spacing; they differ in colours and in the entry title size. */
+var pehlioneDesign = (defaults) => {
+	const { colors, layout, typography } = defaults;
+	return {
+		tokens: {
+			colors: {
+				text: colors.text,
+				paragraph: colors.text,
+				heading: colors.primary,
+				subheading: colors.subtitle,
+				sectionHeading: colors.primary,
+				entryHeading: colors.primary,
+				divider: colors.divider,
+				background: colors.background,
+				accent: colors.primary,
+				surface: colors.surface,
+				muted: colors.muted,
+				icon: colors.primary
+			},
+			typography: {
+				fontId: "source-sans",
+				headingFontId: "source-sans",
+				bodySizePt: 9.2,
+				headingSizePt: 29,
+				subheadingSizePt: 13,
+				sectionHeadingSizePt: 13,
+				entryHeadingSizePt: typography.entryHeadingSizePt,
+				lineHeight: 1.2,
+				headingWeight: 800,
+				subheadingWeight: 700,
+				sectionHeadingWeight: 700,
+				sectionHeadingUppercase: true
+			},
+			spacing: {
+				pageMarginMm: layout.sidebarMarginMm,
+				innerPaddingMm: layout.sidebarMarginMm,
+				sectionGapMm: layout.sectionGapMm,
+				entryGapMm: layout.entryGapMm,
+				sectionTitleGapMm: layout.sectionTitleGapMm,
+				entryContentGapMm: layout.entryContentGapMm,
+				columnGapMm: 0
+			}
+		},
+		appearance: {
+			sidebarBackgroundColor: colors.sidebarBackground,
+			sidebarTextColor: colors.sidebarText,
+			sidebarSectionHeadingColor: colors.sidebarSectionHeading,
+			mainBackgroundColor: colors.background,
+			sectionDividerPosition: "bottom",
+			sectionDividerWidthMm: .3,
+			sectionHeadingAlignment: "left",
+			sectionHeadingMarginBeforeMm: 0,
+			photoDecorationVisible: true,
+			photoDecorationColor: colors.photoDecoration,
+			contactDividerColor: colors.contactDivider,
+			photoLayout: "circle",
+			headerLayout: "left"
+		}
+	};
+};
+var pehlioneWhiteBlueDesign = pehlioneDesign(pehlioneWhiteBlueDefaults);
+var pehlioneWhiteDesign = pehlioneDesign(pehlioneWhiteDefaults);
 //#endregion
 //#region src/shared/cvTemplateDefaults/tabellarisch.defaults.ts
 /**
@@ -10146,6 +10938,64 @@ var tabellarischDefaults = {
 		bottomMm: 6
 	}
 };
+/** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */
+var tabellarischDesignColors = {
+	text: tabellarischDefaults.colors.text,
+	paragraph: tabellarischDefaults.colors.text,
+	heading: tabellarischDefaults.colors.primary,
+	subheading: tabellarischDefaults.colors.accent,
+	sectionHeading: "#0B3D86",
+	entryHeading: tabellarischDefaults.colors.primary,
+	divider: tabellarischDefaults.colors.line,
+	background: tabellarischDefaults.colors.background,
+	accent: tabellarischDefaults.colors.accent,
+	surface: "#FFFFFF",
+	muted: tabellarischDefaults.colors.muted,
+	icon: tabellarischDefaults.colors.accent
+};
+var tabellarischDesign = {
+	tokens: {
+		colors: tabellarischDesignColors,
+		typography: {
+			fontId: "source-sans",
+			headingFontId: "source-sans",
+			bodySizePt: tabellarischDefaults.typography.bodySizePt,
+			headingSizePt: tabellarischDefaults.typography.nameSizePt,
+			subheadingSizePt: tabellarischDefaults.typography.jobTitleSizePt,
+			sectionHeadingSizePt: tabellarischDefaults.typography.sectionTitleSizePt,
+			entryHeadingSizePt: tabellarischDefaults.typography.entryTitleSizePt,
+			lineHeight: 1.1,
+			headingWeight: 750,
+			subheadingWeight: 650,
+			sectionHeadingWeight: 750,
+			sectionHeadingUppercase: true
+		},
+		spacing: {
+			pageMarginMm: 15,
+			innerPaddingMm: 0,
+			sectionGapMm: tabellarischDefaults.spacing.sectionGapMm,
+			entryGapMm: tabellarischDefaults.spacing.entryGapMm,
+			sectionTitleGapMm: 3.5,
+			entryContentGapMm: 1,
+			columnGapMm: 0
+		}
+	},
+	appearance: {
+		sidebarBackgroundColor: tabellarischDesignColors.background,
+		sidebarTextColor: tabellarischDesignColors.text,
+		sidebarSectionHeadingColor: tabellarischDesignColors.sectionHeading,
+		mainBackgroundColor: tabellarischDesignColors.background,
+		sectionDividerPosition: "none",
+		sectionDividerWidthMm: 0,
+		sectionHeadingAlignment: "left",
+		sectionHeadingMarginBeforeMm: 0,
+		photoDecorationVisible: false,
+		photoDecorationColor: tabellarischDesignColors.accent,
+		contactDividerColor: tabellarischDesignColors.divider,
+		photoLayout: "circle",
+		headerLayout: "left"
+	}
+};
 //#endregion
 //#region src/shared/cvTemplateDefaults/zeitgenoessisch.defaults.ts
 var zeitgenoessischDefaults = {
@@ -10186,6 +11036,64 @@ var zeitgenoessischDefaults = {
 		bodySizePt: 8.5,
 		smallSizePt: 7.8,
 		lineHeight: 1.32
+	}
+};
+/** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */
+var zeitgenoessischDesignColors = {
+	text: zeitgenoessischDefaults.colors.text,
+	paragraph: zeitgenoessischDefaults.colors.text,
+	heading: zeitgenoessischDefaults.colors.heading,
+	subheading: zeitgenoessischDefaults.colors.primaryDark,
+	sectionHeading: zeitgenoessischDefaults.colors.primaryDark,
+	entryHeading: zeitgenoessischDefaults.colors.heading,
+	divider: zeitgenoessischDefaults.colors.divider,
+	background: zeitgenoessischDefaults.colors.pageBackground,
+	accent: zeitgenoessischDefaults.colors.primary,
+	surface: zeitgenoessischDefaults.colors.primarySoft,
+	muted: zeitgenoessischDefaults.colors.mutedText,
+	icon: zeitgenoessischDefaults.colors.primary
+};
+var zeitgenoessischDesign = {
+	tokens: {
+		colors: zeitgenoessischDesignColors,
+		typography: {
+			fontId: "source-sans",
+			headingFontId: "source-sans",
+			bodySizePt: 8.4,
+			headingSizePt: zeitgenoessischDefaults.typography.nameSizePt,
+			subheadingSizePt: zeitgenoessischDefaults.typography.professionSizePt,
+			sectionHeadingSizePt: zeitgenoessischDefaults.typography.sectionTitleSizePt,
+			entryHeadingSizePt: 9.2,
+			lineHeight: 1.05,
+			headingWeight: 350,
+			subheadingWeight: 600,
+			sectionHeadingWeight: 750,
+			sectionHeadingUppercase: true
+		},
+		spacing: {
+			pageMarginMm: 13,
+			innerPaddingMm: 0,
+			sectionGapMm: 4.5,
+			entryGapMm: zeitgenoessischDefaults.layout.entryGapMm,
+			sectionTitleGapMm: 3,
+			entryContentGapMm: 0,
+			columnGapMm: 0
+		}
+	},
+	appearance: {
+		sidebarBackgroundColor: zeitgenoessischDesignColors.background,
+		sidebarTextColor: zeitgenoessischDesignColors.text,
+		sidebarSectionHeadingColor: zeitgenoessischDesignColors.sectionHeading,
+		mainBackgroundColor: zeitgenoessischDesignColors.background,
+		sectionDividerPosition: "none",
+		sectionDividerWidthMm: 0,
+		sectionHeadingAlignment: "left",
+		sectionHeadingMarginBeforeMm: 0,
+		photoDecorationVisible: true,
+		photoDecorationColor: "#CBECDD",
+		contactDividerColor: zeitgenoessischDesignColors.divider,
+		photoLayout: "circle",
+		headerLayout: "left"
 	}
 };
 //#endregion
@@ -10230,180 +11138,83 @@ var zweispaltigDefaults = {
 		lineHeight: 1.3
 	}
 };
+/** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */
+var zweispaltigDesignColors = {
+	text: zweispaltigDefaults.colors.text,
+	paragraph: zweispaltigDefaults.colors.text,
+	heading: zweispaltigDefaults.colors.primary,
+	subheading: zweispaltigDefaults.colors.accent,
+	sectionHeading: zweispaltigDefaults.colors.heading,
+	entryHeading: zweispaltigDefaults.colors.primary,
+	divider: zweispaltigDefaults.colors.primary,
+	background: zweispaltigDefaults.colors.pageBackground,
+	accent: zweispaltigDefaults.colors.accent,
+	surface: zweispaltigDefaults.colors.primarySoft,
+	muted: zweispaltigDefaults.colors.mutedText,
+	icon: zweispaltigDefaults.colors.accent
+};
 //#endregion
 //#region src/shared/cvTemplateTokens.ts
-var adapt = (source) => {
-	const { colors, typography, layout } = source;
-	const heading = colors.heading ?? colors.primary;
-	const accent = colors.accent ?? colors.primary;
-	const defined = (values) => Object.fromEntries(Object.entries(values).filter(([, value]) => value !== void 0));
-	return {
-		colors: defined({
-			text: colors.text,
-			paragraph: colors.text,
-			heading,
-			subheading: accent,
-			sectionHeading: heading,
-			entryHeading: heading,
-			accent,
-			icon: accent,
-			muted: colors.muted ?? colors.mutedText,
-			divider: colors.divider ?? colors.line ?? colors.border,
-			background: colors.pageBackground ?? colors.background,
-			surface: colors.surface ?? colors.secondary ?? colors.primarySoft ?? colors.softBackground ?? colors.iconBackground ?? colors.pattern ?? colors.pageBackground ?? colors.background
-		}),
-		typography: defined({
-			bodySizePt: typography?.bodySizePt,
-			headingSizePt: typography?.nameSizePt,
-			subheadingSizePt: typography?.professionSizePt ?? typography?.jobTitleSizePt,
-			sectionHeadingSizePt: typography?.sectionTitleSizePt,
-			entryHeadingSizePt: typography?.entryTitleSizePt,
-			lineHeight: typography?.lineHeight ?? typography?.bodyLineHeight
-		}),
-		spacing: defined({
-			pageMarginMm: source.page?.marginLeftMm ?? source.margins?.leftMm ?? layout?.marginLeftMm,
-			sectionGapMm: source.spacing?.sectionGapMm ?? layout?.sectionGapMm,
-			entryGapMm: source.spacing?.entryGapMm ?? layout?.entryGapMm,
-			columnGapMm: layout?.columnGapMm
-		})
-	};
+/** Native visual design of the standard rendering; density/ATS variations remain in their template adapters. */
+var nativeResumeDesigns = {
+	modern: modernDesign,
+	elegant: elegantDesign,
+	gepflegt: gepflegtDesign,
+	"ivy-league": ivyLeagueDesign,
+	zweispaltig: {
+		tokens: {
+			colors: zweispaltigDesignColors,
+			typography: {
+				fontId: "source-sans",
+				headingFontId: "source-sans",
+				bodySizePt: zweispaltigDefaults.typography.bodySizePt,
+				headingSizePt: zweispaltigDefaults.typography.nameSizePt,
+				subheadingSizePt: 11.5,
+				sectionHeadingSizePt: zweispaltigDefaults.typography.sectionTitleSizePt,
+				entryHeadingSizePt: zweispaltigDefaults.typography.entryTitleSizePt,
+				lineHeight: 1.05,
+				headingWeight: 750,
+				subheadingWeight: 700,
+				sectionHeadingWeight: 750,
+				sectionHeadingUppercase: true
+			},
+			spacing: {
+				pageMarginMm: 13,
+				innerPaddingMm: 0,
+				sectionGapMm: zweispaltigDefaults.layout.sectionGapMm,
+				entryGapMm: zweispaltigDefaults.layout.entryGapMm,
+				sectionTitleGapMm: 2.5,
+				entryContentGapMm: .7,
+				columnGapMm: zweispaltigDefaults.layout.columnGapMm
+			}
+		},
+		appearance: {
+			sidebarBackgroundColor: zweispaltigDesignColors.background,
+			sidebarTextColor: zweispaltigDesignColors.text,
+			sidebarSectionHeadingColor: zweispaltigDesignColors.sectionHeading,
+			mainBackgroundColor: zweispaltigDesignColors.background,
+			sectionDividerPosition: "bottom",
+			sectionDividerWidthMm: .65,
+			sectionHeadingAlignment: "left",
+			sectionHeadingMarginBeforeMm: 0,
+			photoDecorationVisible: false,
+			photoDecorationColor: zweispaltigDesignColors.accent,
+			contactDividerColor: zweispaltigDesignColors.divider,
+			photoLayout: "circle",
+			headerLayout: "left"
+		}
+	},
+	zeitgenoessisch: zeitgenoessischDesign,
+	kreativ: kreativDesign,
+	tabellarisch: tabellarischDesign,
+	einspaltig: einspaltigDesign,
+	klassisch: klassischDesign,
+	kompakt: kompaktDesign,
+	stilvoll: stilvollDesign,
+	pehlione_white_blue: pehlioneWhiteBlueDesign,
+	pehlione_white: pehlioneWhiteDesign
 };
-/** Native visual defaults; density/ATS variations remain in their template adapters. */
-var cvTemplateTokens = {
-	modern: adapt(modernTemplateDefaults),
-	elegant: adapt(elegantDefaults),
-	gepflegt: adapt(gepflegtDefaults),
-	"ivy-league": adapt(ivyLeagueDefaults),
-	zweispaltig: adapt(zweispaltigDefaults),
-	zeitgenoessisch: adapt(zeitgenoessischDefaults),
-	kreativ: adapt(kreativDefaults),
-	tabellarisch: adapt(tabellarischDefaults),
-	einspaltig: {
-		...adapt(einspaltigDefaults),
-		typography: {
-			headingSizePt: 24,
-			subheadingSizePt: 11.5,
-			sectionHeadingSizePt: 13.5,
-			entryHeadingSizePt: 11.5,
-			bodySizePt: 10.4,
-			lineHeight: 1.12
-		}
-	},
-	klassisch: {
-		...adapt(klassischDefaults),
-		typography: {
-			headingSizePt: 26,
-			subheadingSizePt: 12.2,
-			sectionHeadingSizePt: 10.4,
-			entryHeadingSizePt: 12.2,
-			bodySizePt: 8.5,
-			lineHeight: 1.25
-		},
-		spacing: {
-			...adapt(klassischDefaults).spacing,
-			sectionTitleGapMm: klassischDefaults.layout.sectionTitleGapMm,
-			entryContentGapMm: klassischDefaults.layout.entryContentGapMm
-		}
-	},
-	kompakt: {
-		...adapt(kompaktDefaults),
-		typography: {
-			headingSizePt: 20,
-			subheadingSizePt: 8.5,
-			sectionHeadingSizePt: 8.5,
-			entryHeadingSizePt: 10.5,
-			bodySizePt: 8,
-			lineHeight: 1.25
-		},
-		spacing: {
-			...adapt(kompaktDefaults).spacing,
-			sectionTitleGapMm: kompaktDefaults.layout.sectionTitleGapMm,
-			entryContentGapMm: kompaktDefaults.layout.entryContentGapMm
-		}
-	},
-	stilvoll: {
-		...adapt(stilvollDefaults),
-		colors: {
-			...adapt(stilvollDefaults).colors,
-			heading: stilvollDefaults.colors.primaryDark,
-			entryHeading: stilvollDefaults.colors.primaryDark,
-			sectionHeading: stilvollDefaults.colors.muted
-		},
-		typography: {
-			headingSizePt: 23,
-			subheadingSizePt: 12,
-			sectionHeadingSizePt: 9.5,
-			entryHeadingSizePt: 11,
-			bodySizePt: 8.5,
-			lineHeight: 1.3
-		},
-		spacing: {
-			...adapt(stilvollDefaults).spacing,
-			sectionTitleGapMm: stilvollDefaults.layout.sectionTitleGapMm,
-			entryContentGapMm: stilvollDefaults.layout.entryContentGapMm
-		}
-	},
-	pehlione_white_blue: {
-		colors: {
-			text: "#142235",
-			paragraph: "#142235",
-			heading: "#0B3D86",
-			subheading: "#12294E",
-			sectionHeading: "#0B3D86",
-			entryHeading: "#0B3D86",
-			divider: "#B8C3D0",
-			background: "#FFFFFF",
-			accent: "#0B3D86",
-			surface: "#F1F6FC",
-			muted: "#526272",
-			icon: "#0B3D86"
-		},
-		typography: {
-			headingSizePt: 29,
-			subheadingSizePt: 13,
-			sectionHeadingSizePt: 13,
-			entryHeadingSizePt: 10.4,
-			bodySizePt: 9.7,
-			lineHeight: 1.42
-		},
-		spacing: {
-			pageMarginMm: 10,
-			sectionGapMm: 6,
-			entryGapMm: 4,
-			sectionTitleGapMm: 3
-		}
-	},
-	pehlione_white: {
-		colors: {
-			text: "#142235",
-			paragraph: "#142235",
-			heading: "#08245C",
-			subheading: "#12294E",
-			sectionHeading: "#08245C",
-			entryHeading: "#08245C",
-			divider: "#B8C3D0",
-			background: "#FFFFFF",
-			accent: "#08245C",
-			surface: "#F1F6FC",
-			muted: "#526272",
-			icon: "#08245C"
-		},
-		typography: {
-			headingSizePt: 29,
-			subheadingSizePt: 13,
-			sectionHeadingSizePt: 13,
-			entryHeadingSizePt: 10.4,
-			bodySizePt: 9.7,
-			lineHeight: 1.42
-		},
-		spacing: {
-			pageMarginMm: 10,
-			sectionGapMm: 6,
-			entryGapMm: 4,
-			sectionTitleGapMm: 3
-		}
-	}
-};
+Object.fromEntries(Object.entries(nativeResumeDesigns).map(([id, design]) => [id, design.tokens]));
 //#endregion
 //#region src/shared/cvDesign.ts
 /** Fresh values on every call: callers must never mutate registry defaults. */
@@ -10411,83 +11222,131 @@ var getTemplateDocumentDesignDefaults = (templateId) => ({
 	...defaultDocumentDesign,
 	...getTemplate(templateId).designDefaults
 });
-var definedFields = (fields) => Object.fromEntries(Object.entries(fields ?? {}).filter(([, value]) => value !== void 0));
+var definedFields$1 = (fields) => Object.fromEntries(Object.entries(fields ?? {}).filter(([, value]) => value !== void 0));
 var mergeTokens = (base, changes) => ({
 	colors: {
 		...base.colors,
-		...definedFields(changes.colors)
+		...definedFields$1(changes.colors)
 	},
 	typography: {
 		...base.typography,
-		...definedFields(changes.typography)
+		...definedFields$1(changes.typography)
 	},
 	spacing: {
 		...base.spacing,
-		...definedFields(changes.spacing)
+		...definedFields$1(changes.spacing)
 	}
 });
-var resolveTemplateCvDesign = (templateId) => {
+/**
+* A template's own design: complete, typed and always a fresh copy, so callers can never mutate the registry.
+* Retired templates that only the generic renderer draws derive theirs from their document settings.
+*/
+var getNativeResumeDesign = (templateId) => {
 	const template = getTemplate(templateId);
-	const settings = getTemplateDocumentDesignDefaults(template.id);
-	return mergeTokens({
-		colors: {
-			text: settings.textColor,
-			paragraph: settings.textColor,
-			heading: settings.headingColor,
-			subheading: template.secondary,
-			sectionHeading: settings.headingColor,
-			entryHeading: settings.headingColor,
-			divider: settings.lineColor,
-			background: settings.backgroundColor,
-			accent: template.accent,
-			surface: settings.backgroundColor,
-			muted: settings.textColor,
-			icon: template.accent
-		},
-		typography: {
-			fontId: settings.fontId,
-			headingFontId: settings.headingFontId,
-			bodySizePt: fontSizeToPt[settings.fontSize],
-			headingSizePt: 24,
-			subheadingSizePt: 12,
-			sectionHeadingSizePt: 12,
-			entryHeadingSizePt: 11,
-			lineHeight: lineHeightLevelToValue[settings.lineHeightLevel],
-			headingWeight: getDocumentFont(settings.headingFontId).headingWeight,
-			subheadingWeight: 600,
-			sectionHeadingWeight: 700,
-			sectionHeadingUppercase: false
-		},
-		spacing: {
-			pageMarginMm: marginLevelToMm[settings.marginLevel],
-			innerPaddingMm: paddingLevelToMm[settings.paddingLevel],
-			sectionGapMm: sectionSpacingLevelToMm[settings.sectionSpacingLevel],
-			entryGapMm: 4,
-			sectionTitleGapMm: 2,
-			entryContentGapMm: 1.5,
-			columnGapMm: 10
-		}
-	}, cvTemplateTokens[template.id] ?? {});
+	return structuredClone(nativeResumeDesigns[template.id] ?? legacyGenericDesign(getTemplateDocumentDesignDefaults(template.id), template.accent, template.secondary, template.layout === "centered"));
 };
+var resolveTemplateCvDesign = (templateId) => getNativeResumeDesign(templateId).tokens;
 /** Validation keeps CSS injection and unsafe physical dimensions out of both renderers. */
 var resolveCvDesign = (templateId, overrides = {}) => mergeTokens(resolveTemplateCvDesign(templateId), cvDesignOverridesSchema.parse(overrides));
-/** One unit conversion for preview and PDF; consumers choose when to apply overrides. */
-var getCvDesignVariables = (design) => {
+/**
+* One unit conversion for preview and PDF; consumers choose when to apply overrides. `only` limits the result to the
+* fields a layer really overrides, so unchanged template values never become CSS variables of their own.
+*/
+var getCvDesignVariables = (design, only) => {
 	const variables = {};
 	const kebab = (key) => key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
-	for (const [name, value] of Object.entries(design.colors)) variables[`--doc-${kebab(name)}-color`] = value;
-	for (const [name, value] of Object.entries(design.spacing)) variables[`--doc-${kebab(name.replace(/Mm$/, ""))}`] = `${value}mm`;
+	const keep = (group, name) => !only || only[group]?.[name] !== void 0;
+	for (const [name, value] of Object.entries(design.colors)) if (keep("colors", name)) variables[`--doc-${kebab(name)}-color`] = value;
+	for (const [name, value] of Object.entries(design.spacing)) if (keep("spacing", name)) variables[`--doc-${kebab(name.replace(/Mm$/, ""))}`] = `${value}mm`;
 	for (const [name, value] of Object.entries(design.typography)) {
-		if (name === "fontId" || name === "headingFontId") continue;
+		if (name === "fontId" || name === "headingFontId" || !keep("typography", name)) continue;
 		variables[`--doc-${kebab(name.replace(/Pt$/, ""))}`] = `${value}${name.endsWith("Pt") ? "pt" : ""}`;
 	}
-	variables["--doc-font"] = getDocumentFont(design.typography.fontId).family;
-	variables["--doc-heading-font"] = getDocumentFont(design.typography.headingFontId).family;
-	variables["--doc-margin"] = variables["--doc-page-margin"];
-	variables["--doc-padding"] = variables["--doc-inner-padding"];
-	variables["--doc-accent"] = variables["--doc-accent-color"];
-	variables["--doc-line-color"] = variables["--doc-divider-color"];
+	if (keep("typography", "fontId")) variables["--doc-font"] = getDocumentFont(design.typography.fontId).family;
+	if (keep("typography", "headingFontId")) variables["--doc-heading-font"] = getDocumentFont(design.typography.headingFontId).family;
+	if (!only) {
+		variables["--doc-margin"] = variables["--doc-page-margin"];
+		variables["--doc-padding"] = variables["--doc-inner-padding"];
+	}
+	if (variables["--doc-accent-color"]) variables["--doc-accent"] = variables["--doc-accent-color"];
+	if (variables["--doc-divider-color"]) variables["--doc-line-color"] = variables["--doc-divider-color"];
 	return variables;
+};
+//#endregion
+//#region src/shared/resumeDesignSystem.ts
+var definedFields = (fields) => Object.fromEntries(Object.entries(fields ?? {}).filter(([, value]) => value !== void 0));
+var tokenGroups = [
+	"colors",
+	"typography",
+	"spacing"
+];
+/** Later layers win field by field; empty groups disappear. */
+var mergeCvDesignOverrides = (...layers) => {
+	const merged = {};
+	for (const group of tokenGroups) {
+		const fields = Object.assign({}, ...layers.map((layer) => definedFields(layer?.[group])));
+		if (Object.keys(fields).length) Object.assign(merged, { [group]: fields });
+	}
+	return merged;
+};
+/** "Line visible" and "line position" describe one decision, so a layer that names either one replaces both. */
+var dividerKeys = ["sectionDividerVisible", "sectionDividerPosition"];
+var mergeResumeAppearance = (...layers) => {
+	let merged = {};
+	for (const layer of layers) {
+		const fields = definedFields(layer);
+		if (dividerKeys.some((key) => fields[key] !== void 0)) merged = definedFields({
+			...merged,
+			sectionDividerVisible: void 0,
+			sectionDividerPosition: void 0
+		});
+		merged = {
+			...merged,
+			...fields
+		};
+	}
+	return merged;
+};
+var isEmptyResumeDesignLayer = (layer) => !layer || !Object.keys(mergeCvDesignOverrides(layer.cvOverrides)).length && !Object.keys(mergeResumeAppearance(layer.resumeAppearance)).length;
+/**
+* The document's settings with the shared layer folded in below the document's own overrides. This is the one place
+* where the shared layer reaches an output: the preview, the PDF, the page planner and the design panel all resolve
+* from the settings this returns, so none of them can disagree. Without a layer the very same object comes back.
+*/
+var applyGlobalResumeDesign = (settings, layer) => {
+	if (isEmptyResumeDesignLayer(layer)) return settings;
+	const cvOverrides = mergeCvDesignOverrides(layer?.cvOverrides, settings.cvOverrides);
+	const resumeAppearance = mergeResumeAppearance(layer?.resumeAppearance, settings.resumeAppearance);
+	const { cvOverrides: _cv, resumeAppearance: _appearance, ...rest } = settings;
+	return {
+		...rest,
+		...Object.keys(cvOverrides).length ? { cvOverrides } : {},
+		...Object.keys(resumeAppearance).length ? { resumeAppearance } : {}
+	};
+};
+var roundTenth = (value) => Math.round(value * 10) / 10;
+/**
+* The tokens a document shows. Saved legacy slider/font levels still count while no semantic override names the same
+* value, so documents created before the semantic panel keep their look and are displayed accurately.
+*/
+var resolveEffectiveDesignTokens = (templateId, settings) => {
+	const design = resolveCvDesign(templateId, settings.cvOverrides);
+	const defaults = getTemplateDocumentDesignDefaults(templateId);
+	const semantic = settings.cvOverrides;
+	const spacing = { ...design.spacing };
+	const typography = { ...design.typography };
+	if (semantic?.spacing?.pageMarginMm === void 0 && settings.marginLevel !== defaults.marginLevel) spacing.pageMarginMm = marginLevelToMm[settings.marginLevel];
+	if (semantic?.spacing?.innerPaddingMm === void 0 && settings.paddingLevel !== defaults.paddingLevel) spacing.innerPaddingMm = paddingLevelToMm[settings.paddingLevel];
+	if (semantic?.spacing?.sectionGapMm === void 0 && settings.sectionSpacingLevel !== defaults.sectionSpacingLevel) spacing.sectionGapMm = sectionSpacingLevelToMm[settings.sectionSpacingLevel];
+	if (semantic?.typography?.lineHeight === void 0 && settings.lineHeightLevel !== defaults.lineHeightLevel) typography.lineHeight = lineHeightLevelToValue[settings.lineHeightLevel];
+	if (semantic?.typography?.fontId === void 0 && settings.fontId !== defaults.fontId) typography.fontId = settings.fontId;
+	if (semantic?.typography?.headingFontId === void 0 && settings.headingFontId !== defaults.headingFontId) typography.headingFontId = settings.headingFontId;
+	if (semantic?.typography?.bodySizePt === void 0 && settings.fontSize !== defaults.fontSize && !templateId.startsWith("pehlione_")) typography.bodySizePt = roundTenth(typography.bodySizePt + fontSizeToPt[settings.fontSize] - fontSizeToPt[defaults.fontSize]);
+	return {
+		...design,
+		spacing,
+		typography
+	};
 };
 //#endregion
 //#region src/shared/resumeSpacing.ts
@@ -10521,25 +11380,10 @@ var resumeSpacingFields = [
 		label: "Spaltenabstand"
 	}
 ];
-/** Show legacy saved slider values accurately until an explicit semantic field replaces them. */
-var resolveEffectiveResumeSpacing = (templateId, settings) => {
-	const design = resolveCvDesign(templateId, settings.cvOverrides);
-	const defaults = getTemplateDocumentDesignDefaults(templateId);
-	const spacing = { ...design.spacing };
-	const typography = { ...design.typography };
-	if (settings.cvOverrides?.spacing?.pageMarginMm === void 0 && settings.marginLevel !== defaults.marginLevel) spacing.pageMarginMm = marginLevelToMm[settings.marginLevel];
-	if (settings.cvOverrides?.spacing?.innerPaddingMm === void 0 && settings.paddingLevel !== defaults.paddingLevel) spacing.innerPaddingMm = paddingLevelToMm[settings.paddingLevel];
-	if (settings.cvOverrides?.spacing?.sectionGapMm === void 0 && settings.sectionSpacingLevel !== defaults.sectionSpacingLevel) spacing.sectionGapMm = sectionSpacingLevelToMm[settings.sectionSpacingLevel];
-	if (settings.cvOverrides?.typography?.lineHeight === void 0 && settings.lineHeightLevel !== defaults.lineHeightLevel) typography.lineHeight = lineHeightLevelToValue[settings.lineHeightLevel];
-	return {
-		...design,
-		spacing,
-		typography
-	};
-};
 var resumeSpacingCss = `
 [data-resume-spacing-section-gap] [data-resume-spacing-section]{margin-block-end:0!important}
 [data-resume-spacing-section-gap] [data-resume-spacing-section-following]{margin-block-start:var(--doc-section-gap)!important}
+[data-resume-spacing-section-gap] [data-resume-spacing-section-stack]{row-gap:0!important}
 [data-resume-spacing-entry-gap] [data-resume-spacing-list]{row-gap:0!important}
 [data-resume-spacing-entry-gap] [data-resume-spacing-entry]{margin-block-end:0!important}
 [data-resume-spacing-entry-gap] [data-resume-spacing-entry-following]{margin-block-start:var(--doc-entry-gap)!important}
@@ -10547,6 +11391,17 @@ var resumeSpacingCss = `
 [data-resume-spacing-content-gap] [data-resume-spacing-entry-title]{margin-block-end:var(--doc-entry-content-gap)!important}
 [data-resume-spacing-line-height] :is(p,li){line-height:var(--doc-line-height)!important}
 `;
+/** These templates pad their whole page by `--doc-margin` themselves, so a chosen margin is simply that variable. */
+var marginFromVariable = /* @__PURE__ */ new Set(["zweispaltig", "zeitgenoessisch"]);
+/**
+* How a chosen page margin reaches a template. A template draws its margin through containers of its own, so the
+* value moves the margin the template really has (typed in its native design) to the chosen one: the edge shifts by
+* the difference, on every side alike. Templates that pad their page by `--doc-margin` simply take the variable.
+*/
+var getPageMarginAdjustment = (templateId, marginMm) => ({
+	viaVariable: marginFromVariable.has(resolveTemplateId(templateId)),
+	shiftMm: Math.round((marginMm - resolveTemplateCvDesign(templateId).spacing.pageMarginMm) * 100) / 100
+});
 /** Annotate only explicitly changed fields; untouched templates keep native CSS. */
 var applyResumeSpacingOutput = (page, templateId, surface, settings, resolvedDesign) => {
 	const overrides = settings.cvOverrides;
@@ -10560,7 +11415,7 @@ var applyResumeSpacingOutput = (page, templateId, surface, settings, resolvedDes
 	if (!scope) return;
 	if (nativeSectionGap) {
 		const property = `--${id}-section-gap-base`;
-		const defaultGap = id === "kreativ" ? kreativDefaults.layout.sectionGapMm : id === "stilvoll" ? stilvollDefaults.layout.sectionGapMm : kompaktDefaults.layout.sectionGapMm;
+		const defaultGap = resolveTemplateCvDesign(id).spacing.sectionGapMm;
 		const legacyGap = id === "kompakt" ? Math.max(3.5, sectionSpacingLevelToMm[settings.sectionSpacingLevel] - 1) : sectionSpacingLevelToMm[settings.sectionSpacingLevel];
 		const gap = spacing?.sectionGapMm ?? (legacyNativeSectionGap ? legacyGap : defaultGap);
 		scope.style.setProperty(property, `${gap}mm`);
@@ -10573,8 +11428,14 @@ var applyResumeSpacingOutput = (page, templateId, surface, settings, resolvedDes
 		scope.style.setProperty(name, variables[name]);
 	}
 	if (spacing?.pageMarginMm !== void 0) {
-		scope.style.setProperty("--doc-margin", variables["--doc-page-margin"]);
-		scope.style.padding = variables["--doc-page-margin"];
+		const { viaVariable, shiftMm } = getPageMarginAdjustment(id, spacing.pageMarginMm);
+		if (viaVariable) scope.style.setProperty("--doc-margin", variables["--doc-page-margin"]);
+		else if (shiftMm >= 0) scope.style.padding = `${shiftMm}mm`;
+		else {
+			scope.style.margin = `${shiftMm}mm`;
+			scope.style.width = `calc(100% + ${-2 * shiftMm}mm)`;
+			scope.style.height = `calc(100% + ${-2 * shiftMm}mm)`;
+		}
 	}
 	if (spacing?.innerPaddingMm !== void 0) scope.style.setProperty("--doc-padding", variables["--doc-inner-padding"]);
 	if (spacing?.sectionGapMm !== void 0) scope.setAttribute("data-resume-spacing-section-gap", "");
@@ -10589,6 +11450,7 @@ var applyResumeSpacingOutput = (page, templateId, surface, settings, resolvedDes
 	const sections = Array.from(scope.querySelectorAll("[data-managed-section]"));
 	if (spacing?.sectionGapMm !== void 0) for (const section of sections) {
 		section.setAttribute("data-resume-spacing-section", "");
+		section.parentElement?.setAttribute("data-resume-spacing-section-stack", "");
 		if (section.previousElementSibling?.hasAttribute("data-managed-section")) section.setAttribute("data-resume-spacing-section-following", "");
 	}
 	const sources = resumeSectionStyleSources[surface][id];
@@ -10906,6 +11768,13 @@ var applyPehlioneAppearance = (root, templateId, settings) => {
 	if (appearance.sectionDividerVisible === false) host.setAttribute("data-section-divider", "hidden");
 	if (appearance.photoDecorationVisible === false) host.setAttribute("data-photo-decoration", "hidden");
 };
+var lower = (hex) => hex.toLowerCase();
+var blue = lower(pehlioneWhiteBlueDefaults.colors.primary);
+var navy = lower(pehlioneWhiteDefaults.colors.primary);
+var subtitle = lower(pehlioneWhiteBlueDefaults.colors.subtitle);
+var text = lower(pehlioneWhiteDefaults.colors.text);
+var divider = lower(pehlioneWhiteBlueDefaults.colors.divider);
+var blueDecoration = lower(pehlioneWhiteBlueDefaults.colors.photoDecoration);
 var pehlioneAppearanceCss = `
 .pehlione-resume[data-template^="pehlione_"] .pehlione-project,
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-project{padding:0;border:0;background:transparent}
@@ -10914,24 +11783,24 @@ var pehlioneAppearanceCss = `
 [data-custom-template^="pehlione_"]>[data-custom-role="heading"]>[data-custom-role="heading-label"]{grid-column:2;grid-row:1;min-width:0}
 [data-custom-template^="pehlione_"]>[data-custom-role="heading"]>[aria-hidden="true"]{grid-column:1;grid-row:1}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-sidebar,
-.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar{background:var(--pehlione-sidebar-background,linear-gradient(155deg,#062e64,#0b3d86 58%,#041f45));color:var(--pehlione-sidebar-text,#fff)}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar{background:var(--pehlione-sidebar-background,linear-gradient(155deg,#062e64,${blue} 58%,#041f45));color:var(--pehlione-sidebar-text,#fff)}
 .pehlione-resume[data-template="pehlione_white"] .pehlione-sidebar,
-.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar{background:var(--pehlione-sidebar-background,#fff);color:var(--pehlione-sidebar-text,#142235)}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar{background:var(--pehlione-sidebar-background,#fff);color:var(--pehlione-sidebar-text,${text})}
 .pehlione-resume[data-template="pehlione_white"] .pehlione-contacts,
-.cv-sheet[data-template="pehlione_white"] .pehlione-contacts{--contact-text:var(--pehlione-sidebar-text,#142235);--contact-heading:var(--pehlione-sidebar-text,var(--pehlione-primary,#08245c))}
+.cv-sheet[data-template="pehlione_white"] .pehlione-contacts{--contact-text:var(--pehlione-sidebar-text,${text});--contact-heading:var(--pehlione-sidebar-text,var(--pehlione-primary,${navy}))}
 .pehlione-resume[data-template="pehlione_white"] .pehlione-contacts h3 svg,
-.cv-sheet[data-template="pehlione_white"] .pehlione-contacts h3 svg{stroke:var(--pehlione-primary,#08245c)}
+.cv-sheet[data-template="pehlione_white"] .pehlione-contacts h3 svg{stroke:var(--pehlione-primary,${navy})}
 .pehlione-resume[data-template="pehlione_white"] .pehlione-blueprint svg,
-.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-blueprint svg{stroke:var(--pehlione-photo-decoration-color,#dcecff)}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-blueprint svg{stroke:var(--pehlione-photo-decoration-color,${lower(pehlioneWhiteDefaults.colors.photoDecoration)})}
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero.with-photo{background-color:#062b5a;background-image:linear-gradient(#ffffff1e 1px,transparent 1px),linear-gradient(90deg,#ffffff1e 1px,transparent 1px);background-size:4mm 4mm}
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero:before,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero:after{position:absolute;display:block;border:.25mm solid var(--pehlione-photo-decoration-color,#b7d7ff99);border-radius:50%;content:"";transform:none}
-.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i{position:absolute;width:34mm;border-top:.25mm solid var(--pehlione-photo-decoration-color,#d9ebff99);transform:rotate(var(--angle,0deg));transform-origin:left}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i{position:absolute;width:34mm;border-top:.25mm solid var(--pehlione-photo-decoration-color,${blueDecoration}99);transform:rotate(var(--angle,0deg));transform-origin:left}
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i:nth-of-type(1){--angle:-27deg}
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i:nth-of-type(2){--angle:18deg}
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i:nth-of-type(3){--angle:52deg}
-.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero b{position:absolute;color:#d9ebff;font-size:9mm;font-weight:400}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero b{position:absolute;color:${blueDecoration};font-size:9mm;font-weight:400}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-main,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-main{background:var(--pehlione-main-background,#fff)}
 .pehlione-resume[data-template="pehlione_white"] .pehlione-main,
@@ -10939,7 +11808,7 @@ var pehlioneAppearanceCss = `
 .pehlione-resume[data-template^="pehlione_"] .pehlione-header h1,
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-header h1{color:var(--pehlione-title-color,var(--pehlione-primary))}
 .pehlione-resume[data-template^="pehlione_"] .pehlione-header h2,
-.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-header h2{color:var(--pehlione-subtitle-color,#12294e)}
+.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-header h2{color:var(--pehlione-subtitle-color,${subtitle})}
 .pehlione-resume[data-template^="pehlione_"] .pehlione-main .pehlione-section-heading,
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-main .pehlione-pdf-section>h3{color:var(--pehlione-section-color,var(--pehlione-primary))}
 .pehlione-resume[data-template^="pehlione_"] .pehlione-career-entry h3,
@@ -10948,20 +11817,20 @@ var pehlioneAppearanceCss = `
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-section>h3 span,
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-sidebar h3{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary));border-bottom-width:var(--pehlione-divider-width,.3mm)}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-sidebar :is(.pehlione-language-heading,.pehlione-competencies-heading){display:grid;grid-template-columns:9mm minmax(0,1fr);gap:3mm;align-items:center}
-.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-sidebar :is(.pehlione-language-heading,.pehlione-competencies-heading)>span{display:grid;width:9mm;height:9mm;place-items:center;border-radius:1.2mm;color:#fff;background:var(--pehlione-primary,#0b3d86)}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-sidebar :is(.pehlione-language-heading,.pehlione-competencies-heading)>span{display:grid;width:9mm;height:9mm;place-items:center;border-radius:1.2mm;color:#fff;background:var(--pehlione-primary,${blue})}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-sidebar :is(.pehlione-language-heading,.pehlione-competencies-heading) b{display:block;min-width:0;padding-bottom:1.2mm;border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary));border-bottom-width:var(--pehlione-divider-width,.3mm)}
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar :is(.pehlione-pdf-language-heading,.pehlione-pdf-competencies-heading){display:grid;grid-template-columns:9mm minmax(0,1fr);gap:3mm;align-items:center;border-bottom:0;padding-bottom:0}
-.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar :is(.pehlione-pdf-language-heading,.pehlione-pdf-competencies-heading)>i{display:grid;width:9mm;height:9mm;place-items:center;border-radius:1.2mm;color:#fff;background:var(--pehlione-primary,#0b3d86)}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar :is(.pehlione-pdf-language-heading,.pehlione-pdf-competencies-heading)>i{display:grid;width:9mm;height:9mm;place-items:center;border-radius:1.2mm;color:#fff;background:var(--pehlione-primary,${blue})}
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar :is(.pehlione-pdf-language-heading,.pehlione-pdf-competencies-heading)>span{display:block;min-width:0;padding-bottom:1.2mm;border-bottom:var(--pehlione-divider-width,.3mm) solid var(--pehlione-divider-color,#b8d2f4)}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-contacts.pehlione-contacts h3,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar .pehlione-contacts.pehlione-contacts h3{border-bottom-color:var(--pehlione-contact-divider-color,#fff);border-bottom-width:var(--pehlione-divider-width,.3mm)}
 .pehlione-resume[data-template="pehlione_white"] .pehlione-contacts.pehlione-contacts h3,
-.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-contacts.pehlione-contacts h3{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary,#08245c));border-bottom-width:var(--pehlione-divider-width,.3mm)}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-contacts.pehlione-contacts h3{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary,${navy}));border-bottom-width:var(--pehlione-divider-width,.3mm)}
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-sidebar .pehlione-pdf-section>h3{border-bottom:0;padding-bottom:0}
 .cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading{display:grid;grid-template-columns:8mm minmax(0,1fr);gap:2mm;align-items:center;border-bottom:0;padding-bottom:0}
-.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading>.pehlione-pdf-section-icon{display:grid;width:8mm;height:8mm;place-items:center;color:var(--pehlione-primary,#08245c);background:transparent}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading>.pehlione-pdf-section-icon{display:grid;width:8mm;height:8mm;place-items:center;color:var(--pehlione-primary,${navy});background:transparent}
 .cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading>.pehlione-pdf-section-icon svg{width:7mm;height:7mm}
-.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading>span{display:block;min-width:0;padding-bottom:1.2mm;border-bottom:var(--pehlione-divider-width,.3mm) solid var(--pehlione-divider-color,var(--pehlione-primary,#08245c))}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading>span{display:block;min-width:0;padding-bottom:1.2mm;border-bottom:var(--pehlione-divider-width,.3mm) solid var(--pehlione-divider-color,var(--pehlione-primary,${navy}))}
 .pehlione-resume[data-template="pehlione_white"] .pehlione-header h2,
 .cv-sheet[data-template="pehlione_white"] .pehlione-pdf-header h2{max-width:calc(100% - 6mm);white-space:normal;overflow-wrap:anywhere}
 .pehlione-resume[data-template="pehlione_white"][data-density="compact"] .pehlione-header h2,
@@ -10973,7 +11842,7 @@ var pehlioneAppearanceCss = `
 .pehlione-resume:is([data-template="pehlione_white_blue"],[data-template="pehlione_white"])[data-page="2"]:not([data-density="compact"]) .pehlione-header h1{font-size:29pt}
 .pehlione-resume:is([data-template="pehlione_white_blue"],[data-template="pehlione_white"])[data-page="2"]:not([data-density="compact"]) .pehlione-header h2{margin-top:2mm;font-size:13pt}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry,
-.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-entry{border-bottom-color:var(--pehlione-divider-color,#b8c3d0)}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-entry{border-bottom-color:var(--pehlione-divider-color,${divider})}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry,
 .pehlione-resume[data-template="pehlione_white_blue"][data-density="compact"] .pehlione-career-entry,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-entry{grid-template-columns:30mm minmax(0,1fr);gap:3mm;align-items:start}
@@ -11005,7 +11874,7 @@ var pehlioneAppearanceCss = `
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-hero:before,
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-hero:after{border-color:var(--pehlione-photo-decoration-color,#b7d7ff99)}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-hero :is(i),
-.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero:after{border-color:var(--pehlione-photo-decoration-color,#d9ebff99)}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero:after{border-color:var(--pehlione-photo-decoration-color,${blueDecoration}99)}
 .pehlione-resume[data-photo-decoration="hidden"] .pehlione-hero :is(i),
 .pehlione-resume[data-photo-decoration="hidden"] .pehlione-hero:before,
 .pehlione-resume[data-photo-decoration="hidden"] .pehlione-hero:after,
@@ -11109,6 +11978,17 @@ var pehlioneContactsCss = `
 `;
 //#endregion
 //#region src/shared/resumeSectionPresentation.ts
+/**
+* One place that decides how a résumé section *looks* — its icon, its heading and its list —
+* from the section, the template and the column it is drawn in (`main` or `sidebar`).
+*
+* The React preview and the PDF both post-process their pages with `applyResumeSectionPresentation`
+* and both load `resumeSectionPresentationCss`, so a section that moves between the columns changes
+* its heading in the same way on either surface, and no surface keeps a private icon set.
+*
+* Only templates listed in `zoneFlowTemplates` are covered. The others keep their own, unchanged
+* headings until their round of verification names them.
+*/
 var lightbulb = "<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\"/><path d=\"M9 18h6\"/><path d=\"M10 22h4\"/>";
 var graduationCap = "<path d=\"M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z\"/><path d=\"M22 10v6\"/><path d=\"M6 12.5V16a6 3 0 0 0 12 0v-3.5\"/>";
 var sectionIcons = {
@@ -11187,6 +12067,10 @@ var usesApplicationClosingDate = (templateId) => isZoneFlowTemplate(templateId);
 * Pehlione White Blue: the values of the measured PDF, which is what the pagination geometry was
 * fitted to. The preview takes exactly the same numbers.
 */
+var pehlioneBlue = pehlioneWhiteBlueDefaults.colors.primary.toLowerCase();
+var pehlioneNavy = pehlioneWhiteDefaults.colors.primary.toLowerCase();
+var pehlioneMain = pehlioneWhiteBlueDesign.tokens;
+var pehlioneSidebar = pehlioneWhiteBlueDefaults.sidebar;
 var pehlioneWhiteBlue = {
 	main: {
 		icons: true,
@@ -11197,27 +12081,27 @@ var pehlioneWhiteBlue = {
 			glyphSize: 5.5,
 			glyphStroke: 1.9,
 			fontSizePt: {
-				standard: 13,
+				standard: pehlioneMain.typography.sectionHeadingSizePt,
 				compact: 11.2
 			},
-			fontWeight: 700,
+			fontWeight: pehlioneMain.typography.sectionHeadingWeight,
 			lineHeight: 1.1,
 			letterSpacing: "0",
-			textTransform: "uppercase",
+			textTransform: pehlioneMain.typography.sectionHeadingUppercase ? "uppercase" : "none",
 			marginBottom: {
-				standard: 3,
+				standard: pehlioneMain.spacing.sectionTitleGapMm,
 				compact: 2
 			},
 			labelPadding: {
 				standard: 1.2,
 				compact: .8
 			},
-			color: "var(--pehlione-section-color,var(--pehlione-primary,#0b3d86))",
-			dividerColor: "var(--pehlione-divider-color,var(--pehlione-primary,#0b3d86))",
+			color: `var(--pehlione-section-color,var(--pehlione-primary,${pehlioneBlue}))`,
+			dividerColor: `var(--pehlione-divider-color,var(--pehlione-primary,${pehlioneBlue}))`,
 			iconColor: "#fff",
-			iconBackground: "var(--pehlione-primary,#0b3d86)",
+			iconBackground: `var(--pehlione-primary,${pehlioneBlue})`,
 			sectionGap: {
-				standard: 6,
+				standard: pehlioneMain.spacing.sectionGapMm,
 				compact: 3.1
 			}
 		},
@@ -11246,16 +12130,16 @@ var pehlioneWhiteBlue = {
 			glyphSize: 5.5,
 			glyphStroke: 1.9,
 			fontSizePt: {
-				standard: 9.7,
-				compact: 9.7
+				standard: pehlioneSidebar.sectionHeadingSizePt,
+				compact: pehlioneSidebar.sectionHeadingSizePt
 			},
-			fontWeight: 700,
+			fontWeight: pehlioneMain.typography.sectionHeadingWeight,
 			lineHeight: 1.1,
 			letterSpacing: "0",
-			textTransform: "uppercase",
+			textTransform: pehlioneMain.typography.sectionHeadingUppercase ? "uppercase" : "none",
 			marginBottom: {
-				standard: 2,
-				compact: 2
+				standard: pehlioneSidebar.sectionTitleGapMm,
+				compact: pehlioneSidebar.sectionTitleGapMm
 			},
 			labelPadding: {
 				standard: 1.2,
@@ -11264,10 +12148,10 @@ var pehlioneWhiteBlue = {
 			color: "var(--pehlione-sidebar-text,#fff)",
 			dividerColor: "var(--pehlione-divider-color,#b8d2f4)",
 			iconColor: "#fff",
-			iconBackground: "var(--pehlione-primary,#0b3d86)",
+			iconBackground: `var(--pehlione-primary,${pehlioneBlue})`,
 			sectionGap: {
-				standard: 4.5,
-				compact: 4.5
+				standard: pehlioneSidebar.sectionGapMm,
+				compact: pehlioneSidebar.sectionGapMm
 			}
 		},
 		list: {
@@ -11297,9 +12181,9 @@ var pehlioneWhite = {
 		...pehlioneWhiteBlue.main,
 		heading: {
 			...pehlioneWhiteBlue.main.heading,
-			color: "var(--pehlione-section-color,var(--pehlione-primary,#08245c))",
-			dividerColor: "var(--pehlione-divider-color,var(--pehlione-primary,#08245c))",
-			iconBackground: "var(--pehlione-primary,#08245c)"
+			color: `var(--pehlione-section-color,var(--pehlione-primary,${pehlioneNavy}))`,
+			dividerColor: `var(--pehlione-divider-color,var(--pehlione-primary,${pehlioneNavy}))`,
+			iconBackground: `var(--pehlione-primary,${pehlioneNavy})`
 		}
 	},
 	sidebar: {
@@ -11311,9 +12195,9 @@ var pehlioneWhite = {
 			iconRadius: 0,
 			glyphSize: 7,
 			glyphStroke: 1.9,
-			color: "var(--pehlione-primary,#08245c)",
-			dividerColor: "var(--pehlione-divider-color,var(--pehlione-primary,#08245c))",
-			iconColor: "var(--pehlione-primary,#08245c)",
+			color: `var(--pehlione-primary,${pehlioneNavy})`,
+			dividerColor: `var(--pehlione-divider-color,var(--pehlione-primary,${pehlioneNavy}))`,
+			iconColor: `var(--pehlione-primary,${pehlioneNavy})`,
 			iconBackground: "transparent"
 		}
 	}
@@ -30956,7 +31840,8 @@ var buildScale = (geometry, context, templateId) => {
 	const line = overrides.lineHeight ? bounded(overrides.lineHeight, geometry.text.lineRatio) / geometry.text.lineRatio : settings ? lineHeightLevelToValue[settings.lineHeightLevel] / lineHeightLevelToValue[defaults.lineHeightLevel] : 1;
 	const defaultMargin = marginLevelToMm[defaults.marginLevel];
 	const legacyMargin = settings && legacyMarginTemplates.has(templateId ?? "") ? marginLevelToMm[settings.marginLevel] - defaultMargin : 0;
-	const marginInset = Math.max(0, overrides.pageMarginMm !== void 0 ? overrides.pageMarginMm - defaultMargin : legacyMargin);
+	const nativeMargin = templateId ? resolveTemplateCvDesign(templateId).spacing.pageMarginMm : defaultMargin;
+	const marginInset = Math.max(0, overrides.pageMarginMm !== void 0 ? overrides.pageMarginMm - nativeMargin : legacyMargin);
 	const sectionGap = overrides.sectionGapMm ?? (settings && settings.sectionSpacingLevel !== defaults.sectionSpacingLevel ? nativeSectionGapOf(geometry, context.atsMode) + sectionSpacingLevelToMm[settings.sectionSpacingLevel] - sectionSpacingLevelToMm[defaults.sectionSpacingLevel] : void 0);
 	const single = context.atsMode || context.layout?.mode === "single";
 	const factors = context.atsMode ? geometry.ats : {
@@ -31649,8 +32534,9 @@ var getLetterPageStatus = (documents) => {
 //#endregion
 //#region src/shared/resolveCvDocument.ts
 /** The sole CV projection used by both preview and print renderers. */
-var resolveCvDocument = ({ profile: sourceProfile, templateId: requestedTemplateId, settings = defaultDocumentDesign, resumeProfile = "", deckblattStatement = "", jobTitle = "", presentationAlreadyApplied = false, application }) => {
+var resolveCvDocument = ({ profile: sourceProfile, templateId: requestedTemplateId, settings: documentSettings = defaultDocumentDesign, resumeProfile = "", deckblattStatement = "", jobTitle = "", presentationAlreadyApplied = false, application, globalDesign }) => {
 	const templateId = resolveTemplateId(requestedTemplateId);
+	const settings = applyGlobalResumeDesign(documentSettings, globalDesign);
 	const profile = getResumeDisplayProfile(presentationAlreadyApplied ? sourceProfile : resolveResumePresentation(sourceProfile, templateId, settings.resumePresentation));
 	const sections = { ...profile?.resumeSections ?? {
 		profile: true,
@@ -31665,7 +32551,7 @@ var resolveCvDocument = ({ profile: sourceProfile, templateId: requestedTemplate
 	const knowledgeGroups = profile ? resolveKnowledgeGroups(templateId, profile.resumeKnowledgeGroups) : [];
 	const atsMode = settings.resumeOutputMode === "ats" || settings.columnLayout === "compact-ats";
 	const layout = resolveResumeLayout(templateId, settings.resumePresentation, atsMode, sourceProfile?.resumeColumnRatio);
-	const design = resolveEffectiveResumeSpacing(templateId, settings);
+	const design = resolveEffectiveDesignTokens(templateId, settings);
 	const paginationSummary = templateId.startsWith("pehlione_") ? resumeProfile || (/kundenservice|sachbearbeit/i.test(jobTitle) ? deckblattStatement : "") || profile?.summary || "" : resumeProfile;
 	const paginatedProfile = profile && {
 		...profile,
@@ -31844,7 +32730,10 @@ var applyResumeDesignOverrides = (root, templateId, surface, settings, design) =
 	const overrides = settings.cvOverrides;
 	if (!overrides || !overrides.colors && !overrides.typography) return;
 	const scope = (surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild) ?? root;
-	const variables = getCvDesignVariables(design);
+	const variables = getCvDesignVariables(design, {
+		colors: overrides.colors,
+		typography: overrides.typography
+	});
 	const set = (element, property, value) => element.style.setProperty(property, value, "important");
 	for (const [name, value] of Object.entries(variables)) scope.style.setProperty(name, value);
 	const prefix = {
@@ -31914,7 +32803,10 @@ var applyResumeDesignOverrides = (root, templateId, surface, settings, design) =
 	const typography = overrides.typography;
 	if (!typography) return;
 	if (typography.fontId !== void 0) set(scope, "font-family", variables["--doc-font"]);
-	if (typography.bodySizePt !== void 0) set(scope, "font-size", `${design.typography.bodySizePt}pt`);
+	if (typography.bodySizePt !== void 0) {
+		set(scope, "font-size", `${design.typography.bodySizePt}pt`);
+		for (const node of scope.querySelectorAll("[data-managed-section] li,[data-managed-section='summary'] p,[data-content-type='text'] p")) set(node, "font-size", `${design.typography.bodySizePt}pt`);
+	}
 	if (name) {
 		if (typography.headingFontId !== void 0) set(name, "font-family", variables["--doc-heading-font"]);
 		if (typography.headingSizePt !== void 0) set(name, "font-size", `${design.typography.headingSizePt}pt`);
@@ -31934,14 +32826,15 @@ var applyResumeDesignOverrides = (root, templateId, surface, settings, design) =
 	if (typography.entryHeadingSizePt !== void 0) for (const node of entryHeadings) set(node, "font-size", `${design.typography.entryHeadingSizePt}pt`);
 	if (typography.headingFontId !== void 0) for (const node of entryHeadings) set(node, "font-family", variables["--doc-heading-font"]);
 };
-var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, totalPages = 1, designSettings = defaultDocumentDesign, resolvedCv, firstPageHtml) => {
+var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, totalPages = 1, documentSettings = defaultDocumentDesign, resolvedCv, firstPageHtml) => {
 	if (!profile) return html;
 	const resolved = resolvedCv ?? resolveCvDocument({
 		profile,
 		templateId,
-		settings: designSettings,
+		settings: documentSettings,
 		presentationAlreadyApplied: true
 	});
+	const designSettings = resolved.settings;
 	const { document } = parseHTML(`<html><body>${html}</body></html>`);
 	const entries = resolved.managerSections;
 	const groups = resolved.knowledgeGroups;
@@ -32322,7 +33215,7 @@ var applyManagedResumeOutput = (html, profile, templateId, pageNumber = 1, total
 			right: Math.max(12, Math.round(210 - geometry.contentRight))
 		};
 		applyResumeClosingOutput(root, main, profile, templateId, designSettings, last, enabled("closing"), closingInset, resolved.closingDate);
-		applyGeneralResumeAppearance(root, resolved.templateId, designSettings, main, sidebar);
+		applyGeneralResumeAppearance(root, resolved.templateId, designSettings, main, sidebar, resolved.design.colors.divider);
 		applyPehlioneAppearance(root, resolved.templateId, designSettings);
 		applyResumeSectionHeadingColors(root, designSettings);
 		if (number === 1) firstPageHeader = root.querySelector("header")?.cloneNode(true);
@@ -33151,7 +34044,7 @@ var getInheritedPdfSectionStyles = (templateId) => {
 	if (!inheritedPdfSectionStyles.has(templateId)) inheritedPdfSectionStyles.set(templateId, inheritResumeSectionStyles(elegantDocumentCss + zweispaltigDocumentCss + zeitgenoessischDocumentCss + kreativDocumentCss + ivyLeagueDocumentCss + extendedResumeDocumentCss + klassischDocumentCss + modernDocumentCss + pehlioneDocumentCss + pehlionePdfLayoutFixes + gepflegtDocumentCss + tabellarischDocumentCss, templateId, "pdf", true));
 	return inheritedPdfSectionStyles.get(templateId);
 };
-var buildDocumentHtml = (application, profile, target, attachments = []) => {
+var buildDocumentHtml = (application, profile, target, attachments = [], resumeDesign) => {
 	if (target === "deckblatt" || target === "mappe") validateDeckblattData(application, profile);
 	const resolvedCv = resolveCvDocument({
 		profile,
@@ -33160,7 +34053,8 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
 		resumeProfile: application.documents.resumeProfile,
 		deckblattStatement: application.documents.deckblattStatement,
 		jobTitle: application.job.title,
-		application
+		application,
+		globalDesign: resumeDesign
 	});
 	if (target === "lebenslauf") profile = resolvedCv.profile;
 	const template = getTemplate(application.templateId);
@@ -34837,7 +35731,7 @@ var buildDocumentHtml = (application, profile, target, attachments = []) => {
       </section>`;
 	};
 	const resume = resumePlan.map(template.id === "pehlione_white_blue" || template.id === "pehlione_white" ? renderPehlioneResumePage : template.id === "modern" ? renderModernResumePage : template.id === "stilvoll" ? renderStilvollResumePage : template.id === "kompakt" ? renderKompaktResumePage : template.id === "einspaltig" ? renderEinspaltigResumePage : template.id === "klassisch" ? (plan) => renderKlassischResumePage(plan) : template.id === "elegant" ? renderElegantResumePage : template.id === "gepflegt" ? renderGepflegtResumePage : template.id === "ivy-league" ? renderIvyLeagueResumePage : template.id === "kreativ" ? renderKreativResumePage : template.id === "zeitgenoessisch" ? renderZeitgenoessischResumePage : template.id === "zweispaltig" ? renderZweispaltigResumePage : template.id === "tabellarisch" ? renderTabellarischResumePage : renderResumePage).join("");
-	const cvHtml = target === "mappe" ? buildDocumentHtml(application, profile, "lebenslauf", attachments) : "";
+	const cvHtml = target === "mappe" ? buildDocumentHtml(application, profile, "lebenslauf", attachments, resumeDesign) : "";
 	const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings, resolvedCv);
 	const selected = target === "mappe" ? [
 		cover,
@@ -36679,7 +37573,7 @@ var DataStore = class {
 	getExportHtml(id, target, applicationSnapshot) {
 		const application = applicationSnapshot ? applicationSchema.parse(applicationSnapshot) : this.getApplication(id);
 		if (application.id !== id) throw new Error("Die Exportdaten gehören nicht zur ausgewählten Bewerbung.");
-		return buildDocumentHtml(application, this.getProfileForApplication(application), target, this.workspace.attachments);
+		return buildDocumentHtml(application, this.getProfileForApplication(application), target, this.workspace.attachments, this.workspace.settings.resumeDesign);
 	}
 	getExportDefaultName(id, target) {
 		const application = this.getApplication(id);
