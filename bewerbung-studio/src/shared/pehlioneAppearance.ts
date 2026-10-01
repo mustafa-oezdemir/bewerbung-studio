@@ -1,6 +1,7 @@
 import type { DocumentDesignSettings } from "./documentDesign";
 import { resumeAppearanceSchema } from "./resumeAppearance";
 import { pehlioneHeroCss } from "./pehlioneHero";
+import { pehlioneWhiteBlueDefaults, pehlioneWhiteDefaults } from "./cvTemplateDefaults/pehlione.defaults";
 
 /** Both Pehlione themes consume the same saved design on both HTML surfaces. */
 export const applyPehlioneAppearance = (root: Element, templateId: string, settings: DocumentDesignSettings) => {
@@ -30,6 +31,16 @@ export const applyPehlioneAppearance = (root: Element, templateId: string, setti
   if (appearance.photoDecorationVisible === false) host.setAttribute("data-photo-decoration", "hidden");
 };
 
+// Pehlione's palette lives in its typed defaults; lower-case keeps the generated CSS identical.
+const lower = (hex: string) => hex.toLowerCase();
+const blue = lower(pehlioneWhiteBlueDefaults.colors.primary);
+const navy = lower(pehlioneWhiteDefaults.colors.primary);
+const subtitle = lower(pehlioneWhiteBlueDefaults.colors.subtitle);
+const text = lower(pehlioneWhiteDefaults.colors.text);
+const divider = lower(pehlioneWhiteBlueDefaults.colors.divider);
+const blueDecoration = lower(pehlioneWhiteBlueDefaults.colors.photoDecoration);
+const navyDecoration = lower(pehlioneWhiteDefaults.colors.photoDecoration);
+
 export const pehlioneAppearanceCss = `
 .pehlione-resume[data-template^="pehlione_"] .pehlione-project,
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-project{padding:0;border:0;background:transparent}
@@ -38,24 +49,24 @@ export const pehlioneAppearanceCss = `
 [data-custom-template^="pehlione_"]>[data-custom-role="heading"]>[data-custom-role="heading-label"]{grid-column:2;grid-row:1;min-width:0}
 [data-custom-template^="pehlione_"]>[data-custom-role="heading"]>[aria-hidden="true"]{grid-column:1;grid-row:1}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-sidebar,
-.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar{background:var(--pehlione-sidebar-background,linear-gradient(155deg,#062e64,#0b3d86 58%,#041f45));color:var(--pehlione-sidebar-text,#fff)}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar{background:var(--pehlione-sidebar-background,linear-gradient(155deg,#062e64,${blue} 58%,#041f45));color:var(--pehlione-sidebar-text,#fff)}
 .pehlione-resume[data-template="pehlione_white"] .pehlione-sidebar,
-.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar{background:var(--pehlione-sidebar-background,#fff);color:var(--pehlione-sidebar-text,#142235)}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar{background:var(--pehlione-sidebar-background,#fff);color:var(--pehlione-sidebar-text,${text})}
 .pehlione-resume[data-template="pehlione_white"] .pehlione-contacts,
-.cv-sheet[data-template="pehlione_white"] .pehlione-contacts{--contact-text:var(--pehlione-sidebar-text,#142235);--contact-heading:var(--pehlione-sidebar-text,var(--pehlione-primary,#08245c))}
+.cv-sheet[data-template="pehlione_white"] .pehlione-contacts{--contact-text:var(--pehlione-sidebar-text,${text});--contact-heading:var(--pehlione-sidebar-text,var(--pehlione-primary,${navy}))}
 .pehlione-resume[data-template="pehlione_white"] .pehlione-contacts h3 svg,
-.cv-sheet[data-template="pehlione_white"] .pehlione-contacts h3 svg{stroke:var(--pehlione-primary,#08245c)}
+.cv-sheet[data-template="pehlione_white"] .pehlione-contacts h3 svg{stroke:var(--pehlione-primary,${navy})}
 .pehlione-resume[data-template="pehlione_white"] .pehlione-blueprint svg,
-.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-blueprint svg{stroke:var(--pehlione-photo-decoration-color,#dcecff)}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-blueprint svg{stroke:var(--pehlione-photo-decoration-color,${navyDecoration})}
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero.with-photo{background-color:#062b5a;background-image:linear-gradient(#ffffff1e 1px,transparent 1px),linear-gradient(90deg,#ffffff1e 1px,transparent 1px);background-size:4mm 4mm}
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero:before,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero:after{position:absolute;display:block;border:.25mm solid var(--pehlione-photo-decoration-color,#b7d7ff99);border-radius:50%;content:"";transform:none}
-.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i{position:absolute;width:34mm;border-top:.25mm solid var(--pehlione-photo-decoration-color,#d9ebff99);transform:rotate(var(--angle,0deg));transform-origin:left}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i{position:absolute;width:34mm;border-top:.25mm solid var(--pehlione-photo-decoration-color,${blueDecoration}99);transform:rotate(var(--angle,0deg));transform-origin:left}
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i:nth-of-type(1){--angle:-27deg}
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i:nth-of-type(2){--angle:18deg}
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero i:nth-of-type(3){--angle:52deg}
-.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero b{position:absolute;color:#d9ebff;font-size:9mm;font-weight:400}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero b{position:absolute;color:${blueDecoration};font-size:9mm;font-weight:400}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-main,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-main{background:var(--pehlione-main-background,#fff)}
 .pehlione-resume[data-template="pehlione_white"] .pehlione-main,
@@ -63,7 +74,7 @@ export const pehlioneAppearanceCss = `
 .pehlione-resume[data-template^="pehlione_"] .pehlione-header h1,
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-header h1{color:var(--pehlione-title-color,var(--pehlione-primary))}
 .pehlione-resume[data-template^="pehlione_"] .pehlione-header h2,
-.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-header h2{color:var(--pehlione-subtitle-color,#12294e)}
+.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-header h2{color:var(--pehlione-subtitle-color,${subtitle})}
 .pehlione-resume[data-template^="pehlione_"] .pehlione-main .pehlione-section-heading,
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-main .pehlione-pdf-section>h3{color:var(--pehlione-section-color,var(--pehlione-primary))}
 .pehlione-resume[data-template^="pehlione_"] .pehlione-career-entry h3,
@@ -72,20 +83,20 @@ export const pehlioneAppearanceCss = `
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-section>h3 span,
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-sidebar h3{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary));border-bottom-width:var(--pehlione-divider-width,.3mm)}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-sidebar :is(.pehlione-language-heading,.pehlione-competencies-heading){display:grid;grid-template-columns:9mm minmax(0,1fr);gap:3mm;align-items:center}
-.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-sidebar :is(.pehlione-language-heading,.pehlione-competencies-heading)>span{display:grid;width:9mm;height:9mm;place-items:center;border-radius:1.2mm;color:#fff;background:var(--pehlione-primary,#0b3d86)}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-sidebar :is(.pehlione-language-heading,.pehlione-competencies-heading)>span{display:grid;width:9mm;height:9mm;place-items:center;border-radius:1.2mm;color:#fff;background:var(--pehlione-primary,${blue})}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-sidebar :is(.pehlione-language-heading,.pehlione-competencies-heading) b{display:block;min-width:0;padding-bottom:1.2mm;border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary));border-bottom-width:var(--pehlione-divider-width,.3mm)}
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar :is(.pehlione-pdf-language-heading,.pehlione-pdf-competencies-heading){display:grid;grid-template-columns:9mm minmax(0,1fr);gap:3mm;align-items:center;border-bottom:0;padding-bottom:0}
-.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar :is(.pehlione-pdf-language-heading,.pehlione-pdf-competencies-heading)>i{display:grid;width:9mm;height:9mm;place-items:center;border-radius:1.2mm;color:#fff;background:var(--pehlione-primary,#0b3d86)}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar :is(.pehlione-pdf-language-heading,.pehlione-pdf-competencies-heading)>i{display:grid;width:9mm;height:9mm;place-items:center;border-radius:1.2mm;color:#fff;background:var(--pehlione-primary,${blue})}
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar :is(.pehlione-pdf-language-heading,.pehlione-pdf-competencies-heading)>span{display:block;min-width:0;padding-bottom:1.2mm;border-bottom:var(--pehlione-divider-width,.3mm) solid var(--pehlione-divider-color,#b8d2f4)}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-contacts.pehlione-contacts h3,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-sidebar .pehlione-contacts.pehlione-contacts h3{border-bottom-color:var(--pehlione-contact-divider-color,#fff);border-bottom-width:var(--pehlione-divider-width,.3mm)}
 .pehlione-resume[data-template="pehlione_white"] .pehlione-contacts.pehlione-contacts h3,
-.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-contacts.pehlione-contacts h3{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary,#08245c));border-bottom-width:var(--pehlione-divider-width,.3mm)}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-contacts.pehlione-contacts h3{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary,${navy}));border-bottom-width:var(--pehlione-divider-width,.3mm)}
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-sidebar .pehlione-pdf-section>h3{border-bottom:0;padding-bottom:0}
 .cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading{display:grid;grid-template-columns:8mm minmax(0,1fr);gap:2mm;align-items:center;border-bottom:0;padding-bottom:0}
-.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading>.pehlione-pdf-section-icon{display:grid;width:8mm;height:8mm;place-items:center;color:var(--pehlione-primary,#08245c);background:transparent}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading>.pehlione-pdf-section-icon{display:grid;width:8mm;height:8mm;place-items:center;color:var(--pehlione-primary,${navy});background:transparent}
 .cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading>.pehlione-pdf-section-icon svg{width:7mm;height:7mm}
-.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading>span{display:block;min-width:0;padding-bottom:1.2mm;border-bottom:var(--pehlione-divider-width,.3mm) solid var(--pehlione-divider-color,var(--pehlione-primary,#08245c))}
+.cv-sheet[data-template="pehlione_white"] .pehlione-pdf-sidebar .pehlione-pdf-sidebar-heading>span{display:block;min-width:0;padding-bottom:1.2mm;border-bottom:var(--pehlione-divider-width,.3mm) solid var(--pehlione-divider-color,var(--pehlione-primary,${navy}))}
 .pehlione-resume[data-template="pehlione_white"] .pehlione-header h2,
 .cv-sheet[data-template="pehlione_white"] .pehlione-pdf-header h2{max-width:calc(100% - 6mm);white-space:normal;overflow-wrap:anywhere}
 .pehlione-resume[data-template="pehlione_white"][data-density="compact"] .pehlione-header h2,
@@ -97,7 +108,7 @@ export const pehlioneAppearanceCss = `
 .pehlione-resume:is([data-template="pehlione_white_blue"],[data-template="pehlione_white"])[data-page="2"]:not([data-density="compact"]) .pehlione-header h1{font-size:29pt}
 .pehlione-resume:is([data-template="pehlione_white_blue"],[data-template="pehlione_white"])[data-page="2"]:not([data-density="compact"]) .pehlione-header h2{margin-top:2mm;font-size:13pt}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry,
-.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-entry{border-bottom-color:var(--pehlione-divider-color,#b8c3d0)}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-entry{border-bottom-color:var(--pehlione-divider-color,${divider})}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry,
 .pehlione-resume[data-template="pehlione_white_blue"][data-density="compact"] .pehlione-career-entry,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-entry{grid-template-columns:30mm minmax(0,1fr);gap:3mm;align-items:start}
@@ -129,7 +140,7 @@ export const pehlioneAppearanceCss = `
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-hero:before,
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-hero:after{border-color:var(--pehlione-photo-decoration-color,#b7d7ff99)}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-hero :is(i),
-.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero:after{border-color:var(--pehlione-photo-decoration-color,#d9ebff99)}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-hero:after{border-color:var(--pehlione-photo-decoration-color,${blueDecoration}99)}
 .pehlione-resume[data-photo-decoration="hidden"] .pehlione-hero :is(i),
 .pehlione-resume[data-photo-decoration="hidden"] .pehlione-hero:before,
 .pehlione-resume[data-photo-decoration="hidden"] .pehlione-hero:after,

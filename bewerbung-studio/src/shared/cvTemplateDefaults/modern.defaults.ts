@@ -1,3 +1,5 @@
+import type { NativeResumeDesign } from "../cvDesignSchema";
+
 /**
  * Modern template default values and design tokens
  * Based on z_Modern.md specifications
@@ -96,3 +98,63 @@ export const modernTemplateDefaults = {
 } as const;
 
 export type ModernTemplateDefaults = typeof modernTemplateDefaults;
+
+/** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */
+const modernDesignColors = {
+  text: modernTemplateDefaults.colors.text,
+  paragraph: modernTemplateDefaults.colors.text,
+  heading: modernTemplateDefaults.colors.heading,
+  subheading: modernTemplateDefaults.colors.primary,
+  sectionHeading: "#686F73",
+  entryHeading: modernTemplateDefaults.colors.heading,
+  divider: modernTemplateDefaults.colors.divider,
+  background: modernTemplateDefaults.colors.pageBackground,
+  accent: modernTemplateDefaults.colors.primary,
+  surface: modernTemplateDefaults.colors.secondary,
+  muted: modernTemplateDefaults.colors.mutedText,
+  icon: modernTemplateDefaults.colors.primary,
+};
+
+export const modernDesign: NativeResumeDesign = {
+  tokens: {
+    colors: modernDesignColors,
+    typography: {
+      fontId: "source-sans",
+      headingFontId: "source-sans",
+      bodySizePt: 9.2,
+      headingSizePt: modernTemplateDefaults.typography.nameSizePt,
+      subheadingSizePt: 12,
+      sectionHeadingSizePt: modernTemplateDefaults.typography.sectionTitleSizePt,
+      entryHeadingSizePt: modernTemplateDefaults.typography.entryTitleSizePt,
+      lineHeight: 1.2,
+      headingWeight: modernTemplateDefaults.typography.nameWeight,
+      subheadingWeight: modernTemplateDefaults.typography.professionWeight,
+      sectionHeadingWeight: modernTemplateDefaults.typography.sectionTitleWeight,
+      sectionHeadingUppercase: true,
+    },
+    spacing: {
+      pageMarginMm: modernTemplateDefaults.page.marginLeftMm,
+      innerPaddingMm: 0,
+      sectionGapMm: modernTemplateDefaults.layout.sectionGapMm,
+      entryGapMm: 4.5,
+      sectionTitleGapMm: 3.2,
+      entryContentGapMm: 1,
+      columnGapMm: 0,
+    },
+  },
+  appearance: {
+    sidebarBackgroundColor: modernDesignColors.background,
+    sidebarTextColor: modernDesignColors.text,
+    sidebarSectionHeadingColor: modernDesignColors.sectionHeading,
+    mainBackgroundColor: modernDesignColors.background,
+    sectionDividerPosition: "bottom",
+    sectionDividerWidthMm: 0.35,
+    sectionHeadingAlignment: "left",
+    sectionHeadingMarginBeforeMm: 0,
+    photoDecorationVisible: false,
+    photoDecorationColor: modernDesignColors.accent,
+    contactDividerColor: modernDesignColors.divider,
+    photoLayout: "circle",
+    headerLayout: "left",
+  },
+};

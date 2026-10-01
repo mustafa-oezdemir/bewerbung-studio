@@ -2,6 +2,7 @@ import { inheritResumeSectionStyles } from "../src/shared/resumeSectionStyleInhe
 import { klassischDefaults } from "../src/shared/cvTemplateDefaults/klassisch.defaults";
 import { kreativDefaults } from "../src/shared/cvTemplateDefaults/kreativ.defaults";
 import { kompaktDefaults } from "../src/shared/cvTemplateDefaults/kompakt.defaults";
+import type { ResumeDesignLayer } from "../src/shared/cvDesignSchema";
 import { stilvollDefaults } from "../src/shared/cvTemplateDefaults/stilvoll.defaults";
 import { renderContactIcon } from "../src/shared/contactIcons";
 import { applyManagedResumeOutput, managedResumeCss } from "../src/shared/resumeManagedOutput";
@@ -725,6 +726,8 @@ export const buildDocumentHtml = (
   profile: ApplicantProfile | undefined,
   target: "deckblatt" | "anschreiben" | "lebenslauf" | "mappe",
   attachments: readonly Attachment[] = [],
+  /** The workspace's shared Lebenslauf design: the same layer the preview resolves, folded in by `resolveCvDocument`. */
+  resumeDesign?: ResumeDesignLayer,
 ): string => {
   if (target === "deckblatt" || target === "mappe") {
     validateDeckblattData(application, profile);
@@ -737,6 +740,7 @@ export const buildDocumentHtml = (
     deckblattStatement: application.documents.deckblattStatement,
     jobTitle: application.job.title,
     application,
+    globalDesign: resumeDesign,
   });
   if (target === "lebenslauf") profile = resolvedCv.profile;
   const template = getTemplate(application.templateId);
@@ -3797,7 +3801,7 @@ export const buildDocumentHtml = (
                             : renderResumePage,
     )
     .join("");
-  const cvHtml = target === "mappe" ? buildDocumentHtml(application, profile, "lebenslauf", attachments) : "";
+  const cvHtml = target === "mappe" ? buildDocumentHtml(application, profile, "lebenslauf", attachments, resumeDesign) : "";
   const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings, resolvedCv);
   const selected = target === "mappe" ? [cover, letter, managedResume] : target === "deckblatt" ? [cover] : target === "anschreiben" ? [letter] : [managedResume];
   return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${zweispaltigDocumentCss}${zeitgenoessischDocumentCss}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}</style></head><body>${selected.join("")}${pageFitScript}${target === "deckblatt" || target === "mappe" ? deckblattFitScript : ""}</body></html>`;

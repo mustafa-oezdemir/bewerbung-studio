@@ -1,7 +1,8 @@
 import { keepResumeLayoutOverrides, resolveResumePresentation, separateResumeDraft } from "../shared/resumePresentation";
-import { applyResumeSpacingPreset, getResumeSpacingPreset, resumeSpacingFields } from "../shared/resumeSpacing";
+import { applyResumeSpacingPreset } from "../shared/resumeSpacing";
 import { resolveCvDocument } from "../shared/resolveCvDocument";
-import { cvDesignLimits } from "../shared/cvDesignSchema";
+import type { CvDesignTokens, ResumeDesignLayer } from "../shared/cvDesignSchema";
+import type { ResumeAppearance } from "../shared/resumeAppearance";
 import { applyCustomCvDesign, createCustomCvDesign, duplicateCustomCvDesign, updateCustomCvDesign } from "../shared/customCvDesign";
 import type { ResumePresentation } from "../shared/resumePresentationSchema";
 import { ContactIcon } from "../components/resume/templates/ContactIcon";
@@ -12,13 +13,19 @@ import {
   resetDocumentDesign,
   persistDocumentDraft,
   updateCvDesignField,
-  updateResumeAppearanceField,
+  editCvDesignField,
+  editResumeAppearanceField,
+  resetResumeDesign,
+  type DesignScope,
   type DocumentDesignDraft,
 } from "../shared/documentEditorState";
 import { normalizeResumeDataDraft } from "../components/resume/ResumeDataEditor";
 import { ManagedResumePreview } from "../components/resume/ManagedResumePreview";
+import { ResumeDesignPanel } from "../components/resume/ResumeDesignPanel";
+import { ColorCard } from "../components/document/ColorCard";
 import {
   ArrowLeft,
+  ChevronRight,
   ChevronUp,
   Download,
   Copy,
@@ -127,27 +134,6 @@ import {
 import { selectCurrentApplication, useAppStore } from "../store/useAppStore";
 
 type Tab = "deckblatt" | "anschreiben" | "email" | "lebenslauf";
-
-function ColorCard({ label, value, onChange }: { label: string; value: string; onChange: (color: string) => void }) {
-  const [hex, setHex] = useState(value.toUpperCase());
-  useEffect(() => setHex(value.toUpperCase()), [value]);
-  const commit = (candidate: string) => {
-    const normalized = candidate.startsWith("#") ? candidate : `#${candidate}`;
-    if (/^#[0-9a-f]{6}$/i.test(normalized)) onChange(normalized.toUpperCase());
-    else setHex(value.toUpperCase());
-  };
-  return <label className="design-color-card">
-    <span>{label}</span>
-    <span className="design-color-card__choice">
-      <input type="color" aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} />
-      <input className="design-color-card__hex" type="text" aria-label={`${label} HEX`}
-        inputMode="text" maxLength={7} value={hex}
-        onChange={(event) => setHex(event.target.value.toUpperCase())}
-        onBlur={(event) => commit(event.target.value)}
-        onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commit(event.currentTarget.value); } }} />
-    </span>
-  </label>;
-}
 
 function DocumentListEditor({
   items,
@@ -446,6 +432,8 @@ export function DocumentsView({
   const openFolder = useAppStore((state) => state.openFolder);
   const attachments = useAppStore((state) => state.workspace.attachments);
   const customCvDesigns = useAppStore((state) => state.workspace.customCvDesigns);
+  const savedResumeDesign = useAppStore((state) => state.workspace.settings.resumeDesign);
+  const saveResumeDesign = useAppStore((state) => state.saveResumeDesign);
   const saveCustomCvDesign = useAppStore((state) => state.saveCustomCvDesign);
   const removeCustomCvDesign = useAppStore((state) => state.removeCustomCvDesign);
   const [tab, setTab] = useState<Tab>(initialTab);
@@ -500,6 +488,11 @@ export function DocumentsView({
     application && designDraft.applicationId !== application.id
       ? createDocumentDesignDraft(application)
       : designDraft;
+  // The shared Lebenslauf design is edited as a draft too: the preview follows every input, the disk only "Texte speichern".
+  const [resumeDesignDraft, setResumeDesignDraft] = useState<{ layer: ResumeDesignLayer | undefined } | null>(null);
+  const resumeDesignLayer = resumeDesignDraft ? resumeDesignDraft.layer : savedResumeDesign;
+  const resumeDesignUnsaved = resumeDesignDraft !== null
+    && JSON.stringify(resumeDesignDraft.layer ?? null) !== JSON.stringify(savedResumeDesign ?? null);
   const persistedDocuments = JSON.stringify(application?.documents);
   const formRef = useRef<HTMLFormElement>(null);
   const paperStageRef = useRef<HTMLElement>(null);
@@ -627,7 +620,6 @@ export function DocumentsView({
     docs.documentListSettings,
   );
   const template = getTemplate(design.templateId);
-  const spacingPreset = getResumeSpacingPreset(template.id, design.settings);
   const contentProfile = resumeContentDraft?.id === profile?.id ? resumeContentDraft : profile;
   const editorProfile = resolveResumePresentation(contentProfile, template.id, design.settings.resumePresentation);
   const renderProfile =
@@ -644,19 +636,10 @@ export function DocumentsView({
     jobTitle: application.job.title,
     presentationAlreadyApplied: true,
     application,
+    globalDesign: resumeDesignLayer,
   });
   const resumeRenderProfile = resolvedCv.profile;
   const resumeLayout = resolvedCv.layout;
-  const resumeSpacing = resolvedCv.design;
-  const appearanceDefaults = template.id === "pehlione_white_blue"
-    ? { sidebarBackgroundColor: "#0b3d86", sidebarTextColor: "#ffffff",
-      mainBackgroundColor: "#ffffff", photoDecorationColor: "#d9ebff", contactDividerColor: "#ffffff" }
-    : template.id === "pehlione_white"
-      ? { sidebarBackgroundColor: "#ffffff", sidebarTextColor: "#142235",
-        mainBackgroundColor: "#ffffff", photoDecorationColor: "#dcecff", contactDividerColor: design.accentColor }
-      : { sidebarBackgroundColor: resumeSpacing.colors.background, sidebarTextColor: resumeSpacing.colors.text,
-        mainBackgroundColor: resumeSpacing.colors.background, photoDecorationColor: design.accentColor,
-        contactDividerColor: resumeSpacing.colors.divider };
   const emailAttachments = resolveApplicationEmailAttachments(
     docs,
     deckblattDocuments,
@@ -709,14 +692,7 @@ export function DocumentsView({
       ? "print-background"
       : "no-print-background"
   }`;
-  const textContrastIsReadable = hasReadableColorContrast(
-    resumeSpacing.colors.paragraph,
-    resumeSpacing.colors.background,
-  );
-  const sidebarContrastIsReadable = hasReadableColorContrast(
-    design.settings.resumeAppearance?.sidebarTextColor ?? appearanceDefaults.sidebarTextColor,
-    design.settings.resumeAppearance?.sidebarBackgroundColor ?? appearanceDefaults.sidebarBackgroundColor,
-  );
+  const legacyTextContrastReadable = hasReadableColorContrast(design.settings.textColor, design.settings.backgroundColor);
 
   const updateDesignSetting = <Key extends keyof DocumentDesignSettings>(
     key: Key,
@@ -725,15 +701,34 @@ export function DocumentsView({
     setDesign((current) => {
       const spacingKey = ({ marginLevel: "pageMarginMm", paddingLevel: "innerPaddingMm",
         sectionSpacingLevel: "sectionGapMm" } as Record<string, "pageMarginMm" | "innerPaddingMm" | "sectionGapMm">)[key];
-      const base = spacingKey ? updateCvDesignField(current, "spacing", spacingKey, undefined)
-        : key === "lineHeightLevel" ? updateCvDesignField(current, "typography", "lineHeight", undefined) : current;
+      const base = spacingKey ? updateCvDesignField(current, "spacing", spacingKey, undefined, resumeDesignLayer)
+        : key === "lineHeightLevel" ? updateCvDesignField(current, "typography", "lineHeight", undefined, resumeDesignLayer) : current;
       return { ...base, settings: { ...base.settings, [key]: value } };
     });
   };
-  const updateResumeAppearance = <Key extends keyof NonNullable<DocumentDesignSettings["resumeAppearance"]>>(
-    key: Key,
-    value: NonNullable<DocumentDesignSettings["resumeAppearance"]>[Key],
-  ) => setDesign((current) => updateResumeAppearanceField(current, key, value));
+  const applyDesignEdit = (next: { draft: DocumentDesignDraft; global: ResumeDesignLayer | undefined }) => {
+    setDesign(next.draft);
+    if (next.global !== resumeDesignLayer) setResumeDesignDraft({ layer: next.global });
+  };
+  const editResumeDesignToken = (scope: DesignScope, group: keyof CvDesignTokens, key: string, value: string | number | boolean | undefined) =>
+    applyDesignEdit(editCvDesignField({ draft: design, global: resumeDesignLayer }, scope, group, key as never, value as never));
+  const editResumeDesignAppearance = (scope: DesignScope, key: keyof ResumeAppearance, value: string | number | boolean | undefined) =>
+    applyDesignEdit(editResumeAppearanceField({ draft: design, global: resumeDesignLayer }, scope, key, value as never));
+  const applyResumePreset = (preset: "compact" | "standard" | "large") =>
+    setDesign((current) => applyResumeSpacingPreset(current, preset, resumeDesignLayer));
+  const resetResumeDesignScope = (scope: DesignScope) => {
+    const hasOwn = Boolean(design.settings.cvOverrides || design.settings.resumeAppearance);
+    const message = scope === "global"
+      ? "Alle Lebenslauf-Designanpassungen – für alle Bewerbungen und in dieser Bewerbung – auf die Werte der jeweiligen Vorlage zurücksetzen? Eigene Anpassungen anderer Bewerbungen bleiben erhalten."
+      : "Die eigenen Lebenslauf-Anpassungen dieser Bewerbung entfernen?";
+    if ((scope === "global" ? resumeDesignLayer || hasOwn : hasOwn) && !window.confirm(message)) return;
+    applyDesignEdit(resetResumeDesign({ draft: design, global: resumeDesignLayer }, scope));
+  };
+  const persistResumeDesignDraft = async () => {
+    if (!resumeDesignDraft) return;
+    if (resumeDesignUnsaved) await saveResumeDesign(resumeDesignDraft.layer);
+    setResumeDesignDraft(null);
+  };
   const updateResumeLayout = <Key extends "layoutMode" | "sidebarSide" | "sidebarWidthPercent">(
     key: Key,
     value: ResumePresentation[Key],
@@ -990,6 +985,7 @@ export function DocumentsView({
   const save = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const snapshot = applicationSnapshot(event.currentTarget);
+    await persistResumeDesignDraft();
     await persistDocumentDraft(
       snapshot,
       currentProfileDraft(),
@@ -1010,6 +1006,8 @@ export function DocumentsView({
     target: "deckblatt" | "anschreiben" | "lebenslauf" | "mappe",
   ) => {
     const snapshot = applicationSnapshot(formRef.current);
+    // The PDF resolves the shared design from the workspace, so it is saved before the export starts.
+    await persistResumeDesignDraft();
     await persistDocumentDraft(
       snapshot,
       currentProfileDraft(),
@@ -1641,7 +1639,7 @@ export function DocumentsView({
                           type="button"
                           onClick={() =>
                             setDesign((current) =>
-                              selectDocumentTemplate(current, item.id),
+                              selectDocumentTemplate(current, item.id, resumeDesignLayer),
                             )
                           }>
                           <TemplateThumbnail
@@ -1690,171 +1688,18 @@ export function DocumentsView({
                       <ColorCard label="Fläche" value={design.secondaryColor}
                         onChange={(color) => setDesign((current) => ({ ...current, secondaryColor: color }))} />
                     </div>
-                    <details className="resume-spacing-advanced design-colors-panel">
-                      <summary>Farben und Dekoration</summary>
-                      {([
-                        ["Text", [["text", "Lesetext"], ["paragraph", "Absatztext"], ["muted", "Sekundärtext"]]],
-                        ["Überschriften", [["heading", "Überschrift"], ["subheading", "Unterüberschrift"], ["sectionHeading", "Hauptabschnitt"], ["entryHeading", "Unterabschnitt"]]],
-                        ["Design", [["accent", "Akzent"], ["divider", "Linien"], ["background", "Hintergrund"], ["surface", "Fläche"], ["icon", "Icon-Farbe"]]],
-                      ] as const).map(([group, colors]) => <div className="design-color-group" key={group}>
-                        <strong>{group}</strong>
-                        <div className="color-card-grid">{colors.map(([key, label]) => <ColorCard key={key} label={label} value={resumeSpacing.colors[key]}
-                          onChange={(color) => setDesign((current) => updateCvDesignField(current, "colors", key, color))} />)}</div>
-                      </div>)}
-                      <div className="color-card-grid">
-                        <ColorCard label="Seitenspalte Abschnittstitel"
-                          value={design.settings.resumeAppearance?.sidebarSectionHeadingColor ?? design.settings.resumeAppearance?.sidebarTextColor ?? (template.id === "pehlione_white_blue" ? "#ffffff" : resumeSpacing.colors.sectionHeading)}
-                          onChange={(color) => updateResumeAppearance("sidebarSectionHeadingColor", color)} />
-                        <ColorCard label="Abschnittslinien" value={resumeSpacing.colors.divider}
-                          onChange={(color) => setDesign((current) => updateCvDesignField(current, "colors", "divider", color))} />
-                      </div>
-                      {design.settings.resumeAppearance?.sidebarSectionHeadingColor && <button className="design-color-reset" type="button"
-                        onClick={() => updateResumeAppearance("sidebarSectionHeadingColor", undefined)}>Seitenspalte Abschnittstitel: Automatisch</button>}
-                      <div className="color-card-grid">
-                        {([
-                          ["sidebarBackgroundColor", "Seitenspalte"],
-                          ["sidebarTextColor", "Seitenspalte Text"],
-                          ["mainBackgroundColor", "Hauptspalte"],
-                          ["photoDecorationColor", "Fotolinien"],
-                          ["contactDividerColor", "Kontaktlinie"],
-                        ] as const).filter(([key]) => key !== "contactDividerColor" || template.id === "pehlione_white_blue").map(([key, label]) => <ColorCard key={key} label={label}
-                          value={design.settings.resumeAppearance?.[key] ?? appearanceDefaults[key]}
-                          onChange={(color) => updateResumeAppearance(key, color)} />)}
-                      </div>
-                      {!sidebarContrastIsReadable ? <p className="resume-sections-warning" role="status">
-                        Der Kontrast zwischen Seitenspalten-Text und Hintergrund ist zu niedrig.
-                      </p> : null}
-                      <div className="advanced-design-grid">
-                        <label className="field"><span>Abschnittslinien</span>
-                          <input type="checkbox" checked={design.settings.resumeAppearance?.sectionDividerVisible !== false}
-                            onChange={(event) => updateResumeAppearance("sectionDividerVisible", event.target.checked)} />
-                        </label>
-                        <label className="field"><span>Linienposition</span>
-                          <select value={design.settings.resumeAppearance?.sectionDividerPosition ?? "template"}
-                            onChange={(event) => updateResumeAppearance("sectionDividerPosition",
-                              event.target.value === "template" ? undefined : event.target.value as "none" | "bottom" | "top" | "both")}>
-                            <option value="template">Vorlage</option><option value="none">Keine</option>
-                            <option value="bottom">Nur unten</option><option value="top">Nur oben</option><option value="both">Oben + unten</option>
-                          </select>
-                        </label>
-                        <label className="field"><span>Linienstärke (mm)</span>
-                          <input type="number" min="0.1" max="2" step="0.1"
-                            placeholder="Vorlage" value={design.settings.resumeAppearance?.sectionDividerWidthMm ?? ""}
-                            onChange={(event) => {
-                              if (!event.target.value) { updateResumeAppearance("sectionDividerWidthMm", undefined); return; }
-                              const value = Number(event.target.value);
-                              if (Number.isFinite(value) && value >= 0.1 && value <= 2)
-                                updateResumeAppearance("sectionDividerWidthMm", value);
-                            }} />
-                        </label>
-                        <label className="field"><span>Fotolinien</span>
-                          <input type="checkbox" checked={design.settings.resumeAppearance?.photoDecorationVisible !== false}
-                            onChange={(event) => updateResumeAppearance("photoDecorationVisible", event.target.checked)} />
-                        </label>
-                        <label className="field"><span>Ausrichtung Abschnittstitel</span>
-                          <select value={design.settings.resumeAppearance?.sectionHeadingAlignment ?? "template"}
-                            onChange={(event) => updateResumeAppearance("sectionHeadingAlignment",
-                              event.target.value === "template" ? undefined : event.target.value as "left" | "center" | "right")}>
-                            <option value="template">Vorlage</option><option value="left">Links</option>
-                            <option value="center">Mitte</option><option value="right">Rechts</option>
-                          </select>
-                        </label>
-                        {(["sectionHeadingMarginBeforeMm", "sectionHeadingMarginAfterMm"] as const).map((key) => (
-                          <label className="field" key={key}><span>{key === "sectionHeadingMarginBeforeMm" ? "Abstand davor (mm)" : "Abstand danach (mm)"}</span>
-                            <input type="number" min="0" max={key === "sectionHeadingMarginBeforeMm" ? 12 : 8} step="0.5"
-                              placeholder="Vorlage" value={design.settings.resumeAppearance?.[key] ?? ""}
-                              onChange={(event) => updateResumeAppearance(key, event.target.value ? Number(event.target.value) : undefined)} />
-                          </label>
-                        ))}
-                      </div>
-                      {design.settings.resumeAppearance && <button className="design-color-reset" type="button"
-                        onClick={() => setDesign((current) => ({ ...current, settings: { ...current.settings, resumeAppearance: undefined } }))}>
-                        Farben und Dekoration: Vorlagenwerte
-                      </button>}
-                    </details>
-                    <div className="design-option-group resume-spacing-presets">
-                      <span>Lebenslauf-Abstände</span>
-                      <div className="segmented-design-control" role="group" aria-label="Lebenslauf-Abstände">
-                        {(["compact", "standard", "large"] as const).map((preset) => (
-                          <button key={preset} type="button" className={spacingPreset === preset ? "selected" : ""}
-                            aria-pressed={spacingPreset === preset}
-                            onClick={() => setDesign((current) => applyResumeSpacingPreset(current, preset))}>
-                            {preset === "compact" ? "Kompakt" : preset === "standard" ? "Standard" : "Groß"}
-                          </button>
-                        ))}
-                      </div>
-                      {spacingPreset === "custom" && <small>Benutzerdefinierte Abstände</small>}
-                      <details className="resume-spacing-advanced">
-                        <summary>Erweiterte Abstände</summary>
-                        <div className="advanced-design-grid">
-                          {resumeSpacingFields.map(({ key, label }) => (
-                            <label className="field" key={key}>
-                              <span>{label} (mm)</span>
-                              <input type="number" min={cvDesignLimits[key][0]} max={cvDesignLimits[key][1]} step="0.1"
-                                value={resumeSpacing.spacing[key]}
-                                onChange={(event) => {
-                                  if (!event.target.value) return;
-                                  const entered = Number(event.target.value);
-                                  if (!Number.isFinite(entered)) return;
-                                  const value = Math.max(cvDesignLimits[key][0], Math.min(cvDesignLimits[key][1], entered));
-                                  setDesign((current) => updateCvDesignField(current, "spacing", key, value));
-                                }} />
-                            </label>
-                          ))}
-                          <label className="field">
-                            <span>Zeilenhöhe</span>
-                            <input type="number" min={cvDesignLimits.lineHeight[0]} max={cvDesignLimits.lineHeight[1]} step="0.05"
-                              value={resumeSpacing.typography.lineHeight}
-                              onChange={(event) => {
-                                if (!event.target.value) return;
-                                const entered = Number(event.target.value);
-                                if (!Number.isFinite(entered)) return;
-                                const value = Math.max(cvDesignLimits.lineHeight[0], Math.min(cvDesignLimits.lineHeight[1], entered));
-                                setDesign((current) => updateCvDesignField(current, "typography", "lineHeight", value));
-                              }} />
-                          </label>
-                        </div>
-                      </details>
-                    </div>
-                    <details className="resume-spacing-advanced">
-                      <summary>Typografie im Detail</summary>
-                      <div className="advanced-design-grid">
-                        <label className="field"><span>Zeilenhöhe</span>
-                          <select value={design.settings.cvOverrides?.typography?.lineHeight ?? "template"}
-                            onChange={(event) => setDesign((current) => updateCvDesignField(current, "typography", "lineHeight",
-                              event.target.value === "template" ? undefined : Number(event.target.value)))}>
-                            <option value="template">Vorlagenwert</option>
-                            {design.settings.cvOverrides?.typography?.lineHeight !== undefined &&
-                              ![1.1, 1.15, 1.5].includes(design.settings.cvOverrides.typography.lineHeight) ?
-                              <option value={design.settings.cvOverrides.typography.lineHeight}>Benutzerdefiniert ({design.settings.cvOverrides.typography.lineHeight.toLocaleString("de-DE")})</option> : null}
-                            <option value="1.1">Eng (1,10)</option><option value="1.15">Standard (1,15)</option><option value="1.5">Weit (1,50)</option>
-                          </select>
-                        </label>
-                        {([
-                          ["bodySizePt", "Lesetext"], ["headingSizePt", "Hauptüberschrift"],
-                          ["subheadingSizePt", "Unterüberschrift"], ["sectionHeadingSizePt", "Abschnittsüberschrift"],
-                          ["entryHeadingSizePt", "Eintragstitel"],
-                        ] as const).map(([key, label]) => <label className="field" key={key}><span>{label} (pt)</span>
-                          <input type="number" step="0.25" min={cvDesignLimits[key][0]} max={cvDesignLimits[key][1]}
-                            value={resumeSpacing.typography[key]} onChange={(event) => {
-                              const entered = Number(event.target.value); if (!Number.isFinite(entered)) return;
-                              const value = Math.max(cvDesignLimits[key][0], Math.min(cvDesignLimits[key][1], entered));
-                              setDesign((current) => updateCvDesignField(current, "typography", key, value));
-                            }} /></label>)}
-                        {(["headingWeight", "subheadingWeight", "sectionHeadingWeight"] as const).map((key) => (
-                          <label className="field" key={key}><span>{key === "headingWeight" ? "Name – Gewicht" : key === "subheadingWeight" ? "Untertitel – Gewicht" : "Abschnittstitel – Gewicht"}</span>
-                            <select value={resumeSpacing.typography[key]}
-                              onChange={(event) => setDesign((current) => updateCvDesignField(current, "typography", key, Number(event.target.value)))}>
-                              {[300, 400, 500, 600, 700, 800, 900].map((weight) => <option key={weight} value={weight}>{weight}</option>)}
-                            </select>
-                          </label>
-                        ))}
-                        <label className="field"><span>Abschnittstitel großschreiben</span>
-                          <input type="checkbox" checked={resumeSpacing.typography.sectionHeadingUppercase}
-                            onChange={(event) => setDesign((current) => updateCvDesignField(current, "typography", "sectionHeadingUppercase", event.target.checked))} />
-                        </label>
-                      </div>
-                    </details>
+                    <ResumeDesignPanel
+                      templateId={template.id}
+                      templateName={template.name}
+                      settings={design.settings}
+                      global={resumeDesignLayer}
+                      hasSidebar={resumeLayout.mode === "two-column" && !isAtsMode}
+                      unsaved={resumeDesignUnsaved}
+                      onEditToken={editResumeDesignToken}
+                      onEditAppearance={editResumeDesignAppearance}
+                      onPreset={applyResumePreset}
+                      onReset={resetResumeDesignScope}
+                    />
                     <div className="advanced-design-grid">
                       <label className="field">
                         <span>Metadatenlayout · Berufserfahrung / Ausbildung</span>
@@ -1893,6 +1738,126 @@ export function DocumentsView({
                           <small>Automatisch berücksichtigt den verfügbaren Bereich und die Textlänge. Icons: automatisch oder manuell im Inhaltseditor.</small>
                         </label>
                       ))}
+                    </div>
+                    <div className="design-option-group">
+                      <span>Lebenslauf-Layout</span>
+                      <div className="segmented-design-control" role="group" aria-label="Lebenslauf-Layout">
+                        {([undefined, "single", "two-column"] as const).map((mode) => (
+                          <button key={mode ?? "template"} type="button"
+                            className={(mode === undefined ? !resumeLayout.overridden : design.settings.resumePresentation?.layoutMode === mode) ? "selected" : ""}
+                            aria-pressed={mode === undefined ? !resumeLayout.overridden : design.settings.resumePresentation?.layoutMode === mode}
+                            onClick={() => updateResumeLayout("layoutMode", mode)}>
+                            {mode === undefined ? "Vorlage" : mode === "single" ? "Einspaltig" : "Zweispaltig"}
+                          </button>
+                        ))}
+                      </div>
+                      {resumeLayout.mode === "two-column" ? (
+                        <div className="advanced-design-grid">
+                          <label className="field">
+                            <span>Seitenspalte</span>
+                            <select aria-label="Seitenspalte" value={resumeLayout.sidebarSide}
+                              onChange={(event) => updateResumeLayout("sidebarSide", event.target.value as "left" | "right")}>
+                              <option value="left">Links</option>
+                              <option value="right">Rechts</option>
+                            </select>
+                          </label>
+                          <label className="design-range">
+                            <span>Spaltenverhältnis <b>{resumeLayout.sidebarWidthPercent}% / {100 - resumeLayout.sidebarWidthPercent}%</b></span>
+                            <input aria-label="Spaltenverhältnis" type="range" min="20" max="45" step="1"
+                              value={resumeLayout.sidebarWidthPercent}
+                              onChange={(event) => updateResumeLayout("sidebarWidthPercent", Number(event.target.value))} />
+                            <small><i>20% Seitenspalte</i><i>45% Seitenspalte</i></small>
+                            {design.settings.resumePresentation?.sidebarWidthPercent !== undefined ? <button className="design-color-reset" type="button"
+                              onClick={() => updateResumeLayout("sidebarWidthPercent", undefined)}>Vorlagenverhältnis verwenden</button> : null}
+                          </label>
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="advanced-design-grid">
+                      <label className="design-range">
+                        <span>
+                          Hintergrundintensität{" "}
+                          <b>{design.settings.backgroundShadeLevel}</b>
+                        </span>
+                        <input
+                          aria-label="Hintergrundintensität"
+                          type="range"
+                          min="1"
+                          max="10"
+                          step="1"
+                          value={design.settings.backgroundShadeLevel}
+                          onChange={(event) =>
+                            updateDesignSetting(
+                              "backgroundShadeLevel",
+                              Number(
+                                event.target.value,
+                              ) as DocumentDesignSettings["backgroundShadeLevel"],
+                            )
+                          }
+                        />
+                        <small>
+                          <i>sehr hell</i>
+                          <i>dunkel</i>
+                        </small>
+                      </label>
+                      <label className="field">
+                        <span>Hintergrund anwenden auf</span>
+                        <select
+                          value={design.settings.backgroundScope}
+                          onChange={(event) =>
+                            updateDesignSetting(
+                              "backgroundScope",
+                              event.target
+                                .value as DocumentDesignSettings["backgroundScope"],
+                            )
+                          }>
+                          <option value="page">Komplette Seite</option>
+                          <option value="sidebar">Sidebar</option>
+                          <option value="header">Header</option>
+                          <option value="sections">Abschnitte</option>
+                        </select>
+                      </label>
+                    </div>
+                    <div className="design-option-group">
+                      <span>Ausgabemodus</span>
+                      <div className="segmented-design-control">
+                        {(["visual", "ats"] as const).map((mode) => (
+                          <button
+                            className={
+                              design.settings.resumeOutputMode === mode
+                                ? "selected"
+                                : ""
+                            }
+                            key={mode}
+                            type="button"
+                            onClick={() =>
+                              updateDesignSetting("resumeOutputMode", mode)
+                            }>
+                            {mode === "visual" ? "Visual" : "ATS optimiert"}
+                          </button>
+                        ))}
+                      </div>
+                      {isAtsMode ? (
+                        <p className="design-ats-background-note">
+                          ATS-Modus nutzt automatisch ein lineares, einspaltiges
+                          Layout mit reduzierter Visualisierung.
+                        </p>
+                      ) : null}
+                    </div>
+                    <details className="rds-group rds-group--legacy">
+                      <summary>
+                        <ChevronRight size={15} className="rds-chevron" aria-hidden="true" />
+                        <span>
+                          <strong>Dokumentweit: Anschreiben und Deckblatt</strong>
+                          <small>Schrift, Farben, Ränder und Hintergründe aller Unterlagen</small>
+                        </span>
+                      </summary>
+                      <div className="rds-group__body">
+                        <p className="rds-legacy-intro">
+                          Diese Werte gelten für Anschreiben und Deckblatt. Der Lebenslauf folgt ihnen nur, solange oben
+                          kein eigener Lebenslauf-Wert gesetzt ist.
+                        </p>
+                        <div className="advanced-design-grid">
                       <label className="design-range">
                         <span>
                           Seitenränder
@@ -1997,129 +1962,7 @@ export function DocumentsView({
                           <i>geräumig</i>
                         </small>
                       </label>
-                    </div>
-                    <div className="color-card-grid">
-                      {(
-                        [
-                          ["textColor", "Lesetext"],
-                          ["headingColor", "Überschriften"],
-                          ["lineColor", "Linien"],
-                          ["backgroundColor", "Hintergrund"],
-                        ] as const
-                      ).map(([key, label]) => <ColorCard key={key} label={label} value={design.settings[key]}
-                        onChange={(color) => updateDesignSetting(key, color)} />)}
-                    </div>
-                    {!textContrastIsReadable ? (
-                      <p className="resume-sections-warning" role="status">
-                        Der Kontrast zwischen Lesetext und Hintergrund ist zu
-                        niedrig. Für professionelle Lesbarkeit bitte eine
-                        hellere oder dunklere Textfarbe wählen.
-                      </p>
-                    ) : null}
-                    <div className="advanced-design-grid">
-                      <label className="design-range">
-                        <span>
-                          Hintergrundintensität{" "}
-                          <b>{design.settings.backgroundShadeLevel}</b>
-                        </span>
-                        <input
-                          aria-label="Hintergrundintensität"
-                          type="range"
-                          min="1"
-                          max="10"
-                          step="1"
-                          value={design.settings.backgroundShadeLevel}
-                          onChange={(event) =>
-                            updateDesignSetting(
-                              "backgroundShadeLevel",
-                              Number(
-                                event.target.value,
-                              ) as DocumentDesignSettings["backgroundShadeLevel"],
-                            )
-                          }
-                        />
-                        <small>
-                          <i>sehr hell</i>
-                          <i>dunkel</i>
-                        </small>
-                      </label>
-                      <label className="field">
-                        <span>Hintergrund anwenden auf</span>
-                        <select
-                          value={design.settings.backgroundScope}
-                          onChange={(event) =>
-                            updateDesignSetting(
-                              "backgroundScope",
-                              event.target
-                                .value as DocumentDesignSettings["backgroundScope"],
-                            )
-                          }>
-                          <option value="page">Komplette Seite</option>
-                          <option value="sidebar">Sidebar</option>
-                          <option value="header">Header</option>
-                          <option value="sections">Abschnitte</option>
-                        </select>
-                      </label>
-                    </div>
-                    <label className="design-print-toggle">
-                      <input
-                        type="checkbox"
-                        checked={design.settings.syncAcrossDocuments}
-                        onChange={(event) =>
-                          updateDesignSetting(
-                            "syncAcrossDocuments",
-                            event.target.checked,
-                          )
-                        }
-                      />
-                      <span>Auf alle Bewerbungsunterlagen anwenden</span>
-                    </label>
-                    <div className="design-option-group">
-                      <span>Lebenslauf-Layout</span>
-                      <div className="segmented-design-control" role="group" aria-label="Lebenslauf-Layout">
-                        {([undefined, "single", "two-column"] as const).map((mode) => (
-                          <button key={mode ?? "template"} type="button"
-                            className={(mode === undefined ? !resumeLayout.overridden : design.settings.resumePresentation?.layoutMode === mode) ? "selected" : ""}
-                            aria-pressed={mode === undefined ? !resumeLayout.overridden : design.settings.resumePresentation?.layoutMode === mode}
-                            onClick={() => updateResumeLayout("layoutMode", mode)}>
-                            {mode === undefined ? "Vorlage" : mode === "single" ? "Einspaltig" : "Zweispaltig"}
-                          </button>
-                        ))}
-                      </div>
-                      {resumeLayout.mode === "two-column" ? (
-                        <div className="advanced-design-grid">
-                          <label className="field">
-                            <span>Seitenspalte</span>
-                            <select aria-label="Seitenspalte" value={resumeLayout.sidebarSide}
-                              onChange={(event) => updateResumeLayout("sidebarSide", event.target.value as "left" | "right")}>
-                              <option value="left">Links</option>
-                              <option value="right">Rechts</option>
-                            </select>
-                          </label>
-                          <label className="design-range">
-                            <span>Spaltenverhältnis <b>{resumeLayout.sidebarWidthPercent}% / {100 - resumeLayout.sidebarWidthPercent}%</b></span>
-                            <input aria-label="Spaltenverhältnis" type="range" min="20" max="45" step="1"
-                              value={resumeLayout.sidebarWidthPercent}
-                              onChange={(event) => updateResumeLayout("sidebarWidthPercent", Number(event.target.value))} />
-                            <small><i>20% Seitenspalte</i><i>45% Seitenspalte</i></small>
-                            {design.settings.resumePresentation?.sidebarWidthPercent !== undefined ? <button className="design-color-reset" type="button"
-                              onClick={() => updateResumeLayout("sidebarWidthPercent", undefined)}>Vorlagenverhältnis verwenden</button> : null}
-                          </label>
                         </div>
-                      ) : null}
-                      <div className="advanced-design-grid">
-                        <label className="field"><span>Foto-Layout</span><select
-                          value={design.settings.resumeAppearance?.photoLayout ?? "template"}
-                          onChange={(event) => updateResumeAppearance("photoLayout", event.target.value as NonNullable<DocumentDesignSettings["resumeAppearance"]>["photoLayout"])}>
-                          <option value="template">Vorlage</option><option value="circle">Rund</option><option value="rounded">Abgerundet</option><option value="square">Eckig</option><option value="hidden">Ausblenden</option>
-                        </select></label>
-                        <label className="field"><span>Kopfbereich</span><select
-                          value={design.settings.resumeAppearance?.headerLayout ?? "template"}
-                          onChange={(event) => updateResumeAppearance("headerLayout", event.target.value as NonNullable<DocumentDesignSettings["resumeAppearance"]>["headerLayout"])}>
-                          <option value="template">Vorlage</option><option value="left">Linksbündig</option><option value="center">Zentriert</option><option value="split">Geteilt</option>
-                        </select></label>
-                      </div>
-                    </div>
                     <div className="design-option-group">
                       <span>Schriftgröße</span>
                       <div className="segmented-design-control">
@@ -2182,32 +2025,39 @@ export function DocumentsView({
                         </select>
                       </label>
                     </div>
-                    <div className="design-option-group">
-                      <span>Ausgabemodus</span>
-                      <div className="segmented-design-control">
-                        {(["visual", "ats"] as const).map((mode) => (
-                          <button
-                            className={
-                              design.settings.resumeOutputMode === mode
-                                ? "selected"
-                                : ""
-                            }
-                            key={mode}
-                            type="button"
-                            onClick={() =>
-                              updateDesignSetting("resumeOutputMode", mode)
-                            }>
-                            {mode === "visual" ? "Visual" : "ATS optimiert"}
-                          </button>
-                        ))}
-                      </div>
-                      {isAtsMode ? (
-                        <p className="design-ats-background-note">
-                          ATS-Modus nutzt automatisch ein lineares, einspaltiges
-                          Layout mit reduzierter Visualisierung.
-                        </p>
-                      ) : null}
+                    <div className="color-card-grid">
+                      {(
+                        [
+                          ["textColor", "Lesetext"],
+                          ["headingColor", "Überschriften"],
+                          ["lineColor", "Linien"],
+                          ["backgroundColor", "Hintergrund"],
+                        ] as const
+                      ).map(([key, label]) => <ColorCard key={key} label={label} value={design.settings[key]}
+                        onChange={(color) => updateDesignSetting(key, color)} />)}
                     </div>
+                    {!legacyTextContrastReadable ? (
+                      <p className="resume-sections-warning" role="status">
+                        Der Kontrast zwischen Lesetext und Hintergrund ist zu
+                        niedrig. Für professionelle Lesbarkeit bitte eine
+                        hellere oder dunklere Textfarbe wählen.
+                      </p>
+                    ) : null}
+                    <label className="design-print-toggle">
+                      <input
+                        type="checkbox"
+                        checked={design.settings.syncAcrossDocuments}
+                        onChange={(event) =>
+                          updateDesignSetting(
+                            "syncAcrossDocuments",
+                            event.target.checked,
+                          )
+                        }
+                      />
+                      <span>Auf alle Bewerbungsunterlagen anwenden</span>
+                    </label>
+                      </div>
+                    </details>
                     {template.atsInfo ? (
                       <p className="design-ats-background-note">
                         {template.atsInfo}
@@ -2476,7 +2326,7 @@ export function DocumentsView({
                       )}
                     </style>
                     <ManagedResumePreview
-                      designSettings={design.settings}
+                      designSettings={resolvedCv.settings}
                       resolvedCv={resolvedCv}
                       profile={renderProfile}
                       templateId={template.id}

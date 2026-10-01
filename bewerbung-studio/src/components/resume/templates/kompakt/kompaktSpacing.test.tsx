@@ -6,7 +6,7 @@ import { buildDocumentHtml } from "../../../../../electron/documents";
 import { KompaktResume } from "./KompaktResume";
 import { kompaktDefaults } from "./kompakt.defaults";
 import { moveManagerSection, updateManagerSection } from "../../../../features/resume-sections/resume-manager";
-import { getTemplateDocumentDesignDefaults } from "../../../../shared/cvDesign";
+import { getTemplateDocumentDesignDefaults, resolveTemplateCvDesign } from "../../../../shared/cvDesign";
 import { createDocumentDesignDraft } from "../../../../shared/documentEditorState";
 import { applyResumeSpacingPreset, getResumeSpacingPresetValues } from "../../../../shared/resumeSpacing";
 import { applyManagedResumeOutput } from "../../../../shared/resumeManagedOutput";
@@ -173,7 +173,9 @@ describe("Kompakt spacing and section output", () => {
         const expected = getResumeSpacingPresetValues("kompakt", preset);
         expect(scope.getAttribute("style")).toContain(`--kompakt-entry-gap-base:${expected.spacing.entryGapMm}mm`);
         expect(scope.getAttribute("style")).toContain(`--kompakt-section-gap-base:${expected.spacing.sectionGapMm}mm`);
-        expect(scope.getAttribute("style")).toContain(`--doc-line-height:${expected.lineHeight}`);
+        // Kompakt's native line height already sits at the lower limit, so "compact" leaves it alone.
+        if (expected.lineHeight !== resolveTemplateCvDesign("kompakt").typography.lineHeight)
+          expect(scope.getAttribute("style")).toContain(`--doc-line-height:${expected.lineHeight}`);
         expect(scope.hasAttribute("data-resume-spacing-entry-gap")).toBe(true);
         expect(scope.hasAttribute("data-resume-spacing-section-gap")).toBe(true);
         for (const list of careerLists) expect(list.querySelector('[data-resume-spacing-entry-following]')).not.toBeNull();

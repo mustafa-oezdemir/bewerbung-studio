@@ -14,6 +14,7 @@ export const resumeAppearanceSchema = z.object({
   sectionDividerPosition: z.enum(["none", "bottom", "top", "both"]).optional(),
   sectionHeadingAlignment: z.enum(["left", "center", "right"]).optional(),
   sectionHeadingMarginBeforeMm: z.number().min(0).max(12).optional(),
+  /** Legacy alias of the spacing token `sectionTitleGapMm`: both set the space under a section title. */
   sectionHeadingMarginAfterMm: z.number().min(0).max(8).optional(),
   photoDecorationVisible: z.boolean().optional(),
   photoDecorationColor: color.optional(),
@@ -24,11 +25,49 @@ export const resumeAppearanceSchema = z.object({
 
 export type ResumeAppearance = z.infer<typeof resumeAppearanceSchema>;
 
+/** Width of a section rule when the user turns one on in a template that draws none (and names no width). */
+export const defaultSectionDividerWidthMm = 0.3;
+
+/** Physical limits shared by the controls and the sparse schema above. */
+export const resumeAppearanceLimits = {
+  sectionDividerWidthMm: [0.1, 2],
+  sectionHeadingMarginBeforeMm: [0, 12],
+  sectionHeadingMarginAfterMm: [0, 8],
+} as const;
+
+/**
+ * What a template draws when nothing is overridden. Every field has a value: the design panel shows it as the
+ * effective value, and a sparse `ResumeAppearance` replaces single fields of it. The space below a section title is
+ * the spacing token `sectionTitleGapMm`, so it is not repeated here; "divider visible" is `sectionDividerPosition !== "none"`.
+ */
+export const nativeResumeAppearanceSchema = z.object({
+  sidebarBackgroundColor: color,
+  sidebarTextColor: color,
+  sidebarSectionHeadingColor: color,
+  mainBackgroundColor: color,
+  sectionDividerPosition: z.enum(["none", "bottom", "top", "both"]),
+  sectionDividerWidthMm: z.number().min(0).max(resumeAppearanceLimits.sectionDividerWidthMm[1]),
+  sectionHeadingAlignment: z.enum(["left", "center", "right"]),
+  sectionHeadingMarginBeforeMm: z.number().min(0).max(resumeAppearanceLimits.sectionHeadingMarginBeforeMm[1]),
+  photoDecorationVisible: z.boolean(),
+  photoDecorationColor: color,
+  contactDividerColor: color,
+  photoLayout: z.enum(["circle", "rounded", "square", "hidden"]),
+  headerLayout: z.enum(["left", "center", "split"]),
+});
+
+export type NativeResumeAppearance = z.infer<typeof nativeResumeAppearanceSchema>;
+
+/** The appearance a document really shows: native values with the saved overrides on top. */
+export type ResolvedResumeAppearance = NativeResumeAppearance & { sectionDividerVisible: boolean };
+
 /** Project optional appearance controls onto the existing template columns.
  * Native CSS remains authoritative when a field has no saved override. */
 export const applyGeneralResumeAppearance = (
   page: Element, templateId: string, settings: DocumentDesignSettings,
   main: Element, sidebar: Element,
+  /** The divider colour the document shows; a rule the template does not draw by itself takes it. */
+  dividerColor?: string,
 ): void => {
   const appearance = resumeAppearanceSchema.parse(settings.resumeAppearance ?? {});
   const set = (element: Element, property: string, value: string) =>
@@ -77,9 +116,10 @@ export const applyGeneralResumeAppearance = (
         if (settings.cvOverrides?.colors?.divider)
           set(node, "border-color", settings.cvOverrides.colors.divider);
         const position = appearance.sectionDividerVisible === false ? "none" : appearance.sectionDividerPosition;
+        if (position && position !== "none" && dividerColor && !settings.cvOverrides?.colors?.divider) set(node, "border-color", dividerColor);
         if (position) {
-          set(node, "border-top-width", position === "top" || position === "both" ? `${appearance.sectionDividerWidthMm ?? .3}mm` : "0");
-          set(node, "border-bottom-width", position === "bottom" || position === "both" ? `${appearance.sectionDividerWidthMm ?? .3}mm` : "0");
+          set(node, "border-top-width", position === "top" || position === "both" ? `${appearance.sectionDividerWidthMm ?? defaultSectionDividerWidthMm}mm` : "0");
+          set(node, "border-bottom-width", position === "bottom" || position === "both" ? `${appearance.sectionDividerWidthMm ?? defaultSectionDividerWidthMm}mm` : "0");
           if (position !== "none") {
             set(node, "border-top-style", "solid");
             set(node, "border-bottom-style", "solid");

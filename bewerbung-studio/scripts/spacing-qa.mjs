@@ -7,7 +7,7 @@ const output = path.resolve('tmp/spacing-qa');
 await fs.mkdir(output, { recursive: true });
 const vite = await createServer({ configFile: false, root: process.cwd(), appType: 'custom', logLevel: 'error', server: { middlewareMode: true } });
 try {
-  const { applyResumeSpacingOutput, resumeSpacingCss } = await vite.ssrLoadModule('/src/shared/resumeSpacing.ts');
+  const { applyResumeSpacingOutput, getPageMarginAdjustment, resumeSpacingCss } = await vite.ssrLoadModule('/src/shared/resumeSpacing.ts');
   const { resumeSectionStyleSources } = await vite.ssrLoadModule('/src/shared/resumeSectionStyleInheritance.ts');
   const { templates } = await vite.ssrLoadModule('/src/shared/templates.ts');
   const { defaultDocumentDesign } = await vite.ssrLoadModule('/src/shared/documentDesign.ts');
@@ -16,6 +16,7 @@ try {
     sectionTitleGapMm: 2.5, entryContentGapMm: 1.5, columnGapMm: 8,
   }, typography: { lineHeight: 1.3 } } };
   let count = 0;
+  const expected = {};
   for (const { id } of templates) for (const surface of ['preview', 'pdf']) {
     const source = await fs.readFile(`tmp/section-inheritance-qa/${id}-visual-${surface}.html`, 'utf8');
     const { document } = parseHTML(source);
@@ -28,9 +29,12 @@ try {
     const style = document.createElement('style');
     style.textContent = resumeSpacingCss;
     document.head.appendChild(style);
+    // A chosen page margin moves the template's own margin: the QA checks that adjustment, not a raw padding.
+    expected[id] = getPageMarginAdjustment(id, settings.cvOverrides.spacing.pageMarginMm);
     await fs.writeFile(path.join(output, `${id}-${surface}.html`), document.toString());
     count++;
   }
+  await fs.writeFile(path.join(output, 'expected-margin.json'), JSON.stringify(expected, null, 1));
   console.log({ count });
 } finally {
   await vite.close();

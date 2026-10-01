@@ -1853,6 +1853,7 @@ export class DataStore {
       this.getProfileForApplication(application),
       target,
       this.workspace.attachments,
+      this.workspace.settings.resumeDesign,
     );
   }
 

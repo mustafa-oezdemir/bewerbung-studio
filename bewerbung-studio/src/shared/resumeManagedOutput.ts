@@ -185,7 +185,8 @@ export const applyResumeDesignOverrides = (
   const overrides = settings.cvOverrides;
   if (!overrides || (!overrides.colors && !overrides.typography)) return;
   const scope = (surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild) ?? root;
-  const variables = getCvDesignVariables(design);
+  // Only what the user changed becomes a variable; the spacing variables belong to the spacing adapter.
+  const variables = getCvDesignVariables(design, { colors: overrides.colors, typography: overrides.typography });
   const set = (element: Element, property: string, value: string) =>
     (element as HTMLElement).style.setProperty(property, value, "important");
   for (const [name, value] of Object.entries(variables))
@@ -246,7 +247,12 @@ export const applyResumeDesignOverrides = (
   const typography = overrides.typography;
   if (!typography) return;
   if (typography.fontId !== undefined) set(scope, "font-family", variables["--doc-font"]);
-  if (typography.bodySizePt !== undefined) set(scope, "font-size", `${design.typography.bodySizePt}pt`);
+  if (typography.bodySizePt !== undefined) {
+    set(scope, "font-size", `${design.typography.bodySizePt}pt`);
+    // Lists and paragraphs carry sizes of their own in most templates; the reading text follows the body size.
+    for (const node of scope.querySelectorAll("[data-managed-section] li,[data-managed-section='summary'] p,[data-content-type='text'] p"))
+      set(node, "font-size", `${design.typography.bodySizePt}pt`);
+  }
   if (name) {
     if (typography.headingFontId !== undefined) set(name, "font-family", variables["--doc-heading-font"]);
     if (typography.headingSizePt !== undefined) set(name, "font-size", `${design.typography.headingSizePt}pt`);
@@ -278,14 +284,16 @@ export const applyManagedResumeOutput = (
   templateId: string,
   pageNumber = 1,
   totalPages = 1,
-  designSettings: DocumentDesignSettings = defaultDocumentDesign,
+  documentSettings: DocumentDesignSettings = defaultDocumentDesign,
   resolvedCv?: ResolvedCvDocument,
   firstPageHtml?: string,
 ) => {
   if (!profile) return html;
   const resolved = resolvedCv ?? resolveCvDocument({
-    profile, templateId, settings: designSettings, presentationAlreadyApplied: true,
+    profile, templateId, settings: documentSettings, presentationAlreadyApplied: true,
   });
+  // The resolver already folded the shared Lebenslauf layer in: all design adapters below read that one result.
+  const designSettings = resolved.settings;
   const { document } = parseHTML(`<html><body>${html}</body></html>`);
   const entries = resolved.managerSections;
   const groups = resolved.knowledgeGroups;
@@ -812,7 +820,7 @@ export const applyManagedResumeOutput = (
         ? { left: resolved.layout.sidebarSide === "left" ? Math.round(sidebarMm + 8) : 12, right: resolved.layout.sidebarSide === "right" ? Math.round(sidebarMm + 8) : 12 }
         : { left: Math.max(12, Math.round(geometry.contentLeft)), right: Math.max(12, Math.round(210 - geometry.contentRight)) };
     applyResumeClosingOutput(root, main, profile, templateId, designSettings, last, enabled("closing"), closingInset, resolved.closingDate);
-    applyGeneralResumeAppearance(root, resolved.templateId, designSettings, main, sidebar);
+    applyGeneralResumeAppearance(root, resolved.templateId, designSettings, main, sidebar, resolved.design.colors.divider);
     applyPehlioneAppearance(root, resolved.templateId, designSettings);
     applyResumeSectionHeadingColors(root, designSettings);
     if (number === 1) firstPageHeader = root.querySelector("header")?.cloneNode(true) as Element | null;

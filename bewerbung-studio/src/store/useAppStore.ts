@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { ResumeDesignLayer } from "../shared/cvDesignSchema";
 import {
   defaultSettings,
   type ApplicantProfile,
@@ -50,6 +51,8 @@ type StoreState = {
   saveProfile: (profile: ApplicantProfile) => Promise<void>;
   removeProfile: (id: string) => Promise<void>;
   saveSettings: (settings: AppSettings) => Promise<void>;
+  /** Persist the shared Lebenslauf design (`settings.resumeDesign`); `undefined` removes it. */
+  saveResumeDesign: (layer: ResumeDesignLayer | undefined) => Promise<void>;
   saveEvent: (event: CalendarEvent) => Promise<void>;
   saveTodo: (todo: Todo) => Promise<void>;
   removeTodo: (id: string) => Promise<void>;
@@ -218,6 +221,18 @@ export const useAppStore = create<StoreState>((set, get) => {
       await perform(
         () => window.bewerbungsManager.settings.save(settings),
         "Einstellungen wurden gespeichert.",
+      );
+    },
+    async saveResumeDesign(layer) {
+      const { resumeDesign: _previous, ...settings } = get().workspace.settings;
+      const next: AppSettings = { ...settings, ...(layer ? { resumeDesign: layer } : {}) };
+      if (!apiAvailable()) {
+        set((state) => ({ workspace: { ...state.workspace, settings: next } }));
+        return;
+      }
+      await perform(
+        () => window.bewerbungsManager.settings.save(next),
+        "Lebenslauf-Design wurde gespeichert.",
       );
     },
     async saveEvent(event) {

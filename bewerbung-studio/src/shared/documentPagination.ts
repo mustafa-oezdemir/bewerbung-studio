@@ -12,7 +12,7 @@ import {
   sectionSpacingLevelToMm,
   type DocumentDesignSettings,
 } from "./documentDesign";
-import { getTemplateDocumentDesignDefaults } from "./cvDesign";
+import { getTemplateDocumentDesignDefaults, resolveTemplateCvDesign } from "./cvDesign";
 import { resolveSectionColumns } from "./resumeSectionLayout";
 import { hasSidebarHero, isZoneFlowTemplate, sectionListMetrics } from "./resumeSectionPresentation";
 import { normalizeCustomSection } from "./resumeCustomSections";
@@ -321,8 +321,10 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
   const defaultMargin = marginLevelToMm[defaults.marginLevel];
   const legacyMargin = settings && legacyMarginTemplates.has(templateId ?? "")
     ? marginLevelToMm[settings.marginLevel] - defaultMargin : 0;
+  // A chosen margin moves the template's own margin (typed in its native design) on every side alike.
+  const nativeMargin = templateId ? resolveTemplateCvDesign(templateId).spacing.pageMarginMm : defaultMargin;
   const marginInset = Math.max(0, overrides.pageMarginMm !== undefined
-    ? overrides.pageMarginMm - defaultMargin : legacyMargin);
+    ? overrides.pageMarginMm - nativeMargin : legacyMargin);
   const sectionGap = overrides.sectionGapMm ?? (settings && settings.sectionSpacingLevel !== defaults.sectionSpacingLevel
     ? nativeSectionGapOf(geometry, context.atsMode) + sectionSpacingLevelToMm[settings.sectionSpacingLevel] - sectionSpacingLevelToMm[defaults.sectionSpacingLevel]
     : undefined);

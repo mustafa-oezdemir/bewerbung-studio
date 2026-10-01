@@ -1,7 +1,7 @@
 import { resumeCustomContentTypes } from "./resumeCustomSectionTypes";
 import { deckblattDesignIds, defaultDeckblattDesign } from "./deckblattDesignIds";
 import { z } from "zod";
-import { cvDesignOverridesSchema } from "./cvDesignSchema";
+import { cvDesignOverridesSchema, resumeDesignLayerSchema } from "./cvDesignSchema";
 import { resumeAppearanceSchema } from "./resumeAppearance";
 import { resumePresentationSchema } from "./resumePresentationSchema";
 import {
@@ -750,6 +750,8 @@ export const appSettingsSchema = z.object({
   autoSaveDelaySeconds: z.number().int().min(1).max(30).default(2),
   autoLockMinutes: z.union([z.literal(0), z.literal(5), z.literal(15), z.literal(30), z.literal(60)]).default(15),
   sidebarCollapsed: z.boolean().default(false),
+  /** Shared Lebenslauf design: sparse overrides valid for every template and Bewerbung; absent = every template's own look. */
+  resumeDesign: resumeDesignLayerSchema.optional(),
   language: z.literal("de"),
 });
 

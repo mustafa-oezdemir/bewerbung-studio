@@ -10,6 +10,8 @@
  * headings until their round of verification names them.
  */
 
+import { pehlioneWhiteBlueDefaults, pehlioneWhiteDefaults, pehlioneWhiteBlueDesign } from "./cvTemplateDefaults/pehlione.defaults";
+
 export type SectionZone = "main" | "sidebar";
 export type SectionSurface = "preview" | "pdf";
 
@@ -192,18 +194,24 @@ type TemplateTokens = Record<SectionZone, { heading: SectionHeadingTokens; list:
  * Pehlione White Blue: the values of the measured PDF, which is what the pagination geometry was
  * fitted to. The preview takes exactly the same numbers.
  */
+// Pehlione's numbers live in its typed defaults; the lower-case hex strings keep the generated CSS identical.
+const pehlioneBlue = pehlioneWhiteBlueDefaults.colors.primary.toLowerCase();
+const pehlioneNavy = pehlioneWhiteDefaults.colors.primary.toLowerCase();
+const pehlioneMain = pehlioneWhiteBlueDesign.tokens;
+const pehlioneSidebar = pehlioneWhiteBlueDefaults.sidebar;
 const pehlioneWhiteBlue: TemplateTokens = {
   main: {
     icons: true,
     heading: {
       iconBox: 9, iconGap: 3, iconRadius: 1.2, glyphSize: 5.5, glyphStroke: 1.9,
-      fontSizePt: { standard: 13, compact: 11.2 }, fontWeight: 700, lineHeight: 1.1,
-      letterSpacing: "0", textTransform: "uppercase",
-      marginBottom: { standard: 3, compact: 2 }, labelPadding: { standard: 1.2, compact: 0.8 },
-      color: "var(--pehlione-section-color,var(--pehlione-primary,#0b3d86))",
-      dividerColor: "var(--pehlione-divider-color,var(--pehlione-primary,#0b3d86))",
-      iconColor: "#fff", iconBackground: "var(--pehlione-primary,#0b3d86)",
-      sectionGap: { standard: 6, compact: 3.1 },
+      fontSizePt: { standard: pehlioneMain.typography.sectionHeadingSizePt, compact: 11.2 },
+      fontWeight: pehlioneMain.typography.sectionHeadingWeight, lineHeight: 1.1,
+      letterSpacing: "0", textTransform: pehlioneMain.typography.sectionHeadingUppercase ? "uppercase" : "none",
+      marginBottom: { standard: pehlioneMain.spacing.sectionTitleGapMm, compact: 2 }, labelPadding: { standard: 1.2, compact: 0.8 },
+      color: `var(--pehlione-section-color,var(--pehlione-primary,${pehlioneBlue}))`,
+      dividerColor: `var(--pehlione-divider-color,var(--pehlione-primary,${pehlioneBlue}))`,
+      iconColor: "#fff", iconBackground: `var(--pehlione-primary,${pehlioneBlue})`,
+      sectionGap: { standard: pehlioneMain.spacing.sectionGapMm, compact: 3.1 },
     },
     list: {
       fontSizePt: { standard: 8.8, compact: 7.8 }, lineHeight: { standard: 1.3, compact: 1.2 },
@@ -214,13 +222,15 @@ const pehlioneWhiteBlue: TemplateTokens = {
     icons: true,
     heading: {
       iconBox: 9, iconGap: 3, iconRadius: 1.2, glyphSize: 5.5, glyphStroke: 1.9,
-      fontSizePt: { standard: 9.7, compact: 9.7 }, fontWeight: 700, lineHeight: 1.1,
-      letterSpacing: "0", textTransform: "uppercase",
-      marginBottom: { standard: 2, compact: 2 }, labelPadding: { standard: 1.2, compact: 1.2 },
+      fontSizePt: { standard: pehlioneSidebar.sectionHeadingSizePt, compact: pehlioneSidebar.sectionHeadingSizePt },
+      fontWeight: pehlioneMain.typography.sectionHeadingWeight, lineHeight: 1.1,
+      letterSpacing: "0", textTransform: pehlioneMain.typography.sectionHeadingUppercase ? "uppercase" : "none",
+      marginBottom: { standard: pehlioneSidebar.sectionTitleGapMm, compact: pehlioneSidebar.sectionTitleGapMm },
+      labelPadding: { standard: 1.2, compact: 1.2 },
       color: "var(--pehlione-sidebar-text,#fff)",
       dividerColor: "var(--pehlione-divider-color,#b8d2f4)",
-      iconColor: "#fff", iconBackground: "var(--pehlione-primary,#0b3d86)",
-      sectionGap: { standard: 4.5, compact: 4.5 },
+      iconColor: "#fff", iconBackground: `var(--pehlione-primary,${pehlioneBlue})`,
+      sectionGap: { standard: pehlioneSidebar.sectionGapMm, compact: pehlioneSidebar.sectionGapMm },
     },
     list: {
       fontSizePt: { standard: 7.8, compact: 7.8 }, lineHeight: { standard: 1.2, compact: 1.2 }, itemLineHeight: 1.25,
@@ -238,9 +248,9 @@ const pehlioneWhite: TemplateTokens = {
     ...pehlioneWhiteBlue.main,
     heading: {
       ...pehlioneWhiteBlue.main.heading,
-      color: "var(--pehlione-section-color,var(--pehlione-primary,#08245c))",
-      dividerColor: "var(--pehlione-divider-color,var(--pehlione-primary,#08245c))",
-      iconBackground: "var(--pehlione-primary,#08245c)",
+      color: `var(--pehlione-section-color,var(--pehlione-primary,${pehlioneNavy}))`,
+      dividerColor: `var(--pehlione-divider-color,var(--pehlione-primary,${pehlioneNavy}))`,
+      iconBackground: `var(--pehlione-primary,${pehlioneNavy})`,
     },
   },
   sidebar: {
@@ -248,9 +258,9 @@ const pehlioneWhite: TemplateTokens = {
     heading: {
       ...pehlioneWhiteBlue.sidebar.heading,
       iconBox: 8, iconGap: 2, iconRadius: 0, glyphSize: 7, glyphStroke: 1.9,
-      color: "var(--pehlione-primary,#08245c)",
-      dividerColor: "var(--pehlione-divider-color,var(--pehlione-primary,#08245c))",
-      iconColor: "var(--pehlione-primary,#08245c)", iconBackground: "transparent",
+      color: `var(--pehlione-primary,${pehlioneNavy})`,
+      dividerColor: `var(--pehlione-divider-color,var(--pehlione-primary,${pehlioneNavy}))`,
+      iconColor: `var(--pehlione-primary,${pehlioneNavy})`, iconBackground: "transparent",
     },
   },
 };

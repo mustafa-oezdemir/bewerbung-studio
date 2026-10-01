@@ -1,3 +1,5 @@
+import type { NativeResumeDesign } from "../cvDesignSchema";
+
 export const zeitgenoessischDefaults = {
   page: {
     widthMm: 210,
@@ -42,3 +44,63 @@ export const zeitgenoessischDefaults = {
 
 export type ZeitgenoessischTemplateDefaults =
   typeof zeitgenoessischDefaults;
+
+/** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */
+const zeitgenoessischDesignColors = {
+  text: zeitgenoessischDefaults.colors.text,
+  paragraph: zeitgenoessischDefaults.colors.text,
+  heading: zeitgenoessischDefaults.colors.heading,
+  subheading: zeitgenoessischDefaults.colors.primaryDark,
+  sectionHeading: zeitgenoessischDefaults.colors.primaryDark,
+  entryHeading: zeitgenoessischDefaults.colors.heading,
+  divider: zeitgenoessischDefaults.colors.divider,
+  background: zeitgenoessischDefaults.colors.pageBackground,
+  accent: zeitgenoessischDefaults.colors.primary,
+  surface: zeitgenoessischDefaults.colors.primarySoft,
+  muted: zeitgenoessischDefaults.colors.mutedText,
+  icon: zeitgenoessischDefaults.colors.primary,
+};
+
+export const zeitgenoessischDesign: NativeResumeDesign = {
+  tokens: {
+    colors: zeitgenoessischDesignColors,
+    typography: {
+      fontId: "source-sans",
+      headingFontId: "source-sans",
+      bodySizePt: 8.4,
+      headingSizePt: zeitgenoessischDefaults.typography.nameSizePt,
+      subheadingSizePt: zeitgenoessischDefaults.typography.professionSizePt,
+      sectionHeadingSizePt: zeitgenoessischDefaults.typography.sectionTitleSizePt,
+      entryHeadingSizePt: 9.2,
+      lineHeight: 1.05,
+      headingWeight: 350,
+      subheadingWeight: 600,
+      sectionHeadingWeight: 750,
+      sectionHeadingUppercase: true,
+    },
+    spacing: {
+      pageMarginMm: 13,
+      innerPaddingMm: 0,
+      sectionGapMm: 4.5,
+      entryGapMm: zeitgenoessischDefaults.layout.entryGapMm,
+      sectionTitleGapMm: 3,
+      entryContentGapMm: 0,
+      columnGapMm: 0,
+    },
+  },
+  appearance: {
+    sidebarBackgroundColor: zeitgenoessischDesignColors.background,
+    sidebarTextColor: zeitgenoessischDesignColors.text,
+    sidebarSectionHeadingColor: zeitgenoessischDesignColors.sectionHeading,
+    mainBackgroundColor: zeitgenoessischDesignColors.background,
+    sectionDividerPosition: "none",
+    sectionDividerWidthMm: 0,
+    sectionHeadingAlignment: "left",
+    sectionHeadingMarginBeforeMm: 0,
+    photoDecorationVisible: true,
+    photoDecorationColor: "#CBECDD",
+    contactDividerColor: zeitgenoessischDesignColors.divider,
+    photoLayout: "circle",
+    headerLayout: "left",
+  },
+};

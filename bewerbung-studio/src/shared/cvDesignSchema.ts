@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { documentFontIds } from "./documentDesign";
+import { nativeResumeAppearanceSchema, resumeAppearanceSchema } from "./resumeAppearance";
 
 const color = z.string().regex(/^#[0-9a-f]{6}$/i);
 export const cvColorsSchema = z.object({
@@ -25,13 +26,13 @@ export const cvDesignLimits = {
   sectionHeadingSizePt: [8, 22],
   entryHeadingSizePt: [8, 18],
   lineHeight: [1, 1.8],
-  pageMarginMm: [8, 30],
-  innerPaddingMm: [0, 12],
+  pageMarginMm: [5, 30],
+  innerPaddingMm: [0, 16],
   sectionGapMm: [0, 16],
   entryGapMm: [0, 12],
   sectionTitleGapMm: [0, 8],
   entryContentGapMm: [0, 8],
-  columnGapMm: [3, 18],
+  columnGapMm: [0, 18],
 } as const;
 
 const bounded = (key: keyof typeof cvDesignLimits) =>
@@ -75,5 +76,25 @@ export const cvDesignOverridesSchema = z.object({
   spacing: cvSpacingSchema.partial().optional(),
 });
 
+/**
+ * A template's own design, complete and typed: the semantic tokens plus the appearance controls. It is the only
+ * place where a template's design numbers live for the resolver, the design panel and the override adapters.
+ */
+export const nativeResumeDesignSchema = z.object({
+  tokens: cvDesignTokensSchema,
+  appearance: nativeResumeAppearanceSchema,
+});
+
+/**
+ * The shared Lebenslauf layer of a workspace: sparse overrides that apply to every template and every Bewerbung.
+ * Like the document-level overrides it never stores a default; absence means "use the template's own value".
+ */
+export const resumeDesignLayerSchema = z.object({
+  cvOverrides: cvDesignOverridesSchema.optional(),
+  resumeAppearance: resumeAppearanceSchema.optional(),
+});
+
 export type CvDesignTokens = z.infer<typeof cvDesignTokensSchema>;
+export type ResumeDesignLayer = z.infer<typeof resumeDesignLayerSchema>;
 export type CvDesignOverrides = z.infer<typeof cvDesignOverridesSchema>;
+export type NativeResumeDesign = z.infer<typeof nativeResumeDesignSchema>;

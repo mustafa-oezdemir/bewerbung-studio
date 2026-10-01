@@ -1,3 +1,5 @@
+import type { NativeResumeDesign } from "../cvDesignSchema";
+
 export const ivyLeagueDefaults = {
   page: {
     widthMm: 210,
@@ -42,3 +44,63 @@ export const ivyLeagueDefaults = {
     opacity: 0.58,
   },
 } as const;
+
+/** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */
+const ivyLeagueDesignColors = {
+  text: ivyLeagueDefaults.colors.text,
+  paragraph: ivyLeagueDefaults.colors.text,
+  heading: ivyLeagueDefaults.colors.primary,
+  subheading: ivyLeagueDefaults.colors.accent,
+  sectionHeading: ivyLeagueDefaults.colors.heading,
+  entryHeading: ivyLeagueDefaults.colors.primary,
+  divider: ivyLeagueDefaults.colors.divider,
+  background: ivyLeagueDefaults.colors.pageBackground,
+  accent: ivyLeagueDefaults.colors.accent,
+  surface: ivyLeagueDefaults.colors.pageBackground,
+  muted: ivyLeagueDefaults.colors.mutedText,
+  icon: ivyLeagueDefaults.colors.accent,
+};
+
+export const ivyLeagueDesign: NativeResumeDesign = {
+  tokens: {
+    colors: ivyLeagueDesignColors,
+    typography: {
+      fontId: "source-sans",
+      headingFontId: "georgia",
+      bodySizePt: 8.4,
+      headingSizePt: ivyLeagueDefaults.typography.nameSizePt,
+      subheadingSizePt: ivyLeagueDefaults.typography.professionSizePt,
+      sectionHeadingSizePt: ivyLeagueDefaults.typography.sectionTitleSizePt,
+      entryHeadingSizePt: 9.7,
+      lineHeight: 1.05,
+      headingWeight: 700,
+      subheadingWeight: 400,
+      sectionHeadingWeight: 700,
+      sectionHeadingUppercase: false,
+    },
+    spacing: {
+      pageMarginMm: 11,
+      innerPaddingMm: 0,
+      sectionGapMm: 4.5,
+      entryGapMm: ivyLeagueDefaults.layout.entryGapMm,
+      sectionTitleGapMm: 2.5,
+      entryContentGapMm: 0,
+      columnGapMm: 0,
+    },
+  },
+  appearance: {
+    sidebarBackgroundColor: ivyLeagueDesignColors.background,
+    sidebarTextColor: ivyLeagueDesignColors.text,
+    sidebarSectionHeadingColor: ivyLeagueDesignColors.sectionHeading,
+    mainBackgroundColor: ivyLeagueDesignColors.background,
+    sectionDividerPosition: "bottom",
+    sectionDividerWidthMm: 0.3,
+    sectionHeadingAlignment: "center",
+    sectionHeadingMarginBeforeMm: 0,
+    photoDecorationVisible: false,
+    photoDecorationColor: ivyLeagueDesignColors.accent,
+    contactDividerColor: ivyLeagueDesignColors.divider,
+    photoLayout: "hidden",
+    headerLayout: "center",
+  },
+};

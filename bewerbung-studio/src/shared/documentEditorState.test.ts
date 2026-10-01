@@ -29,14 +29,14 @@ describe("document editor persistence", () => {
     expect(reset.settings.resumeAppearance).toBeUndefined();
     expect(reset.settings.cvOverrides).toBeUndefined();
   });
-  it("keeps white and native-sized appearance choices on non-Pehlione templates", () => {
+  it("stores appearance choices that differ from the template and drops the ones that equal its own value", () => {
     let draft = selectDocumentTemplate(createDocumentDesignDraft(application), "zweispaltig");
     draft = updateResumeAppearanceField(draft, "sidebarTextColor", "#ffffff");
-    draft = updateResumeAppearanceField(draft, "mainBackgroundColor", "#ffffff");
     draft = updateResumeAppearanceField(draft, "sectionDividerWidthMm", 0.3);
-    expect(draft.settings.resumeAppearance).toMatchObject({
-      sidebarTextColor: "#ffffff", mainBackgroundColor: "#ffffff", sectionDividerWidthMm: 0.3,
-    });
+    // Zweispaltig's own page is white with a 0.65 mm title rule: restating them is no override.
+    draft = updateResumeAppearanceField(draft, "mainBackgroundColor", "#ffffff");
+    draft = updateResumeAppearanceField(draft, "sectionDividerPosition", "bottom");
+    expect(draft.settings.resumeAppearance).toEqual({ sidebarTextColor: "#ffffff", sectionDividerWidthMm: 0.3 });
     const restored = selectDocumentTemplate(selectDocumentTemplate(draft, "modern"), "zweispaltig");
     expect(restored.settings.resumeAppearance).toEqual(draft.settings.resumeAppearance);
     expect(resetDocumentDesign(restored).settings.resumeAppearance).toBeUndefined();

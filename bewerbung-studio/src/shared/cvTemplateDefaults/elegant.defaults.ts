@@ -1,3 +1,5 @@
+import type { NativeResumeDesign } from "../cvDesignSchema";
+
 export const elegantDefaults = {
   page: {
     widthMm: 210,
@@ -47,3 +49,63 @@ export const elegantDefaults = {
 } as const;
 
 export type ElegantTemplateDefaults = typeof elegantDefaults;
+
+/** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */
+const elegantDesignColors = {
+  text: elegantDefaults.colors.text,
+  paragraph: elegantDefaults.colors.text,
+  heading: elegantDefaults.colors.heading,
+  subheading: elegantDefaults.colors.primary,
+  sectionHeading: elegantDefaults.colors.heading,
+  entryHeading: elegantDefaults.colors.heading,
+  divider: elegantDefaults.colors.divider,
+  background: elegantDefaults.colors.pageBackground,
+  accent: elegantDefaults.colors.primary,
+  surface: elegantDefaults.colors.pageBackground,
+  muted: elegantDefaults.colors.mutedText,
+  icon: elegantDefaults.colors.primary,
+};
+
+export const elegantDesign: NativeResumeDesign = {
+  tokens: {
+    colors: elegantDesignColors,
+    typography: {
+      fontId: "source-sans",
+      headingFontId: "source-sans",
+      bodySizePt: 8.4,
+      headingSizePt: elegantDefaults.typography.nameSizePt,
+      subheadingSizePt: elegantDefaults.typography.professionSizePt,
+      sectionHeadingSizePt: elegantDefaults.typography.sectionTitleSizePt,
+      entryHeadingSizePt: elegantDefaults.typography.entryTitleSizePt,
+      lineHeight: 1.05,
+      headingWeight: 500,
+      subheadingWeight: 400,
+      sectionHeadingWeight: 500,
+      sectionHeadingUppercase: true,
+    },
+    spacing: {
+      pageMarginMm: 13,
+      innerPaddingMm: 13,
+      sectionGapMm: 4.5,
+      entryGapMm: elegantDefaults.layout.entryGapMm,
+      sectionTitleGapMm: 3.2,
+      entryContentGapMm: 0.8,
+      columnGapMm: 0,
+    },
+  },
+  appearance: {
+    sidebarBackgroundColor: elegantDefaults.colors.sidebarBackground,
+    sidebarTextColor: elegantDefaults.colors.sidebarText,
+    sidebarSectionHeadingColor: "#FFFFFF",
+    mainBackgroundColor: elegantDesignColors.background,
+    sectionDividerPosition: "bottom",
+    sectionDividerWidthMm: 0.3,
+    sectionHeadingAlignment: "left",
+    sectionHeadingMarginBeforeMm: 0,
+    photoDecorationVisible: false,
+    photoDecorationColor: elegantDesignColors.accent,
+    contactDividerColor: elegantDesignColors.divider,
+    photoLayout: "rounded",
+    headerLayout: "left",
+  },
+};

@@ -3,6 +3,7 @@ import { applicationSchema } from "./schema";
 import { templates } from "./templates";
 import { createDocumentDesignDraft, resetDocumentDesign, selectDocumentTemplate, updateCvDesignField } from "./documentEditorState";
 import { cvDesignLimits } from "./cvDesignSchema";
+import { resolveTemplateCvDesign } from "./cvDesign";
 import { applyResumeSpacingPreset, getResumeSpacingPreset, getResumeSpacingPresetValues, resolveEffectiveResumeSpacing, resumeSpacingFields } from "./resumeSpacing";
 
 const now = new Date().toISOString();
@@ -18,7 +19,10 @@ describe("semantic resume spacing", () => {
     for (const preset of ["compact", "large"] as const) {
       const changed = applyResumeSpacingPreset(draft, preset);
       expect(getResumeSpacingPreset(id, changed.settings)).toBe(preset);
-      expect(changed.settings.cvOverrides?.spacing?.sectionGapMm).not.toBe(changed.settings.cvOverrides?.spacing?.entryGapMm);
+      // The two gaps are separate settings; a template that draws them equally (Ivy League) scales them equally.
+      const { sectionGapMm, entryGapMm } = resolveTemplateCvDesign(id).spacing;
+      if (sectionGapMm !== entryGapMm)
+        expect(changed.settings.cvOverrides?.spacing?.sectionGapMm).not.toBe(changed.settings.cvOverrides?.spacing?.entryGapMm);
       const values = getResumeSpacingPresetValues(id, preset);
       for (const { key } of resumeSpacingFields) {
         expect(values.spacing[key]).toBeGreaterThanOrEqual(cvDesignLimits[key][0]);

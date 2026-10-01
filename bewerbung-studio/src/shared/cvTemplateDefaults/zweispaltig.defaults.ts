@@ -1,3 +1,5 @@
+import type { NativeResumeDesign } from "../cvDesignSchema";
+
 export const zweispaltigDefaults = {
   page: {
     widthMm: 210,
@@ -41,3 +43,63 @@ export const zweispaltigDefaults = {
 } as const;
 
 export type ZweispaltigTemplateDefaults = typeof zweispaltigDefaults;
+
+/** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */
+const zweispaltigDesignColors = {
+  text: zweispaltigDefaults.colors.text,
+  paragraph: zweispaltigDefaults.colors.text,
+  heading: zweispaltigDefaults.colors.primary,
+  subheading: zweispaltigDefaults.colors.accent,
+  sectionHeading: zweispaltigDefaults.colors.heading,
+  entryHeading: zweispaltigDefaults.colors.primary,
+  divider: zweispaltigDefaults.colors.primary,
+  background: zweispaltigDefaults.colors.pageBackground,
+  accent: zweispaltigDefaults.colors.accent,
+  surface: zweispaltigDefaults.colors.primarySoft,
+  muted: zweispaltigDefaults.colors.mutedText,
+  icon: zweispaltigDefaults.colors.accent,
+};
+
+export const zweispaltigDesign: NativeResumeDesign = {
+  tokens: {
+    colors: zweispaltigDesignColors,
+    typography: {
+      fontId: "source-sans",
+      headingFontId: "source-sans",
+      bodySizePt: zweispaltigDefaults.typography.bodySizePt,
+      headingSizePt: zweispaltigDefaults.typography.nameSizePt,
+      subheadingSizePt: 11.5,
+      sectionHeadingSizePt: zweispaltigDefaults.typography.sectionTitleSizePt,
+      entryHeadingSizePt: zweispaltigDefaults.typography.entryTitleSizePt,
+      lineHeight: 1.05,
+      headingWeight: 750,
+      subheadingWeight: 700,
+      sectionHeadingWeight: 750,
+      sectionHeadingUppercase: true,
+    },
+    spacing: {
+      pageMarginMm: 13,
+      innerPaddingMm: 0,
+      sectionGapMm: zweispaltigDefaults.layout.sectionGapMm,
+      entryGapMm: zweispaltigDefaults.layout.entryGapMm,
+      sectionTitleGapMm: 2.5,
+      entryContentGapMm: 0.7,
+      columnGapMm: zweispaltigDefaults.layout.columnGapMm,
+    },
+  },
+  appearance: {
+    sidebarBackgroundColor: zweispaltigDesignColors.background,
+    sidebarTextColor: zweispaltigDesignColors.text,
+    sidebarSectionHeadingColor: zweispaltigDesignColors.sectionHeading,
+    mainBackgroundColor: zweispaltigDesignColors.background,
+    sectionDividerPosition: "bottom",
+    sectionDividerWidthMm: 0.65,
+    sectionHeadingAlignment: "left",
+    sectionHeadingMarginBeforeMm: 0,
+    photoDecorationVisible: false,
+    photoDecorationColor: zweispaltigDesignColors.accent,
+    contactDividerColor: zweispaltigDesignColors.divider,
+    photoLayout: "circle",
+    headerLayout: "left",
+  },
+};

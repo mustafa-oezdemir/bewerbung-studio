@@ -474,3 +474,55 @@ als normale Klassisch-Abschnitte im Inhaltsfluss. Zertifikatslisten folgen in
 beiden Ausgaben denselben Abständen. Die Profil-Sichtbarkeit bleibt erhalten.
 Eine gedruckte A4-Seite und ein zweiseitiges Beispiel wurden auf gleiche
 Abschnitte, Umbrüche und Abstand zum Footer geprüft.
+
+## Phase 23: Lebenslauf-Designsystem (01.10.2026)
+
+Die Designwerte des Lebenslaufs haben jetzt eine einzige, typisierte Quelle und eine feste Ebenenfolge. Ohne
+Änderung zeigt jede Vorlage ihren bisherigen Stil; Preview und PDF lösen alle Werte über dieselbe Stelle auf.
+
+**Quelle der Vorlagenwerte.** Jede aktive Vorlage hat ein vollständiges `NativeResumeDesign` (Tokens und
+Erscheinungsbild) neben ihren übrigen Konstanten in `cvTemplateDefaults/*.defaults.ts`; Pehlione hat dafür das neue
+Modul `pehlione.defaults.ts`. `cvTemplateTokens.ts` registriert sie nur noch. Die Werte wurden am gerenderten PDF bei
+Standarddichte gemessen (Schriftgrößen, Gewichte, Großschreibung, Zeilenhöhe, Abschnitts-/Eintrags-/Titelabstände,
+Seitenrand). Die früheren generischen Ersatzwerte in `resolveTemplateCvDesign()` sind entfernt; nur die Vorlagen,
+die ausschließlich der alte generische Renderer zeichnet, leiten ihr Design aus den Dokumenteinstellungen ab
+(`legacyGeneric.defaults.ts`). Die Abschnittstitel-Tokens und das Pehlione-Erscheinungs-CSS lesen dieselben Zahlen.
+
+**Ebenen** (`resumeDesignSystem.ts`), niedrigste zuerst: Vorlage → alte Regler-/Schriftstufen des Dokuments (nur
+wenn sie von den Vorlagenvorgaben abweichen) → gemeinsame Lebenslauf-Ebene des Workspaces (`settings.resumeDesign`) →
+eigene sparsame Overrides der Bewerbung (`designSettings.cvOverrides` / `resumeAppearance`, auch die Snapshots
+inaktiver Vorlagen in `templateDesigns`). Eine Ebene speichert nur Abweichungen; fehlt ein Wert, wird geerbt.
+`applyGlobalResumeDesign` faltet die gemeinsame Ebene vor `resolveCvDocument` in die Einstellungen; Preview
+(`DocumentsView`), PDF (`buildDocumentHtml(..., resumeDesign)`, aufgerufen mit `workspace.settings.resumeDesign`),
+Seitenplaner und Abstandsadapter lesen nur dieses Ergebnis. Anschreiben, Deckblatt und E-Mail bleiben unberührt.
+
+**Speichern.** Die Ebene ist ein Entwurf wie das übrige Design (die Vorschau folgt jeder Eingabe) und wird mit
+„Texte speichern“ bzw. vor jedem PDF-Export über `saveSettings` geschrieben. Dokumentwerte werden gegen das
+verglichen, was das Dokument ohne sie erbt (Vorlage plus gemeinsame Ebene), gemeinsame Werte nie gegen eine einzelne
+Vorlage. „Vorlagenwerte wiederherstellen“ entfernt die gemeinsame Ebene und die eigenen Werte der geöffneten
+Bewerbung; Overrides anderer Bewerbungen bleiben erhalten. Alte Workspaces laden unverändert.
+
+**Panel.** `ResumeDesignPanel` ersetzt die drei getrennten Blöcke durch eine gemeinsame Konfiguration für alle
+Vorlagen: „Farben und Dekoration“ (Farben, Spalten, Abschnittstitel, Linien und Foto), „Typografie im Detail“ und
+„Erweiterte Abstände“. Jedes Feld zeigt den wirksamen Wert, darunter den Vorlagenwert und die Herkunft (Vorlage /
+Global / Bewerbung). Der Geltungsbereich ist umschaltbar (alle Lebensläufe oder nur diese Bewerbung). Doppelte
+Bedienelemente entfallen: Zeilenhöhe steht nur unter Typografie, „Abstand danach“ ist dasselbe Feld wie „Abstand nach
+Abschnittstitel“. Die alten Regler, Schriften und Farben für Anschreiben und Deckblatt stehen gesammelt unter
+„Dokumentweit“.
+
+**Korrekturen am Ausgabeadapter**, die die Messung der Vorlagenwerte aufgedeckt hat: „Lesetext (pt)“ wirkte nur bei
+Einspaltig auf die Listen; der Seitenrand wurde zusätzlich zum eigenen Rand der Vorlage gesetzt (bis zu 25 mm zu
+viel) und der Abschnittsabstand addierte sich bei Gepflegt und Modern zum nativen Spaltenabstand. Ein Seitenrand
+verschiebt jetzt den echten Rand der Vorlage exakt auf den gewählten Wert, der Planer rechnet mit derselben Differenz.
+
+**Prüfung.** Neue Tests: `cvTemplateDesigns`, `resumeDesignSystem`, `resumeDesignEditing`, `resumeDesignOutput`,
+`ResumeDesignPanel` und `resumeDesignStorage` (reales DataStore-Roundtrip). Neue Chromium-Prüfung
+`node scripts/design-system-qa.mjs` und `npx electron scripts/check-design-system-qa.cjs`: 336 Messungen
+(14 Vorlagen); die typisierten Vorlagenwerte stimmen mit dem gedruckten PDF überein, und die gemeinsame Ebene wirkt in
+Preview und PDF jeder Vorlage mit den eingegebenen Werten. `check-spacing-qa.cjs` prüft die neue Randverschiebung.
+
+**Bekannt, nicht Teil dieser Phase.** Die Abweichungen von `check-section-inheritance.cjs` und `check-closing-qa.cjs`
+bestehen unverändert seit dem Stand vor dieser Phase. Elegant, Gepflegt und Tabellarisch zeichnen Namen und Titel in
+der Vorschau mit der allgemeinen Überschriftenfarbe (`.document-paper h2` schlägt die Vorlagenregel); das PDF verwendet
+die Vorlagenfarben, die die Vorlagenwerte beschreiben. Pehlione und die übrigen Stylesheets enthalten ihre Zahlen
+weiterhin selbst; ein Test hält die Pehlione-Palette mit dem typisierten Modul in Übereinstimmung.

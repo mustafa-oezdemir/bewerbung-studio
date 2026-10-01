@@ -4,7 +4,8 @@ import { resolveTemplateId } from "./templates";
 import { resolveResumePresentation } from "./resumePresentation";
 import { getResumeDisplayProfile } from "./resumeDisplayProfile";
 import { resolveResumeLayout } from "./resumeLayoutEngine";
-import { resolveEffectiveResumeSpacing } from "./resumeSpacing";
+import { applyGlobalResumeDesign, resolveEffectiveDesignTokens } from "./resumeDesignSystem";
+import type { ResumeDesignLayer } from "./cvDesignSchema";
 import { getProfileMediaSource } from "./profileMedia";
 import { getManagerSections } from "../features/resume-sections/resume-manager";
 import { resolveKnowledgeGroups } from "../features/resume-sections/resume-section-system";
@@ -23,20 +24,25 @@ type CvDocumentInput = {
   presentationAlreadyApplied?: boolean;
   /** The application the résumé belongs to: its date is the date of the closing (`Ort, DD.MM.YYYY`). */
   application?: ApplicationDateSource;
+  /** The workspace's shared Lebenslauf design; folded in below the document's own overrides, for every output alike. */
+  globalDesign?: ResumeDesignLayer;
 };
 
 /** The sole CV projection used by both preview and print renderers. */
 export const resolveCvDocument = ({
   profile: sourceProfile,
   templateId: requestedTemplateId,
-  settings = defaultDocumentDesign,
+  settings: documentSettings = defaultDocumentDesign,
   resumeProfile = "",
   deckblattStatement = "",
   jobTitle = "",
   presentationAlreadyApplied = false,
   application,
+  globalDesign,
 }: CvDocumentInput) => {
   const templateId = resolveTemplateId(requestedTemplateId);
+  // Every consumer (planner, preview, PDF) reads the same effective settings from here on.
+  const settings = applyGlobalResumeDesign(documentSettings, globalDesign);
   const projected = presentationAlreadyApplied
     ? sourceProfile
     : resolveResumePresentation(sourceProfile, templateId, settings.resumePresentation);
@@ -60,7 +66,7 @@ export const resolveCvDocument = ({
   const layout = resolveResumeLayout(
     templateId, settings.resumePresentation, atsMode, sourceProfile?.resumeColumnRatio,
   );
-  const design = resolveEffectiveResumeSpacing(templateId, settings);
+  const design = resolveEffectiveDesignTokens(templateId, settings);
   const paginationSummary = templateId.startsWith("pehlione_")
     ? resumeProfile || (/kundenservice|sachbearbeit/i.test(jobTitle) ? deckblattStatement : "") || profile?.summary || ""
     : resumeProfile;

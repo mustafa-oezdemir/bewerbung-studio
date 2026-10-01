@@ -1,3 +1,5 @@
+import type { NativeResumeDesign } from "../cvDesignSchema";
+
 /**
  * Tabellarisch Template - Design Defaults & Tokens
  * Modern timeline-based CV template for experienced professionals
@@ -78,3 +80,63 @@ export const tabellarischDefaults = {
 } as const;
 
 export type TabellarischTemplateDefaults = typeof tabellarischDefaults;
+
+/** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */
+const tabellarischDesignColors = {
+  text: tabellarischDefaults.colors.text,
+  paragraph: tabellarischDefaults.colors.text,
+  heading: tabellarischDefaults.colors.primary,
+  subheading: tabellarischDefaults.colors.accent,
+  sectionHeading: "#0B3D86",
+  entryHeading: tabellarischDefaults.colors.primary,
+  divider: tabellarischDefaults.colors.line,
+  background: tabellarischDefaults.colors.background,
+  accent: tabellarischDefaults.colors.accent,
+  surface: "#FFFFFF",
+  muted: tabellarischDefaults.colors.muted,
+  icon: tabellarischDefaults.colors.accent,
+};
+
+export const tabellarischDesign: NativeResumeDesign = {
+  tokens: {
+    colors: tabellarischDesignColors,
+    typography: {
+      fontId: "source-sans",
+      headingFontId: "source-sans",
+      bodySizePt: tabellarischDefaults.typography.bodySizePt,
+      headingSizePt: tabellarischDefaults.typography.nameSizePt,
+      subheadingSizePt: tabellarischDefaults.typography.jobTitleSizePt,
+      sectionHeadingSizePt: tabellarischDefaults.typography.sectionTitleSizePt,
+      entryHeadingSizePt: tabellarischDefaults.typography.entryTitleSizePt,
+      lineHeight: 1.1,
+      headingWeight: 750,
+      subheadingWeight: 650,
+      sectionHeadingWeight: 750,
+      sectionHeadingUppercase: true,
+    },
+    spacing: {
+      pageMarginMm: 15,
+      innerPaddingMm: 0,
+      sectionGapMm: tabellarischDefaults.spacing.sectionGapMm,
+      entryGapMm: tabellarischDefaults.spacing.entryGapMm,
+      sectionTitleGapMm: 3.5,
+      entryContentGapMm: 1,
+      columnGapMm: 0,
+    },
+  },
+  appearance: {
+    sidebarBackgroundColor: tabellarischDesignColors.background,
+    sidebarTextColor: tabellarischDesignColors.text,
+    sidebarSectionHeadingColor: tabellarischDesignColors.sectionHeading,
+    mainBackgroundColor: tabellarischDesignColors.background,
+    sectionDividerPosition: "none",
+    sectionDividerWidthMm: 0,
+    sectionHeadingAlignment: "left",
+    sectionHeadingMarginBeforeMm: 0,
+    photoDecorationVisible: false,
+    photoDecorationColor: tabellarischDesignColors.accent,
+    contactDividerColor: tabellarischDesignColors.divider,
+    photoLayout: "circle",
+    headerLayout: "left",
+  },
+};
