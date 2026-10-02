@@ -101,6 +101,19 @@ let applicationPaths: ReturnType<typeof resolveApplicationPaths>;
 
 if (process.platform === "win32") app.setAppUserModelId(appId);
 
+// Two processes writing the same workspace would replace each other's lock file.
+const isPrimaryInstance = app.requestSingleInstanceLock();
+if (!isPrimaryInstance) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  });
+}
+
 const createMainWindow = async () => {
   mainWindow = new BrowserWindow({
     width: 1480,
@@ -757,6 +770,7 @@ const notifyDueEvents = () => {
 };
 
 app.whenReady().then(async () => {
+  if (!isPrimaryInstance) return;
   await rm(secureTempRoot(), { recursive: true, force: true }).catch(() => undefined);
   workspaceManager = new WorkspaceManager(app.getPath("userData"));
   const acquireWorkspaceLock = async (root: string) => {
@@ -1220,6 +1234,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", (event) => {
+  if (!isPrimaryInstance) return;
   if (gitShutdownComplete) return;
   event.preventDefault();
   if (gitShutdownInProgress) return;

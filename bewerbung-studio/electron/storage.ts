@@ -110,6 +110,8 @@ import { resolveResumeSummary } from "../src/shared/resumeSummary";
 
 const nowIso = () => new Date().toISOString();
 const createId = () => crypto.randomUUID();
+const workspaceLockLostMessage =
+  "Der Datenbestand ist durch eine andere Instanz gesperrt. Schließen Sie alle BewerbungsManager-Instanzen und starten Sie die Anwendung neu.";
 const terminalStatuses = new Set<ApplicationStatus>(terminalApplicationStatuses);
 
 const isDeadlineTodo = (todo: Todo) => todo.source === "application-deadline";
@@ -522,14 +524,14 @@ export class DataStore {
       throw error;
     });
     if (this.expectedLockId && !lockContent)
-      throw new Error("Der Datenbestand ist durch eine andere Instanz gesperrt.");
+      throw new Error(workspaceLockLostMessage);
     if (lockContent) {
       let lock: { hostname?: string; pid?: number; lockId?: string };
       try { lock = JSON.parse(lockContent) as { hostname?: string; pid?: number; lockId?: string }; }
-      catch { throw new Error("Der Datenbestand ist durch eine andere Instanz gesperrt."); }
+      catch { throw new Error(workspaceLockLostMessage); }
       if (lock.hostname !== os.hostname() || lock.pid !== process.pid ||
           (this.expectedLockId && lock.lockId !== this.expectedLockId))
-        throw new Error("Der Datenbestand ist durch eine andere Instanz gesperrt.");
+        throw new Error(workspaceLockLostMessage);
     }
     const diskContent = await readFile(this.workspacePath, "utf8").catch((error: NodeJS.ErrnoException) => {
       if (error.code === "ENOENT") return null;
