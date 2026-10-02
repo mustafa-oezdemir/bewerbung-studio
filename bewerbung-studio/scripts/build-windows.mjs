@@ -28,6 +28,8 @@ const argumentsForBuilder = [
   "--win",
   ...(target === "all" ? [] : [target]),
   "--x64",
+  "--publish",
+  "never",
   `--config.directories.output=${temporaryDirectory}`,
   ...(signedRelease ? ["--config.forceCodeSigning=true"] : []),
 ];

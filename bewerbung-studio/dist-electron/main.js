@@ -1966,7 +1966,7 @@ var ai = /*@__PURE__*/ z("$ZodObject", (e, t) => {
         } else {
           newResult[${o}] = ${n}.value;
         }
-        
+
       `) : c ? t.write(`
         if (${n}.issues.length) {
           payload.issues = payload.issues.concat(${n}.issues.map(iss => ({

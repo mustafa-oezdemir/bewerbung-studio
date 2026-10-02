@@ -1,7 +1,7 @@
 {
   "name": "bewerbungsmanager",
   "private": true,
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Lokale Bewerbungsverwaltung für Deutschland",
   "author": "BewerbungsManager",
   "license": "Apache-2.0",
