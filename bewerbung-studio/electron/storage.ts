@@ -14,6 +14,10 @@ import { parseEncryptedWorkspace } from "./security/encryption-service";
 import { createHash } from "node:crypto";
 import os from "node:os";
 import { defaultDeckblattDesign } from "../src/shared/deckblattDesignIds";
+import { resolveEducationPresentation } from "../src/shared/resumeEducation";
+import { resolveResumeClosingLine } from "../src/shared/resumeClosing";
+import { resolveExperience } from "../src/shared/resumeCareer";
+import { formatLanguageForAts } from "../src/features/languages/language-levels";
 import {
   isApplicationTodo,
   localDateKey,
@@ -21,6 +25,7 @@ import {
 } from "../src/shared/todos";
 import { getProfessionalTitle, resolveApplicationProfile } from "../src/shared/profileSelection";
 import { clearProfileDerivedDocumentFields, dropStaleProfileCopies } from "../src/shared/coverSender";
+import { migrateLegacyResumeProfiles } from "../src/shared/legacyResumeProfile";
 import path from "node:path";
 import type { ApplicationPaths } from "../src/config/application-paths";
 import { resolveApplicationPaths } from "../src/config/application-paths";
@@ -101,6 +106,7 @@ import type {
   ApplicationGitAction,
   ApplicationGitCommitQueue,
 } from "./git-automation";
+import { resolveResumeSummary } from "../src/shared/resumeSummary";
 
 const nowIso = () => new Date().toISOString();
 const createId = () => crypto.randomUUID();
@@ -321,7 +327,7 @@ export class DataStore {
          (await stat(`${legacyWorkspacePath}.bak`).catch(() => null)))) {
       this.workspacePath = legacyWorkspacePath;
     }
-    this.workspace = await this.loadWorkspace();
+    this.workspace = migrateLegacyResumeProfiles(await this.loadWorkspace());
     for (const application of this.workspace.applications) {
       application.documents = dropStaleProfileCopies(
         application.documents,
@@ -930,6 +936,7 @@ export class DataStore {
         coverClosing:
           "Gerne überzeuge ich Sie in einem persönlichen Gespräch von meiner Motivation und Eignung. Auf Ihren Terminvorschlag freue ich mich.",
         resumeProfile: "",
+        legacyResumeProfile: "",
         deckblattStatement: "",
         emailSubject: "",
         emailMessage: "",
@@ -1399,6 +1406,8 @@ export class DataStore {
       application.documents.coverSheetContactVisibility,
     );
     const deckblattCompetencies = getDeckblattCompetencies(profile, application);
+    // The Kurzprofil of the Lebenslauf (the Bewerbung's own text, else the profile's): the same text the PDF shows.
+    const resumeSummary = resolveResumeSummary(profile, application.documents.resumeProfile);
     const deckblattDocuments = getDeckblattDocuments(
       this.workspace.attachments,
       application.id,
@@ -1425,6 +1434,7 @@ export class DataStore {
       "drivingLicenses",
     ]);
     const interestsText = specialSectionContent(profile, ["interests"]);
+    const cvClosing = profile ? resolveResumeClosingLine(profile, formatApplicationDate(application)) : { place: "", date: "", text: "" };
     const additionalText = [
       specialSectionContent(profile, [
         "internships",
@@ -1530,18 +1540,16 @@ export class DataStore {
       PROFILFOTO: profile?.photoPath ?? "",
       DECKBLATT_STANDORT: application.company.city,
       DECKBLATT_KURZPROFIL:
-        application.documents.deckblattStatement || profile?.summary || "",
+        application.documents.deckblattStatement || "",
       DECKBLATT_DOKUMENTE: deckblattDocuments.join("\n"),
       DECKBLATT_KOMPETENZEN: deckblattCompetencies.join("\n"),
       DECKBLATT_KONTAKT: deckblattContacts
         .map((contact) => `${contact.label}: ${contact.value}`)
         .join("\n"),
-      ZUSAMMENFASSUNG_TITEL:
-        application.documents.resumeProfile || profile?.summary
-          ? getResumeSectionTitle(profile, "summary").toLocaleUpperCase("de-DE")
-          : "",
-      ZUSAMMENFASSUNG:
-        application.documents.resumeProfile || profile?.summary || "",
+      ZUSAMMENFASSUNG_TITEL: resumeSummary
+        ? getResumeSectionTitle(profile, "summary").toLocaleUpperCase("de-DE")
+        : "",
+      ZUSAMMENFASSUNG: resumeSummary,
       STAERKEN_TITEL:
         profile && (profile.strengths.length || profile.skills.length)
           ? getResumeSectionTitle(profile, "strengths").toLocaleUpperCase("de-DE")
@@ -1567,7 +1575,7 @@ export class DataStore {
       SPRACHEN_TITEL: profile?.languages.length
         ? getResumeSectionTitle(profile, "languages").toLocaleUpperCase("de-DE")
         : "",
-      SPRACHEN_ATS: (profile?.languages ?? []).join("\n"),
+      SPRACHEN_ATS: (profile?.languages ?? []).map(formatLanguageForAts).join("\n"),
       BERUFSERFAHRUNG_TITEL: profile?.experiences.length
         ? getResumeSectionTitle(profile, "experience").toLocaleUpperCase("de-DE")
         : "",
@@ -1617,9 +1625,9 @@ export class DataStore {
         "INTERESSEN",
       ),
       INTERESSEN: interestsText,
-      LEBENSLAUF_ORT: profile?.applicationPlace || profile?.city || "",
-      LEBENSLAUF_DATUM: profile?.applicationDate ?? "",
-      LEBENSLAUF_UNTERSCHRIFT: profile?.signaturePath ?? "",
+      LEBENSLAUF_ORT: cvClosing.place,
+      LEBENSLAUF_DATUM: cvClosing.date,
+      LEBENSLAUF_UNTERSCHRIFT: profile?.resumeClosing.showSignature ? profile.signaturePath : "",
       DESIGN_PRIMARY: application.accentColor,
       DESIGN_ACCENT: application.secondaryColor,
       DESIGN_SOFT_ACCENT: blendHexColor(
@@ -1658,37 +1666,37 @@ export class DataStore {
     for (let index = 0; index < 8; index += 1) {
       const number = index + 1;
       const experience = profile?.experiences[index];
-      elegantData[`POSITION_${number}`] = experience?.role ?? "";
-      elegantData[`UNTERNEHMEN_${number}`] = joinTemplateValues(
-        [experience?.company, experience?.legalForm],
-        " ",
-      );
-      elegantData[`STARTDATUM_${number}`] = experience?.from ?? "";
+      // The same resolved station as the Lebenslauf: one date format, the legal form without doubling, "heute".
+      const resolved = experience ? resolveExperience(experience) : undefined;
+      const full = experience && !experience.compact ? experience : undefined;
+      elegantData[`POSITION_${number}`] = resolved?.role ?? "";
+      elegantData[`UNTERNEHMEN_${number}`] = resolved?.organization ?? "";
+      elegantData[`STARTDATUM_${number}`] = resolved?.from ?? "";
       elegantData[`DATUM_TRENNER_${number}`] =
-        experience?.from && experience.to ? " – " : "";
-      elegantData[`ENDDATUM_${number}`] = experience?.to ?? "";
+        resolved?.from && resolved.to ? " – " : "";
+      elegantData[`ENDDATUM_${number}`] = resolved?.to ?? "";
       elegantData[`ARBEITSORT_${number}`] = experience?.city ?? "";
       elegantData[`BESCHREIBUNG_${number}`] = joinTemplateValues(
         [
           experience?.employmentType,
-          experience?.teamSize ? `Team/Verantwortung: ${experience.teamSize}` : "",
-          experience?.description,
+          full?.teamSize ? `Team/Verantwortung: ${full.teamSize}` : "",
+          full?.description,
         ],
         "\n",
       );
       elegantData[`METADATA_TRENNER_${number}`] =
-        (experience?.from || experience?.to) && experience?.city
+        (resolved?.from || resolved?.to) && experience?.city
           ? "·"
           : "";
       elegantData[`TECHNOLOGIEN_${number}`] =
-        experience?.technologies.join(" · ") ?? "";
+        full?.technologies.join(" · ") ?? "";
       elegantData[`ERFAHRUNG_TRENNER_${number}`] =
         experience && index < lastExperienceIndex ? "\u200B" : "";
-      const experienceDetails = experience
+      const experienceDetails = full
         ? [
-            ...experience.tasks,
-            ...experience.projects.map((item) => `Projekt: ${item}`),
-            ...experience.achievements,
+            ...full.tasks,
+            ...full.projects.map((item) => `Projekt: ${item}`),
+            ...full.achievements,
           ].filter(Boolean)
         : [];
       for (let achievementIndex = 0; achievementIndex < 5; achievementIndex += 1) {
@@ -1699,30 +1707,20 @@ export class DataStore {
     for (let index = 0; index < 3; index += 1) {
       const number = index + 1;
       const education = profile?.education[index];
+      const educationView = education ? resolveEducationPresentation(education) : undefined;
       elegantData[`ABSCHLUSS_${number}`] =
-        education?.degree || education?.type || "";
-      elegantData[`FACHRICHTUNG_${number}`] = joinTemplateValues(
-        [
-          education?.fieldOfStudy,
-          education?.grade,
-          education?.status,
-          education?.description,
-        ],
-        " · ",
-      );
+        educationView?.title ?? "";
+      elegantData[`FACHRICHTUNG_${number}`] = educationView?.details.join(" · ") ?? "";
       elegantData[`HOCHSCHULE_${number}`] =
-        education?.institution ?? "";
+        educationView?.institution ?? "";
       elegantData[`AUSBILDUNG_START_${number}`] =
-        education?.from ?? "";
+        educationView?.from ?? "";
       elegantData[`AUSBILDUNG_DATUM_TRENNER_${number}`] =
-        education?.from && education.to ? " – " : "";
-      elegantData[`AUSBILDUNG_ENDE_${number}`] = education?.to ?? "";
-      elegantData[`AUSBILDUNG_ORT_${number}`] = joinTemplateValues(
-        [education?.city, education?.country],
-        ", ",
-      );
+        educationView?.from && educationView.to ? " – " : "";
+      elegantData[`AUSBILDUNG_ENDE_${number}`] = educationView?.to ?? "";
+      elegantData[`AUSBILDUNG_ORT_${number}`] = educationView?.location ?? "";
       elegantData[`AUSBILDUNG_METADATA_TRENNER_${number}`] =
-        (education?.from || education?.to) && education?.city
+        (educationView?.from || educationView?.to) && educationView?.location
           ? "·"
           : "";
 
@@ -1731,7 +1729,7 @@ export class DataStore {
       elegantData[`STAERKE_${number}_BESCHREIBUNG`] =
         strength?.description ?? "";
 
-      const language = splitLanguage(profile?.languages[index] ?? "");
+      const language = splitLanguage(formatLanguageForAts(profile?.languages[index] ?? ""));
       elegantData[`SPRACHE_${number}`] = language.name;
       elegantData[`SPRACHNIVEAU_${number}`] = "";
       elegantData[`SPRACHE_${number}_PUNKTE`] = languagePoints(
@@ -1958,7 +1956,7 @@ export class DataStore {
     const preview = await this.migration.preview(sourcePath);
     const previous = this.workspace;
     try {
-      this.workspace = await this.migration.migrate(sourcePath);
+      this.workspace = migrateLegacyResumeProfiles(await this.migration.migrate(sourcePath));
       await this.persist(this.workspace.applications);
       await this.files.archiveUnmatchedLegacyDocumentDirectories();
       await this.atomicWrite(
@@ -2001,7 +1999,7 @@ export class DataStore {
     await copyFile(this.workspacePath, emergencyPath);
     const previous = this.workspace;
     try {
-      this.workspace = imported;
+      this.workspace = migrateLegacyResumeProfiles(imported);
       const availableAttachments = [];
       for (const attachment of this.workspace.attachments) {
         try {

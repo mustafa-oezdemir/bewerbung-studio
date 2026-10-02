@@ -315,8 +315,8 @@
 
 .elegant-sidebar__photo {
   position: relative;
-  width: 27mm;
-  height: 27mm;
+  width: calc(27mm * var(--resume-photo-scale, 1));
+  height: calc(27mm * var(--resume-photo-scale, 1));
   margin: 0 auto 8mm;
   overflow: hidden;
   border-radius: 1.5mm;
@@ -638,8 +638,8 @@
 }
 
 .elegant-template[data-density="dense"] .elegant-sidebar__photo {
-  width: 24mm;
-  height: 24mm;
+  width: calc(24mm * var(--resume-photo-scale, 1));
+  height: calc(24mm * var(--resume-photo-scale, 1));
   margin-bottom: 8mm;
 }
 

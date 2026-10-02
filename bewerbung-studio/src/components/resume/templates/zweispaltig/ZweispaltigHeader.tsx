@@ -1,6 +1,9 @@
 import { ContactIcon } from "../ContactIcon";
 import { toZweispaltigExternalHref } from "./zweispaltig.model";
 import type { ZweispaltigHeaderProps } from "./zweispaltig.types";
+import { resolveResumeHeading } from "../../../../shared/resumeHeading";
+import { formatResumeAddress, formatResumeBirth, getResumePersonalDetails } from "../../../../shared/resumePersonalData";
+import { formatPhoneForDisplay, phoneHref } from "../../../../shared/contactPresentation";
 
 type ZweispaltigContact = {
   kind:
@@ -10,7 +13,10 @@ type ZweispaltigContact = {
     | "location"
     | "birth"
     | "github"
-    | "portfolio";
+    | "portfolio"
+    | "nationality"
+    | "familyStatus"
+    | "children";
   label: string;
   value: string | undefined;
   href: string;
@@ -23,20 +29,14 @@ export function ZweispaltigHeader({
   compact = false,
   atsMode = false,
 }: ZweispaltigHeaderProps) {
-  const location = [profile?.postalCode, profile?.city, profile?.country]
-    .filter(Boolean)
-    .join(" ");
-  const birth = [profile?.birthDate, profile?.birthPlace]
-    .filter(Boolean)
-    .join(", ");
+  const location = formatResumeAddress(profile, { postalCode: true });
+  const birth = formatResumeBirth(profile);
   const contacts: ZweispaltigContact[] = [
     {
       kind: "phone",
       label: "Telefon",
-      value: profile?.phone,
-      href: profile?.phone
-        ? `tel:${profile.phone.replace(/[^\d+]/g, "")}`
-        : "",
+      value: formatPhoneForDisplay(profile?.phone),
+      href: phoneHref(profile?.phone),
     },
     {
       kind: "email",
@@ -80,6 +80,8 @@ export function ZweispaltigHeader({
         ? toZweispaltigExternalHref(profile.portfolio)
         : "",
     },
+    // The plain layout prints the label in front; the visual one shows the detail with its label.
+    ...getResumePersonalDetails(profile).map((detail) => ({ kind: detail.kind, label: detail.label, value: atsMode || detail.href ? detail.value : detail.text, href: detail.href })),
   ].filter((contact) => contact.value?.trim()) as ZweispaltigContact[];
 
   return (
@@ -90,7 +92,7 @@ export function ZweispaltigHeader({
       <div className="zweispaltig-header__identity">
         {compact ? (
           <p className="zweispaltig-header__kicker">
-            Lebenslauf · Fortsetzung
+            {resolveResumeHeading(profile).continuationKicker}
           </p>
         ) : null}
         <h1>{name}</h1>

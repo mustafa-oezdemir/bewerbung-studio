@@ -5,6 +5,17 @@ import type { NativeResumeDesign } from "../cvDesignSchema";
  * layout module like the other templates have. These are the values those stylesheets draw; the design resolver, the
  * design panel and the override adapters read the template from here and nowhere else.
  */
+const sharedTypography = {
+  bodySizePt: 9.2,
+  headingSizePt: 29,
+  subheadingSizePt: 13,
+  sectionHeadingSizePt: 13,
+  lineHeight: 1.2,
+  headingWeight: 800,
+  subheadingWeight: 700,
+  sectionHeadingWeight: 700,
+} as const;
+
 export const pehlioneWhiteBlueDefaults = {
   colors: {
     primary: "#0B3D86",
@@ -20,10 +31,10 @@ export const pehlioneWhiteBlueDefaults = {
     contactDivider: "#FFFFFF",
     photoDecoration: "#D9EBFF",
   },
-  typography: { entryHeadingSizePt: 9 },
+  typography: { ...sharedTypography, entryHeadingSizePt: 9 },
   layout: { sidebarMarginMm: 7, sectionGapMm: 6, entryGapMm: 4, sectionTitleGapMm: 3, entryContentGapMm: 1 },
   /** The sidebar draws smaller, tighter section titles than the main column. */
-  sidebar: { sectionHeadingSizePt: 9.7, sectionGapMm: 4.5, sectionTitleGapMm: 2 },
+  sidebar: { sectionHeadingSizePt: 9.7, sectionGapMm: 4.5, sectionTitleGapMm: 2, originalHeadingSizePt: 10.5, originalSectionGapMm: 7, listIndentMm: 4, contactTextOffsetMm: 6.5, strengthIconGapMm: 1.5 },
 } as const;
 
 export const pehlioneWhiteDefaults = {
@@ -41,9 +52,10 @@ export const pehlioneWhiteDefaults = {
     contactDivider: "#08245C",
     photoDecoration: "#DCECFF",
   },
-  typography: { entryHeadingSizePt: 10.4 },
+  typography: { ...sharedTypography, entryHeadingSizePt: 10.4 },
   layout: pehlioneWhiteBlueDefaults.layout,
-  sidebar: pehlioneWhiteBlueDefaults.sidebar,
+  // The white sidebar's content follows the text column of its contact rows.
+  sidebar: { ...pehlioneWhiteBlueDefaults.sidebar, listIndentMm: 6.5, strengthIconGapMm: 2.5, specialListIndentMm: 4 },
 } as const;
 
 type PehlioneDefaults = typeof pehlioneWhiteBlueDefaults | typeof pehlioneWhiteDefaults;
@@ -70,15 +82,15 @@ const pehlioneDesign = (defaults: PehlioneDefaults): NativeResumeDesign => {
       typography: {
         fontId: "source-sans",
         headingFontId: "source-sans",
-        bodySizePt: 9.2,
-        headingSizePt: 29,
-        subheadingSizePt: 13,
-        sectionHeadingSizePt: 13,
+        bodySizePt: typography.bodySizePt,
+        headingSizePt: typography.headingSizePt,
+        subheadingSizePt: typography.subheadingSizePt,
+        sectionHeadingSizePt: typography.sectionHeadingSizePt,
         entryHeadingSizePt: typography.entryHeadingSizePt,
-        lineHeight: 1.2,
-        headingWeight: 800,
-        subheadingWeight: 700,
-        sectionHeadingWeight: 700,
+        lineHeight: typography.lineHeight,
+        headingWeight: typography.headingWeight,
+        subheadingWeight: typography.subheadingWeight,
+        sectionHeadingWeight: typography.sectionHeadingWeight,
         sectionHeadingUppercase: true,
       },
       spacing: {

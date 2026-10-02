@@ -48,16 +48,18 @@ type FieldFrame = {
   globalText?: string;
   onReset: () => void;
   hasShared: boolean;
+  canResetGlobal?: boolean;
   children: ReactNode;
   disabled?: boolean;
   note?: string;
 };
 
 /** Every control shows the effective value; below it, where the value comes from and what the template says. */
-function FieldFrame({ label, source, scope, templateText, globalText, onReset, hasShared, children, disabled, note }: FieldFrame) {
+function FieldFrame({ label, source, scope, templateText, globalText, onReset, hasShared, canResetGlobal, children, disabled, note }: FieldFrame) {
   // A reset removes the override of the active scope; the label says where the value returns to.
-  const resettable = scope === "global" ? source !== "template" : source === "document";
-  const resetLabel = scope === "document" && hasShared ? "Auf übernommenen Wert zurücksetzen" : "Auf Vorlagenwert zurücksetzen";
+  const resettable = scope === "global" ? Boolean(canResetGlobal) : source === "document";
+  const resetLabel = scope === "global" && source === "document" ? "Globalen Wert entfernen"
+    : scope === "document" && hasShared ? "Auf übernommenen Wert zurücksetzen" : "Auf Vorlagenwert zurücksetzen";
   return <div className={`rds-field${source === "template" ? "" : ` rds-field--${source}`}${disabled ? " rds-field--disabled" : ""}`}>
     <span className="rds-field__label">
       {label}
@@ -75,10 +77,10 @@ function FieldFrame({ label, source, scope, templateText, globalText, onReset, h
 }
 
 function NumberField({
-  label, unit, value, templateValue, globalValue, min, max, step, source, scope, hasShared, disabled, note, onCommit, onReset,
+  label, unit, value, templateValue, globalValue, min, max, step, source, scope, hasShared, canResetGlobal, disabled, note, onCommit, onReset,
 }: {
   label: string; unit: string; value: number; templateValue: number; globalValue?: number; min: number; max: number; step: number;
-  source: ResumeDesignSource; scope: DesignScope; hasShared: boolean; disabled?: boolean; note?: string;
+  source: ResumeDesignSource; scope: DesignScope; hasShared: boolean; canResetGlobal?: boolean; disabled?: boolean; note?: string;
   onCommit: (value: number) => void; onReset: () => void;
 }) {
   const id = useId();
@@ -94,7 +96,7 @@ function NumberField({
     apply((Number.isFinite(entered) ? entered : value) + (event.key === "ArrowUp" ? 1 : -1) * step * (event.shiftKey ? 10 : 1));
   };
   const titled = `${label}${unit ? ` (${unit})` : ""}`;
-  return <FieldFrame label={titled} source={source} scope={scope} hasShared={hasShared} onReset={onReset} disabled={disabled} note={note}
+  return <FieldFrame label={titled} source={source} scope={scope} hasShared={hasShared} canResetGlobal={canResetGlobal} onReset={onReset} disabled={disabled} note={note}
     templateText={`${german(templateValue)}${unit ? ` ${unit}` : ""}`} globalText={globalValue === undefined ? undefined : `${german(globalValue)}${unit ? ` ${unit}` : ""}`}>
     <span className="rds-input">
       <input id={id} type="text" inputMode="decimal" role="spinbutton" aria-label={titled}
@@ -112,13 +114,13 @@ function NumberField({
 }
 
 function SelectField({
-  label, value, options, templateText, globalText, source, scope, hasShared, disabled, onChange, onReset,
+  label, value, options, templateText, globalText, source, scope, hasShared, canResetGlobal, disabled, onChange, onReset,
 }: {
   label: string; value: string; options: readonly (readonly [string, string])[]; templateText: string; globalText?: string;
-  source: ResumeDesignSource; scope: DesignScope; hasShared: boolean; disabled?: boolean;
+  source: ResumeDesignSource; scope: DesignScope; hasShared: boolean; canResetGlobal?: boolean; disabled?: boolean;
   onChange: (value: string) => void; onReset: () => void;
 }) {
-  return <FieldFrame label={label} source={source} scope={scope} hasShared={hasShared} onReset={onReset} disabled={disabled}
+  return <FieldFrame label={label} source={source} scope={scope} hasShared={hasShared} canResetGlobal={canResetGlobal} onReset={onReset} disabled={disabled}
     templateText={templateText} globalText={globalText}>
     <span className="rds-input">
       <select aria-label={label} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
@@ -129,12 +131,12 @@ function SelectField({
 }
 
 function CheckField({
-  label, checked, templateText, globalText, source, scope, hasShared, disabled, onChange, onReset,
+  label, checked, templateText, globalText, source, scope, hasShared, canResetGlobal, disabled, onChange, onReset,
 }: {
   label: string; checked: boolean; templateText: string; globalText?: string; source: ResumeDesignSource; scope: DesignScope;
-  hasShared: boolean; disabled?: boolean; onChange: (checked: boolean) => void; onReset: () => void;
+  hasShared: boolean; canResetGlobal?: boolean; disabled?: boolean; onChange: (checked: boolean) => void; onReset: () => void;
 }) {
-  return <FieldFrame label={label} source={source} scope={scope} hasShared={hasShared} onReset={onReset} disabled={disabled}
+  return <FieldFrame label={label} source={source} scope={scope} hasShared={hasShared} canResetGlobal={canResetGlobal} onReset={onReset} disabled={disabled}
     templateText={templateText} globalText={globalText}>
     <label className="rds-check">
       <input type="checkbox" aria-label={label} checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />
@@ -209,10 +211,15 @@ export function ResumeDesignPanel({ templateId, templateName, settings, global, 
   const sharedAppearance = (key: keyof ResumeAppearance): Value | undefined => (global?.resumeAppearance as Record<string, Value | undefined> | undefined)?.[key];
   const frame = { scope, hasShared };
   const token = (group: TokenGroup, key: string) => ({
-    source: view.sourceOfToken(group, key as never), onReset: () => onEditToken(scope, group, key, undefined), ...frame,
+    source: view.sourceOfToken(group, key as never), canResetGlobal: sharedToken(group, key) !== undefined,
+    onReset: () => onEditToken(scope, group, key, undefined), ...frame,
   });
   const appearance = (key: keyof ResumeAppearance) => ({
-    source: view.sourceOfAppearance(key), onReset: () => onEditAppearance(scope, key, undefined), ...frame,
+    source: view.sourceOfAppearance(key),
+    canResetGlobal: key === "sectionDividerPosition" || key === "sectionDividerVisible"
+      ? sharedAppearance("sectionDividerPosition") !== undefined || sharedAppearance("sectionDividerVisible") !== undefined
+      : sharedAppearance(key) !== undefined,
+    onReset: () => onEditAppearance(scope, key, undefined), ...frame,
   });
   const tokenNumber = (group: TokenGroup, key: string, label: string, unit: string, min: number, max: number, step: number, note?: string) => {
     const read = (tokens: CvDesignTokens) => (tokens[group] as Record<string, number>)[key];
@@ -231,7 +238,7 @@ export function ResumeDesignPanel({ templateId, templateName, settings, global, 
           <small>Gleiche Einstellungen für alle Vorlagen – ohne Änderung zeigt jede Vorlage ihren eigenen Stil.</small>
         </div>
         <button type="button" className="rds-reset" onClick={() => onReset(scope)}
-          disabled={scope === "global" ? !hasShared && !ownCount : !ownCount}>
+          disabled={scope === "global" ? !hasShared : !ownCount}>
           <RotateCcw size={13} aria-hidden="true" /> {scope === "global" ? "Vorlagenwerte wiederherstellen" : "Eigene Werte entfernen"}
         </button>
       </div>
@@ -248,7 +255,8 @@ export function ResumeDesignPanel({ templateId, templateName, settings, global, 
         <b className={`rds-chip${sharedCount ? " rds-chip--global" : ""}`}>{sharedCount ? `${sharedCount} globale Anpassung${sharedCount === 1 ? "" : "en"}` : "Keine globalen Anpassungen"}</b>
         <b className={`rds-chip${ownCount ? " rds-chip--document" : ""}`}>{ownCount ? `${ownCount} Anpassung${ownCount === 1 ? "" : "en"} dieser Bewerbung` : "Keine eigenen Anpassungen"}</b>
         {unsaved ? <b className="rds-chip rds-chip--document">Nicht gespeichert</b> : null}
-        {scope === "global" && ownCount ? <button type="button" className="rds-link" onClick={() => onReset("document")}>Eigene Werte dieser Bewerbung entfernen</button> : null}
+        {scope === "global" && ownCount ? <><span>Eigene Werte dieser Bewerbung haben Vorrang.</span>
+          <button type="button" className="rds-link" onClick={() => onReset("document")}>Eigene Werte dieser Bewerbung entfernen</button></> : null}
       </p>
     </header>
 
@@ -382,11 +390,12 @@ export function ResumeDesignPanel({ templateId, templateName, settings, global, 
 function ColorHint({ source, scope, hasShared, templateText, globalText, onReset }: {
   source: ResumeDesignSource; scope: DesignScope; hasShared: boolean; templateText: string; globalText?: string; onReset: () => void;
 }) {
-  const resettable = scope === "global" ? source !== "template" : source === "document";
+  const resettable = scope === "global" ? globalText !== undefined : source === "document";
   return <span className="rds-field__hint">
     <span>{source !== "template" ? <b className={`rds-badge rds-badge--${source}`}>{sourceLabel[source]}</b> : null} Vorlage: {templateText}{globalText ? ` · Global: ${globalText}` : ""}</span>
     {resettable ? <button type="button" className="rds-link" onClick={onReset}>
-      <RotateCcw size={10} aria-hidden="true" /> {scope === "document" && hasShared ? "Auf übernommenen Wert zurücksetzen" : "Auf Vorlagenwert zurücksetzen"}
+      <RotateCcw size={10} aria-hidden="true" /> {scope === "global" && source === "document" ? "Globalen Wert entfernen"
+        : scope === "document" && hasShared ? "Auf übernommenen Wert zurücksetzen" : "Auf Vorlagenwert zurücksetzen"}
     </button> : null}
   </span>;
 }

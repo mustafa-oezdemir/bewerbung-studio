@@ -88,22 +88,18 @@ export const resumeSpacingCss = `
 [data-resume-spacing-title-gap] [data-resume-spacing-title]{margin-block-end:var(--doc-section-title-gap)!important}
 [data-resume-spacing-content-gap] [data-resume-spacing-entry-title]{margin-block-end:var(--doc-entry-content-gap)!important}
 [data-resume-spacing-line-height] :is(p,li){line-height:var(--doc-line-height)!important}
-[data-resume-spacing-inner]>*{padding-inline:var(--doc-inner-padding)!important}
+[data-resume-spacing-text] [data-managed-section] > :not([data-resume-background-layer]){box-sizing:border-box;margin-inline:calc(var(--resume-page-text-shift,0mm) + var(--resume-inner-text-inset,0mm))!important}
+[data-resume-spacing-text]:is(.pehlione-resume,.pehlione-pdf) .pehlione-contacts{box-sizing:border-box;margin-inline:calc(var(--resume-page-text-shift,0mm) + var(--resume-inner-text-inset,0mm))!important}
+[data-resume-spacing-text] [data-resume-spacing-edge-start] > :first-child{padding-block-start:max(0mm,calc(var(--resume-page-text-shift,0mm) + var(--resume-inner-text-inset,0mm)))!important;margin-block-start:min(0mm,calc(var(--resume-page-text-shift,0mm) + var(--resume-inner-text-inset,0mm)))!important}
+[data-resume-spacing-text] [data-resume-spacing-edge-end] > :last-child{padding-block-end:max(0mm,calc(var(--resume-page-text-shift,0mm) + var(--resume-inner-text-inset,0mm)))!important;margin-block-end:min(0mm,calc(var(--resume-page-text-shift,0mm) + var(--resume-inner-text-inset,0mm)))!important}
 `;
 
-/** The columns of a two-column layout; a one-column template has none and its host carries the content directly. */
-const layoutZoneSelector = 'main,aside,[data-resume-layout-zone],[class*="-content"],[class*="-column"],[class*="-sidebar"]';
-
-/** These templates pad their whole page by `--doc-margin` themselves, so a chosen margin is simply that variable. */
-const marginFromVariable: ReadonlySet<string> = new Set(["zweispaltig", "zeitgenoessisch"]);
-
 /**
- * How a chosen page margin reaches a template. A template draws its margin through containers of its own, so the
- * value moves the margin the template really has (typed in its native design) to the chosen one: the edge shifts by
- * the difference, on every side alike. Templates that pad their page by `--doc-margin` simply take the variable.
+ * The difference from the template's own text margin. It is applied only to
+ * text-bearing children; the A4 surface and the two column tracks stay fixed.
  */
 export const getPageMarginAdjustment = (templateId: string, marginMm: number) => ({
-  viaVariable: marginFromVariable.has(resolveTemplateId(templateId)),
+  viaVariable: false,
   shiftMm: Math.round((marginMm - resolveTemplateCvDesign(templateId).spacing.pageMarginMm) * 100) / 100,
 });
 
@@ -144,17 +140,15 @@ export const applyResumeSpacingOutput = (
     scope.style.setProperty(name, variables[name]);
   }
   if (spacing?.pageMarginMm !== undefined) {
-    const { viaVariable, shiftMm } = getPageMarginAdjustment(id, spacing.pageMarginMm);
-    if (viaVariable) scope.style.setProperty("--doc-margin", variables["--doc-page-margin"]);
-    else if (shiftMm >= 0) scope.style.padding = `${shiftMm}mm`;
-    else {
-      // A smaller margin widens the content box beyond the sheet by the same amount on every side.
-      scope.style.margin = `${shiftMm}mm`;
-      scope.style.width = `calc(100% + ${-2 * shiftMm}mm)`;
-      scope.style.height = `calc(100% + ${-2 * shiftMm}mm)`;
-    }
+    scope.style.setProperty("--resume-page-text-shift", `${getPageMarginAdjustment(id, spacing.pageMarginMm).shiftMm}mm`);
   }
-  if (spacing?.innerPaddingMm !== undefined) scope.style.setProperty("--doc-padding", variables["--doc-inner-padding"]);
+  if (spacing?.innerPaddingMm !== undefined) {
+    scope.style.setProperty("--doc-padding", variables["--doc-inner-padding"]);
+    const nativePadding = resolveTemplateCvDesign(id).spacing.innerPaddingMm;
+    scope.style.setProperty("--resume-inner-text-inset", `${Math.round((spacing.innerPaddingMm - nativePadding) * 100) / 100}mm`);
+  }
+  if (spacing?.pageMarginMm !== undefined || spacing?.innerPaddingMm !== undefined)
+    scope.setAttribute("data-resume-spacing-text", "");
   if (spacing?.sectionGapMm !== undefined) scope.setAttribute("data-resume-spacing-section-gap", "");
   if (spacing?.entryGapMm !== undefined) scope.setAttribute("data-resume-spacing-entry-gap", "");
   if (spacing?.sectionTitleGapMm !== undefined) scope.setAttribute("data-resume-spacing-title-gap", "");
@@ -166,6 +160,23 @@ export const applyResumeSpacingOutput = (
   }
 
   const sections = Array.from(scope.querySelectorAll("[data-managed-section]"));
+  if (spacing?.pageMarginMm !== undefined || spacing?.innerPaddingMm !== undefined) {
+    const zones = new Map<Element, Element[]>();
+    const layoutHost = getResumeLayoutHost(scope, id, surface);
+    for (const section of sections) {
+      let zone: Element = scope;
+      if (layoutHost?.contains(section)) {
+        let child = section;
+        while (child.parentElement && child.parentElement !== layoutHost) child = child.parentElement;
+        zone = child;
+      }
+      zones.set(zone, [...(zones.get(zone) ?? []), section]);
+    }
+    for (const zoneSections of zones.values()) {
+      zoneSections[0]?.setAttribute("data-resume-spacing-edge-start", "");
+      zoneSections[zoneSections.length - 1]?.setAttribute("data-resume-spacing-edge-end", "");
+    }
+  }
   if (spacing?.sectionGapMm !== undefined) for (const section of sections) {
     section.setAttribute("data-resume-spacing-section", "");
     // A column that spaces its sections with a gap of its own (Gepflegt, Modern) hands that spacing over to the chosen one.
@@ -200,11 +211,4 @@ export const applyResumeSpacingOutput = (
   }
   const host = getResumeLayoutHost(scope, id, surface) as HTMLElement | null;
   if (spacing?.columnGapMm !== undefined && host) host.style.columnGap = variables["--doc-column-gap"];
-  if (spacing?.innerPaddingMm !== undefined && host) {
-    // The inner padding insets what stands *inside* a column (`resumeSpacingCss` pads the carrier's children). The column
-    // itself, or the single-column host, keeps its own padding: in most templates that padding is the page margin, so it
-    // belongs to "Seitenränder" and the inner padding must never replace it.
-    const zones = Array.from(host.children).filter(child => child.matches(layoutZoneSelector));
-    for (const carrier of zones.length ? zones : host !== scope ? [host] : []) carrier.setAttribute("data-resume-spacing-inner", "");
-  }
 };

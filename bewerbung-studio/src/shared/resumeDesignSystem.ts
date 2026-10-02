@@ -80,6 +80,16 @@ export const applyGlobalResumeDesign = <Settings extends DocumentDesignSettings>
   if (isEmptyResumeDesignLayer(layer)) return settings;
   const cvOverrides = mergeCvDesignOverrides(layer?.cvOverrides, settings.cvOverrides);
   const resumeAppearance = mergeResumeAppearance(layer?.resumeAppearance, settings.resumeAppearance);
+  // The old appearance field and the semantic spacing token address the same margin.
+  // Resolve their layers before handing settings to preview, PDF and pagination.
+  if (settings.cvOverrides?.spacing?.sectionTitleGapMm !== undefined && layer?.resumeAppearance?.sectionHeadingMarginAfterMm !== undefined)
+    delete resumeAppearance.sectionHeadingMarginAfterMm;
+  if (settings.resumeAppearance?.sectionHeadingMarginAfterMm !== undefined && settings.cvOverrides?.spacing?.sectionTitleGapMm === undefined &&
+      layer?.cvOverrides?.spacing?.sectionTitleGapMm !== undefined) {
+    const { sectionTitleGapMm: _inheritedGap, ...restSpacing } = cvOverrides.spacing ?? {};
+    if (Object.keys(restSpacing).length) cvOverrides.spacing = restSpacing;
+    else delete cvOverrides.spacing;
+  }
   const { cvOverrides: _cv, resumeAppearance: _appearance, ...rest } = settings;
   return {
     ...rest,
@@ -114,6 +124,8 @@ export const resolveEffectiveDesignTokens = (templateId: string, settings: Docum
   // Pehlione's stylesheet fixes its sizes; every other template follows the document font size linearly.
   if (semantic?.typography?.bodySizePt === undefined && settings.fontSize !== defaults.fontSize && !templateId.startsWith("pehlione_"))
     typography.bodySizePt = roundTenth(typography.bodySizePt + fontSizeToPt[settings.fontSize] - fontSizeToPt[defaults.fontSize]);
+  if (semantic?.spacing?.sectionTitleGapMm === undefined && settings.resumeAppearance?.sectionHeadingMarginAfterMm !== undefined)
+    spacing.sectionTitleGapMm = settings.resumeAppearance.sectionHeadingMarginAfterMm;
   return { ...design, spacing, typography };
 };
 
@@ -200,10 +212,8 @@ export const resolveResumeDesignView = (
     tokens: resolveEffectiveDesignTokens(templateId, effectiveSettings),
     appearance: resolveResumeAppearance(templateId, globalLayer?.resumeAppearance, settings.resumeAppearance),
   };
-  // The legacy appearance field "space below the title" is the same CSS margin as the spacing token and wins over a shared value.
+  // The legacy appearance field "space below the title" is the same CSS margin as the spacing token.
   const legacyTitleGap = settings.resumeAppearance?.sectionHeadingMarginAfterMm;
-  if (legacyTitleGap !== undefined && settings.cvOverrides?.spacing?.sectionTitleGapMm === undefined)
-    effective.tokens.spacing.sectionTitleGapMm = legacyTitleGap;
   const defaults = getTemplateDocumentDesignDefaults(templateId);
   const legacyLevel: Record<string, boolean> = {
     "spacing.pageMarginMm": settings.marginLevel !== defaults.marginLevel,
@@ -221,6 +231,7 @@ export const resolveResumeDesignView = (
       if ((settings.cvOverrides?.[group] as Record<string, unknown> | undefined)?.[field] !== undefined) return "document";
       if (group === "spacing" && field === "sectionTitleGapMm" && legacyTitleGap !== undefined) return "document";
       if ((globalLayer?.cvOverrides?.[group] as Record<string, unknown> | undefined)?.[field] !== undefined) return "global";
+      if (group === "spacing" && field === "sectionTitleGapMm" && globalLayer?.resumeAppearance?.sectionHeadingMarginAfterMm !== undefined) return "global";
       return legacyLevel[`${group}.${field}`] ? "document" : "template";
     },
     sourceOfAppearance: (key) => {

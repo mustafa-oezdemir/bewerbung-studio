@@ -4,6 +4,7 @@ import { z } from "zod";
 import { cvDesignOverridesSchema, resumeDesignLayerSchema } from "./cvDesignSchema";
 import { resumeAppearanceSchema } from "./resumeAppearance";
 import { resumePresentationSchema } from "./resumePresentationSchema";
+import { defaultResumeCareerFieldVisibility, resolveResumeCareerFieldVisibility } from "./resumeCareer";
 import {
   columnLayoutIds,
   defaultDocumentDesign,
@@ -15,7 +16,10 @@ import {
 } from "./documentDesign";
 import {
   defaultResumePersonalFieldVisibility,
+  resolveResumePersonalFieldVisibility,
   resumePersonalFieldKeys,
+  resumeHeadingModes,
+  resumePhotoSizes,
   resumeSemanticTypes,
 } from "../features/resume-sections/resume-section-system";
 import {
@@ -254,6 +258,8 @@ export const documentDraftSchema = z.object({
   coverExtraParagraph: optionalText,
   coverClosing: optionalText,
   resumeProfile: optionalText,
+  /** Archived application Kurzprofil from older workspaces. */
+  legacyResumeProfile: optionalText,
   deckblattStatement: optionalText,
   emailSubject: optionalText,
   emailMessage: optionalText,
@@ -506,6 +512,8 @@ export const profileSchema = z.object({
         employmentType: optionalText,
         description: optionalText,
         teamSize: optionalText,
+        // One line only in the Lebenslauf ("Kompakt"); the details stay in the profile. Older records: false.
+        compact: z.boolean().default(false),
         tasks: z.array(z.string()).default([]),
         projects: z.array(z.string()).default([]),
         technologies: z.array(z.string()).default([]),
@@ -600,6 +608,7 @@ export const profileSchema = z.object({
       z.object({
         semanticType: z.enum(resumeSemanticTypes),
         customTitle: optionalText,
+        headingMode: z.enum(resumeHeadingModes).optional(),
         visible: z.boolean().default(true),
         enabled: z.boolean().default(true),
         order: z.number().int().nonnegative(),
@@ -607,8 +616,20 @@ export const profileSchema = z.object({
     )
     .default([]),
   resumePersonalFieldVisibility: z
-    .record(z.enum(resumePersonalFieldKeys), z.boolean())
+    .preprocess(
+      resolveResumePersonalFieldVisibility,
+      z.record(z.enum(resumePersonalFieldKeys), z.boolean()),
+    )
     .default(defaultResumePersonalFieldVisibility),
+  resumeCareerFieldVisibility: z
+    .preprocess(
+      resolveResumeCareerFieldVisibility,
+      z.object({
+        employmentType: z.boolean(), description: z.boolean(), teamSize: z.boolean(), tasks: z.boolean(),
+        projects: z.boolean(), technologies: z.boolean(), achievements: z.boolean(),
+      }),
+    )
+    .default(defaultResumeCareerFieldVisibility),
   resumeKnowledgeGroups: z
     .array(
       z.object({
@@ -671,11 +692,15 @@ export const profileSchema = z.object({
     .object({ showTitle: z.boolean().default(false) })
     .default({ showTitle: false }),
   resumeColumnRatio: z.number().int().min(20).max(45).default(30),
+  // The Bewerbungsfoto size of the Lebenslauf; a profile saved without it keeps the template's native photo.
+  resumePhotoSize: z.enum(resumePhotoSizes).default("medium"),
   resumeClosing: z
     .object({
       showPlace: z.boolean().default(true),
       showDate: z.boolean().default(true),
       showSignature: z.boolean().default(true),
+      // Older profiles omit this; their applicationDate remains a fallback when no application date is available.
+      dateMode: z.enum(["application", "manual"]).optional(),
     })
     .default({ showPlace: true, showDate: true, showSignature: true }),
   updatedAt: z.iso.datetime(),

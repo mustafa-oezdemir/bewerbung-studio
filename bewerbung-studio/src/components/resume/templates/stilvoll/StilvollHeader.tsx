@@ -1,6 +1,9 @@
 import { ContactIcon } from "../ContactIcon";
 import type { ApplicantProfile } from "../../../../shared/schema";
 import { toTemplateExternalHref } from "../resume-template-data";
+import { resolveResumeHeading } from "../../../../shared/resumeHeading";
+import { formatResumeAddress, formatResumeBirth, getResumePersonalDetails, getResumeLinkContacts } from "../../../../shared/resumePersonalData";
+import { formatPhoneForDisplay, phoneHref } from "../../../../shared/contactPresentation";
 
 export function StilvollHeader({
   profile,
@@ -15,38 +18,24 @@ export function StilvollHeader({
   compact?: boolean;
   atsMode?: boolean;
 }) {
-  const location = [profile?.city, profile?.country]
-    .filter(Boolean)
-    .join(", ");
-  const birth =
-    profile?.birthDate || profile?.birthPlace
-      ? `Geb. ${profile?.birthDate || ""}${profile?.birthPlace ? ` in ${profile.birthPlace}` : ""}`.trim()
-      : "";
+  const location = formatResumeAddress(profile);
+  const birth = formatResumeBirth(profile, { prefix: true });
   const profession = profile?.title.trim() || "";
   const contacts = [
     {
       icon: "☎",
-      value: profile?.phone,
-      href: profile?.phone
-        ? `tel:${profile.phone.replace(/[^\d+]/g, "")}`
-        : "",
+      value: formatPhoneForDisplay(profile?.phone),
+      href: phoneHref(profile?.phone),
     },
     {
       icon: "@",
       value: profile?.email,
       href: profile?.email ? `mailto:${profile.email}` : "",
     },
-    {
-      icon: "↗",
-      value: profile?.linkedin
-        ? toTemplateExternalHref(profile.linkedin)
-        : "",
-      href: profile?.linkedin
-        ? toTemplateExternalHref(profile.linkedin)
-        : "",
-    },
+...getResumeLinkContacts(profile).map((link) => ({ kind: link.kind, icon: link.kind === "website" ? "⌖" : "↗", value: link.value, href: link.href })),
     { icon: "⌖", value: location, href: "" },
     { icon: "☆", value: birth, href: "" },
+    ...getResumePersonalDetails(profile).map((detail) => ({ icon: "☆", kind: detail.kind, value: detail.text, href: detail.href })),
   ].filter((item) => item.value?.trim());
   return (
     <header
@@ -54,7 +43,7 @@ export function StilvollHeader({
       data-element-id="stilvoll.header"
     >
       <div>
-        {compact ? <p>Lebenslauf · Fortsetzung</p> : null}
+        {compact ? <p>{resolveResumeHeading(profile).continuationKicker}</p> : null}
         <h1>{name}</h1>
         {profession ? <h2>{profession}</h2> : null}
         {!compact && contacts.length ? (

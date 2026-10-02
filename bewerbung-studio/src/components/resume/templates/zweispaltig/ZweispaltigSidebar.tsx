@@ -5,6 +5,7 @@ import {
 import type { ZweispaltigSidebarProps } from "./zweispaltig.types";
 import { ZweispaltigKnowledge } from "./ZweispaltigKnowledge";
 import { ZweispaltigStrengths } from "./ZweispaltigStrengths";
+import { LanguageLevelText } from "../LanguageLevelText";
 
 export function ZweispaltigSidebar({
   profile,
@@ -67,7 +68,7 @@ export function ZweispaltigSupplementalSections({
             <div className="zweispaltig-languages__list">
               {languages.map((language) => (
                 <article className="zweispaltig-language" key={language.raw}>
-                  <div><h3>{language.name}</h3></div>
+                  <div><h3>{language.name}<LanguageLevelText level={language.level} /></h3></div>
                   <span className="zweispaltig-language__dots" aria-label={`${language.name}: ${language.level}`} role="img">
                     {Array.from({ length: 6 }, (_, index) => <i className={index < language.score ? "is-filled" : ""} key={index} />)}
                   </span>

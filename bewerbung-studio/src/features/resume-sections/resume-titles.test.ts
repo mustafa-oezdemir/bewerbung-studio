@@ -22,7 +22,7 @@ describe("shared visible section titles", () => {
     const changed = setResumeSectionTitle(updateManagerSection(profile, "modern", "experience", { visible: false, title: "Alt" }), "experience", "Berufliche ");
     expect(getResumeSectionTitle(changed, "experience")).toBe("Berufliche ");
     const reset = setResumeSectionTitle(changed, "experience", "");
-    expect(getResumeSectionTitle(reset, "experience")).toBe("Berufserfahrung");
+    expect(getResumeSectionTitle(reset, "experience")).toBe("Beruflicher Werdegang");
     expect(reset.resumeManagerOverrides.experience.title).toBeUndefined();
     expect(reset.resumeManagerOverrides.experience.visible).toBe(false);
     expect(reset.resumeSemanticSections.find((entry) => entry.semanticType === "career")?.customTitle).toBe("");

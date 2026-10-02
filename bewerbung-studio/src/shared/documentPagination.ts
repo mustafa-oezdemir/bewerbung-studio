@@ -1,6 +1,7 @@
 import type { ApplicantProfile, DocumentDraft } from "./schema";
 import { ensureKnowledgeSection } from "../features/knowledge/knowledge.service";
 import { formatKnowledgeItem } from "../features/knowledge/knowledge.utils";
+import { resolveEducationPresentation } from "./resumeEducation";
 import { knowledgeLists, type KnowledgeRange } from "./resumeKnowledgeRange";
 import { getCoverLetterMainBody } from "./coverLetter";
 import { getPehlioneCoreCompetencies, getPehlioneProjectHighlight, hasPehlioneCustomProjectHighlight } from "./pehlioneContent";
@@ -24,6 +25,11 @@ import {
   type PaginationGeometry,
   type PaginationZone,
 } from "./resumePaginationGeometry";
+import { getResumePersonalDetails } from "./resumePersonalData";
+import { getResumePhotoGrowth, resumePhotoShown } from "./resumePhoto";
+import { resolveExperience } from "./resumeCareer";
+import { estimateResumeHeaderTop } from "./resumeHeaderGeometry";
+import { describeLanguageLevel, parseLanguageEntry } from "../features/languages/language-levels";
 
 /** Bullets `from`..`to` (exclusive, of `total`) of an experience entry that continues on the next page. */
 export type ResumeBulletRange = { from: number; to: number; total: number };
@@ -33,7 +39,7 @@ export type ResumePageItem =
   | { kind: "education"; id: string; weight: number };
 
 export type ResumePagePlan = {
-  pageNumber: 1 | 2;
+  pageNumber: number;
   /**
    * Career items rendered on this page, in reading order. `weight` is the estimated height in mm.
    * An experience entry that breaks between two pages appears on both with complementary `bullets`.
@@ -77,7 +83,7 @@ export type ResumePlanContext = {
   layout?: { mode: "single" | "two-column"; sidebarWidthPercent: number; overridden?: boolean; nativeSidebarWidthPercent?: number };
   closing?: { visible: boolean; signature: boolean };
   /** Explicit user design overrides that change text or spacing metrics. */
-  overrides?: { bodySizePt?: number; lineHeight?: number; pageMarginMm?: number; sectionGapMm?: number; entryGapMm?: number };
+  overrides?: { bodySizePt?: number; lineHeight?: number; pageMarginMm?: number; innerPaddingMm?: number; sectionGapMm?: number; entryGapMm?: number };
   /** Design settings: they decide how many columns a strengths or knowledge grid gets. */
   settings?: DocumentDesignSettings;
 };
@@ -158,6 +164,8 @@ const CLOSING_MM = { signature: 22, plain: 10 };
 /** Long summaries wrap a little more than the average glyph advance predicts. */
 const SUMMARY_WRAP_SLACK = 1.05;
 /** Comma-separated lists break at every comma: they wrap a little less than running text. */
+/** Templates that draw a language as name, level in words (own line) and dots (`LanguageLevelText`). */
+const languageLevelLineTemplates = new Set(["einspaltig", "elegant", "gepflegt", "ivy-league", "kompakt", "kreativ", "modern", "stilvoll", "zeitgenoessisch", "zweispaltig"]);
 const ATS_LIST_WRAP = 0.92;
 /** The managed item grids: 3 mm between columns and a 4 mm icon plus 1.5 mm gap in front of each text. */
 const GRID_COLUMN_GAP_MM = 3;
@@ -172,11 +180,10 @@ const atsContactLines = (templateId: string | undefined, profile: ApplicantProfi
   const filled = (value: string | undefined) => Boolean(value?.trim());
   const location = [profile.postalCode, profile.city, profile.country].some(filled);
   const birth = filled(profile.birthDate) || filled(profile.birthPlace);
-  // Elegant prints one "website" line for the portfolio, or the GitHub profile when there is none.
-  const web = templateId === "elegant"
-    ? [profile.portfolio || profile.github]
-    : [profile.github, profile.portfolio];
-  return [profile.phone, profile.email, profile.linkedin, ...web].filter(filled).length + Number(location) + Number(birth);
+  // LinkedIn, GitHub and the website are three contacts (`getResumeLinkContacts`), one line each when stacked.
+  const web = [profile.github, profile.portfolio];
+  const details = getResumePersonalDetails(profile).length;
+  return [profile.phone, profile.email, profile.linkedin, ...web].filter(filled).length + Number(location) + Number(birth) + details;
 };
 
 /** The template's own space between two sections; the plain (ATS) layout may differ from the styled one. */
@@ -216,24 +223,18 @@ type MeasuredItem = ResumePageItem & {
   parts?: { first: EntryMetrics; cont: EntryMetrics };
 };
 
-const trimmedBullets = (experience: ApplicantProfile["experiences"][number]) =>
-  experience.achievements.map((value) => value.trim()).filter(Boolean);
-
-/** Pehlione shows at most this many bullets per entry; every other template shows all of them. */
-const bulletCapOf = (templateId?: string) => (templateId?.startsWith("pehlione_") ? 5 : Number.POSITIVE_INFINITY);
-
 const experienceMetrics = (
   experience: ApplicantProfile["experiences"][number],
   geometry: PaginationGeometry,
   scale: Scale,
   widthScale: number,
-  bulletCap: number,
 ): EntryMetrics => {
   const { text, exp } = geometry;
-  const bullets = trimmedBullets(experience).slice(0, bulletCap);
+  const resolved = resolveExperience(experience);
+  const bullets = resolved.bullets;
   const lines = bullets.map((bullet) => linesFor(bullet.length, text.bulletW * widthScale, text.bulletFont * scale.font, text.cw));
-  const titleLines = linesFor(experience.role.trim().length, text.titleW * widthScale, text.titleFont * scale.font, text.cw * 1.08);
-  const orgLines = linesFor(experience.company.trim().length, text.orgW * widthScale, text.orgFont * scale.font, text.cw * 1.06);
+  const titleLines = linesFor(resolved.role.length, text.titleW * widthScale, text.titleFont * scale.font, text.cw * 1.08);
+  const orgLines = linesFor(resolved.organization.length, text.orgW * widthScale, text.orgFont * scale.font, text.cw * 1.06);
   const extra = Math.max(0, titleLines - 1) + Math.max(0, orgLines - 1);
   // Every part of an entry repeats the header (dates, role, company); only the bullets are shared out.
   const height = (from: number, to: number) => {
@@ -257,9 +258,12 @@ const educationHeight = (
   widthScale: number,
 ) => {
   const { text, edu } = geometry;
-  const titleLines = linesFor(education.degree.trim().length, text.titleW * widthScale, text.titleFont * scale.font, text.cw * 1.08);
-  const orgLines = linesFor(education.institution.trim().length, text.orgW * widthScale, text.orgFont * scale.font, text.cw * 1.06);
-  return (edu.base + edu.extraLine * (Math.max(0, titleLines - 1) + Math.max(0, orgLines - 1))) * scale.edu * scale.textHeight;
+  const view = resolveEducationPresentation(education);
+  const titleLines = linesFor(view.title.length, text.titleW * widthScale, text.titleFont * scale.font, text.cw * 1.08);
+  const orgLines = linesFor(view.institution.length, text.orgW * widthScale, text.orgFont * scale.font, text.cw * 1.06);
+  const locationLines = view.location ? linesFor(view.location.length, text.orgW * widthScale, text.orgFont * scale.font, text.cw) : 0;
+  const detailLines = view.details.reduce((total, detail) => total + linesFor(detail.length, text.bulletW * widthScale, text.bulletFont * scale.font, text.cw), 0);
+  return (edu.base + edu.extraLine * (Math.max(0, titleLines - 1) + Math.max(0, orgLines - 1) + Math.max(0, locationLines - 1) + detailLines)) * scale.edu * scale.textHeight;
 };
 
 type ListEntry = { title: string; description?: string };
@@ -323,8 +327,10 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
     ? marginLevelToMm[settings.marginLevel] - defaultMargin : 0;
   // A chosen margin moves the template's own margin (typed in its native design) on every side alike.
   const nativeMargin = templateId ? resolveTemplateCvDesign(templateId).spacing.pageMarginMm : defaultMargin;
-  const marginInset = Math.max(0, overrides.pageMarginMm !== undefined
-    ? overrides.pageMarginMm - nativeMargin : legacyMargin);
+  const marginInset = overrides.pageMarginMm !== undefined
+    ? overrides.pageMarginMm - nativeMargin : legacyMargin;
+  const nativePadding = templateId ? resolveTemplateCvDesign(templateId).spacing.innerPaddingMm : 0;
+  const textInset = marginInset + (overrides.innerPaddingMm !== undefined ? overrides.innerPaddingMm - nativePadding : 0);
   const sectionGap = overrides.sectionGapMm ?? (settings && settings.sectionSpacingLevel !== defaults.sectionSpacingLevel
     ? nativeSectionGapOf(geometry, context.atsMode) + sectionSpacingLevelToMm[settings.sectionSpacingLevel] - sectionSpacingLevelToMm[defaults.sectionSpacingLevel]
     : undefined);
@@ -333,8 +339,8 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
   const spacing = { sectionGap, entryGap: overrides.entryGapMm };
   if (single) {
     const width = geometry.text.atsW / geometry.text.bulletW;
-    const insetWidth = Math.max(0.55, (geometry.text.atsW - 2 * marginInset) / geometry.text.atsW);
-    return { font, textHeight, line, width: width * insetWidth, contWidth: width * insetWidth, mainRatio: insetWidth, sideDelta: 0, marginInset, ...factors, ...spacing };
+    const insetWidth = Math.max(0.55, (geometry.text.atsW - 2 * textInset) / geometry.text.atsW);
+    return { font, textHeight, line, width: width * insetWidth, contWidth: width * insetWidth, mainRatio: insetWidth, sideDelta: 0, marginInset: textInset, ...factors, ...spacing };
   }
   // A wider sidebar takes its extra millimetres from the main column (page width 210 mm).
   const layout = context.layout;
@@ -344,10 +350,10 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
   const bulletRatio = Math.max(0.5, (geometry.text.bulletW - sideDelta) / geometry.text.bulletW);
   // Continuation pages have no sidebar: their main column spans the page.
   const contWidth = geometry.columns === 2 ? geometry.text.contW / geometry.text.bulletW : bulletRatio;
-  const mainInset = Math.max(0.55, (geometry.text.mainW - 2 * marginInset) / geometry.text.mainW);
-  const continuationInset = Math.max(0.55, (geometry.text.contW - 2 * marginInset) / geometry.text.contW);
+  const mainInset = Math.max(0.55, (geometry.text.mainW - 2 * textInset) / geometry.text.mainW);
+  const continuationInset = Math.max(0.55, (geometry.text.contW - 2 * textInset) / geometry.text.contW);
   const mainRatio = Math.max(0.5, (geometry.text.mainW - sideDelta) / geometry.text.mainW) * mainInset;
-  return { font, textHeight, line, width: bulletRatio * mainInset, contWidth: contWidth * continuationInset, mainRatio, sideDelta, marginInset, ...factors, ...spacing };
+  return { font, textHeight, line, width: bulletRatio * mainInset, contWidth: contWidth * continuationInset, mainRatio, sideDelta, marginInset: textInset, ...factors, ...spacing };
 };
 
 type SectionId = "summary" | "strengths" | "knowledge" | "languages" | "certifications" | "projects";
@@ -428,8 +434,8 @@ export const createResumePagePlan = (
   const educationGap = geometry.edu.gap > 0 ? (scale.entryGap ?? geometry.edu.gap) : 0;
   const items: MeasuredItem[] = [
     ...(profile?.experiences ?? []).map((experience): MeasuredItem => {
-      const first = experienceMetrics(experience, geometry, scale, scale.width, bulletCapOf(templateId));
-      const cont = experienceMetrics(experience, geometry, scale, scale.contWidth, bulletCapOf(templateId));
+      const first = experienceMetrics(experience, geometry, scale, scale.width);
+      const cont = experienceMetrics(experience, geometry, scale, scale.contWidth);
       return {
         kind: "experience", id: experience.id, weight: 0, gapAfter: experienceGap,
         first: first.height(0, first.lines.length),
@@ -637,9 +643,17 @@ export const createResumePagePlan = (
       // Long names such as “Türkisch (Muttersprache) – C2” wrap inside a narrow sidebar; plain lists span the page.
       height: context.atsMode
         ? line(geometry.ats.languages, languages.length) * scale.textHeight
-        : zoneFlow
+        : (zoneFlow
           ? plainListHeight(zone, languages)
-          : (line(blocks.languages, languages.length) + languages.filter((entry) => entry.length > 22).length * geometry.exp.linePitch) * scale.textHeight,
+          : (line(blocks.languages, languages.length) + languages.filter((entry) => entry.length > 22).length * geometry.exp.linePitch) * scale.textHeight)
+          // The level in words ("C1 · Verhandlungssicher") is a line of its own under the name where dots are drawn.
+          + (templateId && languageLevelLineTemplates.has(templateId)
+            ? languages.reduce((total, entry) => {
+              const level = describeLanguageLevel(parseLanguageEntry(entry).level);
+              // A long level ("C2 · Annähernd muttersprachlich") wraps in a narrow sidebar.
+              return total + (level ? (level.length > 22 ? 2 : 1) : 0);
+            }, 0) * geometry.exp.linePitch * 0.9 * scale.textHeight
+            : 0),
       home: !flat && geometry.zones.languages === "sidebar" ? "first" : "last",
       rank: managerRank("languages"),
       hostable: templateId === "kompakt" && zoneFlow && zone === "sidebar",
@@ -677,7 +691,9 @@ export const createResumePagePlan = (
       const rows: Array<{ end: number; height: number; list: number; gap: number }> = [];
       let shown = 0;
       knowledgeGroups.forEach((group, list) => {
-        const entries: ListEntry[] = group.items.map((item) => ({ title: item.name, description: item.description }));
+        const entries: ListEntry[] = group.items.map((item) => ({
+          title: formatKnowledgeItem(item, group.category.showLevels, group.category.showYearsOfExperience, "comma-separated"),
+        }));
         const model = gridModel("knowledge", entries, knowledgeZone, page);
         const cols = Math.max(model.cols, 1);
         for (let start = 0; start < entries.length; start += cols) {
@@ -760,9 +776,16 @@ export const createResumePagePlan = (
   const hostedIds: string[] = [];
   for (const special of profile?.specialSections ?? []) {
     const entry = find(`special:${special.id}`);
-    if (!special.isVisible || entry?.visible === false) continue;
+    const normalized = normalizeCustomSection(special);
+    if (!special.isVisible || entry?.visible === false || !normalized.entries.length) continue;
     const zone = flat ? "main" : entry?.zone ?? "main";
-    const height = 9 + special.entries.reduce((total, item) => total + 9 + (item.description ? 3.5 : 0), 0);
+    const availableWidth = zone === "sidebar" ? geometry.text.sideW + scale.sideDelta : geometry.text.mainW * scale.mainRatio;
+    const font = geometry.text.bulletFont * scale.font;
+    const pitch = font * geometry.text.lineRatio * scale.line;
+    const lineCount = (value: string) => value.trim() ? linesFor(value.trim().length, availableWidth, font, SPECIAL_CW) : 0;
+    const height = 9 + normalized.entries.reduce((total, item) => total + 4 +
+      [item.title, item.subtitle, item.location, item.date, item.description, item.url, ...item.bullets]
+        .reduce((lines, value) => lines + lineCount(value) * pitch, 0), 0);
     const inSidebar = zoneFlow && zone === "sidebar";
     flow.push({
       id: `special:${special.id}`,
@@ -796,15 +819,26 @@ export const createResumePagePlan = (
   // first header has no contact block, and the added line exceeds its minimum
   // height; the other templates have room for the shared contact line.
   const contactOnContinuation = find("personalData")?.visible !== false && Boolean(profile?.email?.trim() || profile?.phone?.trim());
-  const kompaktContactHeight = !context.atsMode && templateId === "kompakt" && contactOnContinuation ? 5.5 : 0;
+  // Zeitgenössisch keeps its contacts in the sidebar too: a multi-page CV adds the same contact line to its header.
+  const kompaktContactHeight = !context.atsMode && (templateId === "kompakt" || templateId === "zeitgenoessisch") && contactOnContinuation ? 5.5 : 0;
   // The plain layouts measured their offsets with every contact filled; a header that stacks
   // its contacts shrinks with each missing one, and every page repeats it.
   const stackedHeader = context.atsMode ? geometry.ats.header : undefined;
   const stackedHeight = stackedHeader
     ? stackedHeader.base + stackedHeader.perContact * (find("personalData")?.visible === false ? 0 : atsContactLines(templateId, profile))
     : undefined;
-  const top1 = (context.atsMode ? stackedHeight ?? geometry.atsTop1 : geometry.top1) + kompaktContactHeight;
-  const top2 = (context.atsMode ? stackedHeight ?? geometry.atsTop2 : geometry.top1) + kompaktContactHeight;
+  // A bigger Bewerbungsfoto (Fotogröße "Groß") pushes the first section down; the continuation pages repeat the header.
+  const photoGrowth = !context.atsMode && resumePhotoShown(profile, context.settings) ? getResumePhotoGrowth(templateId ?? "", profile) : { main: 0, side: 0 };
+  // A header that shows more than the measured one (more or longer contacts, a long Berufsbezeichnung or name)
+  // pushes the content down; every visual page repeats it (Pehlione's continuation header stays compact).
+  const showContacts = find("personalData")?.visible !== false;
+  const withPhoto = !context.atsMode && resumePhotoShown(profile, context.settings);
+  const grownTop = (top: number, continuation: boolean) =>
+    context.atsMode || (continuation && templateId?.startsWith("pehlione_"))
+      ? top
+      : estimateResumeHeaderTop(templateId, profile, "main", top, showContacts, withPhoto) ?? top;
+  const top1 = grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop1 : geometry.top1) + kompaktContactHeight + photoGrowth.main, false);
+  const top2 = grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop2 : geometry.top1) + kompaktContactHeight + photoGrowth.main, true);
   const mainCap1 = (geometry.limit - top1 - 2 * scale.marginInset) * SAFETY;
   const mainCap2 = (geometry.limit - top2 - 2 * scale.marginInset) * SAFETY;
   // Where the first sidebar block starts depends on how many contact entries (and wrapped values) precede it.
@@ -812,13 +846,15 @@ export const createResumePagePlan = (
   const contactItems = sidebarHero && find("personalData")?.visible !== false ? getPehlioneContacts(profile) : [];
   const contactValueWidth = geometry.text.sideW + scale.sideDelta - CONTACT_ICON_MM;
   const sideTop1 = sidebarHero && geometry.sideTop1 !== null
-    ? SIDEBAR_HERO_MM + (contactItems.length
+    ? SIDEBAR_HERO_MM + photoGrowth.side + (contactItems.length
       ? CONTACT_HEAD_MM
         + contactItems.reduce((total, item) => total + CONTACT_ITEM_MM
           + (listLines(item.value.length, contactValueWidth, CONTACT_FONT_MM * scale.font) - 1) * CONTACT_LINE_MM, 0)
         + CONTACT_GAP_MM
       : 0)
-    : geometry.sideTop1;
+    : geometry.sideTop1 === null ? null
+      : context.atsMode ? geometry.sideTop1 + photoGrowth.side
+        : estimateResumeHeaderTop(templateId, profile, "side", geometry.sideTop1 + photoGrowth.side, showContacts, withPhoto) ?? geometry.sideTop1 + photoGrowth.side;
   const sideCap1 = sideTop1 === null || flat
     ? 0
     : (geometry.sideLimit - sideTop1 - 2 * scale.marginInset) * (zoneFlow ? ZONE_FLOW_SIDEBAR_SAFETY : SAFETY);
@@ -852,7 +888,7 @@ export const createResumePagePlan = (
     },
   ];
   const fitsOnePage = wholeMain() <= mainCap1 && (sideCap1 === 0 || wholeSide() <= sideCap1);
-  if ((fitsOnePage && forced === undefined) || items.length <= 1) return onePage("standard");
+  if (fitsOnePage && forced === undefined) return onePage("standard");
   // A slightly compacted single page beats a second page that would be nearly empty,
   // but only with a real margin: the estimate must not be trusted to the last millimetre.
   // The lists of a zone-flow sidebar keep their size in every density: compaction earns that column nothing.
@@ -1031,10 +1067,123 @@ export const createResumePagePlan = (
     ];
   };
 
+  /** Continue an overflowing second page through as many A4 sheets as its content needs. */
+  const continueAfterSecond = (plan: ResumePagePlan[]): ResumePagePlan[] => {
+    const second = plan[1];
+    if (!second || (second.fill?.main ?? 0) * densityFactor[second.density] <= 1) return plan;
+    const itemById = new Map(items.map((item) => [item.id, item]));
+    const blockById = new Map(flow.map((block) => [block.id, block]));
+    type PendingItem = { source: MeasuredItem; from: number; to: number };
+    const pendingItems: PendingItem[] = second.items.flatMap((item) => {
+      const source = itemById.get(item.id);
+      if (!source) return [];
+      const range = item.kind === "experience" ? item.bullets : undefined;
+      return [{ source, from: range?.from ?? 0, to: range?.to ?? source.parts?.cont.lines.length ?? 0 }];
+    });
+    type PendingBlock = { source: FlowBlock; from: number; to: number };
+    const rowAt = (block: FlowBlock, itemIndex: number) => itemIndex === 0 ? 0
+      : (block.split?.ends.findIndex((end) => end === itemIndex) ?? -1) + 1;
+    const pendingBlocks: PendingBlock[] = (second.blocks ?? []).flatMap((id) => {
+      const source = blockById.get(id);
+      if (!source) return [];
+      const range = second.blockRanges?.[id];
+      return [{ source, from: range ? rowAt(source, range.from) : 0,
+        to: range ? rowAt(source, range.to) : source.split?.ends.length ?? 0 }];
+    });
+    const blockHeight = (part: PendingBlock) => part.source.split
+      ? part.source.split.height(part.from, part.to) : contOf(part.source);
+    const projectItem = (part: PendingItem): ResumePageItem => {
+      const { source, from, to } = part;
+      if (!source.parts) return strip(source, "cont");
+      return { kind: "experience", id: source.id,
+        weight: Math.round(source.parts.cont.height(from, to) * 10) / 10,
+        ...(from > 0 || to < source.parts.cont.lines.length
+          ? { bullets: { from, to, total: source.parts.cont.lines.length } } : {}),
+      };
+    };
+    const continuations: ResumePagePlan[] = [];
+    // At least one item or block is consumed on each pass; the guard also catches malformed input.
+    while (pendingItems.length || pendingBlocks.length) {
+      const selectedItems: ResumePageItem[] = [];
+      const selectedBlocks: string[] = [];
+      const blockRanges: Record<string, KnowledgeRange> = {};
+      let used = 0;
+      let previous: ResumePageItem | undefined;
+      while (pendingItems.length) {
+        const next = pendingItems[0];
+        const item = projectItem(next);
+        const heading = previous?.kind === item.kind ? next.source.gapAfter :
+          (selectedItems.length ? sectionGap : 0) + sectionHead(item.kind);
+        const needed = heading + item.weight;
+        if (used + needed <= mainCap2) {
+          selectedItems.push(item); used += needed; previous = item; pendingItems.shift();
+          continue;
+        }
+        if (next.source.parts) {
+          const lines = next.source.parts.cont.lines;
+          let best = next.from;
+          for (let end = next.from + 1; end < next.to; end += 1) {
+            const before = lines.slice(next.from, end).reduce((sum, value) => sum + value, 0);
+            const after = lines.slice(end, next.to).reduce((sum, value) => sum + value, 0);
+            if (before < MIN_SPLIT_LINES || after < MIN_SPLIT_LINES) continue;
+            if (used + heading + next.source.parts.cont.height(next.from, end) <= mainCap2) best = end;
+          }
+          if (best > next.from) {
+            const part = projectItem({ ...next, to: best });
+            selectedItems.push(part); used += heading + part.weight;
+            pendingItems[0] = { ...next, from: best };
+          }
+        }
+        if (!selectedItems.length && used === 0) {
+          // One indivisible metadata entry is taller than a sheet. Keep it visible
+          // rather than looping forever; normal entries split at bullet boundaries.
+          selectedItems.push(item); used += needed; pendingItems.shift();
+        }
+        break;
+      }
+      if (!pendingItems.length) while (pendingBlocks.length) {
+        const next = pendingBlocks[0];
+        const gap = used > 0 ? sectionGap : 0;
+        const height = blockHeight(next);
+        if (used + gap + height <= mainCap2) {
+          selectedBlocks.push(next.source.id); used += gap + height; pendingBlocks.shift();
+          if (next.source.split && (next.from > 0 || next.to < next.source.split.ends.length))
+            blockRanges[next.source.id] = { from: next.from ? next.source.split.ends[next.from - 1] : 0,
+              to: next.source.split.ends[next.to - 1], total: next.source.split.ends.at(-1)! };
+          continue;
+        }
+        if (next.source.split) {
+          let best = next.from;
+          for (let end = next.from + 1; end < next.to; end += 1) {
+            if (end - next.from < 2 || next.to - end < 2) continue;
+            if (used + gap + next.source.split.height(next.from, end) <= mainCap2) best = end;
+          }
+          if (best > next.from) {
+            selectedBlocks.push(next.source.id);
+            used += gap + next.source.split.height(next.from, best);
+            blockRanges[next.source.id] = { from: next.from ? next.source.split.ends[next.from - 1] : 0,
+              to: next.source.split.ends[best - 1], total: next.source.split.ends.at(-1)! };
+            pendingBlocks[0] = { ...next, from: best };
+          }
+        }
+        if (!selectedBlocks.length && !selectedItems.length) {
+          selectedBlocks.push(next.source.id); used += gap + height; pendingBlocks.shift();
+        }
+        break;
+      }
+      continuations.push({ pageNumber: continuations.length + 2, items: selectedItems,
+        density: "standard", blocks: selectedBlocks,
+        ...(Object.keys(blockRanges).length ? { blockRanges } : {}), sidebar: false,
+        fill: { main: used / mainCap2, sidebar: 0 } });
+    }
+    if (continuations.length) continuations[continuations.length - 1].fill!.main += closingHeight / mainCap2;
+    return [plan[0], ...continuations];
+  };
+
   // A manual page break keeps whole entries on either side of it.
   if (forced !== undefined) {
     const cut: Cut = { count: Math.min(Math.max(forced, 0), items.length), kept: 0, tail: 0, rows: 0 };
-    return assemble(cut, densityFor(Math.max(loadFirst(cut) / mainCap1, sideFill)).density, densityFor(loadLast(cut) / mainCap2).density);
+    return continueAfterSecond(assemble(cut, densityFor(Math.max(loadFirst(cut) / mainCap1, sideFill)).density, densityFor(loadLast(cut) / mainCap2).density));
   }
 
   // Fill page one as far as the content allows; compact the whole document only if the
@@ -1059,6 +1208,10 @@ export const createResumePagePlan = (
       break;
     }
   }
+  // More than two pages of content use normal reading density and continue on
+  // additional pages instead of compressing page two beyond its A4 capacity.
+  if (density === "dense" && loadLast(candidates[greedy("standard")]) > mainCap2)
+    return continueAfterSecond(assemble(candidates[greedy("standard")], "standard", "standard"));
   // A last page that is only a stub takes back trailing content from page one.
   const factor = densityFactor[density];
   while (index > 0 && loadLast(candidates[index]) / mainCap2 < MIN_LAST_FILL) {
@@ -1070,7 +1223,7 @@ export const createResumePagePlan = (
 
   if (fitsCompact && (density !== "standard" || loadLast(best) / mainCap2 < COMPACT_INSTEAD_OF_LAST_BELOW)) return onePage("compact");
 
-  return assemble(best, density, density);
+  return continueAfterSecond(assemble(best, density, density));
 };
 
 export const getLetterPageStatus = <

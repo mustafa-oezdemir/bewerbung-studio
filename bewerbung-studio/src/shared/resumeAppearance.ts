@@ -110,7 +110,7 @@ export const applyGeneralResumeAppearance = (
       if (appearance.sectionHeadingAlignment) set(heading, "text-align", appearance.sectionHeadingAlignment);
       if (appearance.sectionHeadingMarginBeforeMm !== undefined)
         set(heading, "margin-top", `${appearance.sectionHeadingMarginBeforeMm}mm`);
-      if (appearance.sectionHeadingMarginAfterMm !== undefined)
+      if (appearance.sectionHeadingMarginAfterMm !== undefined && settings.cvOverrides?.spacing?.sectionTitleGapMm === undefined)
         set(heading, "margin-bottom", `${appearance.sectionHeadingMarginAfterMm}mm`);
       for (const node of [heading, ...heading.querySelectorAll("b,span")]) {
         if (settings.cvOverrides?.colors?.divider)

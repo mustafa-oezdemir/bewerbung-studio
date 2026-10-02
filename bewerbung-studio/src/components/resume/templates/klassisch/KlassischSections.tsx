@@ -10,6 +10,7 @@ import {
   uniqueTemplateValues,
   type TemplateCareerItem,
 } from "../resume-template-data";
+import { bracketLanguageLevel } from "../../../../features/languages/language-levels";
 
 export function KlassischHeading({ children }: { children: ReactNode }) {
   return <h2 className="klassisch-section__title">{children}</h2>;
@@ -137,7 +138,7 @@ export function KlassischLanguages({
         {languages.map((language) => (
           <p key={language.raw}>
             <strong>{language.name}</strong>
-            {language.level ? <span>({language.level})</span> : null}
+            {language.level ? <span>{bracketLanguageLevel(language.level)}</span> : null}
           </p>
         ))}
       </div>

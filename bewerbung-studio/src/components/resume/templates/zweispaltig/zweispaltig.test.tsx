@@ -116,7 +116,7 @@ const renderResume = ({
 } = {}) =>
   renderToStaticMarkup(
     <ZweispaltigResume
-      profile={profileOverride}
+      profile={{ ...profileOverride, summary: resumeProfile }}
       name="Mina Kaya"
       atsMode={atsMode}
       plan={plan}
@@ -151,7 +151,7 @@ describe("Zweispaltig page model", () => {
   it("normalizes summaries, date ranges, links, and duplicate values", () => {
     expect(
       resolveZweispaltigSummary(profile, "Stellenspezifisches Profil"),
-    ).toBe("Stellenspezifisches Profil");
+    ).toBe("Profil aus den Stammdaten");
     expect(resolveZweispaltigSummary(profile, "   ")).toBe(
       "Profil aus den Stammdaten",
     );
@@ -295,8 +295,8 @@ describe("Zweispaltig rendering", () => {
       totalPages: 1,
     });
     const summaryIndex = markup.indexOf("Auf die Stelle zugeschnitten");
-    const experienceIndex = markup.indexOf("Berufserfahrung");
-    const educationIndex = markup.indexOf("Ausbildung");
+    const experienceIndex = markup.indexOf("Beruflicher Werdegang");
+    const educationIndex = markup.indexOf("Bildungsweg");
     const knowledgeIndex = markup.indexOf("Kenntnisse");
     const languagesIndex = markup.indexOf("Sprachen");
     const strengthsIndex = markup.indexOf("Stärken");
@@ -335,10 +335,10 @@ describe("Zweispaltig rendering", () => {
     const mainStart = markup.indexOf('class="zweispaltig-main"');
     const sidebarStart = markup.indexOf('class="zweispaltig-sidebar"');
 
-    expect(markup.indexOf("Ausbildung", mainStart)).toBeLessThan(
-      markup.indexOf("Berufserfahrung", mainStart),
+    expect(markup.indexOf("Bildungsweg", mainStart)).toBeLessThan(
+      markup.indexOf("Beruflicher Werdegang", mainStart),
     );
-    expect(markup.indexOf("Zusammenfassung", sidebarStart)).toBeGreaterThan(
+    expect(markup.indexOf("Kurzprofil", sidebarStart)).toBeGreaterThan(
       sidebarStart,
     );
   });

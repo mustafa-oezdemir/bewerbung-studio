@@ -16,6 +16,8 @@ const profileEvidence = (profile?: ApplicantProfile) =>
       item.role,
       item.company,
       ...item.technologies,
+      ...item.tasks,
+      ...item.projects,
       ...item.achievements,
     ]),
     ...(profile?.education ?? []).flatMap((item) => [

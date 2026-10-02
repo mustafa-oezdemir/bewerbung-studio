@@ -8,6 +8,11 @@ import type {
   ZeitgenoessischCareerItem,
   ZeitgenoessischLanguage,
 } from "./zeitgenoessisch.types";
+import { externalUrl } from "../../../../shared/contactPresentation";
+import { resolveResumeSummary } from "../../../../shared/resumeSummary";
+import { formatCareerPeriod } from "../../../../shared/resumeCareer";
+import { toTemplateEducationItem } from "../../../../shared/resumeEducation";
+import { toTemplateExperienceItem } from "../../../../shared/resumeCareer";
 
 export type ZeitgenoessischPageData = {
   education: ZeitgenoessischCareerItem[];
@@ -35,55 +40,22 @@ export const createZeitgenoessischPageData = (
   return {
     experiences: (profile?.experiences ?? [])
       .filter((entry) => experienceIds.has(entry.id))
-      .map((entry) => ({
-        id: entry.id,
-        from: entry.from,
-        to: entry.to,
-        title: entry.role,
-        organization: entry.company,
-        city: entry.city,
-        achievements: entry.achievements.filter(Boolean),
-      })),
+      .map(toTemplateExperienceItem),
     education: (profile?.education ?? [])
       .filter((entry) => educationIds.has(entry.id))
-      .map((entry) => ({
-        id: entry.id,
-        from: entry.from,
-        to: entry.to,
-        title: entry.degree,
-        organization: entry.institution,
-        city: entry.city,
-      })),
+      .map(toTemplateEducationItem),
     isContinuation: plan.pageNumber > 1,
   };
 };
 
-export const resolveZeitgenoessischSummary = (
-  profile: ApplicantProfile | undefined,
-  resumeProfile: string,
-) => resumeProfile.trim() || profile?.summary.trim() || "";
+/** The one Kurzprofil resolver (`shared/resumeSummary.ts`): a template never decides the source itself. */
+export const resolveZeitgenoessischSummary = resolveResumeSummary;
 
-export const formatZeitgenoessischDateRange = (
-  from: string,
-  to: string,
-) => {
-  const start = from.trim();
-  const end = to.trim();
-  if (!start) return end;
-  if (!end) return start;
-  return `${start} – ${end}`;
-};
+/** One date range for every template and the PDF: `MM/JJJJ – MM/JJJJ`, `MM/JJJJ – heute` (`shared/resumeCareer.ts`). */
+export const formatZeitgenoessischDateRange = formatCareerPeriod;
 
-export const toZeitgenoessischExternalHref = (value: string) => {
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  const withoutScheme = trimmed.replace(
-    /^[a-z][a-z\d+.-]*:(?:\/\/)?/i,
-    "",
-  );
-  return `https://${withoutScheme}`;
-};
+/** One URL normalisation for every profile link: `externalUrl`. */
+export const toZeitgenoessischExternalHref = externalUrl;
 
 export const uniqueZeitgenoessischValues = (values: string[]) =>
   Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));

@@ -1,6 +1,11 @@
 import type { ResumePagePlan } from "../../../../shared/documentPagination";
 import type { ApplicantProfile } from "../../../../shared/schema";
 import type { TabellarischTimelineItem } from "./tabellarisch.types";
+import { externalUrl } from "../../../../shared/contactPresentation";
+import { resolveResumeSummary } from "../../../../shared/resumeSummary";
+import { formatCareerPeriod } from "../../../../shared/resumeCareer";
+import { toTemplateEducationItem } from "../../../../shared/resumeEducation";
+import { toTemplateExperienceItem } from "../../../../shared/resumeCareer";
 
 export type TabellarischPageData = {
   education: TabellarischTimelineItem[];
@@ -28,46 +33,25 @@ export const createTabellarischPageData = (
   return {
     experiences: (profile?.experiences ?? [])
       .filter((experience) => experienceIds.has(experience.id))
-      .map((experience) => ({
-        id: experience.id,
-        from: experience.from,
-        to: experience.to,
-        role: experience.role,
-        organization: experience.company,
-        city: experience.city,
-        achievements: experience.achievements.filter(Boolean),
-      })),
+      .map((experience) => {
+        const item = toTemplateExperienceItem(experience);
+        return { ...item, role: item.title };
+      }),
     education: (profile?.education ?? [])
       .filter((education) => educationIds.has(education.id))
-      .map((education) => ({
-        id: education.id,
-        from: education.from,
-        to: education.to,
-        role: education.degree,
-        organization: education.institution,
-        city: education.city,
-      })),
+      .map((education) => {
+        const item = toTemplateEducationItem(education);
+        return { ...item, role: item.title };
+      }),
     isContinuation: plan.pageNumber > 1,
   };
 };
 
-export const resolveTabellarischSummary = (
-  profile: ApplicantProfile | undefined,
-  resumeProfile: string,
-) => resumeProfile.trim() || profile?.summary.trim() || "";
+/** The one Kurzprofil resolver (`shared/resumeSummary.ts`): a template never decides the source itself. */
+export const resolveTabellarischSummary = resolveResumeSummary;
 
-export const formatTabellarischDateRange = (from: string, to: string) => {
-  const start = from.trim();
-  const end = to.trim();
+/** One date range for every template and the PDF: `MM/JJJJ – MM/JJJJ`, `MM/JJJJ – heute` (`shared/resumeCareer.ts`). */
+export const formatTabellarischDateRange = formatCareerPeriod;
 
-  if (!start) return end;
-  if (!end) return start;
-  return `${start} - ${end}`;
-};
-
-export const toExternalHref = (value: string) => {
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-  if (/^[a-z][a-z\d+.-]*:/i.test(trimmed)) return trimmed;
-  return `https://${trimmed}`;
-};
+/** One URL normalisation for every profile link: `externalUrl`. */
+export const toExternalHref = externalUrl;

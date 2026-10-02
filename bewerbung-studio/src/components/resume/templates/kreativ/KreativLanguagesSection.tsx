@@ -5,6 +5,7 @@ import {
 } from "./kreativ.model";
 import { KreativSectionHeading } from "./KreativSectionHeading";
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
+import { LanguageLevelText } from "../LanguageLevelText";
 
 export function KreativLanguagesSection({
   profile,
@@ -31,7 +32,7 @@ export function KreativLanguagesSection({
               <p>{language.raw}</p>
             ) : (
               <>
-                <h3>{language.name}</h3>
+                <h3>{language.name}<LanguageLevelText level={language.level} /></h3>
                 <span
                   className="kreativ-language__dots"
                   aria-label={`${language.name}: ${language.level}`}

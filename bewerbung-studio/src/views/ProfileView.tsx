@@ -3,29 +3,24 @@ import {
   ArrowDown,
   ArrowUp,
   BriefcaseBusiness,
-  CalendarDays,
   GraduationCap,
-  GripVertical,
-  ImagePlus,
   Layers3,
-  PenLine,
   Plus,
   Save,
   Trash2,
   UserRound,
-  X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { addTechnologyStrengths } from "../shared/strengthPresets";
 import { moveListItem } from "../shared/listOrder";
 import { OrderControls } from "../components/profile/OrderControls";
 import { ResumeSectionTitleEditor } from "../components/resume/ResumeSectionTitleEditor";
-import { KnowledgeSectionEditor } from "../components/knowledge/KnowledgeSectionEditor";
-import { LanguageLevelEditor } from "../components/languages/LanguageLevelEditor";
+import { ResumeHeadingEditor } from "../components/resume/ResumeHeadingEditor";
 import {
-  CertificateListEditor,
-  EntryListEditor,
-} from "../components/profile/EntryListEditor";
+  copyResumeHeading,
+} from "../shared/resumeHeading";
+import { EntryListEditor } from "../components/profile/EntryListEditor";
+import { KnowledgeProfileEditor } from "../components/profile/KnowledgeProfileEditor";
 import { TechnologyIconPicker } from "../components/profile/TechnologyIconPicker";
 import { defaultKnowledgeSection } from "../features/knowledge/knowledge.constants";
 import {
@@ -43,15 +38,25 @@ import {
   ensureKnowledgeSection,
   syncLegacySkills,
 } from "../features/knowledge/knowledge.service";
-import { validateKnowledgeSection } from "../features/knowledge/knowledge.validation";
 import type { ProfileMediaKind } from "../shared/ipc";
-import { getProfileMediaSource } from "../shared/profileMedia";
 import {
   type ApplicantProfile,
   type ResumeSpecialSectionKind,
 } from "../shared/schema";
 import { resolveSelectedProfile } from "../shared/profileSelection";
 import { useAppStore } from "../store/useAppStore";
+import { PersonalDataEditor, personalFieldId } from "../components/profile/PersonalDataEditor";
+import { FlexibleDateField } from "../components/profile/FlexibleDateField";
+import { PhotoSettingsEditor } from "../components/profile/PhotoSettingsEditor";
+import { ClosingEditor } from "../components/profile/ClosingEditor";
+import { copyResumePhotoSettings, removeResumePhoto, setResumePhoto } from "../shared/resumePhoto";
+import { SummaryEditor } from "../components/profile/SummaryEditor";
+import { isResumeSummaryVisible, setResumeSummaryVisible } from "../shared/resumeSummary";
+import { CareerEditor } from "../components/profile/CareerEditor";
+import { defaultResumeCareerFieldVisibility } from "../shared/resumeCareer";
+import { EducationEditor } from "../components/profile/EducationEditor";
+import { InterestsEditor } from "../components/profile/InterestsEditor";
+import { normalizeApplicantProfileForSave, rebaseApplicantProfileDraft, validateApplicantProfile } from "../shared/profileEditor";
 
 const defaultSections: ApplicantProfile["resumeSections"] = {
   profile: true,
@@ -107,15 +112,12 @@ const newProfile = (): ApplicantProfile => ({
   resumePersonalFieldVisibility: { ...defaultResumePersonalFieldVisibility },
   resumeKnowledgeGroups: [],
   resumeKnowledgeContainer: { showTitle: false },
+  resumeCareerFieldVisibility: { ...defaultResumeCareerFieldVisibility },
   resumeColumnRatio: 30,
-  resumeClosing: { showPlace: true, showDate: true, showSignature: true },
+  resumePhotoSize: "medium",
+  resumeClosing: { showPlace: true, showDate: true, showSignature: true, dateMode: "application" },
   updatedAt: new Date().toISOString(),
 });
-
-type DragItem = {
-  type: "experience" | "education";
-  id: string;
-};
 
 type ProfileKey = keyof ApplicantProfile;
 
@@ -131,18 +133,12 @@ const specialSectionOptions: Array<{
   { kind: "awards", label: "Auszeichnungen" },
   { kind: "publications", label: "Veröffentlichungen" },
   { kind: "volunteer", label: "Ehrenamt" },
-  { kind: "interests", label: "Interessen & Hobbys" },
+  { kind: "interests", label: "Interessen und Hobbys" },
   { kind: "drivingLicenses", label: "Führerschein" },
   { kind: "additional", label: "Zusatzangaben" },
   { kind: "references", label: "Referenzen" },
   { kind: "custom", label: "Eigener Abschnitt" },
 ];
-
-const normalizeProfileUrl = (value: string) => {
-  const trimmed = value.trim();
-  if (!trimmed || /^https?:\/\//i.test(trimmed)) return trimmed;
-  return `https://${trimmed.replace(/^[a-z][a-z\d+.-]*:(?:\/\/)?/i, "")}`;
-};
 
 const moveItem = <T extends { id: string }>(
   items: T[],
@@ -153,20 +149,6 @@ const moveItem = <T extends { id: string }>(
   const target = index + direction;
   if (index < 0 || target < 0 || target >= items.length) return items;
   return moveListItem(items, index, target);
-};
-
-const reorderItem = <T extends { id: string }>(
-  items: T[],
-  sourceId: string,
-  targetId: string,
-) => {
-  const source = items.findIndex((item) => item.id === sourceId);
-  const target = items.findIndex((item) => item.id === targetId);
-  if (source < 0 || target < 0 || source === target) return items;
-  const next = [...items];
-  const [moved] = next.splice(source, 1);
-  next.splice(target, 0, moved);
-  return next;
 };
 
 export function ProfileView({ onSaved }: { onSaved: () => void }) {
@@ -192,26 +174,41 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
       initial.skills,
     ),
   }));
-  const [dragged, setDragged] = useState<DragItem>();
+  const baselineRef = useRef(draft);
+  const persistedDraft = profiles.find((profile) => profile.id === draft.id);
+  useEffect(() => {
+    if (!persistedDraft || persistedDraft.updatedAt === baselineRef.current.updatedAt) return;
+    setDraft((current) => rebaseApplicantProfileDraft(baselineRef.current, current, persistedDraft));
+    baselineRef.current = persistedDraft;
+  }, [persistedDraft]);
+  // Set once a save was attempted: from then on every missing Pflichtangabe is marked in the editor.
+  const [personalAttempted, setPersonalAttempted] = useState(false);
   const [savingSection, setSavingSection] = useState<string>();
   const [savedSection, setSavedSection] = useState<string>();
-  const photoSource = getProfileMediaSource(draft.photoPath);
-  const signatureSource = getProfileMediaSource(draft.signaturePath);
+  const [savingAll, setSavingAll] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const hasUnsavedChanges = JSON.stringify({ ...draft, updatedAt: "" }) !==
+    JSON.stringify({ ...baselineRef.current, updatedAt: "" });
+  // Only known for a photo picked in this session; the stored picture carries no file name.
+  const [photoFileName, setPhotoFileName] = useState<string>();
 
   const selectProfile = (profile: ApplicantProfile) => {
     selectActiveProfile(profile.id);
-    setDraft({
+    const editable = {
       ...structuredClone(profile),
       knowledgeSection: ensureKnowledgeSection(
         profile.knowledgeSection,
         profile.skills,
       ),
-    });
+    };
+    baselineRef.current = editable;
+    setDraft(editable);
   };
 
   const createProfile = () => {
     const profile = newProfile();
     selectActiveProfile(profile.id);
+    baselineRef.current = profile;
     setDraft(profile);
   };
 
@@ -240,60 +237,19 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
     else createProfile();
   };
 
-  const normalizedProfile = (profile: ApplicantProfile): ApplicantProfile => ({
-    ...profile,
-    linkedin: normalizeProfileUrl(profile.linkedin),
-    github: normalizeProfileUrl(profile.github),
-    portfolio: normalizeProfileUrl(profile.portfolio),
-    onlineProfiles: profile.onlineProfiles.map((entry) => ({
-      ...entry,
-      url: normalizeProfileUrl(entry.url),
-    })),
-    specialSections: profile.specialSections.map((section) => ({
-      ...section,
-      entries: section.entries.map((entry) => ({
-        ...entry,
-        url: normalizeProfileUrl(entry.url),
-        bullets: entry.bullets.map((item) => item.trim()).filter(Boolean),
-      })),
-    })),
-    strengths: profile.strengths.map((strength) => ({
-      ...strength,
-      title: strength.title.trim(),
-      description: strength.description.trim(),
-    })),
-    resumeSectionTitles: Object.fromEntries(
-      Object.entries(profile.resumeSectionTitles).map(([key, title]) => [
-        key,
-        title.trim(),
-      ]),
-    ) as ApplicantProfile["resumeSectionTitles"],
-    skills: syncLegacySkills(profile.knowledgeSection),
-    updatedAt: new Date().toISOString(),
-  });
-
   const validateBeforeSave = (profile: ApplicantProfile) => {
-    if (!profile.firstName.trim() || !profile.lastName.trim()) {
-      window.alert("Bitte zuerst Vorname und Nachname eintragen.");
+    const issues = validateApplicantProfile(profile);
+    if (issues[0]?.startsWith("personal:")) {
+      setPersonalAttempted(true);
+      window.requestAnimationFrame(() => {
+        const target = document.getElementById(personalFieldId(issues[0].slice("personal:".length)));
+        target?.scrollIntoView({ block: "center" });
+        target?.focus();
+      });
       return false;
     }
-    if (profile.specialSections.some((section) => !section.title.trim())) {
-      window.alert("Bitte jedem besonderen Bereich eine Überschrift geben.");
-      return false;
-    }
-    if (profile.strengths.some((strength) => !strength.title.trim())) {
-      window.alert("Bitte jeder Stärke eine Bezeichnung geben.");
-      return false;
-    }
-    if (
-      Object.values(profile.resumeSectionTitles).some((title) => !title.trim())
-    ) {
-      window.alert("Bitte jedem Lebenslauf-Abschnitt eine Überschrift geben.");
-      return false;
-    }
-    const issues = validateKnowledgeSection(profile.knowledgeSection);
     if (issues.length) {
-      window.alert(issues[0].message);
+      window.alert(issues[0]);
       return false;
     }
     return true;
@@ -301,11 +257,19 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!validateBeforeSave(draft)) return;
-    const next = normalizedProfile(draft);
-    await saveProfile(next);
-    setDraft(next);
-    onSaved();
+    const latest = useAppStore.getState().workspace.profiles.find((profile) => profile.id === draft.id);
+    const merged = latest ? rebaseApplicantProfileDraft(baselineRef.current, draft, latest) : draft;
+    if (!validateBeforeSave(merged)) return;
+    const next = normalizeApplicantProfileForSave(merged);
+    setSavingAll(true);
+    setSaveError(false);
+    try {
+      await saveProfile(next);
+      baselineRef.current = next;
+      setDraft(next);
+      onSaved();
+    } catch { setSaveError(true); }
+    finally { setSavingAll(false); }
   };
 
   const saveSection = async (
@@ -329,6 +293,11 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
           draft[key];
       }
     }
+    // The Überschrift section writes only the heading entry, never the other semantic sections.
+    if (sectionId === "heading") next = copyResumeHeading(draft, next);
+    if (sectionId === "photo") next = copyResumePhotoSettings(draft, next);
+    if ((sectionId === "summary" || sectionId === "visibility") && isResumeSummaryVisible(draft) !== isResumeSummaryVisible(next))
+      next = setResumeSummaryVisible(next, isResumeSummaryVisible(draft));
     if (sectionTitle)
       next = setResumeSectionTitle(
         next,
@@ -344,8 +313,9 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
     if (!validateBeforeSave(next)) return;
     setSavingSection(sectionId);
     try {
-      const normalized = normalizedProfile(next);
+      const normalized = normalizeApplicantProfileForSave(next);
       await saveProfile(normalized);
+      baselineRef.current = normalized;
       setDraft((current) => {
         const updated = {
           ...current,
@@ -367,6 +337,7 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
             : {}),
           updatedAt: normalized.updatedAt,
         };
+        if (sectionId === "heading") return copyResumeHeading(normalized, updated);
         if (sectionTitle)
           return setResumeSectionTitle(
             updated,
@@ -382,6 +353,7 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
           : updated;
       });
       setSavedSection(sectionId);
+      setSaveError(false);
       window.setTimeout(
         () =>
           setSavedSection((current) =>
@@ -389,7 +361,8 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
           ),
         1800,
       );
-    } finally {
+    } catch { setSaveError(true); }
+    finally {
       setSavingSection(undefined);
     }
   };
@@ -443,79 +416,22 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
     const selected =
       await window.bewerbungsManager.media.pickProfileImage(kind);
     if (!selected) return;
-    setDraft((current) => ({
-      ...current,
-      [kind === "photo" ? "photoPath" : "signaturePath"]: selected.dataUrl,
-    }));
+    if (kind === "photo") setPhotoFileName(selected.fileName);
+    setDraft((current) =>
+      kind === "photo"
+        ? setResumePhoto(current, selected.dataUrl)
+        : { ...current, signaturePath: selected.dataUrl },
+    );
   };
 
-  const removeMedia = (kind: ProfileMediaKind) =>
-    setDraft((current) => ({
-      ...current,
-      [kind === "photo" ? "photoPath" : "signaturePath"]: "",
-    }));
-
-  const addExperience = () =>
-    setDraft((current) => ({
-      ...current,
-      experiences: [
-        ...current.experiences,
-        {
-          id: crypto.randomUUID(),
-          from: "",
-          to: "heute",
-          role: "",
-          company: "",
-          city: "",
-          isCurrent: true,
-          legalForm: "",
-          employmentType: "",
-          description: "",
-          teamSize: "",
-          tasks: [],
-          projects: [],
-          technologies: [],
-          achievements: [""],
-        },
-      ],
-    }));
-
-  const addEducation = () =>
-    setDraft((current) => ({
-      ...current,
-      education: [
-        ...current.education,
-        {
-          id: crypto.randomUUID(),
-          from: "",
-          to: "",
-          degree: "",
-          institution: "",
-          city: "",
-          country: "",
-          type: "",
-          fieldOfStudy: "",
-          grade: "",
-          status: "",
-          description: "",
-        },
-      ],
-    }));
-
-  const drop = (type: DragItem["type"], targetId: string) => {
-    if (!dragged || dragged.type !== type) return;
-    if (type === "experience") {
-      setDraft((current) => ({
-        ...current,
-        experiences: reorderItem(current.experiences, dragged.id, targetId),
-      }));
-    } else {
-      setDraft((current) => ({
-        ...current,
-        education: reorderItem(current.education, dragged.id, targetId),
-      }));
-    }
-    setDragged(undefined);
+  // Removing the photo clears the picture only; its size and whether it is shown stay as the user set them.
+  const removeMedia = (kind: ProfileMediaKind) => {
+    if (kind === "photo") setPhotoFileName(undefined);
+    setDraft((current) =>
+      kind === "photo"
+        ? removeResumePhoto(current)
+        : { ...current, signaturePath: "" },
+    );
   };
 
   return (
@@ -570,16 +486,30 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
                 ? `${draft.firstName} ${draft.lastName}`
                 : "Neues Profil"}
             </h2>
+            <span className={`resume-save-status is-${saveError ? "error" : savingAll || savingSection ? "saving" : hasUnsavedChanges ? "dirty" : savedSection ? "saved" : "idle"}`}>
+              {saveError ? "Fehler beim Speichern" : savingAll || savingSection ? "Speichert …" : hasUnsavedChanges ? "Ungespeicherte Änderungen" : savedSection ? "Gespeichert" : "Profil verbunden"}
+            </span>
           </div>
           <span className="large-icon">
             <BriefcaseBusiness />
           </span>
         </header>
 
-        <form onSubmit={(event) => void save(event)}>
+        <form noValidate onSubmit={(event) => void save(event)}>
           <EditorSection
-            title="Persönliche Daten"
-            description="Nur relevante Kontakt- und Bewerbungsdaten."
+            title="1. Überschrift"
+            description="Titel des Lebenslaufs. Wird im Lebenslauf und auf Folgeseiten verwendet."
+            action={<span className="profile-required-badge">Pflicht</span>}
+            onSave={() => void saveSection("heading", [])}
+            saving={savingSection === "heading"}
+            saved={savedSection === "heading"}>
+            <ResumeHeadingEditor profile={draft} onChange={setDraft} />
+          </EditorSection>
+
+          <EditorSection
+            title="2. Persönliche Daten"
+            description="Kontakt- und persönliche Angaben für den Lebenslauf."
+            action={<span className="profile-required-badge">Pflicht</span>}
             onSave={() =>
               void saveSection("personal", [
                 "firstName",
@@ -595,174 +525,44 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
                 "github",
                 "portfolio",
                 "onlineProfiles",
+                "birthDate",
+                "birthPlace",
+                "nationality",
+                "familyStatus",
+                "children",
               ])
             }
             saving={savingSection === "personal"}
             saved={savedSection === "personal"}>
-            <div className="form-grid">
-              <TextField
-                label="Vorname *"
-                value={draft.firstName}
-                required
-                onChange={(firstName) =>
-                  setDraft((current) => ({ ...current, firstName }))
-                }
-              />
-              <TextField
-                label="Nachname *"
-                value={draft.lastName}
-                required
-                onChange={(lastName) =>
-                  setDraft((current) => ({ ...current, lastName }))
-                }
-              />
-              <TextField
-                label="Berufsbezeichnung"
-                value={draft.title}
-                full
-                onChange={(title) =>
-                  setDraft((current) => ({ ...current, title }))
-                }
-              />
-              <TextField
-                label="Straße"
-                value={draft.street}
-                onChange={(street) =>
-                  setDraft((current) => ({ ...current, street }))
-                }
-              />
-              <div className="split-fields">
-                <TextField
-                  label="PLZ"
-                  value={draft.postalCode}
-                  onChange={(postalCode) =>
-                    setDraft((current) => ({ ...current, postalCode }))
-                  }
-                />
-                <TextField
-                  label="Ort"
-                  value={draft.city}
-                  onChange={(city) =>
-                    setDraft((current) => ({ ...current, city }))
-                  }
-                />
-              </div>
-              <TextField
-                label="Land"
-                value={draft.country}
-                onChange={(country) =>
-                  setDraft((current) => ({ ...current, country }))
-                }
-              />
-              <TextField
-                label="Telefon"
-                value={draft.phone}
-                onChange={(phone) =>
-                  setDraft((current) => ({ ...current, phone }))
-                }
-              />
-              <TextField
-                label="E-Mail"
-                value={draft.email}
-                type="email"
-                onChange={(email) =>
-                  setDraft((current) => ({ ...current, email }))
-                }
-              />
-              <TextField
-                label="LinkedIn"
-                value={draft.linkedin}
-                onChange={(linkedin) =>
-                  setDraft((current) => ({ ...current, linkedin }))
-                }
-              />
-              <TextField
-                label="GitHub"
-                value={draft.github}
-                onChange={(github) =>
-                  setDraft((current) => ({ ...current, github }))
-                }
-              />
-              <TextField
-                label="Portfolio"
-                value={draft.portfolio}
-                full
-                onChange={(portfolio) =>
-                  setDraft((current) => ({ ...current, portfolio }))
-                }
-              />
-            </div>
-            <div className="profile-subsection-header">
-              <div>
-                <strong>Weitere Online-Profile</strong>
-                <small>
-                  Zum Beispiel XING, persönliche Website oder Fachprofil.
-                </small>
-              </div>
-              <button
-                type="button"
-                className="button secondary small-button"
-                onClick={() =>
-                  setDraft((current) => ({
-                    ...current,
-                    onlineProfiles: [
-                      ...current.onlineProfiles,
-                      { id: crypto.randomUUID(), label: "", url: "" },
-                    ],
-                  }))
-                }>
-                <Plus size={15} /> Profil hinzufügen
-              </button>
-            </div>
-            <div className="compact-entry-list">
-              {draft.onlineProfiles.map((profile) => (
-                <div className="compact-entry" key={profile.id}>
-                  <TextField
-                    label="Bezeichnung"
-                    value={profile.label}
-                    onChange={(label) =>
-                      setDraft((current) => ({
-                        ...current,
-                        onlineProfiles: current.onlineProfiles.map((item) =>
-                          item.id === profile.id ? { ...item, label } : item,
-                        ),
-                      }))
-                    }
-                  />
-                  <TextField
-                    label="Adresse / URL"
-                    value={profile.url}
-                    onChange={(url) =>
-                      setDraft((current) => ({
-                        ...current,
-                        onlineProfiles: current.onlineProfiles.map((item) =>
-                          item.id === profile.id ? { ...item, url } : item,
-                        ),
-                      }))
-                    }
-                  />
-                  <button
-                    type="button"
-                    className="icon-button danger"
-                    aria-label="Online-Profil löschen"
-                    onClick={() =>
-                      setDraft((current) => ({
-                        ...current,
-                        onlineProfiles: current.onlineProfiles.filter(
-                          (item) => item.id !== profile.id,
-                        ),
-                      }))
-                    }>
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              ))}
-            </div>
+            <PersonalDataEditor
+              profile={draft}
+              onChange={setDraft}
+              showIssues={personalAttempted || profiles.some((profile) => profile.id === draft.id)}
+            />
           </EditorSection>
 
           <EditorSection
-            title="Kurzprofil"
-            description="Optionaler Einstiegstext für Zielrolle, Erfahrung und besondere Stärken."
+            title="3. Bewerbungsfoto"
+            description="Ein professionelles Bewerbungsfoto kann den persönlichen Eindruck unterstützen."
+            action={<span className="profile-optional-badge">Optional</span>}
+            onSave={() =>
+              void saveSection("photo", ["photoPath", "resumePhotoSize"])
+            }
+            saving={savingSection === "photo"}
+            saved={savedSection === "photo"}>
+            <PhotoSettingsEditor
+              profile={draft}
+              onChange={setDraft}
+              fileName={photoFileName}
+              onPick={() => void pickMedia("photo")}
+              onRemove={() => removeMedia("photo")}
+            />
+          </EditorSection>
+
+          <EditorSection
+            title="4. Kurzprofil"
+            description="Fassen Sie Ihre wichtigsten Erfahrungen, Kompetenzen und beruflichen Schwerpunkte in wenigen Sätzen zusammen."
+            action={<span className="profile-recommended-badge">Empfohlen</span>}
             onSave={() =>
               void saveSection(
                 "summary",
@@ -772,24 +572,63 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
             }
             saving={savingSection === "summary"}
             saved={savedSection === "summary"}>
-            <ResumeSectionTitleEditor
-              profile={draft}
-              section="summary"
-              onChange={setDraft}
-            />
-            <label className="field full">
-              <span>Kurzprofil</span>
-              <textarea
-                rows={5}
-                value={draft.summary}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    summary: event.target.value,
-                  }))
-                }
-              />
-            </label>
+            <SummaryEditor profile={draft} onChange={setDraft} />
+          </EditorSection>
+
+          <EditorSection
+            title="5. Beruflicher Werdegang"
+            description="Berufliche Stationen, Aufgaben, Projekte und Erfolge."
+            action={<span className="profile-required-badge">Pflicht</span>}
+            onSave={() =>
+              void saveSection(
+                "experience",
+                ["experiences", "resumeSectionTitles"],
+                "experience",
+              )
+            }
+            saving={savingSection === "experience"}
+            saved={savedSection === "experience"}>
+            <CareerEditor profile={draft} onChange={setDraft} />
+          </EditorSection>
+
+          <EditorSection
+            title="6. Bildungsweg · Pflicht"
+            description="Schule, Berufsausbildung, Studium und Umschulung."
+            onSave={() => void saveSection("education", ["education", "resumeSectionTitles"], "education")}
+            saving={savingSection === "education"}
+            saved={savedSection === "education"}>
+            <EducationEditor profile={draft} onChange={setDraft} />
+          </EditorSection>
+
+          <EditorSection
+            title="7. Besondere Kenntnisse · Empfohlen"
+            description="Relevante Fach-, IT- und Sprachkenntnisse sowie Zusatzqualifikationen."
+            onSave={() => void saveSection("knowledge", ["knowledgeSection", "skills", "languages", "certifications", "specialSections", "resumeSectionTitles"])}
+            saving={savingSection === "knowledge"}
+            saved={savedSection === "knowledge"}>
+            <KnowledgeProfileEditor profile={draft} onChange={setDraft} onCopyCategory={copyKnowledgeCategory} />
+          </EditorSection>
+
+          <EditorSection
+            title="8. Interessen und Hobbys"
+            description="Persönliche Interessen, die Ihr Profil sinnvoll ergänzen."
+            action={<span className="profile-optional-badge">Optional</span>}
+            onSave={() => void saveSection("interests", ["specialSections", "resumeSemanticSections"])}
+            saving={savingSection === "interests"}
+            saved={savedSection === "interests"}>
+            <InterestsEditor profile={draft} onChange={setDraft} />
+          </EditorSection>
+
+          <EditorSection
+            title="9. Ort, Datum und Unterschrift"
+            description="Formeller Abschluss des Lebenslaufs."
+            action={<span className="profile-recommended-badge">Empfohlen</span>}
+            onSave={() => void saveSection("closing", ["applicationPlace", "applicationDate", "signaturePath", "resumeClosing"])}
+            saving={savingSection === "closing"}
+            saved={savedSection === "closing"}>
+            <ClosingEditor profile={draft} onChange={setDraft}
+              onPickSignature={() => void pickMedia("signature")}
+              onRemoveSignature={() => removeMedia("signature")} />
           </EditorSection>
 
           <EditorSection
@@ -920,456 +759,6 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
           </EditorSection>
 
           <EditorSection
-            title="Bewerbungsfoto & Unterschrift"
-            description="Beide Angaben sind optional."
-            onSave={() =>
-              void saveSection("media", ["photoPath", "signaturePath"])
-            }
-            saving={savingSection === "media"}
-            saved={savedSection === "media"}>
-            <div className="profile-media-grid">
-              <ProfileMediaCard
-                kind="photo"
-                label="Lebenslauf-Foto"
-                description="PNG, JPG oder WebP · maximal 8 MB"
-                source={photoSource}
-                onPick={() => void pickMedia("photo")}
-                onRemove={() => removeMedia("photo")}
-              />
-              <ProfileMediaCard
-                kind="signature"
-                label="Unterschrift"
-                description="Am besten als transparente PNG-Datei"
-                source={signatureSource}
-                onPick={() => void pickMedia("signature")}
-                onRemove={() => removeMedia("signature")}
-              />
-            </div>
-          </EditorSection>
-
-          <EditorSection
-            title="Berufserfahrung"
-            description="Zeiträume können direkt geschrieben oder über den Kalender gewählt werden."
-            action={
-              <button
-                type="button"
-                className="button secondary small-button"
-                onClick={addExperience}>
-                <Plus size={15} /> Station hinzufügen
-              </button>
-            }
-            onSave={() =>
-              void saveSection(
-                "experience",
-                ["experiences", "resumeSectionTitles"],
-                "experience",
-              )
-            }
-            saving={savingSection === "experience"}
-            saved={savedSection === "experience"}>
-            <ResumeSectionTitleEditor
-              profile={draft}
-              section="experience"
-              onChange={setDraft}
-            />
-            <div className="resume-editor-list">
-              {draft.experiences.map((experience, index) => (
-                <article
-                  className="resume-editor-card"
-                  draggable
-                  key={experience.id}
-                  onDragStart={() =>
-                    setDragged({ type: "experience", id: experience.id })
-                  }
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={() => drop("experience", experience.id)}>
-                  <div className="drag-handle" title="Zum Sortieren ziehen">
-                    <GripVertical size={18} />
-                  </div>
-                  <div className="resume-card-fields">
-                    <div className="split-fields">
-                      <FlexibleDateField
-                        label="Von"
-                        value={experience.from}
-                        mode="month"
-                        onChange={(from) =>
-                          setDraft((current) => ({
-                            ...current,
-                            experiences: current.experiences.map((item) =>
-                              item.id === experience.id
-                                ? { ...item, from }
-                                : item,
-                            ),
-                          }))
-                        }
-                      />
-                      <FlexibleDateField
-                        label="Bis"
-                        value={experience.to}
-                        mode="month"
-                        onChange={(to) =>
-                          setDraft((current) => ({
-                            ...current,
-                            experiences: current.experiences.map((item) =>
-                              item.id === experience.id
-                                ? {
-                                    ...item,
-                                    to,
-                                    isCurrent:
-                                      to.trim().toLowerCase() === "heute",
-                                  }
-                                : item,
-                            ),
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="form-grid">
-                      <TextField
-                        label="Position"
-                        value={experience.role}
-                        onChange={(role) =>
-                          setDraft((current) => ({
-                            ...current,
-                            experiences: current.experiences.map((item) =>
-                              item.id === experience.id
-                                ? { ...item, role }
-                                : item,
-                            ),
-                          }))
-                        }
-                      />
-                      <TextField
-                        label="Unternehmen"
-                        value={experience.company}
-                        onChange={(company) =>
-                          setDraft((current) => ({
-                            ...current,
-                            experiences: current.experiences.map((item) =>
-                              item.id === experience.id
-                                ? { ...item, company }
-                                : item,
-                            ),
-                          }))
-                        }
-                      />
-                    </div>
-                    <TextField
-                      label="Ort"
-                      value={experience.city}
-                      onChange={(city) =>
-                        setDraft((current) => ({
-                          ...current,
-                          experiences: current.experiences.map((item) =>
-                            item.id === experience.id
-                              ? { ...item, city }
-                              : item,
-                          ),
-                        }))
-                      }
-                    />
-                    <label className="checkbox-field field-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={experience.isCurrent}
-                        onChange={(event) =>
-                          setDraft((current) => ({
-                            ...current,
-                            experiences: current.experiences.map((item) =>
-                              item.id === experience.id
-                                ? {
-                                    ...item,
-                                    isCurrent: event.target.checked,
-                                    to: event.target.checked
-                                      ? "heute"
-                                      : item.to.trim().toLowerCase() === "heute"
-                                        ? ""
-                                        : item.to,
-                                  }
-                                : item,
-                            ),
-                          }))
-                        }
-                      />
-                      <span>Aktuelle Position (bis heute)</span>
-                    </label>
-                    <div className="profile-subsection-header compact-heading">
-                      <div>
-                        <strong>Aufgaben & Erfolge</strong>
-                        <small>
-                          Kurze, konkrete Stichpunkte; jeder Punkt wird einzeln
-                          angelegt.
-                        </small>
-                      </div>
-                    </div>
-                    <EntryListEditor
-                      values={experience.achievements}
-                      multiline
-                      addLabel="Stichpunkt hinzufügen"
-                      emptyText="Noch keine Aufgabe oder kein Erfolg erfasst."
-                      placeholder="z. B. REST-API mit Symfony entwickelt"
-                      onChange={(achievements) =>
-                        setDraft((current) => ({
-                          ...current,
-                          experiences: current.experiences.map((item) =>
-                            item.id === experience.id
-                              ? { ...item, achievements }
-                              : item,
-                          ),
-                        }))
-                      }
-                    />
-                  </div>
-                  <SortActions
-                    index={index}
-                    length={draft.experiences.length}
-                    onMove={(direction) =>
-                      setDraft((current) => ({
-                        ...current,
-                        experiences: moveItem(
-                          current.experiences,
-                          experience.id,
-                          direction,
-                        ),
-                      }))
-                    }
-                    onRemove={() =>
-                      setDraft((current) => ({
-                        ...current,
-                        experiences: current.experiences.filter(
-                          (item) => item.id !== experience.id,
-                        ),
-                      }))
-                    }
-                  />
-                </article>
-              ))}
-              {!draft.experiences.length && (
-                <EditorEmpty text="Noch keine Berufserfahrung erfasst." />
-              )}
-            </div>
-          </EditorSection>
-
-          <EditorSection
-            title="Ausbildung"
-            description="Studium, Schule, Ausbildung oder laufender Abschluss."
-            action={
-              <button
-                type="button"
-                className="button secondary small-button"
-                onClick={addEducation}>
-                <Plus size={15} /> Ausbildung hinzufügen
-              </button>
-            }
-            onSave={() =>
-              void saveSection(
-                "education",
-                ["education", "resumeSectionTitles"],
-                "education",
-              )
-            }
-            saving={savingSection === "education"}
-            saved={savedSection === "education"}>
-            <ResumeSectionTitleEditor
-              profile={draft}
-              section="education"
-              onChange={setDraft}
-            />
-            <div className="resume-editor-list">
-              {draft.education.map((education, index) => (
-                <article
-                  className="resume-editor-card"
-                  draggable
-                  key={education.id}
-                  onDragStart={() =>
-                    setDragged({ type: "education", id: education.id })
-                  }
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={() => drop("education", education.id)}>
-                  <div className="drag-handle" title="Zum Sortieren ziehen">
-                    <GripVertical size={18} />
-                  </div>
-                  <div className="resume-card-fields">
-                    <div className="split-fields">
-                      <FlexibleDateField
-                        label="Von"
-                        value={education.from}
-                        mode="month"
-                        onChange={(from) =>
-                          setDraft((current) => ({
-                            ...current,
-                            education: current.education.map((item) =>
-                              item.id === education.id
-                                ? { ...item, from }
-                                : item,
-                            ),
-                          }))
-                        }
-                      />
-                      <FlexibleDateField
-                        label="Bis"
-                        value={education.to}
-                        mode="month"
-                        onChange={(to) =>
-                          setDraft((current) => ({
-                            ...current,
-                            education: current.education.map((item) =>
-                              item.id === education.id ? { ...item, to } : item,
-                            ),
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="form-grid">
-                      <TextField
-                        label="Abschluss"
-                        value={education.degree}
-                        onChange={(degree) =>
-                          setDraft((current) => ({
-                            ...current,
-                            education: current.education.map((item) =>
-                              item.id === education.id
-                                ? { ...item, degree }
-                                : item,
-                            ),
-                          }))
-                        }
-                      />
-                      <TextField
-                        label="Institution"
-                        value={education.institution}
-                        onChange={(institution) =>
-                          setDraft((current) => ({
-                            ...current,
-                            education: current.education.map((item) =>
-                              item.id === education.id
-                                ? { ...item, institution }
-                                : item,
-                            ),
-                          }))
-                        }
-                      />
-                    </div>
-                    <TextField
-                      label="Ort"
-                      value={education.city}
-                      onChange={(city) =>
-                        setDraft((current) => ({
-                          ...current,
-                          education: current.education.map((item) =>
-                            item.id === education.id ? { ...item, city } : item,
-                          ),
-                        }))
-                      }
-                    />
-                  </div>
-                  <SortActions
-                    index={index}
-                    length={draft.education.length}
-                    onMove={(direction) =>
-                      setDraft((current) => ({
-                        ...current,
-                        education: moveItem(
-                          current.education,
-                          education.id,
-                          direction,
-                        ),
-                      }))
-                    }
-                    onRemove={() =>
-                      setDraft((current) => ({
-                        ...current,
-                        education: current.education.filter(
-                          (item) => item.id !== education.id,
-                        ),
-                      }))
-                    }
-                  />
-                </article>
-              ))}
-              {!draft.education.length && (
-                <EditorEmpty text="Noch keine Ausbildung erfasst." />
-              )}
-            </div>
-          </EditorSection>
-
-          <EditorSection
-            title="Kenntnisse"
-            description="Kenntnisse werden unabhängig von Stärken, Sprachen und Zertifikaten verwaltet."
-            onSave={() =>
-              void saveSection("knowledge", ["knowledgeSection", "skills"])
-            }
-            saving={savingSection === "knowledge"}
-            saved={savedSection === "knowledge"}>
-            <KnowledgeSectionEditor
-              value={{
-                ...draft.knowledgeSection,
-                title: getResumeSectionTitle(draft, "knowledge"),
-              }}
-              onChange={(knowledgeSection) =>
-                setDraft((current) =>
-                  setResumeSectionTitle(
-                    { ...current, knowledgeSection },
-                    "knowledge",
-                    knowledgeSection.title,
-                  ),
-                )
-              }
-              onCopyCategory={copyKnowledgeCategory}
-            />
-          </EditorSection>
-
-          <EditorSection
-            title="Sprachen"
-            description="Sprachen werden nach dem Gemeinsamen Europäischen Referenzrahmen (GER) von A1 bis C2 bewertet."
-            onSave={() =>
-              void saveSection(
-                "languages",
-                ["languages", "resumeSectionTitles"],
-                "languages",
-              )
-            }
-            saving={savingSection === "languages"}
-            saved={savedSection === "languages"}>
-            <ResumeSectionTitleEditor
-              profile={draft}
-              section="languages"
-              onChange={setDraft}
-            />
-            <LanguageLevelEditor
-              values={draft.languages}
-              onChange={(languages) =>
-                setDraft((current) => ({ ...current, languages }))
-              }
-            />
-          </EditorSection>
-
-          <EditorSection
-            title="Zertifikate"
-            description="Eigener Abschnitt mit frei änderbarer Überschrift."
-            onSave={() =>
-              void saveSection(
-                "certifications",
-                ["certifications", "resumeSectionTitles"],
-                "certifications",
-              )
-            }
-            saving={savingSection === "certifications"}
-            saved={savedSection === "certifications"}>
-            <ResumeSectionTitleEditor
-              profile={draft}
-              section="certifications"
-              onChange={setDraft}
-            />
-            <CertificateListEditor
-              values={draft.certifications}
-              onChange={(certifications) =>
-                setDraft((current) => ({ ...current, certifications }))
-              }
-            />
-          </EditorSection>
-
-          <EditorSection
             title="Besondere Lebenslauf-Bereiche"
             description="Füge nur passende Bereiche hinzu. Eigene Abschnitte decken besondere Muster ab."
             onSave={() =>
@@ -1386,36 +775,6 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
           </EditorSection>
 
           <EditorSection
-            title="Ort, Datum & Abschluss"
-            description="Für den Abschluss des Lebenslaufs; die Unterschrift wird oben verwaltet."
-            onSave={() =>
-              void saveSection("closing", [
-                "applicationPlace",
-                "applicationDate",
-              ])
-            }
-            saving={savingSection === "closing"}
-            saved={savedSection === "closing"}>
-            <div className="form-grid">
-              <TextField
-                label="Ort"
-                value={draft.applicationPlace}
-                onChange={(applicationPlace) =>
-                  setDraft((current) => ({ ...current, applicationPlace }))
-                }
-              />
-              <FlexibleDateField
-                label="Datum"
-                value={draft.applicationDate}
-                mode="date"
-                onChange={(applicationDate) =>
-                  setDraft((current) => ({ ...current, applicationDate }))
-                }
-              />
-            </div>
-          </EditorSection>
-
-          <EditorSection
             title="Sichtbare Lebenslauf-Abschnitte"
             onSave={() => void saveSection("visibility", ["resumeSections"])}
             saving={savingSection === "visibility"}
@@ -1423,7 +782,7 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
             <div className="section-toggle-grid">
               {(
                 [
-                  ["profile", draft.resumeSectionTitles.summary],
+                  ["profile", getResumeSectionTitle(draft, "summary")],
                   ["strengths", draft.resumeSectionTitles.strengths],
                   ["experience", draft.resumeSectionTitles.experience],
                   ["education", draft.resumeSectionTitles.education],
@@ -1435,15 +794,20 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
                 <label className="checkbox-field" key={key}>
                   <input
                     type="checkbox"
-                    checked={draft.resumeSections[key]}
+                    checked={key === "profile" ? isResumeSummaryVisible(draft) : draft.resumeSections[key]}
                     onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        resumeSections: {
-                          ...current.resumeSections,
-                          [key]: event.target.checked,
-                        },
-                      }))
+                      setDraft((current) =>
+                        // The Kurzprofil switch is the one of section 4 (all three places that describe it).
+                        key === "profile"
+                          ? setResumeSummaryVisible(current, event.target.checked)
+                          : {
+                              ...current,
+                              resumeSections: {
+                                ...current.resumeSections,
+                                [key]: event.target.checked,
+                              },
+                            },
+                      )
                     }
                   />
                   <span>{label} anzeigen</span>
@@ -1477,8 +841,8 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
               Reihenfolge und Sichtbarkeit werden direkt in Lebenslauf und PDF
               übernommen.
             </span>
-            <button className="button primary" type="submit">
-              <Save size={17} /> Profil speichern
+            <button className="button primary" type="submit" disabled={savingAll}>
+              <Save size={17} /> {savingAll ? "Speichert …" : "Profil speichern"}
             </button>
           </div>
         </form>
@@ -1581,60 +945,6 @@ function ListField({
         emptyText="Noch kein Punkt erfasst."
       />
     </div>
-  );
-}
-
-function FlexibleDateField({
-  label,
-  value,
-  mode,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  mode: "date" | "month";
-  onChange: (value: string) => void;
-}) {
-  const pickerValue = (() => {
-    if (mode === "month") {
-      const match = value.match(/^(\d{2})[./-](\d{4})$/);
-      return match ? `${match[2]}-${match[1]}` : "";
-    }
-    const match = value.match(/^(\d{2})[./-](\d{2})[./-](\d{4})$/);
-    return match ? `${match[3]}-${match[2]}-${match[1]}` : "";
-  })();
-
-  const pick = (selected: string) => {
-    if (!selected) return;
-    const parts = selected.split("-");
-    onChange(
-      mode === "month"
-        ? `${parts[1]}/${parts[0]}`
-        : `${parts[2]}.${parts[1]}.${parts[0]}`,
-    );
-  };
-
-  return (
-    <label className="field flexible-date-field">
-      <span>{label}</span>
-      <div>
-        <input
-          type="text"
-          value={value}
-          placeholder={mode === "month" ? "MM/JJJJ oder heute" : "TT.MM.JJJJ"}
-          onChange={(event) => onChange(event.target.value)}
-        />
-        <span className="date-picker-control" title="Datum auswählen">
-          <CalendarDays size={15} />
-          <input
-            type={mode}
-            value={pickerValue}
-            aria-label={`${label} auswählen`}
-            onChange={(event) => pick(event.target.value)}
-          />
-        </span>
-      </div>
-    </label>
   );
 }
 
@@ -1965,55 +1275,5 @@ function EditorEmpty({ text }: { text: string }) {
       <GraduationCap size={20} />
       <span>{text}</span>
     </div>
-  );
-}
-
-function ProfileMediaCard({
-  kind,
-  label,
-  description,
-  source,
-  onPick,
-  onRemove,
-}: {
-  kind: ProfileMediaKind;
-  label: string;
-  description: string;
-  source: string;
-  onPick: () => void;
-  onRemove: () => void;
-}) {
-  const Icon = kind === "photo" ? ImagePlus : PenLine;
-  return (
-    <article className={`profile-media-card media-${kind}`}>
-      <div className="profile-media-preview">
-        {source ? (
-          <img src={source} alt={`${label} Vorschau`} />
-        ) : (
-          <Icon size={28} />
-        )}
-      </div>
-      <div>
-        <strong>{label}</strong>
-        <small>{description}</small>
-        <div className="profile-media-actions">
-          <button
-            className="button secondary small-button"
-            type="button"
-            onClick={onPick}>
-            <Icon size={15} /> {source ? "Ersetzen" : "Auswählen"}
-          </button>
-          {source ? (
-            <button
-              className="icon-button danger"
-              type="button"
-              aria-label={`${label} entfernen`}
-              onClick={onRemove}>
-              <X size={15} />
-            </button>
-          ) : null}
-        </div>
-      </div>
-    </article>
   );
 }

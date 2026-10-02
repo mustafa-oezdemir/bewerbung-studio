@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatLanguageEntry,
+  formatLanguageForAts,
   getCefrLanguageLevel,
   getCefrLevelByScore,
   getLanguageLevelScore,
@@ -18,6 +19,9 @@ describe("language levels", () => {
     expect(getCefrLanguageLevel("Grundkenntnisse")).toBe("A2");
     expect(getCefrLanguageLevel("fließend")).toBe("C1");
     expect(getCefrLanguageLevel("Muttersprache")).toBe("C2");
+    expect(formatLanguageForAts("Deutsch – Muttersprache")).toBe("Deutsch – Muttersprache");
+    expect(formatLanguageForAts("Englisch – B2")).toBe("Englisch – B2 (fließend)");
+    expect(formatLanguageForAts("Französisch – C1")).toBe("Französisch – C1 (verhandlungssicher)");
   });
 
   it("parses and formats the existing profile storage format", () => {

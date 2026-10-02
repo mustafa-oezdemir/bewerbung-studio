@@ -73,7 +73,7 @@
 
 .einfach-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 36mm;
+  grid-template-columns: minmax(0, 1fr) calc(36mm * var(--resume-photo-scale, 1));
   gap: 8mm;
   align-items: start;
   min-height: 35mm;
@@ -142,15 +142,15 @@
 .einfach-header address
   [data-contact-kind="linkedin"]
   > a {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow-wrap: normal;
+  /* A long link wraps; it is never cut off. */
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .einfach-header figure {
-  width: 34mm;
-  height: 34mm;
+  width: calc(34mm * var(--resume-photo-scale, 1));
+  height: calc(34mm * var(--resume-photo-scale, 1));
   margin: 0;
   overflow: hidden;
   border-radius: 50%;
@@ -491,4 +491,15 @@
   .einfach-template .editor-grid {
     display: none !important;
   }
+}
+
+/* As in the PDF (.einfach-pdf p, .einfach-pdf li): text takes the size of its block, not the page's base size. */
+.einfach-template p,
+.einfach-template li {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.einfach-template .einfach-summary {
+  font-size: 9pt;
 }

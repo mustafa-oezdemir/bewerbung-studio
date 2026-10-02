@@ -234,7 +234,7 @@ const pehlioneWhiteBlue: TemplateTokens = {
     },
     list: {
       fontSizePt: { standard: 7.8, compact: 7.8 }, lineHeight: { standard: 1.2, compact: 1.2 }, itemLineHeight: 1.25,
-      itemGap: { standard: 1.35, compact: 1.35 }, indent: 4,
+      itemGap: { standard: 1.35, compact: 1.35 }, indent: pehlioneSidebar.listIndentMm,
     },
   },
 };
@@ -255,6 +255,7 @@ const pehlioneWhite: TemplateTokens = {
   },
   sidebar: {
     ...pehlioneWhiteBlue.sidebar,
+    list: { ...pehlioneWhiteBlue.sidebar.list, indent: pehlioneWhiteDefaults.sidebar.listIndentMm },
     heading: {
       ...pehlioneWhiteBlue.sidebar.heading,
       iconBox: 8, iconGap: 2, iconRadius: 0, glyphSize: 7, glyphStroke: 1.9,
@@ -542,7 +543,12 @@ const pehlioneRoots = (templateId: string) => ({
 
 const configByTemplate: Record<string, TemplateConfig> = {
   pehlione_white_blue: { tokens: pehlioneWhiteBlue, roots: pehlioneRoots("pehlione_white_blue"), plainLists: ["certifications", "languages"], sidebarHero: true },
-  pehlione_white: { tokens: pehlioneWhite, roots: pehlioneRoots("pehlione_white"), plainLists: ["certifications", "languages"], sidebarHero: true },
+  pehlione_white: {
+    tokens: pehlioneWhite, roots: pehlioneRoots("pehlione_white"), plainLists: ["certifications", "languages"], sidebarHero: true,
+    zoneCss: (host) => `${host} [data-cv-zone="sidebar"] .managed-strength-card{column-gap:${pehlioneWhiteDefaults.sidebar.strengthIconGapMm}mm}
+${host} [data-cv-zone="sidebar"] .resume-special-output__entry h4{margin-inline-start:${pehlioneWhiteDefaults.sidebar.contactTextOffsetMm}mm}
+${host} [data-cv-zone="sidebar"] .resume-special-output__entry ul{margin-inline-start:${pehlioneWhiteDefaults.sidebar.contactTextOffsetMm - pehlioneWhiteDefaults.sidebar.specialListIndentMm}mm}`,
+  },
   modern: {
     tokens: modern,
     roots: { preview: ".modern-resume-page", pdf: '.cv-sheet[data-template="modern"]', pdfBody: ".modern-pdf" },
@@ -713,7 +719,7 @@ const templateCss = (templateId: string, { tokens, roots, sidebarInheritsText = 
         ? `${compact(`${scope}>.cv-heading .cv-heading__label`)}{padding-bottom:${mm(heading.labelPadding.compact)}}` : "",
       `${host} ${listSelector}{${gridList ? `display:grid;gap:${mm(list.itemGap.standard)};` : ""}margin:${list.marginTop ? `${mm(list.marginTop)} 0 0` : "0"};padding:0 0 0 ${mm(list.indent)};color:inherit;${listFont};list-style:${list.listStyle ?? "disc"}}`,
       list.markerColor ? `${host} ${listSelector} li::marker{color:${list.markerColor}}` : "",
-      `${host} ${listSelector} li{${gridList ? "margin:0;" : `margin:${mm(list.itemGap.standard)} 0;`}color:inherit;font-size:inherit;line-height:${list.itemLineHeight ?? "inherit"};hyphens:auto;break-inside:avoid;page-break-inside:avoid}`,
+      `${host} ${listSelector} li{${gridList ? "margin:0;" : `margin:${mm(list.itemGap.standard)} 0;`}color:inherit;font-size:inherit;line-height:${list.itemLineHeight ?? "inherit"};hyphens:auto;break-inside:auto;page-break-inside:auto;orphans:2;widows:2}`,
       !list.inheritBody && (list.fontSizePt.compact !== list.fontSizePt.standard || list.lineHeight.compact !== list.lineHeight.standard)
         ? `${compact(listSelector)}{font-size:${list.fontSizePt.compact}pt;line-height:${list.lineHeight.compact}}` : "",
       !gridList && list.itemGap.compact !== list.itemGap.standard

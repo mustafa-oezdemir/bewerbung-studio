@@ -44,12 +44,13 @@ describe("editing the Lebenslauf design", () => {
     expect(state.global).toEqual({ cvOverrides: { spacing: { sectionGapMm: 6 } } });
   });
 
-  it("lets a shared edit replace the value the document had overridden itself", () => {
+  it("keeps a document override when a shared value changes", () => {
     let state = editCvDesignField(start(), "document", "spacing", "sectionGapMm", 5);
     expect(state.draft.settings.cvOverrides).toEqual({ spacing: { sectionGapMm: 5 } });
     state = editCvDesignField(state, "global", "spacing", "sectionGapMm", 6);
-    expect(state.draft.settings.cvOverrides).toBeUndefined();
-    expect(gap(state)).toBe(6);
+    expect(state.draft.settings.cvOverrides).toEqual({ spacing: { sectionGapMm: 5 } });
+    expect(gap(state)).toBe(5);
+    expect(resolveResumeDesignView("klassisch", state.draft.settings, state.global).sourceOfToken("spacing", "sectionGapMm")).toBe("document");
   });
 
   it("stores a document edit only when it differs from what the document would inherit", () => {
@@ -74,6 +75,21 @@ describe("editing the Lebenslauf design", () => {
     expect(gap(state)).toBe(native);
   });
 
+  it("keeps explicit legacy choices in template snapshots when a global value matches", () => {
+    let state = editCvDesignField(start("klassisch"), "document", "spacing", "sectionGapMm", 5);
+    state = editResumeAppearanceField(state, "document", "sectionHeadingAlignment", "right");
+    state = editCvDesignField(state, "global", "spacing", "sectionGapMm", 5);
+    state = editResumeAppearanceField(state, "global", "sectionHeadingAlignment", "right");
+    state = { ...state, draft: selectDocumentTemplate(state.draft, "kompakt", state.global) };
+    expect(state.draft.templateDesigns.klassisch.settings.cvOverrides).toEqual({ spacing: { sectionGapMm: 5 } });
+    expect(state.draft.templateDesigns.klassisch.settings.resumeAppearance).toEqual({ sectionHeadingAlignment: "right" });
+    state = resetResumeDesign(state, "global");
+    state = { ...state, draft: selectDocumentTemplate(state.draft, "klassisch", state.global) };
+    const view = resolveResumeDesignView("klassisch", state.draft.settings, state.global);
+    expect(view.effective.tokens.spacing.sectionGapMm).toBe(5);
+    expect(view.effective.appearance.sectionHeadingAlignment).toBe("right");
+  });
+
   it("restores the template's own value on a field reset, in both scopes", () => {
     let state = editCvDesignField(start(), "global", "typography", "sectionHeadingSizePt", 13);
     expect(resolveResumeDesignView("klassisch", state.draft.settings, state.global).effective.tokens.typography.sectionHeadingSizePt).toBe(13);
@@ -85,17 +101,18 @@ describe("editing the Lebenslauf design", () => {
     expect(editCvDesignField(own, "document", "typography", "sectionHeadingSizePt", undefined).draft.settings.cvOverrides).toBeUndefined();
   });
 
-  it("removes the shared layer and the document's overrides with 'Vorlagenwerte wiederherstellen'", () => {
+  it("removes the shared layer while preserving old document overrides", () => {
     let state = editCvDesignField(start(), "global", "spacing", "sectionGapMm", 6);
     state = editCvDesignField(state, "document", "typography", "bodySizePt", 10);
     state = editResumeAppearanceField(state, "global", "sectionHeadingAlignment", "center");
     state = editResumeAppearanceField(state, "document", "sidebarTextColor", "#ffffff");
     const reset = resetResumeDesign(state, "global");
     expect(reset.global).toBeUndefined();
-    expect(reset.draft.settings.cvOverrides).toBeUndefined();
-    expect(reset.draft.settings.resumeAppearance).toBeUndefined();
+    expect(reset.draft.settings.cvOverrides).toEqual({ typography: { bodySizePt: 10 } });
+    expect(reset.draft.settings.resumeAppearance).toEqual({ sidebarTextColor: "#ffffff" });
+    const restored = resetResumeDesign(reset, "document");
     for (const { id } of templates)
-      expect(resolveResumeDesignView(id, selectDocumentTemplate(reset.draft, id).settings, reset.global).effective.tokens, id).toEqual(resolveTemplateCvDesign(id));
+      expect(resolveResumeDesignView(id, selectDocumentTemplate(restored.draft, id).settings, restored.global).effective.tokens, id).toEqual(resolveTemplateCvDesign(id));
     // In the document scope the shared layer stays.
     const own = resetResumeDesign(state, "document");
     expect(own.global).toEqual(state.global);
@@ -299,7 +316,6 @@ describe("Seitenränder and Innenabstand", () => {
   it("resets one field without touching the other, in both scopes", () => {
     let both = set(set(start(), "global", "pageMarginMm", 16), "global", "innerPaddingMm", 2.5);
     both = set(set(both, "document", "pageMarginMm", 10), "document", "innerPaddingMm", 2);
-    const klassisch = resolveTemplateCvDesign("klassisch").spacing;
     expect(effective(both)).toMatchObject({ pageMarginMm: 10, innerPaddingMm: 2 });
 
     // Own padding: the shared padding shows again, the margin stays.
@@ -314,17 +330,17 @@ describe("Seitenränder and Innenabstand", () => {
     expect(ownMargin.global).toEqual(both.global);
     expect(effective(ownMargin)).toMatchObject({ pageMarginMm: 16, innerPaddingMm: 2 });
 
-    // Shared padding: it leaves the layer and this document's own padding with it; the margins stay.
+    // Shared padding leaves the layer, while this document's own padding stays.
     const sharedPadding = set(both, "global", "innerPaddingMm", undefined);
     expect(sharedPadding.global).toEqual({ cvOverrides: { spacing: { pageMarginMm: 16 } } });
-    expect(sharedPadding.draft.settings.cvOverrides).toEqual({ spacing: { pageMarginMm: 10 } });
-    expect(effective(sharedPadding)).toMatchObject({ pageMarginMm: 10, innerPaddingMm: klassisch.innerPaddingMm });
+    expect(sharedPadding.draft.settings.cvOverrides).toEqual({ spacing: { pageMarginMm: 10, innerPaddingMm: 2 } });
+    expect(effective(sharedPadding)).toMatchObject({ pageMarginMm: 10, innerPaddingMm: 2 });
 
     // Shared margin: the same the other way round.
     const sharedMargin = set(both, "global", "pageMarginMm", undefined);
     expect(sharedMargin.global).toEqual({ cvOverrides: { spacing: { innerPaddingMm: 2.5 } } });
-    expect(sharedMargin.draft.settings.cvOverrides).toEqual({ spacing: { innerPaddingMm: 2 } });
-    expect(effective(sharedMargin)).toMatchObject({ pageMarginMm: klassisch.pageMarginMm, innerPaddingMm: 2 });
+    expect(sharedMargin.draft.settings.cvOverrides).toEqual({ spacing: { pageMarginMm: 10, innerPaddingMm: 2 } });
+    expect(effective(sharedMargin)).toMatchObject({ pageMarginMm: 10, innerPaddingMm: 2 });
   });
 
   it("keeps the old slider level of the other field when one of them is edited", () => {
@@ -341,11 +357,10 @@ describe("Seitenränder and Innenabstand", () => {
     expect(margined.draft.settings.paddingLevel).toBe(3);
   });
 
-  it("counts a template's own paddings into its margin, so no template starts with an inner padding", () => {
-    for (const { id } of templates) expect(resolveTemplateCvDesign(id).spacing.innerPaddingMm, id).toBe(0);
-    // The presets therefore never scale an inner padding, and a chosen padding is always added to the margin.
+  it("preserves each template's native inner padding as a distinct spacing value", () => {
+    for (const { id } of templates) expect(resolveTemplateCvDesign(id).spacing.innerPaddingMm, id).toBeGreaterThanOrEqual(0);
     const compact = applyResumeSpacingPreset(start("gepflegt").draft, "compact");
-    expect(compact.settings.cvOverrides?.spacing?.innerPaddingMm).toBeUndefined();
+    expect(compact.settings.cvOverrides?.spacing?.innerPaddingMm).toBe(8);
     expect(compact.settings.cvOverrides?.spacing?.pageMarginMm).toBe(8);
   });
 });

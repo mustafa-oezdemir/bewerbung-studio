@@ -1,6 +1,9 @@
 import { ContactIcon } from "../ContactIcon";
 import { toTemplateExternalHref } from "../resume-template-data";
 import type { GepflegtHeaderProps } from "./gepflegt.types";
+import { resolveResumeHeading } from "../../../../shared/resumeHeading";
+import { formatResumeAddress, formatResumeBirth, getResumePersonalDetails, getResumeLinkContacts } from "../../../../shared/resumePersonalData";
+import { formatPhoneForDisplay, phoneHref } from "../../../../shared/contactPresentation";
 
 export function GepflegtHeader({
   name,
@@ -8,14 +11,13 @@ export function GepflegtHeader({
   atsMode,
   compact = false,
 }: GepflegtHeaderProps) {
-  const location = [profile?.city, profile?.country]
-    .filter(Boolean)
-    .join(", ");
-  const professionalLink =
-    profile?.linkedin || profile?.github || profile?.portfolio || "";
-  const professionalLinkDisplay = professionalLink
-    ? toTemplateExternalHref(professionalLink)
-    : "";
+  const location = formatResumeAddress(profile);
+  const birth = formatResumeBirth(profile);
+  const extras = [
+    ...(birth ? [{ kind: "birth", text: birth, href: "" }] : []),
+    ...getResumePersonalDetails(profile).map((detail) => ({ kind: detail.kind, text: detail.text, href: detail.href })),
+  ];
+  const links = getResumeLinkContacts(profile);
 
   return (
     <header
@@ -23,7 +25,7 @@ export function GepflegtHeader({
       data-element-id="gepflegt.header"
     >
       {compact ? (
-        <p className="gepflegt-header__kicker">Lebenslauf · Fortsetzung</p>
+        <p className="gepflegt-header__kicker">{resolveResumeHeading(profile).continuationKicker}</p>
       ) : null}
       <h1 className="gepflegt-header__name">{name}</h1>
       {profile?.title ? (
@@ -33,13 +35,14 @@ export function GepflegtHeader({
       {!compact &&
       (profile?.phone ||
         profile?.email ||
-        professionalLink ||
-        location) ? (
+        links.length ||
+        location ||
+        extras.length) ? (
         <address className="gepflegt-header__contacts">
           {profile?.phone ? (
-            <a href={`tel:${profile.phone.replace(/[^\d+]/g, "")}`}>
+            <a href={phoneHref(profile.phone)}>
               {!atsMode ? <ContactIcon kind="phone" /> : null}
-              <span>{profile.phone}</span>
+              <span>{formatPhoneForDisplay(profile.phone)}</span>
             </a>
           ) : null}
           {profile?.email ? (
@@ -48,18 +51,29 @@ export function GepflegtHeader({
               <span>{profile.email}</span>
             </a>
           ) : null}
-          {professionalLink ? (
-            <a href={toTemplateExternalHref(professionalLink)}>
-              {!atsMode ? <ContactIcon href={toTemplateExternalHref(professionalLink)} /> : null}
-              <span>{professionalLinkDisplay}</span>
+          {links.map((link) => (
+            <a href={link.href} key={link.kind}>
+              {!atsMode ? <ContactIcon href={link.href} /> : null}
+              <span>{link.value}</span>
             </a>
-          ) : null}
+          ))}
           {location ? (
             <span>
               {!atsMode ? <ContactIcon kind="location" /> : null}
               <span>{location}</span>
             </span>
           ) : null}
+          {extras.map((item, index) => {
+            const content = (
+              <>
+                {!atsMode ? <ContactIcon kind={item.kind} href={item.href} /> : null}
+                <span>{item.text}</span>
+              </>
+            );
+            return item.href
+              ? <a href={item.href} key={`${item.kind}-${index}`}>{content}</a>
+              : <span key={`${item.kind}-${index}`}>{content}</span>;
+          })}
         </address>
       ) : null}
     </header>

@@ -88,7 +88,7 @@ describe("shared strengths output", () => {
     const custom = profileSchema.parse({ ...profile, strengths: [], specialSections: [{ id: crypto.randomUUID(), title: "Eigener Abschnitt", kind: "custom", entries: [{ id: crypto.randomUUID(), title: "Inhalt" }] }] });
     const html = '<main class="pehlione-main"><section class="pehlione-main-section"><h2 class="pehlione-section-heading"><span><svg></svg></span><b>Berufserfahrung</b></h2><p>Erfahrung</p></section><footer>Abschluss</footer></main>';
     const { document } = parseHTML(applyManagedResumeOutput(html, custom, "pehlione_white_blue"));
-    expect(document.querySelector('[data-managed-section="experience"] h2 b')?.textContent).toBe("Berufserfahrung");
+    expect(document.querySelector('[data-managed-section="experience"] h2 b')?.textContent).toBe("Beruflicher Werdegang");
     expect(document.querySelector('[data-managed-section="experience"] h2 svg')).not.toBeNull();
     expect(document.querySelector("main")?.lastElementChild?.tagName).toBe("FOOTER");
     expect(document.querySelector('[data-custom-role="heading-label"]')?.textContent).toBe("Eigener Abschnitt");

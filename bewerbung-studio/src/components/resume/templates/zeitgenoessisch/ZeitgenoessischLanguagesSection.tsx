@@ -5,6 +5,7 @@ import {
 } from "./zeitgenoessisch.model";
 import { ZeitgenoessischSectionHeading } from "./ZeitgenoessischSectionHeading";
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
+import { LanguageLevelText } from "../LanguageLevelText";
 
 export function ZeitgenoessischLanguagesSection({
   profile,
@@ -34,7 +35,7 @@ export function ZeitgenoessischLanguagesSection({
               <p>{language.raw}</p>
             ) : (
               <div>
-                <h3>{language.name}</h3>
+                <h3>{language.name}<LanguageLevelText level={language.level} /></h3>
                 <span
                   className="zeitgenoessisch-language__dots"
                   aria-label={`${language.name}: ${language.level}`}

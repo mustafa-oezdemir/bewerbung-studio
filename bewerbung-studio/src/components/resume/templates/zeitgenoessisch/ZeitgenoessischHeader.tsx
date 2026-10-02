@@ -3,6 +3,9 @@ import {
 } from "./zeitgenoessisch.model";
 import type { ZeitgenoessischHeaderProps } from "./zeitgenoessisch.types";
 import { ZeitgenoessischPhoto } from "./ZeitgenoessischPhoto";
+import { resolveResumeHeading } from "../../../../shared/resumeHeading";
+import { formatResumeAddress, formatResumeBirth, getResumePersonalDetails, getResumeLinkContacts } from "../../../../shared/resumePersonalData";
+import { formatPhoneForDisplay, phoneHref } from "../../../../shared/contactPresentation";
 
 export function ZeitgenoessischHeader({
   profile,
@@ -11,16 +14,13 @@ export function ZeitgenoessischHeader({
   compact = false,
   atsMode = false,
 }: ZeitgenoessischHeaderProps) {
-  const location = [profile?.postalCode, profile?.city, profile?.country]
-    .filter(Boolean)
-    .join(" ");
+  const location = formatResumeAddress(profile, { postalCode: true });
+  const birth = formatResumeBirth(profile);
   const contacts = [
     {
       label: "Telefon",
-      value: profile?.phone,
-      href: profile?.phone
-        ? `tel:${profile.phone.replace(/[^\d+]/g, "")}`
-        : "",
+      value: formatPhoneForDisplay(profile?.phone),
+      href: phoneHref(profile?.phone),
     },
     {
       label: "E-Mail",
@@ -28,20 +28,9 @@ export function ZeitgenoessischHeader({
       href: profile?.email ? `mailto:${profile.email}` : "",
     },
     { label: "Wohnort", value: location, href: "" },
-    {
-      label: "LinkedIn",
-      value: profile?.linkedin,
-      href: profile?.linkedin
-        ? toZeitgenoessischExternalHref(profile.linkedin)
-        : "",
-    },
-    {
-      label: "Portfolio",
-      value: profile?.portfolio,
-      href: profile?.portfolio
-        ? toZeitgenoessischExternalHref(profile.portfolio)
-        : "",
-    },
+    ...getResumeLinkContacts(profile).map((link) => ({ label: link.label, value: link.value, href: link.href })),
+    { label: "Geboren", value: birth, href: "" },
+    ...getResumePersonalDetails(profile).map((detail) => ({ label: detail.label, value: detail.value, href: detail.href })),
   ].filter((contact) => contact.value?.trim());
 
   return (
@@ -55,7 +44,7 @@ export function ZeitgenoessischHeader({
       <div className="zeitgenoessisch-header__identity">
         {compact ? (
           <p className="zeitgenoessisch-header__kicker">
-            Lebenslauf · Fortsetzung
+            {resolveResumeHeading(profile).continuationKicker}
           </p>
         ) : null}
         <h1>{name}</h1>

@@ -70,7 +70,7 @@
   position: relative;
   z-index: 2;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 28mm;
+  grid-template-columns: minmax(0, 1fr) calc(28mm * var(--resume-photo-scale, 1));
   gap: 10mm;
   align-items: start;
   min-height: 36mm;
@@ -129,8 +129,8 @@
 }
 
 .stilvoll-header figure {
-  width: 26mm;
-  height: 26mm;
+  width: calc(26mm * var(--resume-photo-scale, 1));
+  height: calc(26mm * var(--resume-photo-scale, 1));
   margin: 0;
   overflow: hidden;
   border-radius: 1.5mm;

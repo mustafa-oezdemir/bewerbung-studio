@@ -13,6 +13,10 @@ import { getTemplateKnowledge, parseTemplateStrengths, resolveTemplateSummary } 
 import type { ApplicantProfile } from "../../../../shared/schema";
 import type { ResumePagePlan } from "../../../../shared/documentPagination";
 import { resolveResumeClosingLine } from "../../../../shared/resumeClosing";
+import { interestEntryText } from "../../../../shared/resumeCustomSections";
+import { resolveResumeHeading } from "../../../../shared/resumeHeading";
+import { resolveEducationPresentation } from "../../../../shared/resumeEducation";
+import { resolveExperience } from "../../../../shared/resumeCareer";
 
 import { groupPehlioneCompetencies } from "../../../../shared/pehlioneCompetencies";
 import {
@@ -29,6 +33,7 @@ import {
 import { getProfileMediaSource } from "../../../../shared/profileMedia";
 import { getPehlioneContacts, renderPehlioneContacts, pehlioneContactsCss } from "../../../../shared/pehlioneContacts";
 import { pehlioneBlueprintMarkup } from "../../../../shared/pehlioneBlueprint";
+import { getPehlioneNativeVariables } from "../../../../shared/pehlioneAppearance";
 import "./pehlione.css";
 import "./pehlione-blocks.css";
 import "./pehlione-white.css";
@@ -103,8 +108,9 @@ export function PehlioneResume({
   const mainKnowledgeGroups = visibleKnowledgeGroups.filter((group) => group.slot !== "sidebar");
   const closing = profile?.resumeClosing ?? { showPlace: true, showDate: true, showSignature: true };
   const closingLine = profile ? resolveResumeClosingLine(profile, closingDate, (value) => value).text : "";
-  const signatureSource = getProfileMediaSource(profile?.signaturePath);
+  const signatureSource = atsMode ? null : getProfileMediaSource(profile?.signaturePath);
   const style = {
+    ...getPehlioneNativeVariables(templateId),
     "--pehlione-primary": accentColor,
     "--pehlione-accent": secondaryColor,
     "--pehlione-column-width": `${(profile?.resumeColumnRatio ?? 30) * 2.1}mm`,
@@ -133,24 +139,31 @@ export function PehlioneResume({
     kind: "experience" | "education",
   ) => (
     <div className="pehlione-career-list">
-      {items.map((item) => (
+      {items.map((item) => {
+        const educationView = kind === "education"
+          ? resolveEducationPresentation(item as ApplicantProfile["education"][number]) : null;
+        const experienceView = kind === "experience" ? resolveExperience(item as ApplicantProfile["experiences"][number]) : null;
+        const location = educationView?.location ?? experienceView?.location ?? item.city;
+        const period = educationView?.dateRange ?? experienceView?.period ?? `${item.from} – ${item.to}`;
+        return (
         <article className="pehlione-career-entry" key={item.id}>
           {templateId === "pehlione_white_blue" ? <div className="pehlione-career-entry__meta">
-            <p className="pehlione-career-entry__period">{item.from} – {item.to}</p>
-            {item.city ? <small className="pehlione-career-entry__location">{item.city}</small> : null}
-          </div> : <p className="pehlione-career-entry__period">{item.from} – {item.to}</p>}
+            <p className="pehlione-career-entry__period">{period}</p>
+            {location ? <small className="pehlione-career-entry__location">{location}</small> : null}
+          </div> : <p className="pehlione-career-entry__period">{period}</p>}
           <div>
-            <h3>{kind === "experience" ? (item as ApplicantProfile["experiences"][number]).role : (item as ApplicantProfile["education"][number]).degree}</h3>
+            <h3>{educationView?.title ?? experienceView?.role}</h3>
             <p className="pehlione-career-entry__organisation">
-              {kind === "experience" ? (item as ApplicantProfile["experiences"][number]).company : (item as ApplicantProfile["education"][number]).institution}
-              {templateId === "pehlione_white" && item.city ? ` · ${item.city}` : ""}
+              {educationView?.institution ?? experienceView?.organization}
+              {templateId === "pehlione_white" && location ? ` · ${location}` : ""}
             </p>
-            {kind === "experience" && (item as ApplicantProfile["experiences"][number]).achievements.filter(Boolean).length ? (
-              <ul>{(item as ApplicantProfile["experiences"][number]).achievements.filter(Boolean).slice(0, 5).map((entry) => <li key={entry}>{entry}</li>)}</ul>
+            {experienceView?.bullets.length ? (
+              <ul>{experienceView.bullets.map((entry, index) => <li key={index}>{entry}</li>)}</ul>
             ) : null}
+            {educationView?.details.length ? <ul>{educationView.details.map((entry, index) => <li key={index}>{entry}</li>)}</ul> : null}
           </div>
         </article>
-      ))}
+      );})}
     </div>
   );
 
@@ -166,7 +179,7 @@ export function PehlioneResume({
         continuation ? (
           <aside className="pehlione-sidebar pehlione-sidebar--continuation">
             <div className="pehlione-continuation-intro">
-              <p>Lebenslauf</p>
+              <p>{resolveResumeHeading(profile).kicker}</p>
               <h2>{name}</h2>
               {profile?.title ? <span>{profile.title}</span> : null}
               <i aria-hidden="true" />
@@ -240,13 +253,13 @@ export function PehlioneResume({
         {lastPage && knowledgeSection.visible && mainKnowledgeGroups.map((group) => visibleBlockItems(group).length ? <section className={`pehlione-main-section pehlione-flex-block renderer-${group.rendererType}`} key={group.id} style={{ breakBefore: group.pageBreakBefore ? "page" : "auto" }}>{heading(group.semanticType === "training" || group.semanticType === "certificates" ? <GraduationCap /> : <Lightbulb />, group.title)}{blockContent(group)}</section> : null)}
         {lastPage && sections.certifications && profile?.certifications.length && !mainKnowledgeGroups.some((group) => ["training", "certificates"].includes(group.semanticType)) ? <section className="pehlione-main-section pehlione-training">{heading(<GraduationCap />, "Weiterbildungen")}<ul>{profile.certifications.map((item) => <li key={item}>{item}</li>)}</ul></section> : null}
         {atsMode && lastPage && sections.languages && profile?.languages.filter(Boolean).length ? <section className="pehlione-main-section pehlione-training">{heading(<Languages />, "Sprachen")}<ul>{profile.languages.filter(Boolean).map((item) => <li key={item}>{item}</li>)}</ul></section> : null}
-        {lastPage && interestsSection.visible && profile?.specialSections.filter((section) => section.kind === "interests" && section.isVisible).map((section) => (
-          <section className="pehlione-main-section pehlione-training" data-element-id={`special.${section.id}`} key={section.id}>{heading(<Lightbulb />, section.title)}<ul>{section.entries.map((entry) => <li key={entry.id}>{entry.title || entry.description}</li>)}</ul></section>
+        {lastPage && profile?.specialSections.filter((section) => section.kind === "interests" && section.isVisible && section.entries.some(entry => interestEntryText(entry))).map((section) => (
+          <section className="pehlione-main-section pehlione-training" data-element-id={`special.${section.id}`} key={section.id}>{heading(<Lightbulb />, section.title || interestsSection.customTitle || "Interessen und Hobbys")}<ul>{section.entries.filter(entry => interestEntryText(entry)).map((entry) => <li key={entry.id}>{interestEntryText(entry)}</li>)}</ul></section>
         ))}
-        {lastPage && closingSection.visible && (closing.showPlace || closing.showDate || closing.showSignature) ? (
+        {lastPage && closingSection.visible && (closingLine || (closing.showSignature && signatureSource)) ? (
           <footer className="pehlione-closing">
-            {(closing.showPlace || closing.showDate) ? <p>{closingLine}</p> : null}
-            {closing.showSignature ? (
+            {closingLine ? <p>{closingLine}</p> : null}
+            {closing.showSignature && signatureSource ? (
               <div className="pehlione-closing__signer">
                 {signatureSource ? <img src={signatureSource} alt="Unterschrift" /> : null}
                 <strong>{name}</strong>

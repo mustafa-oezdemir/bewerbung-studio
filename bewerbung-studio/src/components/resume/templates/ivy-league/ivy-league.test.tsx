@@ -116,7 +116,7 @@ const renderResume = ({
 } = {}) =>
   renderToStaticMarkup(
     <IvyLeagueResume
-      profile={profile}
+      profile={{ ...profile, summary: resumeProfile }}
       name={name}
       atsMode={atsMode}
       plan={plan}
@@ -148,7 +148,7 @@ describe("Ivy League page model", () => {
   });
 
   it("normalizes summaries, dates, links, strengths, and languages", () => {
-    expect(resolveIvyLeagueSummary(profile, "Gezielt")).toBe("Gezielt");
+    expect(resolveIvyLeagueSummary(profile, "Gezielt")).toBe(profile.summary);
     expect(resolveIvyLeagueSummary(profile, " ")).toBe(profile.summary);
     expect(formatIvyLeagueDateRange("2019", "2023")).toBe("2019 – 2023");
     expect(toIvyLeagueExternalHref("javascript:alert(1)")).toBe(
@@ -227,9 +227,9 @@ describe("Ivy League rendering", () => {
   it("renders the ATS document linearly without decorative elements", () => {
     const markup = renderResume({ atsMode: true });
     const sectionOrder = [
-      "Zusammenfassung",
-      "Berufserfahrung",
-      "Ausbildung",
+      "Kurzprofil",
+      "Beruflicher Werdegang",
+      "Bildungsweg",
       "Kenntnisse",
       "Sprachen",
       "Stärken",

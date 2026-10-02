@@ -1,5 +1,5 @@
 import type { ApplicantProfile } from "./schema";
-import { getManagerSections, updateManagerSection } from "../features/resume-sections/resume-manager";
+import { getManagerSections } from "../features/resume-sections/resume-manager";
 import { resolveKnowledgeGroups } from "../features/resume-sections/resume-section-system";
 import { getResumeEditorSettings } from "../features/resume-sections/resume-editor-settings";
 import { resumePresentationSchema, type ResumePresentation } from "./resumePresentationSchema";
@@ -33,24 +33,18 @@ export const resolveResumePresentation = (
   const presentation = resumePresentationSchema.parse(overrides);
   let projected: ApplicantProfile = {
     ...profile,
-    resumePersonalFieldVisibility: { ...profile.resumePersonalFieldVisibility, ...presentation.personalFields },
-    resumeClosing: { ...profile.resumeClosing,
-      showPlace: presentation.closing?.showPlace ?? profile.resumeClosing.showPlace,
-      showDate: presentation.closing?.showDate ?? profile.resumeClosing.showDate,
-      showSignature: presentation.closing?.showSignature ?? profile.resumeClosing.showSignature },
     resumeColumnRatio: presentation.sidebarWidthPercent ?? profile.resumeColumnRatio,
-    resumeKnowledgeContainer: { showTitle: presentation.showKnowledgeTitle ?? profile.resumeKnowledgeContainer.showTitle },
   };
   if (presentation.blocks) {
     projected.resumeKnowledgeGroups = resolveKnowledgeGroups(id, profile.resumeKnowledgeGroups)
-      .map((block) => ({ ...block, ...presentation.blocks?.[block.id] }));
-  }
-  for (const [sectionId, settings] of Object.entries(presentation.sections ?? {})) {
-    const change = {
-      ...(settings.title !== undefined ? { title: settings.title } : {}),
-      ...(settings.visible !== undefined ? { visible: settings.visible } : {}),
-    };
-    if (Object.keys(change).length) projected = updateManagerSection(projected, id, sectionId, change);
+      .map((block) => {
+        const override = presentation.blocks?.[block.id];
+        return override ? { ...block,
+          rendererType: override.rendererType ?? block.rendererType,
+          slot: override.slot ?? block.slot,
+          pageBreakBefore: override.pageBreakBefore ?? block.pageBreakBefore,
+        } : block;
+      });
   }
   if (Object.values(presentation.sections ?? {}).some((settings) => settings.order !== undefined || settings.zone !== undefined)) {
     const ordered = getManagerSections(projected, id).filter((section) => !section.fixed)

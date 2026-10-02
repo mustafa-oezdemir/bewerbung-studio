@@ -8,6 +8,8 @@ import {
 import { GepflegtSidebarPhoto } from "./GepflegtSidebarPhoto";
 import type { GepflegtSidebarProps } from "./gepflegt.types";
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
+import { resolveResumeHeading } from "../../../../shared/resumeHeading";
+import { LanguageLevelText } from "../LanguageLevelText";
 
 export function GepflegtSidebar({
   profile,
@@ -34,7 +36,7 @@ export function GepflegtSidebar({
     return (
       <aside className="gepflegt-sidebar gepflegt-sidebar--continuation">
         <div className="gepflegt-sidebar__continuation">
-          <p>Lebenslauf</p>
+          <p>{resolveResumeHeading(profile).kicker}</p>
           <h2>{name}</h2>
           {profile?.title ? <span>{profile.title}</span> : null}
           <i aria-hidden="true" />
@@ -100,7 +102,7 @@ export function GepflegtSidebar({
             {languages.map((language) => (
               <li key={language.raw}>
                 <div>
-                  <strong>{language.name}</strong>
+                  <strong>{language.name}<LanguageLevelText level={language.level} /></strong>
                   {atsMode ? <span>{language.level}</span> : null}
                 </div>
                 {!atsMode ? (

@@ -79,7 +79,7 @@ const render = (templateId: string, source = profile) => {
       {createElement(component, {
         profile: resolved.profile, templateId, name: "Mina Kaya", atsMode: false, plan, totalPages: resolved.pagePlan.length,
         accentColor: template.accent, secondaryColor: template.secondary, photoSource: null,
-        resumeProfile: resolved.paginationSummary, sections: resolved.sections, backgroundId: "white",
+        resumeProfile: resolved.summary, sections: resolved.sections, backgroundId: "white",
       })}
     </ManagedResumePreview>,
   )}</body></html>`).document.body);

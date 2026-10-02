@@ -2,8 +2,10 @@ import {
   formatTemplateDateRange,
   type TemplateCareerItem,
 } from "../resume-template-data";
+import { toTemplateEducationItem } from "../../../../shared/resumeEducation";
 import type { GepflegtMainContentProps } from "./gepflegt.types";
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
+import { toTemplateExperienceItem } from "../../../../shared/resumeCareer";
 
 function GepflegtCareerEntry({ item }: { item: TemplateCareerItem }) {
   return (
@@ -32,28 +34,8 @@ export function GepflegtMainContent({
   atsMode,
   isContinuation,
 }: GepflegtMainContentProps) {
-  const experiences: TemplateCareerItem[] = (profile?.experiences ?? []).map(
-    (entry) => ({
-      id: entry.id,
-      from: entry.from,
-      to: entry.to,
-      title: entry.role,
-      organization: entry.company,
-      city: entry.city,
-      achievements: entry.achievements.filter(Boolean),
-    }),
-  );
-  const education: TemplateCareerItem[] = (profile?.education ?? []).map(
-    (entry) => ({
-      id: entry.id,
-      from: entry.from,
-      to: entry.to,
-      title: entry.degree,
-      organization: entry.institution,
-      city: entry.city,
-      achievements: [],
-    }),
-  );
+  const experiences: TemplateCareerItem[] = (profile?.experiences ?? []).map(toTemplateExperienceItem);
+  const education: TemplateCareerItem[] = (profile?.education ?? []).map(toTemplateEducationItem);
 
   return (
     <main className="gepflegt-main">

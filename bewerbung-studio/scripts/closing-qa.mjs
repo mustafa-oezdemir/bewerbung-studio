@@ -20,6 +20,8 @@ try {
     const source = await fs.readFile(`tmp/section-inheritance-qa/${id}-visual-${surface}.html`, 'utf8');
     const { document } = parseHTML(source);
     const page = surface === 'pdf' ? document.querySelector('.cv-sheet') : document.querySelector('.managed-resume-preview');
+    // Fixtures already contain their own closing. Exercise only the one created for this QA case.
+    page.querySelectorAll('[data-resume-closing],footer.pehlione-closing,footer.pehlione-pdf-closing').forEach(node => node.remove());
     const main = page.querySelector('.pehlione-main,.pehlione-pdf-main,.elegant-main,.elegant-pdf-main,.modern-resume-left-column,.modern-pdf-left,.zweispaltig-main,.zweispaltig-pdf-main,.zeitgenoessisch-main,.zeit-pdf-main,.kreativ-main,.kreativ-pdf-main,.gepflegt-main,.gepflegt-pdf-main,.kompakt-left,.kompakt-pdf-columns>main,main')
       ?? page.querySelector('[data-managed-section="experience"]')?.parentElement ?? page;
     const settings = { ...defaultDocumentDesign, resumePresentation: { closing: { placement, alignment } } };

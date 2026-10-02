@@ -123,6 +123,24 @@ describe("Lebenslauf design layers", () => {
     expect(explicit.effective.tokens.spacing.sectionTitleGapMm).toBe(6);
   });
 
+  it("resolves a legacy title gap through the same output and pagination design as the panel", () => {
+    const own = { ...settingsOf("klassisch"), resumeAppearance: { sectionHeadingMarginAfterMm: 5 } };
+    const shared = { cvOverrides: { spacing: { sectionTitleGapMm: 4 } } };
+    expect(resolveResumeDesignView("klassisch", own, shared).effective.tokens.spacing.sectionTitleGapMm).toBe(5);
+    const resolved = resolveCvDocument({ profile: undefined, templateId: "klassisch", settings: own, globalDesign: shared });
+    expect(resolved.design.spacing.sectionTitleGapMm).toBe(5);
+    expect(resolved.settings.cvOverrides?.spacing?.sectionTitleGapMm).toBeUndefined();
+
+    const globalAlias = { resumeAppearance: { sectionHeadingMarginAfterMm: 3.5 } };
+    const inherited = resolveCvDocument({ profile: undefined, templateId: "klassisch", settings: settingsOf("klassisch"), globalDesign: globalAlias });
+    expect(resolveResumeDesignView("klassisch", settingsOf("klassisch"), globalAlias).effective.tokens.spacing.sectionTitleGapMm).toBe(3.5);
+    expect(inherited.design.spacing.sectionTitleGapMm).toBe(3.5);
+    const ownToken = { ...settingsOf("klassisch"), cvOverrides: { spacing: { sectionTitleGapMm: 6 } } };
+    const ownResolved = resolveCvDocument({ profile: undefined, templateId: "klassisch", settings: ownToken, globalDesign: globalAlias });
+    expect(ownResolved.design.spacing.sectionTitleGapMm).toBe(6);
+    expect(ownResolved.settings.resumeAppearance?.sectionHeadingMarginAfterMm).toBeUndefined();
+  });
+
   describe("appearance", () => {
     it("resolves the real alignment of the template for the value 'Vorlage'", () => {
       for (const { id } of templates) {

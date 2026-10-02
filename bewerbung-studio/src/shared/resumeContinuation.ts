@@ -1,6 +1,8 @@
 // Shared quality rules for every résumé template. They run on the DOM that both
 // the React preview and the PDF produce, so a rule fixed here is fixed everywhere.
 
+import { defaultResumeHeadingTitle } from "../features/resume-sections/resume-section-system";
+
 export const resumeContinuationCss = `
 [data-resume-continuation]{min-height:0!important;height:auto!important;margin:0 0 5mm!important;padding-bottom:2.5mm!important}
 [data-resume-continuation] h1{margin:0!important;font-size:15pt!important;line-height:1.1!important;letter-spacing:0!important}
@@ -14,10 +16,10 @@ export const resumeContinuationCss = `
 [data-pehlione-continuation-header] h1{font-size:17pt!important;line-height:1.05!important;letter-spacing:.02em!important;text-transform:uppercase!important}
 [data-pehlione-continuation-header] h2{margin-top:1mm!important;font-size:8.5pt!important;line-height:1.15!important}
 [data-pehlione-continuation-header] [data-resume-header-extra-contact]{margin-top:1.5mm;font-size:6.5pt}
-aside[class*="continuation"]{display:block!important;height:auto!important;min-height:0!important;padding-top:12mm!important}
+aside[class*="continuation"]{display:block!important;height:auto!important;min-height:0!important}
 [data-managed-section]>:is(h2,h3){break-after:avoid;page-break-after:avoid}
 [data-managed-section] :is(h4,h5){break-after:avoid;page-break-after:avoid}
-[data-managed-section] li{break-inside:avoid;page-break-inside:avoid;orphans:2;widows:2}
+[data-managed-section] li{break-inside:auto;page-break-inside:auto;orphans:2;widows:2}
 [data-resume-nowrap]{white-space:nowrap!important}
 `;
 
@@ -39,7 +41,9 @@ export const ensureResumeHeaderContacts = (
   const email = contact.email?.trim();
   const phone = contact.phone?.trim();
   const missingEmail = email && !header.textContent?.includes(email);
-  const missingPhone = phone && !header.textContent?.includes(phone);
+  // The header shows the number formatted ("+49 176 93153406"): compare the digits, not the stored spelling.
+  const digits = (value: string) => value.replace(/\D/g, "");
+  const missingPhone = phone && !digits(header.textContent ?? "").includes(digits(phone));
   if (!missingEmail && !missingPhone) return;
   const details = header.ownerDocument.createElement("address");
   details.setAttribute("data-resume-header-extra-contact", "");
@@ -73,6 +77,8 @@ export const normalizeContinuationHeader = (
   pageNumber: number,
   totalPages: number,
   contact?: { email?: string; phone?: string },
+  /** The resolved Überschrift (`resolveResumeHeading(profile).kicker`); the name stays in the h1 beside it. */
+  headingLabel: string = defaultResumeHeadingTitle,
 ): void => {
   const header = root.querySelector(continuationHeaderSelector);
   if (!header || header.hasAttribute("data-resume-continuation")) return;
@@ -106,7 +112,7 @@ export const normalizeContinuationHeader = (
   if (!header.classList.contains("zweispaltig-header") && !header.classList.contains("zweispaltig-pdf-header")) {
     const meta = header.ownerDocument.createElement("p");
     meta.setAttribute("data-resume-continuation-meta", "");
-    meta.textContent = `Lebenslauf · Seite ${pageNumber} von ${totalPages}`;
+    meta.textContent = `${headingLabel} · Seite ${pageNumber} von ${totalPages}`;
     (container.querySelector("[data-resume-continuation-contact]") ?? name).after(meta);
   }
   header.setAttribute("data-resume-continuation", "");

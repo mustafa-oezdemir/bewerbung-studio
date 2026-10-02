@@ -9,8 +9,8 @@ import {
   getCefrLanguageLevel,
   getCefrLevelByScore,
   getLanguageLevelScore,
+  isNativeLanguageLevel,
   parseLanguageEntry,
-  type CefrLanguageLevel,
 } from "../../features/languages/language-levels";
 
 type Props = {
@@ -22,7 +22,7 @@ export function LanguageLevelEditor({ values, onChange }: Props) {
   const updateEntry = (
     index: number,
     name: string,
-    level: CefrLanguageLevel,
+    level: string,
   ) =>
     onChange(
       values.map((value, currentIndex) =>
@@ -46,7 +46,7 @@ export function LanguageLevelEditor({ values, onChange }: Props) {
         <button
           className="button secondary small-button"
           type="button"
-          onClick={() => onChange([...values, "Neue Sprache – B1"])}
+          onClick={() => onChange([...values, ""])}
         >
           <Plus size={14} /> Sprache hinzufügen
         </button>
@@ -56,6 +56,7 @@ export function LanguageLevelEditor({ values, onChange }: Props) {
         {values.map((value, index) => {
           const language = parseLanguageEntry(value);
           const level = getCefrLanguageLevel(language.level);
+          const native = isNativeLanguageLevel(language.level);
           const score = getLanguageLevelScore(level);
           const progress = ((score - 1) / (cefrLanguageLevelCount - 1)) * 100;
 
@@ -68,7 +69,7 @@ export function LanguageLevelEditor({ values, onChange }: Props) {
                   aria-label={`Sprache ${index + 1}`}
                   value={language.name}
                   onChange={(event) =>
-                    updateEntry(index, event.target.value, level)
+                    updateEntry(index, event.target.value, language.level || level)
                   }
                 />
               </label>
@@ -76,12 +77,12 @@ export function LanguageLevelEditor({ values, onChange }: Props) {
                 <span>GER-Niveau</span>
                 <select
                   aria-label={`GER-Niveau für ${language.name || `Sprache ${index + 1}`}`}
-                  value={level}
+                  value={native ? "Muttersprache" : level}
                   onChange={(event) =>
                     updateEntry(
                       index,
                       language.name,
-                      event.target.value as CefrLanguageLevel,
+                      event.target.value,
                     )
                   }
                 >
@@ -90,16 +91,17 @@ export function LanguageLevelEditor({ values, onChange }: Props) {
                       {entry.label}
                     </option>
                   ))}
+                  <option value="Muttersprache">Muttersprache</option>
                 </select>
               </label>
               <div className="language-level-control">
                 <div className="language-level-control__label">
                   <span>Sprachniveau einstellen</span>
-                  <b>{level}</b>
+                  <b>{native ? "Muttersprache" : level}</b>
                 </div>
                 <input
                   aria-label={`Sprachniveau für ${language.name || `Sprache ${index + 1}`} einstellen`}
-                  aria-valuetext={level}
+                  aria-valuetext={native ? "Muttersprache" : level}
                   className="language-level-slider"
                   min="1"
                   max={cefrLanguageLevelCount}

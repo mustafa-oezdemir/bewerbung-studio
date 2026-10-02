@@ -159,7 +159,7 @@
 .modern-resume-header {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 29mm;
+  grid-template-columns: minmax(0, 1fr) calc(29mm * var(--resume-photo-scale, 1));
   column-gap: 9mm;
   align-items: start;
   min-height: 25mm;
@@ -228,8 +228,8 @@
 }
 
 .modern-resume-header__photo {
-  width: 25mm;
-  height: 25mm;
+  width: calc(25mm * var(--resume-photo-scale, 1));
+  height: calc(25mm * var(--resume-photo-scale, 1));
   justify-self: end;
   margin-top: 0;
   overflow: hidden;
@@ -392,10 +392,10 @@
 .modern-contact-section--inline
   .modern-contact-item[data-contact-kind="linkedin"]
   .modern-contact-item__value {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow-wrap: normal;
+  /* A long link wraps; it is never cut off. */
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .modern-contact-item__value a {
@@ -444,8 +444,9 @@
   margin: 0;
   padding: 0;
   color: var(--modern-text);
-  font-size: var(--modern-body-size);
-  line-height: var(--modern-line-height);
+  /* The page's body size, like the PDF's summary paragraph. */
+  font-size: var(--doc-body-size);
+  line-height: var(--doc-line-height);
   overflow-wrap: anywhere;
 }
 

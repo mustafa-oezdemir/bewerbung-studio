@@ -7,6 +7,8 @@ import type { ElegantSidebarProps } from "./elegant.types";
 import { ElegantKnowledge } from "./ElegantKnowledge";
 import { ElegantStrengths } from "./ElegantStrengths";
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
+import { resolveResumeHeading } from "../../../../shared/resumeHeading";
+import { LanguageLevelText } from "../LanguageLevelText";
 
 export function ElegantSidebar({
   profile,
@@ -35,7 +37,7 @@ export function ElegantSidebar({
     >
       {isContinuation ? (
         <div className="elegant-sidebar__continuation">
-          <p>Lebenslauf</p>
+          <p>{resolveResumeHeading(profile).kicker}</p>
           <h2>{name}</h2>
           {profile?.title ? <span>{profile.title}</span> : null}
           <i aria-hidden="true" />
@@ -94,7 +96,7 @@ export function ElegantSidebar({
               <div className="elegant-languages">
                 {languages.map((language) => (
                   <article className="elegant-language" key={language.raw}>
-                    <strong>{language.name}</strong>
+                    <strong>{language.name}<LanguageLevelText level={language.level} /></strong>
                     <span className="elegant-language__dots" aria-label={`${language.name}: ${language.level}`} role="img">
                       {Array.from({ length: 6 }, (_, index) => (
                         <i

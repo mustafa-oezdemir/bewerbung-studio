@@ -1,6 +1,7 @@
-import { keepResumeLayoutOverrides, resolveResumePresentation, separateResumeDraft } from "../shared/resumePresentation";
+import { resolveResumePresentation } from "../shared/resumePresentation";
 import { applyResumeSpacingPreset } from "../shared/resumeSpacing";
 import { resolveCvDocument } from "../shared/resolveCvDocument";
+import { getResumeSectionTitle } from "../features/resume-sections/resume-sections";
 import type { CvDesignTokens, ResumeDesignLayer } from "../shared/cvDesignSchema";
 import type { ResumeAppearance } from "../shared/resumeAppearance";
 import { applyCustomCvDesign, createCustomCvDesign, duplicateCustomCvDesign, updateCustomCvDesign } from "../shared/customCvDesign";
@@ -19,7 +20,7 @@ import {
   type DesignScope,
   type DocumentDesignDraft,
 } from "../shared/documentEditorState";
-import { normalizeResumeDataDraft } from "../components/resume/ResumeDataEditor";
+import { normalizeApplicantProfileForSave, rebaseApplicantProfileDraft, validateApplicantProfile } from "../shared/profileEditor";
 import { ManagedResumePreview } from "../components/resume/ManagedResumePreview";
 import { ResumeDesignPanel } from "../components/resume/ResumeDesignPanel";
 import { ColorCard } from "../components/document/ColorCard";
@@ -97,6 +98,7 @@ import {
   type ResumePagePlan,
 } from "../shared/documentPagination";
 import { getResumeIdentityVisibilityCss } from "../shared/resumeIdentityVisibility";
+import { resolveResumeHeading } from "../shared/resumeHeading";
 import {
   defaultDocumentDesign,
   documentFonts,
@@ -132,6 +134,7 @@ import {
   templates,
 } from "../shared/templates";
 import { selectCurrentApplication, useAppStore } from "../store/useAppStore";
+import { resolveExperience } from "../shared/resumeCareer";
 
 type Tab = "deckblatt" | "anschreiben" | "email" | "lebenslauf";
 
@@ -190,6 +193,8 @@ type ResumePreviewPageProps = {
   application: Application;
   atsMode: boolean;
   documents: DocumentDraft;
+  /** The effective Kurzprofil (`resolveCvDocument`): the Bewerbung's text, else the profile's. */
+  summary: string;
   name: string;
   plan: ResumePagePlan;
   profile: ApplicantProfile | undefined;
@@ -205,6 +210,7 @@ function ResumePreviewPage({
   plan,
   profile,
   sections,
+  summary,
   totalPages,
 }: ResumePreviewPageProps) {
   const experienceIds = new Set(
@@ -223,7 +229,8 @@ function ResumePreviewPage({
   const education = (profile?.education ?? []).filter((entry) =>
     educationIds.has(entry.id),
   );
-  const isContinuation = plan.pageNumber === 2;
+  const isContinuation = plan.pageNumber > 1;
+  const heading = resolveResumeHeading(profile);
   const initials = profile
     ? `${profile.firstName[0] ?? ""}${profile.lastName[0] ?? ""}`
     : "VN";
@@ -246,7 +253,7 @@ function ResumePreviewPage({
       <header className="cv-preview-header">
         <div>
           <p className="paper-kicker">
-            {isContinuation ? "Lebenslauf · Fortsetzung" : "Lebenslauf"}
+            {isContinuation ? heading.continuationKicker : heading.kicker}
           </p>
           <h1>{name}</h1>
           {getProfessionalTitle(profile) ? <h2>{getProfessionalTitle(profile)}</h2> : null}
@@ -263,14 +270,10 @@ function ResumePreviewPage({
       </header>
       {atsMode && !isContinuation ? (
         <aside className="cv-preview-side">
-          {sections.profile && (
+          {sections.profile && summary && (
             <section>
-              <h3>Zusammenfassung</h3>
-              <p>
-                {documents.resumeProfile ||
-                  profile?.summary ||
-                  "Kurzprofil ergänzen …"}
-              </p>
+              <h3>{getResumeSectionTitle(profile, "summary")}</h3>
+              <p>{summary}</p>
             </section>
           )}
           {sections.skills && (
@@ -307,25 +310,27 @@ function ResumePreviewPage({
       <main className="cv-preview-main">
         {sections.experience && experiences.length ? (
           <section>
-            <h3>Berufserfahrung{isContinuation ? " · Fortsetzung" : ""}</h3>
-            {experiences.map((entry) => (
+            <h3>{getResumeSectionTitle(profile, "experience")}{isContinuation ? " · Fortsetzung" : ""}</h3>
+            {experiences.map(resolveExperience).map((entry) => (
               <article className="resume-entry" key={entry.id}>
                 <div className="resume-entry-title">
                   <div>
                     <strong>{entry.role}</strong>
-                    <p>{entry.company}</p>
+                    <p>{entry.organization}</p>
                   </div>
                   <small>
-                    {entry.from} – {entry.to}
+                    {entry.period}
                     <br />
-                    {entry.city}
+                    {entry.location}
                   </small>
                 </div>
-                <ul>
-                  {entry.achievements.filter(Boolean).map((achievement) => (
-                    <li key={achievement}>{achievement}</li>
-                  ))}
-                </ul>
+                {entry.bullets.length ? (
+                  <ul>
+                    {entry.bullets.map((bullet, index) => (
+                      <li key={index}>{bullet}</li>
+                    ))}
+                  </ul>
+                ) : null}
               </article>
             ))}
           </section>
@@ -366,14 +371,10 @@ function ResumePreviewPage({
               initials
             )}
           </span>
-          {sections.profile && (
+          {sections.profile && summary && (
             <section>
-              <h3>Zusammenfassung</h3>
-              <p>
-                {documents.resumeProfile ||
-                  profile?.summary ||
-                  "Kurzprofil ergänzen …"}
-              </p>
+              <h3>{getResumeSectionTitle(profile, "summary")}</h3>
+              <p>{summary}</p>
             </section>
           )}
           {sections.skills && (
@@ -440,37 +441,24 @@ export function DocumentsView({
   const [designPanelOpen, setDesignPanelOpen] = useState(true);
   const [customDesignId, setCustomDesignId] = useState<string>();
   const [customDesignName, setCustomDesignName] = useState("");
-  const [resumeSectionPreview, setResumeSectionPreview] = useState<{
-    templateId: string;
-    profile: ApplicantProfile;
-  } | null>(null);
   const [resumeContentDraft, setResumeContentDraft] = useState<ApplicantProfile | null>(null);
+  const resumeBaselineRef = useRef<ApplicantProfile | null>(null);
+  const [profileSaveStatus, setProfileSaveStatus] = useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
   const [resumeEditorRevision, setResumeEditorRevision] = useState(0);
   const [documentPreview, setDocumentPreview] = useState<{
     applicationId: string;
     documents: DocumentDraft;
   } | null>(null);
   const handleResumeSectionPreview = useCallback(
-    (templateId: string, previewProfile: ApplicantProfile | null) => {
-      if (!previewProfile) {
-        setResumeSectionPreview((current) => current?.templateId === templateId ? null : current);
-        return;
-      }
-      const original = profiles.find((item) => item.id === previewProfile.id);
+    (_templateId: string, previewProfile: ApplicantProfile | null) => {
+      if (!previewProfile) return;
+      const original = useAppStore.getState().workspace.profiles.find((item) => item.id === previewProfile.id);
       if (!original) return;
-      const separated = separateResumeDraft(original, previewProfile, templateId);
-      setResumeContentDraft(separated.profile);
-      setResumeSectionPreview({ templateId, profile: previewProfile });
-      setDesign((current) => {
-        if (current.templateId !== templateId) return current;
-        const previous = current.settings.resumePresentation;
-        const combined = keepResumeLayoutOverrides(separated.presentation, previous);
-        const resumePresentation = Object.keys(combined).length ? combined : undefined;
-        if (JSON.stringify(current.settings.resumePresentation) === JSON.stringify(resumePresentation)) return current;
-        return { ...current, settings: { ...current.settings, resumePresentation } };
-      });
+      const dirty = JSON.stringify(previewProfile) !== JSON.stringify(original);
+      setResumeContentDraft(dirty ? previewProfile : null);
+      setProfileSaveStatus((current) => dirty ? "dirty" : current === "saved" ? "saved" : "idle");
     },
-    [profiles],
+    [],
   );
   const [designDraft, setDesign] = useState<DocumentDesignDraft>(() =>
     application
@@ -566,7 +554,6 @@ export function DocumentsView({
     documentPreview,
     fitLetterContent,
     profiles,
-    resumeSectionPreview,
     tab,
   ]);
 
@@ -586,6 +573,20 @@ export function DocumentsView({
     });
   }, [application?.id, persistedDocuments]);
 
+  const boundProfile = application ? resolveApplicationProfile(profiles, application.profileId) : undefined;
+  useEffect(() => {
+    if (!boundProfile) { resumeBaselineRef.current = null; setResumeContentDraft(null); return; }
+    const baseline = resumeBaselineRef.current;
+    if (!baseline || baseline.id !== boundProfile.id) {
+      resumeBaselineRef.current = boundProfile;
+      setResumeContentDraft(null);
+      setProfileSaveStatus("idle");
+    } else if (baseline.updatedAt !== boundProfile.updatedAt) {
+      setResumeContentDraft((current) => current ? rebaseApplicantProfileDraft(baseline, current, boundProfile) : null);
+      resumeBaselineRef.current = boundProfile;
+    }
+  }, [boundProfile?.id, boundProfile?.updatedAt]);
+
   if (!application) {
     return (
       <section className="surface empty-detail">
@@ -597,7 +598,7 @@ export function DocumentsView({
       </section>
     );
   }
-  const profile = resolveApplicationProfile(profiles, application.profileId);
+  const profile = boundProfile;
   const photoSource = getProfileMediaSource(profile?.photoPath);
   const signatureSource = getProfileMediaSource(profile?.signaturePath);
   const docs =
@@ -620,20 +621,14 @@ export function DocumentsView({
     docs.documentListSettings,
   );
   const template = getTemplate(design.templateId);
-  const contentProfile = resumeContentDraft?.id === profile?.id ? resumeContentDraft : profile;
+  const contentProfile = resumeContentDraft && profile && resumeContentDraft.id === profile.id ? resumeContentDraft : profile;
   const editorProfile = resolveResumePresentation(contentProfile, template.id, design.settings.resumePresentation);
-  const renderProfile =
-    resumeSectionPreview?.templateId === template.id &&
-    resumeSectionPreview.profile.id === profile?.id
-      ? resumeSectionPreview.profile
-      : editorProfile;
+  const renderProfile = editorProfile;
   const resolvedCv = resolveCvDocument({
     profile: renderProfile,
     templateId: template.id,
     settings: design.settings,
     resumeProfile: docs.resumeProfile,
-    deckblattStatement: docs.deckblattStatement,
-    jobTitle: application.job.title,
     presentationAlreadyApplied: true,
     application,
     globalDesign: resumeDesignLayer,
@@ -672,7 +667,6 @@ export function DocumentsView({
     settings: design.settings,
   });
   const coverGreeting = docs.coverGreeting || applicationGreeting(application);
-  const pehlioneResumeProfile = resolvedCv.paginationSummary;
   const resumePlan = resolvedCv.pagePlan;
   const letterStatus = getLetterPageStatus(docs);
   const isAtsMode =
@@ -719,9 +713,9 @@ export function DocumentsView({
   const resetResumeDesignScope = (scope: DesignScope) => {
     const hasOwn = Boolean(design.settings.cvOverrides || design.settings.resumeAppearance);
     const message = scope === "global"
-      ? "Alle Lebenslauf-Designanpassungen – für alle Bewerbungen und in dieser Bewerbung – auf die Werte der jeweiligen Vorlage zurücksetzen? Eigene Anpassungen anderer Bewerbungen bleiben erhalten."
+      ? "Die globalen Lebenslauf-Designanpassungen entfernen? Eigene Anpassungen der Bewerbungen bleiben erhalten."
       : "Die eigenen Lebenslauf-Anpassungen dieser Bewerbung entfernen?";
-    if ((scope === "global" ? resumeDesignLayer || hasOwn : hasOwn) && !window.confirm(message)) return;
+    if ((scope === "global" ? resumeDesignLayer : hasOwn) && !window.confirm(message)) return;
     applyDesignEdit(resetResumeDesign({ draft: design, global: resumeDesignLayer }, scope));
   };
   const persistResumeDesignDraft = async () => {
@@ -765,7 +759,7 @@ export function DocumentsView({
     setDesign((current) => applyCustomCvDesign(selected, current));
     setCustomDesignId(selected.id);
     setCustomDesignName(selected.name);
-    setResumeSectionPreview(null);
+    setResumeContentDraft(null);
     setResumeEditorRevision((value) => value + 1);
   };
   const copyCustomDesign = () => {
@@ -788,7 +782,7 @@ export function DocumentsView({
       design.settings.resumePresentation || design.settings.metadataLayout || design.settings.metadataOrder);
     if (changed && !window.confirm("Alle Design-Anpassungen dieses Lebenslaufs auf die Standardwerte der Vorlage zurücksetzen?")) return;
     setDesign(resetDocumentDesign);
-    setResumeSectionPreview(null);
+    setResumeContentDraft(null);
     setResumeEditorRevision((value) => value + 1);
   };
 
@@ -856,13 +850,18 @@ export function DocumentsView({
 
   const saveResumeSections = async (changedProfile: ApplicantProfile) => {
     if (!profile) return;
-    const separated = separateResumeDraft(profile, changedProfile, template.id);
-    const savedProfile = { ...separated.profile, updatedAt: new Date().toISOString() };
+    const latest = useAppStore.getState().workspace.profiles.find((item) => item.id === profile.id) ?? profile;
+    const savedProfile = normalizeApplicantProfileForSave(rebaseApplicantProfileDraft(resumeBaselineRef.current ?? profile, changedProfile, latest));
+    const issue = validateApplicantProfile(savedProfile)[0];
+    if (issue) { window.alert(issue.startsWith("personal:") ? "Bitte Pflichtangaben im Profil prüfen." : issue); return; }
     const snapshot = applicationSnapshot(formRef.current);
-    snapshot.designSettings = { ...snapshot.designSettings,
-      resumePresentation: keepResumeLayoutOverrides(separated.presentation, design.settings.resumePresentation) };
-    await persistDocumentDraft(snapshot, savedProfile, saveProfile, saveApplication);
-    setResumeContentDraft(savedProfile);
+    setProfileSaveStatus("saving");
+    try {
+      await persistDocumentDraft(snapshot, savedProfile, saveProfile, saveApplication);
+      resumeBaselineRef.current = savedProfile;
+      setResumeContentDraft(null);
+      setProfileSaveStatus("saved");
+    } catch (error) { setProfileSaveStatus("error"); throw error; }
   };
 
   const pickProfileMedia = async (kind: ProfileMediaKind) => {
@@ -871,9 +870,7 @@ export function DocumentsView({
       await window.bewerbungsManager.media.pickProfileImage(kind);
     if (!selected) return;
     await saveResumeSections({
-      ...(resumeSectionPreview?.profile.id === profile.id
-        ? resumeSectionPreview.profile
-        : editorProfile ?? profile),
+      ...(resumeContentDraft?.id === profile.id ? resumeContentDraft : profile),
       [kind === "photo" ? "photoPath" : "signaturePath"]: selected.dataUrl,
       updatedAt: new Date().toISOString(),
     });
@@ -882,9 +879,7 @@ export function DocumentsView({
   const removeProfileMedia = async (kind: ProfileMediaKind) => {
     if (!profile) return;
     await saveResumeSections({
-      ...(resumeSectionPreview?.profile.id === profile.id
-        ? resumeSectionPreview.profile
-        : editorProfile ?? profile),
+      ...(resumeContentDraft?.id === profile.id ? resumeContentDraft : profile),
       [kind === "photo" ? "photoPath" : "signaturePath"]: "",
       updatedAt: new Date().toISOString(),
     });
@@ -935,7 +930,8 @@ export function DocumentsView({
           docs.coverExtraParagraph,
         ),
         coverClosing: value("coverClosing", docs.coverClosing),
-        resumeProfile: value("resumeProfile", docs.resumeProfile),
+        resumeProfile: "",
+        legacyResumeProfile: docs.legacyResumeProfile || docs.resumeProfile,
         deckblattStatement: value(
           "deckblattStatement",
           docs.deckblattStatement,
@@ -956,7 +952,6 @@ export function DocumentsView({
 
   const changeDocumentProfile = async (profileId: string) => {
     selectActiveProfile(profileId);
-    setResumeSectionPreview(null);
     setResumeContentDraft(null);
     setDocumentPreview(null);
     await saveApplication({
@@ -986,12 +981,8 @@ export function DocumentsView({
     event.preventDefault();
     const snapshot = applicationSnapshot(event.currentTarget);
     await persistResumeDesignDraft();
-    await persistDocumentDraft(
-      snapshot,
-      currentProfileDraft(),
-      saveProfile,
-      saveApplication,
-    );
+    if (currentProfileDraft()) await saveResumeSections(currentProfileDraft()!);
+    else await persistDocumentDraft(snapshot, undefined, saveProfile, saveApplication);
     if (tab === "anschreiben") {
       await syncCoverLetter(snapshot.id);
     }
@@ -999,7 +990,7 @@ export function DocumentsView({
 
   const currentProfileDraft = () =>
     resumeContentDraft?.id === profile?.id && resumeContentDraft
-      ? normalizeResumeDataDraft(resumeContentDraft)
+      ? resumeContentDraft
       : undefined;
 
   const exportCurrentPdf = async (
@@ -1008,12 +999,8 @@ export function DocumentsView({
     const snapshot = applicationSnapshot(formRef.current);
     // The PDF resolves the shared design from the workspace, so it is saved before the export starts.
     await persistResumeDesignDraft();
-    await persistDocumentDraft(
-      snapshot,
-      currentProfileDraft(),
-      saveProfile,
-      saveApplication,
-    );
+    if (currentProfileDraft()) await saveResumeSections(currentProfileDraft()!);
+    else await persistDocumentDraft(snapshot, undefined, saveProfile, saveApplication);
     await exportPdf(snapshot.id, target, snapshot);
   };
 
@@ -2071,18 +2058,30 @@ export function DocumentsView({
                     </button>
                   </section>
                   {profile ? (
+                    <div className="resume-profile-context" role="status">
+                      <div><strong>Gemeinsames Profil</strong><span>{profile.firstName} {profile.lastName}</span></div>
+                      <small>Änderungen an Profildaten gelten für alle Bewerbungen mit diesem Profil.</small>
+                      <span className={`resume-save-status is-${profileSaveStatus}`}>
+                        {profileSaveStatus === "dirty" ? "Ungespeicherte Änderungen" :
+                          profileSaveStatus === "saving" ? "Speichert …" :
+                          profileSaveStatus === "saved" ? "Gespeichert" :
+                          profileSaveStatus === "error" ? "Fehler beim Speichern" : "Profil verbunden"}
+                      </span>
+                    </div>
+                  ) : null}
+                  {profile ? (
                     <ResumeSectionsPanel
                       key={`${application.id}:${profile.id}:${template.id}:${resumeEditorRevision}`}
-                      profile={editorProfile ?? profile}
+                      profile={profile}
+                      controlledDraft={contentProfile ?? profile}
+                      onDraftChange={(value) => setResumeContentDraft((current) => typeof value === "function" ? value(current ?? profile) : value)}
                       singlePageExceeded={template.id === "kompakt" && resumePlan.length > 1}
                       templateId={template.id}
                       layoutMode={resumeLayout.mode}
                       closingPlacement={design.settings.resumePresentation?.closing?.placement}
                       closingAlignment={design.settings.resumePresentation?.closing?.alignment ?? (template.id.startsWith("pehlione_") ? "distributed" : "left")}
                       onClosingLayoutChange={updateClosingLayout}
-                      summaryValue={docs.resumeProfile}
-                      onSummaryChange={(summary) => setDocumentPreview({ applicationId: application.id,
-                        documents: { ...docs, resumeProfile: summary } })}
+                      legacySummary={docs.legacyResumeProfile || docs.resumeProfile}
                       onPickMedia={(kind) => void pickProfileMedia(kind)}
                       onRemoveMedia={(kind) => void removeProfileMedia(kind)}
                       onSave={saveResumeSections}
@@ -2349,7 +2348,7 @@ export function DocumentsView({
                           photoSource={getProfileMediaSource(
                             renderProfile?.photoPath,
                           )}
-                          resumeProfile={docs.resumeProfile}
+                          resumeProfile={resolvedCv.summary}
                           sections={sections}
                         />
                       ) : template.id === "kompakt" ? (
@@ -2365,7 +2364,7 @@ export function DocumentsView({
                           photoSource={getProfileMediaSource(
                             renderProfile?.photoPath,
                           )}
-                          resumeProfile={docs.resumeProfile}
+                          resumeProfile={resolvedCv.summary}
                           sections={sections}
                         />
                       ) : template.id === "einspaltig" ? (
@@ -2381,7 +2380,7 @@ export function DocumentsView({
                           photoSource={getProfileMediaSource(
                             renderProfile?.photoPath,
                           )}
-                          resumeProfile={docs.resumeProfile}
+                          resumeProfile={resolvedCv.summary}
                           sections={sections}
                         />
                       ) : template.id === "klassisch" ? (
@@ -2397,7 +2396,7 @@ export function DocumentsView({
                           photoSource={getProfileMediaSource(
                             renderProfile?.photoPath,
                           )}
-                          resumeProfile={docs.resumeProfile}
+                          resumeProfile={resolvedCv.summary}
                           sections={sections}
                         />
                       ) : template.id === "ivy-league" ? (
@@ -2410,7 +2409,7 @@ export function DocumentsView({
                           accentColor={design.accentColor}
                           secondaryColor={design.secondaryColor}
                           backgroundId={design.settings.backgroundId}
-                          resumeProfile={docs.resumeProfile}
+                          resumeProfile={resolvedCv.summary}
                           sections={sections}
                         />
                       ) : template.id === "kreativ" ? (
@@ -2425,7 +2424,7 @@ export function DocumentsView({
                           photoSource={getProfileMediaSource(
                             renderProfile?.photoPath,
                           )}
-                          resumeProfile={docs.resumeProfile}
+                          resumeProfile={resolvedCv.summary}
                           sections={sections}
                         />
                       ) : template.id === "zeitgenoessisch" ? (
@@ -2440,7 +2439,7 @@ export function DocumentsView({
                           photoSource={getProfileMediaSource(
                             renderProfile?.photoPath,
                           )}
-                          resumeProfile={docs.resumeProfile}
+                          resumeProfile={resolvedCv.summary}
                           sections={sections}
                         />
                       ) : template.id === "zweispaltig" ? (
@@ -2455,7 +2454,7 @@ export function DocumentsView({
                           photoSource={getProfileMediaSource(
                             renderProfile?.photoPath,
                           )}
-                          resumeProfile={docs.resumeProfile}
+                          resumeProfile={resolvedCv.summary}
                           sections={sections}
                         />
                       ) : template.id === "gepflegt" ? (
@@ -2470,7 +2469,7 @@ export function DocumentsView({
                           photoSource={getProfileMediaSource(
                             renderProfile?.photoPath,
                           )}
-                          resumeProfile={docs.resumeProfile}
+                          resumeProfile={resolvedCv.summary}
                           sections={sections}
                         />
                       ) : template.id === "elegant" ? (
@@ -2485,7 +2484,7 @@ export function DocumentsView({
                           photoSource={getProfileMediaSource(
                             renderProfile?.photoPath,
                           )}
-                          resumeProfile={docs.resumeProfile}
+                          resumeProfile={resolvedCv.summary}
                           sections={sections}
                         />
                       ) : template.id === "tabellarisch" ? (
@@ -2500,7 +2499,7 @@ export function DocumentsView({
                           photoSource={getProfileMediaSource(
                             renderProfile?.photoPath,
                           )}
-                          resumeProfile={docs.resumeProfile}
+                          resumeProfile={resolvedCv.summary}
                           sections={sections}
                         />
                       ) : template.id === "pehlione_white_blue" ||
@@ -2518,7 +2517,7 @@ export function DocumentsView({
                           totalPages={resumePlan.length}
                           accentColor={design.accentColor}
                           secondaryColor={design.secondaryColor}
-                          resumeProfile={pehlioneResumeProfile}
+                          resumeProfile={resolvedCv.summary}
                           sections={sections}
                           closingDate={resolvedCv.closingDate}
                         />
@@ -2534,7 +2533,7 @@ export function DocumentsView({
                           photoSource={getProfileMediaSource(
                             renderProfile?.photoPath,
                           )}
-                          resumeProfile={docs.resumeProfile}
+                          resumeProfile={resolvedCv.summary}
                           sections={sections}
                         />
                       ) : (
@@ -2546,6 +2545,7 @@ export function DocumentsView({
                           plan={plan}
                           profile={renderProfile}
                           sections={sections}
+                          summary={resolvedCv.summary}
                           totalPages={resumePlan.length}
                         />
                       )}

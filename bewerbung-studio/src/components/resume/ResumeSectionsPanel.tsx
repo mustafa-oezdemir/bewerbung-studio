@@ -1,4 +1,5 @@
 import { ManagedBlockEditor } from "./ManagedBlockEditor";
+import { ResumeHeadingEditor } from "./ResumeHeadingEditor";
 import {
   ArrowDown,
   ArrowUp,
@@ -9,7 +10,7 @@ import {
   Plus,
   RotateCcw,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import type { ApplicantProfile } from "../../shared/schema";
 import {
   baseGroupType,
@@ -21,20 +22,20 @@ import {
   type ManagerSection,
   type ManagerZone,
 } from "../../features/resume-sections/resume-manager";
-import {
-  defaultResumePersonalFieldVisibility,
-  resolveKnowledgeGroups,
-  resumePersonalFieldKeys,
-  resumePersonalFieldLabels,
-} from "../../features/resume-sections/resume-section-system";
+import { resolveKnowledgeGroups } from "../../features/resume-sections/resume-section-system";
 import {
   createKnowledgeBlock,
   resumeBlockRegistry,
 } from "../../features/resume-sections/knowledge-block-registry";
 import { normalizeResumeDataDraft, ResumeDataEditor } from "./ResumeDataEditor";
-import { validateKnowledgeSection } from "../../features/knowledge/knowledge.validation";
-import { getProfileMediaSource } from "../../shared/profileMedia";
-import { usesApplicationClosingDate } from "../../shared/resumeSectionPresentation";
+import { validateApplicantProfile } from "../../shared/profileEditor";
+import { PersonalDataVisibility } from "./PersonalDataVisibility";
+import { PersonalDataEditor } from "../profile/PersonalDataEditor";
+import { SummaryEditor } from "../profile/SummaryEditor";
+import { ClosingEditor } from "../profile/ClosingEditor";
+import { PhotoSettingsEditor } from "../profile/PhotoSettingsEditor";
+import { KnowledgeProfileEditor } from "../profile/KnowledgeProfileEditor";
+import { InterestsEditor } from "../profile/InterestsEditor";
 
 const noop = () => {};
 type Props = {
@@ -44,13 +45,17 @@ type Props = {
   singlePageExceeded: boolean;
   onSave: (profile: ApplicantProfile) => Promise<void>;
   onPreview: (templateId: string, profile: ApplicantProfile | null) => void;
-  summaryValue?: string;
-  onSummaryChange?: (value: string) => void;
+  /** Preserved, read-only text from a pre-migration Bewerbung. */
+  legacySummary?: string;
+  controlledDraft?: ApplicantProfile;
+  onDraftChange?: Dispatch<SetStateAction<ApplicantProfile>>;
   onPickMedia?: (kind: "photo" | "signature") => void;
   onRemoveMedia?: (kind: "photo" | "signature") => void;
   closingPlacement?: "footer" | "main";
   closingAlignment?: "left" | "center" | "right" | "distributed";
   onClosingLayoutChange?: (key: "placement" | "alignment", value: "footer" | "main" | "left" | "center" | "right" | "distributed") => void;
+  /** The card that starts opened (a card opens by click otherwise). */
+  initialExpanded?: string;
 };
 
 export function ResumeSectionsPanel({
@@ -65,16 +70,20 @@ export function ResumeSectionsPanel({
   closingPlacement,
   closingAlignment,
   onClosingLayoutChange,
-  summaryValue,
-  onSummaryChange,
+  legacySummary,
+  controlledDraft,
+  onDraftChange,
+  initialExpanded,
 }: Props) {
-  const [draft, setDraft] = useState(profile);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [localDraft, setLocalDraft] = useState(profile);
+  const draft = controlledDraft ?? localDraft;
+  const setDraft = onDraftChange ?? setLocalDraft;
+  const [expanded, setExpanded] = useState<string | null>(initialExpanded ?? null);
   const [dragged, setDragged] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [newBlock, setNewBlock] = useState(resumeBlockRegistry[0].id);
   useEffect(() => {
-    setDraft(profile);
+    if (!controlledDraft) setLocalDraft(profile);
   }, [profile.id, profile.updatedAt]);
   useEffect(() => {
     onPreview(templateId, draft);
@@ -106,45 +115,13 @@ export function ResumeSectionsPanel({
       ).map((group) => (group.id === id ? { ...group, ...update } : group)),
     }));
   const save = async () => {
-    const issues = validateKnowledgeSection(draft.knowledgeSection);
-    if (issues.length) {
-      window.alert(issues[0].message);
-      return;
-    }
+    const issue = validateApplicantProfile(draft)[0];
+    if (issue) { window.alert(issue.startsWith("personal:") ? "Bitte Pflichtangaben im Profil prüfen." : issue); return; }
     if (entries.some((entry) => !entry.title.trim())) {
       window.alert("Bitte jedem Abschnitt eine Überschrift geben.");
       return;
     }
     await onSave(normalizeResumeDataDraft(draft));
-  };
-  const media = (kind: "photo" | "signature") => {
-    const source = getProfileMediaSource(
-      kind === "photo" ? draft.photoPath : draft.signaturePath,
-    );
-    return (
-      <div className="manager-media">
-        {source && (
-          <img
-            src={source}
-            alt={kind === "photo" ? "Bewerbungsfoto" : "Unterschrift"}
-          />
-        )}
-        <button
-          type="button"
-          className="button secondary"
-          onClick={() => onPickMedia?.(kind)}>
-          Bild auswählen
-        </button>
-        {source && (
-          <button
-            type="button"
-            className="button tertiary"
-            onClick={() => onRemoveMedia?.(kind)}>
-            Bild entfernen
-          </button>
-        )}
-      </div>
-    );
   };
   const content = (entry: ManagerSection) => {
     const group = groups.find((item) => item.id === entry.groupId);
@@ -165,111 +142,23 @@ export function ResumeSectionsPanel({
           </label>
         )}
         {entry.id === "heading" && (
-          <div className="resume-data-field-grid">
-            {(
-              [
-                ["firstName", "Vorname"],
-                ["lastName", "Nachname"],
-                ["title", "Berufsbezeichnung"],
-              ] as const
-            ).map(([key, label]) => (
-              <label className="field" key={key}>
-                <span>{label}</span>
-                <input
-                  value={draft[key]}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      [key]: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-            ))}
-          </div>
+          <ResumeHeadingEditor
+            profile={draft}
+            onChange={setDraft}
+            variant="compact"
+          />
         )}
-        {entry.id === "photo" && media("photo")}
+        {entry.id === "photo" && <PhotoSettingsEditor profile={draft} onChange={setDraft}
+          onPick={() => onPickMedia?.("photo")} onRemove={() => onRemoveMedia?.("photo")} />}
         {entry.id === "personalData" && (
-          <>
-            <div className="visibility-checkbox-grid">
-              {resumePersonalFieldKeys.map((key) => (
-                <label className="checkbox-field compact" key={key}>
-                  <input
-                    type="checkbox"
-                    checked={draft.resumePersonalFieldVisibility[key]}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        resumePersonalFieldVisibility: {
-                          ...defaultResumePersonalFieldVisibility,
-                          ...current.resumePersonalFieldVisibility,
-                          [key]: event.target.checked,
-                        },
-                      }))
-                    }
-                  />
-                  <span>{resumePersonalFieldLabels[key]}</span>
-                </label>
-              ))}
-            </div>
-          </>
+          <><PersonalDataEditor profile={draft} onChange={setDraft} showIssues={false} />
+            <PersonalDataVisibility profile={draft} onChange={setDraft} /></>
         )}
         {entry.id === "closing" && (
           <>
-            <div className="resume-data-field-grid">
-              {(
-                [
-                  ["applicationPlace", "Ort"],
-                  ["applicationDate", "Datum"],
-                ] as const
-              ).map(([key, label]) => {
-                // Some templates print the date of the application (like the Anschreiben), not a date typed here.
-                const fromApplication = key === "applicationDate" && usesApplicationClosingDate(templateId);
-                return (
-                  <label className="field" key={key}>
-                    <span>{fromApplication ? "Datum (Bewerbungsdatum)" : label}</span>
-                    <input
-                      type={key === "applicationDate" ? "date" : "text"}
-                      value={fromApplication ? "" : draft[key]}
-                      disabled={fromApplication}
-                      title={fromApplication ? "Das Datum stammt aus dem Bewerbungsdatum, wie im Anschreiben." : undefined}
-                      onChange={(event) =>
-                        setDraft((current) => ({
-                          ...current,
-                          [key]: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                );
-              })}
-            </div>
-            <div className="visibility-checkbox-grid">
-              {(
-                [
-                  ["showPlace", "Ort"],
-                  ["showDate", "Datum"],
-                  ["showSignature", "Unterschrift"],
-                ] as const
-              ).map(([key, label]) => (
-                <label className="checkbox-field compact" key={key}>
-                  <input
-                    type="checkbox"
-                    checked={draft.resumeClosing[key]}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        resumeClosing: {
-                          ...current.resumeClosing,
-                          [key]: event.target.checked,
-                        },
-                      }))
-                    }
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
+            <ClosingEditor profile={draft} onChange={setDraft}
+              onPickSignature={() => onPickMedia?.("signature")}
+              onRemoveSignature={() => onRemoveMedia?.("signature")} />
             <div className="resume-data-field-grid">
               <label className="field">
                 <span>Platzierung</span>
@@ -290,22 +179,19 @@ export function ResumeSectionsPanel({
                 </select>
               </label>
             </div>
-            {media("signature")}
           </>
         )}
         {entry.id === "summary" && (
-          <label className="field">
-            <span>Kurzprofil</span>
-            <textarea
-              rows={6}
-              value={summaryValue || draft.summary}
-              onChange={(event) => {
-                const summary = event.target.value;
-                setDraft((current) => ({ ...current, summary }));
-                onSummaryChange?.(summary);
-              }}
-            />
-          </label>
+          <><SummaryEditor profile={draft} onChange={setDraft} />
+            {legacySummary?.trim() && legacySummary.trim() !== draft.summary.trim() ?
+              <details className="legacy-summary"><summary>Früherer Bewerbungstext anzeigen</summary>
+                <p>Dieser Text bleibt in der Bewerbung archiviert. Der Lebenslauf verwendet das gemeinsame Profil.</p>
+                <blockquote>{legacySummary}</blockquote>
+                <button type="button" className="button secondary small-button"
+                  onClick={() => setDraft(current => ({ ...current, summary: legacySummary }))}>
+                  In das Profil übernehmen
+                </button>
+              </details> : null}</>
         )}
         {entry.id === "projects" && (
           <p className="manager-hint">
@@ -313,10 +199,13 @@ export function ResumeSectionsPanel({
             übernommen. Bearbeiten Sie diese unter Berufserfahrung.
           </p>
         )}
+        {entry.id === "knowledge" && <KnowledgeProfileEditor profile={draft} onChange={setDraft} />}
+        {draft.specialSections.some((section) => `special:${section.id}` === entry.id && section.kind === "interests") &&
+          <InterestsEditor profile={draft} onChange={setDraft} />}
         {!entry.id.startsWith("group:") &&
-          !["heading", "photo", "closing", "projects", "summary"].includes(
+          !["heading", "personalData", "photo", "closing", "projects", "summary", "knowledge"].includes(
             entry.id,
-          ) && (
+          ) && !draft.specialSections.some((section) => `special:${section.id}` === entry.id && section.kind === "interests") && (
             <ResumeDataEditor
               profile={profile}
               controlledDraft={draft}
@@ -419,14 +308,20 @@ export function ResumeSectionsPanel({
           {entry.title}
           <ChevronDown size={14} />
         </button>
-        <button
-          type="button"
-          className="icon-button"
-          aria-label={`${entry.title} ${entry.visible ? "ausblenden" : "anzeigen"}`}
-          aria-pressed={entry.visible}
-          onClick={() => change(entry.id, { visible: !entry.visible })}>
-          {entry.visible ? <Eye size={16} /> : <EyeOff size={16} />}
-        </button>
+        {entry.required ? (
+          <span className="manager-required-badge" title="Pflichtbereich: kann nicht ausgeblendet werden">
+            Pflicht
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={`${entry.title} ${entry.visible ? "ausblenden" : "anzeigen"}`}
+            aria-pressed={entry.visible}
+            onClick={() => change(entry.id, { visible: !entry.visible })}>
+            {entry.visible ? <Eye size={16} /> : <EyeOff size={16} />}
+          </button>
+        )}
         {!entry.fixed && (
           <>
             <button

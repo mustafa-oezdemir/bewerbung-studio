@@ -1,7 +1,4 @@
-import {
-  knowledgeLevelLabels,
-  knowledgeLevelScores,
-} from "../../features/knowledge/knowledge.constants";
+import { knowledgeLevelScores } from "../../features/knowledge/knowledge.constants";
 import { ensureKnowledgeSection } from "../../features/knowledge/knowledge.service";
 import type {
   KnowledgeCategory,
@@ -11,6 +8,7 @@ import type {
 } from "../../features/knowledge/knowledge.types";
 import {
   formatKnowledgeItem,
+  knowledgeItemDetails,
   visibleKnowledgeItems,
 } from "../../features/knowledge/knowledge.utils";
 
@@ -60,6 +58,7 @@ const ItemList = ({
       <div className={`knowledge-level-list ${mode}`}>
         {visible.map((item) => {
           const score = knowledgeLevelScores[item.level];
+          const details = knowledgeItemDetails(item, category.showLevels, category.showYearsOfExperience);
           return (
             <div className="knowledge-level-row" key={item.id}>
               <span>{item.name}</span>
@@ -73,15 +72,7 @@ const ItemList = ({
                   <em>{"○".repeat(5 - score)}</em>
                 </i>
               )}
-              <small>
-                {item.level === "none"
-                  ? ""
-                  : knowledgeLevelLabels[item.level]}
-                {category.showYearsOfExperience &&
-                item.yearsOfExperience !== undefined
-                  ? ` · ${item.yearsOfExperience} Jahre`
-                  : ""}
-              </small>
+              {details.length ? <small>{details.join(" · ")}</small> : null}
             </div>
           );
         })}
@@ -127,7 +118,10 @@ export function KnowledgeSectionRenderer({
   const normalized = ensureKnowledgeSection(section, legacySkills);
   if (!normalized.isVisible) return null;
   const categories = normalized.categories
-    .filter((category) => category.isVisible)
+    .filter((category) => category.isVisible && (
+      visibleKnowledgeItems(category.items).length > 0 ||
+      category.subcategories.some((subcategory) => subcategory.isVisible && visibleKnowledgeItems(subcategory.items).length > 0)
+    ))
     .sort((left, right) => left.sortOrder - right.sortOrder);
   if (!categories.length) return null;
   const sectionTitle = atsMode ? "Kenntnisse" : normalized.title;

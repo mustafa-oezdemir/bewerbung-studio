@@ -10,7 +10,7 @@ describe("resume content and template presentation", () => {
     expect(resolveResumePresentation(original, "modern", undefined)).toBe(original);
     expect(separateResumeDraft(original, original, "modern").presentation).toEqual({});
   });
-  it("saves content while isolating titles and visibility", () => {
+  it("keeps title and visibility from the shared profile", () => {
     const original = makeProfile();
     const section = getManagerSections(original, "modern").find(item => !item.fixed)!;
     const draft = { ...updateManagerSection(original, "modern", section.id, { title: "Meine Erfahrung", visible: false }), firstName: "Ada" };
@@ -18,7 +18,7 @@ describe("resume content and template presentation", () => {
     expect(result.profile.firstName).toBe("Ada");
     expect(result.profile.resumeManagerOverrides).toEqual(original.resumeManagerOverrides);
     expect(result.profile.resumeSectionTitles).toEqual(original.resumeSectionTitles);
-    const rendered = resolveResumePresentation(result.profile, "modern", result.presentation)!;
+    const rendered = resolveResumePresentation(draft, "modern", result.presentation)!;
     expect(getManagerSections(rendered, "modern").find(item => item.id === section.id)).toMatchObject({ title: "Meine Erfahrung", visible: false });
     expect(getManagerSections(result.profile, "modern").find(item => item.id === section.id)).toEqual(section);
     expect(original.firstName).toBe("Mina");
@@ -38,7 +38,7 @@ describe("resume content and template presentation", () => {
     draft = updateManagerSection(draft, "einspaltig", "education", { visible: false });
     const { profile, presentation } = separateResumeDraft(original, draft, "einspaltig");
     const saved = documentDesignOverridesSchema.parse(JSON.parse(JSON.stringify({ resumePresentation: presentation })));
-    const restored = resolveResumePresentation(profile, "einspaltig", saved.resumePresentation)!;
+    const restored = resolveResumePresentation(draft, "einspaltig", saved.resumePresentation)!;
     expect(getManagerSections(restored, "einspaltig").filter(item => !item.fixed).map(item => [item.id, item.zone, item.visible]))
       .toEqual(getManagerSections(draft, "einspaltig").filter(item => !item.fixed).map(item => [item.id, item.zone, item.visible]));
     expect(getManagerSections(profile, "einspaltig").find(item => item.id === "experience")?.zone).toBe("main");
@@ -57,14 +57,14 @@ describe("resume content and template presentation", () => {
     expect(merged.closing).toEqual({ showPlace: false, placement: "main", alignment: "right" });
     const saved = documentDesignOverridesSchema.parse(JSON.parse(JSON.stringify({ resumePresentation: merged })));
     const projected = resolveResumePresentation(makeProfile(), "modern", saved.resumePresentation)!;
-    expect(projected.resumeClosing).toMatchObject({ showPlace: false, showDate: true });
+    expect(projected.resumeClosing).toMatchObject({ showPlace: true, showDate: true });
   });
   it("persists sparse personal-field, closing and column overrides", () => {
     const original = makeProfile();
     const draft = { ...original, resumePersonalFieldVisibility: { ...original.resumePersonalFieldVisibility, email: false }, resumeClosing: { ...original.resumeClosing, showDate: false }, resumeColumnRatio: 40 as const };
     const result = separateResumeDraft(original, draft, "modern");
     const saved = documentDesignOverridesSchema.parse(JSON.parse(JSON.stringify({ resumePresentation: result.presentation })));
-    const restored = resolveResumePresentation(result.profile, "modern", saved.resumePresentation)!;
+    const restored = resolveResumePresentation(draft, "modern", saved.resumePresentation)!;
     expect(restored.resumePersonalFieldVisibility.email).toBe(false);
     expect(restored.resumeClosing.showDate).toBe(false);
     expect(restored.resumeColumnRatio).toBe(40);

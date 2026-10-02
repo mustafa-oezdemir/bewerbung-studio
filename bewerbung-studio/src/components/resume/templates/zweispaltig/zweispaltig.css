@@ -153,15 +153,15 @@
 .zweispaltig-header__contacts
   :is([data-contact-kind="linkedin"], [data-contact-kind="github"])
   > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow-wrap: normal;
+  /* A long link wraps; it is never cut off. */
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .zweispaltig-header__photo {
-  width: 30mm;
-  height: 30mm;
+  width: calc(30mm * var(--resume-photo-scale, 1));
+  height: calc(30mm * var(--resume-photo-scale, 1));
   margin: 0;
   overflow: hidden;
   border: 0.35mm solid color-mix(in srgb, var(--zweispaltig-primary), white 25%);

@@ -1,4 +1,5 @@
 import type { ApplicantProfile } from "./schema";
+import { applyResumeCareerFieldVisibility } from "./resumeCareer";
 import {
   defaultResumePersonalFieldVisibility,
   getResumeSemanticSection,
@@ -26,12 +27,15 @@ export const getResumeDisplayProfile = (
     birthDate: visible.birthDate ? profile.birthDate : "",
     birthPlace: visible.birthPlace ? profile.birthPlace : "",
     nationality: visible.nationality ? profile.nationality : "",
+    experiences: applyResumeCareerFieldVisibility(profile.experiences, profile.resumeCareerFieldVisibility),
+    familyStatus: visible.familyStatus ? profile.familyStatus : "",
+    children: visible.children ? profile.children : "",
     photoPath: getResumeSemanticSection(profile.resumeSemanticSections, "photo")
       .visible
       ? profile.photoPath
       : "",
     onlineProfiles: profile.onlineProfiles.filter((entry) =>
-      /xing/i.test(entry.label) ? visible.xing : visible.website,
+      /xing/i.test(entry.label) ? visible.xing : visible.onlineProfiles,
     ),
   };
 };

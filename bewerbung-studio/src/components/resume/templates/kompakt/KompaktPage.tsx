@@ -15,6 +15,8 @@ import {
   KompaktHeading,
 } from "./KompaktSections";
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
+import { getResumeSemanticTitle } from "../../../../features/resume-sections/resume-section-system";
+import { formatResumeContactLine } from "../../../../shared/resumePersonalData";
 
 type Props = Omit<KompaktResumeProps, "accentColor" | "secondaryColor">;
 
@@ -45,21 +47,13 @@ export function KompaktPage({
         <KompaktHeader
           name={name}
           title={profile?.title}
+          profile={profile}
           compact={isContinuation}
         />
         {!isContinuation ? (
           <section className="kompakt-section" data-element-id="kompakt.contacts">
-            <KompaktHeading>Persönliche Daten</KompaktHeading>
-            <p>
-              {[
-                profile?.phone,
-                profile?.email,
-                profile?.linkedin,
-                [profile?.city, profile?.country].filter(Boolean).join(", "),
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
+            <KompaktHeading>{getResumeSemanticTitle(profile?.resumeSemanticSections, "personalData")}</KompaktHeading>
+            <p>{formatResumeContactLine(profile)}</p>
           </section>
         ) : null}
         {sections.profile && summary && !isContinuation ? (
@@ -93,6 +87,7 @@ export function KompaktPage({
       <KompaktHeader
         name={name}
         title={profile?.title}
+        profile={profile}
         compact={isContinuation}
         photoSource={isContinuation ? null : photoSource}
       />

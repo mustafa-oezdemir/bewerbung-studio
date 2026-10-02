@@ -8,7 +8,7 @@ import type { ModernFooterProps } from "./modern.types";
 export function ModernFooter({
   pageNumber,
   totalPages,
-  portfolio = "portfolio.example.com",
+  portfolio = "",
   atsMode,
 }: ModernFooterProps) {
   return (

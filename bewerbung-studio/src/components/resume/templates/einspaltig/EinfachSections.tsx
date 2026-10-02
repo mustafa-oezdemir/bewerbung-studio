@@ -10,6 +10,7 @@ import {
   uniqueTemplateValues,
   type TemplateCareerItem,
 } from "../resume-template-data";
+import { LanguageLevelText } from "../LanguageLevelText";
 
 export function EinfachHeading({
   children,
@@ -128,7 +129,7 @@ export function EinfachLanguages({
               <p>{language.raw}</p>
             ) : (
               <>
-                <strong>{language.name}</strong>
+                <strong>{language.name}<LanguageLevelText level={language.level} /></strong>
                 <span aria-label={`${language.name}: ${language.level}`} role="img">
                   {Array.from({ length: 6 }, (_, index) => (
                     <i

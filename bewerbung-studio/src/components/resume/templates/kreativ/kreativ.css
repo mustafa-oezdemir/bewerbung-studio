@@ -67,11 +67,13 @@
   position: relative;
   z-index: 3;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 28mm;
+  grid-template-columns: minmax(0, 1fr) calc(28mm * var(--resume-photo-scale, 1));
   align-items: center;
   gap: 10mm;
   width: 100%;
-  height: var(--kreativ-header-height);
+  /* The banner grows with the contacts the user shows; it is never cut off. */
+  min-height: calc(var(--kreativ-header-height) + 28mm * (var(--resume-photo-scale, 1) - 1));
+  height: auto;
   padding: 12mm var(--kreativ-margin) 6mm;
   color: var(--kreativ-header-text);
   background: var(--kreativ-primary);
@@ -137,15 +139,15 @@
 .kreativ-header__contacts
   [data-contact-kind="linkedin"]
   > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow-wrap: normal;
+  /* A long link wraps; it is never cut off. */
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .kreativ-header__photo {
-  width: 28mm;
-  height: 28mm;
+  width: calc(28mm * var(--resume-photo-scale, 1));
+  height: calc(28mm * var(--resume-photo-scale, 1));
   margin: 0;
   overflow: hidden;
   border-radius: 1.8mm;
@@ -203,7 +205,7 @@
 
 .kreativ-background {
   position: absolute;
-  top: 46mm;
+  top: calc(46mm + 28mm * (var(--resume-photo-scale, 1) - 1));
   right: -9mm;
   z-index: 1;
   width: 78mm;
@@ -538,7 +540,7 @@
 }
 
 .kreativ-template[data-density="dense"] .kreativ-header {
-  height: 42mm;
+  min-height: 42mm;
   padding-top: 6mm;
   padding-bottom: 5mm;
 }

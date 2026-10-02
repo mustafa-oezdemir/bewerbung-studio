@@ -28,7 +28,8 @@ describe("resume section system", () => {
       customTitle: "Praxis",
     });
     expect(validateRequiredResumeSections(resolved)).toEqual(["Beruflicher Werdegang"]);
-    expect(resumeSectionDefinitions.every((section) => section.hideable)).toBe(true);
+    // Only the Überschrift is Pflicht without an off switch; the other sections keep theirs for now.
+    expect(resumeSectionDefinitions.filter((section) => !section.hideable).map((section) => section.semanticType)).toEqual(["heading"]);
   });
 
   it("maps Pehlione knowledge groups", () => {

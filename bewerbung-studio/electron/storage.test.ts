@@ -734,7 +734,7 @@ describe("DataStore backups", () => {
       ERFOLG_1_1: "Architektur geplant",
       ERFOLG_1_2: "Projekt: Migration",
       ERFOLG_1_3: "Ladezeit reduziert",
-      FACHRICHTUNG_1: "Software Engineering · 1,7",
+      FACHRICHTUNG_1: "Fachrichtung: Software Engineering · Abschlussnote: 1,7",
       AUSBILDUNG_ORT_1: "Berlin, Deutschland",
       PROJEKTE_TITEL: "Ausgewählte Projekte",
       STAERKEN_TITEL: "KERNKOMPETENZEN",
@@ -743,8 +743,8 @@ describe("DataStore backups", () => {
       BERUFSERFAHRUNG_TITEL: "PRAXIS",
       AUSBILDUNG_TITEL: "BILDUNGSWEG",
       LEBENSLAUF_ORT: "Berlin",
-      LEBENSLAUF_DATUM: "23.08.2026",
     });
+    expect(context.data.LEBENSLAUF_DATUM).toBe(context.data.BEWERBUNGSDATUM);
     expect(context.data.PROJEKTE).toContain("Bewerbungsplattform");
     expect(context.data.PROJEKTE).toContain(
       "Automatisierte Dokumenterstellung",

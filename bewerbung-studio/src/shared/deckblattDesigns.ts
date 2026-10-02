@@ -147,7 +147,8 @@ export const buildDeckblattModel = ({
   name: profile ? [profile.firstName, profile.lastName].filter(Boolean).join(" ") : "Vorname Nachname",
   initials: profile ? `${profile.firstName.charAt(0)}${profile.lastName.charAt(0)}`.toUpperCase() : "VN",
   professionalTitle: getProfessionalTitle(profile),
-  statement: documents.deckblattStatement || profile?.summary || "",
+  // The Deckblatt has its own text; the Kurzprofil of the Lebenslauf never stands in for it.
+  statement: documents.deckblattStatement || "",
   photoSource: getProfileMediaSource(profile?.photoPath),
   contacts: getDeckblattContacts(profile, documents.coverSheetContactVisibility),
   competencies: getDeckblattCompetencies(profile, application),

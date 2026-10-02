@@ -21,6 +21,27 @@ export const resumeSemanticTypes = [
 export type ResumeSemanticType = (typeof resumeSemanticTypes)[number];
 export type ResumeSectionRequirement = "required" | "recommended" | "optional";
 
+/**
+ * How the Lebenslauf-Überschrift (`heading`) is built. The mode is stored, never the finished string, so
+ * "with-name" follows the profile name; the text of "custom" lives in the heading's `customTitle`.
+ */
+export const resumeHeadingModes = [
+  "default",
+  "with-name",
+  "curriculum-vitae",
+  "custom",
+] as const;
+export type ResumeHeadingMode = (typeof resumeHeadingModes)[number];
+export const defaultResumeHeadingTitle = "Lebenslauf";
+
+/**
+ * The size of the Bewerbungsfoto (semantic section `photo`): three steps relative to the template's own photo,
+ * "medium" being that native photo. The scales and the template adapters live in `shared/resumePhoto.ts`.
+ */
+export const resumePhotoSizes = ["small", "medium", "large"] as const;
+export type ResumePhotoSize = (typeof resumePhotoSizes)[number];
+export const defaultResumePhotoSize: ResumePhotoSize = "medium";
+
 export type ResumeSectionDefinition = {
   id: ResumeSemanticType;
   semanticType: ResumeSemanticType;
@@ -35,6 +56,8 @@ export type ResumeSectionDefinition = {
 export type ResumeSectionInstance = {
   semanticType: ResumeSemanticType;
   customTitle: string;
+  /** Only the `heading` section carries a mode; absent = derived (custom when a legacy `customTitle` exists, else default). */
+  headingMode?: ResumeHeadingMode;
   visible: boolean;
   enabled: boolean;
   order: number;
@@ -44,11 +67,11 @@ export const resumeSectionDefinitions: readonly ResumeSectionDefinition[] = [
   {
     id: "heading",
     semanticType: "heading",
-    defaultTitle: "Lebenslauf",
+    defaultTitle: defaultResumeHeadingTitle,
     requirement: "required",
     locked: true,
     renamable: true,
-    hideable: true,
+    hideable: false,
     deletable: false,
   },
   {
@@ -149,11 +172,19 @@ export const resolveResumeSectionInstances = (
   return defaultResumeSectionInstances()
     .map((fallback) => {
       const current = byType.get(fallback.semanticType);
+      const definition = resumeSectionDefinitions.find(
+        (item) => item.semanticType === fallback.semanticType,
+      )!;
       return {
         ...fallback,
         ...current,
-        visible: current?.visible ?? fallback.visible,
-        enabled: current?.enabled ?? fallback.enabled,
+        // A section that cannot be hidden stays visible, whatever an older save says.
+        visible: definition.hideable
+          ? (current?.visible ?? fallback.visible)
+          : true,
+        enabled: definition.hideable
+          ? (current?.enabled ?? fallback.enabled)
+          : true,
       };
     })
     .sort((left, right) => left.order - right.order);
@@ -200,9 +231,12 @@ export const resumePersonalFieldKeys = [
   "linkedin",
   "github",
   "website",
+  "onlineProfiles",
   "birthDate",
   "birthPlace",
   "nationality",
+  "familyStatus",
+  "children",
   "drivingLicense",
   "xing",
 ] as const;
@@ -217,9 +251,12 @@ export const resumePersonalFieldLabels: Record<ResumePersonalFieldKey, string> =
     linkedin: "LinkedIn",
     github: "GitHub",
     website: "Website",
+    onlineProfiles: "Weitere Online-Profile",
     birthDate: "Geburtsdatum",
     birthPlace: "Geburtsort",
     nationality: "Staatsangehörigkeit",
+    familyStatus: "Familienstand",
+    children: "Kinder",
     drivingLicense: "Führerschein",
     xing: "Xing",
   };
@@ -231,11 +268,34 @@ export const defaultResumePersonalFieldVisibility = Object.fromEntries(
       "birthDate",
       "birthPlace",
       "nationality",
+      "familyStatus",
+      "children",
       "drivingLicense",
       "xing",
     ].includes(key),
   ]),
 ) as Record<ResumePersonalFieldKey, boolean>;
+
+/**
+ * Older saves know fewer keys: a missing key takes its privacy-safe default (Familienstand and Kinder stay off
+ * until the user asks for them) and keys that are no longer known are dropped, so no profile fails to load.
+ */
+export const resolveResumePersonalFieldVisibility = (
+  saved: unknown,
+): Record<ResumePersonalFieldKey, boolean> => {
+  const source =
+    saved && typeof saved === "object"
+      ? (saved as Record<string, unknown>)
+      : {};
+  return Object.fromEntries(
+    resumePersonalFieldKeys.map((key) => [
+      key,
+      typeof source[key] === "boolean"
+        ? source[key]
+        : defaultResumePersonalFieldVisibility[key],
+    ]),
+  ) as Record<ResumePersonalFieldKey, boolean>;
+};
 
 export type ResumeKnowledgeGroup = {
   id: string;

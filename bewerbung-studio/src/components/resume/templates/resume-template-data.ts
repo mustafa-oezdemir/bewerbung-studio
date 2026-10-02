@@ -9,6 +9,12 @@ import {
   getLanguageLevelScore,
   parseLanguageEntry,
 } from "../../../features/languages/language-levels";
+import { externalUrl } from "../../../shared/contactPresentation";
+import { resolveResumeSummary } from "../../../shared/resumeSummary";
+import { formatCareerPeriod } from "../../../shared/resumeCareer";
+import { toTemplateEducationItem } from "../../../shared/resumeEducation";
+import { toTemplateExperienceItem } from "../../../shared/resumeCareer";
+import { resolveResumeStrengths, type ResumeStrength } from "../../../shared/resumeStrengths";
 
 export type TemplateCareerItem = {
   id: string;
@@ -27,11 +33,7 @@ export type TemplateLanguage = {
   score: number;
 };
 
-export type TemplateStrength = {
-  title: string;
-  description: string;
-  iconId: string;
-};
+export type TemplateStrength = ResumeStrength;
 
 const selectedIds = (
   plan: ResumePagePlan,
@@ -52,81 +54,28 @@ export const createTemplatePageData = (
   return {
     experiences: (profile?.experiences ?? [])
       .filter((entry) => experienceIds.has(entry.id))
-      .map(
-        (entry): TemplateCareerItem => ({
-          id: entry.id,
-          from: entry.from,
-          to: entry.to,
-          title: entry.role,
-          organization: entry.company,
-          city: entry.city,
-          achievements: entry.achievements.filter(Boolean),
-        }),
-      ),
+      .map((entry): TemplateCareerItem => toTemplateExperienceItem(entry)),
     education: (profile?.education ?? [])
       .filter((entry) => educationIds.has(entry.id))
-      .map(
-        (entry): TemplateCareerItem => ({
-          id: entry.id,
-          from: entry.from,
-          to: entry.to,
-          title: entry.degree,
-          organization: entry.institution,
-          city: entry.city,
-          achievements: [],
-        }),
-      ),
+      .map(toTemplateEducationItem),
     isContinuation: plan.pageNumber > 1,
   };
 };
 
-export const resolveTemplateSummary = (
-  profile: ApplicantProfile | undefined,
-  resumeProfile: string,
-) => resumeProfile.trim() || profile?.summary.trim() || "";
+/** The one Kurzprofil resolver (`shared/resumeSummary.ts`): a template never decides the source itself. */
+export const resolveTemplateSummary = resolveResumeSummary;
 
-export const formatTemplateDateRange = (from: string, to: string) => {
-  const start = from.trim();
-  const end = to.trim();
-  if (!start) return end;
-  if (!end) return start;
-  return `${start} – ${end}`;
-};
+/** One date range for every template and the PDF: `MM/JJJJ – MM/JJJJ`, `MM/JJJJ – heute` (`shared/resumeCareer.ts`). */
+export const formatTemplateDateRange = formatCareerPeriod;
 
-export const toTemplateExternalHref = (value: string) => {
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  return `https://${trimmed.replace(/^[a-z][a-z\d+.-]*:(?:\/\/)?/i, "")}`;
-};
+/** One URL normalisation for every profile link: `externalUrl`. */
+export const toTemplateExternalHref = externalUrl;
 
 export const uniqueTemplateValues = (values: string[]) =>
   Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 
-export const parseTemplateStrengths = (
-  profile: ApplicantProfile | undefined,
-  maximum = 4,
-): TemplateStrength[] => {
-  const explicitStrengths = (profile?.strengths ?? [])
-    .map((strength) => ({
-      title: strength.title.trim(),
-      description: strength.description.trim(),
-      iconId: strength.iconId.trim(),
-    }))
-    .filter((strength) => strength.title);
-  if (explicitStrengths.length) return explicitStrengths.slice(0, maximum);
-
-  return uniqueTemplateValues(profile?.skills ?? [])
-    .slice(0, maximum)
-    .map((value) => {
-      const [title, ...description] = value.split(/\s+(?:–|—|:)\s+/);
-      return {
-        title: title.trim(),
-        description: description.join(" – ").trim(),
-        iconId: "",
-      };
-    });
-};
+/** The one Stärken resolver (`shared/resumeStrengths.ts`), the same for the preview and the PDF. */
+export const parseTemplateStrengths = resolveResumeStrengths;
 
 export const parseTemplateLanguage = (raw: string): TemplateLanguage => {
   const { raw: normalized, name, level } = parseLanguageEntry(raw);

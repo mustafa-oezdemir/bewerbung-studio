@@ -191,6 +191,7 @@ describe("Stilvoll rendering", () => {
     renderToStaticMarkup(
       <StilvollResume
         {...commonProps}
+        profile={{ ...commonProps.profile, summary: resumeProfile }}
         atsMode={atsMode}
         plan={plan}
         totalPages={totalPages}
@@ -218,9 +219,9 @@ describe("Stilvoll rendering", () => {
       resumeProfile: '<img src=x onerror="alert(1)">',
     });
     const order = [
-      "Zusammenfassung",
-      "Berufserfahrung",
-      "Ausbildung",
+      "Kurzprofil",
+      "Beruflicher Werdegang",
+      "Bildungsweg",
       "Kenntnisse",
       "Sprachen",
       "Stärken",
@@ -300,9 +301,9 @@ describe("Kompakt rendering", () => {
   it("uses a linear ATS order without flow lines, tags, or rating dots", () => {
     const markup = renderResume({ atsMode: true });
     const order = [
-      "Zusammenfassung",
-      "Berufserfahrung",
-      "Ausbildung",
+      "Kurzprofil",
+      "Beruflicher Werdegang",
+      "Bildungsweg",
       "Kenntnisse",
       "Sprachen",
       "Stärken",
@@ -372,9 +373,9 @@ describe("Einspaltig rendering", () => {
   it("uses a linear ATS order without photo, geometry, or rating dots", () => {
     const markup = renderResume({ atsMode: true });
     const order = [
-      "Zusammenfassung",
-      "Berufserfahrung",
-      "Ausbildung",
+      "Kurzprofil",
+      "Beruflicher Werdegang",
+      "Bildungsweg",
       "Kenntnisse",
       "Sprachen",
       "Stärken",
@@ -440,9 +441,9 @@ describe("Klassisch rendering", () => {
   it("renders a linear ATS version without waves or photo", () => {
     const markup = renderResume({ atsMode: true });
     const order = [
-      "Zusammenfassung",
-      "Berufserfahrung",
-      "Ausbildung",
+      "Kurzprofil",
+      "Beruflicher Werdegang",
+      "Bildungsweg",
       "Kenntnisse",
       "Sprachen",
       "Stärken",

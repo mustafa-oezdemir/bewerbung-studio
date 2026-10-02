@@ -49,7 +49,7 @@ const render = (profile: ReturnType<typeof makeProfile>, settings: Settings = {}
   const preview = resolved.pagePlan.map((page) => parseHTML(renderToStaticMarkup(
     <ManagedResumePreview profile={resolved.profile} templateId={templateId} pageNumber={page.pageNumber} totalPages={resolved.pagePlan.length} designSettings={designSettings} resolvedCv={resolved}>
       <PehlioneResume templateId={templateId} profile={resolved.profile} name="Mina Kaya" atsMode={false} plan={page} totalPages={resolved.pagePlan.length}
-        accentColor={template.accent} secondaryColor={template.secondary} resumeProfile={resolved.paginationSummary} sections={resolved.sections} closingDate={resolved.closingDate} />
+        accentColor={template.accent} secondaryColor={template.secondary} resumeProfile={resolved.summary} sections={resolved.sections} closingDate={resolved.closingDate} />
     </ManagedResumePreview>,
   )).document as unknown as Element);
   const pdf = Array.from(parseHTML(buildDocumentHtml(application, profile, "lebenslauf")).document.querySelectorAll(".cv-sheet"));
@@ -198,7 +198,7 @@ describe.each(["pehlione_white_blue", "pehlione_white"] as const)("%s: sections 
       expect(header(second).className).not.toContain("continuation");
     }
     // The preview stylesheet of page two no longer shrinks that header (both Pehlione White templates).
-    expect(pehlioneAppearanceCss).toContain('[data-template="pehlione_white_blue"],[data-template="pehlione_white"])[data-page="2"]:not([data-density="compact"]) .pehlione-header h1{font-size:29pt}');
+    expect(pehlioneAppearanceCss).toContain('[data-template="pehlione_white_blue"],[data-template="pehlione_white"]):not([data-page="1"]):not([data-density="compact"]) .pehlione-header h1{font-size:var(--pehlione-native-heading-size)}');
   });
 
   it("I. the typography chosen for the section headings reaches every heading of either column", () => {

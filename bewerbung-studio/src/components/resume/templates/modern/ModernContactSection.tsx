@@ -1,3 +1,6 @@
+import { formatResumeAddress, formatResumeBirth, getResumeLinkContacts, getResumePersonalDetails } from "../../../../shared/resumePersonalData";
+import { externalUrl, formatPhoneForDisplay, phoneHref } from "../../../../shared/contactPresentation";
+import { getResumeSemanticTitle } from "../../../../features/resume-sections/resume-section-system";
 /**
  * ModernContactSection component
  * Renders contact details with icons: phone, email, location, LinkedIn, website
@@ -6,14 +9,15 @@
 import { ContactIcon } from "../ContactIcon";
 import type { ModernContactSectionProps } from "./modern.types";
 
+const voluntaryContactKinds = ["birth", "nationality", "familyStatus", "children", "onlineProfile", "github", "website"];
+
 /** The links the PDF draws for the same details. */
 const contactHref = (key: string, value: string) => {
   const trimmed = value.trim();
-  if (key === "phone") return `tel:${trimmed.replace(/[^\d+]/g, "")}`;
+  if (key === "phone") return phoneHref(trimmed);
   if (key === "email") return `mailto:${trimmed}`;
   if (!["linkedin", "website", "github"].includes(key)) return "";
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  return `https://${trimmed.replace(/^[a-z][a-z\d+.-]*:(?:\/\/)?/i, "")}`;
+  return externalUrl(trimmed);
 };
 
 export function ModernContactSection({
@@ -27,6 +31,7 @@ export function ModernContactSection({
     icon: string;
     label: string;
     value?: string;
+    href?: string;
   }> = [];
 
   if (profile?.phone) {
@@ -34,7 +39,7 @@ export function ModernContactSection({
       key: "phone",
       icon: "phone",
       label: "Telefon",
-      value: profile.phone,
+      value: formatPhoneForDisplay(profile.phone),
     });
   }
   if (profile?.email) {
@@ -45,33 +50,11 @@ export function ModernContactSection({
       value: profile.email,
     });
   }
-  if (profile?.linkedin) {
-    contactItems.push({
-      key: "linkedin",
-      icon: "linkedin",
-      label: "LinkedIn",
-      value: profile.linkedin,
-    });
+  // LinkedIn, GitHub and the website in the order the PDF draws them.
+  for (const link of getResumeLinkContacts(profile)) {
+    contactItems.push({ key: link.kind, icon: link.kind, label: link.label, value: link.value, href: link.href });
   }
-  if (profile?.portfolio) {
-    contactItems.push({
-      key: "website",
-      icon: "website",
-      label: "Website",
-      value: profile.portfolio,
-    });
-  }
-  if (profile?.github) {
-    contactItems.push({
-      key: "github",
-      icon: "github",
-      label: "GitHub",
-      value: profile.github,
-    });
-  }
-  const location = [profile?.city, profile?.country]
-    .filter(Boolean)
-    .join(", ");
+  const location = formatResumeAddress(profile);
   if (location) {
     contactItems.push({
       key: "location",
@@ -80,10 +63,7 @@ export function ModernContactSection({
       value: location,
     });
   }
-  const birth =
-    profile?.birthDate || profile?.birthPlace
-      ? `Geb. ${profile?.birthDate || ""}${profile?.birthPlace ? ` in ${profile.birthPlace}` : ""}`.trim()
-      : "";
+  const birth = formatResumeBirth(profile, { prefix: true });
   if (birth) {
     contactItems.push({
       key: "birth",
@@ -92,17 +72,30 @@ export function ModernContactSection({
       value: birth,
     });
   }
+  for (const detail of getResumePersonalDetails(profile)) {
+    contactItems.push({
+      key: detail.kind,
+      icon: detail.kind,
+      label: detail.label,
+      value: detail.text,
+      href: detail.href,
+    });
+  }
 
   if (contactItems.length === 0) {
     return null;
   }
 
   // The PDF draws the same four details under the name; the website stands in the footer.
-  const href = (item: { key: string; value?: string }) => contactHref(item.key, item.value ?? "");
+  const href = (item: { key: string; value?: string; href?: string }) => item.href || contactHref(item.key, item.value ?? "");
+  // The header line keeps its four core details; a voluntary detail the user switched on follows them.
   const visibleItems = inline
-    ? contactItems
-        .filter((item) => ["phone", "email", "linkedin", "location"].includes(item.key))
-        .slice(0, 4)
+    ? [
+        ...contactItems
+          .filter((item) => ["phone", "email", "linkedin", "location"].includes(item.key))
+          .slice(0, 4),
+        ...contactItems.filter((item) => voluntaryContactKinds.includes(item.key)),
+      ]
     : contactItems;
 
   return (
@@ -111,7 +104,7 @@ export function ModernContactSection({
     >
       {!inline ? (
         <h2 className="modern-section__title">
-          {atsMode ? "Persönliche Daten" : "Kontaktdaten"}
+          {atsMode ? getResumeSemanticTitle(profile?.resumeSemanticSections, "personalData") : "Kontaktdaten"}
         </h2>
       ) : null}
       <ul className="modern-contact-list">

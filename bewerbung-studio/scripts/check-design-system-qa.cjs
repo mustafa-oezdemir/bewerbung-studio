@@ -15,7 +15,7 @@ const probe = () => {
   const mm = (px) => px * 25.4 / 96;
   const root = document.querySelector('.cv-sheet') || document.querySelector('.document-paper') || document.body;
   const base = root.getBoundingClientRect();
-  // The content box: a section's own padding insets its text, and the text is the edge that counts.
+  // Measure native section boxes separately from the text children moved by an override.
   const rel = (element) => {
     const r = element.getBoundingClientRect(); const style = getComputedStyle(element);
     return {
@@ -26,6 +26,7 @@ const probe = () => {
   };
   const sections = Array.from(root.querySelectorAll('[data-managed-section]')).map((element) => ({
     element, id: element.getAttribute('data-managed-section'), box: rel(element),
+    textBox: rel(element.querySelector(':scope > :not([data-resume-background-layer])') || element),
     side: Boolean(element.closest('aside') || element.closest('[data-cv-zone="sidebar"]')),
   }));
   const main = sections.filter((section) => !section.side).sort((first, second) => first.box.t - second.box.t);
@@ -36,15 +37,26 @@ const probe = () => {
   const style = getComputedStyle(label(first));
   const experienceItem = root.querySelector("[data-managed-section='experience'] li") || root.querySelector('[data-managed-section] li');
   const item = getComputedStyle(experienceItem);
+  const sidebarList = root.querySelector('[data-cv-zone="sidebar"][data-managed-section="languages"] ul');
+  const sidebarItem = sidebarList?.querySelector('li');
+  const contactHeading = root.querySelector('.pehlione-contacts h3 span');
+  const contactText = root.querySelector('.pehlione-contacts li div');
+  const sidebarHeading = root.querySelector('[data-cv-zone="sidebar"][data-managed-section="languages"] .cv-heading__label');
+  const left = (element) => element ? mm(element.getBoundingClientRect().left - base.left) : null;
   const pt = (px) => Math.round(px * 72 / 96 * 100) / 100;
   return {
-    left: Math.min(...sections.map((section) => section.box.l)),
-    right: Math.max(...sections.map((section) => section.box.r)),
+    left: Math.min(...sections.map((section) => section.textBox.l)),
+    right: Math.max(...sections.map((section) => section.textBox.r)),
+    nativeLeft: Math.min(...sections.map((section) => section.box.l)),
+    nativeRight: Math.max(...sections.map((section) => section.box.r)),
     sectionGap: column.length > 1 ? column[1].box.t - column[0].box.b : null,
     titleGap: first.nextElementSibling ? rel(first.nextElementSibling).t - rel(first).b : null,
     itemSize: pt(parseFloat(item.fontSize)), itemLine: parseFloat(item.lineHeight) / parseFloat(item.fontSize),
     headingSize: pt(parseFloat(style.fontSize)), headingWeight: Number(style.fontWeight), headingUpper: style.textTransform === 'uppercase',
     headingAlign: style.textAlign,
+    sidebarListIndent: sidebarItem ? mm(sidebarItem.getBoundingClientRect().left - sidebarList.getBoundingClientRect().left) : null,
+    sidebarHeadingVsContact: sidebarHeading && contactHeading ? left(sidebarHeading) - left(contactHeading) : null,
+    sidebarTextVsContact: sidebarItem && contactText ? left(sidebarItem) - left(contactText) : null,
   };
 };
 
@@ -74,7 +86,7 @@ app.whenReady().then(async () => {
       ['section title capitals', printed.headingUpper === typography.sectionHeadingUppercase, [printed.headingUpper, typography.sectionHeadingUppercase]],
       ['section gap', near(printed.sectionGap, spacing.sectionGapMm, 0.35), [printed.sectionGap, spacing.sectionGapMm]],
       ['title gap', near(printed.titleGap, spacing.sectionTitleGapMm, 0.35), [printed.titleGap, spacing.sectionTitleGapMm]],
-      ['page margin', near(printed.left, spacing.pageMarginMm, 0.35), [printed.left, spacing.pageMarginMm]],
+      ['page margin', near(printed.nativeLeft, spacing.pageMarginMm, 0.35), [printed.nativeLeft, spacing.pageMarginMm]],
     ]) { checks++; check(id, 'pdf', 'native', name, ok, detail); }
     // The shared layer reaches both outputs.
     for (const surface of ['preview', 'pdf']) {
@@ -95,13 +107,25 @@ app.whenReady().then(async () => {
         const changed = measured[`${id}|${surface}|${variant}`];
         const { spacing: chosen } = entries.find((entry) => entry.id === id && entry.surface === surface && entry.variant === variant);
         const marginShift = chosen.pageMarginMm === undefined ? 0 : chosen.pageMarginMm - spacing.pageMarginMm;
-        const expected = marginShift + (chosen.innerPaddingMm ?? 0);
+        const innerShift = chosen.innerPaddingMm === undefined ? 0 : chosen.innerPaddingMm - spacing.innerPaddingMm;
+        const expected = marginShift + innerShift;
         checks++;
         check(id, surface, variant, 'content edge = margin difference + inner padding', near(changed.left - own.left, expected, 0.35), [changed.left - own.left, expected]);
         // The padding insets the right side as well; the page margin's right side is the template's own business.
         if (chosen.pageMarginMm === undefined) {
           checks++;
-          check(id, surface, variant, 'right edge = inner padding', near(own.right - changed.right, chosen.innerPaddingMm, 0.35), [own.right - changed.right, chosen.innerPaddingMm]);
+          check(id, surface, variant, 'right edge = inner padding difference', near(own.right - changed.right, innerShift, 0.35), [own.right - changed.right, innerShift]);
+        }
+      }
+      if (id === 'pehlione_white') for (const variant of ['native', 'shared', 'margin', 'smaller', 'inner', 'both', 'smallerBoth']) {
+        const aligned = measured[`${id}|${surface}|${variant}`];
+        for (const [name, value, expected] of [
+          ['sidebar list uses the contact text column', aligned.sidebarTextVsContact, 0],
+          ['sidebar heading uses the contact heading column', aligned.sidebarHeadingVsContact, 0],
+          ['sidebar list keeps its typed indent', aligned.sidebarListIndent, 6.5],
+        ]) {
+          checks++;
+          check(id, surface, variant, name, near(value, expected, 0.15), [value, expected]);
         }
       }
     }

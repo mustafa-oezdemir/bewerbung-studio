@@ -1,6 +1,9 @@
 import { ContactIcon } from "../ContactIcon";
 import type { ApplicantProfile } from "../../../../shared/schema";
 import { toTemplateExternalHref } from "../resume-template-data";
+import { resolveResumeHeading } from "../../../../shared/resumeHeading";
+import { formatResumeAddress, formatResumeBirth, getResumePersonalDetails, getResumeLinkContacts } from "../../../../shared/resumePersonalData";
+import { formatPhoneForDisplay, phoneHref } from "../../../../shared/contactPresentation";
 
 export function KlassischHeader({
   profile,
@@ -15,36 +18,24 @@ export function KlassischHeader({
   compact?: boolean;
   atsMode?: boolean;
 }) {
-  const location = [profile?.city, profile?.country]
-    .filter(Boolean)
-    .join(", ");
-  const birth =
-    profile?.birthDate || profile?.birthPlace
-      ? `Geb. ${profile?.birthDate || ""}${profile?.birthPlace ? ` in ${profile.birthPlace}` : ""}`.trim()
-      : "";
+  const location = formatResumeAddress(profile);
+  const birth = formatResumeBirth(profile, { prefix: true });
   const profession = profile?.title.trim() ?? "";
   const contacts = [
     {
       kind: "phone",
-      value: profile?.phone,
-      href: profile?.phone
-        ? `tel:${profile.phone.replace(/[^\d+]/g, "")}`
-        : "",
+      value: formatPhoneForDisplay(profile?.phone),
+      href: phoneHref(profile?.phone),
     },
     {
       kind: "email",
       value: profile?.email,
       href: profile?.email ? `mailto:${profile.email}` : "",
     },
-    {
-      kind: "linkedin",
-      value: profile?.linkedin,
-      href: profile?.linkedin
-        ? toTemplateExternalHref(profile.linkedin)
-        : "",
-    },
+    ...getResumeLinkContacts(profile).map((link) => ({ kind: link.kind, value: link.value, href: link.href })),
     { kind: "location", value: location, href: "" },
     { kind: "birth", value: birth, href: "" },
+    ...getResumePersonalDetails(profile).map((detail) => ({ kind: detail.kind, value: detail.text, href: detail.href })),
   ].filter((item) => item.value?.trim());
 
   return (
@@ -53,7 +44,7 @@ export function KlassischHeader({
       data-element-id="klassisch.header"
     >
       <div className="klassisch-header__identity">
-        {compact ? <p>Lebenslauf · Fortsetzung</p> : null}
+        {compact ? <p>{resolveResumeHeading(profile).continuationKicker}</p> : null}
         <h1>{name}</h1>
         {profession ? <h2>{profession}</h2> : null}
         {!compact && !atsMode && contacts.length ? (

@@ -21,6 +21,8 @@ import {
   hasSavedTemplateSectionLayout,
   type ResumeSectionType,
 } from "../../../../features/resume-sections/resume-sections";
+import { getResumeSemanticTitle } from "../../../../features/resume-sections/resume-section-system";
+import { formatResumeContactLine } from "../../../../shared/resumePersonalData";
 
 type Props = Omit<KlassischResumeProps, "accentColor" | "secondaryColor">;
 
@@ -80,17 +82,8 @@ export function KlassischPage({
         />
         {!isContinuation && profile ? (
           <section className="klassisch-section" data-resume-personal>
-            <KlassischHeading>Persönliche Daten</KlassischHeading>
-            <p>
-              {[
-                profile.phone,
-                profile.email,
-                profile.linkedin,
-                [profile.city, profile.country].filter(Boolean).join(", "),
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
+            <KlassischHeading>{getResumeSemanticTitle(profile?.resumeSemanticSections, "personalData")}</KlassischHeading>
+            <p>{formatResumeContactLine(profile)}</p>
           </section>
         ) : null}
         {atsOrder.map((type) => renderSection(type, "ats"))}

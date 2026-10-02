@@ -2,10 +2,12 @@ import type { ApplicantProfile } from "./schema";
 import type { DocumentDesignSettings } from "./documentDesign";
 import { resumeSectionStyleSources } from "./resumeSectionStyleInheritance";
 import { resolveTemplateId } from "./templates";
+import { resolveEducationPresentation } from "./resumeEducation";
 import { getCvDesignVariables, resolveCvDesign } from "./cvDesign";
+import { resolveExperience } from "./resumeCareer";
 
 export const resumeMetadataCss = `
-[data-resume-metadata-entry]{display:block!important;min-width:0;break-inside:avoid}
+[data-resume-metadata-entry]{display:block!important;min-width:0;break-inside:auto}
 [data-resume-metadata-grid]{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,42%)!important;gap:.6mm 3mm;margin-bottom:var(--doc-entry-content-gap,1.5mm);min-width:0;align-items:start}
 [data-resume-metadata-grid="stacked"]{grid-template-columns:minmax(0,1fr)!important}
 [data-resume-metadata-grid="side-by-side"][data-resume-metadata-order="dates-first"]{grid-template-columns:minmax(0,42%) minmax(0,1fr)!important}
@@ -47,8 +49,11 @@ export const applyResumeMetadataLayout = (
   if (!entrySelector) return;
   const variables = getCvDesignVariables(resolveCvDesign(id, settings.cvOverrides));
   const records: Record<string, Career[]> = {
-    experience: profile.experiences.map(item => ({ role: item.role, company: item.company, city: item.city, from: item.from, to: item.to })),
-    education: profile.education.map(item => ({ role: item.degree, company: item.institution, city: item.city, from: item.from, to: item.to })),
+    experience: profile.experiences.map(resolveExperience).map(item => ({ role: item.role, company: item.organization, city: item.location, from: item.from, to: item.to })),
+    education: profile.education.map(item => {
+      const view = resolveEducationPresentation(item);
+      return { role: view.title, company: view.institution, city: view.location, from: view.from, to: view.to };
+    }),
   };
   for (const kind of ["experience", "education"]) {
     const sections = page.querySelectorAll(`[data-managed-section="${kind}"]`);

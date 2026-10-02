@@ -1,3 +1,4 @@
+import { LanguageLevelText } from "../LanguageLevelText";
 /**
  * ModernLanguagesSection component
  * Renders languages with proficiency levels (dots in visual mode, text in ATS mode)
@@ -26,7 +27,7 @@ export function ModernLanguagesSection({
           return (
             <li key={idx} className="modern-languages-item">
               <div className="modern-languages-item__header">
-                <span className="modern-languages-item__name">{parsed.name}</span>
+                <span className="modern-languages-item__name">{parsed.name}{!atsMode ? <LanguageLevelText level={parsed.level} /> : null}</span>
               </div>
               {!atsMode && (
                 <div

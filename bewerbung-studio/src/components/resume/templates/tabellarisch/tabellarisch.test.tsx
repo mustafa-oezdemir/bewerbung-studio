@@ -104,7 +104,7 @@ describe("Tabellarisch page model", () => {
   it("prefers the application-specific summary and keeps safe fallbacks", () => {
     expect(
       resolveTabellarischSummary(profile, "Auf die Stelle zugeschnitten"),
-    ).toBe("Auf die Stelle zugeschnitten");
+    ).toBe("Profil aus den Stammdaten");
     expect(resolveTabellarischSummary(profile, "   ")).toBe(
       "Profil aus den Stammdaten",
     );
@@ -113,7 +113,7 @@ describe("Tabellarisch page model", () => {
 
   it("formats dates and external links without inventing values", () => {
     expect(formatTabellarischDateRange("01/2023", "heute")).toBe(
-      "01/2023 - heute",
+      "01/2023 – heute",
     );
     expect(formatTabellarischDateRange("", "2024")).toBe("2024");
     expect(toExternalHref("mina.example.com")).toBe(
@@ -213,10 +213,10 @@ describe("Tabellarisch rendering", () => {
     );
 
     expect(markup).toContain("tabellarisch-background");
-    expect(markup).toContain("Zusammenfassung");
+    expect(markup).toContain("Kurzprofil");
     expect(markup.match(/class="tabellarisch-strength"/g)).toHaveLength(2);
     expect(markup.indexOf("Stärken")).toBeLessThan(
-      markup.indexOf("Berufserfahrung"),
+      markup.indexOf("Beruflicher Werdegang"),
     );
   });
 

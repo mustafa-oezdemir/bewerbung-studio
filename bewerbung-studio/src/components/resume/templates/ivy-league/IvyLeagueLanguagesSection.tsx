@@ -5,6 +5,7 @@ import {
   uniqueIvyLeagueValues,
 } from "./ivy-league.model";
 import { IvyLeagueSectionHeading } from "./IvyLeagueSectionHeading";
+import { LanguageLevelText } from "../LanguageLevelText";
 
 export function IvyLeagueLanguagesSection({
   profile,
@@ -38,7 +39,7 @@ export function IvyLeagueLanguagesSection({
         <div className={`ivy-league-languages ivy-league-languages--columns-${columnCount}`}>
           {languages.map((language) => (
             <article className="ivy-league-language" key={language.raw}>
-              <strong>{language.name}</strong>
+              <strong>{language.name}<LanguageLevelText level={language.level} /></strong>
               <span className="ivy-league-language__dots" aria-label={`${language.name}: ${language.level}`} role="img">
                 {Array.from({ length: 6 }, (_, index) => (
                   <i

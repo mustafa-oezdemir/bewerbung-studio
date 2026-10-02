@@ -5,7 +5,9 @@ import { pehlioneHeroCss } from "./pehlioneHero";
 const HERO_HEIGHT_MM = 46;
 /** Topmost coordinate of the artwork: the small circle, the plus marker and the vertical rules start here. */
 const ARTWORK_TOP = 12;
-const custom = (name: string) => Number(new RegExp(`--${name}:([0-9.]+)mm`).exec(pehlioneHeroCss)?.[1]);
+/** The native millimetres of a hero variable; the profile's Fotogröße multiplies them (`--resume-photo-scale`). */
+const custom = (name: string) =>
+  Number(new RegExp(String.raw`--${name}:calc\(([0-9.]+)mm \* var\(--resume-photo-scale,1\)\)`).exec(pehlioneHeroCss)?.[1]);
 /** Declarations of the first rule whose selector list contains `selector`. */
 const declarationsOf = (selector: string) => {
   const start = pehlioneHeroCss.indexOf(selector);
@@ -64,5 +66,16 @@ describe("Pehlione hero geometry", () => {
     // ... the teeth and the top of the drawing stay inside the blue area, whatever the sidebar width is.
     expect(2 * outerRadius * unit).toBeLessThan(HERO_HEIGHT_MM - 2);
     expect((cy - ARTWORK_TOP) * unit).toBeLessThanOrEqual(HERO_HEIGHT_MM / 2);
+  });
+
+  it("scales the photo, the artwork behind it and the hero by the same Fotogröße, and by nothing when it is unset", () => {
+    // Every length of the hero that belongs to the photo is "native mm x --resume-photo-scale"; the variable is unset for Mittel.
+    expect(custom("pehlione-hero-photo")).toBeGreaterThan(0);
+    expect(pehlioneHeroCss).toContain("height:calc(46mm * var(--resume-photo-scale,1))");
+    expect(pehlioneHeroCss).toContain("--pehlione-gear-unit:calc(0.285mm * var(--resume-photo-scale,1))");
+    expect(pehlioneHeroCss).toContain("calc(16mm * var(--resume-photo-scale,1))");
+    expect(pehlioneHeroCss).not.toMatch(/--resume-photo-scale:/);
+    // Unscaled (variable unset = 1) the native values are the ones the geometry above checks.
+    expect(custom("pehlione-hero-photo") * 1).toBeCloseTo(custom("pehlione-hero-photo"), 5);
   });
 });

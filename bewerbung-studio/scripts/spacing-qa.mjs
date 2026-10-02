@@ -8,6 +8,7 @@ await fs.mkdir(output, { recursive: true });
 const vite = await createServer({ configFile: false, root: process.cwd(), appType: 'custom', logLevel: 'error', server: { middlewareMode: true } });
 try {
   const { applyResumeSpacingOutput, getPageMarginAdjustment, resumeSpacingCss } = await vite.ssrLoadModule('/src/shared/resumeSpacing.ts');
+  const { resolveTemplateCvDesign } = await vite.ssrLoadModule('/src/shared/cvDesign.ts');
   const { resumeSectionStyleSources } = await vite.ssrLoadModule('/src/shared/resumeSectionStyleInheritance.ts');
   const { templates } = await vite.ssrLoadModule('/src/shared/templates.ts');
   const { defaultDocumentDesign } = await vite.ssrLoadModule('/src/shared/documentDesign.ts');
@@ -30,7 +31,8 @@ try {
     style.textContent = resumeSpacingCss;
     document.head.appendChild(style);
     // A chosen page margin moves the template's own margin: the QA checks that adjustment, not a raw padding.
-    expected[id] = getPageMarginAdjustment(id, settings.cvOverrides.spacing.pageMarginMm);
+    expected[id] = { ...getPageMarginAdjustment(id, settings.cvOverrides.spacing.pageMarginMm),
+      innerShiftMm: settings.cvOverrides.spacing.innerPaddingMm - resolveTemplateCvDesign(id).spacing.innerPaddingMm };
     await fs.writeFile(path.join(output, `${id}-${surface}.html`), document.toString());
     count++;
   }

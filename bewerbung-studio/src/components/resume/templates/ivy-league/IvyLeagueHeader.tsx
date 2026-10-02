@@ -4,6 +4,9 @@ import {
   uniqueIvyLeagueValues,
 } from "./ivy-league.model";
 import type { ApplicantProfile } from "../../../../shared/schema";
+import { resolveResumeHeading } from "../../../../shared/resumeHeading";
+import { formatResumeAddress, formatResumeBirth, getResumePersonalDetails, getResumeLinkContacts } from "../../../../shared/resumePersonalData";
+import { formatPhoneForDisplay, phoneHref } from "../../../../shared/contactPresentation";
 
 export function IvyLeagueHeader({
   profile,
@@ -16,13 +19,8 @@ export function IvyLeagueHeader({
   compact?: boolean;
   atsMode?: boolean;
 }) {
-  const location = [profile?.city, profile?.country]
-    .filter(Boolean)
-    .join(", ");
-  const birth =
-    profile?.birthDate || profile?.birthPlace
-      ? `Geb. ${profile?.birthDate || ""}${profile?.birthPlace ? ` in ${profile.birthPlace}` : ""}`.trim()
-      : "";
+  const location = formatResumeAddress(profile);
+  const birth = formatResumeBirth(profile, { prefix: true });
   const specializations = uniqueIvyLeagueValues(profile?.skills ?? [])
     .slice(0, 3)
     .map((value) => value.split(/\s+(?:–|—|:)\s+/)[0])
@@ -30,29 +28,19 @@ export function IvyLeagueHeader({
   const profession = [profile?.title, specializations]
     .filter(Boolean)
     .join(" | ");
-  const professionalLink =
-    profile?.linkedin || profile?.portfolio || profile?.github || "";
   const contacts = [
     {
-      value: profile?.phone,
-      href: profile?.phone
-        ? `tel:${profile.phone.replace(/[^\d+]/g, "")}`
-        : "",
+      value: formatPhoneForDisplay(profile?.phone),
+      href: phoneHref(profile?.phone),
     },
     {
       value: profile?.email,
       href: profile?.email ? `mailto:${profile.email}` : "",
     },
-    {
-      value: professionalLink
-        ? toIvyLeagueExternalHref(professionalLink)
-        : "",
-      href: professionalLink
-        ? toIvyLeagueExternalHref(professionalLink)
-        : "",
-    },
+    ...getResumeLinkContacts(profile).map((link) => ({ value: link.value, href: link.href })),
     { value: location, href: "" },
     { value: birth, href: "" },
+    ...getResumePersonalDetails(profile).map((detail) => ({ kind: detail.kind, value: detail.text, href: detail.href })),
   ].filter((contact) => contact.value?.trim());
 
   return (
@@ -60,7 +48,7 @@ export function IvyLeagueHeader({
       className={`ivy-league-header ${compact ? "ivy-league-header--compact" : ""} ${atsMode ? "ivy-league-header--ats" : ""}`}
       data-element-id="ivy-league.header"
     >
-      {compact ? <p>Lebenslauf · Fortsetzung</p> : null}
+      {compact ? <p>{resolveResumeHeading(profile).continuationKicker}</p> : null}
       <h1>{name}</h1>
       {profession ? <h2>{profession}</h2> : null}
       {!compact && contacts.length ? (

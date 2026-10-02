@@ -49,7 +49,7 @@ export const knowledgeCategoryTypeLabels: Record<
 };
 
 export const defaultKnowledgeSection: KnowledgeSection = {
-  title: "Kenntnisse & Zusatzangaben",
+  title: "Besondere Kenntnisse",
   categories: [],
   isVisible: true,
 };
@@ -87,4 +87,3 @@ export const predefinedKnowledgeCategories = [
   "Interessen",
   "Sonstige Kenntnisse",
 ] as const;
-

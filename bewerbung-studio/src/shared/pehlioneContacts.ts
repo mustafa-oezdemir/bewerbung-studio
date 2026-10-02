@@ -4,7 +4,13 @@ import {
   externalUrl,
   formatPhoneForDisplay,
   formatUrlForDisplay,
+  phoneHref,
 } from "./contactPresentation";
+import {
+  formatResumeAddress,
+  formatResumeBirth,
+  getResumePersonalDetails,
+} from "./resumePersonalData";
 import { defaultResumePersonalFieldVisibility } from "../features/resume-sections/resume-section-system";
 
 const icon = (_kind: "person") =>
@@ -28,7 +34,7 @@ export const getPehlioneContacts = (profile?: ApplicantProfile) => {
       key: "location" as const,
       label: "Ort",
       visible: visible.address,
-      value: [profile?.city, profile?.country].filter(Boolean).join(", "),
+      value: formatResumeAddress(profile),
       href: "",
     },
     {
@@ -36,7 +42,7 @@ export const getPehlioneContacts = (profile?: ApplicantProfile) => {
       label: "Telefon",
       visible: visible.phone,
       value: formatPhoneForDisplay(profile?.phone),
-      href: profile?.phone ? `tel:${profile.phone.replace(/[^\d+]/g, "")}` : "",
+      href: phoneHref(profile?.phone),
     },
     {
       key: "email" as const,
@@ -66,6 +72,22 @@ export const getPehlioneContacts = (profile?: ApplicantProfile) => {
       value: formatUrlForDisplay(profile?.portfolio || ""),
       href: externalUrl(profile?.portfolio || ""),
     },
+    {
+      key: "birth" as const,
+      label: "Geboren",
+      visible: visible.birthDate || visible.birthPlace,
+      value: formatResumeBirth(profile),
+      href: "",
+    },
+    ...getResumePersonalDetails(profile).map((detail) => ({
+      key: detail.kind,
+      label: detail.label,
+      visible: detail.kind === "onlineProfile"
+        ? /xing/i.test(detail.label) ? visible.xing : visible.onlineProfiles
+        : visible[detail.kind],
+      value: detail.value,
+      href: detail.href,
+    })),
   ].filter((item) => item.visible && item.value);
 };
 

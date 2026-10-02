@@ -119,7 +119,7 @@ const renderResume = ({
 } = {}) =>
   renderToStaticMarkup(
     <KreativResume
-      profile={profileOverride}
+      profile={{ ...profileOverride, summary: resumeProfile }}
       name={name}
       atsMode={atsMode}
       plan={plan}
@@ -152,7 +152,7 @@ describe("Kreativ page model", () => {
 
   it("normalizes summaries, links, dates, and language levels", () => {
     expect(resolveKreativSummary(profile, "Stellenspezifisch")).toBe(
-      "Stellenspezifisch",
+      "Profil aus den Stammdaten",
     );
     expect(resolveKreativSummary(profile, "   ")).toBe(
       "Profil aus den Stammdaten",
@@ -258,7 +258,7 @@ describe("Kreativ rendering", () => {
   it("renders the profile-defined knowledge title through the shared knowledge model", () => {
     const markup = renderResume();
 
-    expect(markup).toContain("Kenntnisse &amp; Zusatzangaben");
+    expect(markup).toContain("Besondere Kenntnisse");
     expect(markup).toContain("Projektmanagement");
     expect(markup).toContain("Künstliche Intelligenz");
     expect(markup).toContain("kreativ-skill");
@@ -283,8 +283,8 @@ describe("Kreativ rendering", () => {
       totalPages: 1,
     });
     const summaryIndex = markup.indexOf("Auf die Stelle zugeschnitten");
-    const experienceIndex = markup.indexOf("Berufserfahrung");
-    const educationIndex = markup.indexOf("Ausbildung");
+    const experienceIndex = markup.indexOf("Beruflicher Werdegang");
+    const educationIndex = markup.indexOf("Bildungsweg");
     const knowledgeIndex = markup.indexOf("Kenntnisse");
     const languagesIndex = markup.indexOf("Sprachen");
     const strengthsIndex = markup.indexOf("Stärken");

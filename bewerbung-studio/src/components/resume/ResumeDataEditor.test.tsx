@@ -69,16 +69,18 @@ describe("ResumeDataEditor", () => {
 
     expect(markup).toContain("Lebenslaufdaten bearbeiten");
     expect(markup).toContain("Station hinzufügen");
-    expect(markup).toContain("Ausbildung hinzufügen");
-    expect(markup).toContain("Berufserfahrung löschen");
+    expect(markup).toContain("Bildungsstation hinzufügen");
+    expect(markup).toContain("Entwicklerin löschen");
     expect(markup).toContain("Profildaten speichern");
     expect(markup).toContain("Abschnitt aktualisieren");
     expect(markup).toContain("Gemeinsamer Europäischer Referenzrahmen");
     expect(markup).toContain('type="range"');
     expect(markup).toContain('aria-valuetext="C1"');
     expect(markup).toContain("C2 – Annähernd muttersprachlich");
-    expect(markup).toContain('value="Mina"');
-    expect(markup.match(/<details[^>]*open=""/g)?.length).toBeGreaterThanOrEqual(7);
+    // The personal data (name, address, phone, ...) is edited in the profile only: no second editor here.
+    expect(markup).not.toContain('value="Mina"');
+    expect(markup).not.toContain("Staatsangehörigkeit");
+    expect(markup.match(/<details[^>]*open=""/g)?.length).toBeGreaterThanOrEqual(6);
   });
 
   it("shows strengths and every profile-defined resume section independently", () => {

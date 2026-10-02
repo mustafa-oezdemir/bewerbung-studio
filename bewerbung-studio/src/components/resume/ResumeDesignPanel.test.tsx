@@ -113,9 +113,12 @@ describe("Lebenslauf design panel", () => {
     expect(valueOf(panel(state), "Abschnittsabstand (mm)")).toBe("3,5");
     state = resetResumeDesign(state, "global");
     const reset = panel(state);
-    expect(valueOf(reset, "Ausrichtung Abschnittstitel")).toBe("Links (Vorlage)");
-    expect(field(reset, "Hauptabschnitt").getAttribute("value")).toBe(resolveTemplateCvDesign("kompakt").colors.sectionHeading);
+    expect(valueOf(reset, "Ausrichtung Abschnittstitel")).toBe("Rechts");
+    expect(field(reset, "Hauptabschnitt").getAttribute("value")).toBe("#aa0000");
     expect(reset.querySelector(".rds-status")?.textContent).toContain("Keine globalen Anpassungen");
+    const native = panel(resetResumeDesign(state, "document"));
+    expect(valueOf(native, "Ausrichtung Abschnittstitel")).toBe("Links (Vorlage)");
+    expect(field(native, "Hauptabschnitt").getAttribute("value")).toBe(resolveTemplateCvDesign("kompakt").colors.sectionHeading);
   });
 
   it("disables the side-column colours of a one-column layout", () => {
@@ -161,11 +164,11 @@ describe("Seitenränder and Innenabstand in the panel", () => {
     expect(frameOf(document, labels.innerPaddingMm).querySelector(".rds-badge")?.textContent ?? null).toBe(paddingOrigin);
   });
 
-  it.each(templates)("shows the template's own margin and no inner padding for $name", ({ id }) => {
+  it.each(templates)("shows the template's own margin and inner padding for $name", ({ id }) => {
     const native = resolveTemplateCvDesign(id).spacing;
     const document = panel(stateFor(id));
     expect(valueOf(document, labels.pageMarginMm)).toBe(german(native.pageMarginMm));
-    expect(valueOf(document, labels.innerPaddingMm)).toBe("0");
+    expect(valueOf(document, labels.innerPaddingMm)).toBe(german(native.innerPaddingMm));
     for (const key of Object.keys(labels) as Key[]) expect(frameOf(document, labels[key]).querySelector(".rds-badge"), key).toBeNull();
     // The panel says what the two values are, so that the padding is not mistaken for part of the margin.
     expect(frameOf(document, labels.pageMarginMm).textContent).toContain("Abstand der Inhalte zum Blattrand");
@@ -189,7 +192,7 @@ describe("Seitenränder and Innenabstand in the panel", () => {
     const reset = (state: DesignEditState, key: Key) => frame(state, key).querySelector(".rds-link")?.textContent ?? null;
     const padded = set(stateFor("klassisch"), "document", "innerPaddingMm", 2.5);
     expect(reset(padded, "pageMarginMm")).toBeNull();
-    expect(reset(padded, "innerPaddingMm")).toContain("Auf Vorlagenwert zurücksetzen");
+    expect(reset(padded, "innerPaddingMm")).toBeNull();
     const both = set(padded, "global", "pageMarginMm", 16);
     expect(reset(both, "pageMarginMm")).toContain("Auf Vorlagenwert zurücksetzen");
     expect(reset(set(both, "global", "pageMarginMm", undefined), "pageMarginMm")).toBeNull();

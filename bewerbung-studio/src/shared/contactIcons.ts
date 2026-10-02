@@ -16,6 +16,12 @@ export const contactIconPaths = {
         '<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 0 20M12 2a15.3 15.3 0 0 0 0 20"/>',
       calendar:
         '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>',
+      nationality:
+        '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
+      familyStatus:
+        '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+      children:
+        '<circle cx="12" cy="8" r="3"/><path d="M6 21v-2a6 6 0 0 1 12 0v2"/>',
     } as const;
 export type ContactIconDescriptor = { kind?: string; href?: string; value?: string; icon?: string };
 export function resolveContactIcon({ kind, href = "", value = "", icon = "" }: ContactIconDescriptor): keyof typeof contactIconPaths {
@@ -23,7 +29,7 @@ export function resolveContactIcon({ kind, href = "", value = "", icon = "" }: C
   if (/^mailto:/i.test(href)) return "email";
   if (/^https?:\/\/(?:www\.)?github\.com(?:\/|$)/i.test(href)) return "github";
   if (/^https?:\/\/(?:www\.)?linkedin\.com(?:\/|$)/i.test(href)) return "linkedin";
-  if (kind === "website" || kind === "portfolio") return "portfolio";
+  if (kind === "website" || kind === "portfolio" || kind === "onlineProfile") return "portfolio";
   if (kind && Object.hasOwn(contactIconPaths, kind)) return kind as keyof typeof contactIconPaths;
   if (/^https?:/i.test(href)) return "portfolio";
   if (["☆", "★", "G"].includes(icon) || /^Geb\.|^\d{2}[./]\d{2}[./]/.test(value)) return "birth";

@@ -11,6 +11,9 @@ import {
   uniqueTemplateValues,
   type TemplateCareerItem,
 } from "../resume-template-data";
+import { formatResumeAddress, formatResumeBirth, getResumePersonalDetails, getResumeLinkContacts } from "../../../../shared/resumePersonalData";
+import { formatPhoneForDisplay, phoneHref } from "../../../../shared/contactPresentation";
+import { LanguageLevelText } from "../LanguageLevelText";
 
 export function KompaktHeading({
   children,
@@ -67,45 +70,23 @@ export function KompaktCareer({
 }
 
 const contactRows = (profile: ApplicantProfile | undefined) => {
-  const location = [profile?.city, profile?.country]
-    .filter(Boolean)
-    .join(", ");
-  const linkedin = profile?.linkedin
-    ? toTemplateExternalHref(profile.linkedin)
-    : "";
-  const websiteSource = profile?.portfolio || profile?.github || "";
-  const website = websiteSource
-    ? toTemplateExternalHref(websiteSource)
-    : "";
-  const birth =
-    profile?.birthDate || profile?.birthPlace
-      ? `Geb. ${profile?.birthDate || ""}${profile?.birthPlace ? ` in ${profile.birthPlace}` : ""}`.trim()
-      : "";
+  const location = formatResumeAddress(profile);
+  const birth = formatResumeBirth(profile, { prefix: true });
   return [
     {
       icon: "☎",
-      value: profile?.phone,
-      href: profile?.phone
-        ? `tel:${profile.phone.replace(/[^\d+]/g, "")}`
-        : "",
+      value: formatPhoneForDisplay(profile?.phone),
+      href: phoneHref(profile?.phone),
     },
     {
       icon: "✉",
       value: profile?.email,
       href: profile?.email ? `mailto:${profile.email}` : "",
     },
-    {
-      icon: "∞",
-      value: linkedin,
-      href: linkedin,
-    },
-    {
-      icon: "⌖",
-      value: website,
-      href: website,
-    },
+...getResumeLinkContacts(profile).map((link) => ({ kind: link.kind, icon: link.kind === "website" ? "⌖" : "↗", value: link.value, href: link.href })),
     { icon: "◆", value: location, href: "" },
     { icon: "★", value: birth, href: "" },
+    ...getResumePersonalDetails(profile).map((detail) => ({ icon: "★", kind: detail.kind, value: detail.text, href: detail.href })),
   ].filter((item) => item.value?.trim());
 };
 
@@ -231,7 +212,7 @@ export function KompaktLanguages({
               <p>{language.raw}</p>
             ) : (
               <>
-                <strong>{language.name}</strong>
+                <strong>{language.name}<LanguageLevelText level={language.level} /></strong>
                 <span className="kompakt-language__dots" aria-label={`${language.name}: ${language.level}`} role="img">
                   {Array.from({ length: 6 }, (_, index) => (
                     <i

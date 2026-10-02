@@ -1,9 +1,11 @@
 import { ContactIcon } from "../ContactIcon";
 import { toExternalHref } from "./tabellarisch.model";
 import type { TabellarischHeaderProps } from "./tabellarisch.types";
+import { formatResumeAddress, formatResumeBirth, getResumePersonalDetails } from "../../../../shared/resumePersonalData";
+import { formatPhoneForDisplay, phoneHref } from "../../../../shared/contactPresentation";
 
 type HeaderContact = {
-  kind: "phone" | "email" | "linkedin" | "github" | "website" | "location" | "birth";
+  kind: "phone" | "email" | "linkedin" | "github" | "website" | "location" | "birth" | "nationality" | "familyStatus" | "children";
   label: string;
   value: string;
   href: string;
@@ -15,20 +17,14 @@ export function TabellarischHeader({
   photoSource,
   atsMode,
 }: TabellarischHeaderProps) {
-  const location = [profile?.city, profile?.country]
-    .filter(Boolean)
-    .join(", ");
-  const birth = [profile?.birthDate, profile?.birthPlace]
-    .filter(Boolean)
-    .join(" in ");
+  const location = formatResumeAddress(profile);
+  const birth = formatResumeBirth(profile);
   const contacts: HeaderContact[] = [
     {
       kind: "phone",
       label: "Telefon",
-      value: profile?.phone || "",
-      href: profile?.phone
-        ? `tel:${profile.phone.replace(/[^\d+]/g, "")}`
-        : "",
+      value: formatPhoneForDisplay(profile?.phone),
+      href: phoneHref(profile?.phone),
     },
     {
       kind: "email",
@@ -66,6 +62,8 @@ export function TabellarischHeader({
       value: birth,
       href: "",
     },
+    // The plain layout prints the label in front; the visual one shows the detail with its label.
+    ...getResumePersonalDetails(profile).map((detail) => ({ kind: detail.kind, label: detail.label, value: atsMode || detail.href ? detail.value : detail.text, href: detail.href })),
   ].filter((contact) => contact.value.trim()) as HeaderContact[];
 
   return (

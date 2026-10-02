@@ -45,6 +45,7 @@ const profile = profileSchema.parse({
   title: "Softwareentwicklerin",
   city: "Berlin",
   email: "mina@example.com",
+  summary: "Erfahrung mit TypeScript und React.",
   skills: ["TypeScript", "React", "Node.js"],
   experiences: [
     {
@@ -64,12 +65,12 @@ const profile = profileSchema.parse({
 });
 
 describe("Lebenslauf-Dokumente", () => {
-  it.each(templates)("applies stored presentation only to the CV in $name", (template) => {
+  it.each(templates)("keeps profile content when old presentation copies exist in $name", (template) => {
     const original = { ...application, templateId: template.id };
     const edited = { ...original, designSettings: { ...original.designSettings, resumePresentation: { sections: { summary: { visible: false } }, personalFields: { email: false } } } };
     const html = buildDocumentHtml(edited, profile, "lebenslauf");
     expect(html).not.toContain(application.documents.resumeProfile);
-    expect(html).not.toContain(profile.email);
+    expect(html).toContain(profile.email);
     expect(buildDocumentHtml(edited, profile, "anschreiben")).toBe(buildDocumentHtml(original, profile, "anschreiben"));
     expect(profile.email).toBe("mina@example.com");
   });
@@ -146,12 +147,12 @@ describe("Lebenslauf-Dokumente", () => {
     const hidden = updateManagerSection(managed, templateId, "education", { visible: false });
     expect(parseHTML(buildDocumentHtml({ ...application, templateId }, hidden, "lebenslauf")).document.querySelector('[data-managed-section="education"]')).toBeNull();
   });
-  it("allows hiding career, education and identity sections without changing saved content", () => {
+  it("allows hiding career, education and personal data without changing saved content; the Überschrift stays", () => {
     const hiddenProfile = profileSchema.parse({
       ...profile,
       resumeSections: { ...profile.resumeSections, experience: false, education: false },
       resumeSemanticSections: resolveResumeSectionInstances([]).map((section) =>
-        ["heading", "personalData", "career", "education"].includes(section.semanticType)
+        ["personalData", "career", "education"].includes(section.semanticType)
           ? { ...section, visible: false, enabled: false } : section),
     });
     const html = buildDocumentHtml({ ...application, templateId: "pehlione_white" }, hiddenProfile, "lebenslauf");
@@ -372,9 +373,11 @@ describe("Lebenslauf-Dokumente", () => {
     expect(cssHtml).toContain(
       "grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr)",
     );
+    // A long link wraps inside its column; it is never cut off with an ellipsis.
     expect(cssHtml).toContain(
-      '[data-contact-kind="linkedin"] i{overflow:hidden;text-overflow:ellipsis;white-space:nowrap',
+      '[data-contact-kind="linkedin"] i{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere}',
     );
+    expect(cssHtml).not.toContain("text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal");
 
     const zweispaltigCssHtml = buildDocumentHtml(
       applicationSchema.parse({ ...application, templateId: "zweispaltig" }),
@@ -385,7 +388,7 @@ describe("Lebenslauf-Dokumente", () => {
       ".zweispaltig-pdf-contacts{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:1.1mm 8mm;width:100%;max-width:132mm",
     );
     expect(zweispaltigCssHtml).toContain(
-      '[data-contact-kind="github"]>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal}',
+      '[data-contact-kind="github"]>span{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere}',
     );
   });
 
@@ -395,7 +398,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(html).toContain("cv-sidebar-right");
     expect(html).toContain("--accent:#ff5a00");
     expect(html).toContain("--secondary:#9e0000");
-    expect(html).toContain("Zusammenfassung");
+    expect(html).toContain("Kurzprofil");
     expect(html).toContain("TypeScript");
     expect(html).not.toContain("Enhancv");
   });
@@ -445,7 +448,7 @@ describe("Lebenslauf-Dokumente", () => {
       "lebenslauf",
     );
 
-    expect(html).toContain("Kenntnisse &amp; Zusatzangaben");
+    expect(html).toContain("Besondere Kenntnisse");
     expect(html).toContain("Backend");
     expect(html).toContain("Node.js");
     expect(html).toContain("Fortgeschrittene Kenntnisse");
@@ -865,10 +868,10 @@ describe("Lebenslauf-Dokumente", () => {
       'class="document-background-layer programming-languages-layer"',
     );
     expect(html).toContain("knowledge-comma");
-    expect(html).toContain("<h3>Kenntnisse &amp; Zusatzangaben</h3>");
+    expect(html).toContain("<h3>Besondere Kenntnisse</h3>");
     expect(html).not.toContain("●●●●○");
-    expect(html.indexOf("Zusammenfassung")).toBeLessThan(
-      html.indexOf("Berufserfahrung"),
+    expect(html.indexOf("Kurzprofil")).toBeLessThan(
+      html.indexOf("Beruflicher Werdegang"),
     );
   });
 
@@ -933,7 +936,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(html).toContain(
       "grid-template-columns:minmax(0,140mm) 70mm",
     );
-    expect(html).toContain("Zusammenfassung");
+    expect(html).toContain("Kurzprofil");
     expect(html).toContain("Stärken");
     expect(html).not.toContain('<img class="elegant-pdf-photo"');
     expect(html).not.toContain("elegant-pdf-monogram");
@@ -965,10 +968,10 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).toContain('class="page-content elegant-pdf-ats"');
     expect(body).not.toContain('<aside class="elegant-pdf-sidebar');
     expect(body).not.toContain('<img class="elegant-pdf-photo"');
-    expect(body.indexOf("Zusammenfassung")).toBeLessThan(
-      body.indexOf("Berufserfahrung"),
+    expect(body.indexOf("Kurzprofil")).toBeLessThan(
+      body.indexOf("Beruflicher Werdegang"),
     );
-    expect(body.indexOf("Berufserfahrung")).toBeLessThan(
+    expect(body.indexOf("Beruflicher Werdegang")).toBeLessThan(
       body.indexOf("Kenntnisse"),
     );
     expect(body.indexOf("Kenntnisse")).toBeLessThan(
@@ -1019,10 +1022,10 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).toContain('class="zweispaltig-pdf-entry-meta"');
     expect(body).toContain('viewBox="0 0 24 24"');
     expect(body).toContain('class="zweispaltig-pdf-language-dots"');
-    expect(body).toContain("Zusammenfassung");
+    expect(body).toContain("Kurzprofil");
     expect(body).toContain("Stärken");
-    expect(mainMarkup).not.toContain("Zusammenfassung");
-    expect(sidebarMarkup).toContain("Zusammenfassung");
+    expect(mainMarkup).not.toContain("Kurzprofil");
+    expect(sidebarMarkup).toContain("Kurzprofil");
     expect(body).not.toContain('<img class="zweispaltig-pdf-photo"');
     expect(body).not.toContain("monogram");
     const { document } = parseHTML(html);
@@ -1070,9 +1073,9 @@ describe("Lebenslauf-Dokumente", () => {
 
     expect(mainStart).toBeGreaterThan(-1);
     expect(sidebarStart).toBeGreaterThan(mainStart);
-    expect(mainMarkup).not.toContain("Zusammenfassung");
-    expect(sidebarMarkup).toContain("Zusammenfassung");
-    expect(sidebarMarkup).toContain("Mehrjährige Erfahrung");
+    expect(mainMarkup).not.toContain("Kurzprofil");
+    expect(sidebarMarkup).toContain("Kurzprofil");
+    expect(sidebarMarkup).toContain(profile.summary);
   });
 
   it("uses a separate linear Zweispaltig ATS renderer in logical order", () => {
@@ -1113,12 +1116,12 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).not.toContain('<aside class="zweispaltig-pdf-sidebar');
     expect(body).not.toContain('<img class="zweispaltig-pdf-photo"');
     expect(body.indexOf("Berufliches Profil")).toBeLessThan(
-      body.indexOf("Berufserfahrung"),
+      body.indexOf("Beruflicher Werdegang"),
     );
-    expect(body.indexOf("Berufserfahrung")).toBeLessThan(
-      body.indexOf("Ausbildung"),
+    expect(body.indexOf("Beruflicher Werdegang")).toBeLessThan(
+      body.indexOf("Bildungsweg"),
     );
-    expect(body.indexOf("Ausbildung")).toBeLessThan(
+    expect(body.indexOf("Bildungsweg")).toBeLessThan(
       body.indexOf("Kenntnisse"),
     );
     expect(body.indexOf("Kenntnisse")).toBeLessThan(
@@ -1176,7 +1179,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).toContain("zeit-pdf-photo-composition");
     expect(body).toContain("zeit-pdf-photo-pale");
     expect(body).toContain('<aside class="zeit-pdf-left">');
-    expect(body).toContain("Zusammenfassung");
+    expect(body).toContain("Kurzprofil");
     expect(body).toContain("Erfahrung");
     expect(body).toContain("Stärken");
     expect(body).toContain(">Java<");
@@ -1255,13 +1258,13 @@ describe("Lebenslauf-Dokumente", () => {
     );
     expect(body).not.toContain('<aside class="zeit-pdf-left');
     expect(body).not.toContain("zeit-pdf-photo-composition");
-    expect(body.indexOf("Zusammenfassung")).toBeLessThan(
-      body.indexOf("Berufserfahrung"),
+    expect(body.indexOf("Kurzprofil")).toBeLessThan(
+      body.indexOf("Beruflicher Werdegang"),
     );
-    expect(body.indexOf("Berufserfahrung")).toBeLessThan(
-      body.indexOf("Ausbildung"),
+    expect(body.indexOf("Beruflicher Werdegang")).toBeLessThan(
+      body.indexOf("Bildungsweg"),
     );
-    expect(body.indexOf("Ausbildung")).toBeLessThan(
+    expect(body.indexOf("Bildungsweg")).toBeLessThan(
       body.indexOf("Kenntnisse"),
     );
     expect(body.indexOf("Kenntnisse")).toBeLessThan(
@@ -1353,7 +1356,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).toContain('<aside class="kreativ-pdf-right">');
     expect(body.match(/data-resume-page=/g)).toHaveLength(1);
     expect(body).toContain('data-density="standard"');
-    expect(body).toContain("Zusammenfassung");
+    expect(body).toContain("Kurzprofil");
     expect(body).toContain("Erfahrung");
     expect(body).not.toContain(">Fähigkeiten<");
     expect(body).toContain("Stärken");
@@ -1434,13 +1437,13 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).not.toContain("kreativ-pdf-background");
     expect(body).not.toContain('<img class="kreativ-pdf-photo"');
     expect(body).not.toContain('<aside class="kreativ-pdf-right');
-    expect(body.indexOf("Zusammenfassung")).toBeLessThan(
-      body.indexOf("Berufserfahrung"),
+    expect(body.indexOf("Kurzprofil")).toBeLessThan(
+      body.indexOf("Beruflicher Werdegang"),
     );
-    expect(body.indexOf("Berufserfahrung")).toBeLessThan(
-      body.indexOf("Ausbildung"),
+    expect(body.indexOf("Beruflicher Werdegang")).toBeLessThan(
+      body.indexOf("Bildungsweg"),
     );
-    expect(body.indexOf("Ausbildung")).toBeLessThan(
+    expect(body.indexOf("Bildungsweg")).toBeLessThan(
       body.indexOf("Kenntnisse"),
     );
     expect(body.indexOf("Kenntnisse")).toBeLessThan(
@@ -1507,7 +1510,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).toContain("ivy-pdf-languages--columns-3");
     expect(html).toContain("grid-template-columns:auto auto;justify-content:start;gap:2mm");
     expect(body).toContain("Erfahrung");
-    expect(body).toContain('<div class="ivy-pdf-entry-role"><h4>Senior Entwicklerin</h4><span data-resume-nowrap="">01/2022 – Heute</span></div>');
+    expect(body).toContain('<div class="ivy-pdf-entry-role"><h4>Senior Entwicklerin</h4><span data-resume-nowrap="">01/2022 – heute</span></div>');
     expect(body).toContain('<div class="ivy-pdf-entry-top"><h3>Beispiel GmbH</h3><span>Berlin</span></div>');
     expect(body).toContain(
       'href="https://linkedin.com/in/mina-kaya"',
@@ -1620,13 +1623,13 @@ describe("Lebenslauf-Dokumente", () => {
     );
     expect(body).not.toContain("ivy-pdf-watercolor");
     expect(body).not.toContain("ivy-pdf-dots");
-    expect(body.indexOf("Zusammenfassung")).toBeLessThan(
-      body.indexOf("Berufserfahrung"),
+    expect(body.indexOf("Kurzprofil")).toBeLessThan(
+      body.indexOf("Beruflicher Werdegang"),
     );
-    expect(body.indexOf("Berufserfahrung")).toBeLessThan(
-      body.indexOf("Ausbildung"),
+    expect(body.indexOf("Beruflicher Werdegang")).toBeLessThan(
+      body.indexOf("Bildungsweg"),
     );
-    expect(body.indexOf("Ausbildung")).toBeLessThan(
+    expect(body.indexOf("Bildungsweg")).toBeLessThan(
       body.indexOf("Kenntnisse"),
     );
     expect(body.indexOf("Kenntnisse")).toBeLessThan(
@@ -1673,9 +1676,9 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).toContain('<img class="stilvoll-pdf-photo"');
     expect(body).toContain("<h2>Softwareentwicklerin</h2>");
     expect(body).not.toContain("Softwareentwicklerin | TypeScript");
-    expect(body).toContain("Zusammenfassung");
+    expect(body).toContain("Kurzprofil");
     expect(body).toContain("Erfahrung");
-    expect(body).toContain('<div class="stilvoll-pdf-heading"><h3>Senior Entwicklerin</h3><span data-resume-nowrap="">01/2022 – Heute</span></div>');
+    expect(body).toContain('<div class="stilvoll-pdf-heading"><h3>Senior Entwicklerin</h3><span data-resume-nowrap="">01/2022 – heute</span></div>');
     expect(body).toContain('<p class="stilvoll-pdf-meta"><strong>Beispiel GmbH</strong><span>Berlin</span></p>');
     expect(body).toContain(
       'href="https://linkedin.com/in/mina-kaya"',
@@ -1756,13 +1759,13 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).not.toContain("stilvoll-pdf-chevron");
     expect(body).not.toContain("<img");
     expect(body).not.toContain("managed-pdf-dots");
-    expect(body.indexOf("Zusammenfassung")).toBeLessThan(
-      body.indexOf("Berufserfahrung"),
+    expect(body.indexOf("Kurzprofil")).toBeLessThan(
+      body.indexOf("Beruflicher Werdegang"),
     );
-    expect(body.indexOf("Berufserfahrung")).toBeLessThan(
-      body.indexOf("Ausbildung"),
+    expect(body.indexOf("Beruflicher Werdegang")).toBeLessThan(
+      body.indexOf("Bildungsweg"),
     );
-    expect(body.indexOf("Ausbildung")).toBeLessThan(
+    expect(body.indexOf("Bildungsweg")).toBeLessThan(
       body.indexOf("Kenntnisse"),
     );
     expect(body.indexOf("Kenntnisse")).toBeLessThan(
@@ -1829,7 +1832,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).toContain("Java");
     expect(body).toContain("★");
     expect(body).not.toContain("&#9873;");
-    expect(body).toContain('<div class="kompakt-pdf-entry-heading"><h3>Senior Entwicklerin</h3><time data-resume-nowrap="">01/2022 – Heute</time></div>');
+    expect(body).toContain('<div class="kompakt-pdf-entry-heading"><h3>Senior Entwicklerin</h3><time data-resume-nowrap="">01/2022 – heute</time></div>');
     expect(body).toContain('<p class="kompakt-pdf-meta"><strong>Beispiel GmbH</strong><span>Berlin</span></p>');
     expect(html).toContain(".kompakt-pdf .managed-pdf-title{padding-bottom:1mm;border-bottom:.3mm solid var(--managed-divider)}");
     expect(body).toContain('href="https://linkedin.com/in/mina-kaya"');
@@ -1901,10 +1904,10 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).not.toContain("kompakt-pdf-background");
     expect(body).not.toContain("kompakt-pdf-skills");
     expect(body).not.toContain("managed-pdf-dots");
-    expect(body.indexOf("Zusammenfassung")).toBeLessThan(
-      body.indexOf("Berufserfahrung"),
+    expect(body.indexOf("Kurzprofil")).toBeLessThan(
+      body.indexOf("Beruflicher Werdegang"),
     );
-    expect(body.indexOf("Berufserfahrung")).toBeLessThan(
+    expect(body.indexOf("Beruflicher Werdegang")).toBeLessThan(
       body.indexOf("Kenntnisse"),
     );
   });
@@ -2012,13 +2015,13 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).not.toContain("einfach-pdf-background");
     expect(body).not.toContain("<img");
     expect(body).not.toContain("managed-pdf-dots");
-    expect(body.indexOf("Zusammenfassung")).toBeLessThan(
-      body.indexOf("Berufserfahrung"),
+    expect(body.indexOf("Kurzprofil")).toBeLessThan(
+      body.indexOf("Beruflicher Werdegang"),
     );
-    expect(body.indexOf("Berufserfahrung")).toBeLessThan(
-      body.indexOf("Ausbildung"),
+    expect(body.indexOf("Beruflicher Werdegang")).toBeLessThan(
+      body.indexOf("Bildungsweg"),
     );
-    expect(body.indexOf("Ausbildung")).toBeLessThan(
+    expect(body.indexOf("Bildungsweg")).toBeLessThan(
       body.indexOf("Kenntnisse"),
     );
     expect(body.indexOf("Kenntnisse")).toBeLessThan(
@@ -2113,13 +2116,13 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).toContain("klassisch-pdf-ats");
     expect(body).not.toContain("klassisch-pdf-background");
     expect(body).not.toContain("<img");
-    expect(body.indexOf("Zusammenfassung")).toBeLessThan(
+    expect(body.indexOf("Kurzprofil")).toBeLessThan(
       body.indexOf("Erfahrung"),
     );
     expect(body.indexOf("Erfahrung")).toBeLessThan(
-      body.indexOf("Ausbildung"),
+      body.indexOf("Bildungsweg"),
     );
-    expect(body.indexOf("Ausbildung")).toBeLessThan(
+    expect(body.indexOf("Bildungsweg")).toBeLessThan(
       body.indexOf("Kenntnisse"),
     );
     expect(body.indexOf("Kenntnisse")).toBeLessThan(
@@ -2166,10 +2169,10 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).toContain("modern-pdf-contacts inline");
     expect(body).toContain("modern-pdf-columns");
     expect(body).toContain('<img class="modern-pdf-photo"');
-    expect(body).toContain("Zusammenfassung");
+    expect(body).toContain("Kurzprofil");
     expect(body).toContain("Erfahrung");
-    expect(body).toContain("Kenntnisse &amp; Zusatzangaben");
-    expect(body.indexOf("Zusammenfassung")).toBeLessThan(
+    expect(body).toContain("Besondere Kenntnisse");
+    expect(body.indexOf("Kurzprofil")).toBeLessThan(
       body.indexOf("Erfahrung"),
     );
     expect(body).not.toContain("cv-sidebar-right");
@@ -2212,7 +2215,7 @@ describe("Lebenslauf-Dokumente", () => {
     const body = html.slice(html.indexOf("<body>"));
     const mainStart = body.indexOf('class="modern-pdf-left"');
 
-    expect(body.indexOf("Ausbildung", mainStart)).toBeLessThan(
+    expect(body.indexOf("Bildungsweg", mainStart)).toBeLessThan(
       body.indexOf("Erfahrung", mainStart),
     );
   });
@@ -2290,15 +2293,15 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).not.toContain("<img");
     expect(body).not.toContain("modern-pdf-dots");
     expect(body.indexOf("Persönliche Daten")).toBeLessThan(
-      body.indexOf("Zusammenfassung"),
+      body.indexOf("Kurzprofil"),
     );
-    expect(body.indexOf("Zusammenfassung")).toBeLessThan(
-      body.indexOf("Berufserfahrung"),
+    expect(body.indexOf("Kurzprofil")).toBeLessThan(
+      body.indexOf("Beruflicher Werdegang"),
     );
-    expect(body.indexOf("Berufserfahrung")).toBeLessThan(
-      body.indexOf("Ausbildung"),
+    expect(body.indexOf("Beruflicher Werdegang")).toBeLessThan(
+      body.indexOf("Bildungsweg"),
     );
-    expect(body.indexOf("Ausbildung")).toBeLessThan(
+    expect(body.indexOf("Bildungsweg")).toBeLessThan(
       body.indexOf("Kenntnisse"),
     );
     expect(body.indexOf("Kenntnisse")).toBeLessThan(
@@ -2421,7 +2424,7 @@ describe("Lebenslauf-Dokumente", () => {
       body.indexOf(">Stärken<"),
     );
     expect(body.indexOf(">Stärken<")).toBeLessThan(
-      body.indexOf(">Berufserfahrung<"),
+      body.indexOf(">Beruflicher Werdegang<"),
     );
     expect(body).not.toContain("column-timeline");
   });
@@ -2496,7 +2499,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).not.toContain("tabellarisch-pdf-background");
     expect(body).not.toContain("tabellarisch-pdf-rail");
     expect(body).not.toContain("<img");
-    expect(body.indexOf("Zusammenfassung")).toBeLessThan(
+    expect(body.indexOf("Kurzprofil")).toBeLessThan(
       body.indexOf("Erfahrung"),
     );
   });
@@ -2562,7 +2565,7 @@ describe("Lebenslauf-Dokumente", () => {
       body.indexOf(">Stärken<"),
     );
     expect(body.indexOf(">Erfahrung<")).toBeLessThan(
-      body.indexOf(">Ausbildung<"),
+      body.indexOf(">Bildungsweg<"),
     );
   });
 

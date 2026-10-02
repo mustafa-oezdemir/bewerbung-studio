@@ -1,7 +1,4 @@
-import {
-  knowledgeLevelLabels,
-  knowledgeLevelScores,
-} from "./knowledge.constants";
+import { knowledgeLevelLabels } from "./knowledge.constants";
 import type {
   KnowledgeCategory,
   KnowledgeDisplayMode,
@@ -48,20 +45,21 @@ export const formatKnowledgeItem = (
   item: KnowledgeItem,
   showLevel: boolean,
   showYears: boolean,
-  mode: KnowledgeDisplayMode,
+  _mode: KnowledgeDisplayMode,
+) => {
+  const extras = knowledgeItemDetails(item, showLevel, showYears);
+  return `${item.name}${extras.length ? ` – ${extras.join(", ")}` : ""}`;
+};
+
+/** Textual details shared by previews, PDF, ATS and Word; visual bars remain decorative. */
+export const knowledgeItemDetails = (
+  item: KnowledgeItem,
+  showLevel: boolean,
+  showYears: boolean,
 ) => {
   const extras: string[] = [];
   if (showLevel && item.level !== "none") {
-    if (mode === "level-dots") {
-      const score = knowledgeLevelScores[item.level];
-      extras.push(
-        `${"●".repeat(score)}${"○".repeat(5 - score)} ${knowledgeLevelLabels[item.level]}`,
-      );
-    } else if (mode === "level-bars") {
-      extras.push(knowledgeLevelLabels[item.level]);
-    } else {
-      extras.push(knowledgeLevelLabels[item.level]);
-    }
+    extras.push(knowledgeLevelLabels[item.level]);
   }
   if (showYears && item.yearsOfExperience !== undefined) {
     extras.push(
@@ -74,7 +72,7 @@ export const formatKnowledgeItem = (
   if (item.description?.trim()) {
     extras.push(item.description.trim());
   }
-  return `${item.name}${extras.length ? ` – ${extras.join(", ")}` : ""}`;
+  return extras;
 };
 
 export const flattenKnowledgeNames = (section: KnowledgeSection) =>

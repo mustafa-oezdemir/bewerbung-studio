@@ -1,9 +1,12 @@
 import { ContactIcon } from "../ContactIcon";
 import { toKreativExternalHref } from "./kreativ.model";
 import type { KreativHeaderProps } from "./kreativ.types";
+import { resolveResumeHeading } from "../../../../shared/resumeHeading";
+import { formatResumeAddress, formatResumeBirth, getResumePersonalDetails } from "../../../../shared/resumePersonalData";
+import { formatPhoneForDisplay, phoneHref } from "../../../../shared/contactPresentation";
 
 type KreativContact = {
-  kind: "phone" | "email" | "linkedin" | "github" | "website" | "location" | "birth";
+  kind: "phone" | "email" | "linkedin" | "github" | "website" | "location" | "birth" | "nationality" | "familyStatus" | "children";
   label: string;
   value: string | undefined;
   href: string;
@@ -16,20 +19,14 @@ export function KreativHeader({
   compact = false,
   atsMode = false,
 }: KreativHeaderProps) {
-  const location = [profile?.postalCode, profile?.city, profile?.country]
-    .filter(Boolean)
-    .join(" ");
-  const birth = [profile?.birthDate, profile?.birthPlace]
-    .filter(Boolean)
-    .join(", ");
+  const location = formatResumeAddress(profile, { postalCode: true });
+  const birth = formatResumeBirth(profile);
   const contacts: KreativContact[] = [
     {
       kind: "phone",
       label: "Telefon",
-      value: profile?.phone,
-      href: profile?.phone
-        ? `tel:${profile.phone.replace(/[^\d+]/g, "")}`
-        : "",
+      value: formatPhoneForDisplay(profile?.phone),
+      href: phoneHref(profile?.phone),
     },
     {
       kind: "email",
@@ -69,6 +66,8 @@ export function KreativHeader({
       value: birth,
       href: "",
     },
+    // A detail carries its label ("Kinder: 2"); a bare "2" would not say what it is.
+    ...getResumePersonalDetails(profile).map((detail) => ({ kind: detail.kind, label: detail.label, value: detail.href ? detail.value : detail.text, href: detail.href })),
   ].filter((contact) => contact.value?.trim()) as KreativContact[];
 
   return (
@@ -79,7 +78,7 @@ export function KreativHeader({
       <div className="kreativ-header__identity">
         {compact ? (
           <p className="kreativ-header__kicker">
-            Lebenslauf · Fortsetzung
+            {resolveResumeHeading(profile).continuationKicker}
           </p>
         ) : null}
         <h1>{name}</h1>

@@ -1,52 +1,32 @@
 import { ContactIcon } from "../ContactIcon";
 import { toElegantExternalHref } from "./elegant.model";
 import type { ElegantHeaderProps } from "./elegant.types";
+import { resolveResumeHeading } from "../../../../shared/resumeHeading";
+import { formatResumeAddress, formatResumeBirth, getResumePersonalDetails, getResumeLinkContacts } from "../../../../shared/resumePersonalData";
+import { formatPhoneForDisplay, phoneHref } from "../../../../shared/contactPresentation";
 
 export function ElegantHeader({
   profile,
   name,
   compact = false,
 }: ElegantHeaderProps) {
-  const cityAndCountry = [profile?.city, profile?.country]
-    .filter(Boolean)
-    .join(", ");
-  const location = [profile?.postalCode, cityAndCountry]
-    .filter(Boolean)
-    .join(" ");
-  const birth =
-    profile?.birthDate || profile?.birthPlace
-      ? `${profile?.birthDate || ""}${profile?.birthPlace ? ` in ${profile.birthPlace}` : ""}`.trim()
-      : "";
-  const website = profile?.portfolio || profile?.github || "";
+  const location = formatResumeAddress(profile, { postalCode: true });
+  const birth = formatResumeBirth(profile);
   const contacts = [
     {
       icon: "☎",
-      value: profile?.phone || "",
-      href: profile?.phone
-        ? `tel:${profile.phone.replace(/[^\d+]/g, "")}`
-        : "",
+      value: formatPhoneForDisplay(profile?.phone),
+      href: phoneHref(profile?.phone),
     },
     {
       icon: "@",
       value: profile?.email || "",
       href: profile?.email ? `mailto:${profile.email}` : "",
     },
-    {
-      icon: "↗",
-      value: profile?.linkedin
-        ? toElegantExternalHref(profile.linkedin)
-        : "",
-      href: profile?.linkedin
-        ? toElegantExternalHref(profile.linkedin)
-        : "",
-    },
-    {
-      icon: "⌖",
-      value: website ? toElegantExternalHref(website) : "",
-      href: website ? toElegantExternalHref(website) : "",
-    },
+...getResumeLinkContacts(profile).map((link) => ({ kind: link.kind, icon: link.kind === "website" ? "⌖" : "↗", value: link.value, href: link.href })),
     { icon: "◆", value: location, href: "" },
     { icon: "☆", value: birth, href: "" },
+    ...getResumePersonalDetails(profile).map((detail) => ({ icon: "☆", kind: detail.kind, value: detail.text, href: detail.href })),
   ].filter((contact) => contact.value.trim());
 
   return (
@@ -56,7 +36,7 @@ export function ElegantHeader({
     >
       {compact ? (
         <p className="elegant-header__kicker">
-          Lebenslauf · Fortsetzung
+          {resolveResumeHeading(profile).continuationKicker}
         </p>
       ) : null}
       <h1 className="elegant-header__name">{name}</h1>

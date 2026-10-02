@@ -1,3 +1,4 @@
+import { resolveExperience } from "../../../../shared/resumeCareer";
 /**
  * ModernExperienceSection component
  * Renders professional work experience entries
@@ -19,35 +20,38 @@ export function ModernExperienceSection({
     <section className="modern-section">
       <h2 className="modern-section__title">{getResumeSectionTitle(profile, "experience")}</h2>
       <ul className="modern-experience-list">
-        {profile.experiences.map(
-          (exp: ApplicantProfile["experiences"][number]) => (
+        {profile.experiences.map((entry: ApplicantProfile["experiences"][number]) => {
+          const exp = resolveExperience(entry);
+          return (
             <li key={exp.id} className="modern-experience-entry">
               <h3 className="modern-experience-entry__role">{exp.role}</h3>
               <div className="modern-experience-entry__meta">
                 <span className="modern-experience-entry__company">
-                  {exp.company}
+                  {exp.organization}
                 </span>
-                <span className="modern-experience-entry__date">
-                  <ContactIcon kind="calendar" />
-                  {exp.from} – {exp.to}
-                </span>
-                {exp.city && (
+                {exp.period && (
+                  <span className="modern-experience-entry__date">
+                    <ContactIcon kind="calendar" />
+                    {exp.period}
+                  </span>
+                )}
+                {exp.location && (
                   <span className="modern-experience-entry__location">
                     <ContactIcon kind="location" />
-                    {exp.city}
+                    {exp.location}
                   </span>
                 )}
               </div>
-              {exp.achievements && exp.achievements.length > 0 && (
+              {exp.bullets.length > 0 && (
                 <ul className="modern-experience-entry__achievements">
-                  {exp.achievements.map((achievement: string, idx: number) => (
-                    <li key={idx}>{achievement}</li>
+                  {exp.bullets.map((bullet, idx) => (
+                    <li key={idx}>{bullet}</li>
                   ))}
                 </ul>
               )}
             </li>
-          ),
-        )}
+          );
+        })}
       </ul>
     </section>
   );

@@ -4,6 +4,7 @@ import { cvDesignTokensSchema, nativeResumeDesignSchema } from "./cvDesignSchema
 import { getNativeResumeDesign, getTemplateDocumentDesignDefaults, resolveTemplateCvDesign, resolveTemplateResumeAppearance } from "./cvDesign";
 import { nativeResumeDesigns } from "./cvTemplateTokens";
 import { pehlioneWhiteBlueDefaults, pehlioneWhiteDefaults } from "./cvTemplateDefaults/pehlione.defaults";
+import { getPehlioneNativeVariables, pehlioneAppearanceCss } from "./pehlioneAppearance";
 import { fontSizeToPt, lineHeightLevelToValue } from "./documentDesign";
 import { resolveSectionPresentation, zoneFlowTemplates } from "./resumeSectionPresentation";
 import { getTemplate, templates } from "./templates";
@@ -121,5 +122,23 @@ describe("native Lebenslauf designs", () => {
     }
     expect(nativeResumeDesigns.pehlione_white_blue.tokens.colors.accent).toBe(pehlioneWhiteBlueDefaults.colors.primary);
     expect(nativeResumeDesigns.pehlione_white.appearance.photoDecorationColor).toBe(pehlioneWhiteDefaults.colors.photoDecoration);
+  });
+
+  it("feeds Pehlione's native typography and spacing into both stylesheet surfaces", () => {
+    const previewCss = readFileSync("src/components/resume/templates/pehlione/pehlione.css", "utf8");
+    const pdfCss = readFileSync("electron/documents.ts", "utf8");
+    for (const id of ["pehlione_white_blue", "pehlione_white"] as const) {
+      const native = getNativeResumeDesign(id);
+      const variables = getPehlioneNativeVariables(id);
+      expect(variables["--pehlione-native-heading-size"]).toBe(`${native.tokens.typography.headingSizePt}pt`);
+      expect(variables["--pehlione-native-entry-heading-size"]).toBe(`${native.tokens.typography.entryHeadingSizePt}pt`);
+      expect(variables["--pehlione-native-section-gap"]).toBe(`${native.tokens.spacing.sectionGapMm}mm`);
+      expect(pehlioneAppearanceCss).toContain(`--pehlione-native-entry-heading-size:${native.tokens.typography.entryHeadingSizePt}pt`);
+    }
+    for (const css of [previewCss, pdfCss]) {
+      expect(css).toContain("font-size:var(--pehlione-native-heading-size)");
+      expect(css).toContain("font-size:var(--pehlione-native-entry-heading-size)");
+      expect(css).toContain("var(--pehlione-native-section-gap)");
+    }
   });
 });

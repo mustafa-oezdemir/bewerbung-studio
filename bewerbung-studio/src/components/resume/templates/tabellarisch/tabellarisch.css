@@ -86,7 +86,7 @@
 .tabellarisch-header {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 32mm;
+  grid-template-columns: minmax(0, 1fr) calc(32mm * var(--resume-photo-scale, 1));
   align-items: start;
   min-width: 0;
   min-height: 30mm;
@@ -173,16 +173,16 @@
 .tabellarisch-header__contacts
   [data-contact-kind="linkedin"]
   > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow-wrap: normal;
+  /* A long link wraps; it is never cut off. */
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .tabellarisch-header__photo {
   position: relative;
-  width: 30mm;
-  height: 30mm;
+  width: calc(30mm * var(--resume-photo-scale, 1));
+  height: calc(30mm * var(--resume-photo-scale, 1));
   justify-self: end;
   margin: 0;
   overflow: hidden;

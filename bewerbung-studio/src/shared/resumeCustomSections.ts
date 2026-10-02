@@ -3,6 +3,9 @@ import type { ResumeCustomContentType } from "./resumeCustomSectionTypes";
 
 type Section = ApplicantProfile["specialSections"][number];
 type Entry = Section["entries"][number];
+/** Compact native interests list text, shared by Pehlione preview and PDF. */
+export const interestEntryText = (entry: Entry): string =>
+  [entry.title.trim(), entry.description.trim()].filter(Boolean).join(" – ");
 const hasMetadata = (entry: Entry) => Boolean(entry.subtitle.trim() || entry.location.trim() || entry.date.trim() || entry.from.trim() || entry.to.trim());
 const hasContent = (entry: Entry) => Boolean(entry.title.trim() || entry.description.trim() || entry.url.trim() || hasMetadata(entry) || entry.bullets.some(value => value.trim()));
 

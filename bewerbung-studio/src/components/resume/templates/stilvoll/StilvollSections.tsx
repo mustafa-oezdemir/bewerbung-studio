@@ -10,6 +10,7 @@ import {
   uniqueTemplateValues,
   type TemplateCareerItem,
 } from "../resume-template-data";
+import { LanguageLevelText } from "../LanguageLevelText";
 
 export function StilvollHeading({
   children,
@@ -116,7 +117,7 @@ export function StilvollLeftColumn({
           <StilvollHeading>{getResumeSectionTitle(profile, "languages")}</StilvollHeading>
           {languages.map((language) => (
             <article key={language.raw}>
-              <strong>{language.name}</strong>
+              <strong>{language.name}<LanguageLevelText level={language.level} /></strong>
               <span aria-label={`${language.name}: ${language.level}`} role="img">
                 {Array.from({ length: 6 }, (_, index) => (
                   <i

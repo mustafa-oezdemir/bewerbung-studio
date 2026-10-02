@@ -15,7 +15,7 @@ export const resumeClosingCss = `
 [data-resume-closing-signature] strong{font-size:8pt;font-weight:600}
 `;
 
-const germanDate = (value: string) => {
+export const germanDate = (value: string) => {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
   return match ? `${match[3]}.${match[2]}.${match[1]}` : value.trim();
 };
@@ -33,9 +33,9 @@ export const resolveResumeClosingLine = (
   legacyDate: (value: string) => string = (value) => value.trim(),
 ) => {
   const place = profile.resumeClosing.showPlace ? (profile.applicationPlace || profile.city).trim() : "";
-  const date = profile.resumeClosing.showDate
-    ? closingDate !== undefined ? closingDate.trim() : legacyDate(profile.applicationDate)
-    : "";
+  const mode = profile.resumeClosing.dateMode ?? "application";
+  const sourceDate = mode === "manual" ? profile.applicationDate : closingDate !== undefined ? closingDate : profile.applicationDate;
+  const date = profile.resumeClosing.showDate ? germanDate(legacyDate(sourceDate)) : "";
   return { place, date, text: [place, date].filter(Boolean).join(", ") };
 };
 
@@ -61,9 +61,10 @@ export const applyResumeClosingOutput = (
   const choice = settings.resumePresentation?.closing;
   const pehlione = templateId.startsWith("pehlione_");
   if (pehlione && !choice?.placement && !choice?.alignment) return;
-  const signature = profile.resumeClosing.showSignature ? getProfileMediaSource(profile.signaturePath) : "";
+  const atsMode = settings.resumeOutputMode === "ats" || settings.columnLayout === "compact-ats";
+  const signature = !atsMode && profile.resumeClosing.showSignature ? getProfileMediaSource(profile.signaturePath) : "";
   // The date of the application is content of its own: a template that prints it always has a closing.
-  const hasExplicitContent = Boolean(profile.applicationPlace.trim() || profile.applicationDate.trim() || signature || closingDate?.trim());
+  const hasExplicitContent = Boolean(profile.applicationPlace.trim() || profile.city.trim() || profile.applicationDate.trim() || signature || closingDate?.trim());
   if (!pehlione && !hasExplicitContent && !choice) return;
   const { place, date } = resolveResumeClosingLine(profile, closingDate, germanDate);
   if (!place && !date && !signature) {

@@ -1,5 +1,5 @@
 import { Plus, RotateCcw } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import {
   predefinedKnowledgeCategories,
 } from "../../features/knowledge/knowledge.constants";
@@ -30,6 +30,7 @@ export function KnowledgeSectionEditor({
   onCopyCategory?: (categoryId: string) => void;
 }) {
   const [customName, setCustomName] = useState("");
+  const titleOptionsId = useId();
   const [predefined, setPredefined] = useState<string>(
     predefinedKnowledgeCategories[0],
   );
@@ -62,13 +63,16 @@ export function KnowledgeSectionEditor({
     <div className="knowledge-section-editor">
       <div className="knowledge-section-heading">
         <label className="field">
-          <span>Abschnittsname</span>
-          <input
+          <span>Überschrift</span>
+          <input list={titleOptionsId}
             value={value.title}
             onChange={(event) =>
               onChange({ ...value, title: event.target.value })
             }
           />
+          <datalist id={titleOptionsId}>
+            {["Besondere Kenntnisse", "Kenntnisse", "Kenntnisse und Fertigkeiten", "Zusätzliche Skills", "Qualifikationen und Kompetenzen"].map((title) => <option key={title} value={title} />)}
+          </datalist>
         </label>
         <label className="checkbox-field">
           <input
@@ -146,7 +150,7 @@ export function KnowledgeSectionEditor({
             type="button"
             onClick={() => onChange(addProfessionPreset(value, preset))}
           >
-            Set übernehmen
+            Vorlage hinzufügen – anschließend prüfen
           </button>
         </div>
       </div>
@@ -166,6 +170,8 @@ export function KnowledgeSectionEditor({
         {[...value.categories]
           .sort((left, right) => left.sortOrder - right.sortOrder)
           .map((category) => (
+            <details className="knowledge-category-disclosure" key={category.id}>
+              <summary>{category.title || "Neue Kategorie"} · {category.items.filter((item) => item.isVisible && item.name.trim()).length + category.subcategories.reduce((count, subcategory) => count + (subcategory.isVisible ? subcategory.items.filter((item) => item.isVisible && item.name.trim()).length : 0), 0)} sichtbare Kenntnisse</summary>
             <KnowledgeCategoryCard
               key={category.id}
               category={category}
@@ -200,6 +206,7 @@ export function KnowledgeSectionEditor({
                 setDraggedCategoryId(undefined);
               }}
             />
+            </details>
           ))}
       </div>
 

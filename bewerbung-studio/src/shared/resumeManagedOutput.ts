@@ -30,6 +30,7 @@ import { getProfileMediaSource } from "./profileMedia";
 import { getThemedTechnologyIconMarkup } from "./technologyBrand";
 import { defaultDocumentDesign, type DocumentDesignSettings } from "./documentDesign";
 import { resolveCvDocument, type ResolvedCvDocument } from "./resolveCvDocument";
+import { resolveResumeHeading } from "./resumeHeading";
 import { getPaginationGeometry } from "./resumePaginationGeometry";
 import { resolveSectionColumns } from "./resumeSectionLayout";
 import { getCvDesignVariables } from "./cvDesign";
@@ -38,6 +39,7 @@ import { ensureKnowledgeSection } from "../features/knowledge/knowledge.service"
 import { visibleKnowledgeItems, formatKnowledgeItem } from "../features/knowledge/knowledge.utils";
 import { knowledgeLevelScores } from "../features/knowledge/knowledge.constants";
 import type { KnowledgeItem, KnowledgeCategory, KnowledgeDisplayMode } from "../features/knowledge/knowledge.types";
+import { applyResumePhotoOutput } from "./resumePhoto";
 
 const escape = (value: string) =>
   value
@@ -90,8 +92,11 @@ const setHeadingText = (heading: Element, title: string) => {
 };
 
 export const managedResumeCss = `
+:is(footer,[class*="footer"]) a[href^="http"]{display:inline-block;max-width:62%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+.resume-special-output__entry :is(ul,ol){margin:.8mm 0 0;padding-left:4.5mm;list-style:disc}.resume-special-output__entry li{margin:0}
+.resume-language-level{display:block;margin:.3mm 0 0;font-size:.82em;font-weight:400;letter-spacing:0;line-height:1.2;text-transform:none;opacity:.85;white-space:normal}
 .managed-item-grid{display:grid!important;grid-template-columns:repeat(var(--section-columns,1),minmax(0,1fr))!important;gap:2mm 3mm;min-width:0;padding:0;list-style:none}
-.managed-item-grid>*,.managed-item-text{min-width:0;overflow-wrap:anywhere;break-inside:avoid}
+.managed-item-grid>*,.managed-item-text{min-width:0;overflow-wrap:anywhere;break-inside:auto}
 .managed-item{display:grid;grid-template-columns:4mm minmax(0,1fr);align-items:start;gap:1.5mm;margin:0;min-width:0}
 .managed-item>svg{width:4mm;height:4mm;color:var(--doc-accent,var(--accent,currentColor))}
 .managed-item-text{display:block;white-space:pre-line}
@@ -115,7 +120,7 @@ export const managedResumeCss = `
 :where([data-custom-template]) [data-custom-role="heading-label"]:not(.cv-heading__label){grid-column:1 / -1}
 :where([data-custom-template]) [data-custom-role="entries"]{display:grid;gap:3mm;margin:0;padding:0;min-width:0}
 :where([data-custom-template]) :is(ul,ol)[data-custom-role="entries"]{padding-left:4mm}
-:where([data-custom-template]) [data-custom-role="entry"]{display:block;min-width:0;break-inside:avoid;overflow-wrap:anywhere}
+:where([data-custom-template]) [data-custom-role="entry"]{display:block;min-width:0;break-inside:auto;overflow-wrap:anywhere}
 :where([data-custom-template]) :is(p,h3,h4,h5){margin:0}
 :where([data-custom-template]) .resume-special-output__meta{opacity:1}
 :where([data-custom-template="kreativ"]) [data-content-type="list"]>[data-custom-role="entry"]{display:list-item}
@@ -382,7 +387,10 @@ export const applyManagedResumeOutput = (
         ) ??
         entries.find(
           (entry) => !entry.fixed && elementId.endsWith(`.${entry.id}`),
-        );
+        ) ??
+        // The shared knowledge renderer carries the profile's own title ("Kenntnisse & Zusatzangaben"), which
+        // need not be the manager's: it is the knowledge section all the same, never a second one.
+        (node.matches(".knowledge-section, .knowledge-section-renderer") ? entries.find((entry) => entry.id === "knowledge") : undefined);
       if (entry) {
         node.setAttribute("data-managed-section", entry.id);
         if (entry.id.startsWith("special:")) node.setAttribute("data-section-type", "main-section");
@@ -435,7 +443,7 @@ export const applyManagedResumeOutput = (
         }).join("");
         return grid(entry, visible.map((item) => ({title: item.name, description: item.description})), content);
       };
-      return knowledge.categories.filter((item) => item.isVisible).sort((a,b) => a.sortOrder-b.sortOrder).map((category) => {
+      return knowledge.categories.filter((item) => item.isVisible && (visibleKnowledgeItems(item.items).length || item.subcategories.some((sub) => sub.isVisible && visibleKnowledgeItems(sub.items).length))).sort((a,b) => a.sortOrder-b.sortOrder).map((category) => {
         const own = take(category.items);
         const subs = category.subcategories.filter((sub) => sub.isVisible).sort((a,b) => a.sortOrder-b.sortOrder)
           .map((sub) => ({ sub, ...take(sub.items) }));
@@ -451,10 +459,19 @@ export const applyManagedResumeOutput = (
     };
     const container = (entry: ManagerSection) =>
       entry.zone === "sidebar" ? sidebar : main;
+    const rankOf = (id: string | null | undefined) => (id ? entries.findIndex((item) => item.id === id) : -1);
     const appendSection = (entry: ManagerSection, node: Element) => {
       const destination = container(entry);
       const closing = Array.from(destination.children).find(child => child.matches("footer,[class*='closing']"));
-      destination.insertBefore(node, closing ?? null);
+      // A section the template does not draw itself joins its column in the order of the manager (the same on
+      // both surfaces): before the first section that comes after it, else before the closing.
+      const own = rankOf(entry.id);
+      const later = Array.from(destination.children).find((child) => {
+        const id = child.getAttribute("data-managed-section")
+          ?? child.querySelector(":scope > [data-managed-section]")?.getAttribute("data-managed-section");
+        return rankOf(id) > own;
+      });
+      destination.insertBefore(node, later ?? closing ?? null);
     };
     for (const entry of entries.filter((item) => !item.fixed)) {
       const existing = nodes.get(entry.id) ?? [];
@@ -781,7 +798,7 @@ export const applyManagedResumeOutput = (
       ensureResumeHeaderContacts(root, enabled("personalData") ? profile : undefined);
     else if (firstPageHeader) repeatResumeHeader(root, firstPageHeader);
     else if (number > 1 || !pehlioneContinuation) normalizeContinuationHeader(root, number, pages.length > 1 ? pages.length : totalPages,
-      enabled("personalData") ? profile : undefined);
+      enabled("personalData") ? profile : undefined, resolveResumeHeading(profile).kicker);
     if (pehlioneContinuation && number > 1) {
       const header = root.querySelector(".pehlione-header,.pehlione-pdf-header");
       if (header) {
@@ -822,6 +839,9 @@ export const applyManagedResumeOutput = (
     applyResumeClosingOutput(root, main, profile, templateId, designSettings, last, enabled("closing"), closingInset, resolved.closingDate);
     applyGeneralResumeAppearance(root, resolved.templateId, designSettings, main, sidebar, resolved.design.colors.divider);
     applyPehlioneAppearance(root, resolved.templateId, designSettings);
+    // The Fotogröße of the profile: one scale for the template's own photo (a photo the user hides gets none).
+    if (resumeAppearanceSchema.parse(designSettings.resumeAppearance ?? {}).photoLayout !== "hidden")
+      applyResumePhotoOutput(root, root.matches(".cv-sheet") ? "pdf" : "preview", profile);
     applyResumeSectionHeadingColors(root, designSettings);
     if (number === 1) firstPageHeader = root.querySelector("header")?.cloneNode(true) as Element | null;
   });

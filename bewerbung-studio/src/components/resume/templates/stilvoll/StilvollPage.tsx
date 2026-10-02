@@ -14,6 +14,8 @@ import {
   StilvollLeftColumn,
 } from "./StilvollSections";
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
+import { getResumeSemanticTitle } from "../../../../features/resume-sections/resume-section-system";
+import { formatResumeContactLine } from "../../../../shared/resumePersonalData";
 
 type Props = Omit<StilvollResumeProps, "accentColor" | "secondaryColor">;
 
@@ -49,17 +51,8 @@ export function StilvollPage({
         />
         {!isContinuation ? (
           <section className="stilvoll-section" data-resume-personal>
-            <StilvollHeading>Persönliche Daten</StilvollHeading>
-            <p>
-              {[
-                profile?.phone,
-                profile?.email,
-                profile?.linkedin,
-                [profile?.city, profile?.country].filter(Boolean).join(", "),
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
+            <StilvollHeading>{getResumeSemanticTitle(profile?.resumeSemanticSections, "personalData")}</StilvollHeading>
+            <p>{formatResumeContactLine(profile)}</p>
           </section>
         ) : null}
         {sections.profile && summary && !isContinuation ? (

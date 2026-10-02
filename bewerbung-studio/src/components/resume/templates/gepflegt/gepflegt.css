@@ -56,8 +56,8 @@
 }
 
 .gepflegt-sidebar__photo {
-  width: var(--gepflegt-photo-size, 26mm);
-  height: var(--gepflegt-photo-size, 26mm);
+  width: calc(var(--gepflegt-photo-size, 26mm) * var(--resume-photo-scale, 1));
+  height: calc(var(--gepflegt-photo-size, 26mm) * var(--resume-photo-scale, 1));
   margin: 0 auto 16mm;
   overflow: hidden;
   border-radius: 1.5mm;
@@ -465,10 +465,11 @@
 }
 
 .gepflegt-page[data-density="compact"] {
-  --gepflegt-section-gap: 5.7mm;
-  --gepflegt-entry-gap: 3.6mm;
-  --gepflegt-body-size: 8.35pt;
-  --gepflegt-line-height: 1.23;
+  /* The page sets its native values inline; the density of the page plan overrides them (as in the PDF). */
+  --gepflegt-section-gap: 5.7mm !important;
+  --gepflegt-entry-gap: 3.6mm !important;
+  --gepflegt-body-size: 8.35pt !important;
+  --gepflegt-line-height: 1.23 !important;
 }
 
 .gepflegt-page[data-density="compact"] .gepflegt-header {
@@ -480,10 +481,11 @@
 }
 
 .gepflegt-page[data-density="dense"] {
-  --gepflegt-section-gap: 4.4mm;
-  --gepflegt-entry-gap: 2.8mm;
-  --gepflegt-body-size: 7.8pt;
-  --gepflegt-line-height: 1.18;
+  /* The page sets its native values inline; the density of the page plan overrides them (as in the PDF). */
+  --gepflegt-section-gap: 4.4mm !important;
+  --gepflegt-entry-gap: 2.8mm !important;
+  --gepflegt-body-size: 7.8pt !important;
+  --gepflegt-line-height: 1.18 !important;
 }
 
 .gepflegt-page[data-density="dense"] .gepflegt-header {

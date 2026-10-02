@@ -107,7 +107,7 @@ const renderResume = ({
 } = {}) =>
   renderToStaticMarkup(
     <ElegantResume
-      profile={profile}
+      profile={{ ...profile, summary: resumeProfile }}
       name="Mina Kaya"
       atsMode={atsMode}
       plan={plan}
@@ -141,7 +141,7 @@ describe("Elegant page model", () => {
 
   it("uses application-specific text and formats only existing values", () => {
     expect(resolveElegantSummary(profile, "Stellenspezifisches Profil")).toBe(
-      "Stellenspezifisches Profil",
+      "Profil aus den Stammdaten",
     );
     expect(resolveElegantSummary(profile, "   ")).toBe(
       "Profil aus den Stammdaten",
@@ -192,7 +192,7 @@ describe("Elegant rendering", () => {
     expect(markup).toContain("elegant-sidebar");
     expect(markup).not.toContain("elegant-sidebar__photo");
     expect(markup).not.toContain("elegant-sidebar__monogram");
-    expect(markup).toContain("Zusammenfassung");
+    expect(markup).toContain("Kurzprofil");
   });
 
   it("renders a compact continuation without repeating photo or summary", () => {
@@ -214,8 +214,8 @@ describe("Elegant rendering", () => {
       totalPages: 1,
     });
     const summaryIndex = markup.indexOf("Auf die Stelle zugeschnitten");
-    const experienceIndex = markup.indexOf("Berufserfahrung");
-    const educationIndex = markup.indexOf("Ausbildung");
+    const experienceIndex = markup.indexOf("Beruflicher Werdegang");
+    const educationIndex = markup.indexOf("Bildungsweg");
     const knowledgeIndex = markup.indexOf("Kenntnisse");
 
     expect(markup).toContain('data-renderer="ats"');

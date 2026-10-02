@@ -52,12 +52,12 @@ export type TemplateSectionCapabilities = {
 };
 
 export const resumeSectionLabels: Record<ResumeSectionType, string> = {
-  summary: "Zusammenfassung",
+  summary: "Kurzprofil",
   strengths: "Stärken",
-  experience: "Berufserfahrung",
-  education: "Ausbildung",
+  experience: "Beruflicher Werdegang",
+  education: "Bildungsweg",
   projects: "Projekte",
-  knowledge: "Kenntnisse",
+  knowledge: "Besondere Kenntnisse",
   certifications: "Zertifikate",
   languages: "Sprachen",
   additional: "Zusatzangaben",
@@ -65,16 +65,26 @@ export const resumeSectionLabels: Record<ResumeSectionType, string> = {
 };
 
 export const defaultEditableResumeSectionTitles = {
-  summary: "Zusammenfassung",
+  summary: "Kurzprofil",
   strengths: "Stärken",
-  experience: "Berufserfahrung",
-  education: "Ausbildung",
+  experience: "Beruflicher Werdegang",
+  education: "Bildungsweg",
   languages: "Sprachen",
   certifications: "Zertifikate",
 } as const;
 
 export type EditableResumeSectionTitle =
   keyof typeof defaultEditableResumeSectionTitles;
+
+/**
+ * Titles that older profiles stored as their default (every profile saved one). They stand for "no own title":
+ * the section then shows today's default. Any other stored title is the user's own and stays.
+ */
+const legacyDefaultTitles: Partial<Record<EditableResumeSectionTitle, string>> = {
+  summary: "Zusammenfassung",
+  experience: "Berufserfahrung",
+  education: "Ausbildung",
+};
 
 const titleSemanticTypes: Partial<
   Record<ResumeSectionType, ResumeSemanticType>
@@ -146,16 +156,16 @@ export const getResumeSectionTitle = (
   )?.customTitle;
   if (semantic?.trim()) return semantic;
   if (type === "knowledge") {
-    return profile?.knowledgeSection.title.trim()
-      ? profile.knowledgeSection.title
-      : resumeSectionLabels.knowledge;
+    const stored = profile?.knowledgeSection.title.trim() ?? "";
+    return stored && stored !== "Kenntnisse & Zusatzangaben"
+      ? stored : resumeSectionLabels.knowledge;
   }
   if (type in defaultEditableResumeSectionTitles) {
     const editableType = type as EditableResumeSectionTitle;
+    const stored = profile?.resumeSectionTitles?.[editableType]?.trim() ?? "";
     return (
-      (profile?.resumeSectionTitles?.[editableType]?.trim()
-        ? profile.resumeSectionTitles[editableType]
-        : "") || defaultEditableResumeSectionTitles[editableType]
+      (stored && stored !== legacyDefaultTitles[editableType] ? stored : "") ||
+      defaultEditableResumeSectionTitles[editableType]
     );
   }
   return resumeSectionLabels[type];

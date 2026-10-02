@@ -1,3 +1,4 @@
+import { resolveResumeHeading } from "../../../../shared/resumeHeading";
 /**
  * ModernHeader component
  * Renders header with name, profession, and optional profile photo
@@ -30,7 +31,7 @@ export function ModernHeader({
       data-no-photo={!hasPhoto}
     >
       <div className="modern-resume-header__identity">
-        {compact ? <p className="modern-resume-header__kicker">Lebenslauf · Fortsetzung</p> : null}
+        {compact ? <p className="modern-resume-header__kicker">{resolveResumeHeading(profile).continuationKicker}</p> : null}
         <h1 className="modern-resume-header__name">{name}</h1>
         {profession ? <p className="modern-resume-header__profession">{profession}</p> : null}
         {children}

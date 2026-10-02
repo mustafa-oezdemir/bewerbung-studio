@@ -6,8 +6,10 @@ import {
 } from "./resume-sections";
 import {
   getResumeSemanticSection,
+  getResumeSemanticTitle,
   resolveKnowledgeGroups,
   resolveResumeSectionInstances,
+  resumeSectionDefinitions,
   type ResumeSemanticType,
 } from "./resume-section-system";
 
@@ -18,6 +20,8 @@ export type ManagerSection = {
   visible: boolean;
   zone: ManagerZone;
   fixed?: boolean;
+  /** Pflicht: the entry cannot be hidden or removed. */
+  required?: boolean;
   groupId?: string;
 };
 export const managerSemanticTypes: Record<string, ResumeSemanticType> = {
@@ -72,8 +76,11 @@ export const getManagerSections = (
     (id) => ({
       id,
       title: {
-        heading: "Lebenslauf-Kopf",
-        personalData: "Persönliche Daten",
+        heading: "Überschrift",
+        personalData: getResumeSemanticTitle(
+          profile.resumeSemanticSections,
+          "personalData",
+        ),
         photo: "Bewerbungsfoto",
         closing: "Ort, Datum und Unterschrift",
       }[id]!,
@@ -83,6 +90,7 @@ export const getManagerSections = (
       ).visible,
       zone: "main" as const,
       fixed: true,
+      ...(id === "heading" ? { required: true } : {}),
     }),
   );
   const legacy = getProfileResumeSectionLayout(profile, templateId)
@@ -158,10 +166,35 @@ export const getManagerSections = (
     ...identity,
     ...ordered,
     ...entries.filter((entry) => !ordered.some((item) => item.id === entry.id)),
-  ].map((entry) => ({
-    ...entry,
-    ...profile.resumeManagerOverrides?.[entry.id],
-  }));
+  ].map((entry) =>
+    // The Überschrift is edited in the profile, never renamed or hidden here (also not by an older override).
+    entry.id === "heading"
+      ? entry
+      : entry.id === "personalData"
+        ? // The title comes from the semantic section (see setPersonalDataTitle); only visibility may be overridden.
+          { ...entry, ...profile.resumeManagerOverrides?.[entry.id], title: entry.title }
+        : { ...entry, ...profile.resumeManagerOverrides?.[entry.id] },
+  );
+};
+
+/** The default title is stored as "no custom title", so a later change of the default still applies. */
+export const setPersonalDataTitle = (
+  profile: ApplicantProfile,
+  title: string,
+): ApplicantProfile => {
+  const fallback = resumeSectionDefinitions.find(
+    (definition) => definition.semanticType === "personalData",
+  )!.defaultTitle;
+  return {
+    ...profile,
+    resumeSemanticSections: resolveResumeSectionInstances(
+      profile.resumeSemanticSections,
+    ).map((section) =>
+      section.semanticType === "personalData"
+        ? { ...section, customTitle: title.trim() === fallback ? "" : title.trim() }
+        : section,
+    ),
+  };
 };
 
 export const updateManagerSection = (
@@ -170,6 +203,8 @@ export const updateManagerSection = (
   id: string,
   change: { title?: string; visible?: boolean },
 ): ApplicantProfile => {
+  // The Überschrift is Pflicht and edited through `setResumeHeading`; title and visibility are not managed here.
+  if (id === "heading") return profile;
   let next = {
     ...profile,
     resumeManagerOverrides: {

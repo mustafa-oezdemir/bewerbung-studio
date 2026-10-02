@@ -24,6 +24,61 @@
 }
 
 /* Kenntnisse & Zusatzangaben */
+.knowledge-profile-editor { display: grid; gap: 12px; }
+.knowledge-profile-group,
+.knowledge-category-disclosure { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.knowledge-profile-group > summary,
+.knowledge-category-disclosure > summary { cursor: pointer; padding: 13px 16px; font-weight: 650; }
+.knowledge-profile-group > summary small { margin-left: 8px; color: var(--muted); font-weight: 400; }
+.knowledge-profile-group > :not(summary) { margin: 12px 16px 16px; }
+.knowledge-category-disclosure > .knowledge-category-card { margin: 0 10px 10px; }
+.knowledge-qualification-list { display: grid; gap: 10px; }
+.education-editor .career-list { display: grid; gap: 12px; padding: 0; list-style: none; }
+.education-editor .career-card { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.education-editor .career-card__head { display: flex; align-items: start; gap: 12px; padding: 14px; }
+.education-editor .career-card__summary { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.education-editor .career-card__summary small { color: var(--muted); }
+.education-editor .career-card__actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.education-editor .career-card__body { display: grid; gap: 12px; padding: 0 14px 14px; }
+.education-editor .career-group { display: grid; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.education-editor .career-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.education-editor .career-sorting { display: grid; gap: 2px; }
+.education-editor .career-sorting__label { color: var(--muted); font-size: .8em; }
+.education-editor .career-confirm { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 0 14px 14px; }
+.interests-editor { display: grid; gap: 12px; }
+.interests-editor .special-entry-list { display: grid; gap: 10px; }
+.interests-editor .special-entry-card { display: block; }
+.interests-editor .special-entry-card > summary { cursor: pointer; font-weight: 650; overflow-wrap: anywhere; }
+.interests-editor .special-entry-card[open] > :not(summary) { margin-top: 12px; }
+.interests-editor .special-entry-card .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.interests-editor > .button { justify-self: start; }
+.closing-date-editor { display: grid; gap: 10px; justify-items: start; }
+.closing-date-editor > span { font-weight: 650; }
+/* Profil → 5. Beruflicher Werdegang: station cards (shared look with the other career lists). */
+.career-editor { display: grid; gap: 12px; }
+.career-editor .career-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.career-editor .career-card { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.career-editor .career-card.is-open { border-color: var(--brand); }
+.career-editor .career-card__head { display: flex; align-items: start; gap: 12px; padding: 14px; }
+.career-editor .career-card__summary { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.career-editor .career-card__summary small { color: var(--muted); }
+.career-editor .career-card__tag { justify-self: start; padding: 1px 8px; border-radius: 999px; background: var(--brand-soft); color: var(--brand-dark); font-weight: 650; }
+.career-editor .career-card__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.career-editor .career-card__body { display: grid; gap: 12px; padding: 0 14px 14px; }
+.career-editor .career-group { display: grid; gap: 10px; min-width: 0; margin: 0; border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.career-editor .career-group > legend { padding: 0 6px; font-weight: 650; }
+.career-editor .career-more > summary { cursor: pointer; font-weight: 650; }
+.career-editor .career-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.career-editor .career-sorting { display: grid; gap: 2px; }
+.career-editor .career-sorting__label { color: var(--muted); font-size: .8em; }
+.career-editor .career-confirm { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 0 14px 14px; }
+.career-editor .career-hint { margin: 0; padding: 8px 12px; border-radius: 10px; background: var(--surface-strong); color: var(--muted); font-size: .85em; }
+.career-editor .career-count { margin: 0; color: var(--muted); font-size: .85em; }
+.career-editor .career-count.is-many { color: var(--warning, #9a6700); }
+.career-editor .field.has-issue > span { color: var(--danger, #b42318); }
+.career-editor .career-visibility { display: grid; gap: 8px; min-width: 0; margin: 0; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.career-editor .career-visibility > legend { padding: 0 6px; font-weight: 650; }
+.career-editor .career-display-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-width: 320px; }
 .knowledge-section-editor {
   display: grid;
   gap: 18px;
@@ -2306,11 +2361,37 @@ body.is-resizing-split-view * {
   font-family: var(--doc-heading-font);
 }
 
-.document-paper p,
-.document-paper li {
+.document-paper:not(.document-lebenslauf) p,
+.document-paper:not(.document-lebenslauf) li {
   font-size: var(--doc-body-size);
   line-height: var(--doc-line-height);
 }
+
+/*
+ * The base typography of a Lebenslauf page, with the specificity of the PDF stylesheet's element rules
+ * (electron/documents.ts: "h1,h2,h3{…} p,li{…}"): a template's own class rules win on both surfaces alike,
+ * so the preview and the PDF draw the same sizes.
+ */
+:where(.document-paper.document-lebenslauf) h1,
+:where(.document-paper.document-lebenslauf) h2,
+:where(.document-paper.document-lebenslauf) h3 {
+  font-weight: var(--doc-heading-weight, 700);
+}
+:where(.document-paper.document-lebenslauf) h1 { margin: 8mm 0 4mm; font-size: 29pt; line-height: 1.05; }
+:where(.document-paper.document-lebenslauf) h2 { margin: 8mm 0 3mm; color: var(--doc-accent); font-size: 14pt; }
+:where(.document-paper.document-lebenslauf) h3 { margin: 0 0 1mm; font-size: 11pt; }
+:where(.document-paper.document-lebenslauf) p,
+:where(.document-paper.document-lebenslauf) li {
+  font-size: var(--doc-body-size);
+  line-height: var(--doc-line-height);
+}
+/* The PDF page has no CSS reset: where the templates rely on the browser defaults (line height, h4/h5, inline icons and photos), the preview takes them too. */
+.document-paper.document-lebenslauf { line-height: normal; }
+:where(.document-paper.document-lebenslauf) h4 { margin: 1.33em 0; font-size: 1em; font-weight: bold; }
+:where(.document-paper.document-lebenslauf) h5 { margin: 1.67em 0; font-size: 0.83em; font-weight: bold; }
+:where(.document-paper.document-lebenslauf) figure { margin: 1em 40px; }
+:where(.document-paper.document-lebenslauf) :is(img, svg, video) { display: inline; vertical-align: baseline; }
+:where(.document-paper.document-lebenslauf) img { max-width: none; }
 
 .paper-kicker {
   color: var(--doc-accent);
@@ -3604,12 +3685,12 @@ body.is-resizing-split-view * {
   border-bottom: 1px solid #d8dddc;
 }
 
-.document-paper.column-compact-ats section {
+.document-paper.column-compact-ats:not(.document-lebenslauf) section {
   margin-top: 3.5mm;
 }
 
-.document-paper.column-compact-ats p,
-.document-paper.column-compact-ats li {
+.document-paper.column-compact-ats:not(.document-lebenslauf) p,
+.document-paper.column-compact-ats:not(.document-lebenslauf) li {
   font-size: 8.2pt;
   line-height: 1.28;
 }
@@ -3856,10 +3937,19 @@ body.is-resizing-split-view * {
   font-size: 7.5pt;
 }
 
-.resume-entry,
 .letter-signature {
   break-inside: avoid;
   page-break-inside: avoid;
+}
+
+.resume-entry {
+  break-inside: auto;
+  page-break-inside: auto;
+}
+
+.resume-entry-title {
+  break-after: avoid;
+  page-break-after: avoid;
 }
 
 /* A résumé section flows across the page break like a word-processor document;
@@ -7670,6 +7760,35 @@ body.is-resizing-split-view * {
 .manager-block-details[open] { display: grid; gap: 9px; }
 .manager-block-item { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; margin: 8px 0; }
 .manager-block-item input { min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); }
+
+/* One profile, two editors: compact context and save feedback beside the live CV. */
+.resume-profile-context {
+  display: grid;
+  gap: 7px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--brand) 24%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--brand-soft) 35%, var(--surface));
+}
+.resume-profile-context > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 10px; }
+.resume-profile-context strong { font-size: .72rem; }
+.resume-profile-context > div span { font-size: .78rem; font-weight: 650; color: var(--brand-dark); }
+.resume-profile-context small { color: var(--muted); font-size: .65rem; line-height: 1.45; }
+.resume-save-status { display: inline-flex; width: fit-content; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: var(--surface); font-size: .61rem; font-weight: 650; }
+.resume-save-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.resume-save-status.is-dirty { color: #8a5a12; border-color: color-mix(in srgb, #8a5a12 30%, var(--line)); }
+.resume-save-status.is-saving { color: var(--brand); }
+.resume-save-status.is-saved { color: var(--brand-dark); border-color: color-mix(in srgb, var(--brand) 25%, var(--line)); }
+.resume-save-status.is-error { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--line)); }
+.legacy-summary { padding: 11px 13px; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); background: var(--surface-muted); }
+.legacy-summary > summary { cursor: pointer; font-weight: 650; }
+.legacy-summary > p { margin: 8px 0; font-size: .65rem; line-height: 1.45; }
+.legacy-summary blockquote { margin: 8px 0; padding: 8px 10px; border-left: 3px solid var(--brand); color: var(--ink); white-space: pre-wrap; }
+.profile-editor .section-header .resume-save-status { margin-top: 10px; }
+.profile-list-item { transition: background-color .16s ease, border-color .16s ease; }
+.profile-list-item:not(.active):hover { border-color: var(--line); background: var(--surface-muted); }
+.manager-card { transition: border-color .16s ease, box-shadow .16s ease; }
+.manager-card:focus-within { border-color: color-mix(in srgb, var(--brand) 55%, var(--line)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 10%, transparent); }
 .manager-item-actions { display: grid; justify-items: center; gap: 6px; }
 .manager-add { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
 .manager-add .field { flex: 1; }
@@ -8209,3 +8328,173 @@ body.is-resizing-split-view * {
 .rds-link:disabled { opacity: .5; cursor: default; }
 .rds-note { margin: 0; color: var(--muted); font-size: .58rem; line-height: 1.45; }
 .rds-legacy-intro { margin: 0; color: var(--muted); font-size: .6rem; line-height: 1.45; }
+
+/* Lebenslauf-Überschrift: Profil-Abschnitt "1. Überschrift" und kompakte Variante im Abschnitte-Panel. */
+.profile-required-badge,
+.manager-required-badge {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding: 3px 9px;
+  border: 1px solid color-mix(in srgb, var(--brand) 35%, var(--line));
+  border-radius: 999px;
+  color: var(--brand-dark);
+  background: var(--brand-soft);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.resume-heading-editor { display: grid; gap: 12px; }
+.resume-heading-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.resume-heading-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  background: var(--surface-strong);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+}
+.resume-heading-option input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.resume-heading-option.is-selected { border-color: var(--brand); color: var(--brand-dark); background: var(--brand-soft); }
+.resume-heading-option:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; }
+.resume-heading-validation { color: var(--danger); font-size: 0.64rem; font-weight: 700; }
+.resume-heading-editor input[aria-invalid="true"] { border-color: var(--danger); }
+.resume-heading-preview {
+  display: grid;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+.resume-heading-preview > span { color: var(--muted); font-size: 0.58rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.resume-heading-preview > strong { color: var(--ink); font-size: 1rem; line-height: 1.3; overflow-wrap: anywhere; }
+.resume-heading-preview > small { color: var(--muted); font-size: 0.62rem; line-height: 1.45; }
+.resume-heading-editor.is-compact { gap: 8px; }
+
+/* Persönliche Daten: Pflichtangaben, Online-Profile und freiwillige Angaben als drei klar getrennte Gruppen. */
+.personal-data-editor { display: grid; gap: 14px; }
+.personal-group {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-muted) 55%, transparent);
+}
+.personal-group > header { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.personal-group > header h4 { margin: 0; font-size: 0.8rem; }
+.personal-completeness { margin-left: auto; color: var(--muted); font-size: 0.64rem; font-weight: 700; }
+.personal-completeness.is-complete { color: var(--success, #317858); }
+.profile-optional-badge {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface-strong);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.personal-data-editor .field > label { color: var(--muted); font-size: 0.69rem; font-weight: 700; }
+.personal-data-editor .field small.field-hint,
+.personal-data-editor p.field-hint,
+.field small.field-hint { margin: 0; color: var(--muted); font-size: 0.64rem; line-height: 1.45; }
+.field small.field-issue { display: flex; align-items: center; gap: 4px; color: var(--danger); font-size: 0.66rem; font-weight: 700; }
+.field.has-issue input { border-color: var(--danger); }
+.personal-data-editor .split-fields .field { min-width: 0; }
+
+/* 3. Bewerbungsfoto: Bild, Anzeige im Lebenslauf, Fotogröße (Klein / Mittel / Groß) und ein kurzer Hinweis. */
+.photo-settings { display: grid; gap: 14px; }
+.photo-settings .profile-media-card { grid-template-columns: 108px minmax(0, 1fr); }
+.photo-visibility { margin: 0; }
+.photo-size-field { gap: 8px; }
+.photo-size-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; max-width: 420px; }
+.photo-size-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  background: var(--surface-strong);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.photo-size-option input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.photo-size-option.is-selected { border-color: var(--brand); color: var(--brand-dark); background: var(--brand-soft); }
+.photo-size-option:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; }
+.photo-size-option.is-disabled { opacity: 0.55; cursor: not-allowed; }
+.photo-size-option.is-disabled input { cursor: not-allowed; }
+.photo-tips {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+.photo-tips strong { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; }
+.photo-tips ul { display: grid; gap: 3px; margin: 0; padding-left: 18px; color: var(--ink); font-size: 0.68rem; line-height: 1.45; }
+.photo-tips small { color: var(--muted); font-size: 0.62rem; line-height: 1.45; }
+
+/* 4. Kurzprofil: Text mit Zähler, Hinweise und die Bewerbungs-Variante im Lebenslauf-Panel. */
+.profile-recommended-badge {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding: 3px 9px;
+  border: 1px solid color-mix(in srgb, var(--brand) 25%, var(--line));
+  border-radius: 999px;
+  color: var(--brand-dark);
+  background: color-mix(in srgb, var(--brand-soft) 55%, transparent);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.summary-editor, .application-summary { display: grid; gap: 12px; }
+.summary-editor .field > label, .application-summary .field > label { color: var(--muted); font-size: 0.69rem; font-weight: 700; }
+.summary-editor textarea, .application-summary textarea { min-height: 150px; }
+.summary-counter { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-top: 4px; }
+.summary-counter strong { font-size: 0.72rem; }
+.summary-counter small { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 0.64rem; }
+.summary-counter small.is-recommended { color: var(--success, #317858); font-weight: 700; }
+.summary-checks { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; }
+.summary-checks li { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 0.66rem; }
+.summary-checks li.is-done { color: var(--success, #317858); font-weight: 700; }
+.summary-guide {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+.summary-guide > strong { font-size: 0.72rem; }
+.summary-guide ul, .summary-guide ol { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; padding-left: 18px; font-size: 0.68rem; line-height: 1.45; }
+.summary-guide ol { display: grid; gap: 2px; }
+.summary-guide summary { cursor: pointer; font-size: 0.68rem; font-weight: 700; }
+.summary-guide small { color: var(--muted); font-size: 0.62rem; line-height: 1.45; }
+.summary-tip { display: flex; align-items: flex-start; gap: 5px; }
+.inherited-summary { display: grid; gap: 4px; margin: 0; padding: 10px 12px; border-left: 3px solid var(--line); border-radius: 6px; background: var(--surface-muted); }
+.inherited-summary small { color: var(--muted); font-size: 0.6rem; font-weight: 700; }
+.inherited-summary p { margin: 0; color: var(--ink); font-size: 0.7rem; line-height: 1.5; white-space: pre-line; }
+.inherited-summary p.is-empty { color: var(--muted); font-style: italic; }

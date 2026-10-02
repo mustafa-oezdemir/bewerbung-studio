@@ -4,7 +4,7 @@
  */
 
 import type { ModernEducationSectionProps } from "./modern.types";
-import type { ApplicantProfile } from "../../../../shared/schema";
+import { resolveEducationPresentation } from "../../../../shared/resumeEducation";
 import { ContactIcon } from "../ContactIcon";
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
 
@@ -19,26 +19,28 @@ export function ModernEducationSection({
     <section className="modern-section">
       <h2 className="modern-section__title">{getResumeSectionTitle(profile, "education")}</h2>
       <ul className="modern-education-list">
-        {profile.education.map((edu: ApplicantProfile["education"][number]) => (
-          <li key={edu.id} className="modern-education-entry">
-            <h3 className="modern-education-entry__degree">{edu.degree}</h3>
+        {profile.education.map((edu) => {
+          const item = resolveEducationPresentation(edu);
+          return <li key={edu.id} className="modern-education-entry">
+            <h3 className="modern-education-entry__degree">{item.title}</h3>
             <div className="modern-education-entry__meta">
               <span className="modern-education-entry__institution">
-                {edu.institution}
+                {item.institution}
               </span>
               <span className="modern-education-entry__date">
                 <ContactIcon kind="calendar" />
-                {edu.from} – {edu.to}
+                {item.dateRange}
               </span>
-              {edu.city && (
+              {item.location && (
                 <span className="modern-education-entry__location">
                   <ContactIcon kind="location" />
-                  {edu.city}
+                  {item.location}
                 </span>
               )}
             </div>
-          </li>
-        ))}
+            {item.details.length ? <ul>{item.details.map((detail, index) => <li key={index}>{detail}</li>)}</ul> : null}
+          </li>;
+        })}
       </ul>
     </section>
   );

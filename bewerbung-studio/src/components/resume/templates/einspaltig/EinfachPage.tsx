@@ -20,6 +20,8 @@ import {
   EinfachLanguages,
   EinfachStrengths,
 } from "./EinfachSections";
+import { getResumeSemanticTitle } from "../../../../features/resume-sections/resume-section-system";
+import { formatResumeContactLine } from "../../../../shared/resumePersonalData";
 
 type Props = Omit<EinspaltigResumeProps, "accentColor" | "secondaryColor">;
 
@@ -150,17 +152,8 @@ export function EinfachPage({
         />
         {!isContinuation ? (
           <section className="einfach-section" data-resume-personal>
-            <EinfachHeading>Persönliche Daten</EinfachHeading>
-            <p>
-              {[
-                profile?.phone,
-                profile?.email,
-                profile?.linkedin,
-                [profile?.city, profile?.country].filter(Boolean).join(", "),
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
+            <EinfachHeading>{getResumeSemanticTitle(profile?.resumeSemanticSections, "personalData")}</EinfachHeading>
+            <p>{formatResumeContactLine(profile)}</p>
           </section>
         ) : null}
         {body}

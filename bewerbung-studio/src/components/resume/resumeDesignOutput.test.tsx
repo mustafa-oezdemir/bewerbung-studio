@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { parseHTML } from "linkedom";
 import { describe, expect, it } from "vitest";
 import { buildDocumentHtml } from "../../../electron/documents";
-import { getTemplateDocumentDesignDefaults } from "../../shared/cvDesign";
+import { getTemplateDocumentDesignDefaults, resolveTemplateCvDesign } from "../../shared/cvDesign";
 import type { ResumeDesignLayer } from "../../shared/cvDesignSchema";
 import { createResumePagePlan } from "../../shared/documentPagination";
 import { resolveCvDocument } from "../../shared/resolveCvDocument";
@@ -128,11 +128,7 @@ describe("the shared Lebenslauf design in the outputs", () => {
   });
 });
 
-/**
- * "Seitenränder" and "Innenabstand" reach both outputs through separate channels: the margin moves the page-level scope,
- * the padding marks the columns whose content it insets. The paddings a template draws itself form its margin and are
- * never written to.
- */
+/** Both outputs use the same text inset while their native page and column boxes stay untouched. */
 describe("Seitenränder and Innenabstand in preview and PDF", () => {
   type Spacing = { pageMarginMm?: number; innerPaddingMm?: number };
   const own = (id: string, spacing: Spacing) => ({ ...getTemplateDocumentDesignDefaults(id), ...(Object.keys(spacing).length ? { cvOverrides: { spacing } } : {}) });
@@ -148,13 +144,14 @@ describe("Seitenränder and Innenabstand in preview and PDF", () => {
     return [part.slice(0, at).trim(), part.slice(at + 1).trim()];
   }));
   const only = (style: Record<string, string>, names: string[]) => Object.fromEntries(names.filter((name) => style[name] !== undefined).map((name) => [name, style[name]]));
-  const marginStyle = (scope: Element | null) => only(styleOf(scope), ["--doc-page-margin", "--doc-margin", "padding", "margin", "width", "height"]);
-  const paddingStyle = (scope: Element | null) => only(styleOf(scope), ["--doc-inner-padding", "--doc-padding"]);
-  const carriers = (scope: Element | null) => scope?.querySelectorAll("[data-resume-spacing-inner]").length ?? 0;
+  const marginStyle = (scope: Element | null) => only(styleOf(scope), ["--doc-page-margin", "--resume-page-text-shift"]);
+  const paddingStyle = (scope: Element | null) => only(styleOf(scope), ["--doc-inner-padding", "--doc-padding", "--resume-inner-text-inset"]);
+  const textInset = (scope: Element | null) => scope?.hasAttribute("data-resume-spacing-text") ?? false;
   const inlinePaddings = (scope: Element | null) => scope?.querySelectorAll('[style*="padding-inline"],[style*="padding-left"],[style*="padding-right"]').length ?? 0;
-  const rule = "[data-resume-spacing-inner]>*{padding-inline:var(--doc-inner-padding)!important}";
+  const rule = "[data-resume-spacing-text] [data-managed-section] >";
 
   it.each(templates)("applies each setting on its own and both as their sum, alike in preview and PDF of $name", ({ id }) => {
+    const nativePadding = resolveTemplateCvDesign(id).spacing.innerPaddingMm;
     const native = outputs(id, own(id, {}));
     const changes = {
       margin: outputs(id, own(id, { pageMarginMm: 16 })),
@@ -168,35 +165,34 @@ describe("Seitenränder and Innenabstand in preview and PDF", () => {
       const scope = (name: keyof typeof changes) => scopeOf(changes[name][surface], surface);
       const nativeScope = scopeOf(native[surface], surface);
       for (const name of ["margin", "smaller"] as const) {
-        // The margin moves the scope and sets its own variable; it marks no column and sets none of the padding's variables.
+        // A page margin records a text shift; no page or column box gets padding.
         expect(marginStyle(scope(name)), `${surface} ${name}`).not.toEqual(marginStyle(nativeScope));
         expect(paddingStyle(scope(name)), `${surface} ${name}`).toEqual(paddingStyle(nativeScope));
-        expect(carriers(scope(name)), `${surface} ${name}`).toBe(0);
+        expect(textInset(scope(name)), `${surface} ${name}`).toBe(true);
       }
-      // The padding marks the columns and sets its own variables; the page margin stays the template's.
-      expect(paddingStyle(scope("padding")), surface).toEqual({ "--doc-inner-padding": "2.5mm", "--doc-padding": "2.5mm" });
+      expect(paddingStyle(scope("padding")), surface).toEqual({ "--doc-inner-padding": "2.5mm", "--doc-padding": "2.5mm", "--resume-inner-text-inset": `${2.5 - nativePadding}mm` });
       expect(marginStyle(scope("padding")), surface).toEqual(marginStyle(nativeScope));
-      expect(carriers(scope("padding")), surface).toBeGreaterThan(0);
+      expect(textInset(scope("padding")), surface).toBe(true);
       // Both together are the sum of the two, and a new padding leaves the margin exactly as it was.
       expect(marginStyle(scope("both")), surface).toEqual(marginStyle(scope("margin")));
       expect(paddingStyle(scope("both")), surface).toEqual(paddingStyle(scope("padding")));
-      expect(carriers(scope("both")), surface).toBe(carriers(scope("padding")));
+      expect(textInset(scope("both")), surface).toBe(true);
       expect(marginStyle(scope("bothLess")), surface).toEqual(marginStyle(scope("both")));
-      expect(paddingStyle(scope("bothLess")), surface).toEqual({ "--doc-inner-padding": "2mm", "--doc-padding": "2mm" });
+      expect(paddingStyle(scope("bothLess")), surface).toEqual({ "--doc-inner-padding": "2mm", "--doc-padding": "2mm", "--resume-inner-text-inset": `${2 - nativePadding}mm` });
       expect(marginStyle(scope("smallerBoth")), surface).toEqual(marginStyle(scope("smaller")));
       // No setting writes a padding onto an element of the template: the ones that form its margin stay as they are.
       for (const name of Object.keys(changes) as (keyof typeof changes)[])
         expect(inlinePaddings(scope(name)), `${surface} ${name}`).toBe(inlinePaddings(nativeScope));
-      // The single rule that applies the padding is part of the output.
+      // The shared rule applies only to managed section content.
       expect(changes.padding[surface], surface).toContain(rule);
     }
-    // Preview and PDF read the same values and mark the same number of columns.
+    // Preview and PDF read the same values and mark the same text scope.
     for (const [name, output] of Object.entries(changes)) {
       const preview = scopeOf(output.preview, "preview");
       const pdf = scopeOf(output.pdf, "pdf");
       expect(marginStyle(preview), name).toEqual(marginStyle(pdf));
       expect(paddingStyle(preview), name).toEqual(paddingStyle(pdf));
-      expect(carriers(preview), name).toBe(carriers(pdf));
+      expect(textInset(preview), name).toBe(textInset(pdf));
     }
   });
 
@@ -208,5 +204,72 @@ describe("Seitenränder and Innenabstand in preview and PDF", () => {
       expect(sharedMargin[surface], `${surface}: shared margin, own padding`).toBe(both[surface]);
       expect(sharedPadding[surface], `${surface}: shared padding, own margin`).toBe(both[surface]);
     }
+  });
+});
+
+describe("two-column geometry stays independent of text spacing", () => {
+  const ids = ["pehlione_white", "pehlione_white_blue", "zweispaltig", "zeitgenoessisch", "kreativ", "stilvoll", "kompakt", "gepflegt", "elegant", "modern"];
+  it.each(ids.flatMap((id) => [30, 35, 40].map((percent) => ({ id, percent }))))("keeps $id at $percent / main ratio in preview and PDF", ({ id, percent }) => {
+    const settings = {
+      ...getTemplateDocumentDesignDefaults(id),
+      resumePresentation: { layoutMode: "two-column" as const, sidebarWidthPercent: percent as 30 | 35 | 40 },
+      cvOverrides: { spacing: { pageMarginMm: 16, innerPaddingMm: 3, columnGapMm: 5 } },
+    };
+    const native = {
+      pdf: buildDocumentHtml(applicationFor(id), profile, "lebenslauf"),
+      preview: previewHtml(id, getTemplateDocumentDesignDefaults(id)),
+    };
+    const changed = {
+      pdf: buildDocumentHtml(applicationFor(id, settings), profile, "lebenslauf"),
+      preview: previewHtml(id, settings),
+    };
+    for (const surface of ["pdf", "preview"] as const) {
+      const document = parseHTML(changed[surface]).document;
+      const root = surface === "pdf" ? document.querySelector(".cv-sheet") : document.querySelector(".managed-resume-preview");
+      const host = root?.querySelector('[data-resume-layout="two-column"]');
+      expect(host, `${id} ${surface}`).not.toBeNull();
+      const columns = (host as HTMLElement).style.gridTemplateColumns;
+      expect(columns, `${id} ${surface}`).toContain(`${percent}fr`);
+      expect(columns, `${id} ${surface}`).toContain(`${100 - percent}fr`);
+      const scope = surface === "pdf" ? root?.querySelector(".page-content") : root?.firstElementChild;
+      const scopeStyle = (scope as HTMLElement | null)?.style;
+      expect(scopeStyle?.padding, `${id} ${surface}`).toBe("");
+      expect(scopeStyle?.margin, `${id} ${surface}`).toBe("");
+      expect(scopeStyle?.width, `${id} ${surface}`).toBe("");
+      expect(scopeStyle?.height, `${id} ${surface}`).toBe("");
+      expect(scope?.hasAttribute("data-resume-spacing-text")).toBe(true);
+      const nativeDoc = parseHTML(native[surface]).document;
+      expect(document.querySelectorAll("[data-resume-background-layer]").length).toBe(nativeDoc.querySelectorAll("[data-resume-background-layer]").length);
+      const photoDecoration = '[class*="photo-shape"],[class*="photo-pale"],[class*="photo-soft"],[class*="photo-accent"]';
+      expect(document.querySelectorAll(photoDecoration).length).toBe(nativeDoc.querySelectorAll(photoDecoration).length);
+    }
+  });
+});
+
+describe("long two-column CVs", () => {
+  it.each(["pehlione_white", "pehlione_white_blue", "zweispaltig", "zeitgenoessisch", "kreativ", "stilvoll", "kompakt", "gepflegt", "elegant", "modern"])("keeps every achievement once across all preview and PDF pages in %s", (id) => {
+    const achievements = Array.from({ length: 18 }, (_, entry) => Array.from({ length: 7 }, (_, bullet) => `Leistung ${entry + 1}.${bullet + 1} erfolgreich abgeschlossen.`));
+    const longProfile = profileSchema.parse({ ...profile, experiences: achievements.map((lines, index) => ({
+      id: crypto.randomUUID(), from: "2020", to: "2024", role: `Position ${index + 1}`, company: "Firma", achievements: lines,
+    })) });
+    const settings = getTemplateDocumentDesignDefaults(id);
+    const resolved = resolveCvDocument({ profile: longProfile, templateId: id, settings });
+    expect(resolved.pagePlan.length).toBeGreaterThan(2);
+    const pdf = buildDocumentHtml(applicationFor(id, settings), longProfile, "lebenslauf");
+    expect(pdfPages(pdf)).toHaveLength(resolved.pagePlan.length);
+    const preview = resolved.pagePlan.map((plan) => {
+      const child = createElement(components[id] as ComponentType<Record<string, unknown>>, {
+        profile: resolved.profile, templateId: id, name: "Mina Kaya", atsMode: false, plan,
+        totalPages: resolved.pagePlan.length, accentColor: "#123456", secondaryColor: "#234567",
+        photoSource: null, resumeProfile: "", sections: resolved.sections, backgroundId: settings.backgroundId,
+      });
+      return renderToStaticMarkup(createElement(ManagedResumePreview, {
+        profile: resolved.profile, templateId: id, pageNumber: plan.pageNumber, totalPages: resolved.pagePlan.length,
+        designSettings: resolved.settings, resolvedCv: resolved, children: child,
+      }));
+    }).join("");
+    const texts = [parseHTML(pdf).document.body.textContent ?? "", parseHTML(`<html><body>${preview}</body></html>`).document.body.textContent ?? ""];
+    for (const text of texts) for (const line of achievements.flat())
+      expect(text.split(line).length - 1, `${id}: ${line}`).toBe(1);
   });
 });

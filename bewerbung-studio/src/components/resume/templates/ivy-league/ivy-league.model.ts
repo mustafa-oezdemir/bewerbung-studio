@@ -14,6 +14,11 @@ import type {
   IvyLeagueLanguage,
   IvyLeagueStrength,
 } from "./ivy-league.types";
+import { externalUrl } from "../../../../shared/contactPresentation";
+import { resolveResumeSummary } from "../../../../shared/resumeSummary";
+import { formatCareerPeriod } from "../../../../shared/resumeCareer";
+import { toTemplateEducationItem } from "../../../../shared/resumeEducation";
+import { toTemplateExperienceItem } from "../../../../shared/resumeCareer";
 
 const selectedIds = (
   plan: ResumePagePlan,
@@ -31,59 +36,26 @@ export const createIvyLeaguePageData = (
 ) => {
   const experienceIds = selectedIds(plan, "experience");
   const educationIds = selectedIds(plan, "education");
-  const mapCareer = (
-    entry:
-      | ApplicantProfile["experiences"][number]
-      | ApplicantProfile["education"][number],
-    education: boolean,
-  ): IvyLeagueCareerItem => ({
-    id: entry.id,
-    from: entry.from,
-    to: entry.to,
-    title: education
-      ? (entry as ApplicantProfile["education"][number]).degree
-      : (entry as ApplicantProfile["experiences"][number]).role,
-    organization: education
-      ? (entry as ApplicantProfile["education"][number]).institution
-      : (entry as ApplicantProfile["experiences"][number]).company,
-    city: entry.city,
-    achievements: education
-      ? []
-      : (entry as ApplicantProfile["experiences"][number]).achievements.filter(
-          Boolean,
-        ),
-  });
 
   return {
     experiences: (profile?.experiences ?? [])
       .filter((entry) => experienceIds.has(entry.id))
-      .map((entry) => mapCareer(entry, false)),
+      .map((entry): IvyLeagueCareerItem => toTemplateExperienceItem(entry)),
     education: (profile?.education ?? [])
       .filter((entry) => educationIds.has(entry.id))
-      .map((entry) => mapCareer(entry, true)),
+      .map(toTemplateEducationItem),
     isContinuation: plan.pageNumber > 1,
   };
 };
 
-export const resolveIvyLeagueSummary = (
-  profile: ApplicantProfile | undefined,
-  resumeProfile: string,
-) => resumeProfile.trim() || profile?.summary.trim() || "";
+/** The one Kurzprofil resolver (`shared/resumeSummary.ts`): a template never decides the source itself. */
+export const resolveIvyLeagueSummary = resolveResumeSummary;
 
-export const formatIvyLeagueDateRange = (from: string, to: string) => {
-  const start = from.trim();
-  const end = to.trim();
-  if (!start) return end;
-  if (!end) return start;
-  return `${start} – ${end}`;
-};
+/** One date range for every template and the PDF: `MM/JJJJ – MM/JJJJ`, `MM/JJJJ – heute` (`shared/resumeCareer.ts`). */
+export const formatIvyLeagueDateRange = formatCareerPeriod;
 
-export const toIvyLeagueExternalHref = (value: string) => {
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  return `https://${trimmed.replace(/^[a-z][a-z\d+.-]*:(?:\/\/)?/i, "")}`;
-};
+/** One URL normalisation for every profile link: `externalUrl`. */
+export const toIvyLeagueExternalHref = externalUrl;
 
 export const uniqueIvyLeagueValues = (values: string[]) =>
   Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));

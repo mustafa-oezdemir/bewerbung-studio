@@ -123,7 +123,7 @@ const renderResume = ({
 } = {}) =>
   renderToStaticMarkup(
     <ZeitgenoessischResume
-      profile={profile}
+      profile={{ ...profile, summary: resumeProfile }}
       name={name}
       atsMode={atsMode}
       plan={plan}
@@ -166,7 +166,7 @@ describe("Zeitgenössisch page model", () => {
         profile,
         "Stellenspezifisches Profil",
       ),
-    ).toBe("Stellenspezifisches Profil");
+    ).toBe("Profil aus den Stammdaten");
     expect(resolveZeitgenoessischSummary(profile, "   ")).toBe(
       "Profil aus den Stammdaten",
     );
@@ -251,8 +251,8 @@ describe("Zeitgenössisch rendering", () => {
       totalPages: 1,
     });
     const summaryIndex = markup.indexOf("Auf die Stelle zugeschnitten");
-    const experienceIndex = markup.indexOf("Berufserfahrung");
-    const educationIndex = markup.indexOf("Ausbildung");
+    const experienceIndex = markup.indexOf("Beruflicher Werdegang");
+    const educationIndex = markup.indexOf("Bildungsweg");
     const knowledgeIndex = markup.indexOf("Kenntnisse");
     const languagesIndex = markup.indexOf("Sprachen");
     const strengthsIndex = markup.indexOf("Stärken");

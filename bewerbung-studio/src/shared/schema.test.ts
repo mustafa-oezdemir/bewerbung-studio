@@ -208,7 +208,7 @@ describe("BewerbungsManager schemas", () => {
       updatedAt: new Date().toISOString(),
     });
     expect(profile.knowledgeSection.title).toBe(
-      "Kenntnisse & Zusatzangaben",
+      "Besondere Kenntnisse",
     );
     expect(profile.knowledgeSection.categories).toEqual([]);
     expect(profile.resumeSectionLayout).toEqual([]);
@@ -220,10 +220,10 @@ describe("BewerbungsManager schemas", () => {
     expect(profile.strengths).toEqual([]);
     expect(profile.resumeSections.strengths).toBe(true);
     expect(profile.resumeSectionTitles).toMatchObject({
-      summary: "Zusammenfassung",
+      summary: "Kurzprofil",
       strengths: "Stärken",
-      experience: "Berufserfahrung",
-      education: "Ausbildung",
+      experience: "Beruflicher Werdegang",
+      education: "Bildungsweg",
       languages: "Sprachen",
       certifications: "Zertifikate",
     });

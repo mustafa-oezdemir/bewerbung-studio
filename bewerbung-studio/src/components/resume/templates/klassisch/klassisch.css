@@ -75,7 +75,7 @@
 
 .klassisch-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 34mm;
+  grid-template-columns: minmax(0, 1fr) calc(34mm * var(--resume-photo-scale, 1));
   gap: 8mm;
   align-items: start;
   min-height: 33mm;
@@ -124,22 +124,26 @@
   overflow-wrap: anywhere;
 }
 
+.klassisch-header address svg {
+  margin-right: 1.3mm;
+}
+
 .klassisch-header address a {
   color: inherit;
   text-decoration: none;
 }
 
 .klassisch-header address [data-contact-kind="linkedin"] {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow-wrap: normal;
+  /* A long link wraps; it is never cut off. */
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .klassisch-header figure {
   justify-self: end;
-  width: 32mm;
-  height: 32mm;
+  width: calc(32mm * var(--resume-photo-scale, 1));
+  height: calc(32mm * var(--resume-photo-scale, 1));
   margin: 0;
   overflow: hidden;
   border-radius: 50%;

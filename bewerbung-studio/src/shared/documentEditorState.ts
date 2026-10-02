@@ -19,14 +19,14 @@ export const createDocumentDesignDraft = (application: Application) => ({
 
 export type DocumentDesignDraft = ReturnType<typeof createDocumentDesignDraft>;
 
-const snapshotTemplateOverrides = (current: DocumentDesignDraft, global?: ResumeDesignLayer): Application["templateDesigns"][string] => {
+const snapshotTemplateOverrides = (current: DocumentDesignDraft): Application["templateDesigns"][string] => {
   const template = getTemplate(current.templateId);
   const defaults = getTemplateDocumentDesignDefaults(template.id);
   const { cvOverrides, resumeAppearance, ...settings } = current.settings;
-  // What the document inherits is the template's own design with the shared layer on top; only differences are kept.
-  const inherited = resolveResumeDesignView(template.id, current.settings, global).inherited;
-  const compact = compactCvDesignOverrides(template.id, cvOverrides ?? {}, inherited.tokens);
-  const appearance = compactResumeAppearance(resumeAppearance ?? {}, inherited.appearance);
+  // Existing explicit choices remain explicit when a shared value happens to match them.
+  // Dropping them here would change an older CV after the shared layer is reset.
+  const compact = mergeCvDesignOverrides(cvOverrides);
+  const appearance = mergeResumeAppearance(resumeAppearance);
   return {
     ...(current.accentColor.toLowerCase() !== template.accent.toLowerCase() ? { accentColor: current.accentColor } : {}),
     ...(current.secondaryColor.toLowerCase() !== template.secondary.toLowerCase() ? { secondaryColor: current.secondaryColor } : {}),
@@ -46,7 +46,7 @@ const snapshotTemplateOverrides = (current: DocumentDesignDraft, global?: Resume
 export const selectDocumentTemplate = (
   current: DocumentDesignDraft,
   templateId: string,
-  global?: ResumeDesignLayer,
+  _global?: ResumeDesignLayer,
 ): DocumentDesignDraft => {
   if (current.templateId === templateId) return current;
   const template = getTemplate(templateId);
@@ -54,7 +54,7 @@ export const selectDocumentTemplate = (
   const savedKey = Object.keys(current.templateDesigns).find((key) => resolveTemplateId(key) === template.id);
   const saved = savedKey ? current.templateDesigns[savedKey] : undefined;
   const templateDesigns = { ...current.templateDesigns };
-  const snapshot = snapshotTemplateOverrides(current, global);
+  const snapshot = snapshotTemplateOverrides(current);
   const previousId = resolveTemplateId(current.templateId);
   delete templateDesigns[current.templateId];
   delete templateDesigns[previousId];
@@ -131,8 +131,7 @@ export type DesignScope = "global" | "document";
 export type DesignEditState = { draft: DocumentDesignDraft; global: ResumeDesignLayer | undefined };
 
 /**
- * One design edit. In the shared scope the value joins the workspace layer and the document drops its own value of
- * the same field, so the edit is what this document shows; other documents keep what they overrode themselves.
+ * One design edit. Document overrides always win over the shared layer, including older saved values.
  */
 export const editCvDesignField = <Group extends keyof CvDesignTokens, Key extends keyof CvDesignTokens[Group]>(
   state: DesignEditState, scope: DesignScope, group: Group, key: Key, value: CvDesignTokens[Group][Key] | undefined,
@@ -144,7 +143,7 @@ export const editCvDesignField = <Group extends keyof CvDesignTokens, Key extend
     ...state.global,
     cvOverrides: mergeCvDesignOverrides({ ...state.global?.cvOverrides, [group]: undefined }, { [group]: { ...rest, ...(value === undefined ? {} : { [key]: value }) } }),
   });
-  return { global, draft: updateCvDesignField(state.draft, group, key, undefined, global) };
+  return { global, draft: state.draft };
 };
 
 export const editResumeAppearanceField = <Key extends keyof ResumeAppearance>(
@@ -156,17 +155,18 @@ export const editResumeAppearanceField = <Key extends keyof ResumeAppearance>(
   if (dividerKey) { delete shared.sectionDividerVisible; delete shared.sectionDividerPosition; }
   if (value === undefined) delete shared[key]; else shared[key] = value;
   const global = compactResumeDesignLayer({ ...state.global, resumeAppearance: shared as ResumeAppearance });
-  return { global, draft: updateResumeAppearanceField(state.draft, key, undefined as ResumeAppearance[Key], global) };
+  return { global, draft: state.draft };
 };
 
 /**
- * "Vorlagenwerte wiederherstellen": in the shared scope the workspace layer goes, and with it every template's detour
- * from its own design, together with this document's design overrides; in the document scope only the document's go.
+ * "Vorlagenwerte wiederherstellen" removes the shared layer only. A separate document reset
+ * removes this Bewerbung's overrides, so older application and template snapshots remain intact.
  */
 export const resetResumeDesign = (state: DesignEditState, scope: DesignScope): DesignEditState => {
+  if (scope === "global") return { ...state, global: undefined };
   const { cvOverrides: _cv, resumeAppearance: _appearance, ...settings } = state.draft.settings;
   return {
-    global: scope === "global" ? undefined : state.global,
+    global: state.global,
     draft: { ...state.draft, settings },
   };
 };

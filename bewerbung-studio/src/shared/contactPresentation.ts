@@ -16,11 +16,26 @@ export const formatPhoneForDisplay = (value = "") => {
   return value.trim();
 };
 
+/**
+ * The one URL normalisation of every profile link (LinkedIn, GitHub, Website, Online-Profile) in the editors,
+ * the preview and the PDF: "linkedin.com/in/x" becomes "https://linkedin.com/in/x". Only http(s) targets are
+ * produced; a scheme the user typed (also script-like ones such as "javascript:") is dropped, never kept.
+ */
 export const externalUrl = (value = "") => {
   const trimmed = value.trim();
   if (!trimmed) return "";
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  return `https://${trimmed.replace(/^[a-z][a-z\d+.-]*:(?:\/\/)?/i, "")}`;
+  const withoutScheme = trimmed.replace(
+    /^(?:[a-z][a-z\d+.-]*:\/\/|(?:javascript|data|vbscript|file|mailto|tel):)\/*/i,
+    "",
+  );
+  return withoutScheme ? `https://${withoutScheme}` : "";
+};
+
+/** `tel:` target of a phone number; the stored number itself is never rewritten. */
+export const phoneHref = (value = "") => {
+  const digits = value.replace(/[^\d+]/g, "");
+  return digits ? `tel:${digits}` : "";
 };
 
 /** Keeps the URL readable while the complete URL remains the link destination. */

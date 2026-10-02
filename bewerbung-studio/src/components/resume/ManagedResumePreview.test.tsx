@@ -9,7 +9,6 @@ import { buildDocumentHtml } from "../../../electron/documents";
 import { createResumePagePlan } from "../../shared/documentPagination";
 import { resolveCvDocument } from "../../shared/resolveCvDocument";
 import { formatApplicationDate } from "../../shared/applicationDate";
-import { usesApplicationClosingDate } from "../../shared/resumeSectionPresentation";
 import { moveManagerSection, updateManagerSection } from "../../features/resume-sections/resume-manager";
 import { resolveResumePresentation } from "../../shared/resumePresentation";
 import { ManagedResumePreview } from "./ManagedResumePreview";
@@ -86,7 +85,7 @@ describe("managed template previews", () => {
     const preview = renderToStaticMarkup(<ManagedResumePreview profile={profile} templateId="einspaltig" pageNumber={1} totalPages={1}>{child}</ManagedResumePreview>);
     const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test", company: { name: "Test", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" }, status: "Entwurf", templateId: "einspaltig", accentColor: "#123456", documents: {}, statusHistory: [], createdAt: now, updatedAt: now });
     const pdf = buildDocumentHtml(application, profile, "lebenslauf");
-    const expected = ["Zusammenfassung", "Stärken", "Berufserfahrung", "Ausbildung", "Sprachen", "Zertifikate", "Ehrenamt"];
+    const expected = ["Kurzprofil", "Stärken", "Beruflicher Werdegang", "Bildungsweg", "Sprachen", "Zertifikate", "Ehrenamt"];
     for (const [html, selector] of [[preview, ".einfach-section__title, .einfach-template .managed-extra > h3, .cv-heading"], [pdf, ".managed-pdf-title, .einfach-pdf .managed-extra > h3, .cv-heading"]] as const) {
       const { document } = parseHTML(html);
       const headings = Array.from(document.querySelectorAll(`${selector}, [data-custom-role="heading"]`)).map((heading) => heading.textContent?.trim());
@@ -109,11 +108,13 @@ describe("managed template previews", () => {
     const now = new Date().toISOString();
     const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: now,
       strengths: Array.from({ length: 10 }, (_, i) => ({ id: crypto.randomUUID(), title: `Stärke ${i + 1}`, iconId: "symbol:check" })), skills: ["Java", "Go", "Docker"] });
-    const plan = createResumePagePlan(profile, "", {}, templateId)[0];
     for (const columns of ["auto", 1, 2, 3, 4] as const) {
       const settings = { ...defaultDocumentDesign, strengthsColumns: columns, knowledgeColumns: columns };
-      const child = createElement(component as unknown as ComponentType<Record<string, unknown>>, { profile, templateId, name: "Mina Kaya", atsMode: false, plan, totalPages: 1, accentColor: "#123456", secondaryColor: "#234567", photoSource: null, resumeProfile: "", sections: profile.resumeSections, backgroundId: "none" });
-      const preview = renderToStaticMarkup(<ManagedResumePreview profile={profile} templateId={templateId} pageNumber={1} totalPages={1} designSettings={settings}>{child}</ManagedResumePreview>);
+      const plans = resolveCvDocument({ profile, templateId, settings }).pagePlan;
+      const preview = plans.map((plan) => {
+        const child = createElement(component as unknown as ComponentType<Record<string, unknown>>, { profile, templateId, name: "Mina Kaya", atsMode: false, plan, totalPages: plans.length, accentColor: "#123456", secondaryColor: "#234567", photoSource: null, resumeProfile: "", sections: profile.resumeSections, backgroundId: "none" });
+        return renderToStaticMarkup(<ManagedResumePreview profile={profile} templateId={templateId} pageNumber={plan.pageNumber} totalPages={plans.length} designSettings={settings}>{child}</ManagedResumePreview>);
+      }).join("");
       const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test", company: { name: "Test", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" }, status: "Entwurf", templateId, accentColor: "#123456", documents: {}, statusHistory: [], createdAt: now, updatedAt: now, designSettings: settings });
       const pdf = buildDocumentHtml(application, profile, "lebenslauf");
       const previewDocument = parseHTML(preview).document;
@@ -305,7 +306,13 @@ describe("managed template previews", () => {
       { placement: "footer" as const, alignment: "center" as const, showPlace: false, showSignature: false },
     ]) {
       const settings = { ...defaultDocumentDesign, resumePresentation: { closing } };
-      const projected = resolveResumePresentation(profile, templateId, settings.resumePresentation)!;
+      const content = closing as { showPlace?: boolean; showDate?: boolean; showSignature?: boolean };
+      const contentProfile = { ...profile, resumeClosing: { ...profile.resumeClosing,
+        showPlace: content.showPlace ?? profile.resumeClosing.showPlace,
+        showDate: content.showDate ?? profile.resumeClosing.showDate,
+        showSignature: content.showSignature ?? profile.resumeClosing.showSignature,
+      } };
+      const projected = resolveResumePresentation(contentProfile, templateId, settings.resumePresentation)!;
       const plan = createResumePagePlan(projected, "", {}, templateId)[0];
       const child = createElement(component as unknown as ComponentType<Record<string, unknown>>, { profile: projected, templateId, name: "Mina Kaya", atsMode: false,
         plan, totalPages: 1, accentColor: "#123456", secondaryColor: "#234567", photoSource: null, resumeProfile: "", sections: projected.resumeSections, backgroundId: "white" });
@@ -314,9 +321,8 @@ describe("managed template previews", () => {
         createdAt: now, updatedAt: now, designSettings: settings });
       const resolvedCv = resolveCvDocument({ profile: projected, templateId, settings, presentationAlreadyApplied: true, application });
       const preview = renderToStaticMarkup(<ManagedResumePreview profile={projected} templateId={templateId} pageNumber={1} totalPages={1} designSettings={settings} resolvedCv={resolvedCv}>{child}</ManagedResumePreview>);
-      // The templates that follow their column print the date of the application; the other templates the date typed into the profile.
-      const closingDate = usesApplicationClosingDate(templateId) ? formatApplicationDate(application) : "28.09.2026";
-      for (const html of [preview, buildDocumentHtml(application, profile, "lebenslauf")]) {
+      const closingDate = formatApplicationDate(application);
+      for (const html of [preview, buildDocumentHtml(application, contentProfile, "lebenslauf")]) {
         const document = parseHTML(html).document;
         const block = document.querySelector("[data-resume-closing]");
         expect(block, templateId).not.toBeNull();

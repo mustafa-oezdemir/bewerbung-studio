@@ -66,7 +66,8 @@
   position: relative;
   z-index: 2;
   min-height: 22mm;
-  padding: 13mm var(--kompakt-margin) 0;
+  /* The photo hangs out of the header: a bigger one pushes the columns below it down by its growth. */
+  padding: 13mm var(--kompakt-margin) max(0mm, calc(20mm * (var(--resume-photo-scale, 1) - 1)));
 }
 
 .kompakt-header h1 {
@@ -95,8 +96,8 @@
   position: absolute;
   top: 9mm;
   right: var(--kompakt-margin);
-  width: 20mm;
-  height: 20mm;
+  width: calc(20mm * var(--resume-photo-scale, 1));
+  height: calc(20mm * var(--resume-photo-scale, 1));
   border-radius: 1mm;
   object-fit: cover;
 }

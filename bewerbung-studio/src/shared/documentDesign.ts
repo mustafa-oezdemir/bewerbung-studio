@@ -614,6 +614,7 @@ export const getDocumentDesignVariables = (
   "--doc-line-height": String(lineHeightLevelToValue[settings.lineHeightLevel]),
   "--doc-font": getDocumentFont(settings.fontId).family,
   "--doc-heading-font": getDocumentFont(settings.headingFontId).family,
+  "--doc-heading-weight": String(getDocumentFont(settings.headingFontId).headingWeight),
   "--doc-text-color": settings.textColor,
   "--doc-heading-color": settings.headingColor,
   "--doc-line-color": settings.lineColor,

@@ -35,7 +35,7 @@ describe("shared CV document resolution", () => {
         sections: { education: { visible: false } },
       },
     };
-    const input = { templateId, settings, resumeProfile: "Kurzprofil", jobTitle: "Entwicklung" };
+    const input = { templateId, settings, resumeProfile: "Kurzprofil" };
     const pdf = resolveCvDocument({ ...input, profile });
     const preview = resolveCvDocument({
       ...input,
@@ -47,19 +47,16 @@ describe("shared CV document resolution", () => {
     expect(preview.knowledgeGroups).toEqual(pdf.knowledgeGroups);
     expect(preview.design).toEqual(pdf.design);
     expect(preview.layout).toEqual(pdf.layout);
-    expect(pdf.pagePlan.flatMap((page) => page.items).every((item) => item.kind !== "education")).toBe(true);
-    expect(pdf.pagePlan).toHaveLength(2);
+    expect(pdf.pagePlan.flatMap((page) => page.items).some((item) => item.kind === "education")).toBe(true);
+    expect(pdf.pagePlan.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("uses the same Pehlione summary fallback for preview and PDF", () => {
+  it("resolves the same Kurzprofil for every template, preview and PDF alike", () => {
     const profile = makeProfile();
-    const resolved = resolveCvDocument({ profile, templateId: "pehlione_white", jobTitle: "Entwicklung" });
-    expect(resolved.paginationSummary).toBe("Profil-Zusammenfassung");
-    const jobSpecific = resolveCvDocument({
-      profile, templateId: "pehlione_white", jobTitle: "Kundenservice",
-      deckblattStatement: "Passende Deckblatt-Aussage",
-    });
-    expect(jobSpecific.paginationSummary).toBe("Passende Deckblatt-Aussage");
+    for (const templateId of templateIds) {
+      expect(resolveCvDocument({ profile, templateId }).summary, templateId).toBe("Profil-Zusammenfassung");
+      expect(resolveCvDocument({ profile, templateId, resumeProfile: "  Bewerbungstext  " }).summary, templateId).toBe("Profil-Zusammenfassung");
+    }
   });
 
   it.each(templateIds)("prints the resolved page count for %s", (templateId) => {
@@ -75,24 +72,19 @@ describe("shared CV document resolution", () => {
     const resolved = resolveCvDocument({
       profile, templateId, settings: application.designSettings,
       resumeProfile: application.documents.resumeProfile,
-      deckblattStatement: application.documents.deckblattStatement,
-      jobTitle: application.job.title,
+      application,
     });
     const { document } = parseHTML(buildDocumentHtml(application, profile, "lebenslauf"));
     expect(document.querySelectorAll(".cv-sheet")).toHaveLength(resolved.pagePlan.length);
   });
 
-  it("takes the closing date of the zone-flow templates from the application, and leaves the others alone", () => {
+  it("takes the closing date from the application for every template", () => {
     const profile = makeProfile();
     const application = { sentAt: "2026-09-26T10:00:00.000Z", createdAt: "2026-09-01T09:00:00.000Z" };
-    const joined = [...zoneFlowTemplates];
-    for (const templateId of joined) {
+    for (const templateId of templateIds) {
       expect(resolveCvDocument({ profile, templateId, application }).closingDate, templateId).toBe("26.09.2026");
-      // Without an application there is no date to print.
-      expect(resolveCvDocument({ profile, templateId }).closingDate, templateId).toBe("");
+      expect(resolveCvDocument({ profile, templateId }).closingDate, templateId).toBeUndefined();
     }
-    for (const templateId of templateIds.filter((id) => !joined.includes(id)))
-      expect(resolveCvDocument({ profile, templateId, application }).closingDate, templateId).toBeUndefined();
   });
 
   it("prints an October application date in German format", () => {

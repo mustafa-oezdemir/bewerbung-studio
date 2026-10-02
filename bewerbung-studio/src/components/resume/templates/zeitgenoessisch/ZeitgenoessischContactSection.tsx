@@ -2,6 +2,8 @@ import { ContactIcon } from "../ContactIcon";
 import type { ApplicantProfile } from "../../../../shared/schema";
 import { toZeitgenoessischExternalHref } from "./zeitgenoessisch.model";
 import { ZeitgenoessischSectionHeading } from "./ZeitgenoessischSectionHeading";
+import { formatResumeAddress, formatResumeBirth, getResumePersonalDetails } from "../../../../shared/resumePersonalData";
+import { formatPhoneForDisplay, phoneHref } from "../../../../shared/contactPresentation";
 
 
 export function ZeitgenoessischContactSection({
@@ -9,16 +11,13 @@ export function ZeitgenoessischContactSection({
 }: {
   profile: ApplicantProfile | undefined;
 }) {
-  const location = [profile?.postalCode, profile?.city, profile?.country]
-    .filter(Boolean)
-    .join(" ");
+  const location = formatResumeAddress(profile, { postalCode: true });
+  const birth = formatResumeBirth(profile);
   const contacts = [
     {
       kind: "phone",
-      value: profile?.phone,
-      href: profile?.phone
-        ? `tel:${profile.phone.replace(/[^\d+]/g, "")}`
-        : "",
+      value: formatPhoneForDisplay(profile?.phone),
+      href: phoneHref(profile?.phone),
     },
     {
       kind: "email",
@@ -53,8 +52,10 @@ export function ZeitgenoessischContactSection({
         ? toZeitgenoessischExternalHref(profile.github)
         : "",
     },
+    { kind: "birth", value: birth, href: "" },
+    ...getResumePersonalDetails(profile).map((detail) => ({ kind: detail.kind, value: detail.text, href: detail.href })),
   ].filter((contact) => contact.value?.trim()) as Array<{
-    kind: "phone" | "email" | "portfolio" | "linkedin" | "location" | "github";
+    kind: "phone" | "email" | "portfolio" | "linkedin" | "location" | "github" | "birth" | "nationality" | "familyStatus" | "children";
     value: string;
     href: string;
   }>;
