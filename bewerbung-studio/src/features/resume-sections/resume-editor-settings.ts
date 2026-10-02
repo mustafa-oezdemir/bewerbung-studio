@@ -10,6 +10,7 @@ export const getResumeEditorSettings = (profile: ApplicantProfile) => ({
   resumeManagerOverrides: profile.resumeManagerOverrides,
   resumeSemanticSections: profile.resumeSemanticSections,
   resumePersonalFieldVisibility: profile.resumePersonalFieldVisibility,
+  resumeContinuationContactVisibility: profile.resumeContinuationContactVisibility,
   resumeKnowledgeGroups: profile.resumeKnowledgeGroups,
   resumeKnowledgeContainer: profile.resumeKnowledgeContainer,
   resumeColumnRatio: profile.resumeColumnRatio,

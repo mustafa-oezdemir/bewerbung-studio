@@ -139,7 +139,8 @@ npm run dev
 ```
 
 `npm run dist:win` prüft den Quellcode und erzeugt unter `windows-release/` einen
-Windows-Installer, eine portable Ausgabe und `SHA256SUMS.txt`. Die vollständige
+Windows-Installer, eine portable Ausgabe, `SHA256SUMS.txt` und die
+[Windows-Installationsanleitung](./WINDOWS-KURULUM.md). Die vollständige
 Release-Checkliste steht in [RELEASE.md](./RELEASE.md). Öffentliche Builds
 sollten vor der Weitergabe mit einem Windows-Code-Signing-Zertifikat signiert
 werden.

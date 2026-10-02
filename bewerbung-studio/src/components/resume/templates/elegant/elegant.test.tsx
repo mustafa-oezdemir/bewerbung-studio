@@ -240,8 +240,8 @@ describe("Elegant rendering", () => {
   it("registers Elegant with matching Word assets and design defaults", () => {
     expect(getTemplate("elegant")).toMatchObject({
       id: "elegant",
-      accent: "#FE6201",
-      secondary: "#8A0202",
+      accent: "#168BE0",
+      secondary: "#234663",
       layout: "sidebar-right",
       supportsAtsMode: true,
       supportsPhoto: true,

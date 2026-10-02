@@ -184,7 +184,9 @@ describe("Persönliche Daten in the Lebenslauf panel", () => {
       expect(checkbox(root, label), label).toBeDefined();
       expect(checkbox(root, label)?.hasAttribute("checked"), label).toBe(false);
     }
-    expect(Array.from(root.querySelectorAll("legend")).map((node) => node.textContent)).toEqual(["Kontaktdaten", "Freiwillige Angaben"]);
+    expect(Array.from(root.querySelectorAll("legend")).map((node) => node.textContent)).toEqual(["Kontaktdaten", "Kontakt auf Folgeseiten", "Freiwillige Angaben"]);
+    expect(checkbox(root, "E-Mail auf Folgeseiten wiederholen")?.hasAttribute("checked")).toBe(false);
+    expect(checkbox(root, "Telefon auf Folgeseiten wiederholen")?.hasAttribute("checked")).toBe(false);
   });
 
   it("answers a switched-off contact detail with a calm note, never a dialog", () => {

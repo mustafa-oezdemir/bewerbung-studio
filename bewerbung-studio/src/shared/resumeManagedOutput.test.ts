@@ -13,17 +13,27 @@ const profile = profileSchema.parse({
 const page = '<section class="cv-sheet"><main><section><h2>Stärken</h2><p>Old content</p></section></main></section>';
 
 describe("shared strengths output", () => {
-  it.each(["pehlione_white", "pehlione_white_blue"] as const)("keeps %s contacts in the first sidebar and second-page header only", (templateId) => {
+  it.each(["pehlione_white", "pehlione_white_blue"] as const)("shows %s contacts on later pages only when selected", (templateId) => {
     const applicant = profileSchema.parse({ ...profile, email: "mina@example.com", phone: "+49 30 123456" });
-    const sheet = (pageNumber: number) => `<section class="page cv-sheet" data-resume-page="${pageNumber}" data-template="${templateId}"><div class="page-content pehlione-pdf"><aside class="pehlione-pdf-sidebar"><section class="pehlione-contacts"><ul><li data-contact-kind="phone">+49 30 123456</li><li data-contact-kind="email">mina@example.com</li></ul></section></aside><main class="pehlione-pdf-main"><header class="pehlione-pdf-header"><h1>Mina Kaya</h1><h2>Entwicklerin</h2></header></main></div></section>`;
+    // Like the real pages: the sidebar with the contacts stands on page one only.
+    const sidebar = '<aside class="pehlione-pdf-sidebar"><section class="pehlione-contacts"><ul><li data-contact-kind="phone">+49 30 123456</li><li data-contact-kind="email">mina@example.com</li></ul></section></aside>';
+    const sheet = (pageNumber: number, aside = pageNumber === 1) => `<section class="page cv-sheet" data-resume-page="${pageNumber}" data-template="${templateId}"><div class="page-content pehlione-pdf">${aside ? sidebar : ""}<main class="pehlione-pdf-main"><header class="pehlione-pdf-header"><h1>Mina Kaya</h1><h2>Entwicklerin</h2></header></main></div></section>`;
     const { document } = parseHTML(applyManagedResumeOutput(sheet(1) + sheet(2), applicant, templateId, 1, 2));
     const first = document.querySelector('[data-resume-page="1"]')!;
     const second = document.querySelector('[data-resume-page="2"]')!;
     expect(first.querySelectorAll(".pehlione-contacts li")).toHaveLength(2);
     expect(first.querySelector("header [data-resume-header-extra-contact]")).toBeNull();
     expect(second.querySelector("header")?.hasAttribute("data-pehlione-continuation-header")).toBe(true);
-    expect(second.querySelector('header a[href="mailto:mina@example.com"]')).not.toBeNull();
-    expect(second.querySelector('header a[href="tel:+4930123456"]')).not.toBeNull();
+    expect(second.querySelector('header a[href="mailto:mina@example.com"]')).toBeNull();
+    expect(second.querySelector('header a[href="tel:+4930123456"]')).toBeNull();
+    const repeated = profileSchema.parse({ ...applicant, resumeContinuationContactVisibility: { email: true, phone: true } });
+    const requested = parseHTML(applyManagedResumeOutput(sheet(1) + sheet(2), repeated, templateId, 1, 2)).document.querySelector('[data-resume-page="2"]')!;
+    expect(requested.querySelector('header a[href="mailto:mina@example.com"]')).not.toBeNull();
+    expect(requested.querySelector('header a[href="tel:+4930123456"]')).not.toBeNull();
+    // A second page that still shows the contacts in its sidebar gets no copy in the header.
+    const both = parseHTML(applyManagedResumeOutput(sheet(1) + sheet(2, true), repeated, templateId, 1, 2)).document.querySelector('[data-resume-page="2"]')!;
+    expect(both.querySelector("header [data-resume-header-extra-contact]")).toBeNull();
+    expect(both.querySelectorAll(".pehlione-contacts li")).toHaveLength(2);
   });
   it.each(["preview", "pdf"] as const)("applies semantic typography and color overrides to %s", (surface) => {
     const markup = surface === "pdf"

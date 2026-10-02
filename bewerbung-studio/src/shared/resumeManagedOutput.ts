@@ -794,19 +794,31 @@ export const applyManagedResumeOutput = (
       applyEntryBreaks(nodes.get("experience") ?? [], entrySources?.[6] ?? "", entrySources?.[2] ?? "", pagePlan.items);
     }
     const pehlioneContinuation = (resolved.templateId === "pehlione_white_blue" || resolved.templateId === "pehlione_white") && (pages.length > 1 || totalPages > 1);
+    const continuationContacts = enabled("personalData") ? {
+      email: profile.resumeContinuationContactVisibility.email ? profile.email : undefined,
+      phone: profile.resumeContinuationContactVisibility.phone ? profile.phone : undefined,
+    } : undefined;
     if (number === 1 && !pehlioneContinuation && (pages.length > 1 || totalPages > 1))
       ensureResumeHeaderContacts(root, enabled("personalData") ? profile : undefined);
-    else if (firstPageHeader) repeatResumeHeader(root, firstPageHeader);
+    else if (firstPageHeader) {
+      repeatResumeHeader(root, firstPageHeader);
+      if (number > 1) {
+        const header = root.querySelector("header");
+        if (!continuationContacts?.email) header?.querySelectorAll('a[href^="mailto:"]').forEach((node) => node.remove());
+        if (!continuationContacts?.phone) header?.querySelectorAll('a[href^="tel:"]').forEach((node) => node.remove());
+        ensureResumeHeaderContacts(root, continuationContacts);
+      }
+    }
     else if (number > 1 || !pehlioneContinuation) normalizeContinuationHeader(root, number, pages.length > 1 ? pages.length : totalPages,
-      enabled("personalData") ? profile : undefined, resolveResumeHeading(profile).kicker);
+      number > 1 ? continuationContacts : enabled("personalData") ? profile : undefined, resolveResumeHeading(profile).kicker);
     if (pehlioneContinuation && number > 1) {
       const header = root.querySelector(".pehlione-header,.pehlione-pdf-header");
       if (header) {
         header.setAttribute("data-pehlione-continuation-header", "");
         const contacts = enabled("personalData") ? getPehlioneContacts(profile) : [];
         ensureResumeHeaderContacts(root, {
-          email: contacts.find((item) => item.key === "email")?.value,
-          phone: contacts.find((item) => item.key === "phone")?.value,
+          email: continuationContacts?.email ? contacts.find((item) => item.key === "email")?.value : undefined,
+          phone: continuationContacts?.phone ? contacts.find((item) => item.key === "phone")?.value : undefined,
         });
       }
     }

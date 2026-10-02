@@ -621,6 +621,10 @@ export const profileSchema = z.object({
       z.record(z.enum(resumePersonalFieldKeys), z.boolean()),
     )
     .default(defaultResumePersonalFieldVisibility),
+  resumeContinuationContactVisibility: z.object({
+    email: z.boolean().default(false),
+    phone: z.boolean().default(false),
+  }).default({ email: false, phone: false }),
   resumeCareerFieldVisibility: z
     .preprocess(
       resolveResumeCareerFieldVisibility,

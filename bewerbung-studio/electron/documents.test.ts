@@ -932,7 +932,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(html).toContain('data-template="elegant"');
     expect(html).toContain('data-no-fit="true"');
     expect(html).toContain('<aside class="elegant-pdf-sidebar">');
-    expect(html).toContain("box-shadow:inset 0 3.5mm 0 #600101");
+    expect(html).toContain("box-shadow:inset 0 3.5mm 0 color-mix(in srgb,var(--secondary),black 28%)");
     expect(html).toContain(
       "grid-template-columns:minmax(0,140mm) 70mm",
     );
@@ -941,6 +941,21 @@ describe("Lebenslauf-Dokumente", () => {
     expect(html).not.toContain('<img class="elegant-pdf-photo"');
     expect(html).not.toContain("elegant-pdf-monogram");
     expect(html).not.toContain("Seite 1 von 1");
+  });
+
+  it("uses Elegant's blue native colors and profile section titles in the PDF", () => {
+    const chosen = { ...applicationSchema.parse({ ...application, templateId: "elegant" }), accentColor: "", secondaryColor: "" };
+    const edited = profileSchema.parse({
+      ...profile,
+      resumeSectionTitles: { ...profile.resumeSectionTitles, experience: "Mein Werdegang", education: "Meine Ausbildung" },
+      education: [{ id: crypto.randomUUID(), from: "2018", to: "2021", degree: "Abschluss", institution: "Hochschule" }],
+    });
+    const html = buildDocumentHtml(chosen, edited, "lebenslauf");
+    const body = html.slice(html.indexOf("<body>"));
+    expect(html).toContain("--accent:#168BE0;--secondary:#234663");
+    expect(body).toContain("Mein Werdegang");
+    expect(body).toContain("Meine Ausbildung");
+    expect(body).not.toContain("Enhancv");
   });
 
   it("uses a separate linear Elegant ATS renderer in logical section order", () => {

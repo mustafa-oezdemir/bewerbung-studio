@@ -65,6 +65,10 @@ for (const fileName of generatedFiles) {
     path.join(artifactDirectory, fileName),
   );
 }
+await copyFile(
+  path.join(workspaceDirectory, "WINDOWS-KURULUM.md"),
+  path.join(artifactDirectory, "WINDOWS-KURULUM.md"),
+);
 
 try {
   await rm(temporaryDirectory, {

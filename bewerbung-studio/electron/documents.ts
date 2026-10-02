@@ -325,7 +325,7 @@ const documentCss = (
 };
 
 const elegantDocumentCss = `
-  .elegant-pdf{--elegant-heading:#3b4247;--elegant-text:#4b5359;--elegant-muted:#6d757a;--elegant-line:#b9bfc3;--elegant-sidebar-muted:#f6eaea;display:grid;grid-template-columns:minmax(0,140mm) 70mm;width:100%;height:100%;color:var(--elegant-text);background:#fff;font-family:var(--body-font)}
+  .elegant-pdf{--elegant-heading:#3b4247;--elegant-text:#4b5359;--elegant-muted:#6d757a;--elegant-line:#b9bfc3;--elegant-sidebar-muted:#e3ecf4;display:grid;grid-template-columns:minmax(0,140mm) 70mm;width:100%;height:100%;color:var(--elegant-text);background:#fff;font-family:var(--body-font)}
   .elegant-pdf *{box-sizing:border-box}
   .elegant-pdf-main{position:relative;min-width:0;height:100%;padding:max(14mm,calc(var(--doc-margin) - 2mm)) max(10mm,calc(var(--doc-margin) - 6mm)) max(13mm,calc(var(--doc-margin) - 4mm)) var(--doc-margin);overflow:hidden;background:#fff}
   .elegant-pdf-header{position:relative;padding-bottom:0}
@@ -350,7 +350,7 @@ const elegantDocumentCss = `
   .elegant-pdf-entry ul{margin:1.8mm 0 0;padding-left:4.5mm}
   .elegant-pdf-entry li{margin:.6mm 0;padding-left:.4mm;color:var(--elegant-text);font-size:var(--body-size);line-height:var(--body-line)}
   .elegant-pdf-entry li::marker{color:var(--accent)}
-  .elegant-pdf-sidebar{position:relative;display:flex;flex-direction:column;gap:var(--section-gap);min-width:0;height:100%;padding:max(13mm,calc(var(--doc-margin) - 3mm)) max(12mm,calc(var(--doc-margin) - 5mm));overflow:hidden;color:#fff;background:var(--secondary);box-shadow:inset 0 3.5mm 0 #600101}
+  .elegant-pdf-sidebar{position:relative;display:flex;flex-direction:column;gap:var(--section-gap);min-width:0;height:100%;padding:max(13mm,calc(var(--doc-margin) - 3mm)) max(12mm,calc(var(--doc-margin) - 5mm));overflow:hidden;color:#fff;background:var(--secondary);box-shadow:inset 0 3.5mm 0 color-mix(in srgb,var(--secondary),black 28%)}
   .elegant-pdf-photo{display:block;width:calc(27mm * var(--resume-photo-scale,1));height:calc(27mm * var(--resume-photo-scale,1));margin:0 auto 8mm;overflow:hidden;border-radius:1.5mm;background:color-mix(in srgb,var(--secondary),white 12%);object-fit:cover}
   .elegant-pdf-sidebar section{margin:0;break-inside:auto;page-break-inside:auto}
   .elegant-pdf-sidebar section>h3{position:relative;margin:0 0 2.4mm;padding-bottom:1.6mm;border-bottom:.3mm solid rgb(255 255 255 / 75%);color:#fff;font-size:11.5pt;font-weight:400;letter-spacing:.075em;line-height:1.15;text-transform:uppercase}
@@ -379,6 +379,7 @@ const elegantDocumentCss = `
   .elegant-pdf-continuation a{display:block;margin-top:1.7mm;color:#fff;font-size:8.3pt;text-decoration:none;overflow-wrap:anywhere}
   .elegant-pdf-footer{position:absolute;right:max(10mm,calc(var(--doc-margin) - 6mm));bottom:6mm;left:var(--doc-margin);display:flex;justify-content:space-between;gap:6mm;color:var(--elegant-muted);font-size:7.2pt}
   .elegant-pdf-footer a{color:var(--accent);text-decoration:none}
+  .elegant-pdf .elegant-pdf-footer a[href^="http"]{display:block;max-width:100%;min-width:0;overflow:visible;overflow-wrap:anywhere;text-overflow:clip;white-space:normal}
   .elegant-pdf-footer span:last-child{margin-left:auto}
   .elegant-pdf-ats{--elegant-heading:#3b4247;--elegant-text:#4b5359;--elegant-muted:#6d757a;--elegant-line:#b9bfc3;width:100%;height:100%;padding:var(--doc-margin);overflow:hidden;color:var(--elegant-text);background:#fff}
   .elegant-pdf-ats .elegant-pdf-contacts{display:block}
@@ -984,7 +985,7 @@ export const buildDocumentHtml = (
     explicitStrengths.length ? explicitStrengths : legacyStrengths
   ).slice(0, 3);
   const visualStrengthSection = elegantStrengths.length
-    ? `<section><h3>Stärken</h3><div class="elegant-pdf-strengths">${elegantStrengths
+    ? `<section><h3>${escapeHtml(getResumeSectionTitle(profile, "strengths"))}</h3><div class="elegant-pdf-strengths">${elegantStrengths
         .map(
           (strength) =>
             `<article class="elegant-pdf-strength">${getTechnologyBrandIconMarkup(strength.title, profile?.strengths.find((entry) => entry.title.trim() === strength.title)?.iconId)}<div><h4>${escapeHtml(strength.title)}</h4>${strength.description ? `<p>${escapeHtml(strength.description)}</p>` : ""}</div></article>`,
@@ -992,7 +993,7 @@ export const buildDocumentHtml = (
         .join("")}</div></section>`
     : "";
   const atsStrengthSection = elegantStrengths.length
-    ? `<section class="elegant-pdf-section"><h3>Stärken</h3><ul>${elegantStrengths
+    ? `<section class="elegant-pdf-section"><h3>${escapeHtml(getResumeSectionTitle(profile, "strengths"))}</h3><ul>${elegantStrengths
         .map(
           (strength) =>
             `<li><strong>${escapeHtml(strength.title)}</strong>${strength.description ? ` – ${escapeHtml(strength.description)}` : ""}</li>`,
@@ -1009,7 +1010,7 @@ export const buildDocumentHtml = (
   );
   const elegantVisualLanguages =
     sections.languages && elegantLanguages.length
-      ? `<section><h3>Sprachen</h3><div class="elegant-pdf-languages">${elegantLanguages
+      ? `<section><h3>${escapeHtml(getResumeSectionTitle(profile, "languages"))}</h3><div class="elegant-pdf-languages">${elegantLanguages
           .map(
             (language) =>
               `<article class="elegant-pdf-language"><strong>${escapeHtml(language.name)}${languageLevelMarkup(language.level)}</strong><span class="elegant-pdf-language-dots" aria-label="${escapeHtml(`${language.name}: ${language.level}`)}">${Array.from({ length: 6 }, (_, index) => `<i class="${index < language.score ? "filled" : ""}"></i>`).join("")}</span></article>`,
@@ -1033,12 +1034,12 @@ export const buildDocumentHtml = (
     const careerMarkup = `
       ${
         experienceItems
-          ? `<section class="elegant-pdf-section"><h3>Berufserfahrung${isContinuation ? " · Fortsetzung" : ""}</h3><div class="elegant-pdf-list">${experienceItems}</div></section>`
+          ? `<section class="elegant-pdf-section"><h3>${escapeHtml(getResumeSectionTitle(profile, "experience"))}${isContinuation ? " · Fortsetzung" : ""}</h3><div class="elegant-pdf-list">${experienceItems}</div></section>`
           : ""
       }
       ${
         educationItems
-          ? `<section class="elegant-pdf-section"><h3>Ausbildung</h3><div class="elegant-pdf-list">${educationItems}</div></section>`
+          ? `<section class="elegant-pdf-section"><h3>${escapeHtml(getResumeSectionTitle(profile, "education"))}</h3><div class="elegant-pdf-list">${educationItems}</div></section>`
           : ""
       }`;
 
@@ -1069,8 +1070,8 @@ export const buildDocumentHtml = (
           ${profile?.title ? `<p>${escapeHtml(profile.title)}</p>` : ""}
           <hr>
           <p>Fortsetzung · Seite ${plan.pageNumber} von ${resumePlan.length}</p>
-          ${profile?.email ? `<a href="mailto:${escapeHtml(profile.email)}">${escapeHtml(profile.email)}</a>` : ""}
-          ${profile?.phone ? `<a href="${escapeHtml(phoneHref(profile.phone))}">${escapeHtml(formatPhoneForDisplay(profile.phone))}</a>` : ""}
+          ${profile?.resumeContinuationContactVisibility.email && profile.email ? `<a href="mailto:${escapeHtml(profile.email)}">${escapeHtml(profile.email)}</a>` : ""}
+          ${profile?.resumeContinuationContactVisibility.phone && profile.phone ? `<a href="${escapeHtml(phoneHref(profile.phone))}">${escapeHtml(formatPhoneForDisplay(profile.phone))}</a>` : ""}
           ${continuationLink}
         </aside>`
       : `<aside class="elegant-pdf-sidebar">

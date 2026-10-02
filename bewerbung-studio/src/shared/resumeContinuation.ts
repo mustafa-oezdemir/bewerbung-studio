@@ -31,7 +31,11 @@ aside[class*="continuation"]{display:block!important;height:auto!important;min-h
 const continuationHeaderSelector =
   'header[class*="compact"],header[class*="continuation"],header.continuation,.pehlione-header';
 
-/** Some native first-page headers keep contact details in a sidebar instead. */
+/**
+ * The first page of a longer Lebenslauf names e-mail and phone. A detail is added to the header only when the
+ * page shows it nowhere: a template whose own Kontakte column (Zeitgenössisch, Kompakt, Elegant, …) already lists
+ * it keeps it there, so the same contact never stands twice on one page.
+ */
 export const ensureResumeHeaderContacts = (
   root: Element,
   contact?: { email?: string; phone?: string },
@@ -40,10 +44,15 @@ export const ensureResumeHeaderContacts = (
   if (!header || !contact) return;
   const email = contact.email?.trim();
   const phone = contact.phone?.trim();
-  const missingEmail = email && !header.textContent?.includes(email);
-  // The header shows the number formatted ("+49 176 93153406"): compare the digits, not the stored spelling.
+  // A number is shown formatted ("+49 176 93153406"): compare the digits, not the stored spelling.
   const digits = (value: string) => value.replace(/\D/g, "");
-  const missingPhone = phone && !digits(header.textContent ?? "").includes(digits(phone));
+  // The texts of the page one by one (leaves), so digits of neighbouring values never run together.
+  const texts = Array.from(root.querySelectorAll("*"))
+    .filter((node) => !node.closest("style,script") && !Array.from(node.children).some((child) => (child.textContent ?? "").trim()))
+    .map((node) => node.textContent ?? "");
+  const shown = (test: (text: string) => boolean) => test(header.textContent ?? "") || texts.some(test);
+  const missingEmail = email && !shown((text) => text.includes(email));
+  const missingPhone = phone && !shown((text) => digits(text).includes(digits(phone)));
   if (!missingEmail && !missingPhone) return;
   const details = header.ownerDocument.createElement("address");
   details.setAttribute("data-resume-header-extra-contact", "");

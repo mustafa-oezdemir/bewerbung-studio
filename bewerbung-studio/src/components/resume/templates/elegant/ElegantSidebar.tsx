@@ -44,10 +44,10 @@ export function ElegantSidebar({
           <small>
             Fortsetzung · Seite {pageNumber} von {totalPages}
           </small>
-          {profile?.email ? (
+          {profile?.resumeContinuationContactVisibility.email && profile.email ? (
             <a href={`mailto:${profile.email}`}>{profile.email}</a>
           ) : null}
-          {profile?.phone ? (
+          {profile?.resumeContinuationContactVisibility.phone && profile.phone ? (
             <a href={`tel:${profile.phone.replace(/[^\d+]/g, "")}`}>
               {profile.phone}
             </a>

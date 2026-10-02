@@ -13,7 +13,7 @@ $expected = @(
   "BewerbungsManager-$Version-x64-Portable.exe"
 )
 
-foreach ($name in $expected + 'SHA256SUMS.txt') {
+foreach ($name in $expected + @('SHA256SUMS.txt', 'WINDOWS-KURULUM.md')) {
   $path = Join-Path $directory $name
   if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Release-Artefakt fehlt: $name" }
   if ((Get-Item -LiteralPath $path).Length -le 0) { throw "Release-Artefakt ist leer: $name" }

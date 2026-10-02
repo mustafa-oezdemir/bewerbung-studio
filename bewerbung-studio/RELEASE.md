@@ -12,6 +12,7 @@ anschließend unter `windows-release/`:
 - `BewerbungsManager-<Version>-x64-Setup.exe`
 - `BewerbungsManager-<Version>-x64-Portable.exe`
 - `SHA256SUMS.txt`
+- `WINDOWS-KURULUM.md` (Windows kurulum kılavuzu)
 
 ## Vor der Weitergabe
 
@@ -82,11 +83,11 @@ Danach führt GitHub Actions automatisch aus:
 4. Dateien prüfen (`scripts/verify-release-artifacts.ps1`): Setup, Portable und
    `SHA256SUMS.txt` für genau diese Version vorhanden und nicht leer,
    SHA-256-Werte aus den echten Dateien neu berechnet, keine Schlüsseldateien.
-5. Die drei Dateien als Workflow-Artefakt `bewerbungsmanager-windows-v<Version>`
+5. Die vier Dateien als Workflow-Artefakt `bewerbungsmanager-windows-v<Version>`
    speichern (14 Tage).
 6. Mit dem Schreibrecht nur in diesem Job: Prüfsummen erneut prüfen und mit
-   `gh release create` ein GitHub Release mit Setup, Portable und
-   `SHA256SUMS.txt` veröffentlichen. Existiert das Release schon, bricht der
+   `gh release create` ein GitHub Release mit Setup, Portable,
+   `SHA256SUMS.txt` und `WINDOWS-KURULUM.md` veröffentlichen. Existiert das Release schon, bricht der
    Lauf ab, statt Dateien zu überschreiben.
 
 Ein manueller Lauf (`workflow_dispatch`) baut und speichert nur das Artefakt;

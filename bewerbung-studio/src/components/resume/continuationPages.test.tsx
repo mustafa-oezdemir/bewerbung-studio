@@ -102,28 +102,22 @@ describe.each(Object.keys(components))("continuation page of %s", (templateId) =
     for (const index of [0, 1]) expect({ page: index + 1, ids: sectionIds(previewPages[index]) }).toEqual({ page: index + 1, ids: sectionIds(pdfPages[index]) });
   });
 
-  it.each(["preview", "pdf"] as const)("repeats the first-page header without an idle sidebar in the %s", (surface) => {
+  it.each(["preview", "pdf"] as const)("repeats the identity header without an idle sidebar in the %s", (surface) => {
     const first = surface === "pdf" ? pdfPages[0] : previewPages[0];
     const second = surface === "pdf" ? pdfPages[1] : previewPages[1];
     expect(second.querySelector("aside")).toBeNull();
     const firstHeader = first.querySelector("header");
     const secondHeader = second.querySelector("header");
-    // Pehlione keeps its contacts in the sidebar on page one; its continuation header adds a marker and the contact line.
-    const comparable = (header: Element | null) => {
-      const clone = header?.cloneNode(true) as Element | undefined;
-      if (templateId.startsWith("pehlione_")) {
-        clone?.removeAttribute("data-pehlione-continuation-header");
-        clone?.querySelector("[data-resume-header-extra-contact]")?.remove();
-      }
-      return clone?.outerHTML;
-    };
-    expect(comparable(secondHeader)).toBe(comparable(firstHeader));
+    // Pehlione, Kompakt and Zeitgenössisch list contacts in their first-page column.
+    const contactsInColumn = templateId.startsWith("pehlione_") || templateId === "kompakt" || templateId === "zeitgenoessisch";
+    if (contactsInColumn) expect(firstHeader?.querySelector("[data-resume-header-extra-contact]")).toBeNull();
+    expect(firstHeader?.textContent).toContain("Mina Kaya");
     expect(secondHeader?.textContent).toContain("Mina Kaya");
     expect(secondHeader?.textContent).toContain(headline);
-    expect(secondHeader?.textContent).toContain("mina@example.com");
-    expect(secondHeader?.textContent).toContain("+49 30 123456");
-    expect(secondHeader?.querySelector('a[href="mailto:mina@example.com"]')).not.toBeNull();
-    expect(secondHeader?.querySelector('a[href="tel:+4930123456"]')).not.toBeNull();
+    expect(secondHeader?.textContent).not.toContain("mina@example.com");
+    expect(secondHeader?.textContent).not.toContain("+49 30 123456");
+    expect(secondHeader?.querySelector('a[href="mailto:mina@example.com"]')).toBeNull();
+    expect(secondHeader?.querySelector('a[href="tel:+4930123456"]')).toBeNull();
     expect(second.querySelector("[data-resume-continuation-meta]")).toBeNull();
     expect(second.querySelector("footer [data-resume-header-extra-contact]")).toBeNull();
     if (templateId === "zweispaltig") expect(second.querySelector("footer")?.textContent).toContain("Seite 2 von 2");

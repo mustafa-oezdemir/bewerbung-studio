@@ -87,6 +87,17 @@ const externalReadablePath = async (filePath: string) => {
   setTimeout(() => { void rm(temporary, { force: true }).catch(() => undefined); }, 60 * 60_000).unref();
   return temporary;
 };
+/** Large photo or signature data makes a data URL invalid in Chromium; write the HTML into a blank print window. */
+const loadExportHtml = async (window: BrowserWindow, html: string) => {
+  await window.loadURL("about:blank");
+  await window.webContents.executeJavaScript(
+    `document.open(); document.write(${JSON.stringify(html)}); document.close();
+     Promise.all([
+       document.fonts ? document.fonts.ready : Promise.resolve(),
+       ...Array.from(document.images, (image) => image.complete ? Promise.resolve() : new Promise((done) => { image.onload = image.onerror = done; })),
+     ]).then(() => true);`,
+  );
+};
 const notifiedEvents = new Set<string>();
 const appId = "de.bewerbungsmanager.desktop";
 const __filename = fileURLToPath(import.meta.url);
@@ -605,9 +616,7 @@ const registerIpc = () => {
           target,
           applicationSnapshot,
         );
-        await exporter.loadURL(
-          `data:text/html;charset=utf-8,${encodeURIComponent(html)}`,
-        );
+        await loadExportHtml(exporter, html);
         const generatedPdf = await exporter.webContents.printToPDF({
           pageSize: "A4",
           preferCSSPageSize: true,

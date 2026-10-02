@@ -90,7 +90,7 @@ jobs:
         shell: pwsh
         run: ./scripts/verify-release-artifacts.ps1 -Version '${{ steps.version.outputs.version }}'
 
-      # Only the three release files are stored, never the whole folder.
+      # Store the two executables, checksums and installation guide, never the whole folder.
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
@@ -99,6 +99,7 @@ jobs:
             bewerbung-studio/windows-release/BewerbungsManager-${{ steps.version.outputs.version }}-x64-Setup.exe
             bewerbung-studio/windows-release/BewerbungsManager-${{ steps.version.outputs.version }}-x64-Portable.exe
             bewerbung-studio/windows-release/SHA256SUMS.txt
+            bewerbung-studio/windows-release/WINDOWS-KURULUM.md
           retention-days: 14
           if-no-files-found: error
 
@@ -135,6 +136,7 @@ jobs:
           test -s "BewerbungsManager-${VERSION}-x64-Setup.exe"
           test -s "BewerbungsManager-${VERSION}-x64-Portable.exe"
           test -s SHA256SUMS.txt
+          test -s WINDOWS-KURULUM.md
           sha256sum --check SHA256SUMS.txt
 
       - name: Create the GitHub Release
@@ -150,6 +152,7 @@ jobs:
             "release/BewerbungsManager-${VERSION}-x64-Setup.exe" \
             "release/BewerbungsManager-${VERSION}-x64-Portable.exe" \
             "release/SHA256SUMS.txt" \
+            "release/WINDOWS-KURULUM.md" \
             --verify-tag \
             --title "BewerbungsManager $GITHUB_REF_NAME" \
             --notes "$notes" \

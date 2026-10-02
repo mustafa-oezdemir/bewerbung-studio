@@ -117,6 +117,29 @@ export function PersonalDataVisibility({
         </select>
       </label>
       {group("Kontaktdaten", contactKeys)}
+      <fieldset className="visibility-group">
+        <legend>Kontakt auf Folgeseiten</legend>
+        <p className="manager-hint">E-Mail und Telefon erscheinen dort nur, wenn Sie sie hier einschalten.</p>
+        <div className="visibility-checkbox-grid">
+          {(["email", "phone"] as const).map((key) => (
+            <label className="checkbox-field compact" key={key}>
+              <input
+                type="checkbox"
+                checked={profile.resumeContinuationContactVisibility[key]}
+                disabled={!visibility[key]}
+                onChange={(event) => onChange((current) => ({
+                  ...current,
+                  resumeContinuationContactVisibility: {
+                    ...current.resumeContinuationContactVisibility,
+                    [key]: event.target.checked,
+                  },
+                }))}
+              />
+              <span>{resumePersonalFieldLabels[key]} auf Folgeseiten wiederholen</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
       {group("Freiwillige Angaben", voluntaryKeys)}
       {notes.map((key) => (
         <p className="manager-hint" role="status" key={key}>

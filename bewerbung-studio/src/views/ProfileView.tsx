@@ -110,6 +110,7 @@ const newProfile = (): ApplicantProfile => ({
   resumeManagerOverrides: {},
   resumeSemanticSections: defaultResumeSectionInstances(),
   resumePersonalFieldVisibility: { ...defaultResumePersonalFieldVisibility },
+  resumeContinuationContactVisibility: { email: false, phone: false },
   resumeKnowledgeGroups: [],
   resumeKnowledgeContainer: { showTitle: false },
   resumeCareerFieldVisibility: { ...defaultResumeCareerFieldVisibility },
