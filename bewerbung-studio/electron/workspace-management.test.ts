@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -377,5 +377,50 @@ describe("workspace management", () => {
     expect(await manager.status()).toEqual({ state: "ready", root: target });
     expect(await readFile(path.join(target, relativeDocument), "utf8")).toBe("document");
     expect(await readFile(path.join(source, relativeDocument), "utf8")).toBe("document");
+  });
+
+  it("keeps the source and bootstrap after a partial move copy fails", async () => {
+    const base = await temporary();
+    const target = path.join(base, "target");
+    let targetCopies = 0;
+    const copyWithFailure: typeof copyFile = async (source, destination, mode) => {
+      if (String(destination).startsWith(`${target}${path.sep}`) && ++targetCopies === 2)
+        throw Object.assign(new Error("Injected copy failure"), { code: "EIO" });
+      return copyFile(source, destination, mode);
+    };
+    const manager = new WorkspaceManager(path.join(base, "config"), {}, path.join(base, "legacy"), copyWithFailure);
+    const source = await manager.setup(path.join(base, "source"));
+    await writeWorkspace(source);
+    const document = path.join("data", "Bewerbungen", "Test", "letter.docx");
+    await mkdir(path.dirname(path.join(source, document)), { recursive: true });
+    await writeFile(path.join(source, document), "original document");
+
+    await expect(manager.changeRoot(source, target, "move")).rejects.toMatchObject({ code: "EIO" });
+    expect(targetCopies).toBe(2);
+    expect(await manager.status()).toEqual({ state: "ready", root: source });
+    expect(await readFile(path.join(source, document), "utf8")).toBe("original document");
+    expect((await readdir(target, { recursive: true })).length).toBeGreaterThan(0);
+  });
+
+  it("removes an incomplete full backup after a copy failure", async () => {
+    const base = await temporary();
+    let backupCopies = 0;
+    const copyWithFailure: typeof copyFile = async (source, destination, mode) => {
+      if (String(destination).includes(`${path.sep}Migration_`) && ++backupCopies === 2)
+        throw Object.assign(new Error("Injected backup failure"), { code: "ENOSPC" });
+      return copyFile(source, destination, mode);
+    };
+    const manager = new WorkspaceManager(path.join(base, "config"), {}, path.join(base, "legacy"), copyWithFailure);
+    const source = await manager.setup(path.join(base, "source"));
+    await writeWorkspace(source);
+    const document = path.join(source, "data", "Bewerbungen", "Test", "letter.docx");
+    await mkdir(path.dirname(document), { recursive: true });
+    await writeFile(document, "original document");
+
+    await expect(manager.fullBackup(source)).rejects.toMatchObject({ code: "ENOSPC" });
+    expect(backupCopies).toBe(2);
+    expect(await readFile(document, "utf8")).toBe("original document");
+    const backups = path.join(source, "data", "Setting", "Backups");
+    expect((await readdir(backups)).filter((name) => name.startsWith("Migration_"))).toEqual([]);
   });
 });

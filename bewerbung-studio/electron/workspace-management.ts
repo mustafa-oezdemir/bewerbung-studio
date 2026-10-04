@@ -99,9 +99,9 @@ const listFiles = async (root: string, excluded?: string): Promise<string[]> => 
   return files.sort();
 };
 
-const copyAndVerify = async (source: string, target: string) => {
+const copyAndVerify = async (source: string, target: string, copy: typeof copyFile = copyFile) => {
   await mkdir(path.dirname(target), { recursive: true });
-  await copyFile(source, target, constants.COPYFILE_EXCL);
+  await copy(source, target, constants.COPYFILE_EXCL);
   const [sourceInfo, targetInfo] = await Promise.all([stat(source), stat(target)]);
   const [sourceHash, targetHash] = await Promise.all([hashFile(source), hashFile(target)]);
   if (sourceInfo.size !== targetInfo.size || sourceHash !== targetHash) {
@@ -122,6 +122,7 @@ export class WorkspaceManager {
     private readonly userDataPath: string,
     private readonly environment: Record<string, string | undefined> = process.env,
     private readonly legacyRootPath = DEFAULT_BEWERBUNG_ROOT_PATH,
+    private readonly copyOperation: typeof copyFile = copyFile,
   ) {
     this.bootstrapPath = path.join(userDataPath, "bootstrap.json");
   }
@@ -380,7 +381,7 @@ export class WorkspaceManager {
         targetPaths.profileRoot,
         path.relative(sourceProfileDirectory, sourceFile),
       );
-      if (!(await exists(targetFile))) await copyAndVerify(sourceFile, targetFile);
+      if (!(await exists(targetFile))) await copyAndVerify(sourceFile, targetFile, this.copyOperation);
     }
   }
 
@@ -481,12 +482,12 @@ export class WorkspaceManager {
       for (const source of await listFiles(root, backupRoot)) {
         const relative = path.relative(root, source);
         const target = path.join(backupRoot, relative);
-        const verified = await copyAndVerify(source, target);
+        const verified = await copyAndVerify(source, target, this.copyOperation);
         entries.push({ path: relative, ...verified });
       }
       const workspaceSource = await existingWorkspacePath(root);
       if (await exists(workspaceSource) && !(await exists(path.join(backupRoot, "workspace.json")))) {
-        await copyAndVerify(workspaceSource, path.join(backupRoot, "workspace.json"));
+        await copyAndVerify(workspaceSource, path.join(backupRoot, "workspace.json"), this.copyOperation);
       }
       const manifest = {
         migratedAt: new Date().toISOString(), oldSchemaVersion, newSchemaVersion,
@@ -520,7 +521,7 @@ export class WorkspaceManager {
       await this.fullBackup(source);
       try {
         for (const file of await listFiles(source)) {
-          await copyAndVerify(file, path.join(target, path.relative(source, file)));
+          await copyAndVerify(file, path.join(target, path.relative(source, file)), this.copyOperation);
         }
         const workspacePath = await existingWorkspacePath(target);
         if (await exists(workspacePath)) {

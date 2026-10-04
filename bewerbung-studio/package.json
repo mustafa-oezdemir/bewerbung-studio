@@ -23,6 +23,8 @@
     "start": "electron .",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",
+    "test:electron:e2e": "node scripts/run-electron-e2e.cjs",
+    "test:windows:package": "node scripts/packaged-windows-e2e.mjs",
     "release:check": "npm run typecheck && npm test && npm run build",
     "dist:win": "npm run release:check && node scripts/build-windows.mjs all && node scripts/write-checksums.mjs",
     "dist:win:signed": "node scripts/require-signing-credentials.mjs && npm run release:check && node scripts/build-windows.mjs all signed && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-signatures.ps1 windows-release && node scripts/write-checksums.mjs",

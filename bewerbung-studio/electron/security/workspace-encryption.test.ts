@@ -71,6 +71,39 @@ describe("workspace encryption migration", () => {
     expect(service.decryptFile(await readFile(item.applicationFile)).toString("utf8")).toBe("Max Mustermann max@example.test");
   });
 
+  it("keeps a migration locked after staged data fails verification, then resumes with a fresh controller", async () => {
+    const item = await fixture();
+    const password = "Kaffee Zug Marburg Wolke 2026!";
+    const { service } = await EncryptionService.create(password, item.workspace);
+    await enableWorkspaceEncryption(item.root, service);
+    const oldEncryptedWorkspace = await readFile(item.workspaceFile);
+    await writeFile(item.applicationFile, "Max Mustermann max@example.test");
+    const stageName = `.encryption-stage-${randomUUID()}`;
+    const staged = path.join(item.root, stageName, path.relative(item.root, item.applicationFile));
+    await mkdir(path.dirname(staged), { recursive: true });
+    await writeFile(staged, service.encryptFile(Buffer.from("incorrect staged data")));
+    const journalPath = path.join(item.root, "data", "Setting", "Settings", "encryption-migration.json");
+    await writeFile(journalPath, JSON.stringify({
+      version: 1, id: randomUUID(), direction: "enable", startedAt: new Date().toISOString(),
+      stageName, files: [path.relative(item.root, item.applicationFile)], envelope: service.currentEnvelope,
+    }));
+    service.lock();
+
+    const afterCrash = new WorkspaceSecurity(item.root);
+    await expect(afterCrash.unlock(password)).rejects.toThrow("geprüft");
+    expect(await readMigrationJournal(item.root)).not.toBeNull();
+    expect(await readFile(item.workspaceFile)).toEqual(oldEncryptedWorkspace);
+    expect(await readFile(item.applicationFile, "utf8")).toBe("Max Mustermann max@example.test");
+
+    await rm(staged);
+    const restarted = new WorkspaceSecurity(item.root);
+    expect((await restarted.unlock(password)).mode).toBe("unlocked");
+    expect(await readMigrationJournal(item.root)).toBeNull();
+    expect(restarted.service!.decryptFile(await readFile(item.applicationFile)).toString("utf8"))
+      .toBe("Max Mustermann max@example.test");
+    restarted.lock();
+  }, 20_000);
+
   it("loads, updates and backs up a real DataStore after password unlock", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "bm-encrypted-store-"));
     roots.push(root);

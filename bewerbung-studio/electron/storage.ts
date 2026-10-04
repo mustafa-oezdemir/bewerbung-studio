@@ -486,10 +486,15 @@ export class DataStore {
     const backupPath = `${filePath}.bak`;
     const handle = await open(temporaryPath, "w");
     try {
-      await handle.writeFile(encodeForManagedWrite(filePath, Buffer.from(content, "utf8")));
-      await handle.sync();
-    } finally {
-      await handle.close();
+      try {
+        await handle.writeFile(encodeForManagedWrite(filePath, Buffer.from(content, "utf8")));
+        await handle.sync();
+      } finally {
+        await handle.close();
+      }
+    } catch (error) {
+      await rm(temporaryPath, { force: true });
+      throw error;
     }
     if (expectedHash !== undefined) {
       const current = await readFile(filePath, "utf8").catch((error: NodeJS.ErrnoException) => {
@@ -504,14 +509,37 @@ export class DataStore {
     }
     try {
       await copyFile(filePath, backupPath);
-    } catch {
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        await rm(temporaryPath, { force: true });
+        throw error;
+      }
       // A first write has no previous version.
     }
     try {
       await rename(temporaryPath, filePath);
-    } catch {
-      await rm(filePath, { force: true });
-      await rename(temporaryPath, filePath);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (!["EEXIST", "EPERM", "EACCES"].includes(code ?? "")) {
+        await rm(temporaryPath, { force: true });
+        throw error;
+      }
+      // Windows may reject replacing an existing file. Keep the old primary on
+      // the same volume until the new file has been installed successfully.
+      const displacedPath = `${filePath}.${createId()}.previous`;
+      try {
+        await rename(filePath, displacedPath);
+        try {
+          await rename(temporaryPath, filePath);
+        } catch (replacementError) {
+          await rename(displacedPath, filePath);
+          throw replacementError;
+        }
+        await rm(displacedPath, { force: true });
+      } catch (replacementError) {
+        await rm(temporaryPath, { force: true });
+        throw replacementError;
+      }
     }
   }
 
