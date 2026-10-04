@@ -404,7 +404,7 @@ const elegantDocumentCss = `
 `;
 
 const zweispaltigDocumentCss = `
-  .zweispaltig-pdf{--zweispaltig-primary:var(--accent);--zweispaltig-accent:var(--secondary);--zweispaltig-heading:var(--accent);--zweispaltig-text:#4a555c;--zweispaltig-muted:#667178;--zweispaltig-divider:#d6dce0;--zweispaltig-section-gap-base:6.5mm;--zweispaltig-section-gap:var(--zweispaltig-section-gap-base);--zweispaltig-entry-gap:var(--doc-entry-gap,3.5mm);--body-size:var(--doc-body-size,10pt);--body-line:var(--doc-line-height,1.32);position:relative;width:100%;height:100%;padding:var(--zweispaltig-margin-top) var(--zweispaltig-margin-right) var(--zweispaltig-margin-bottom) var(--zweispaltig-margin-left);overflow:hidden;color:var(--zweispaltig-text);background:#fff;font-family:var(--body-font);font-size:var(--body-size);line-height:var(--body-line)}
+  .zweispaltig-pdf{--zweispaltig-primary:var(--accent);--zweispaltig-accent:var(--secondary);--zweispaltig-heading:var(--zweispaltig-heading-color,var(--accent));--zweispaltig-text:#4a555c;--zweispaltig-muted:#667178;--zweispaltig-divider:#d6dce0;--zweispaltig-section-gap-base:6.5mm;--zweispaltig-section-gap:var(--zweispaltig-section-gap-base);--zweispaltig-entry-gap:var(--doc-entry-gap,3.5mm);--body-size:var(--doc-body-size,10pt);--body-line:var(--doc-line-height,1.32);position:relative;width:100%;height:100%;padding:var(--zweispaltig-margin-top) var(--zweispaltig-margin-right) var(--zweispaltig-margin-bottom) var(--zweispaltig-margin-left);overflow:hidden;color:var(--zweispaltig-text);background:#fff;font-family:var(--body-font);font-size:var(--body-size);line-height:var(--body-line)}
   .zweispaltig-pdf *{box-sizing:border-box}
   .zweispaltig-pdf-header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8mm;min-width:0}
   .zweispaltig-pdf-header h1{margin:0;color:var(--zweispaltig-heading);font-size:24pt;font-weight:750;letter-spacing:.025em;line-height:1;text-transform:uppercase;overflow-wrap:anywhere}
@@ -760,7 +760,7 @@ export const buildDocumentHtml = (
   const secondary = application.secondaryColor || template.secondary;
   const zweispaltigColors = template.id === "zweispaltig" ? resolveZweispaltigApplicationColors(accent, secondary) : undefined;
   const zweispaltigCvStyle = zweispaltigColors
-    ? `${zweispaltigPageStyle};--accent:${escapeHtml(zweispaltigColors.primary)};--secondary:${escapeHtml(zweispaltigColors.accent)}`
+    ? `${zweispaltigPageStyle};--accent:${escapeHtml(zweispaltigColors.primary)};--secondary:${escapeHtml(zweispaltigColors.accent)};--zweispaltig-heading-color:${escapeHtml(resolvedCv.settings.cvOverrides?.colors?.heading ?? zweispaltigColors.primary)}`
     : zweispaltigPageStyle;
   const onSecondary = getReadableTextColor(secondary);
   const designSettings = resolvedCv.settings;

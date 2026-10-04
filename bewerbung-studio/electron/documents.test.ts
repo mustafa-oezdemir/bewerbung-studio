@@ -1116,6 +1116,28 @@ describe("Lebenslauf-Dokumente", () => {
     expect(document.querySelector(".zweispaltig-pdf-sidebar")?.textContent).toContain("TypeScript");
   });
 
+  it("keeps Zweispaltig career titles blue when the organization accent is green", () => {
+    const zweispaltigApplication = applicationSchema.parse({
+      ...application,
+      templateId: "zweispaltig",
+      accentColor: "#0B3D86",
+      secondaryColor: "#58B5F7",
+      designSettings: {
+        ...application.designSettings,
+        cvOverrides: { colors: { heading: "#0060F0", accent: "#1DBF2F" } },
+      },
+    });
+    const html = buildDocumentHtml(zweispaltigApplication, profile, "lebenslauf");
+    const { document } = parseHTML(html);
+    const page = document.querySelector(".zweispaltig-pdf");
+
+    expect(page?.getAttribute("style")).toContain("--zweispaltig-heading-color:#0060F0");
+    expect(page?.getAttribute("style")).toContain("--zweispaltig-accent:#1DBF2F");
+    expect(html).toContain("--zweispaltig-heading:var(--zweispaltig-heading-color,var(--accent))");
+    expect(page?.querySelector(".zweispaltig-pdf-entry h4")).toBeTruthy();
+    expect(page?.querySelector(".zweispaltig-pdf-entry-organization")?.getAttribute("style")).toContain("color:#1DBF2F");
+  });
+
   it("keeps a sidebar summary in the right Zweispaltig PDF column", () => {
     const zweispaltigApplication = applicationSchema.parse({
       ...application,
