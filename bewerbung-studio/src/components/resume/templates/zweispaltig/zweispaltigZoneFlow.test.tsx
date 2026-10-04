@@ -60,7 +60,7 @@ const move = (profile: ReturnType<typeof makeProfile>, id: string, zone: "main" 
 describe("Zweispaltig: sections follow their column", () => {
   it("A. the certificates stand in the sidebar of page one by default and follow the career once they are moved to the main column", () => {
     const inSidebar = render(makeProfile(3));
-    const inMain = render(move(makeProfile(3), "certifications", "main", 99));
+    const inMain = render(move(makeProfile(1), "certifications", "main", 99));
     const behindLong = render(move(makeProfile(5), "certifications", "main", 99));
     for (const surface of surfaces) {
       const node = sidebarSection(inSidebar.surfaces[surface][0], "certifications");
@@ -113,7 +113,7 @@ describe("Zweispaltig: sections follow their column", () => {
   });
 
   it("D. a section moved to the main column starts on page one while there is room, else it flows on to page two", () => {
-    const fits = render(move(makeProfile(3), "certifications", "main", 99));
+    const fits = render(move(makeProfile(1), "certifications", "main", 99));
     const flows = render(move(makeProfile(5), "certifications", "main", 99));
     const above = render(move(makeProfile(5), "certifications", "main", 0));
     expect(fits.resolved.pagePlan).toHaveLength(1);
@@ -131,7 +131,7 @@ describe("Zweispaltig: sections follow their column", () => {
     const settings = { cvOverrides: { colors: { sectionHeading: "#1d4ed8" } }, resumeAppearance: { sidebarSectionHeadingColor: "#cc0000" } };
     const colourOf = (page: Element, id: string) => sectionOn(page, id)?.querySelector(".cv-heading")?.getAttribute("style") ?? "";
     const inSidebar = render(makeProfile(3), settings);
-    const inMain = render(move(makeProfile(3), "certifications", "main", 99), settings);
+    const inMain = render(move(makeProfile(1), "certifications", "main", 99), settings);
     for (const surface of surfaces) {
       expect(colourOf(inSidebar.surfaces[surface][0], "certifications"), surface).toContain("color:#cc0000");
       expect(colourOf(inSidebar.surfaces[surface][0], "languages"), surface).toContain("color:#cc0000");
@@ -188,7 +188,7 @@ describe("Zweispaltig: sections follow their column", () => {
 
   it("I. the typography chosen for the section headings reaches every heading of either column", () => {
     const settings = { cvOverrides: { typography: { sectionHeadingSizePt: 15, sectionHeadingUppercase: false } } };
-    const rendered = render(move(makeProfile(3), "certifications", "main", 99), settings);
+    const rendered = render(move(makeProfile(1), "certifications", "main", 99), settings);
     for (const surface of surfaces) {
       for (const id of ["certifications", "languages", "experience"]) {
         const heading = sectionOn(rendered.surfaces[surface][0], id)?.querySelector(".cv-heading");

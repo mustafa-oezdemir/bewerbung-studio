@@ -1,4 +1,14 @@
+import { zweispaltigDefaults } from "./cvTemplateDefaults/zweispaltig.defaults";
+
 export type PaginationZone = "main" | "sidebar";
+
+const zweispaltigContentWidth = zweispaltigDefaults.page.widthMm
+  - zweispaltigDefaults.layout.marginLeftMm - zweispaltigDefaults.layout.marginRightMm;
+const zweispaltigMainWidth = (zweispaltigContentWidth - zweispaltigDefaults.layout.columnGapMm)
+  * zweispaltigDefaults.layout.leftColumnRatio;
+const zweispaltigSideWidth = zweispaltigContentWidth - zweispaltigDefaults.layout.columnGapMm - zweispaltigMainWidth;
+const zweispaltigBodyMm = zweispaltigDefaults.typography.bodySizePt * 0.3528;
+const zweispaltigLineMm = zweispaltigBodyMm * zweispaltigDefaults.typography.lineHeight;
 
 /** Per-item model of a list block: `head` + rows of `pad + pitch × lines` separated by `gap`. */
 export type ItemBlockModel = {
@@ -259,31 +269,31 @@ const geometry: Record<string, PaginationGeometry> = {
   "zweispaltig": {
     columns: 2,
     entryChrome: 3.25,
-    safety: 0.99,
+    safety: 1,
     sidebarLeft: false,
     zones: {summary: "sidebar", strengths: "sidebar", knowledge: "sidebar", languages: "sidebar"},
-    top1: 56.5,
-    top2: 40.1,
-    limit: 285.5,
-    sideTop1: 56.5,
-    sideLimit: 284,
+    top1: zweispaltigDefaults.layout.marginTopMm + 38.9,
+    top2: zweispaltigDefaults.layout.marginTopMm + 24.1,
+    limit: zweispaltigDefaults.page.heightMm - zweispaltigDefaults.layout.marginBottomMm,
+    sideTop1: zweispaltigDefaults.layout.marginTopMm + 38.9,
+    sideLimit: zweispaltigDefaults.page.heightMm - zweispaltigDefaults.layout.marginBottomMm,
     atsTop1: 87.8,
     atsTop2: 87.8,
-    mainLeft: 13,
-    mainRight: 120.3,
-    contentLeft: 13,
-    contentRight: 120.3,
-    text: {contW: 179.2, cw: 0.51, bulletW: 102.5, bulletFont: 2.963, titleW: 107.3, titleFont: 4.06, orgW: 107.3, orgFont: 3.35, sumFont: 2.963, mainW: 107.3, sideW: 65.7, atsW: 179.2, lineRatio: 1.05, fullW: 184, bulletCw: 0.544},
-    // Re-measured on the PDF with the education (scripts/education-calibration.mjs KIND=experience, 189 entries): header 13.7 mm, a list adds
-    // 2.0 mm, 3.11 mm per text line, +4.78 per extra title line (the earlier extraLine 2.73 under-counted a wrapped role by up to 5 mm).
-    exp: {base: 13.8, list: 2.0, perBullet: 0.4, linePitch: 3.12, extraLine: 4.8, gap: 3.5, head: 9},
-    // Measured on the PDF (scripts/education-calibration.mjs, 192 entries): header 13.73 mm, +4.78 per extra title line, a list adds 2.0 mm,
-    // 3.11 mm per text line and 0.3 mm per detail. The older 16.1 / 5.17 counted every detail line like a header line (up to 33 mm too tall).
-    edu: {base: 13.8, extraLine: 4.8, gap: 3.5, head: 9, detailLine: 3.12, detailItem: 0.35, detailList: 2.0, detailCw: 0.544},
+    mainLeft: zweispaltigDefaults.layout.marginLeftMm,
+    mainRight: zweispaltigDefaults.layout.marginLeftMm + zweispaltigMainWidth,
+    contentLeft: zweispaltigDefaults.layout.marginLeftMm,
+    contentRight: zweispaltigDefaults.page.widthMm - zweispaltigDefaults.layout.marginRightMm,
+    text: {contW: zweispaltigContentWidth, cw: 0.51, bulletW: zweispaltigMainWidth - 4.8, bulletFont: zweispaltigBodyMm, titleW: zweispaltigMainWidth, titleFont: 4.06, orgW: zweispaltigMainWidth, orgFont: 3.35, sumFont: zweispaltigBodyMm, mainW: zweispaltigMainWidth, sideW: zweispaltigSideWidth, atsW: zweispaltigContentWidth, lineRatio: zweispaltigDefaults.typography.lineHeight, fullW: zweispaltigContentWidth, bulletCw: 0.544},
+    // The experience header and wrapped-title overhead come from PDF measurements;
+    // bullet line pitch follows the current Zweispaltig body size and line height.
+    exp: {base: 13.8, list: 2.0, perBullet: 0.4, linePitch: zweispaltigLineMm, extraLine: 4.8, gap: 3.5, head: 9},
+    // Education keeps its measured header/detail overhead while text line pitch
+    // follows the same Zweispaltig typography as the rendered document.
+    edu: {base: 13.8, extraLine: 4.8, gap: 3.5, head: 9, detailLine: zweispaltigLineMm, detailItem: 0.35, detailList: 2.0, detailCw: 0.544},
     // Measured on the PDF: 3.5 gap + 3 padding + 0.2 divider + 2 x 0.5 margin between entries; 0.5 margin at each end.
     specialSide: {between: 7.7, edge: 1},
     blocks: {summary: [9, 3.11], strengths: [6, 7.85], knowledge: [16.6, 6], languages: [6.5, 6.07], sectionGap: 6.5, sideGap: 6.5},
-    items: {strengths: {w: 60.2, font: 2.963, pitch: 3.85, pad: 1, cw: 0.53, cols: 1, head: 9, gap: 3}, knowledge: {w: 60.2, font: 2.963, pitch: 3.11, pad: 0.89, cw: 0.45, cols: 1, head: 18.6, gap: 2}},
+    items: {strengths: {w: zweispaltigSideWidth - 9, font: 3.35, pitch: zweispaltigLineMm, pad: 1, cw: 0.53, cols: 1, head: 9, gap: 3.5}, knowledge: {w: zweispaltigSideWidth - 9, font: zweispaltigBodyMm, pitch: zweispaltigLineMm, pad: 0.89, cw: 0.45, cols: 1, head: 18.6, gap: 2}},
     certs: {home: "first", zone: "sidebar", base: 8.6, perItem: 3.6, w: 61.2, font: 2.96, pitch: 3.11},
     derivedStrengths: {visual: "first", ats: "single"},
     ats: {exp: 1.0, edu: 1.0, knowledge: {head: 9.03, title: 6.07, gap: 3, pitch: 3.11, font: 2.96, w: 184, tail: 0}, header: {base: 39.83, perContact: 8}, languages: [7, 5.1], certs: {base: 8.5, perItem: 3.6}, density: {compact: 0.98, dense: 0.97}},

@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { zweispaltigDefaults } from "./zweispaltig.defaults";
+import { zweispaltigPageVariables } from "../../../../shared/cvTemplateDefaults/zweispaltig.defaults";
 import type { ZweispaltigResumeProps } from "./zweispaltig.types";
 import { ZweispaltigPage } from "./ZweispaltigPage";
 import "./zweispaltig.css";
@@ -27,6 +28,7 @@ export function ZweispaltigResume({
       ? zweispaltigDefaults.colors.accent
       : secondaryColor;
   const variables = {
+    ...zweispaltigPageVariables,
     "--zweispaltig-primary": atsMode
       ? zweispaltigDefaults.colors.primaryDark
       : primary,

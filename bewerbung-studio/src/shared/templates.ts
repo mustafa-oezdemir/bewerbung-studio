@@ -196,8 +196,8 @@ const allTemplates: TemplateDefinition[] = [
     designDefaults: {
       marginLevel: 3,
       sectionSpacingLevel: 3,
-      fontSize: "small",
-      lineHeightLevel: 2,
+      fontSize: "large",
+      lineHeightLevel: 7,
       columnLayout: "template",
       resumeOutputMode: "visual",
       backgroundId: "white",

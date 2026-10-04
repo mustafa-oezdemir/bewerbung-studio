@@ -1,6 +1,6 @@
 import { compactCvDesignOverrides, getCvDesignVariables, getTemplateDocumentDesignDefaults, resolveCvDesign, resolveTemplateCvDesign } from "./cvDesign";
 import { cvDesignLimits, type CvDesignTokens, type ResumeDesignLayer } from "./cvDesignSchema";
-import { sectionSpacingLevelToMm, type DocumentDesignSettings } from "./documentDesign";
+import { fontSizeToPt, lineHeightLevelToValue, sectionSpacingLevelToMm, type DocumentDesignSettings } from "./documentDesign";
 import type { DocumentDesignDraft } from "./documentEditorState";
 import { resolveEffectiveDesignTokens, resolveResumeDesignView } from "./resumeDesignSystem";
 import { resumeSectionStyleSources } from "./resumeSectionStyleInheritance";
@@ -165,11 +165,20 @@ export const applyResumeSpacingOutput = (
   const spacing = overrides?.spacing;
   const lineHeight = overrides?.typography?.lineHeight;
   const id = resolveTemplateId(templateId);
+  const defaults = getTemplateDocumentDesignDefaults(id);
+  const zweispaltigLegacyTypography = id === "zweispaltig" &&
+    (settings.fontSize !== defaults.fontSize || settings.lineHeightLevel !== defaults.lineHeightLevel);
   const nativeSectionGap = id === "kreativ" || id === "stilvoll" || id === "kompakt" || id === "zweispaltig";
-  const legacyNativeSectionGap = nativeSectionGap && settings.sectionSpacingLevel !== getTemplateDocumentDesignDefaults(id).sectionSpacingLevel;
-  if (!spacing && lineHeight === undefined && !legacyNativeSectionGap) return;
+  const legacyNativeSectionGap = nativeSectionGap && settings.sectionSpacingLevel !== defaults.sectionSpacingLevel;
+  if (!spacing && lineHeight === undefined && !legacyNativeSectionGap && !zweispaltigLegacyTypography) return;
   const scope = (surface === "pdf" ? page.querySelector(".page-content") : page.firstElementChild) as HTMLElement | null;
   if (!scope) return;
+  if (zweispaltigLegacyTypography) {
+    if (settings.fontSize !== defaults.fontSize && overrides?.typography?.bodySizePt === undefined)
+      scope.style.setProperty("--doc-body-size", `${fontSizeToPt[settings.fontSize]}pt`);
+    if (settings.lineHeightLevel !== defaults.lineHeightLevel && lineHeight === undefined)
+      scope.style.setProperty("--doc-line-height", String(lineHeightLevelToValue[settings.lineHeightLevel]));
+  }
   if (nativeSectionGap) {
     const property = `--${id}-section-gap-base`;
     const defaultGap = resolveTemplateCvDesign(id).spacing.sectionGapMm;

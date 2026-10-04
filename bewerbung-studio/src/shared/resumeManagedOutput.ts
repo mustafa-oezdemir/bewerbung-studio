@@ -824,6 +824,8 @@ export const applyManagedResumeOutput = (
     const previousPlan = planned[number - 2];
     for (const kind of ["experience", "education"] as const) {
       if (!previousPlan?.items.some((item) => item.kind === kind) || !pagePlan?.items.some((item) => item.kind === kind)) continue;
+      if (resolved.templateId === "zweispaltig" && !pagePlan.items.some((item) =>
+        item.kind === kind && (item.bullets?.from ?? 0) > 0)) continue;
       for (const section of nodes.get(kind) ?? []) {
         const heading = section.querySelector("h2,h3");
         if (heading && !/Fortsetzung/i.test(heading.textContent ?? "")) setHeadingText(heading, `${(heading.textContent ?? "").trim()} · Fortsetzung`);

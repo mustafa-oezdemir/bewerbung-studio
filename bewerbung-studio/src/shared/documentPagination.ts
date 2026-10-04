@@ -1316,6 +1316,9 @@ export const createResumePagePlan = (
   const continueAfterSecond = (plan: ResumePagePlan[]): ResumePagePlan[] => {
     const second = plan[1];
     if (!second || (second.fill?.main ?? 0) * densityFactor[second.density] <= 1) return plan;
+    // The closing is appended only after the continuation pages are packed. Zweispaltig
+    // reserves its height while packing, so the last page cannot silently overflow.
+    const continuationCap = templateId === "zweispaltig" ? mainCap2 - closingHeight : mainCap2;
     const itemById = new Map(items.map((item) => [item.id, item]));
     const blockById = new Map(flow.map((block) => [block.id, block]));
     type PendingItem = { source: MeasuredItem; from: number; to: number };
@@ -1364,7 +1367,7 @@ export const createResumePagePlan = (
         const heading = previous?.kind === item.kind ? next.source.gapAfter :
           (selectedItems.length ? sectionGap : 0) + sectionHead(item.kind);
         const needed = heading + item.weight;
-        if (used + needed <= mainCap2) {
+        if (used + needed <= continuationCap) {
           selectedItems.push(item); used += needed; previous = item; pendingItems.shift();
           continue;
         }
@@ -1376,7 +1379,7 @@ export const createResumePagePlan = (
             const before = lines.slice(next.from, end).reduce((sum, value) => sum + value, 0);
             const after = lines.slice(end, next.to).reduce((sum, value) => sum + value, 0);
             if (before < minLinesBefore(next.source.kind) || after < MIN_SPLIT_LINES) continue;
-            if (used + heading + measured.height(next.from, end) <= mainCap2) best = end;
+            if (used + heading + measured.height(next.from, end) <= continuationCap) best = end;
           }
           if (best > next.from) {
             const part = projectItem({ ...next, to: best });
@@ -1395,7 +1398,7 @@ export const createResumePagePlan = (
         const next = pendingBlocks[0];
         const gap = used > 0 ? sectionGap : 0;
         const height = blockHeight(next);
-        if (used + gap + height <= mainCap2) {
+        if (used + gap + height <= continuationCap) {
           selectedBlocks.push(next.source.id); used += gap + height; pendingBlocks.shift();
           if (next.source.split && (next.from > 0 || next.to < next.source.split.ends.length))
             blockRanges[next.source.id] = { from: next.from ? next.source.split.ends[next.from - 1] : 0,
@@ -1406,7 +1409,7 @@ export const createResumePagePlan = (
           let best = next.from;
           for (let end = next.from + 1; end < next.to; end += 1) {
             if (end - next.from < 2 || next.to - end < 2) continue;
-            if (used + gap + splitHeightOn(next.source.split, next.from, end, pageIndex) <= mainCap2) best = end;
+            if (used + gap + splitHeightOn(next.source.split, next.from, end, pageIndex) <= continuationCap) best = end;
           }
           if (best > next.from) {
             selectedBlocks.push(next.source.id);

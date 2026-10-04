@@ -6,10 +6,10 @@ export const zweispaltigDefaults = {
     heightMm: 297,
   },
   layout: {
-    marginTopMm: 16,
-    marginRightMm: 17,
-    marginBottomMm: 13,
-    marginLeftMm: 17,
+    marginTopMm: 20,
+    marginRightMm: 20,
+    marginBottomMm: 15,
+    marginLeftMm: 25,
     leftColumnRatio: 0.62,
     rightColumnRatio: 0.38,
     columnGapMm: 11,
@@ -36,11 +36,22 @@ export const zweispaltigDefaults = {
     professionSizePt: 10.5,
     sectionTitleSizePt: 14,
     entryTitleSizePt: 11.5,
-    bodySizePt: 8.4,
+    bodySizePt: 10,
     smallSizePt: 7.5,
-    lineHeight: 1.3,
+    lineHeight: 1.32,
   },
 } as const;
+
+/** The physical page box is shared by the preview, Electron PDF and the planner. */
+export const zweispaltigPageVariables = {
+  "--zweispaltig-margin-top": `${zweispaltigDefaults.layout.marginTopMm}mm`,
+  "--zweispaltig-margin-right": `${zweispaltigDefaults.layout.marginRightMm}mm`,
+  "--zweispaltig-margin-bottom": `${zweispaltigDefaults.layout.marginBottomMm}mm`,
+  "--zweispaltig-margin-left": `${zweispaltigDefaults.layout.marginLeftMm}mm`,
+} as const;
+export const zweispaltigPageStyle = Object.entries(zweispaltigPageVariables)
+  .map(([name, value]) => `${name}:${value}`)
+  .join(";");
 
 export type ZweispaltigTemplateDefaults = typeof zweispaltigDefaults;
 
@@ -71,14 +82,14 @@ export const zweispaltigDesign: NativeResumeDesign = {
       subheadingSizePt: 11.5,
       sectionHeadingSizePt: zweispaltigDefaults.typography.sectionTitleSizePt,
       entryHeadingSizePt: zweispaltigDefaults.typography.entryTitleSizePt,
-      lineHeight: 1.05,
+      lineHeight: zweispaltigDefaults.typography.lineHeight,
       headingWeight: 750,
       subheadingWeight: 700,
       sectionHeadingWeight: 750,
       sectionHeadingUppercase: true,
     },
     spacing: {
-      pageMarginMm: 13,
+      pageMarginMm: zweispaltigDefaults.layout.marginLeftMm,
       innerPaddingMm: 0,
       sectionGapMm: zweispaltigDefaults.layout.sectionGapMm,
       entryGapMm: zweispaltigDefaults.layout.entryGapMm,

@@ -366,8 +366,8 @@ describe("Zweispaltig rendering", () => {
       designDefaults: {
         marginLevel: 3,
         sectionSpacingLevel: 3,
-        fontSize: "small",
-        lineHeightLevel: 2,
+        fontSize: "large",
+        lineHeightLevel: 7,
         columnLayout: "template",
         fontId: "source-sans",
       },

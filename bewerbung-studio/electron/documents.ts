@@ -3,6 +3,7 @@ import { klassischDefaults } from "../src/shared/cvTemplateDefaults/klassisch.de
 import { kreativDefaults } from "../src/shared/cvTemplateDefaults/kreativ.defaults";
 import { kompaktDefaults } from "../src/shared/cvTemplateDefaults/kompakt.defaults";
 import { stilvollDefaults } from "../src/shared/cvTemplateDefaults/stilvoll.defaults";
+import { zweispaltigPageStyle } from "../src/shared/cvTemplateDefaults/zweispaltig.defaults";
 import { renderContactIcon } from "../src/shared/contactIcons";
 import { applyManagedResumeOutput, managedResumeCss } from "../src/shared/resumeManagedOutput";
 import { resolveResumeClosingLine } from "../src/shared/resumeClosing";
@@ -406,7 +407,7 @@ const elegantDocumentCss = `
 `;
 
 const zweispaltigDocumentCss = `
-  .zweispaltig-pdf{--zweispaltig-primary:var(--accent);--zweispaltig-accent:var(--secondary);--zweispaltig-heading:var(--accent);--zweispaltig-text:#4a555c;--zweispaltig-muted:#667178;--zweispaltig-divider:#d6dce0;--zweispaltig-section-gap-base:6.5mm;--zweispaltig-section-gap:var(--zweispaltig-section-gap-base);--zweispaltig-entry-gap:3.5mm;position:relative;width:100%;height:100%;padding:max(16mm,calc(var(--doc-margin) - 1mm)) var(--doc-margin) max(13mm,calc(var(--doc-margin) - 4mm));overflow:hidden;color:var(--zweispaltig-text);background:#fff;font-family:var(--body-font);font-size:var(--body-size);line-height:var(--body-line)}
+  .zweispaltig-pdf{--zweispaltig-primary:var(--accent);--zweispaltig-accent:var(--secondary);--zweispaltig-heading:var(--accent);--zweispaltig-text:#4a555c;--zweispaltig-muted:#667178;--zweispaltig-divider:#d6dce0;--zweispaltig-section-gap-base:6.5mm;--zweispaltig-section-gap:var(--zweispaltig-section-gap-base);--zweispaltig-entry-gap:var(--doc-entry-gap,3.5mm);--body-size:var(--doc-body-size,10pt);--body-line:var(--doc-line-height,1.32);position:relative;width:100%;height:100%;padding:var(--zweispaltig-margin-top) var(--zweispaltig-margin-right) var(--zweispaltig-margin-bottom) var(--zweispaltig-margin-left);overflow:hidden;color:var(--zweispaltig-text);background:#fff;font-family:var(--body-font);font-size:var(--body-size);line-height:var(--body-line)}
   .zweispaltig-pdf *{box-sizing:border-box}
   .zweispaltig-pdf-header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8mm;min-width:0}
   .zweispaltig-pdf-header h1{margin:0;color:var(--zweispaltig-heading);font-size:24pt;font-weight:750;letter-spacing:.025em;line-height:1;text-transform:uppercase;overflow-wrap:anywhere}
@@ -442,25 +443,28 @@ const zweispaltigDocumentCss = `
   .zweispaltig-pdf-sidebar .knowledge-category{margin-bottom:2.3mm}
   .zweispaltig-pdf-sidebar .knowledge-category h4,.zweispaltig-pdf-sidebar .knowledge-subcategory h5{color:var(--zweispaltig-heading);font-size:8.4pt}
   .zweispaltig-pdf-sidebar .knowledge-section p,.zweispaltig-pdf-sidebar .knowledge-section li{font-size:var(--body-size);line-height:var(--body-line)}
-  .zweispaltig-pdf-strengths{display:grid}
-  .zweispaltig-pdf-strength{display:grid;grid-template-columns:7mm minmax(0,1fr);align-items:start;gap:2mm;padding:0 0 3mm;margin-bottom:3mm;border-bottom:.25mm dashed var(--zweispaltig-divider)}
+  .zweispaltig-pdf-strengths{display:grid;row-gap:var(--doc-entry-gap,3.5mm)}
+  .zweispaltig-pdf-strength{display:grid;grid-template-columns:7mm minmax(0,1fr);align-items:start;gap:2mm;padding:0;margin:0;border-bottom:.25mm dashed var(--zweispaltig-divider)}
   .zweispaltig-pdf-strength:last-child{margin-bottom:0;padding-bottom:0;border-bottom:0}
   .zweispaltig-pdf-strength>svg{width:5.5mm;height:5.5mm;color:var(--zweispaltig-accent);fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:2.2}
-  .zweispaltig-pdf-strength h4{margin:0;color:var(--zweispaltig-heading);font-size:9.5pt;font-weight:750;line-height:1.2;overflow-wrap:anywhere}
+  .zweispaltig-pdf-strength h4{margin:0;color:var(--zweispaltig-heading);font-size:9.5pt;font-weight:750;line-height:var(--doc-line-height,1.32);overflow-wrap:anywhere}
   .zweispaltig-pdf-strength p{margin:1.5mm 0 0;color:var(--zweispaltig-text);font-size:var(--body-size);line-height:var(--body-line);hyphens:auto;overflow-wrap:break-word}
+  .zweispaltig-pdf [data-managed-section="strengths"] .managed-strengths-grid{row-gap:var(--doc-entry-gap,3.5mm)}
+  .zweispaltig-pdf [data-managed-section="strengths"] .managed-strength-card strong,.zweispaltig-pdf [data-managed-section="strengths"] .managed-strength-card p{line-height:var(--doc-line-height,1.32)}
+  .zweispaltig-pdf [data-managed-section="strengths"] .managed-strength-card p{font-size:var(--body-size)}
   .zweispaltig-pdf-languages{display:grid;gap:2.5mm}
   .zweispaltig-pdf-language{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:3mm}
   .zweispaltig-pdf-language h4{margin:0;color:var(--zweispaltig-heading);font-size:8.8pt;font-weight:750;line-height:1.15}
   .zweispaltig-pdf-language-dots{display:flex;gap:.8mm}
   .zweispaltig-pdf-language-dots i{display:block;width:2.5mm;height:2.5mm;border-radius:50%;background:var(--zweispaltig-divider)}
   .zweispaltig-pdf-language-dots i.filled{background:var(--zweispaltig-accent)}
-  .zweispaltig-pdf-footer{position:absolute;right:var(--doc-margin);bottom:6mm;left:var(--doc-margin);display:flex;align-items:center;justify-content:space-between;gap:6mm;color:var(--zweispaltig-muted);font-size:7pt;line-height:1.2}
+  .zweispaltig-pdf-footer{position:absolute;right:var(--zweispaltig-margin-right);bottom:6mm;left:var(--zweispaltig-margin-left);display:flex;align-items:center;justify-content:space-between;gap:6mm;color:var(--zweispaltig-muted);font-size:7pt;line-height:1.2}
   .zweispaltig-pdf-footer a{color:var(--zweispaltig-heading);text-decoration:none;overflow-wrap:anywhere}
   .zweispaltig-pdf-footer span:last-child{margin-left:auto}
   .zweispaltig-pdf[data-density="compact"]{--zweispaltig-section-gap:calc(var(--zweispaltig-section-gap-base) * .7);--zweispaltig-entry-gap:3mm}
-  .zweispaltig-pdf[data-density="dense"]{--zweispaltig-section-gap:calc(var(--zweispaltig-section-gap-base) * .55);--zweispaltig-entry-gap:2.4mm;padding-top:max(11mm,calc(var(--doc-margin) - 6mm))}
+  .zweispaltig-pdf[data-density="dense"]{--zweispaltig-section-gap:calc(var(--zweispaltig-section-gap-base) * .55);--zweispaltig-entry-gap:2.4mm}
   .zweispaltig-pdf[data-density="dense"] .zweispaltig-pdf-header h1{font-size:21pt}
-  .zweispaltig-pdf-ats{--zweispaltig-heading:#263641;--zweispaltig-text:#303c44;--zweispaltig-divider:#c8d0d6;width:100%;height:100%;padding:var(--doc-margin);overflow:hidden;color:var(--zweispaltig-text);background:#fff}
+  .zweispaltig-pdf-ats{--zweispaltig-heading:#263641;--zweispaltig-text:#303c44;--zweispaltig-divider:#c8d0d6;width:100%;height:100%;padding:var(--zweispaltig-margin-top) var(--zweispaltig-margin-right) var(--zweispaltig-margin-bottom) var(--zweispaltig-margin-left);overflow:hidden;color:var(--zweispaltig-text);background:#fff}
   .zweispaltig-pdf-ats .zweispaltig-pdf-header{display:block}
   .zweispaltig-pdf-ats .zweispaltig-pdf-contacts{display:block}
   .zweispaltig-pdf-ats .zweispaltig-pdf-contacts a,.zweispaltig-pdf-ats .zweispaltig-pdf-contacts span{display:block;margin-top:.7mm}
@@ -1284,8 +1288,9 @@ export const buildDocumentHtml = (
       .join("");
     const isContinuation = plan.pageNumber > 1;
     const isLastPage = plan.pageNumber === resumePlan.length;
+    const experienceContinuation = (plan.items.find((item) => item.kind === "experience")?.bullets?.from ?? 0) > 0;
     const experienceMarkup = experienceItems
-      ? `<section class="zweispaltig-pdf-section"><h3>${escapeHtml(getResumeSectionTitle(profile, "experience"))}${isContinuation ? " · Fortsetzung" : ""}</h3><div class="zweispaltig-pdf-list">${experienceItems}</div></section>`
+      ? `<section class="zweispaltig-pdf-section"><h3>${escapeHtml(getResumeSectionTitle(profile, "experience"))}${experienceContinuation ? " · Fortsetzung" : ""}</h3><div class="zweispaltig-pdf-list">${experienceItems}</div></section>`
       : "";
     const educationMarkup = educationItems
       ? `<section class="zweispaltig-pdf-section"><h3>${escapeHtml(getResumeSectionTitle(profile, "education"))}</h3><div class="zweispaltig-pdf-list">${educationItems}</div></section>`
@@ -1299,7 +1304,7 @@ export const buildDocumentHtml = (
           : "";
       return `
         <section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="zweispaltig" data-no-fit="true">
-          <div class="page-content zweispaltig-pdf zweispaltig-pdf-ats" data-density="${plan.density}">
+          <div class="page-content zweispaltig-pdf zweispaltig-pdf-ats" data-density="${plan.density}" style="${zweispaltigPageStyle}">
             ${renderZweispaltigHeader(false, false)}
             ${atsSummary}
             ${careerMarkup}
@@ -1358,7 +1363,7 @@ export const buildDocumentHtml = (
 
     return `
       <section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="zweispaltig" data-no-fit="true">
-        <div class="page-content zweispaltig-pdf" data-density="${plan.density}">
+        <div class="page-content zweispaltig-pdf" data-density="${plan.density}" style="${zweispaltigPageStyle}">
           ${renderZweispaltigHeader(false, true)}
           <div class="zweispaltig-pdf-columns${isContinuation ? " continuation" : ""}">
             <main class="zweispaltig-pdf-main">

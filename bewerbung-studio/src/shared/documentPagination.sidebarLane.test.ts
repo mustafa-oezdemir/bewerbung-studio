@@ -167,7 +167,13 @@ describe("sidebar lane", () => {
         // (a page two with other entries on it is no comparison)
         if (!withLane || !without || !same(withLane, without) || !withLane.sidebar || without.sidebar) continue;
         compared += 1;
-        expect(withLane.fill!.main, `${knowledge} knowledge, ${stations} stations x ${bullets}`).toBeGreaterThan(without.fill!.main);
+        const shown = (page: ResumePagePlan) => {
+          const range = page.blockRanges?.knowledge;
+          return range ? range.to - range.from : knowledge;
+        };
+        if (shown(withLane) < shown(without))
+          expect(shown(withLane), `${knowledge} knowledge, ${stations} stations x ${bullets}`).toBeLessThan(shown(without));
+        else expect(withLane.fill!.main, `${knowledge} knowledge, ${stations} stations x ${bullets}`).toBeGreaterThan(without.fill!.main);
       }
       expect(compared, "at least one comparable pair").toBeGreaterThan(0);
     });

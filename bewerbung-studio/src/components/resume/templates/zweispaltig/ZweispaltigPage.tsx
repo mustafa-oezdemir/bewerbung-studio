@@ -31,6 +31,7 @@ export function ZweispaltigPage({
 }: ZweispaltigPageProps) {
   const { education, experiences, isContinuation } =
     createZweispaltigPageData(profile, plan);
+  const experienceContinuation = (plan.items.find((item) => item.kind === "experience")?.bullets?.from ?? 0) > 0;
   const summary = resolveZweispaltigSummary(profile, resumeProfile);
   const isLastPage = plan.pageNumber === totalPages;
   const hasCustomLayout = hasSavedTemplateSectionLayout(profile, "zweispaltig");
@@ -54,7 +55,7 @@ export function ZweispaltigPage({
         </section>
       ) : null;
     }
-    if (type === "experience") return sections.experience ? <ZweispaltigCareerSection kind="experience" title={getResumeSectionTitle(profile, "experience")} items={experiences} continuation={isContinuation} /> : null;
+    if (type === "experience") return sections.experience ? <ZweispaltigCareerSection kind="experience" title={getResumeSectionTitle(profile, "experience")} items={experiences} continuation={experienceContinuation} /> : null;
     if (type === "education") return sections.education ? <ZweispaltigCareerSection kind="education" title={getResumeSectionTitle(profile, "education")} items={education} /> : null;
     if (!isLastPage) return null;
     return (
@@ -81,7 +82,7 @@ export function ZweispaltigPage({
         {!hasCustomLayout && sections.profile && summary && !isContinuation ? (
           <section className="zweispaltig-section" data-element-id="zweispaltig.summary"><h2 className="zweispaltig-section__title">{getResumeSectionTitle(profile, "summary")}</h2><p>{summary}</p></section>
         ) : null}
-        {!hasCustomLayout && sections.experience ? <ZweispaltigCareerSection kind="experience" title={getResumeSectionTitle(profile, "experience")} items={experiences} continuation={isContinuation} /> : null}
+        {!hasCustomLayout && sections.experience ? <ZweispaltigCareerSection kind="experience" title={getResumeSectionTitle(profile, "experience")} items={experiences} continuation={experienceContinuation} /> : null}
         {!hasCustomLayout && sections.education ? <ZweispaltigCareerSection kind="education" title={getResumeSectionTitle(profile, "education")} items={education} /> : null}
         {!hasCustomLayout && isLastPage ? (
           <ZweispaltigAdditionalSections

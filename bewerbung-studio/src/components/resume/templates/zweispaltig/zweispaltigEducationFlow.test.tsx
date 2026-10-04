@@ -25,7 +25,7 @@ const countOf = (pages: Element[], needle: string) => pages.map(text).join(" ").
 
 describe("Bildungsweg starts on page one when there is room", () => {
   it("starts with its header and the first details after a Beruflicher Werdegang that leaves room (48, 51)", () => {
-    const pages = plan({ bullets: [4, 4, 4] });
+    const pages = plan({ bullets: [2, 2, 2] });
     expect(pages).toHaveLength(2);
     const first = educationOf(pages[0]);
     expect(first).toHaveLength(1);
@@ -42,7 +42,7 @@ describe("Bildungsweg starts on page one when there is room", () => {
   });
 
   it("keeps a first entry that fits whole on page one, without a continuation (50)", () => {
-    const pages = plan({ bullets: [3, 3, 3], sentences: 1, educationCount: 3 });
+    const pages = plan({ bullets: [1, 1, 1], sentences: 1, educationCount: 3 });
     const first = educationOf(pages[0]);
     expect(first.length).toBeGreaterThan(0);
     expect(first[0]).not.toHaveProperty("bullets");
@@ -85,7 +85,7 @@ describe("an education entry that breaks loses nothing and doubles nothing", () 
   };
 
   it("draws every sentence of every description exactly once, and the entries in their order, on both surfaces", () => {
-    const rendered = total({ bullets: [4, 4, 4] });
+    const rendered = total({ bullets: [2, 2, 2] });
     for (const pages of [rendered.previewPages, rendered.pdfPages]) {
       for (let entry = 1; entry <= 3; entry += 1)
         for (let sentence = 1; sentence <= 2 + entry - 1; sentence += 1)
@@ -98,7 +98,7 @@ describe("an education entry that breaks loses nothing and doubles nothing", () 
   });
 
   it("marks the continuation once, in the heading of the entry, and only on the page that goes on", () => {
-    const rendered = total({ bullets: [4, 4, 4] });
+    const rendered = total({ bullets: [2, 2, 2] });
     for (const pages of [rendered.previewPages, rendered.pdfPages]) {
       expect(pages[0].querySelector("[data-resume-entry-marker]")).toBeNull();
       const markers = pages.flatMap((page) => Array.from(page.querySelectorAll("[data-resume-entry-marker]")));
@@ -198,9 +198,10 @@ describe("the page plan follows the central spacing (52–55, 23–27)", () => {
   });
 
   it("stays the template's own plan when nothing is chosen, and a choice of one application does not reach another (57)", () => {
-    const first = plan({ bullets: [4, 4, 4] }, { sectionGapMm: 4 });
-    const second = plan({ bullets: [4, 4, 4] });
-    expect(shape(second)).toBe(shape(native));
+    const baseline = plan({ bullets: [2, 2, 2] });
+    const first = plan({ bullets: [2, 2, 2] }, { sectionGapMm: 4 });
+    const second = plan({ bullets: [2, 2, 2] });
+    expect(shape(second)).toBe(shape(baseline));
     expect(first[0].fill!.main).not.toBe(second[0].fill!.main);
   });
 });
@@ -220,7 +221,7 @@ describe("the central spacing is the one owner of the gaps (11–22, 28, 29)", (
 
   it("marks the section that follows another also when the template holds every section in a wrapper", () => {
     for (const surface of ["previewPages", "pdfPages"] as const) {
-      const page = render({ sectionGapMm: 4 })[surface][0];
+      const page = renderCv("zweispaltig", makeEducationFlowProfile({ bullets: [2, 2, 2] }), { overrides: { cvOverrides: { spacing: { sectionGapMm: 4 } } } })[surface][0];
       const sections = Array.from(page.querySelectorAll('[data-managed-section="experience"],[data-managed-section="education"]'));
       expect(sections.length).toBeGreaterThanOrEqual(2);
       expect(sections[0].hasAttribute("data-resume-spacing-section-following"), surface).toBe(false);

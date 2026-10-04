@@ -15,13 +15,16 @@
   --zweispaltig-divider: #d6dce0;
   --zweispaltig-left-ratio: 0.62fr;
   --zweispaltig-right-ratio: 0.38fr;
-  --zweispaltig-margin: var(--doc-margin, 17mm);
+  --zweispaltig-margin-top: 20mm;
+  --zweispaltig-margin-right: 20mm;
+  --zweispaltig-margin-bottom: 15mm;
+  --zweispaltig-margin-left: 25mm;
   --zweispaltig-column-gap: 11mm;
   /* The template's own Abschnittsabstand; the central one (Lebenslauf-Design) replaces the base, never a floor on it. */
   --zweispaltig-section-gap: var(--zweispaltig-section-gap-base, 6.5mm);
-  --zweispaltig-entry-gap: 3.5mm;
-  --zweispaltig-body-size: var(--doc-body-size, 8.4pt);
-  --zweispaltig-line-height: var(--doc-line-height, 1.3);
+  --zweispaltig-entry-gap: var(--doc-entry-gap, 3.5mm);
+  --zweispaltig-body-size: var(--doc-body-size, 10pt);
+  --zweispaltig-line-height: var(--doc-line-height, 1.32);
   --zweispaltig-name-size: 24pt;
   --zweispaltig-profession-size: 11.5pt;
   --zweispaltig-section-title-size: 14pt;
@@ -59,10 +62,8 @@
   position: relative;
   width: 100%;
   height: 100%;
-  padding:
-    max(16mm, calc(var(--zweispaltig-margin) - 1mm))
-    var(--zweispaltig-margin)
-    max(13mm, calc(var(--zweispaltig-margin) - 4mm));
+  padding: var(--zweispaltig-margin-top) var(--zweispaltig-margin-right)
+    var(--zweispaltig-margin-bottom) var(--zweispaltig-margin-left);
   overflow: hidden;
   background: #fff;
 }
@@ -247,7 +248,8 @@
   page-break-inside: auto;
 }
 
-.zweispaltig-section__title {
+.zweispaltig-section__title,
+.zweispaltig-section > .cv-heading {
   display: flex;
   align-items: baseline;
   gap: 2mm;
@@ -373,6 +375,21 @@
 
 .zweispaltig-strengths__list {
   display: grid;
+  row-gap: var(--doc-entry-gap, 3.5mm);
+}
+
+/* Managed output replaces native strength articles on both surfaces. */
+.zweispaltig-template [data-managed-section="strengths"] .managed-strengths-grid {
+  row-gap: var(--doc-entry-gap, 3.5mm);
+}
+
+.zweispaltig-template [data-managed-section="strengths"] .managed-strength-card strong,
+.zweispaltig-template [data-managed-section="strengths"] .managed-strength-card p {
+  line-height: var(--zweispaltig-line-height);
+}
+
+.zweispaltig-template [data-managed-section="strengths"] .managed-strength-card p {
+  font-size: var(--zweispaltig-body-size);
 }
 
 .zweispaltig-strength {
@@ -380,8 +397,8 @@
   grid-template-columns: 7mm minmax(0, 1fr);
   align-items: start;
   gap: 2mm;
-  padding: 0 0 3mm;
-  margin-bottom: 3mm;
+  padding: 0;
+  margin: 0;
   border-bottom: 0.25mm dashed var(--zweispaltig-divider);
 }
 
@@ -403,7 +420,7 @@
   color: var(--zweispaltig-heading);
   font-size: 9.5pt;
   font-weight: 750;
-  line-height: 1.2;
+  line-height: var(--zweispaltig-line-height);
   overflow-wrap: anywhere;
 }
 
@@ -534,9 +551,9 @@
 
 .zweispaltig-footer {
   position: absolute;
-  right: var(--zweispaltig-margin);
+  right: var(--zweispaltig-margin-right);
   bottom: 6mm;
-  left: var(--zweispaltig-margin);
+  left: var(--zweispaltig-margin-left);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -567,10 +584,6 @@
   --zweispaltig-entry-gap: 2.4mm;
 }
 
-.zweispaltig-template[data-density="dense"] .zweispaltig-page__visual {
-  padding-top: max(11mm, calc(var(--zweispaltig-margin) - 6mm));
-}
-
 .zweispaltig-template[data-density="dense"] .zweispaltig-header {
   padding-bottom: 3.4mm;
 }
@@ -593,10 +606,8 @@
 .zweispaltig-ats {
   width: 100%;
   height: 100%;
-  padding:
-    var(--zweispaltig-margin)
-    var(--zweispaltig-margin)
-    calc(var(--zweispaltig-margin) + 3mm);
+  padding: var(--zweispaltig-margin-top) var(--zweispaltig-margin-right)
+    var(--zweispaltig-margin-bottom) var(--zweispaltig-margin-left);
   overflow: hidden;
   background: #fff;
 }
