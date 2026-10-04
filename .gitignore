@@ -1,0 +1,100 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+out/
+release/
+
+# Vite
+.vite/
+
+# Electron
+*.asar
+*.app
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Signing certificates and keys
+*.pfx
+*.p12
+*.pem
+*.key
+electron-builder.env
+
+# Release output
+windows-release/
+
+# Electron runtime data
+CrashDumps/
+ElectronSession/
+
+# Local application data
+data/
+Backups/
+*.backup
+workspace.json
+bootstrap.json
+
+# User-generated BewerbungsManager files
+Bewerbungen/
+Anschreiben/
+Lebenslauf/
+Zeugnisse/
+Zertifikate/
+Absagen/
+Vorstellungsgespräch/
+
+# Temporary files
+tmp/
+temp/
+.cache/
+*.tmp
+*.temp
+*.bak
+
+# Test / Coverage
+coverage/
+.nyc_output/
+
+# TypeScript
+*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Misc
+*.swp
+*.swo
+*~
+
+.lebenslauf
+bewerbung-studio/docs/
+bewerbung-studio/dist-electron/
+
+

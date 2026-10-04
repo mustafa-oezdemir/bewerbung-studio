@@ -1,0 +1,159 @@
+name: Windows Release
+
+# A version tag (vX.Y.Z) builds the Windows release and publishes it. A manual run only builds and stores the
+# files as a workflow artifact; it publishes a GitHub Release only when it is started on a version tag AND
+# "publish" is ticked.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish a GitHub Release (only when this run is started on a vX.Y.Z tag)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: bewerbung-studio
+
+jobs:
+  build:
+    name: Build Windows release
+    runs-on: windows-latest
+    timeout-minutes: 60
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      signed: ${{ steps.build.outputs.signed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: bewerbung-studio/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check that the tag matches the version
+        id: version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            node scripts/check-release-version.mjs $env:GITHUB_REF_NAME
+            if ($LASTEXITCODE -ne 0) { throw "Tag and package version differ." }
+          } else {
+            Write-Host "Not a tag run: the version of package.json is built and nothing is published."
+          }
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      # Stops the run before any build when typecheck, a test or the production build fails.
+      - name: Release quality gate (typecheck, tests, production build)
+        run: npm run release:check
+
+      # The signing secrets exist only in this step. Their values are never printed.
+      - name: Build Windows release (tag builds require signing)
+        id: build
+        shell: pwsh
+        env:
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: |
+          if ($env:WIN_CSC_LINK -and $env:WIN_CSC_KEY_PASSWORD) {
+            npm run dist:win:signed
+            $signed = 'true'
+          } elseif ($env:GITHUB_REF_TYPE -eq 'tag') {
+            throw "Code-signing credentials are required for a version tag release."
+          } else {
+            npm run dist:win
+            $signed = 'false'
+          }
+          if ($LASTEXITCODE -ne 0) { throw "The Windows build failed." }
+          "signed=$signed" >> $env:GITHUB_OUTPUT
+
+      - name: Verify the release files and their SHA-256 checksums
+        shell: pwsh
+        run: ./scripts/verify-release-artifacts.ps1 -Version '${{ steps.version.outputs.version }}'
+
+      # Store the two executables, checksums and installation guide, never the whole folder.
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: bewerbungsmanager-windows-v${{ steps.version.outputs.version }}
+          path: |
+            bewerbung-studio/windows-release/BewerbungsManager-${{ steps.version.outputs.version }}-x64-Setup.exe
+            bewerbung-studio/windows-release/BewerbungsManager-${{ steps.version.outputs.version }}-x64-Portable.exe
+            bewerbung-studio/windows-release/SHA256SUMS.txt
+            bewerbung-studio/windows-release/WINDOWS-KURULUM.md
+          retention-days: 14
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    # Never for pull requests or branches; a manual run needs a version tag and the explicit input.
+    if: >-
+      github.ref_type == 'tag' && startsWith(github.ref_name, 'v') &&
+      (github.event_name == 'push' || inputs.publish == true)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ needs.build.outputs.version }}
+      SIGNED: ${{ needs.build.outputs.signed }}
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Download the built files
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bewerbungsmanager-windows-v${{ needs.build.outputs.version }}
+          path: release
+
+      - name: Verify the checksums again
+        run: |
+          set -euo pipefail
+          cd release
+          test -s "BewerbungsManager-${VERSION}-x64-Setup.exe"
+          test -s "BewerbungsManager-${VERSION}-x64-Portable.exe"
+          test -s SHA256SUMS.txt
+          test -s WINDOWS-KURULUM.md
+          sha256sum --check SHA256SUMS.txt
+
+      - name: Create the GitHub Release
+        run: |
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "::error::Release $GITHUB_REF_NAME already exists. It is not overwritten; delete it or use a new version."
+            exit 1
+          fi
+          notes="Windows-Binaries sind code-signiert."
+          if [ "$SIGNED" != "true" ]; then echo "::error::Unsigned binaries cannot be published."; exit 1; fi
+          gh release create "$GITHUB_REF_NAME" \
+            "release/BewerbungsManager-${VERSION}-x64-Setup.exe" \
+            "release/BewerbungsManager-${VERSION}-x64-Portable.exe" \
+            "release/SHA256SUMS.txt" \
+            "release/WINDOWS-KURULUM.md" \
+            --verify-tag \
+            --title "BewerbungsManager $GITHUB_REF_NAME" \
+            --notes "$notes" \
+            --generate-notes

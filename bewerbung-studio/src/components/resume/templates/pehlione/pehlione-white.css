@@ -1,0 +1,43 @@
+/* The PDF sets its base text to 8.8pt / 1.3; text without a size of its own (strength cards, knowledge items)
+   must not fall back to the size of the page around the preview. Compact density keeps its own base. */
+.pehlione-resume--white {
+  font-size: 8.8pt;
+  line-height: 1.3;
+}
+
+.pehlione-resume--white .pehlione-sidebar {
+  color: #142235;
+  background: #fff;
+  border-right: .25mm solid #d4dbe5;
+}
+
+.pehlione-resume--white .pehlione-sidebar .pehlione-section-heading {
+  display: grid;
+  grid-template-columns: 8mm minmax(0, 1fr);
+  gap: 2mm;
+  color: var(--pehlione-primary, #08245c);
+}
+
+.pehlione-resume--white .pehlione-sidebar .pehlione-section-heading > span {
+  display: grid;
+  width: 8mm;
+  height: 8mm;
+  color: var(--pehlione-primary, #08245c);
+  background: transparent;
+}
+
+.pehlione-resume--white .pehlione-sidebar .pehlione-section-heading svg { width: 7mm; height: 7mm; }
+.pehlione-resume--white .pehlione-sidebar .pehlione-section-heading b { border-color: var(--pehlione-primary, #08245c); }
+.pehlione-resume--white .pehlione-contact-list span,
+.pehlione-resume--white .pehlione-focus-list span,
+.pehlione-resume--white .pehlione-bullet-list li::marker { color: var(--pehlione-primary, #08245c); }
+.pehlione-resume--white .pehlione-container-title { color: var(--pehlione-primary, #08245c); border-color: var(--pehlione-primary, #08245c); }
+.pehlione-resume--white .pehlione-block-list.is-sidebar.renderer-icon-list li { color: #142235; }
+.pehlione-resume--white .pehlione-hero::before,
+.pehlione-resume--white .pehlione-hero::after { display: none; }
+.pehlione-blueprint { position: absolute; inset: 0; display: block; }
+
+.template-thumbnail[data-template="pehlione_white"] .pehlione-thumbnail-sidebar {
+  background: repeating-linear-gradient(to bottom, transparent 0 12px, #d4dbe5 12px 14px, transparent 14px 22px), #fff;
+  border-right: 1px solid #d4dbe5;
+}

@@ -1,0 +1,50 @@
+.pehlione-resume {
+  grid-template-columns: var(--pehlione-column-width, 62mm) minmax(0, 1fr);
+}
+
+.pehlione-container-title {
+  margin: 0 0 4mm;
+  padding: 0.4mm 0 2mm;
+  border-bottom: 0.5mm solid #dcecff;
+  color: #fff;
+  font-size: 8pt;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pehlione-block-list {
+  display: grid;
+  gap: 1.6mm;
+  margin: 0;
+  padding-left: 4mm;
+  font-size: 8.8pt;
+  line-height: 1.28;
+}
+
+.pehlione-block-list li div { display: grid; gap: 0.3mm; }
+.pehlione-block-list li b { font-weight: 600; }
+.pehlione-block-list li small,
+.pehlione-block-list li em { display: block; color: inherit; font-size: 0.88em; font-style: normal; opacity: 0.82; }
+
+.pehlione-block-list.renderer-tag-list,
+.pehlione-block-list.renderer-compact-grid,
+.pehlione-block-list.renderer-two-column-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 0;
+  list-style: none;
+}
+
+.pehlione-block-list.renderer-tag-list li {
+  padding: 1mm 1.5mm;
+  border-radius: 999px;
+  background: #eaf1f9;
+  text-align: center;
+}
+
+.pehlione-block-list.renderer-icon-list { padding: 0; list-style: none; }
+.pehlione-block-list.renderer-icon-list li { display: grid; grid-template-columns: 5mm minmax(0, 1fr); gap: 1.5mm; }
+.pehlione-block-list.renderer-icon-list svg { width: 4mm; height: 4mm; }
+.pehlione-block-list.is-sidebar.renderer-tag-list li { color: #082c5d; background: #dcecff; }
+.pehlione-block-list.is-sidebar.renderer-icon-list li { color: #fff; }
+.pehlione-flex-block { break-inside: auto; page-break-inside: auto; }
+.pehlione-knowledge-container-title { margin-bottom: 2mm; }

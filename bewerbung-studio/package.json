@@ -1,0 +1,130 @@
+{
+  "name": "bewerbungsmanager",
+  "private": true,
+  "version": "1.0.6",
+  "description": "Lokale Bewerbungsverwaltung für Deutschland",
+  "author": "BewerbungsManager",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mustafa-oezdemir/bewerbung-studio.git",
+    "directory": "bewerbung-studio"
+  },
+  "bugs": {
+    "url": "https://github.com/mustafa-oezdemir/bewerbung-studio/issues"
+  },
+  "homepage": "https://github.com/mustafa-oezdemir/bewerbung-studio#readme",
+  "type": "module",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "start": "electron .",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run",
+    "release:check": "npm run typecheck && npm test && npm run build",
+    "dist:win": "npm run release:check && node scripts/build-windows.mjs all && node scripts/write-checksums.mjs",
+    "dist:win:signed": "node scripts/require-signing-credentials.mjs && npm run release:check && node scripts/build-windows.mjs all signed && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-signatures.ps1 windows-release && node scripts/write-checksums.mjs",
+    "dist:win:installer": "npm run release:check && node scripts/build-windows.mjs nsis",
+    "dist:win:portable": "npm run release:check && node scripts/build-windows.mjs portable"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@noble/hashes": "2.2.0",
+    "date-fns": "^4.1.0",
+    "devicon": "^2.17.0",
+    "docxtemplater": "^3.69.0",
+    "linkedom": "^0.18.13",
+    "lucide-react": "^0.468.0",
+    "pdf-lib": "^1.17.1",
+    "pizzip": "^3.2.0",
+    "postcss": "^8.5.28",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-hook-form": "^7.66.0",
+    "zod": "^4.1.5",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.17",
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.1.1",
+    "electron": "^39.2.4",
+    "electron-builder": "^26.15.3",
+    "tailwindcss": "^4.1.17",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1",
+    "vite-plugin-electron": "^0.29.0",
+    "vitest": "^4.0.16"
+  },
+  "overrides": {
+    "docxtemplater": {
+      "@xmldom/xmldom": "0.9.12"
+    },
+    "plist": {
+      "@xmldom/xmldom": "0.8.15"
+    }
+  },
+  "build": {
+    "appId": "de.bewerbungsmanager.desktop",
+    "productName": "BewerbungsManager",
+    "electronDist": "node_modules/electron/dist",
+    "asar": true,
+    "compression": "normal",
+    "electronLanguages": [
+      "de",
+      "en-US"
+    ],
+    "directories": {
+      "output": "windows-release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "build/icon.svg",
+      "executableName": "BewerbungsManager",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signtoolOptions": {
+        "signingHashAlgorithms": [
+          "sha256"
+        ],
+        "rfc3161TimeStampServer": "http://timestamp.digicert.com"
+      }
+    },
+    "nsis": {
+      "artifactName": "${productName}-${version}-x64-Setup.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": false,
+      "shortcutName": "BewerbungsManager",
+      "uninstallDisplayName": "BewerbungsManager"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-x64-Portable.${ext}"
+    }
+  }
+}

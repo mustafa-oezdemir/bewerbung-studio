@@ -1,0 +1,34 @@
+name: Funktion vorschlagen
+description: Eine Idee oder Verbesserung vorschlagen
+title: "[Idee] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke für deinen Vorschlag.
+
+        **Bitte keine persönlichen Bewerbungs-, Adress- oder Kontaktdaten veröffentlichen.**
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Motivation
+      description: Welches Problem möchtest du lösen, oder was fehlt dir?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Gewünschte Lösung
+      description: Wie stellst du dir die Lösung vor?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativen
+      description: Welche anderen Lösungen oder Umgehungen hast du in Betracht gezogen?
+  - type: textarea
+    id: context
+    attributes:
+      label: Zusätzlicher Kontext

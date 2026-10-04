@@ -1,0 +1,42 @@
+import type { ApplicantProfile } from "./schema";
+import type { ResumeCustomContentType } from "./resumeCustomSectionTypes";
+
+type Section = ApplicantProfile["specialSections"][number];
+type Entry = Section["entries"][number];
+/** Compact native interests list text, shared by Pehlione preview and PDF. */
+export const interestEntryText = (entry: Entry): string =>
+  [entry.title.trim(), entry.description.trim()].filter(Boolean).join(" – ");
+const hasMetadata = (entry: Entry) => Boolean(entry.subtitle.trim() || entry.location.trim() || entry.date.trim() || entry.from.trim() || entry.to.trim());
+const hasContent = (entry: Entry) => Boolean(entry.title.trim() || entry.description.trim() || entry.url.trim() || hasMetadata(entry) || entry.bullets.some(value => value.trim()));
+
+/** Legacy sections are resolved without modifying stored data or inspecting headings. */
+export const normalizeCustomSection = (section: Section) => {
+  const entries = section.entries.filter(hasContent);
+  const contentType: ResumeCustomContentType = section.contentType ?? (
+    entries.some(hasMetadata) ? "entries" :
+    entries.length > 1 || entries.some(entry => entry.bullets.some(value => value.trim())) ? "list" : "text"
+  );
+  return { ...section, sectionType: "main-section" as const, contentType,
+    entries: entries.map(entry => ({ ...entry, sectionType: contentType === "entries" || contentType === "timeline" ? "subsection" as const : "text" as const })) };
+};
+
+const escape = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+
+/**
+ * Shared escaped markup for React preview and Electron PDF output. A section that breaks between two pages passes
+ * the entries (`from`..`to`, exclusive, of `normalizeCustomSection(section).entries`) the page draws.
+ */
+export const renderCustomSectionContent = (section: Section, range?: { from: number; to: number }): string => {
+  const normalized = normalizeCustomSection(section);
+  const items = normalized.entries.slice(range?.from ?? 0, range?.to).map(entry => {
+    const period = entry.date.trim() || [entry.from, entry.to].filter(value => value.trim()).join(" – ");
+    const metadata = [entry.location, period].filter(value => value.trim()).join(" · ");
+    const titleTag = entry.sectionType === "subsection" ? "h3" : "p";
+    const details = `${entry.title.trim() ? `<${titleTag} data-custom-role="${entry.sectionType === "subsection" ? "entry-title" : "body"}" data-section-type="${entry.sectionType}">${escape(entry.title)}</${titleTag}>` : ""}${entry.subtitle.trim() ? `<p data-custom-role="supporting">${escape(entry.subtitle)}</p>` : ""}${metadata ? `<p data-custom-role="metadata" class="resume-special-output__meta">${escape(metadata)}</p>` : ""}${entry.description.trim() ? `<p data-custom-role="body">${escape(entry.description)}</p>` : ""}${entry.bullets.some(value => value.trim()) ? `<ul>${entry.bullets.filter(value => value.trim()).map(value => `<li>${escape(value)}</li>`).join("")}</ul>` : ""}${entry.url.trim() ? `<p class="resume-special-output__url">${escape(entry.url)}</p>` : ""}`;
+    const tag = ["list", "skills", "timeline"].includes(normalized.contentType) ? "li" : "article";
+    return `<${tag} data-custom-role="entry" class="resume-special-output__entry" data-entry-id="${escape(entry.id)}">${details}</${tag}>`;
+  }).join("");
+  if (!items) return "";
+  const tag = normalized.contentType === "list" || normalized.contentType === "skills" ? "ul" : normalized.contentType === "timeline" ? "ol" : "div";
+  return `<${tag} data-custom-role="entries" class="resume-special-output__entries" data-content-type="${normalized.contentType}">${items}</${tag}>`;
+};

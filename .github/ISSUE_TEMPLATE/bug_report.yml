@@ -1,0 +1,73 @@
+name: Fehler melden
+description: Etwas funktioniert nicht wie erwartet
+title: "[Fehler] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke für deine Meldung.
+
+        **Bitte keine persönlichen Bewerbungs-, Adress- oder Kontaktdaten veröffentlichen.**
+        Nutze erfundene Namen und Daten und entferne persönliche Angaben aus Logs und Screenshots.
+
+        Sicherheitslücken bitte nicht hier melden, sondern wie in der [Sicherheitsrichtlinie](https://github.com/mustafa-oezdemir/bewerbung_manager/security/policy) beschrieben.
+  - type: textarea
+    id: description
+    attributes:
+      label: Beschreibung
+      description: Was ist das Problem?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Schritte zur Reproduktion
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Erwartetes Verhalten
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Tatsächliches Verhalten
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Die Version von BewerbungsManager, zum Beispiel 1.0.1 (Setup, Portable oder Quellcode).
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows-Version
+      placeholder: Windows 11, Version 24H2
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Screenshots
+      description: Fehlermeldungen oder Bilder, die das Problem zeigen. Persönliche Daten vorher unkenntlich machen.
+  - type: textarea
+    id: additional
+    attributes:
+      label: Zusätzliche Informationen
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Datenschutz
+      options:
+        - label: Ich habe alle persönlichen Bewerbungs-, Adress- und Kontaktdaten entfernt oder durch erfundene Daten ersetzt.
+          required: true

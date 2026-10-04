@@ -1,0 +1,666 @@
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+.zweispaltig-template {
+  --zweispaltig-page-height: 297mm;
+  --zweispaltig-primary: #0b3d86;
+  --zweispaltig-accent: #58b5f7;
+  --zweispaltig-primary-dark: #082f6d;
+  --zweispaltig-soft: #eaf5fd;
+  --zweispaltig-heading: #0b3d86;
+  --zweispaltig-text: #4a555c;
+  --zweispaltig-muted: #667178;
+  --zweispaltig-divider: #d6dce0;
+  --zweispaltig-left-ratio: 0.62fr;
+  --zweispaltig-right-ratio: 0.38fr;
+  --zweispaltig-margin: var(--doc-margin, 17mm);
+  --zweispaltig-column-gap: 11mm;
+  /* The template's own Abschnittsabstand; the central one (Lebenslauf-Design) replaces the base, never a floor on it. */
+  --zweispaltig-section-gap: var(--zweispaltig-section-gap-base, 6.5mm);
+  --zweispaltig-entry-gap: 3.5mm;
+  --zweispaltig-body-size: var(--doc-body-size, 8.4pt);
+  --zweispaltig-line-height: var(--doc-line-height, 1.3);
+  --zweispaltig-name-size: 24pt;
+  --zweispaltig-profession-size: 11.5pt;
+  --zweispaltig-section-title-size: 14pt;
+  --zweispaltig-entry-title-size: 11.5pt;
+  --zweispaltig-small-size: 7.8pt;
+  --zweispaltig-font: var(
+    --doc-font,
+    "Source Sans 3",
+    "Segoe UI",
+    Arial,
+    sans-serif
+  );
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--zweispaltig-page-height);
+  min-height: var(--zweispaltig-page-height);
+  overflow: hidden;
+  color: var(--zweispaltig-text);
+  background: #fff;
+  font-family: var(--zweispaltig-font);
+  font-size: var(--zweispaltig-body-size);
+  line-height: var(--zweispaltig-line-height);
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.zweispaltig-template *,
+.zweispaltig-template *::before,
+.zweispaltig-template *::after {
+  box-sizing: border-box;
+}
+
+.zweispaltig-page__visual {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding:
+    max(16mm, calc(var(--zweispaltig-margin) - 1mm))
+    var(--zweispaltig-margin)
+    max(13mm, calc(var(--zweispaltig-margin) - 4mm));
+  overflow: hidden;
+  background: #fff;
+}
+
+.zweispaltig-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8mm;
+  min-width: 0;
+  padding-bottom: 0;
+}
+
+.zweispaltig-header__identity {
+  min-width: 0;
+}
+
+.zweispaltig-header h1,
+.zweispaltig-header h2,
+.zweispaltig-header p {
+  overflow-wrap: anywhere;
+}
+
+.zweispaltig-header h1 {
+  margin: 0;
+  color: var(--zweispaltig-heading);
+  font-size: var(--zweispaltig-name-size);
+  font-weight: 750;
+  letter-spacing: 0.025em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.zweispaltig-header h2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.8mm;
+  margin: 1.5mm 0 0;
+  color: var(--zweispaltig-accent);
+  font-size: var(--zweispaltig-profession-size);
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+.zweispaltig-header h2 span + span::before {
+  margin-right: 1.8mm;
+  color: var(--zweispaltig-accent);
+  content: "|";
+}
+
+.zweispaltig-header__contacts {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 1.1mm 8mm;
+  min-width: 0;
+  width: 100%;
+  max-width: 132mm;
+  margin: 2.2mm 0 0;
+  color: var(--zweispaltig-text);
+  font-size: var(--zweispaltig-small-size);
+  font-style: normal;
+  line-height: 1.2;
+}
+
+.zweispaltig-header__contacts > a,
+.zweispaltig-header__contacts > span {
+  display: grid;
+  grid-template-columns: 3.2mm minmax(0, 1fr);
+  align-items: center;
+  gap: 1.1mm;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.zweispaltig-header__contacts svg {
+  width: 3mm;
+  height: 3mm;
+  color: var(--zweispaltig-accent);
+  stroke-width: 2.4;
+}
+
+.zweispaltig-header__contacts span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.zweispaltig-header__contacts
+  :is([data-contact-kind="linkedin"], [data-contact-kind="github"])
+  > span {
+  /* A long link wraps; it is never cut off. */
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.zweispaltig-header__photo {
+  width: calc(30mm * var(--resume-photo-scale, 1));
+  height: calc(30mm * var(--resume-photo-scale, 1));
+  margin: 0;
+  overflow: hidden;
+  border: 0.35mm solid color-mix(in srgb, var(--zweispaltig-primary), white 25%);
+  border-radius: 50%;
+  background: var(--zweispaltig-soft);
+}
+
+.zweispaltig-header__photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.zweispaltig-template .zweispaltig-header__kicker {
+  margin: 0 0 1.5mm;
+  color: var(--zweispaltig-primary);
+  font-size: 7.3pt;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.zweispaltig-header--compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1.5mm 4mm;
+  padding-bottom: 3.5mm;
+}
+
+.zweispaltig-header--compact .zweispaltig-header__identity {
+  display: contents;
+}
+
+.zweispaltig-header--compact .zweispaltig-header__kicker {
+  flex-basis: 100%;
+}
+
+.zweispaltig-header--compact h1 {
+  font-size: 15pt;
+}
+
+.zweispaltig-header--compact h2 {
+  margin: 0;
+  color: var(--zweispaltig-muted);
+  font-size: 8.6pt;
+}
+
+.zweispaltig-columns {
+  display: grid;
+  grid-template-columns:
+    minmax(0, var(--zweispaltig-left-ratio))
+    minmax(0, var(--zweispaltig-right-ratio));
+  column-gap: var(--zweispaltig-column-gap);
+  min-width: 0;
+}
+
+.zweispaltig-columns--continuation {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.zweispaltig-main {
+  min-width: 0;
+}
+
+.zweispaltig-sidebar {
+  min-width: 0;
+}
+
+/* The entries of a special section in the sidebar keep the margin the PDF gives them (the page plan is measured on it). */
+.zweispaltig-sidebar [data-managed-section^="special:"] [data-custom-role="entry"] {
+  margin: 0.5mm 0;
+}
+
+.zweispaltig-section {
+  min-width: 0;
+  margin-top: var(--zweispaltig-section-gap);
+  break-inside: auto;
+  page-break-inside: auto;
+}
+
+.zweispaltig-section__title {
+  display: flex;
+  align-items: baseline;
+  gap: 2mm;
+  margin: 0 0 2.5mm;
+  padding-bottom: 1mm;
+  border-bottom: 0.65mm solid var(--zweispaltig-heading);
+  color: var(--zweispaltig-heading);
+  font-family: var(--doc-heading-font, var(--zweispaltig-font));
+  font-size: var(--zweispaltig-section-title-size);
+  font-weight: 750;
+  letter-spacing: 0.015em;
+  line-height: 1;
+  text-transform: uppercase;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.zweispaltig-section__title small {
+  color: var(--zweispaltig-muted);
+  font-size: 7pt;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.zweispaltig-summary {
+  margin: 0;
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+.zweispaltig-career__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zweispaltig-entry-gap);
+}
+
+.zweispaltig-career-entry {
+  min-width: 0;
+  padding-bottom: 3mm;
+  border-bottom: 0.25mm dashed var(--zweispaltig-divider);
+  break-inside: auto;
+  page-break-inside: auto;
+}
+
+.zweispaltig-career-entry:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.zweispaltig-career-entry h3 {
+  margin: 0;
+  color: var(--zweispaltig-heading);
+  font-size: var(--zweispaltig-entry-title-size);
+  font-weight: 600;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+/* Scoped like the page text (.document-paper p) so that its size wins in the preview, as it does in the PDF. */
+.zweispaltig-template .zweispaltig-career-entry__organization {
+  margin: 0.7mm 0 0;
+  color: var(--zweispaltig-accent);
+  font-size: 9.5pt;
+  font-weight: 750;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+.zweispaltig-template .zweispaltig-career-entry__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1mm 4mm;
+  margin: 1mm 0 0;
+  color: var(--zweispaltig-muted);
+  font-size: var(--zweispaltig-small-size);
+  line-height: 1.2;
+}
+
+.zweispaltig-career-entry__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 1mm;
+}
+
+.zweispaltig-career-entry__meta svg {
+  width: 2.8mm;
+  height: 2.8mm;
+  color: var(--zweispaltig-muted);
+  stroke-width: 2.3;
+}
+
+.zweispaltig-career-entry ul,
+.zweispaltig-ats-list ul,
+.zweispaltig-strengths--ats ul {
+  margin: 1.5mm 0 0;
+  padding-left: 4.5mm;
+}
+
+.zweispaltig-career-entry li,
+.zweispaltig-ats-list li,
+.zweispaltig-strengths--ats li {
+  margin: 0.5mm 0;
+  padding-left: 0.3mm;
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+.zweispaltig-career-entry li::marker,
+.zweispaltig-ats-list li::marker,
+.zweispaltig-strengths--ats li::marker {
+  color: var(--zweispaltig-primary);
+}
+
+.zweispaltig-empty {
+  margin: var(--zweispaltig-section-gap) 0 0;
+  color: var(--zweispaltig-muted);
+}
+
+.zweispaltig-sidebar .zweispaltig-section {
+  margin-top: var(--zweispaltig-section-gap);
+}
+
+.zweispaltig-strengths__list {
+  display: grid;
+}
+
+.zweispaltig-strength {
+  display: grid;
+  grid-template-columns: 7mm minmax(0, 1fr);
+  align-items: start;
+  gap: 2mm;
+  padding: 0 0 3mm;
+  margin-bottom: 3mm;
+  border-bottom: 0.25mm dashed var(--zweispaltig-divider);
+}
+
+.zweispaltig-strength:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.zweispaltig-strength > svg {
+  width: 5.5mm;
+  height: 5.5mm;
+  color: var(--zweispaltig-accent);
+  stroke-width: 2.2;
+}
+
+.zweispaltig-strength h3 {
+  margin: 0;
+  color: var(--zweispaltig-heading);
+  font-size: 9.5pt;
+  font-weight: 750;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.zweispaltig-strength p {
+  margin: 1.5mm 0 0;
+  color: var(--zweispaltig-text);
+  font-size: var(--zweispaltig-body-size);
+  line-height: var(--zweispaltig-line-height);
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+.zweispaltig-knowledge__categories {
+  display: grid;
+  gap: 2.3mm;
+}
+
+.zweispaltig-knowledge__categories article {
+  min-width: 0;
+}
+
+.zweispaltig-knowledge h3,
+.zweispaltig-knowledge h4 {
+  margin: 0;
+  color: var(--zweispaltig-heading);
+  font-size: 8.4pt;
+  font-weight: 750;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.zweispaltig-knowledge h4 {
+  font-size: 7.8pt;
+}
+
+.zweispaltig-knowledge small {
+  display: block;
+  margin-top: 0.4mm;
+  color: var(--zweispaltig-muted);
+  font-size: 7pt;
+}
+
+.zweispaltig-knowledge p {
+  margin: 0.7mm 0 0;
+  color: var(--zweispaltig-text);
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+.zweispaltig-knowledge__subcategory {
+  margin-top: 1.2mm;
+}
+
+.zweispaltig-sidebar__list {
+  margin: 0;
+  padding-left: 4.2mm;
+}
+
+.zweispaltig-sidebar__list li {
+  margin: 0.7mm 0;
+  padding-left: 0.3mm;
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+.zweispaltig-sidebar__list li::marker {
+  color: var(--zweispaltig-accent);
+}
+
+.zweispaltig-sidebar__list--accent {
+  list-style: none;
+  padding-left: 0;
+}
+
+.zweispaltig-sidebar__list--accent li {
+  color: var(--zweispaltig-accent);
+  font-size: 9pt;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.zweispaltig-languages__list {
+  display: grid;
+  gap: 2.5mm;
+}
+
+.zweispaltig-language {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3mm;
+}
+
+.zweispaltig-language h3,
+.zweispaltig-language p {
+  margin: 0;
+}
+
+.zweispaltig-language h3 {
+  color: var(--zweispaltig-heading);
+  font-size: 8.8pt;
+  font-weight: 750;
+  line-height: 1.15;
+}
+
+.zweispaltig-language p {
+  margin-top: 0.5mm;
+  color: var(--zweispaltig-muted);
+  font-size: 7.5pt;
+}
+
+.zweispaltig-language__dots {
+  display: flex;
+  gap: 0.8mm;
+}
+
+.zweispaltig-language__dots i {
+  display: block;
+  width: 2.5mm;
+  height: 2.5mm;
+  border-radius: 50%;
+  background: var(--zweispaltig-divider);
+}
+
+.zweispaltig-language__dots i.is-filled {
+  background: var(--zweispaltig-accent);
+}
+
+.zweispaltig-footer {
+  position: absolute;
+  right: var(--zweispaltig-margin);
+  bottom: 6mm;
+  left: var(--zweispaltig-margin);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6mm;
+  color: var(--zweispaltig-muted);
+  font-size: 7pt;
+  line-height: 1.2;
+}
+
+.zweispaltig-footer a {
+  min-width: 0;
+  color: var(--zweispaltig-heading);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.zweispaltig-footer span:last-child {
+  flex: none;
+}
+
+.zweispaltig-template[data-density="compact"] {
+  --zweispaltig-section-gap: calc(var(--zweispaltig-section-gap-base, 6.5mm) * 0.7);
+  --zweispaltig-entry-gap: 3mm;
+}
+
+.zweispaltig-template[data-density="dense"] {
+  --zweispaltig-section-gap: calc(var(--zweispaltig-section-gap-base, 6.5mm) * 0.55);
+  --zweispaltig-entry-gap: 2.4mm;
+}
+
+.zweispaltig-template[data-density="dense"] .zweispaltig-page__visual {
+  padding-top: max(11mm, calc(var(--zweispaltig-margin) - 6mm));
+}
+
+.zweispaltig-template[data-density="dense"] .zweispaltig-header {
+  padding-bottom: 3.4mm;
+}
+
+.zweispaltig-template[data-density="dense"] .zweispaltig-header h1 {
+  font-size: 21pt;
+}
+
+.zweispaltig-template[data-density="dense"] .zweispaltig-header__contacts {
+  margin-top: 2.4mm;
+}
+
+.zweispaltig-template[data-ats-mode="true"] {
+  --zweispaltig-heading: #263641;
+  --zweispaltig-text: #303c44;
+  --zweispaltig-divider: #c8d0d6;
+  background: #fff;
+}
+
+.zweispaltig-ats {
+  width: 100%;
+  height: 100%;
+  padding:
+    var(--zweispaltig-margin)
+    var(--zweispaltig-margin)
+    calc(var(--zweispaltig-margin) + 3mm);
+  overflow: hidden;
+  background: #fff;
+}
+
+.zweispaltig-ats .zweispaltig-header {
+  display: block;
+}
+
+.zweispaltig-ats .zweispaltig-header__contacts {
+  display: block;
+}
+
+.zweispaltig-ats .zweispaltig-header__contacts > a,
+.zweispaltig-ats .zweispaltig-header__contacts > span {
+  display: block;
+  margin-top: 0.7mm;
+}
+
+.zweispaltig-ats .zweispaltig-header__contacts strong {
+  margin-right: 1.3mm;
+}
+
+.zweispaltig-ats .zweispaltig-section__title {
+  border-bottom-color: var(--zweispaltig-divider);
+}
+
+.zweispaltig-ats .zweispaltig-career-entry__meta {
+  display: block;
+  margin-top: 0.7mm;
+}
+
+.zweispaltig-ats .zweispaltig-career-entry__meta span {
+  display: inline;
+  white-space: normal;
+}
+
+.zweispaltig-ats .zweispaltig-career-entry__meta svg {
+  display: none;
+}
+
+.zweispaltig-ats .zweispaltig-career-entry__meta span + span::before {
+  content: " · ";
+}
+
+@media print {
+  .zweispaltig-template {
+    width: 100%;
+    height: 297mm;
+    min-height: 297mm;
+    margin: 0;
+    box-shadow: none;
+  }
+
+  .zweispaltig-template a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .zweispaltig-template .editor-selection,
+  .zweispaltig-template .editor-resize-handle,
+  .zweispaltig-template .editor-toolbar,
+  .zweispaltig-template .editor-guide,
+  .zweispaltig-template .editor-grid,
+  .zweispaltig-template [data-editor-only="true"] {
+    display: none !important;
+  }
+}

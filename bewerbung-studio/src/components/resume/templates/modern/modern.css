@@ -1,0 +1,949 @@
+/**
+ * Modern template stylesheet
+ * A4 professional two-column layout with turquoise accents and wave background
+ */
+
+/* ============================================================================
+   A4 Page Standard
+   ========================================================================= */
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+.modern-resume-page {
+  position: relative;
+  width: 210mm;
+  height: 297mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  overflow: hidden;
+  background: #ffffff;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+  font-family: "Source Sans 3", "Segoe UI", Arial, sans-serif;
+}
+
+/* ============================================================================
+   CSS Variables for Dynamic Theming
+   ========================================================================= */
+
+.modern-resume-page {
+  /* The PDF sets its base text to the body size; text without a size of its own (strength cards, knowledge items)
+     must not fall back to the size of the page around the preview. */
+  font-size: var(--modern-body-size);
+  line-height: var(--modern-line-height);
+  color: var(--modern-text);
+  --modern-primary: #06b6c9;
+  --modern-primary-soft: #c7f1f5;
+  --modern-secondary: #e8fafb;
+  --modern-heading: #303437;
+  --modern-text: #444b4f;
+  --modern-muted: #686f73;
+  --modern-divider: #aeb4b6;
+  --modern-icon-bg: #f2f3f3;
+  --modern-page-bg: #ffffff;
+  --modern-font-family: "Source Sans 3", "Segoe UI", Arial, sans-serif;
+  --modern-name-size: 24pt;
+  --modern-profession-size: 12pt;
+  --modern-section-title-size: 9.2pt;
+  --modern-entry-title-size: 11pt;
+  --modern-company-size: 9.2pt;
+  --modern-body-size: 8.4pt;
+  --modern-small-size: 7.9pt;
+  --modern-line-height: 1.27;
+}
+
+.modern-resume-page[data-density="compact"] {
+  --modern-body-size: 8.1pt;
+  --modern-small-size: 7.6pt;
+  --modern-line-height: 1.23;
+}
+
+.modern-resume-page[data-density="compact"] .modern-resume-left-column,
+.modern-resume-page[data-density="compact"] .modern-resume-right-column {
+  gap: 5mm;
+}
+
+.modern-resume-page[data-density="compact"] .modern-experience-list,
+.modern-resume-page[data-density="compact"] .modern-education-list {
+  gap: 3.7mm;
+}
+
+.modern-resume-page[data-density="dense"] {
+  --modern-body-size: 7.7pt;
+  --modern-small-size: 7.3pt;
+  --modern-line-height: 1.2;
+}
+
+.modern-resume-page[data-density="dense"] .modern-resume-left-column,
+.modern-resume-page[data-density="dense"] .modern-resume-right-column {
+  gap: 4mm;
+}
+
+.modern-resume-page[data-density="dense"] .modern-experience-list,
+.modern-resume-page[data-density="dense"] .modern-education-list {
+  gap: 3mm;
+}
+
+/* ============================================================================
+   Main Page Container
+   ========================================================================= */
+
+.modern-resume-container {
+  position: relative;
+  /* Keeps the content's top margin inside the page, so the footer's bottom offset counts from the sheet. */
+  display: flow-root;
+  width: 100%;
+  height: 100%;
+}
+
+/* ============================================================================
+   Background Waves (Non-printing decorative layer)
+   ========================================================================= */
+
+.modern-background-waves {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.modern-wave-svg {
+  position: absolute;
+  color: var(--modern-primary-soft);
+  fill: currentColor;
+  opacity: 0.92;
+}
+
+.modern-wave-top {
+  top: 0;
+  right: 0;
+  width: 210mm;
+  height: 60mm;
+}
+
+.modern-wave-bottom {
+  bottom: 0;
+  left: 0;
+  width: 80mm;
+  height: 70mm;
+}
+
+[data-ats-mode="true"] .modern-background-waves {
+  display: none;
+}
+
+/* ============================================================================
+   Content Layer (main z-index: 2)
+   ========================================================================= */
+
+.modern-resume-content {
+  position: relative;
+  z-index: 2;
+  width: 180mm; /* 210 - 15 - 15 */
+  margin-left: 15mm;
+  margin-right: 15mm;
+  margin-top: 14mm;
+  margin-bottom: 14mm;
+  /* The page minus its margins: the columns (and the surface the user gave them) run down to the bottom margin. */
+  min-height: calc(297mm - 28mm);
+}
+
+/* ============================================================================
+   Header Section
+   ========================================================================= */
+
+.modern-resume-header {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) calc(29mm * var(--resume-photo-scale, 1));
+  column-gap: 9mm;
+  align-items: start;
+  min-height: 25mm;
+  margin-bottom: 4mm;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.modern-resume-header[data-no-photo="true"] {
+  grid-template-columns: 1fr;
+}
+
+.modern-resume-header--compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1mm 5mm;
+  min-height: auto;
+  margin-bottom: 7mm;
+  padding-bottom: 3mm;
+  border-bottom: 0.35mm solid var(--modern-divider);
+}
+
+.modern-resume-header__kicker {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--modern-primary);
+  font-size: 7pt;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.modern-resume-header--compact .modern-resume-header__name {
+  font-size: 15pt;
+}
+
+.modern-resume-header--compact .modern-resume-header__profession {
+  margin: 0;
+  font-size: 9pt;
+}
+
+.modern-resume-header__identity {
+  min-width: 0;
+}
+
+.modern-resume-header__name {
+  margin: 0;
+  padding: 0;
+  color: var(--modern-heading);
+  font-family: var(--modern-font-family);
+  font-size: var(--modern-name-size);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.modern-resume-header__profession {
+  margin: 2mm 0 0;
+  padding: 0;
+  color: var(--modern-primary);
+  font-size: var(--modern-profession-size);
+  font-weight: 500;
+  line-height: 1.18;
+}
+
+.modern-resume-header__photo {
+  width: calc(25mm * var(--resume-photo-scale, 1));
+  height: calc(25mm * var(--resume-photo-scale, 1));
+  justify-self: end;
+  margin-top: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--modern-icon-bg);
+  flex-shrink: 0;
+}
+
+.modern-resume-header__photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+[data-no-photo="true"] .modern-resume-header__photo {
+  display: none;
+}
+
+[data-ats-mode="true"] .modern-resume-header__photo {
+  display: none;
+}
+
+/* ============================================================================
+   Main Content Grid (Two Columns)
+   ========================================================================= */
+
+.modern-resume-main {
+  display: grid;
+  grid-template-columns: minmax(0, 102mm) minmax(0, 67mm);
+  column-gap: 11mm;
+  align-items: start;
+}
+
+[data-ats-mode="true"] .modern-resume-main {
+  grid-template-columns: 1fr;
+}
+
+.modern-resume-left-column {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7mm;
+}
+
+.modern-resume-right-column {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7mm;
+}
+
+.modern-resume-main[data-continuation="true"] {
+  grid-template-columns: 1fr;
+}
+
+[data-ats-mode="true"] .modern-resume-right-column {
+  margin-top: 6mm;
+}
+
+/* ============================================================================
+   Section Styling
+   ========================================================================= */
+
+.modern-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4mm;
+  margin-bottom: 0;
+  page-break-inside: auto;
+  break-inside: auto;
+}
+
+/* The preview's page rules (.document-paper h1, h3, p) are more specific than the single classes below:
+   name, entry titles and the profession keep the colour and size the PDF gives them. */
+.modern-resume-page :is(.modern-resume-header__name, .modern-experience-entry__role, .modern-education-entry__degree, .modern-strengths-item__title) {
+  color: var(--modern-heading);
+}
+
+.modern-resume-page :is(.modern-experience-entry__role, .modern-education-entry__degree, .modern-strengths-item__title) {
+  letter-spacing: normal;
+}
+
+.modern-resume-page[data-ats-mode="false"] .modern-resume-header:not(.modern-resume-header--compact) .modern-resume-header__profession {
+  color: var(--modern-primary);
+  font-size: var(--modern-profession-size);
+  line-height: 1.18;
+}
+
+.modern-section__title {
+  margin: 0;
+  padding-bottom: 1mm;
+  color: var(--modern-muted);
+  border-bottom: 0.35mm solid var(--modern-divider);
+  font-size: var(--modern-section-title-size);
+  font-weight: 500;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+/* ============================================================================
+   Contact Section
+   ========================================================================= */
+
+.modern-contact-list {
+  display: grid;
+  gap: 3.2mm;
+}
+
+.modern-contact-section--inline {
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  max-width: 132mm;
+  margin: 3mm 0 0;
+}
+
+.modern-contact-section--inline .modern-contact-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 1mm 8mm;
+  min-width: 0;
+}
+
+.modern-contact-section--inline .modern-contact-item {
+  display: grid;
+  grid-template-columns: 3.2mm minmax(0, 1fr);
+  align-items: center;
+  gap: 0.8mm;
+  min-width: 0;
+}
+
+.modern-contact-section--inline .modern-contact-item__icon {
+  display: block;
+  width: 3.2mm;
+  height: auto;
+  color: var(--modern-muted) !important;
+  background: transparent;
+}
+
+.modern-contact-section--inline .modern-contact-item__icon svg {
+  /* Same icon box as the PDF (14px, inline, centred on the line), so both rows are equally high. */
+  display: inline-block;
+  width: 3.7mm;
+  height: 3.7mm;
+  vertical-align: middle;
+}
+
+.modern-contact-section--inline .modern-contact-item__value {
+  min-width: 0;
+  color: var(--modern-muted);
+  font-size: 7.4pt;
+  overflow-wrap: anywhere;
+}
+
+.modern-contact-section--inline
+  .modern-contact-item[data-contact-kind="linkedin"]
+  .modern-contact-item__value {
+  /* A long link wraps; it is never cut off. */
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.modern-contact-item__value a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.modern-contact-item {
+  display: grid;
+  grid-template-columns: 9mm minmax(0, 1fr);
+  column-gap: 3mm;
+  align-items: center;
+  min-width: 0;
+}
+
+.modern-contact-item__icon {
+  display: grid;
+  place-items: center;
+  width: 8.5mm;
+  height: 8.5mm;
+  border-radius: 50%;
+  color: var(--modern-primary);
+  background: var(--modern-icon-bg);
+  font-size: 4pt;
+  flex-shrink: 0;
+}
+
+[data-ats-mode="true"] .modern-contact-item__icon {
+  display: none;
+}
+
+.modern-contact-item__value {
+  min-width: 0;
+  color: var(--modern-text);
+  font-size: var(--modern-body-size);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* ============================================================================
+   Summary Section
+   ========================================================================= */
+
+.modern-summary-text {
+  margin: 0;
+  padding: 0;
+  color: var(--modern-text);
+  /* The page's body size, like the PDF's summary paragraph. */
+  font-size: var(--doc-body-size);
+  line-height: var(--doc-line-height);
+  overflow-wrap: anywhere;
+}
+
+/* ============================================================================
+   Strengths Section
+   ========================================================================= */
+
+.modern-strengths-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4mm;
+}
+
+.modern-strengths-item {
+  display: grid;
+  grid-template-columns: 10mm minmax(0, 1fr);
+  gap: 3mm;
+  align-items: start;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.modern-strengths-item__icon {
+  display: grid;
+  width: 9mm;
+  height: 9mm;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--modern-primary);
+  background: var(--modern-icon-bg);
+  font-size: 10pt;
+  font-weight: 700;
+}
+
+.modern-strengths-item__title {
+  margin: 0 0 0.5mm;
+  padding: 0;
+  color: var(--modern-heading);
+  font-size: 9.5pt;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.modern-strengths-item__description {
+  margin: 0;
+  padding: 0;
+  color: var(--modern-text);
+  font-size: var(--modern-body-size);
+  line-height: var(--modern-line-height);
+  overflow-wrap: anywhere;
+}
+
+.modern-knowledge__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.5mm 3mm;
+}
+
+.modern-knowledge__item {
+  padding: 0 2mm 1mm;
+  border-bottom: 0.3mm solid var(--modern-divider);
+  color: var(--modern-text);
+  font-size: 8.2pt;
+  line-height: 1.15;
+}
+
+.modern-achievements__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4mm;
+}
+
+.modern-achievements__item {
+  display: block;
+}
+
+.modern-achievements__item p {
+  margin: 0;
+  font-size: var(--modern-body-size);
+  line-height: var(--modern-line-height);
+}
+
+/* ============================================================================
+   Languages Section
+   ========================================================================= */
+
+.modern-languages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5mm;
+}
+
+.modern-languages-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 4mm;
+  align-items: center;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.modern-languages-item__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.modern-languages-item__name {
+  margin: 0;
+  padding: 0;
+  color: var(--modern-heading);
+  font-size: var(--modern-body-size);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.modern-languages-item__level {
+  margin: 0 0 0 2mm;
+  padding: 0;
+  color: var(--modern-muted);
+  font-size: var(--modern-small-size);
+  line-height: 1;
+}
+
+.modern-languages-item__dots {
+  display: flex;
+  gap: 1.2mm;
+  color: var(--modern-primary);
+  flex-shrink: 0;
+}
+
+.modern-languages-item__dots > span {
+  box-sizing: border-box;
+  width: 2.3mm;
+  height: 2.3mm;
+  border: 0.35mm solid currentColor;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.modern-languages-item__dots > span.is-filled {
+  background: currentColor;
+}
+
+[data-ats-mode="true"] .modern-languages-item__dots {
+  display: none;
+}
+
+/* ============================================================================
+   Experience Section
+   ========================================================================= */
+
+.modern-experience-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4.5mm;
+}
+
+.modern-experience-entry {
+  page-break-inside: auto;
+  break-inside: auto;
+}
+
+.modern-experience-entry__role {
+  margin: 0 0 1mm;
+  padding: 0;
+  color: var(--modern-heading);
+  font-size: var(--modern-entry-title-size);
+  font-weight: 500;
+  line-height: 1.15;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.modern-experience-entry__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1mm 4mm;
+  margin-bottom: 1.5mm;
+  color: var(--modern-muted);
+  font-size: var(--modern-small-size);
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.modern-experience-entry__company {
+  margin: 0 auto 0 0;
+  padding: 0;
+  color: var(--modern-primary);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.modern-experience-entry__date {
+  display: inline-flex;
+  align-items: center;
+  gap: 1mm;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.modern-experience-entry__location {
+  display: inline-flex;
+  align-items: center;
+  gap: 1mm;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.modern-experience-entry__summary {
+  margin: 0 0 1mm;
+  padding: 0;
+  color: var(--modern-text);
+  font-size: var(--modern-body-size);
+  line-height: var(--modern-line-height);
+  overflow-wrap: anywhere;
+}
+
+.modern-experience-entry__achievements {
+  margin: 0;
+  padding-left: 4mm;
+  list-style: disc;
+  color: var(--modern-text);
+  font-size: var(--modern-body-size);
+  line-height: var(--modern-line-height);
+}
+
+.modern-experience-entry__achievements li {
+  margin: 0.35mm 0;
+  padding-left: 0.5mm;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* ============================================================================
+   Education Section
+   ========================================================================= */
+
+.modern-education-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4.5mm;
+}
+
+.modern-education-entry {
+  page-break-inside: auto;
+  break-inside: auto;
+}
+
+.modern-education-entry__degree {
+  margin: 0 0 1mm;
+  padding: 0;
+  color: var(--modern-heading);
+  font-size: var(--modern-entry-title-size);
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.modern-education-entry__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1mm 4mm;
+  margin-bottom: 1.5mm;
+  color: var(--modern-muted);
+  font-size: var(--modern-small-size);
+}
+
+.modern-education-entry__institution {
+  margin: 0 auto 0 0;
+  padding: 0;
+  color: var(--modern-primary);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.modern-education-entry__date {
+  display: inline-flex;
+  align-items: center;
+  gap: 1mm;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.modern-education-entry__location {
+  display: inline-flex;
+  align-items: center;
+  gap: 1mm;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+/* ============================================================================
+   Footer
+   ========================================================================= */
+
+.modern-resume-footer {
+  position: absolute;
+  right: 15mm;
+  bottom: 6mm;
+  left: 15mm;
+  z-index: 3;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--modern-muted);
+  font-size: 7.2pt;
+}
+
+.modern-resume-footer__left {
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.modern-resume-footer__right {
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+[data-ats-mode="true"] .modern-resume-footer {
+  right: 17mm;
+  bottom: 6mm;
+  left: 17mm;
+}
+
+/* ============================================================================
+   Screen-only Styling (Preview shadows)
+   ========================================================================= */
+
+@media screen {
+  .modern-resume-page {
+    box-shadow: 0 4px 22px rgba(15, 23, 42, 0.14);
+    border: 1px solid #e5e7eb;
+  }
+}
+
+/* ============================================================================
+   Print Media Adjustments
+   ========================================================================= */
+
+@media print {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+  }
+
+  .modern-resume-page {
+    width: 210mm;
+    height: 297mm;
+    min-height: 297mm;
+    margin: 0;
+    overflow: hidden;
+    box-shadow: none;
+    border: none;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .modern-resume-page:last-child {
+    page-break-after: avoid;
+    break-after: auto;
+  }
+
+  /* Hide editor UI elements */
+  .editor-selection,
+  .editor-resize-handle,
+  .editor-toolbar,
+  .editor-guide,
+  .editor-grid {
+    display: none !important;
+  }
+
+  /* Hide selection UI */
+  *::selection {
+    background: transparent;
+  }
+}
+
+/* ============================================================================
+   ATS Mode Overrides
+   ========================================================================= */
+
+[data-ats-mode="true"] .modern-background-waves {
+  display: none;
+}
+
+[data-ats-mode="true"] .modern-contact-item__icon {
+  display: none;
+}
+
+[data-ats-mode="true"] .modern-languages-item__dots {
+  display: none;
+}
+
+[data-ats-mode="true"] .modern-resume-header__photo {
+  display: none;
+}
+
+[data-ats-mode="true"] .modern-resume-main {
+  grid-template-columns: 1fr;
+}
+
+.modern-resume-page--ats {
+  font-family: Arial, sans-serif;
+}
+
+.modern-resume-ats {
+  height: 100%;
+  margin-top: 0;
+  padding-top: 14mm;
+  padding-bottom: 16mm;
+}
+
+.modern-resume-ats .modern-resume-header {
+  min-height: auto;
+  margin-bottom: 5mm;
+  padding-bottom: 3mm;
+  border-bottom: 0.35mm solid var(--modern-divider);
+}
+
+.modern-resume-ats .modern-resume-header__name {
+  font-size: 19pt;
+}
+
+.modern-resume-page .modern-resume-ats .modern-resume-header__profession {
+  margin-top: 1mm;
+  color: var(--modern-heading);
+  font-size: 10pt;
+  line-height: 1.18;
+}
+
+.modern-resume-ats .modern-section {
+  gap: 2.2mm;
+  margin-bottom: 5mm;
+}
+
+.modern-resume-ats .modern-section__title {
+  color: var(--modern-heading);
+  font-size: 10.5pt;
+  font-weight: 700;
+}
+
+.modern-resume-ats .modern-contact-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1mm 5mm;
+}
+
+.modern-resume-ats .modern-contact-item {
+  display: block;
+}
+
+.modern-ats-list {
+  margin: 0;
+  padding-left: 4.5mm;
+}
+
+/* ============================================================================
+   Pagination Helpers
+   ========================================================================= */
+
+.modern-resume-continuation-header {
+  display: flex;
+  align-items: baseline;
+  gap: 1mm;
+  margin-bottom: 6mm;
+  padding-bottom: 3mm;
+  border-bottom: 0.5mm solid var(--modern-divider);
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.modern-resume-continuation-header__name {
+  margin: 0;
+  padding: 0;
+  color: var(--modern-heading);
+  font-size: 12pt;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.modern-resume-continuation-header__page {
+  margin: 0 0 0 auto;
+  padding: 0;
+  color: var(--modern-muted);
+  font-size: 8pt;
+  line-height: 1;
+}

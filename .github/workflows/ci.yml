@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - codex/clean-release
+  workflow_dispatch:
+
+# A newer run of the same workflow on the same ref replaces the running one.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Read-only token, and no secrets are used: pull requests from forks run this workflow as well.
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: bewerbung-studio
+
+jobs:
+  check:
+    # The name is the status check to require for the default branch (Settings → Branches / Rulesets).
+    name: CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Tests and the production build never start Electron, so its binary is not downloaded.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: bewerbung-studio/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check tracked runtime artifacts and common secrets
+        run: node scripts/check-repository-hygiene.mjs
+
+      # release:check is the one source of truth: typecheck → tests → production build.
+      - name: Quality gate (typecheck, tests, production build)
+        run: npm run release:check
+
+  windows-smoke:
+    name: Windows Electron startup
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: bewerbung-studio/package-lock.json
+
+      - name: Install dependencies including Electron
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify main, preload and React startup
+        run: ./node_modules/.bin/electron.cmd scripts/electron-startup-smoke.cjs

@@ -1,0 +1,794 @@
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+.zeitgenoessisch-template {
+  --zeit-page-height: 297mm;
+  --zeit-primary: #2fb478;
+  --zeit-primary-dark: #075e4e;
+  --zeit-primary-soft: #cbeccd;
+  --zeit-primary-pale: #e5f5ec;
+  --zeit-heading: #374247;
+  --zeit-text: #434d52;
+  --zeit-muted: #687277;
+  --zeit-divider: #d5deda;
+  --zeit-margin: var(--doc-margin, 17mm);
+  --zeit-section-gap: var(--doc-section-gap, 7mm);
+  --zeit-entry-gap: 5mm;
+  --zeit-body-size: var(--doc-body-size, 8.5pt);
+  --zeit-line-height: var(--doc-line-height, 1.32);
+  --zeit-font: var(
+    --doc-font,
+    "Source Sans 3",
+    "Segoe UI",
+    Arial,
+    sans-serif
+  );
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--zeit-page-height);
+  min-height: var(--zeit-page-height);
+  overflow: hidden;
+  color: var(--zeit-text);
+  background: #fff;
+  font-family: var(--zeit-font);
+  font-size: var(--zeit-body-size);
+  line-height: var(--zeit-line-height);
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.zeitgenoessisch-template *,
+.zeitgenoessisch-template *::before,
+.zeitgenoessisch-template *::after {
+  box-sizing: border-box;
+}
+
+.zeitgenoessisch-page__visual {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding:
+    max(15mm, calc(var(--zeit-margin) - 2mm))
+    var(--zeit-margin)
+    max(14mm, calc(var(--zeit-margin) - 3mm));
+  overflow: hidden;
+  background: #fff;
+}
+
+.zeitgenoessisch-header {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 28.4%)
+    minmax(0, 6.25%)
+    minmax(0, 65.35%);
+  min-width: 0;
+  min-height: 36.5mm;
+  margin-bottom: 1.5mm;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.zeitgenoessisch-header__identity {
+  grid-column: 3;
+  min-width: 0;
+  padding-top: 4mm;
+}
+
+.zeitgenoessisch-header__identity h1 {
+  margin: 0;
+  color: var(--zeit-heading);
+  font-size: 25pt;
+  font-weight: 350;
+  letter-spacing: 0.025em;
+  line-height: 1;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.zeitgenoessisch-header__identity > p:not(
+    .zeitgenoessisch-header__kicker
+  ) {
+  display: inline-block;
+  width: 100%;
+  max-width: 100%;
+  margin: 4mm 0 0;
+  padding: 2.6mm 4mm;
+  border-radius: 3.8mm;
+  color: var(--zeit-primary-dark);
+  background: var(--zeit-primary-soft);
+  font-size: 12.5pt;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  line-height: 1.15;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.zeitgenoessisch-header--no-photo {
+  min-height: 29mm;
+}
+
+.zeitgenoessisch-header--no-photo .zeitgenoessisch-header__identity {
+  grid-column: 1 / -1;
+  padding-top: 0;
+}
+
+.zeitgenoessisch-header--compact {
+  display: block;
+  min-height: auto;
+  margin-bottom: 5mm;
+  padding-bottom: 3mm;
+  border-bottom: 0.35mm solid var(--zeit-divider);
+}
+
+.zeitgenoessisch-header--compact .zeitgenoessisch-header__identity {
+  padding: 0;
+}
+
+.zeitgenoessisch-header--compact .zeitgenoessisch-header__identity h1 {
+  font-size: 15pt;
+  font-weight: 600;
+}
+
+.zeitgenoessisch-header--compact
+  .zeitgenoessisch-header__identity
+  > p:not(.zeitgenoessisch-header__kicker) {
+  margin: 0 0 0 3mm;
+  padding: 0;
+  color: var(--zeit-muted);
+  background: transparent;
+  font-size: 8.5pt;
+  letter-spacing: 0.03em;
+}
+
+.zeitgenoessisch-header__kicker {
+  margin: 0 0 1.5mm;
+  color: var(--zeit-primary-dark);
+  font-size: 7.3pt;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.zeitgenoessisch-header__contacts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1mm 5mm;
+  margin: 3mm 0 0;
+  color: var(--zeit-text);
+  font-size: 7.8pt;
+  font-style: normal;
+}
+
+.zeitgenoessisch-header__contacts a,
+.zeitgenoessisch-header__contacts span {
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.zeitgenoessisch-photo-composition {
+  position: relative;
+  zoom: var(--resume-photo-scale, 1);
+  grid-column: 1;
+  width: 50mm;
+  max-width: 100%;
+  height: 42mm;
+  margin: 0;
+  pointer-events: none;
+}
+
+.zeitgenoessisch-photo-shape {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+
+.zeitgenoessisch-photo-shape--pale {
+  top: 1mm;
+  left: 0;
+  width: 42mm;
+  height: 39mm;
+  border-radius: 48% 52% 45% 55% / 57% 40% 60% 43%;
+  background: var(--zeit-primary-pale);
+  transform: rotate(-13deg);
+}
+
+.zeitgenoessisch-photo-shape--soft {
+  top: -2mm;
+  right: 0;
+  width: 31mm;
+  height: 30mm;
+  border-radius: 58% 42% 62% 38% / 44% 62% 38% 56%;
+  background: color-mix(
+    in srgb,
+    var(--zeit-primary-soft),
+    var(--zeit-primary) 15%
+  );
+  transform: rotate(17deg);
+}
+
+.zeitgenoessisch-photo-shape--accent {
+  right: 2mm;
+  bottom: 0;
+  width: 24mm;
+  height: 23mm;
+  border-radius: 54% 46% 44% 56% / 41% 55% 45% 59%;
+  background: var(--zeit-primary);
+  opacity: 0.92;
+  transform: rotate(-11deg);
+}
+
+.zeitgenoessisch-photo {
+  position: absolute;
+  top: 3mm;
+  left: 5mm;
+  z-index: 2;
+  display: block;
+  width: 36mm;
+  height: 36mm;
+  border: 1.8mm solid #fff;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: auto;
+}
+
+.zeitgenoessisch-columns {
+  position: relative;
+  display: grid;
+  grid-template-columns:
+    minmax(0, 28.4%)
+    minmax(0, 6.25%)
+    minmax(0, 65.35%);
+  min-width: 0;
+}
+
+.zeitgenoessisch-columns::before {
+  display: none;
+}
+
+.zeitgenoessisch-columns--continuation {
+  display: block;
+}
+
+.zeitgenoessisch-columns--continuation::before {
+  display: none;
+}
+
+.zeitgenoessisch-left-column {
+  grid-column: 1;
+  min-width: 0;
+  padding-top: 12mm;
+}
+
+/* The sidebar of a continuation page starts where the main column does. */
+.zeitgenoessisch-left-column--continued {
+  padding-top: 0;
+}
+
+.zeitgenoessisch-main-column {
+  grid-column: 3;
+  min-width: 0;
+}
+
+.zeitgenoessisch-section {
+  min-width: 0;
+  margin-top: var(--zeit-section-gap);
+  break-inside: auto;
+  page-break-inside: auto;
+}
+
+.zeitgenoessisch-left-column > .zeitgenoessisch-section:first-child,
+.zeitgenoessisch-main-column > .zeitgenoessisch-section:first-child,
+.zeitgenoessisch-main-column > .resume-special-output-list:first-child > .zeitgenoessisch-section:first-child {
+  margin-top: 0;
+}
+
+.zeitgenoessisch-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 2mm;
+  min-width: 0;
+  margin-bottom: 3mm;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.zeitgenoessisch-section-heading__icon {
+  display: grid;
+  flex: none;
+  width: 6.5mm;
+  height: 6.5mm;
+  place-items: center;
+  border-radius: 1.5mm;
+  color: var(--zeit-primary-dark);
+  background: var(--zeit-primary-soft);
+}
+
+.zeitgenoessisch-section-heading__icon svg {
+  width: 4mm;
+  height: 4mm;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.zeitgenoessisch-section-heading__title {
+  display: flex;
+  align-items: baseline;
+  gap: 2mm;
+  min-width: 0;
+  margin: 0;
+  color: var(--zeit-primary-dark);
+  font-size: 11pt;
+  font-weight: 750;
+  letter-spacing: 0.025em;
+  line-height: 1;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.zeitgenoessisch-section-heading__title small {
+  color: var(--zeit-muted);
+  font-size: 7pt;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.zeitgenoessisch-contact-list {
+  display: grid;
+  gap: 2.3mm;
+}
+
+.zeitgenoessisch-contact-item {
+  display: grid;
+  grid-template-columns: 5mm minmax(0, 1fr);
+  align-items: start;
+  gap: 1.5mm;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.zeitgenoessisch-contact-item__icon {
+  display: grid;
+  place-items: start center;
+  color: var(--zeit-primary);
+}
+
+.zeitgenoessisch-contact-item__icon svg {
+  width: 3.8mm;
+  height: 3.8mm;
+  stroke-width: 2.5;
+}
+
+.zeitgenoessisch-contact-item__value {
+  min-width: 0;
+  color: var(--zeit-text);
+  font-size: 7.7pt;
+  letter-spacing: -0.01em;
+  line-height: 1.28;
+  overflow-wrap: anywhere;
+}
+
+.zeitgenoessisch-strengths__list {
+  display: grid;
+  gap: 4.5mm;
+}
+
+.zeitgenoessisch-strength {
+  display: grid;
+  grid-template-columns: 3.5mm minmax(0, 1fr);
+  align-items: start;
+  gap: 1.5mm;
+  min-width: 0;
+}
+
+.zeitgenoessisch-strength__bullet {
+  width: 2mm;
+  height: 2mm;
+  margin-top: 1.2mm;
+  border-radius: 50%;
+  background: var(--zeit-primary);
+}
+
+.zeitgenoessisch-strength h3 {
+  margin: 0;
+  color: var(--zeit-heading);
+  font-size: 9.5pt;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.zeitgenoessisch-strength p {
+  margin: 1.2mm 0 0;
+  color: var(--zeit-text);
+  font-size: var(--zeit-body-size);
+  line-height: var(--zeit-line-height);
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+.zeitgenoessisch-languages__list {
+  display: grid;
+  gap: 3mm;
+}
+
+.zeitgenoessisch-language {
+  min-width: 0;
+}
+
+.zeitgenoessisch-language > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.5mm;
+  min-width: 0;
+}
+
+.zeitgenoessisch-language h3 {
+  margin: 0;
+  color: var(--zeit-primary-dark);
+  font-size: 8.8pt;
+  font-weight: 750;
+  line-height: 1.15;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.zeitgenoessisch-language > div > span:not(
+    .zeitgenoessisch-language__dots
+  ) {
+  color: var(--zeit-muted);
+  font-size: 7.8pt;
+  font-weight: 600;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.zeitgenoessisch-language__dots {
+  display: flex;
+  gap: 0.7mm;
+}
+
+.zeitgenoessisch-language__dots i {
+  display: block;
+  width: 1.35mm;
+  height: 1.35mm;
+  border: 0.25mm solid var(--zeit-muted);
+  border-radius: 50%;
+}
+
+.zeitgenoessisch-language__dots i.is-filled {
+  border-color: var(--zeit-primary-dark);
+  background: var(--zeit-primary-dark);
+}
+
+.zeitgenoessisch-certifications ul {
+  margin: 0;
+  padding-left: 4mm;
+}
+
+.zeitgenoessisch-certifications li {
+  margin: 0.7mm 0;
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+.zeitgenoessisch-certifications li::marker {
+  color: var(--zeit-primary);
+}
+
+.zeitgenoessisch-summary {
+  margin: 0;
+  color: var(--zeit-text);
+  font-size: var(--zeit-body-size);
+  line-height: var(--zeit-line-height);
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+.zeitgenoessisch-career__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zeit-entry-gap);
+}
+
+.zeitgenoessisch-career-entry {
+  min-width: 0;
+  break-inside: auto;
+  page-break-inside: auto;
+}
+
+.zeitgenoessisch-career-entry__top,
+.zeitgenoessisch-career-entry__role-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(25mm, 35mm);
+  align-items: start;
+  gap: 5mm;
+  min-width: 0;
+}
+
+.zeitgenoessisch-career-entry__top h3,
+.zeitgenoessisch-career-entry__role-row h4 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.zeitgenoessisch-career-entry__top h3 {
+  color: var(--zeit-heading);
+  font-size: 10.5pt;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.zeitgenoessisch-career-entry__top span,
+.zeitgenoessisch-career-entry__role-row span {
+  color: var(--zeit-muted);
+  font-size: 7.8pt;
+  line-height: 1.2;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.zeitgenoessisch-career-entry__role-row {
+  margin-top: 0.8mm;
+}
+
+.zeitgenoessisch-career-entry__role-row h4 {
+  color: var(--zeit-heading);
+  font-size: 9.2pt;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.zeitgenoessisch-career-entry ul {
+  margin: 1.5mm 0 0;
+  padding-left: 4.5mm;
+  color: var(--zeit-text);
+  font-size: var(--zeit-body-size);
+  line-height: var(--zeit-line-height);
+}
+
+.zeitgenoessisch-career-entry li {
+  margin: 0.5mm 0;
+  padding-left: 0.4mm;
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+.zeitgenoessisch-career-entry li::marker {
+  color: var(--zeit-primary);
+}
+
+.zeitgenoessisch-knowledge__categories {
+  display: grid;
+  gap: 2.5mm;
+}
+
+.zeitgenoessisch-knowledge h3,
+.zeitgenoessisch-knowledge h4 {
+  margin: 0;
+  color: var(--zeit-heading);
+  font-size: 8.8pt;
+  font-weight: 700;
+}
+
+.zeitgenoessisch-knowledge h4 {
+  font-size: 8.2pt;
+}
+
+.zeitgenoessisch-knowledge small {
+  display: block;
+  margin-top: 0.4mm;
+  color: var(--zeit-muted);
+  font-size: 7.2pt;
+}
+
+.zeitgenoessisch-knowledge p {
+  margin: 0.7mm 0 0;
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+.zeitgenoessisch-knowledge__subcategory {
+  margin-top: 1.2mm;
+}
+
+.zeitgenoessisch-languages--ats .zeitgenoessisch-language p {
+  margin: 0.6mm 0;
+}
+
+.zeitgenoessisch-strengths--ats .zeitgenoessisch-strengths__list {
+  gap: 1.5mm;
+}
+
+.zeitgenoessisch-empty {
+  margin: var(--zeit-section-gap) 0 0;
+  color: var(--zeit-muted);
+}
+
+.zeitgenoessisch-footer {
+  position: absolute;
+  right: var(--zeit-margin);
+  bottom: 6mm;
+  left: var(--zeit-margin);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6mm;
+  color: var(--zeit-muted);
+  font-size: 7.2pt;
+  line-height: 1.2;
+}
+
+.zeitgenoessisch-footer a {
+  min-width: 0;
+  color: var(--zeit-primary-dark);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.zeitgenoessisch-footer span:last-child {
+  flex: none;
+}
+
+.zeitgenoessisch-template[data-density="compact"] {
+  --zeit-section-gap: max(
+    5mm,
+    calc(var(--doc-section-gap, 7mm) - 1mm)
+  );
+  --zeit-entry-gap: 4mm;
+}
+
+.zeitgenoessisch-template[data-density="dense"] {
+  --zeit-section-gap: max(
+    3.8mm,
+    calc(var(--doc-section-gap, 7mm) - 2mm)
+  );
+  --zeit-entry-gap: 3.2mm;
+}
+
+.zeitgenoessisch-template[data-density="dense"]
+  .zeitgenoessisch-page__visual {
+  padding-top: max(11mm, calc(var(--zeit-margin) - 6mm));
+}
+
+.zeitgenoessisch-template[data-density="dense"]
+  .zeitgenoessisch-header {
+  min-height: 38mm;
+  margin-bottom: 4mm;
+}
+
+.zeitgenoessisch-template[data-density="dense"]
+  .zeitgenoessisch-photo-composition {
+  height: 38mm;
+  transform: scale(0.9);
+  transform-origin: top left;
+}
+
+.zeitgenoessisch-template[data-density="dense"]
+  .zeitgenoessisch-header__identity
+  h1 {
+  font-size: 22pt;
+}
+
+.zeitgenoessisch-template[data-ats-mode="true"] {
+  --zeit-heading: #263a35;
+  --zeit-text: #303c39;
+  --zeit-divider: #ccd6d2;
+  background: #fff;
+}
+
+.zeitgenoessisch-ats {
+  width: 100%;
+  height: 100%;
+  padding:
+    var(--zeit-margin)
+    var(--zeit-margin)
+    calc(var(--zeit-margin) + 3mm);
+  overflow: hidden;
+  background: #fff;
+}
+
+.zeitgenoessisch-ats .zeitgenoessisch-header {
+  display: block;
+  min-height: auto;
+  margin-bottom: 0;
+  padding-bottom: 4mm;
+  border-bottom: 0.35mm solid var(--zeit-divider);
+}
+
+.zeitgenoessisch-ats .zeitgenoessisch-header__identity h1 {
+  font-size: 20pt;
+  font-weight: 600;
+}
+
+.zeitgenoessisch-ats
+  .zeitgenoessisch-header__identity
+  > p:not(.zeitgenoessisch-header__kicker) {
+  margin-top: 1.5mm;
+  padding: 0;
+  background: transparent;
+  font-size: 10pt;
+}
+
+.zeitgenoessisch-ats .zeitgenoessisch-section-heading__icon {
+  display: none;
+}
+
+.zeitgenoessisch-ats .zeitgenoessisch-section-heading {
+  gap: 0;
+  padding-bottom: 1.4mm;
+  border-bottom: 0.45mm solid var(--zeit-divider);
+}
+
+.zeitgenoessisch-ats .zeitgenoessisch-career-entry__top,
+.zeitgenoessisch-ats .zeitgenoessisch-career-entry__role-row {
+  grid-template-columns: minmax(0, 1fr) 38mm;
+}
+
+/*
+ * The knowledge rows of the managed layer have no line height of their own: the PDF draws them with the font's
+ * normal one, and the page plan is measured on it. The preview takes the same, so that a list breaks between two
+ * pages at the same row in both.
+ */
+.zeitgenoessisch-template .managed-item-text,
+.zeitgenoessisch-template .managed-knowledge-category :is(h4, h5) {
+  line-height: normal;
+}
+
+/* The same for the lists the managed layer puts into the sidebar: certificates, special sections and free groups. */
+.zeitgenoessisch-left-column :is([data-managed-section="certifications"], [data-managed-section^="special:"], [data-managed-section^="group:"]) {
+  line-height: normal;
+}
+
+/* A special section in the sidebar spaces its entries like the PDF does (the page plan is measured on that). */
+.zeitgenoessisch-left-column [data-managed-section^="special:"] {
+  margin-top: var(--zeit-section-gap);
+}
+
+.zeitgenoessisch-left-column [data-managed-section^="special:"] [data-custom-role="entries"] {
+  gap: 5mm;
+  margin-top: 1.5mm;
+}
+
+.zeitgenoessisch-left-column [data-managed-section^="special:"] [data-custom-role="entry"] {
+  margin: 0.5mm 0;
+}
+
+.zeitgenoessisch-left-column > [data-managed-section^="special:"]:first-child {
+  margin-top: 0;
+}
+
+@media print {
+  .zeitgenoessisch-template {
+    width: 100%;
+    height: 297mm;
+    min-height: 297mm;
+    margin: 0;
+    box-shadow: none;
+  }
+
+  .zeitgenoessisch-template a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .zeitgenoessisch-template .editor-selection,
+  .zeitgenoessisch-template .editor-resize-handle,
+  .zeitgenoessisch-template .editor-toolbar,
+  .zeitgenoessisch-template .editor-guide,
+  .zeitgenoessisch-template .editor-grid,
+  .zeitgenoessisch-template [data-editor-only="true"] {
+    display: none !important;
+  }
+}
