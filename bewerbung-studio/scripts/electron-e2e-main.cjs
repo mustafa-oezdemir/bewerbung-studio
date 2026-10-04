@@ -26,6 +26,9 @@ setTimeout(() => fail(new Error(`Electron E2E ${phase} timed out`)), 60_000).unr
 const createScenario = `(async () => {
   const api = window.bewerbungsManager;
   if (!api) throw new Error('preload API is missing');
+  const status = await api.system.workspaceStatus();
+  if (status.state !== 'ready' || typeof status.root !== 'string')
+    throw new Error('preload did not unwrap the workspace status IPC result');
   const initial = await api.workspace.get();
   if (initial.applications.length !== 0) throw new Error('fixture was not empty');
   let rejected = false;
@@ -60,6 +63,8 @@ const createScenario = `(async () => {
 const verifyScenario = `(async () => {
   const api = window.bewerbungsManager;
   if (!api) throw new Error('preload API is missing after restart');
+  const status = await api.system.workspaceStatus();
+  if (status.state !== 'ready') throw new Error('workspace status was not restored after restart');
   const workspace = await api.workspace.get();
   if (workspace.applications.length !== 1 || workspace.todos.length !== 1 ||
       workspace.settings.theme !== 'dark' ||

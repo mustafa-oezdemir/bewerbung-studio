@@ -35,6 +35,7 @@ import { TemplatesView } from "./views/TemplatesView";
 import { TodoView } from "./views/TodoView";
 import { useAppStore } from "./store/useAppStore";
 import { resolveSelectedProfile } from "./shared/profileSelection";
+import { requireWorkspaceStatus } from "./shared/workspaceStatus";
 import type { SecurityStatus, WorkspaceStatus } from "./shared/ipc";
 import { actionableTodos, activeTodos, isTodoOverdue, todoCounts } from "./shared/todos";
 
@@ -110,7 +111,8 @@ export default function App() {
     }
     void window.bewerbungsManager.system
       .workspaceStatus()
-      .then((status) => {
+      .then((value) => {
+        const status = requireWorkspaceStatus(value);
         setWorkspaceStatus(status);
         if (status.state === "ready") void window.bewerbungsManager.security.status().then((security) => {
           setSecurityStatus(security);
@@ -130,7 +132,7 @@ export default function App() {
   const chooseWorkspace = async () => {
     setSetupError("");
     try {
-      const status = await window.bewerbungsManager.system.chooseWorkspace();
+      const status = requireWorkspaceStatus(await window.bewerbungsManager.system.chooseWorkspace());
       setWorkspaceStatus(status);
       if (status.state === "ready") {
         const security = await window.bewerbungsManager.security.status();
@@ -149,7 +151,7 @@ export default function App() {
   const openExistingWorkspace = async () => {
     setSetupError("");
     try {
-      const status = await window.bewerbungsManager.system.openExistingWorkspace();
+      const status = requireWorkspaceStatus(await window.bewerbungsManager.system.openExistingWorkspace());
       setWorkspaceStatus(status);
       if (status.state === "ready") window.location.reload();
     } catch (error) {

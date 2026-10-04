@@ -22,15 +22,15 @@ npm ci
 npm run dev
 ```
 
-`npm run dev` starts Vite with the Electron plugin and opens the desktop application. `npm start` runs an already
-built application and needs `npm run build` first. To work on the user interface in a browser without Electron, start
+`npm run dev` starts Vite with the Electron plugin and opens the desktop application. `npm start` builds the current
+sources before opening Electron. To work on the user interface in a browser without Electron, start
 `npm run dev` with the environment variable `VITE_RENDERER_ONLY=1`.
 
 Point the application to a throwaway data folder with the environment variable `BEWERBUNG_ROOT_PATH` while you
 develop, so your real applications are never touched.
 
-The dev server rewrites files in `bewerbung-studio/dist-electron`. Leave them out of your pull request unless your
-change needs them.
+The dev server rewrites files in `bewerbung-studio/dist-electron`. They are generated from the current sources and
+ignored by Git; do not commit them.
 
 ## Branch naming
 

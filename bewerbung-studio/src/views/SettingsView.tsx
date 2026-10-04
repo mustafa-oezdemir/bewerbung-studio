@@ -17,6 +17,7 @@ import type { AppSettings } from "../shared/schema";
 import type { WorkspaceChangeMode } from "../shared/ipc";
 import { useAppStore } from "../store/useAppStore";
 import { SecurityControls } from "../components/SecurityControls";
+import { requireWorkspaceStatus } from "../shared/workspaceStatus";
 
 export function SettingsView() {
   const settings = useAppStore((state) => state.workspace.settings);
@@ -38,9 +39,10 @@ export function SettingsView() {
   useEffect(() => {
     if (window.bewerbungsManager) {
       void window.bewerbungsManager.system.dataPath().then(setDataPath);
-      void window.bewerbungsManager.system.workspaceStatus().then((status) => {
+      void window.bewerbungsManager.system.workspaceStatus().then((value) => {
+        const status = requireWorkspaceStatus(value);
         if (status.state === "ready") setWorkspaceRoot(status.root);
-      });
+      }).catch((error: unknown) => report("workspace", error instanceof Error ? error.message : "Der Datenbestand konnte nicht geladen werden."));
       void window.bewerbungsManager.system.workspaceDetails().then((details) => {
         setWorkspaceFile(details.filePath);
         setWorkspaceModifiedAt(details.modifiedAt);
@@ -52,8 +54,8 @@ export function SettingsView() {
     setFeedback(null);
     setChangingWorkspace(true);
     try {
-      const status =
-        await window.bewerbungsManager.system.changeWorkspace(changeMode);
+      const status = requireWorkspaceStatus(
+        await window.bewerbungsManager.system.changeWorkspace(changeMode));
       if (status.state === "ready" && status.root !== workspaceRoot) {
         setWorkspaceRoot(status.root);
         window.location.reload();
@@ -75,7 +77,7 @@ export function SettingsView() {
     setFeedback(null);
     setChangingWorkspace(true);
     try {
-      const status = await window.bewerbungsManager.system.openExistingWorkspace();
+      const status = requireWorkspaceStatus(await window.bewerbungsManager.system.openExistingWorkspace());
       if ((status.state === "ready" && status.root !== workspaceRoot) || status.state === "locked") window.location.reload();
       else report("workspace", "Der aktuelle Datenbestand bleibt geöffnet.");
     } catch (error) {
