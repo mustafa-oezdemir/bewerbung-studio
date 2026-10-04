@@ -454,7 +454,10 @@ export function ResumeDesignPanel({ documentId = "", templateId, templateName, s
       </section>
       <Sub title="Abstände">
         {resumeSpacingFields.filter(({ key }) => key !== "sectionTitleGapMm").map(({ key }) => tokenNumber(
-          "spacing", key, spacingTitles[key], "mm", cvDesignLimits[key][0], cvDesignLimits[key][1], 0.1, spacingNotes[key]))}
+          "spacing", key, spacingTitles[key], "mm", cvDesignLimits[key][0], cvDesignLimits[key][1], 0.1,
+          templateId === "zweispaltig" && key === "pageMarginMm"
+            ? "Abstand der Inhalte zum Blattrand. Links und rechts gleich; Kopfbereich und beide Spalten folgen dem Seitenrand."
+            : spacingNotes[key]))}
       </Sub>
       <p className="rds-note">Der Abstand nach dem Abschnittstitel und die Zeilenhöhe stehen nur einmal im Panel: unter „Abschnittstitel“ bzw. „Typografie im Detail“.</p>
     </Group>

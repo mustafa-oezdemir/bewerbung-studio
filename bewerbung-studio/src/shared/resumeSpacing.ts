@@ -1,6 +1,6 @@
 import { compactCvDesignOverrides, getCvDesignVariables, getTemplateDocumentDesignDefaults, resolveCvDesign, resolveTemplateCvDesign } from "./cvDesign";
 import { cvDesignLimits, type CvDesignTokens, type ResumeDesignLayer } from "./cvDesignSchema";
-import { fontSizeToPt, lineHeightLevelToValue, sectionSpacingLevelToMm, type DocumentDesignSettings } from "./documentDesign";
+import { fontSizeToPt, lineHeightLevelToValue, marginLevelToMm, sectionSpacingLevelToMm, type DocumentDesignSettings } from "./documentDesign";
 import type { DocumentDesignDraft } from "./documentEditorState";
 import { resolveEffectiveDesignTokens, resolveResumeDesignView } from "./resumeDesignSystem";
 import { resumeSectionStyleSources } from "./resumeSectionStyleInheritance";
@@ -97,10 +97,6 @@ export const resumeSpacingCss = `
 `;
 
 /**
- * The difference from the template's own text margin. It is applied only to
- * text-bearing children; the A4 surface and the two column tracks stay fixed.
- */
-/**
  * Whether a column shows something of its own (a header, a photo, a footer) before or after the section, outside
  * every managed section. Such a section does not stand at the column edge.
  */
@@ -168,9 +164,10 @@ export const applyResumeSpacingOutput = (
   const defaults = getTemplateDocumentDesignDefaults(id);
   const zweispaltigLegacyTypography = id === "zweispaltig" &&
     (settings.fontSize !== defaults.fontSize || settings.lineHeightLevel !== defaults.lineHeightLevel);
+  const zweispaltigLegacyMargin = id === "zweispaltig" && settings.marginLevel !== defaults.marginLevel;
   const nativeSectionGap = id === "kreativ" || id === "stilvoll" || id === "kompakt" || id === "zweispaltig";
   const legacyNativeSectionGap = nativeSectionGap && settings.sectionSpacingLevel !== defaults.sectionSpacingLevel;
-  if (!spacing && lineHeight === undefined && !legacyNativeSectionGap && !zweispaltigLegacyTypography) return;
+  if (!spacing && lineHeight === undefined && !legacyNativeSectionGap && !zweispaltigLegacyTypography && !zweispaltigLegacyMargin) return;
   const scope = (surface === "pdf" ? page.querySelector(".page-content") : page.firstElementChild) as HTMLElement | null;
   if (!scope) return;
   if (zweispaltigLegacyTypography) {
@@ -200,7 +197,13 @@ export const applyResumeSpacingOutput = (
     const name = `--doc-${key.replace(/Mm$/, "").replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`;
     scope.style.setProperty(name, variables[name]);
   }
-  if (spacing?.pageMarginMm !== undefined) {
+  if (id === "zweispaltig" && (spacing?.pageMarginMm !== undefined || zweispaltigLegacyMargin)) {
+    // Header, columns and footer share the same physical page box. A changed margin is symmetric;
+    // the native 25/20 mm asymmetry stays intact when no margin was chosen.
+    const margin = spacing?.pageMarginMm ?? marginLevelToMm[settings.marginLevel];
+    scope.style.setProperty("--zweispaltig-margin-left", `${margin}mm`);
+    scope.style.setProperty("--zweispaltig-margin-right", `${margin}mm`);
+  } else if (spacing?.pageMarginMm !== undefined) {
     scope.style.setProperty("--resume-page-text-shift", `${getPageMarginAdjustment(id, spacing.pageMarginMm).shiftMm}mm`);
   }
   if (spacing?.innerPaddingMm !== undefined) {
@@ -208,7 +211,7 @@ export const applyResumeSpacingOutput = (
     const nativePadding = resolveTemplateCvDesign(id).spacing.innerPaddingMm;
     scope.style.setProperty("--resume-inner-text-inset", `${Math.round((spacing.innerPaddingMm - nativePadding) * 100) / 100}mm`);
   }
-  if (spacing?.pageMarginMm !== undefined || spacing?.innerPaddingMm !== undefined)
+  if ((id !== "zweispaltig" && spacing?.pageMarginMm !== undefined) || spacing?.innerPaddingMm !== undefined)
     scope.setAttribute("data-resume-spacing-text", "");
   if (spacing?.sectionGapMm !== undefined) scope.setAttribute("data-resume-spacing-section-gap", "");
   if (spacing?.entryGapMm !== undefined) scope.setAttribute("data-resume-spacing-entry-gap", "");
@@ -221,7 +224,7 @@ export const applyResumeSpacingOutput = (
   }
 
   const sections = Array.from(scope.querySelectorAll("[data-managed-section]"));
-  if (spacing?.pageMarginMm !== undefined || spacing?.innerPaddingMm !== undefined) {
+  if ((id !== "zweispaltig" && spacing?.pageMarginMm !== undefined) || spacing?.innerPaddingMm !== undefined) {
     const zones = new Map<Element, Element[]>();
     const layoutHost = getResumeLayoutHost(scope, id, surface);
     for (const section of sections) {

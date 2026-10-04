@@ -14,6 +14,7 @@ import {
   type DocumentDesignSettings,
 } from "./documentDesign";
 import { getTemplateDocumentDesignDefaults, resolveTemplateCvDesign } from "./cvDesign";
+import { zweispaltigDefaults } from "./cvTemplateDefaults/zweispaltig.defaults";
 import { resolveSectionColumns } from "./resumeSectionLayout";
 import { hasSidebarHero, isZoneFlowTemplate, sectionListMetrics, supportsEducationSplit, supportsSidebarContinuation } from "./resumeSectionPresentation";
 import { normalizeCustomSection } from "./resumeCustomSections";
@@ -402,6 +403,32 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
     contentGapDelta: delta(overrides.entryContentGapMm, nativeSpacing?.entryContentGapMm),
     columnGapDelta: single || geometry.columns !== 2 ? 0 : delta(overrides.columnGapMm, nativeSpacing?.columnGapMm),
   };
+  if (templateId === "zweispaltig") {
+    const native = zweispaltigDefaults.layout;
+    const chosenMargin = overrides.pageMarginMm ?? (settings && settings.marginLevel !== defaults.marginLevel
+      ? marginLevelToMm[settings.marginLevel] : undefined);
+    const contentWidth = zweispaltigDefaults.page.widthMm
+      - (chosenMargin ?? native.marginLeftMm) - (chosenMargin ?? native.marginRightMm);
+    const padding = overrides.innerPaddingMm !== undefined ? overrides.innerPaddingMm - nativePadding : 0;
+    if (single) {
+      const textWidth = Math.max(12, contentWidth - 2 * padding);
+      const width = textWidth / geometry.text.bulletW;
+      return { font, textHeight, line, width, contWidth: width,
+        mainRatio: textWidth / geometry.text.atsW, sideDelta: 0, marginInset: padding, ...factors, ...spacing };
+    }
+    const gap = overrides.columnGapMm ?? native.columnGapMm;
+    const sidebarRatio = (context.layout?.sidebarWidthPercent ?? native.rightColumnRatio * 100) / 100;
+    const mainWidth = (contentWidth - gap) * (1 - sidebarRatio);
+    const sideWidth = (contentWidth - gap) * sidebarRatio;
+    const mainTextWidth = Math.max(12, mainWidth - 2 * padding);
+    const fullTextWidth = Math.max(12, contentWidth - 2 * padding);
+    return { font, textHeight, line,
+      width: Math.max(0.5, (mainTextWidth - 4.8) / geometry.text.bulletW),
+      contWidth: fullTextWidth / geometry.text.bulletW,
+      mainRatio: mainTextWidth / geometry.text.mainW,
+      sideDelta: sideWidth - 2 * padding - geometry.text.sideW,
+      marginInset: padding, ...factors, ...spacing };
+  }
   if (single) {
     const width = geometry.text.atsW / geometry.text.bulletW;
     const insetWidth = Math.max(0.55, (geometry.text.atsW - 2 * textInset) / geometry.text.atsW);

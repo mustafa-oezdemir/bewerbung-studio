@@ -133,7 +133,7 @@ describe("the Lebenslauf design of one Bewerbung in the outputs", () => {
   });
 });
 
-/** Both outputs use the same text inset while their native page and column boxes stay untouched. */
+/** Both outputs apply the same spacing; Zweispaltig owns a physical page box. */
 describe("Seitenränder and Innenabstand in preview and PDF", () => {
   type Spacing = { pageMarginMm?: number; innerPaddingMm?: number };
   const own = (id: string, spacing: Spacing) => ({ ...getTemplateDocumentDesignDefaults(id), ...(Object.keys(spacing).length ? { cvOverrides: { spacing } } : {}) });
@@ -155,6 +155,27 @@ describe("Seitenränder and Innenabstand in preview and PDF", () => {
   const inlinePaddings = (scope: Element | null) => scope?.querySelectorAll('[style*="padding-inline"],[style*="padding-left"],[style*="padding-right"]').length ?? 0;
   const rule = "[data-resume-spacing-text] [data-managed-section] >";
 
+  it("keeps Zweispaltig's header, columns and footer within symmetric chosen margins", () => {
+    const id = "zweispaltig";
+    const defaults = getTemplateDocumentDesignDefaults(id);
+    for (const surface of ["pdf", "preview"] as const) {
+      const original = scopeOf(outputs(id, defaults)[surface], surface);
+      expect(styleOf(original)["--zweispaltig-margin-left"]).toBe("25mm");
+      expect(styleOf(original)["--zweispaltig-margin-right"]).toBe("20mm");
+      for (const mm of [15, 20, 25]) {
+        const selected = scopeOf(outputs(id, own(id, { pageMarginMm: mm }))[surface], surface);
+        expect(styleOf(selected)["--zweispaltig-margin-left"]).toBe(`${mm}mm`);
+        expect(styleOf(selected)["--zweispaltig-margin-right"]).toBe(`${mm}mm`);
+        expect(selected?.hasAttribute("data-resume-spacing-text")).toBe(false);
+        expect(selected?.querySelector(surface === "pdf" ? ".zweispaltig-pdf-header" : ".zweispaltig-header")).not.toBeNull();
+        expect(selected?.querySelector(surface === "pdf" ? ".zweispaltig-pdf-columns" : ".zweispaltig-columns")).not.toBeNull();
+      }
+      const legacy = scopeOf(outputs(id, { ...defaults, marginLevel: 7 })[surface], surface);
+      expect(styleOf(legacy)["--zweispaltig-margin-left"]).toBe("20mm");
+      expect(styleOf(legacy)["--zweispaltig-margin-right"]).toBe("20mm");
+    }
+  });
+
   it.each(templates)("applies each setting on its own and both as their sum, alike in preview and PDF of $name", ({ id }) => {
     const nativePadding = resolveTemplateCvDesign(id).spacing.innerPaddingMm;
     const native = outputs(id, own(id, {}));
@@ -170,10 +191,16 @@ describe("Seitenränder and Innenabstand in preview and PDF", () => {
       const scope = (name: keyof typeof changes) => scopeOf(changes[name][surface], surface);
       const nativeScope = scopeOf(native[surface], surface);
       for (const name of ["margin", "smaller"] as const) {
-        // A page margin records a text shift; no page or column box gets padding.
+        // Zweispaltig changes the physical page box; the remaining templates shift managed text.
         expect(marginStyle(scope(name)), `${surface} ${name}`).not.toEqual(marginStyle(nativeScope));
         expect(paddingStyle(scope(name)), `${surface} ${name}`).toEqual(paddingStyle(nativeScope));
-        expect(textInset(scope(name)), `${surface} ${name}`).toBe(true);
+        expect(textInset(scope(name)), `${surface} ${name}`).toBe(id !== "zweispaltig");
+        if (id === "zweispaltig") {
+          const chosen = name === "margin" ? "16mm" : "6mm";
+          expect(styleOf(scope(name))["--zweispaltig-margin-left"]).toBe(chosen);
+          expect(styleOf(scope(name))["--zweispaltig-margin-right"]).toBe(chosen);
+          expect(styleOf(scope(name))["--resume-page-text-shift"]).toBeUndefined();
+        }
       }
       expect(paddingStyle(scope("padding")), surface).toEqual({ "--doc-inner-padding": "2.5mm", "--doc-padding": "2.5mm", "--resume-inner-text-inset": `${2.5 - nativePadding}mm` });
       expect(marginStyle(scope("padding")), surface).toEqual(marginStyle(nativeScope));
