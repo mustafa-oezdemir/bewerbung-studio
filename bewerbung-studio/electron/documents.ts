@@ -4,6 +4,7 @@ import { kreativDefaults } from "../src/shared/cvTemplateDefaults/kreativ.defaul
 import { kompaktDefaults } from "../src/shared/cvTemplateDefaults/kompakt.defaults";
 import { stilvollDefaults } from "../src/shared/cvTemplateDefaults/stilvoll.defaults";
 import { zweispaltigPageStyle } from "../src/shared/cvTemplateDefaults/zweispaltig.defaults";
+import { getZweispaltigLetterVariables, resolveZweispaltigApplicationColors, zweispaltigLetterCss } from "../src/shared/zweispaltigLetterIdentity";
 import { renderContactIcon } from "../src/shared/contactIcons";
 import { applyManagedResumeOutput, managedResumeCss } from "../src/shared/resumeManagedOutput";
 import { resolveResumeClosingLine } from "../src/shared/resumeClosing";
@@ -41,7 +42,7 @@ import { getPehlioneContacts, renderPehlioneContacts, pehlioneContactsCss } from
 import { pehlioneBlueprintMarkup } from "../src/shared/pehlioneBlueprint";
 import { validateDeckblattData } from "../src/shared/deckblatt";
 import { getProfessionalTitle } from "../src/shared/profileSelection";
-import { resolveCoverSender } from "../src/shared/coverSender";
+import { coverSenderFromProfile, resolveCoverSender, type CoverSender } from "../src/shared/coverSender";
 import {
   buildDeckblattModel,
   deckblattCss,
@@ -252,11 +253,7 @@ const addressBlock = (
     .map(escapeHtml)
     .join("<br>");
 
-const senderHeader = (
-  profile: ApplicantProfile | undefined,
-  docs: Application["documents"],
-) => {
-  const { name, title, contact } = resolveCoverSender(profile, docs);
+const senderHeader = ({ name, title, contact }: CoverSender) => {
   return (
     `<span class="sender-name">${escapeHtml(name)}</span>` +
     (title ? `<span class="sender-title">${escapeHtml(title)}</span>` : "") +
@@ -761,6 +758,10 @@ export const buildDocumentHtml = (
   const template = getTemplate(application.templateId);
   const accent = application.accentColor || template.accent;
   const secondary = application.secondaryColor || template.secondary;
+  const zweispaltigColors = template.id === "zweispaltig" ? resolveZweispaltigApplicationColors(accent, secondary) : undefined;
+  const zweispaltigCvStyle = zweispaltigColors
+    ? `${zweispaltigPageStyle};--accent:${escapeHtml(zweispaltigColors.primary)};--secondary:${escapeHtml(zweispaltigColors.accent)}`
+    : zweispaltigPageStyle;
   const onSecondary = getReadableTextColor(secondary);
   const designSettings = resolvedCv.settings;
   const atsMode =
@@ -808,6 +809,13 @@ export const buildDocumentHtml = (
   const longApplicationDate = `${applicationPlace ? `${applicationPlace}, ` : ""}den ${formatApplicationDateLong(application)}`;
   const letterStatus = getLetterPageStatus(docs);
   const letterTemplateClass = `layout-${template.layout}`;
+  const letterIdentityVariables = template.id === "zweispaltig"
+    ? getZweispaltigLetterVariables(resolvedCv.design, designSettings, accent, secondary) : undefined;
+  const letterIdentityStyle = letterIdentityVariables
+    ? Object.entries(letterIdentityVariables).map(([key, value]) => `${key}:${escapeHtml(value)}`).join(";") : "";
+  const letterSender = template.id === "zweispaltig"
+    ? coverSenderFromProfile(resolvedCv.profile)
+    : resolveCoverSender(profile, docs);
   const coverLetterAttachments = getCoverLetterAttachments(
     attachments,
     application.id,
@@ -828,10 +836,10 @@ export const buildDocumentHtml = (
       ${renderDeckblattMarkup(deckblattModel)}
     </section>`;
   const letter = `
-    <section class="page letter-page letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} ${letterTemplateClass} ${designClasses}" data-resume-template="${escapeHtml(template.id)}">
+    <section class="page letter-page letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} ${letterTemplateClass} ${designClasses}${letterIdentityVariables ? " zweispaltig-letter" : ""}" data-resume-template="${escapeHtml(template.id)}"${letterIdentityVariables ? ` style="${letterIdentityStyle}"` : ""}>
       ${backgroundLayer}
       <div class="page-content letter-content">
-        <div class="letter-header"><div class="sender">${senderHeader(profile, docs)}</div></div>
+        <div class="letter-header"><div class="sender">${senderHeader(letterSender)}</div></div>
         <div class="rule letter-rule"></div>
         <div class="recipient">${addressBlock(application, docs)}</div>
         <p class="date">${escapeHtml(longApplicationDate)}</p>
@@ -1304,7 +1312,7 @@ export const buildDocumentHtml = (
           : "";
       return `
         <section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="zweispaltig" data-no-fit="true">
-          <div class="page-content zweispaltig-pdf zweispaltig-pdf-ats" data-density="${plan.density}" style="${zweispaltigPageStyle}">
+          <div class="page-content zweispaltig-pdf zweispaltig-pdf-ats" data-density="${plan.density}" style="${zweispaltigCvStyle}">
             ${renderZweispaltigHeader(false, false)}
             ${atsSummary}
             ${careerMarkup}
@@ -1363,7 +1371,7 @@ export const buildDocumentHtml = (
 
     return `
       <section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="zweispaltig" data-no-fit="true">
-        <div class="page-content zweispaltig-pdf" data-density="${plan.density}" style="${zweispaltigPageStyle}">
+        <div class="page-content zweispaltig-pdf" data-density="${plan.density}" style="${zweispaltigCvStyle}">
           ${renderZweispaltigHeader(false, true)}
           <div class="zweispaltig-pdf-columns${isContinuation ? " continuation" : ""}">
             <main class="zweispaltig-pdf-main">
@@ -3520,7 +3528,7 @@ export const buildDocumentHtml = (
   const cvHtml = target === "mappe" ? buildDocumentHtml(application, profile, "lebenslauf", attachments, resumeDesign) : "";
   const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings, resolvedCv);
   const selected = target === "mappe" ? [cover, letter, managedResume] : target === "deckblatt" ? [cover] : target === "anschreiben" ? [letter] : [managedResume];
-  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${zweispaltigDocumentCss}${zeitgenoessischDocumentCss}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}</style></head><body>${selected.join("")}${pageFitScript}${target === "deckblatt" || target === "mappe" ? deckblattFitScript : ""}</body></html>`;
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${zweispaltigDocumentCss}${template.id === "zweispaltig" ? zweispaltigLetterCss : ""}${zeitgenoessischDocumentCss}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}</style></head><body>${selected.join("")}${pageFitScript}${target === "deckblatt" || target === "mappe" ? deckblattFitScript : ""}</body></html>`;
 };
 
 export const buildCoverLetterMarkdown = (

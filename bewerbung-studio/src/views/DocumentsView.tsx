@@ -1,6 +1,7 @@
 import { resolveResumePresentation } from "../shared/resumePresentation";
 import { applyResumeSpacingPreset } from "../shared/resumeSpacing";
 import { resolveCvDocument } from "../shared/resolveCvDocument";
+import { getZweispaltigLetterVariables, zweispaltigLetterCss } from "../shared/zweispaltigLetterIdentity";
 import { getResumeSectionTitle } from "../features/resume-sections/resume-sections";
 import type { CvDesignTokens, ResumeDesignLayer } from "../shared/cvDesignSchema";
 import type { ResumeAppearance } from "../shared/resumeAppearance";
@@ -122,7 +123,7 @@ import {
   getResumeSemanticSection,
 } from "../features/resume-sections/resume-section-system";
 import { getProfessionalTitle, resolveApplicationProfile } from "../shared/profileSelection";
-import { keepCoverSenderOverrides, resolveCoverSender } from "../shared/coverSender";
+import { coverSenderFromProfile, keepCoverSenderOverrides, resolveCoverSender } from "../shared/coverSender";
 import type {
   ApplicantProfile,
   Application,
@@ -654,7 +655,9 @@ export function DocumentsView({
         .map((line) => line.trim())
         .filter(Boolean)
     : applicationRecipientLines(application);
-  const coverSender = resolveCoverSender(renderProfile, docs);
+  const coverSender = template.id === "zweispaltig"
+    ? coverSenderFromProfile(resolvedCv.profile)
+    : resolveCoverSender(renderProfile, docs);
   const { name: coverSenderName, title: coverSenderTitle, contact: coverSenderContact } = coverSender;
   const deckblattModel = buildDeckblattModel({
     application,
@@ -680,6 +683,9 @@ export function DocumentsView({
     "--doc-on-secondary": getReadableTextColor(design.secondaryColor),
     ...getDocumentDesignVariables(design.settings),
   } as CSSProperties;
+  const letterPaperStyle = template.id === "zweispaltig"
+    ? { ...paperStyle, ...getZweispaltigLetterVariables(resolvedCv.design, resolvedCv.settings, design.accentColor, design.secondaryColor) } as CSSProperties
+    : paperStyle;
   const designClassName = `column-${effectiveColumnLayout} background-${design.settings.backgroundId} background-scope-${design.settings.backgroundScope} ${
     design.settings.showBackgroundInPrint
       ? "print-background"
@@ -900,14 +906,18 @@ export function DocumentsView({
       designSettings: design.settings,
       templateDesigns: design.templateDesigns,
       documents: {
-        ...keepCoverSenderOverrides(
+        ...(template.id === "zweispaltig" ? {
+          coverSenderName: docs.coverSenderName,
+          coverSenderTitle: docs.coverSenderTitle,
+          coverSenderContact: docs.coverSenderContact,
+        } : keepCoverSenderOverrides(
           {
             name: value("coverSenderName", coverSenderName),
             title: value("coverSenderTitle", coverSenderTitle),
             contact: value("coverSenderContact", coverSenderContact),
           },
           renderProfile,
-        ),
+        )),
         coverSheetProfessionalTitle: docs.coverSheetProfessionalTitle,
         coverSheetDesign: docs.coverSheetDesign,
         coverSheetContactVisibility: docs.coverSheetContactVisibility,
@@ -1206,31 +1216,36 @@ export function DocumentsView({
                     <header>
                       <b>1. Briefkopf</b>
                       <small>
-                        Automatisch ausgefüllt – bei Bedarf direkt anpassen
+                        {template.id === "zweispaltig"
+                          ? "Name, Berufsbezeichnung und Kontakt kommen aus dem Lebenslauf-Profil"
+                          : "Automatisch ausgefüllt – bei Bedarf direkt anpassen"}
                       </small>
                     </header>
                     <label className="field">
                       <span>Name</span>
                       <input
-                        key={profile?.id}
+                        key={template.id === "zweispaltig" ? `${profile?.id}-${template.id}` : profile?.id}
                         name="coverSenderName"
                         defaultValue={coverSenderName}
+                        readOnly={template.id === "zweispaltig"}
                       />
                     </label>
                     <label className="field">
                       <span>Berufsbezeichnung</span>
                       <input
-                        key={profile?.id}
+                        key={template.id === "zweispaltig" ? `${profile?.id}-${template.id}` : profile?.id}
                         name="coverSenderTitle"
                         defaultValue={coverSenderTitle}
+                        readOnly={template.id === "zweispaltig"}
                       />
                     </label>
                     <label className="field">
                       <span>Kontaktzeile</span>
                       <input
-                        key={profile?.id}
+                        key={template.id === "zweispaltig" ? `${profile?.id}-${template.id}` : profile?.id}
                         name="coverSenderContact"
                         defaultValue={coverSenderContact}
+                        readOnly={template.id === "zweispaltig"}
                       />
                     </label>
                     <label className="field">
@@ -2176,10 +2191,11 @@ export function DocumentsView({
             )}
             {tab === "anschreiben" && (
               <div
-                className={`document-paper document-anschreiben letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} layout-${template.layout} ${designClassName}`}
+                className={`document-paper document-anschreiben letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} layout-${template.layout} ${designClassName}${template.id === "zweispaltig" ? " zweispaltig-letter" : ""}`}
                 data-resume-template={template.id}
                 ref={letterPaperRef}
-                style={paperStyle}>
+                style={letterPaperStyle}>
+                {template.id === "zweispaltig" ? <style>{zweispaltigLetterCss}</style> : null}
                 <DocumentBackgroundLayer
                   backgroundId={design.settings.backgroundId}
                   atsMode={isAtsMode}
@@ -2207,7 +2223,7 @@ export function DocumentsView({
                     {profile?.city ? `${profile.city}, ` : ""}
                     den {formatApplicationDateLong(application)}
                   </p>
-                  <h3>
+                  <h3 className={template.id === "zweispaltig" ? "letter-subject" : undefined}>
                     {createCoverSubject(
                       application.job.title,
                       docs.coverSubject,

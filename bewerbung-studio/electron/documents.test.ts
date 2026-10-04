@@ -8,6 +8,8 @@ import { getTemplateDocumentDesignDefaults } from "../src/shared/cvDesign";
 import { createDocumentDesignDraft, resetDocumentDesign } from "../src/shared/documentEditorState";
 import { strengthSymbolOptions } from "../src/shared/strengthSymbols";
 import { parseHTML } from "linkedom";
+import { getZweispaltigLetterVariables, zweispaltigLetterCss } from "../src/shared/zweispaltigLetterIdentity";
+import { resolveCvDocument } from "../src/shared/resolveCvDocument";
 import { moveManagerSection, updateManagerSection } from "../src/features/resume-sections/resume-manager";
 
 const now = new Date("2026-07-19T10:00:00.000Z").toISOString();
@@ -65,6 +67,59 @@ const profile = profileSchema.parse({
 });
 
 describe("Lebenslauf-Dokumente", () => {
+  it("uses Zweispaltig CV identity and profile data in the letter without changing stored values", () => {
+    const source = profileSchema.parse({ ...profile, firstName: "Mustafa", lastName: "Özdemir", title: "Prozessplaner" });
+    const selected = applicationSchema.parse({
+      ...application, templateId: "zweispaltig", accentColor: "#123456", secondaryColor: "#ABCDEF",
+      designSettings: getTemplateDocumentDesignDefaults("zweispaltig"),
+      documents: { ...application.documents, coverSenderName: "Alter Name", coverSenderTitle: "Alter Titel", coverSenderContact: "Alte Kontaktzeile" },
+    });
+    const resolved = resolveCvDocument({ profile: source, templateId: "zweispaltig", settings: selected.designSettings, application: selected });
+    const expected = getZweispaltigLetterVariables(resolved.design, resolved.settings, selected.accentColor, selected.secondaryColor);
+    const letterHtml = buildDocumentHtml(selected, source, "anschreiben");
+    const letter = parseHTML(letterHtml).document.querySelector<HTMLElement>(".zweispaltig-letter");
+    const cv = parseHTML(buildDocumentHtml(selected, source, "lebenslauf")).document.querySelector<HTMLElement>(".zweispaltig-pdf");
+    expect(letter?.querySelector(".sender-name")?.textContent).toBe("Mustafa Özdemir");
+    expect(letter?.querySelector(".sender-title")?.textContent).toBe("Prozessplaner");
+    expect(letter?.querySelector(".sender-contact")?.textContent).toContain(source.email);
+    expect(letterHtml).toContain(zweispaltigLetterCss);
+    expect(zweispaltigLetterCss).toContain("text-transform:uppercase");
+    expect(expected["--letter-identity-primary"]).toBe("#123456");
+    expect(expected["--letter-identity-accent"]).toBe("#ABCDEF");
+    expect(letter?.style.getPropertyValue("--letter-identity-primary")).toBe(expected["--letter-identity-primary"]);
+    expect(letter?.style.getPropertyValue("--letter-identity-accent")).toBe(expected["--letter-identity-accent"]);
+    expect(letter?.style.getPropertyValue("--letter-identity-divider")).toBe(expected["--letter-identity-divider"]);
+    expect(letter?.style.getPropertyValue("--letter-subject-size")).toBe("13pt");
+    expect(letter?.style.getPropertyValue("--letter-body-size")).toBe("11pt");
+    expect(zweispaltigLetterCss).toContain("font-size:var(--letter-subject-size)!important");
+    expect(zweispaltigLetterCss).toContain("font-size:11pt!important");
+    expect(cv?.style.getPropertyValue("--accent")).toBe("#123456");
+    expect(cv?.style.getPropertyValue("--secondary")).toBe("#ABCDEF");
+    expect(source.firstName).toBe("Mustafa");
+    expect(selected.documents.coverSenderName).toBe("Alter Name");
+  });
+
+  it("follows Zweispaltig CV colour overrides in the letter", () => {
+    const selected = applicationSchema.parse({
+      ...application, templateId: "zweispaltig", accentColor: "#123456", secondaryColor: "#ABCDEF",
+      designSettings: { ...getTemplateDocumentDesignDefaults("zweispaltig"), cvOverrides: { colors: {
+        heading: "#334455", subheading: "#667788", divider: "#112233", text: "#222222",
+      } } },
+    });
+    const letter = parseHTML(buildDocumentHtml(selected, profile, "anschreiben")).document.querySelector<HTMLElement>(".zweispaltig-letter");
+    expect(letter?.style.getPropertyValue("--letter-identity-primary")).toBe("#334455");
+    expect(letter?.style.getPropertyValue("--letter-identity-accent")).toBe("#667788");
+    expect(letter?.style.getPropertyValue("--letter-identity-divider")).toBe("#112233");
+    expect(letter?.style.getPropertyValue("--letter-identity-text")).toBe("#222222");
+  });
+
+  it("leaves other cover-letter template styles untouched", () => {
+    const html = buildDocumentHtml(application, profile, "anschreiben");
+    expect(html).not.toContain(zweispaltigLetterCss);
+    expect(html).not.toContain("zweispaltig-letter");
+    expect(html).toContain('<span class="sender-name">Mina Kaya</span>');
+    expect(html).toContain(".sender-name{color:#000;font-size:16pt;font-weight:800;line-height:1.12}");
+  });
   it.each(templates)("keeps profile content when old presentation copies exist in $name", (template) => {
     const original = { ...application, templateId: template.id };
     const edited = { ...original, designSettings: { ...original.designSettings, resumePresentation: { sections: { summary: { visible: false } }, personalFields: { email: false } } } };
