@@ -92,7 +92,7 @@ describe("Zeitgenössisch: shared document flow", () => {
     const inMain = render(move(makeProfile(3), "main", 99), settings);
     for (const surface of ["preview", "pdf"] as const) {
       const sidebar = section(inSidebar.surfaces[surface][0], "certifications")!;
-      const main = section(inMain.surfaces[surface][0], "certifications")!;
+      const main = inMain.surfaces[surface].map((page) => section(page, "certifications")).find(Boolean)!;
       expect(sidebar.querySelector(":scope > .cv-heading")?.getAttribute("style"), surface).toContain("color:#cc0000");
       expect(main.querySelector(":scope > .cv-heading")?.getAttribute("style"), surface).toContain("color:#1d4ed8");
       for (const page of inSidebar.surfaces[surface])

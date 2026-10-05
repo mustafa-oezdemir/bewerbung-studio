@@ -642,7 +642,7 @@ export const createResumePagePlan = (
       ...model,
       cols,
       w: Math.max(12, (width - GRID_COLUMN_GAP_MM * (cols - 1)) / cols - (context.atsMode ? 0 : GRID_ICON_MM)),
-      gap: kind === "strengths" ? 3 : 2,
+      gap: kind === "strengths" ? (templateId === "zeitgenoessisch" ? 2 : 3) : 2,
     };
   };
 

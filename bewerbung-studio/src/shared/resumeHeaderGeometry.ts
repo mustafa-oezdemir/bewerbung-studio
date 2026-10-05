@@ -94,10 +94,10 @@ const headerModels: Record<string, Partial<Record<"main" | "side" | "mainPhoto" 
     sidePhoto: { layout: "flow", a: 140, b: 6, titleChars: 70, nameChars: 26, base: 37.25, row: 3.99, line: 0.0, title: 4.23, hasTitle: 4.18, name: 6.78, margin: 5.2 },
   },
   "zeitgenoessisch": {
-    main: { layout: "flow", a: 240, b: 2, titleChars: 60, nameChars: 18, base: 48.33, row: 0.0, line: 0.0, title: 3.19, hasTitle: 0.53, name: 2.9, margin: 2.5 },
-    side: { layout: "grid", a: 1, b: 32, titleChars: 52, nameChars: 26, base: 65.99, row: 3.51, line: 3.39, title: 2.31, hasTitle: 0.0, name: 6.49, margin: 4.6 },
-    mainPhoto: { layout: "flow", a: 140, b: 6, titleChars: 70, nameChars: 26, base: 60.06, row: 0.0, line: 0.0, title: 4.88, hasTitle: 1.29, name: 10.26, margin: 5.1 },
-    sidePhoto: { layout: "grid", a: 1, b: 16, titleChars: 52, nameChars: 26, base: 77.46, row: 3.86, line: 1.85, title: 3.55, hasTitle: 0.22, name: 11.83, margin: 7.0 },
+    main: { layout: "flow", a: 240, b: 2, titleChars: 50, nameChars: 18, base: 45.5, row: 0, line: 0, title: 4.5, hasTitle: 0, name: 3, margin: 2 },
+    side: { layout: "grid", a: 1, b: 25, titleChars: 45, nameChars: 26, base: 65, row: 4.7, line: 4.7, title: 3, hasTitle: 0, name: 7, margin: 3 },
+    mainPhoto: { layout: "flow", a: 140, b: 6, titleChars: 50, nameChars: 26, base: 53, row: 0, line: 0, title: 5, hasTitle: 0, name: 8, margin: 2 },
+    sidePhoto: { layout: "grid", a: 1, b: 16, titleChars: 45, nameChars: 26, base: 65, row: 4.7, line: 4.7, title: 3, hasTitle: 0, name: 8, margin: 3 },
   },
   "zweispaltig": {
     main: { layout: "grid", a: 2, b: 16, titleChars: 95, nameChars: 18, base: 32.07, row: 1.39, line: 1.67, title: 4.57, hasTitle: 5.76, name: 4.42, margin: 3.0 },

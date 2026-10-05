@@ -19,7 +19,6 @@ export function ZeitgenoessischResume({
   const variables = {
     "--zeit-primary":
       accentColor || zeitgenoessischDefaults.colors.primary,
-    "--zeit-primary-dark": zeitgenoessischDefaults.colors.primaryDark,
     "--zeit-primary-soft":
       secondaryColor || zeitgenoessischDefaults.colors.primarySoft,
   } as CSSProperties;

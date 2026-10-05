@@ -248,7 +248,7 @@ describe("Seitenränder and Innenabstand", () => {
     const both = set(set(start(id), "document", "pageMarginMm", 20), "document", "innerPaddingMm", 3);
     expect(effective(both)).toMatchObject({ pageMarginMm: 20, innerPaddingMm: 3 });
     const withoutPadding = set(both, "document", "innerPaddingMm", undefined);
-    expect(withoutPadding.draft.settings.cvOverrides).toEqual({ spacing: { pageMarginMm: 20 } });
+    expect(withoutPadding.draft.settings.cvOverrides).toEqual(native.pageMarginMm === 20 ? undefined : { spacing: { pageMarginMm: 20 } });
     expect(effective(withoutPadding)).toMatchObject({ pageMarginMm: 20, innerPaddingMm: native.innerPaddingMm });
     const withoutMargin = set(both, "document", "pageMarginMm", undefined);
     expect(withoutMargin.draft.settings.cvOverrides).toEqual({ spacing: { innerPaddingMm: 3 } });

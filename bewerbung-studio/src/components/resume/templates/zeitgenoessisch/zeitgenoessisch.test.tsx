@@ -297,9 +297,9 @@ describe("Zeitgenössisch rendering", () => {
         widthMm: 210,
         heightMm: 297,
         marginTopMm: 15,
-        marginRightMm: 17,
-        marginBottomMm: 14,
-        marginLeftMm: 17,
+        marginRightMm: 20,
+        marginBottomMm: 15,
+        marginLeftMm: 25,
       },
       layout: {
         leftColumnWidthMm: 50,

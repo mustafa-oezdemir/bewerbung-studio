@@ -5,6 +5,7 @@ import { kompaktDefaults } from "../src/shared/cvTemplateDefaults/kompakt.defaul
 import { stilvollDefaults } from "../src/shared/cvTemplateDefaults/stilvoll.defaults";
 import { zweispaltigPageStyle } from "../src/shared/cvTemplateDefaults/zweispaltig.defaults";
 import { getZweispaltigLetterVariables, resolveZweispaltigApplicationColors, zweispaltigLetterCss } from "../src/shared/zweispaltigLetterIdentity";
+import { zeitgenoessischLetterCss } from "../src/shared/zeitgenoessischDesign";
 import { renderContactIcon } from "../src/shared/contactIcons";
 import { applyManagedResumeOutput, managedResumeCss } from "../src/shared/resumeManagedOutput";
 import { resolveResumeClosingLine } from "../src/shared/resumeClosing";
@@ -473,13 +474,13 @@ const zweispaltigDocumentCss = `
 `;
 
 const zeitgenoessischDocumentCss = `
-  .zeit-pdf{--zeit-dark:#075e4e;--zeit-soft:#cbeccd;--zeit-pale:#e5f5ec;--zeit-heading:#374247;--zeit-text:#434d52;--zeit-muted:#687277;--zeit-divider:#d5deda;position:relative;width:100%;height:100%;padding:max(15mm,calc(var(--doc-margin) - 2mm)) var(--doc-margin) max(14mm,calc(var(--doc-margin) - 3mm));overflow:hidden;color:var(--zeit-text);background:#fff;font-family:var(--body-font)}
+  .zeit-pdf{--zeit-dark:color-mix(in srgb,var(--accent),#173b3b 28%);--zeit-soft:var(--secondary);--zeit-pale:color-mix(in srgb,var(--zeit-soft),white 50%);--zeit-heading:#374247;--zeit-text:#434d52;--zeit-muted:#687277;--zeit-divider:#d5deda;--zeit-margin-left:25mm;--zeit-margin-right:20mm;--zeit-margin-top:15mm;--zeit-margin-bottom:15mm;--zeit-section-gap:var(--zeit-section-gap-base,7mm);--zeit-entry-gap:var(--zeit-entry-gap-base,5mm);position:relative;width:100%;height:100%;padding:var(--zeit-margin-top) var(--zeit-margin-right) var(--zeit-margin-bottom) var(--zeit-margin-left);overflow:hidden;color:var(--zeit-text);background:#fff;font-family:var(--body-font);font-size:var(--body-size);line-height:var(--body-line)}
   .zeit-pdf *{box-sizing:border-box}
   .zeit-pdf-header{display:grid;grid-template-columns:minmax(0,28.4%) minmax(0,6.25%) minmax(0,65.35%);min-height:36.5mm;margin-bottom:1.5mm}
   .zeit-pdf-identity{grid-column:3;min-width:0;padding-top:4mm}
-  .zeit-pdf-identity h1{margin:0;color:var(--zeit-heading);font-size:25pt;font-weight:350;letter-spacing:.025em;line-height:1;text-transform:uppercase;overflow-wrap:anywhere}
-  .zeit-pdf-identity h2{display:inline-block;width:100%;max-width:100%;margin:4mm 0 0;padding:2.6mm 4mm;border-radius:3.8mm;color:var(--zeit-dark);background:var(--zeit-soft);font-size:12.5pt;font-weight:600;letter-spacing:.045em;line-height:1.15;text-transform:uppercase;overflow-wrap:anywhere}
-  .zeit-pdf-photo-composition{position:relative;zoom:var(--resume-photo-scale,1);grid-column:1;width:50mm;max-width:100%;height:42mm}
+  .zeit-pdf-identity h1{margin:0;color:var(--zeit-heading);font-family:var(--heading-font);font-size:var(--doc-heading-size,25pt);font-weight:var(--doc-heading-weight,350);letter-spacing:.025em;line-height:1;text-transform:uppercase;overflow-wrap:anywhere}
+  .zeit-pdf-identity h2{display:inline-block;width:100%;max-width:100%;margin:4mm 0 0;padding:2.6mm 4mm;border-radius:3.8mm;color:var(--zeit-dark);background:var(--zeit-soft);font-size:var(--doc-subheading-size,12.5pt);font-weight:var(--doc-subheading-weight,600);letter-spacing:.045em;line-height:1.15;text-transform:uppercase;overflow-wrap:anywhere}
+  .zeit-pdf-photo-composition{position:relative;zoom:var(--resume-photo-scale,1);grid-column:1;width:50mm;max-width:100%;height:42mm;overflow:hidden}
   .zeit-pdf-photo-composition span{position:absolute;display:block}
   .zeit-pdf-photo-pale{top:1mm;left:0;width:42mm;height:39mm;border-radius:48% 52% 45% 55%/57% 40% 60% 43%;background:var(--zeit-pale);transform:rotate(-13deg)}
   .zeit-pdf-photo-soft{top:-2mm;right:0;width:31mm;height:30mm;border-radius:58% 42% 62% 38%/44% 62% 38% 56%;background:color-mix(in srgb,var(--zeit-soft),var(--accent) 15%);transform:rotate(17deg)}
@@ -488,35 +489,37 @@ const zeitgenoessischDocumentCss = `
   .zeit-pdf-header.no-photo{min-height:29mm}.zeit-pdf-header.no-photo .zeit-pdf-identity{grid-column:1/-1;padding-top:0}
   .zeit-pdf-header.compact{display:block;min-height:auto;margin-bottom:5mm;padding-bottom:3mm;border-bottom:.35mm solid var(--zeit-divider)}
   .zeit-pdf-header.compact .zeit-pdf-identity{padding:0}.zeit-pdf-header.compact .kicker{margin:0 0 1.5mm;color:var(--zeit-dark);font-size:7.3pt;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
-  .zeit-pdf-header.compact h1{font-size:15pt;font-weight:600}.zeit-pdf-header.compact h2{margin:0 0 0 3mm;padding:0;color:var(--zeit-muted);background:transparent;font-size:8.5pt}
+  .zeit-pdf-header.compact h1{font-size:15pt;font-weight:600}.zeit-pdf-header.compact h2{margin:0 0 0 3mm;padding:0;color:var(--zeit-muted);background:transparent;font-size:calc(var(--body-size) * .88)}
   .zeit-pdf-columns{position:relative;display:grid;grid-template-columns:minmax(0,28.4%) minmax(0,6.25%) minmax(0,65.35%)}
   .zeit-pdf-columns:before{display:none}
   .zeit-pdf-columns.continuation{display:block}.zeit-pdf-columns.continuation:before{display:none}
   .zeit-pdf-left{grid-column:1;min-width:0;padding-top:12mm}.zeit-pdf-left.continued{padding-top:0}.zeit-pdf-main{grid-column:3;min-width:0}
-  .zeit-pdf-section,.zeit-pdf-left>section{margin-top:var(--section-gap);break-inside:auto;page-break-inside:auto}
+  .zeit-pdf-section,.zeit-pdf-left>section{margin-top:var(--zeit-section-gap);break-inside:auto;page-break-inside:auto}
   .zeit-pdf-left>section:first-child,.zeit-pdf-main>.zeit-pdf-section:first-child{margin-top:0}
   .zeit-pdf-heading{display:flex;align-items:center;gap:2mm;margin:0 0 3mm}
   .zeit-pdf-heading i{display:grid;flex:none;width:6.5mm;height:6.5mm;place-items:center;border-radius:1.5mm;color:var(--zeit-dark);background:var(--zeit-soft);font-style:normal}
   .zeit-pdf-heading i svg{width:4mm;height:4mm;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.9}
-  .zeit-pdf-heading h3{margin:0;color:var(--zeit-dark);font-size:11pt;font-weight:750;letter-spacing:.025em;line-height:1;text-transform:uppercase;overflow-wrap:anywhere}
+  .zeit-pdf-heading h3{margin:0;color:var(--zeit-dark);font-family:var(--heading-font);font-size:var(--doc-section-heading-size,12.5pt);font-weight:var(--doc-section-heading-weight,750);letter-spacing:.025em;line-height:1;text-transform:uppercase;overflow-wrap:anywhere}
   .zeit-pdf-summary{margin:0;color:var(--zeit-text);font-size:var(--body-size);line-height:var(--body-line);hyphens:auto;overflow-wrap:break-word}
-  .zeit-pdf-contacts{display:grid;gap:2.3mm}
-  .zeit-pdf-contact{display:grid;grid-template-columns:5mm minmax(0,1fr);gap:1.5mm;min-width:0;color:inherit;font-size:7.7pt;letter-spacing:-.01em;line-height:1.28;text-decoration:none}
+  .zeit-pdf-contacts{display:grid;gap:1.2mm}
+  .zeit-pdf-contact{display:grid;grid-template-columns:5mm minmax(0,1fr);gap:1.5mm;min-width:0;color:inherit;font-size:calc(var(--body-size) * .9);letter-spacing:-.01em;line-height:var(--body-line);text-decoration:none}
   .zeit-pdf-contact i{display:grid;place-items:start center;color:var(--accent);font-style:normal}.zeit-pdf-contact i svg{width:3.8mm;height:3.8mm;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:2.5}.zeit-pdf-contact span{overflow-wrap:anywhere}
-  .zeit-pdf-strengths{display:grid;gap:4.5mm}.zeit-pdf-strength{display:grid;grid-template-columns:5.5mm minmax(0,1fr);gap:1.5mm;align-items:start}
-  .zeit-pdf-strength>i{width:2mm;height:2mm;margin-top:1.2mm;border-radius:50%;background:var(--accent)}.zeit-pdf-strength h4{margin:0;color:var(--zeit-heading);font-size:9.5pt;font-weight:700;line-height:1.2;overflow-wrap:anywhere}.zeit-pdf-strength p{margin:1.2mm 0 0;color:var(--zeit-text);font-size:var(--body-size);line-height:var(--body-line);hyphens:auto;overflow-wrap:break-word}
-  .zeit-pdf-languages{display:grid;gap:3mm}.zeit-pdf-language>div{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:1.5mm;min-width:0}.zeit-pdf-language h4{margin:0;color:var(--zeit-dark);font-size:8.8pt;font-weight:750;line-height:1.15;text-transform:uppercase;overflow-wrap:anywhere}
+  .zeit-pdf-strengths{display:grid;gap:calc(var(--zeit-entry-gap) * .4)}.zeit-pdf-strength{display:grid;grid-template-columns:3.5mm minmax(0,1fr);gap:1.5mm;align-items:start}
+  .zeit-pdf-strength>i{width:2mm;height:2mm;margin-top:1.2mm;border-radius:50%;background:var(--accent)}.zeit-pdf-strength h4{margin:0;color:var(--zeit-heading);font-size:var(--body-size);font-weight:700;line-height:var(--body-line);overflow-wrap:anywhere}.zeit-pdf-strength p{margin:1.2mm 0 0;color:var(--zeit-text);font-size:var(--body-size);line-height:var(--body-line);hyphens:auto;overflow-wrap:break-word}
+  .zeit-pdf-languages{display:grid;gap:3mm}.zeit-pdf-language>div{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:1.5mm;min-width:0}.zeit-pdf-language h4{margin:0;color:var(--zeit-dark);font-size:var(--body-size);font-weight:750;line-height:var(--body-line);text-transform:uppercase;overflow-wrap:anywhere}.zeit-pdf-language :is(.resume-language-level,.resume-language-description){color:var(--zeit-muted);font-size:calc(var(--body-size) * .88);line-height:var(--body-line)}
   .zeit-pdf-dots{display:flex;gap:.7mm}.zeit-pdf-dots i{display:block;width:1.35mm;height:1.35mm;border:.25mm solid var(--zeit-muted);border-radius:50%}.zeit-pdf-dots i.filled{border-color:var(--zeit-dark);background:var(--zeit-dark)}
-  .zeit-pdf-list{display:flex;flex-direction:column;gap:5mm}.zeit-pdf-entry{break-inside:auto;page-break-inside:auto}
+  .zeit-pdf-list{display:flex;flex-direction:column;gap:var(--zeit-entry-gap)}.zeit-pdf-entry{break-inside:auto;page-break-inside:auto}
+  .zeit-pdf[data-density="compact"]{--zeit-section-gap:calc(var(--zeit-section-gap-base,7mm) * .85);--zeit-entry-gap:calc(var(--zeit-entry-gap-base,5mm) * .85)}
+  .zeit-pdf[data-density="dense"]{--zeit-section-gap:calc(var(--zeit-section-gap-base,7mm) * .7);--zeit-entry-gap:calc(var(--zeit-entry-gap-base,5mm) * .7)}
   .zeit-pdf-entry-top,.zeit-pdf-entry-role{display:grid;grid-template-columns:minmax(0,1fr) minmax(25mm,35mm);gap:5mm;align-items:start}
-  .zeit-pdf-entry-top h4,.zeit-pdf-entry-role h5{margin:0;overflow-wrap:anywhere}.zeit-pdf-entry-top h4{color:var(--zeit-heading);font-size:10.5pt;font-weight:750;line-height:1.2}
-  .zeit-pdf-entry-top span,.zeit-pdf-entry-role span{color:var(--zeit-muted);font-size:7.8pt;line-height:1.2;text-align:right;overflow-wrap:anywhere}
-  .zeit-pdf-entry-role{margin-top:.8mm}.zeit-pdf-entry-role h5{color:var(--zeit-heading);font-size:9.2pt;font-weight:400;line-height:1.2}
+  .zeit-pdf-entry-top h4,.zeit-pdf-entry-role h5{margin:0;overflow-wrap:anywhere}.zeit-pdf-entry-top h4{color:var(--zeit-heading);font-family:var(--heading-font);font-size:var(--doc-entry-heading-size,11.5pt);font-weight:750;line-height:var(--body-line)}
+  .zeit-pdf-entry-top span,.zeit-pdf-entry-role span{color:var(--zeit-muted);font-size:calc(var(--body-size) * .88);line-height:var(--body-line);text-align:right;overflow-wrap:anywhere}
+  .zeit-pdf-entry-role{margin-top:.8mm}.zeit-pdf-entry-role h5{color:var(--zeit-heading);font-size:var(--body-size);font-weight:400;line-height:var(--body-line)}
   .zeit-pdf-entry ul,.zeit-pdf-left ul,.zeit-pdf-ats ul{margin:1.5mm 0 0;padding-left:4.5mm}.zeit-pdf-entry li,.zeit-pdf-left li,.zeit-pdf-ats li{margin:.5mm 0;padding-left:.4mm;hyphens:auto;overflow-wrap:break-word}.zeit-pdf-entry li::marker,.zeit-pdf-left li::marker,.zeit-pdf-ats li::marker{color:var(--accent)}
-  .zeit-pdf-footer{position:absolute;right:var(--doc-margin);bottom:6mm;left:var(--doc-margin);display:flex;justify-content:space-between;gap:6mm;color:var(--zeit-muted);font-size:7.2pt}.zeit-pdf-footer a{color:var(--zeit-dark);text-decoration:none}.zeit-pdf-footer span:last-child{margin-left:auto}
-  .zeit-pdf-ats{--zeit-dark:#075e4e;--zeit-heading:#263a35;--zeit-text:#303c39;--zeit-muted:#687277;--zeit-divider:#ccd6d2;width:100%;height:100%;padding:var(--doc-margin);overflow:hidden;color:var(--zeit-text);background:#fff}
+  .zeit-pdf-footer{position:absolute;right:var(--zeit-margin-right);bottom:6mm;left:var(--zeit-margin-left);display:flex;justify-content:space-between;gap:6mm;color:var(--zeit-muted);font-size:7.2pt}.zeit-pdf-footer a{color:var(--zeit-dark);text-decoration:none}.zeit-pdf-footer span:last-child{margin-left:auto}
+  .zeit-pdf-ats{width:100%;height:100%;overflow:hidden;color:var(--zeit-text);background:#fff}
   .zeit-pdf-ats .zeit-pdf-header{display:block;min-height:auto;margin:0;padding-bottom:4mm;border-bottom:.35mm solid var(--zeit-divider)}.zeit-pdf-ats .zeit-pdf-identity{padding:0}.zeit-pdf-ats .zeit-pdf-identity h1{font-size:20pt;font-weight:600}.zeit-pdf-ats .zeit-pdf-identity h2{margin:1.5mm 0 0;padding:0;background:transparent;font-size:10pt}
-  .zeit-pdf-ats-contacts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1mm 5mm;margin-top:3mm;font-size:7.8pt;font-style:normal}.zeit-pdf-ats-contacts a,.zeit-pdf-ats-contacts span{color:inherit;text-decoration:none;overflow-wrap:anywhere}
+  .zeit-pdf-ats-contacts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1mm 5mm;margin-top:3mm;font-size:calc(var(--body-size) * .88);font-style:normal}.zeit-pdf-ats-contacts a,.zeit-pdf-ats-contacts span{color:inherit;text-decoration:none;overflow-wrap:anywhere}
   .zeit-pdf-ats .zeit-pdf-heading i{display:none}.zeit-pdf-ats .zeit-pdf-heading{gap:0;padding-bottom:1.4mm;border-bottom:.45mm solid var(--zeit-divider)}
   .zeit-pdf-ats>section,.zeit-pdf-ats .knowledge-section{margin-top:var(--section-gap)}.zeit-pdf-ats>section>h3,.zeit-pdf-ats .knowledge-section>h3{margin:0 0 3mm;padding-bottom:1.4mm;border-bottom:.45mm solid var(--zeit-divider);color:var(--zeit-dark);font-size:11pt;font-weight:750;text-transform:uppercase}
 `;
@@ -810,10 +813,11 @@ export const buildDocumentHtml = (
   const letterStatus = getLetterPageStatus(docs);
   const letterTemplateClass = `layout-${template.layout}`;
   const letterIdentityVariables = template.id === "zweispaltig"
-    ? getZweispaltigLetterVariables(resolvedCv.design, designSettings, accent, secondary) : undefined;
+    ? getZweispaltigLetterVariables(resolvedCv.design, designSettings, accent, secondary)
+    : resolvedCv.zeitgenoessischVariables;
   const letterIdentityStyle = letterIdentityVariables
     ? Object.entries(letterIdentityVariables).map(([key, value]) => `${key}:${escapeHtml(value)}`).join(";") : "";
-  const letterSender = template.id === "zweispaltig"
+  const letterSender = template.id === "zweispaltig" || template.id === "zeitgenoessisch"
     ? coverSenderFromProfile(resolvedCv.profile)
     : resolveCoverSender(profile, docs);
   const coverLetterAttachments = getCoverLetterAttachments(
@@ -836,7 +840,7 @@ export const buildDocumentHtml = (
       ${renderDeckblattMarkup(deckblattModel)}
     </section>`;
   const letter = `
-    <section class="page letter-page letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} ${letterTemplateClass} ${designClasses}${letterIdentityVariables ? " zweispaltig-letter" : ""}" data-resume-template="${escapeHtml(template.id)}"${letterIdentityVariables ? ` style="${letterIdentityStyle}"` : ""}>
+    <section class="page letter-page letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} ${letterTemplateClass} ${designClasses}${template.id === "zweispaltig" ? " zweispaltig-letter" : template.id === "zeitgenoessisch" ? " zeitgenoessisch-letter" : ""}" data-resume-template="${escapeHtml(template.id)}"${letterIdentityVariables ? ` style="${letterIdentityStyle}"` : ""}>
       ${backgroundLayer}
       <div class="page-content letter-content">
         <div class="letter-header"><div class="sender">${senderHeader(letterSender)}</div></div>
@@ -1658,7 +1662,7 @@ export const buildDocumentHtml = (
           : "";
       return `
         <section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="zeitgenoessisch" data-no-fit="true">
-          <div class="page-content zeit-pdf zeit-pdf-ats">
+          <div class="page-content zeit-pdf zeit-pdf-ats" data-density="${plan.density}">
             ${renderZeitHeader(isContinuation, true)}
             ${summaryMarkup}
             ${experienceMarkup}
@@ -1695,7 +1699,7 @@ export const buildDocumentHtml = (
 
     return `
       <section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="zeitgenoessisch" data-no-fit="true">
-        <div class="page-content zeit-pdf">
+        <div class="page-content zeit-pdf" data-density="${plan.density}">
           ${renderZeitHeader(isContinuation, false)}
           <div class="zeit-pdf-columns${isContinuation && !continuedSidebar ? " continuation" : ""}">
             ${leftMarkup}
@@ -3528,7 +3532,7 @@ export const buildDocumentHtml = (
   const cvHtml = target === "mappe" ? buildDocumentHtml(application, profile, "lebenslauf", attachments, resumeDesign) : "";
   const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings, resolvedCv);
   const selected = target === "mappe" ? [cover, letter, managedResume] : target === "deckblatt" ? [cover] : target === "anschreiben" ? [letter] : [managedResume];
-  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${zweispaltigDocumentCss}${template.id === "zweispaltig" ? zweispaltigLetterCss : ""}${zeitgenoessischDocumentCss}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}</style></head><body>${selected.join("")}${pageFitScript}${target === "deckblatt" || target === "mappe" ? deckblattFitScript : ""}</body></html>`;
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${zweispaltigDocumentCss}${template.id === "zweispaltig" ? zweispaltigLetterCss : ""}${zeitgenoessischDocumentCss}${template.id === "zeitgenoessisch" ? zeitgenoessischLetterCss : ""}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}</style></head><body>${selected.join("")}${pageFitScript}${target === "deckblatt" || target === "mappe" ? deckblattFitScript : ""}</body></html>`;
 };
 
 export const buildCoverLetterMarkdown = (

@@ -1293,7 +1293,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).toContain(">Go<");
     expect(body).toContain("Echo, Gin");
     expect(html).toContain(
-      ".zeit-pdf-strength{display:grid;grid-template-columns:5.5mm minmax(0,1fr);gap:1.5mm",
+      ".zeit-pdf-strength{display:grid;grid-template-columns:3.5mm minmax(0,1fr);gap:1.5mm",
     );
     expect(body).toContain("zeit-pdf-heading");
     expect(body).toContain("<svg");

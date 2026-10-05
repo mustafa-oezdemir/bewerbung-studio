@@ -317,20 +317,20 @@ const zweispaltig: TemplateTokens = {
 
 const zeitgenoessischHeading: SectionHeadingTokens = {
   iconBox: 6.5, iconGap: 2, iconRadius: 1.5, glyphSize: 4, glyphStroke: 1.8,
-  fontSizePt: { standard: 11, compact: 11 }, fontWeight: 750, lineHeight: 1,
+  fontSizePt: { standard: 12.5, compact: 12.5 }, fontWeight: 750, lineHeight: 1,
   letterSpacing: ".025em", textTransform: "uppercase",
   marginBottom: { standard: 3, compact: 3 }, labelPadding: { standard: 0, compact: 0 },
-  color: "var(--zeit-primary-dark,var(--zeit-dark,#075e4e))",
+  color: "var(--zeit-primary-dark,var(--zeit-dark))",
   dividerColor: "transparent", dividerWidth: "0",
-  iconColor: "var(--zeit-primary-dark,var(--zeit-dark,#075e4e))",
-  iconBackground: "var(--zeit-primary-soft,var(--zeit-soft,#e4f1ed))",
-  sectionGap: { standard: 4.5, compact: 4.5, side: "top", expr: "var(--zeit-section-gap,var(--section-gap,4.5mm))" },
+  iconColor: "var(--zeit-primary-dark,var(--zeit-dark))",
+  iconBackground: "var(--zeit-primary-soft,var(--zeit-soft))",
+  sectionGap: { standard: 7, compact: 7, side: "top", expr: "var(--zeit-section-gap,var(--section-gap,7mm))" },
   height: 6.5,
 };
 const zeitgenoessischList: SectionListTokens = {
-  fontSizePt: { standard: 8.4, compact: 8.4 }, lineHeight: { standard: 1.2, compact: 1.2 },
+  fontSizePt: { standard: 10.5, compact: 10.5 }, lineHeight: { standard: 1.26, compact: 1.26 },
   itemGap: { standard: 0.5, compact: 0.5 }, indent: 4.5, inheritBody: true,
-  layout: "margins", marginTop: 1.5, markerColor: "var(--zeit-primary-dark,var(--zeit-dark,#075e4e))",
+  layout: "margins", marginTop: 1.5, markerColor: "var(--zeit-primary-dark,var(--zeit-dark))",
 };
 const zeitgenoessisch: TemplateTokens = {
   main: { icons: true, heading: zeitgenoessischHeading, list: zeitgenoessischList },

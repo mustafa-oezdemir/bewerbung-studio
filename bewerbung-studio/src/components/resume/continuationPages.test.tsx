@@ -57,12 +57,15 @@ const profile = profileSchema.parse({
   updatedAt: now,
 });
 
-const render = (templateId: string, original = profile) => {
+const render = (
+  templateId: string,
+  original = profile,
+  settings = getTemplateDocumentDesignDefaults(templateId),
+) => {
   // Tabellarisch sets the language dots and descriptions in the narrow half column (about 13 mm more): this edge-of-the-page fixture
   // is about the continuation page, so it uses the compact language line there.
   const source = templateId === "tabellarisch" ? profileSchema.parse({ ...original, resumeLanguageDisplay: { dots: false, level: true, description: false } }) : original;
   const template = getTemplate(templateId);
-  const settings = getTemplateDocumentDesignDefaults(templateId);
   const resolved = resolveCvDocument({ profile: source, templateId, settings, resumeProfile: "" });
   const application = applicationSchema.parse({
     schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test", company: { name: "Test", city: "Berlin" }, contact: {},
@@ -96,7 +99,7 @@ describe.each(Object.keys(components))("continuation page of %s", (templateId) =
   const { resolved, pdfPages, previewPages } = render(templateId);
 
   it("plans the same two pages for preview and PDF", () => {
-    if (templateId === "zweispaltig") expect(resolved.pagePlan.length).toBeGreaterThanOrEqual(2);
+    if (templateId === "zweispaltig" || templateId === "zeitgenoessisch") expect(resolved.pagePlan.length).toBeGreaterThanOrEqual(2);
     else expect(resolved.pagePlan).toHaveLength(2);
     expect(pdfPages).toHaveLength(resolved.pagePlan.length);
     expect(previewPages).toHaveLength(resolved.pagePlan.length);
@@ -220,4 +223,91 @@ describe.each(["einspaltig", "klassisch", "ivy-league"])("knowledge list that co
     const page = (surface === "pdf" ? pdfPages : previewPages)[1];
     expect(text(page)).not.toContain("im Profil ergänzen");
   });
+});
+
+it("splits a Zeitgenössisch CBF-style career entry at the same bullet in preview and PDF", () => {
+  const achievements = [
+    "Koordination laufender Produktionsprozesse und Abstimmung der Arbeitsschritte mit den beteiligten Teams.",
+    "Auswertung von Produktionsdaten und Aufbereitung der Ergebnisse für die tägliche Fertigungsplanung.",
+    "Überwachung von Produktionsterminen und frühzeitige Klärung von Abweichungen mit den Fachbereichen.",
+    "Abstimmung von Aufgaben und Prioritäten mit Einkauf, Fertigung und Qualitätssicherung.",
+    "Dokumentation der Prozesskennzahlen und Nachverfolgung vereinbarter Korrekturmaßnahmen.",
+    "Verbesserung des Informationsflusses zwischen den Teams während der laufenden Produktion.",
+    "Prüfung der Materialverfügbarkeit und Weitergabe offener Punkte an die zuständigen Stellen.",
+    "Erstellung regelmäßiger Berichte zu Auslastung, Terminen und beobachteten Engpässen.",
+  ];
+  const cbf = {
+    id: crypto.randomUUID(), from: "12/2018", to: "03/2019", role: "Prozessplaner",
+    company: "CBF Tekstil und Außenhandel AG", city: "Tokat, Türkei", achievements,
+  };
+  // Vary only preceding content to land this fixed entry across the first page boundary.
+  const candidates = Array.from({ length: 5 }, (_, count) => count + 1).flatMap((count) =>
+    Array.from({ length: 5 }, (_, bullets) => profileSchema.parse({
+      ...profile, education: [], experiences: [
+        ...profile.experiences.slice(0, count).map((entry) => ({
+          ...entry, achievements: entry.achievements.slice(0, bullets + 2),
+        })),
+        cbf,
+      ],
+    })),
+  );
+  const fixture = candidates.find((candidate) => {
+    const plan = resolveCvDocument({
+      profile: candidate, templateId: "zeitgenoessisch", settings: getTemplateDocumentDesignDefaults("zeitgenoessisch"),
+    }).pagePlan;
+    const first = plan[0]?.items.find((item) => item.id === cbf.id);
+    const next = plan[1]?.items.find((item) => item.id === cbf.id);
+    return first?.kind === "experience" && next?.kind === "experience"
+      && first.bullets && next.bullets && first.bullets.to > 0 && first.bullets.to < achievements.length;
+  });
+  expect(fixture).toBeDefined();
+  if (!fixture) return;
+  const { resolved, pdfPages, previewPages } = render("zeitgenoessisch", fixture);
+  const parts = resolved.pagePlan.flatMap((page) => page.items.filter((item) => item.id === cbf.id));
+  const ranges = parts.map((item) => item.kind === "experience" ? item.bullets : undefined);
+  expect(ranges[0]?.from).toBe(0);
+  expect(ranges.at(-1)?.to).toBe(achievements.length);
+  for (let index = 1; index < ranges.length; index += 1) expect(ranges[index]?.from).toBe(ranges[index - 1]?.to);
+  expect(ranges[0]?.to).toBeGreaterThan(0);
+  expect(ranges[0]?.to).toBeLessThan(achievements.length);
+  expect(pdfPages).toHaveLength(resolved.pagePlan.length);
+  expect(previewPages).toHaveLength(pdfPages.length);
+  for (const bullet of achievements) {
+    const seenOn = (pages: Element[]) => pages.flatMap((page, index) => text(page).includes(bullet) ? [index] : []);
+    expect(seenOn(pdfPages), bullet).toEqual(seenOn(previewPages));
+    expect(seenOn(pdfPages), bullet).toHaveLength(1);
+  }
+  for (let index = 0; index < pdfPages.length; index += 1) {
+    const onPage = (page: Element) => achievements.filter((bullet) => text(page).includes(bullet));
+    expect(onPage(pdfPages[index])).toEqual(onPage(previewPages[index]));
+  }
+});
+
+it("recalculates Zeitgenössisch pagination from the shared body size and line height", () => {
+  const base = getTemplateDocumentDesignDefaults("zeitgenoessisch");
+  const smaller = render("zeitgenoessisch", profile, {
+    ...base, cvOverrides: { typography: { bodySizePt: 10, lineHeight: 1.1 } },
+  });
+  const larger = render("zeitgenoessisch", profile, {
+    ...base, cvOverrides: { typography: { bodySizePt: 11, lineHeight: 1.4 } },
+  });
+  for (const [output, body, line] of [[smaller, "10pt", "1.1"], [larger, "11pt", "1.4"]] as const) {
+    expect(output.pdfPages).toHaveLength(output.resolved.pagePlan.length);
+    expect(output.previewPages).toHaveLength(output.pdfPages.length);
+    const preview = output.previewPages[0].querySelector<HTMLElement>(".zeitgenoessisch-template");
+    const pdf = output.pdfPages[0].querySelector<HTMLElement>(".zeit-pdf");
+    for (const root of [preview, pdf]) {
+      expect(root?.style.getPropertyValue("--doc-body-size")).toBe(body);
+      expect(root?.style.getPropertyValue("--doc-line-height")).toBe(line);
+    }
+    for (let index = 0; index < output.pdfPages.length; index += 1) {
+      const sectionList = (page: Element) => Array.from(page.querySelectorAll("[data-managed-section]"))
+        .map((section) => section.getAttribute("data-managed-section"));
+      expect(sectionList(output.previewPages[index])).toEqual(sectionList(output.pdfPages[index]));
+    }
+  }
+  const totalWeight = (output: typeof smaller) => output.resolved.pagePlan.flatMap((page) => page.items)
+    .reduce((sum, item) => sum + item.weight, 0);
+  expect(totalWeight(larger)).toBeGreaterThan(totalWeight(smaller));
+  expect(larger.resolved.pagePlan[0].fill?.main ?? 0).toBeGreaterThan(smaller.resolved.pagePlan[0].fill?.main ?? 0);
 });

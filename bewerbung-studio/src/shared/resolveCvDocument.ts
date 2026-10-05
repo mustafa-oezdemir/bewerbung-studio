@@ -1,4 +1,4 @@
-import type { ApplicantProfile } from "./schema";
+import type { ApplicantProfile, Application } from "./schema";
 import { defaultDocumentDesign, type DocumentDesignSettings } from "./documentDesign";
 import { resolveTemplateId } from "./templates";
 import { resolveResumePresentation } from "./resumePresentation";
@@ -14,6 +14,7 @@ import { formatApplicationDate, type ApplicationDateSource } from "./application
 import { resolveResumeClosingLine } from "./resumeClosing";
 import { resolveResumeSummary } from "./resumeSummary";
 import { formatLanguageForAts } from "../features/languages/language-levels";
+import { getZeitgenoessischDesignVariables } from "./zeitgenoessischDesign";
 
 type CvDocumentInput = {
   profile: ApplicantProfile | undefined;
@@ -23,7 +24,7 @@ type CvDocumentInput = {
   /** Live section-editor previews have already applied presentation overrides. */
   presentationAlreadyApplied?: boolean;
   /** The application the résumé belongs to: its date is the date of the closing (`Ort, DD.MM.YYYY`). */
-  application?: ApplicationDateSource;
+  application?: ApplicationDateSource & Partial<Pick<Application, "accentColor" | "secondaryColor">>;
   globalDesign?: ResumeDesignLayer;
 };
 
@@ -66,6 +67,10 @@ export const resolveCvDocument = ({
     templateId, settings.resumePresentation, atsMode, sourceProfile?.resumeColumnRatio,
   );
   const design = resolveEffectiveDesignTokens(templateId, settings);
+  const zeitgenoessischVariables = templateId === "zeitgenoessisch"
+    ? getZeitgenoessischDesignVariables(design, settings.cvOverrides?.colors,
+        application?.accentColor, application?.secondaryColor)
+    : undefined;
   // The Kurzprofil every output shows (and the planner measures): the Bewerbung's own text, else the profile's.
   // The Deckblatt text is another field and never stands in for it.
   const summary = resolveResumeSummary(profile, resumeProfile);
@@ -93,9 +98,9 @@ export const resolveCvDocument = ({
       signature: !atsMode && profile.resumeClosing.showSignature && Boolean(getProfileMediaSource(profile.signaturePath)),
     },
     overrides: {
-      bodySizePt: overrides?.typography?.bodySizePt,
-      lineHeight: overrides?.typography?.lineHeight,
-      pageMarginMm: overrides?.spacing?.pageMarginMm,
+      bodySizePt: templateId === "zeitgenoessisch" ? design.typography.bodySizePt : overrides?.typography?.bodySizePt,
+      lineHeight: templateId === "zeitgenoessisch" ? design.typography.lineHeight : overrides?.typography?.lineHeight,
+      pageMarginMm: templateId === "zeitgenoessisch" ? design.spacing.pageMarginMm : overrides?.spacing?.pageMarginMm,
       innerPaddingMm: overrides?.spacing?.innerPaddingMm,
       sectionGapMm: overrides?.spacing?.sectionGapMm,
       entryGapMm: overrides?.spacing?.entryGapMm,
@@ -121,6 +126,7 @@ export const resolveCvDocument = ({
     atsMode,
     layout,
     design,
+    zeitgenoessischVariables,
     summary,
     pagePlan,
   };

@@ -156,6 +156,13 @@ export const managedResumeCss = `
 [data-managed-section="strengths"] .managed-strength-card>svg{width:4mm;height:4mm;grid-column:1;grid-row:1 / span 2;color:var(--doc-accent,var(--accent,currentColor))}
 [data-managed-section="strengths"] .managed-strength-card strong{grid-column:2;min-width:0;font-size:1em;line-height:1.3}
 [data-managed-section="strengths"] .managed-strength-card p{grid-column:2;min-width:0;margin:0;white-space:pre-line;font-size:.92em;line-height:1.4;color:inherit}
+.zeitgenoessisch-template [data-managed-section="strengths"] .managed-strengths-grid,.zeit-pdf [data-managed-section="strengths"] .managed-strengths-grid{gap:calc(var(--zeit-entry-gap) * .4)}
+.zeitgenoessisch-template [data-managed-section="strengths"] .managed-strength-card :is(strong,p),.zeit-pdf [data-managed-section="strengths"] .managed-strength-card :is(strong,p){font-size:var(--doc-body-size,var(--body-size));line-height:var(--doc-line-height,var(--body-line))}
+.zeitgenoessisch-template .resume-language-primary,.zeit-pdf .resume-language-primary{font-size:var(--doc-body-size,var(--body-size));line-height:var(--doc-line-height,var(--body-line))}
+.zeitgenoessisch-template :is(.resume-language-level,.resume-language-description),.zeit-pdf :is(.resume-language-level,.resume-language-description){font-size:calc(var(--doc-body-size,var(--body-size)) * .88);line-height:var(--doc-line-height,var(--body-line))}
+.zeitgenoessisch-template [data-managed-section="knowledge"],.zeit-pdf [data-managed-section="knowledge"]{font-size:var(--doc-body-size,var(--body-size));line-height:var(--doc-line-height,var(--body-line))}
+.zeitgenoessisch-template [data-managed-section="knowledge"] :is(small,h4,h5),.zeit-pdf [data-managed-section="knowledge"] :is(small,h4,h5){font-size:calc(var(--doc-body-size,var(--body-size)) * .88);line-height:var(--doc-line-height,var(--body-line))}
+.zeitgenoessisch-template [data-resume-closing-placement="footer"],.cv-sheet[data-template="zeitgenoessisch"] [data-resume-closing-placement="footer"]{bottom:15mm}
 ${resumeSpacingCss}
 ${resumeMetadataCss}
 ${resumeClosingCss}
@@ -847,7 +854,11 @@ export const applyManagedResumeOutput = (
     else if (firstPageHeader) {
       // Later pages repeat the identity of the first page's header (name, title, photo) and the contacts the user chose
       // for them (e-mail, phone): never its address, links or other personal details.
-      if (number > 1) repeatResumeHeader(root, firstPageHeader, continuationContacts, { title: profile.title });
+      if (number > 1 && resolved.templateId === "zeitgenoessisch") {
+        // Both native renderers already draw the compact identity. Replacing it with page one's header
+        // would repeat the large photo composition and waste the continuation page's upper area.
+        ensureResumeHeaderContacts(root, continuationContacts);
+      } else if (number > 1) repeatResumeHeader(root, firstPageHeader, continuationContacts, { title: profile.title });
     }
     else if (number > 1 || !pehlioneContinuation) normalizeContinuationHeader(root, number, pages.length > 1 ? pages.length : totalPages,
       number > 1 ? continuationContacts : enabled("personalData") ? profile : undefined, resolveResumeHeading(profile).kicker);
@@ -879,6 +890,11 @@ export const applyManagedResumeOutput = (
     if (!isAts && resolved.layout.mode === "two-column") applyResumeColumnSurfaces(root, templateId, surface);
     applyResumeSpacingOutput(root, templateId, surface, designSettings, resolved.design);
     applyResumeDesignOverrides(root, templateId, surface, designSettings, resolved.design);
+    if (resolved.zeitgenoessischVariables) {
+      const zeitScope = (surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild) as HTMLElement | null;
+      for (const [property, value] of Object.entries(resolved.zeitgenoessischVariables))
+        zeitScope?.style.setProperty(property, value);
+    }
     applyResumeMetadataLayout(root, profile, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
     // A footer closing must stay inside the main column when a sidebar shares the page.
     const geometry = getPaginationGeometry(resolved.templateId);
