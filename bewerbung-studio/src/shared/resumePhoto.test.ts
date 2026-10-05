@@ -229,8 +229,10 @@ describe("page planner", () => {
   });
 
   it("moves an entry to page two when the bigger photo takes the room it needed", () => {
-    const lost = ["zweispaltig", "einspaltig", "stilvoll", "kreativ", "klassisch"].filter((id) =>
-      plan(long({ resumePhotoSize: "large" }), id)[0].items.length < plan(long({ resumePhotoSize: "medium" }), id)[0].items.length);
+    const firstPageBullets = (source: ReturnType<typeof long>, id: string) => plan(source, id)[0].items
+      .reduce((total, item) => total + (item.bullets ? item.bullets.to - item.bullets.from : 0), 0);
+    const lost = ["zweispaltig", "einspaltig", "stilvoll", "kreativ", "klassisch"].filter(id =>
+      firstPageBullets(long({ resumePhotoSize: "large" }), id) < firstPageBullets(long({ resumePhotoSize: "medium" }), id));
     expect(lost.length).toBeGreaterThan(0);
   });
 

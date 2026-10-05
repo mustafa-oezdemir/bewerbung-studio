@@ -4,6 +4,7 @@ import { resolveCvDocument } from "../shared/resolveCvDocument";
 import { getZweispaltigLetterVariables, zweispaltigLetterCss } from "../shared/zweispaltigLetterIdentity";
 import { zeitgenoessischLetterCss } from "../shared/zeitgenoessischDesign";
 import { kreativLetterCss } from "../shared/kreativDesign";
+import { stilvollLetterCss } from "../shared/stilvollDesign";
 import { getResumeSectionTitle } from "../features/resume-sections/resume-sections";
 import type { CvDesignTokens, ResumeDesignLayer } from "../shared/cvDesignSchema";
 import type { ResumeAppearance } from "../shared/resumeAppearance";
@@ -126,7 +127,7 @@ import {
   getResumeSemanticSection,
 } from "../features/resume-sections/resume-section-system";
 import { getProfessionalTitle, resolveApplicationProfile } from "../shared/profileSelection";
-import { coverSenderFromProfile, keepCoverSenderOverrides, resolveCoverSender } from "../shared/coverSender";
+import { coverSenderFromProfile, keepCoverSenderOverrides, resolveCoverSender, stilvollCoverSenderFromProfile } from "../shared/coverSender";
 import type {
   ApplicantProfile,
   Application,
@@ -658,7 +659,9 @@ export function DocumentsView({
         .map((line) => line.trim())
         .filter(Boolean)
     : applicationRecipientLines(application);
-  const coverSender = template.id === "zweispaltig" || template.id === "zeitgenoessisch" || template.id === "kreativ"
+  const coverSender = template.id === "stilvoll"
+    ? stilvollCoverSenderFromProfile(resolvedCv.profile)
+    : template.id === "zweispaltig" || template.id === "zeitgenoessisch" || template.id === "kreativ"
     ? coverSenderFromProfile(resolvedCv.profile)
     : resolveCoverSender(renderProfile, docs);
   const { name: coverSenderName, title: coverSenderTitle, contact: coverSenderContact } = coverSender;
@@ -672,7 +675,7 @@ export function DocumentsView({
     settings: design.settings,
   });
   const coverGreeting = docs.coverGreeting || applicationGreeting(application);
-  const kreativLetterParagraphs = template.id === "kreativ" ? resolveKreativCoverLetterParagraphs(application, docs) : undefined;
+  const sharedLetterParagraphs = template.id === "kreativ" || template.id === "stilvoll" ? resolveKreativCoverLetterParagraphs(application, docs) : undefined;
   const resumePlan = resolvedCv.pagePlan;
   const letterStatus = getLetterPageStatus(docs);
   const isAtsMode =
@@ -693,6 +696,8 @@ export function DocumentsView({
       ? { ...paperStyle, ...resolvedCv.zeitgenoessischVariables } as CSSProperties
       : template.id === "kreativ"
         ? { ...paperStyle, ...resolvedCv.kreativVariables } as CSSProperties
+      : template.id === "stilvoll"
+        ? { ...paperStyle, ...resolvedCv.stilvollVariables } as CSSProperties
       : paperStyle;
   const designClassName = `column-${effectiveColumnLayout} background-${design.settings.backgroundId} background-scope-${design.settings.backgroundScope} ${
     design.settings.showBackgroundInPrint
@@ -2199,13 +2204,14 @@ export function DocumentsView({
             )}
             {tab === "anschreiben" && (
               <div
-                className={`document-paper document-anschreiben letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} layout-${template.layout} ${designClassName}${template.id === "zweispaltig" ? " zweispaltig-letter" : template.id === "zeitgenoessisch" ? " zeitgenoessisch-letter" : template.id === "kreativ" ? " kreativ-letter" : ""}`}
+                className={`document-paper document-anschreiben letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} layout-${template.layout} ${designClassName}${template.id === "zweispaltig" ? " zweispaltig-letter" : template.id === "zeitgenoessisch" ? " zeitgenoessisch-letter" : template.id === "kreativ" ? " kreativ-letter" : template.id === "stilvoll" ? " stilvoll-letter" : ""}`}
                 data-resume-template={template.id}
                 ref={letterPaperRef}
                 style={letterPaperStyle}>
                 {template.id === "zweispaltig" ? <style>{zweispaltigLetterCss}</style> : null}
                 {template.id === "zeitgenoessisch" ? <style>{zeitgenoessischLetterCss}</style> : null}
                 {template.id === "kreativ" ? <style>{kreativLetterCss}</style> : null}
+                {template.id === "stilvoll" ? <style>{stilvollLetterCss}</style> : null}
                 <DocumentBackgroundLayer
                   backgroundId={design.settings.backgroundId}
                   atsMode={isAtsMode}
@@ -2233,7 +2239,7 @@ export function DocumentsView({
                     {profile?.city ? `${profile.city}, ` : ""}
                     den {formatApplicationDateLong(application)}
                   </p>
-                  <h3 className={template.id === "zweispaltig" || template.id === "zeitgenoessisch" || template.id === "kreativ" ? "letter-subject" : undefined}>
+                  <h3 className={template.id === "zweispaltig" || template.id === "zeitgenoessisch" || template.id === "kreativ" || template.id === "stilvoll" ? "letter-subject" : undefined}>
                     {createCoverSubject(
                       application.job.title,
                       docs.coverSubject,
@@ -2246,9 +2252,9 @@ export function DocumentsView({
                       : ""}
                   </h3>
                   <p className="letter-salutation">{coverGreeting}</p>
-                  <p className="letter-body">{kreativLetterParagraphs?.introduction ?? docs.coverIntroduction}</p>
+                  <p className="letter-body">{sharedLetterParagraphs?.introduction ?? docs.coverIntroduction}</p>
                   <p className="letter-body">
-                    {kreativLetterParagraphs?.mainBody || getCoverLetterMainBody(docs) ||
+                    {sharedLetterParagraphs?.mainBody || getCoverLetterMainBody(docs) ||
                       profile?.summary ||
                       "Hauptteil ergänzen …"}
                   </p>
@@ -2256,10 +2262,10 @@ export function DocumentsView({
                     <p className="letter-body">{docs.coverExtraParagraph}</p>
                   ) : null}
                   <p className="letter-body">
-                    {kreativLetterParagraphs?.companyFit || docs.coverCompanyFit || "Unternehmensbezug ergänzen …"}
+                    {sharedLetterParagraphs?.companyFit || docs.coverCompanyFit || "Unternehmensbezug ergänzen …"}
                   </p>
                   <p className="letter-body letter-closing">
-                    {kreativLetterParagraphs?.closing ?? docs.coverClosing}
+                    {sharedLetterParagraphs?.closing ?? docs.coverClosing}
                   </p>
                   <p className="letter-signature">
                     <span>Mit freundlichen Grüßen</span>

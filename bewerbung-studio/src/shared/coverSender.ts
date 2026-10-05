@@ -1,5 +1,6 @@
 import type { ApplicantProfile, DocumentDraft } from "./schema";
 import { getProfessionalTitle } from "./profileSelection";
+import { getResumeLinkContacts } from "./resumePersonalData";
 
 /**
  * The sender block of the Anschreiben. Name, title and contact line come from the profile of the application;
@@ -20,6 +21,13 @@ export const coverSenderFromProfile = (profile: ApplicantProfile | undefined): C
   title: getProfessionalTitle(profile),
   contact: profile ? senderContactLine(profile) : "E-Mail · Telefon",
 });
+
+/** Stilvoll includes the same optional links shown in its CV header. */
+export const stilvollCoverSenderFromProfile = (profile: ApplicantProfile | undefined): CoverSender => {
+  const sender = coverSenderFromProfile(profile);
+  const links = getResumeLinkContacts(profile).map(link => link.value);
+  return { ...sender, contact: [sender.contact, ...links].filter(Boolean).join(" | ") };
+};
 
 type SenderOverrides = Pick<DocumentDraft, "coverSenderName" | "coverSenderTitle" | "coverSenderContact">;
 

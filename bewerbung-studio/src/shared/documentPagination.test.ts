@@ -253,7 +253,7 @@ describe("A4 document pagination", () => {
   it.each(templateIds)("C. lets a very long role continue on the next page in reading order in %s", (id) => {
     const profile = makeProfile(6, 6, 2, compactLanguages(id));
     const plan = resolve(profile, id).pagePlan;
-    if (id === "zweispaltig" || id === "zeitgenoessisch" || id === "kreativ") expect(plan.length).toBeGreaterThanOrEqual(2);
+    if (id === "zweispaltig" || id === "zeitgenoessisch" || id === "kreativ" || id === "stilvoll") expect(plan.length).toBeGreaterThanOrEqual(2);
     else expect(plan).toHaveLength(2);
     expect(idsOf(plan)).toEqual([...profile.experiences, ...profile.education].map((item) => item.id));
     expectEveryBulletOnce(plan, profile.experiences);
@@ -346,7 +346,7 @@ describe("A4 document pagination", () => {
       expect(plan.length).toBeLessThanOrEqual(2);
       if (plan.length === 1) expect(plan[0].density).not.toBe("dense");
     }
-    for (const id of ["kompakt", "stilvoll", "einspaltig", "klassisch", "tabellarisch", "ivy-league"]) {
+    for (const id of ["kompakt", "einspaltig", "klassisch", "tabellarisch", "ivy-league"]) {
       expect(createResumePagePlan(profile, "", {}, id)).toHaveLength(1);
     }
   });
@@ -615,8 +615,11 @@ describe("closing block and output modes", () => {
       const none = makeProfile(1, 2, 0);
       const growth = (id: string, settings: Partial<typeof defaultDocumentDesign> = {}) =>
         filled(resolve(many, id, settings).pagePlan, 0) - filled(resolve(none, id, settings).pagePlan, 0);
-      // Stilvoll draws none, Kompakt two of them; the plain layouts print all eight.
-      expect(growth("stilvoll")).toBeCloseTo(0, 6);
+      // Stilvoll can split the certificates across sidebar pages as the larger body consumes room.
+      const ranges = resolve(many, "stilvoll").pagePlan.flatMap(page => page.blockRanges?.certifications ? [page.blockRanges.certifications] : []);
+      expect(ranges[0]?.from).toBe(0);
+      expect(ranges.at(-1)?.to).toBe(8);
+      for (let index = 1; index < ranges.length; index += 1) expect(ranges[index].from).toBe(ranges[index - 1].to);
       expect(growth("stilvoll", ats)).toBeGreaterThan(0.08);
       expect(growth("kompakt", ats)).toBeGreaterThan(growth("kompakt") + 0.05);
     });

@@ -3056,10 +3056,6 @@ body.is-resizing-split-view * {
   margin-top: 0;
 }
 
-.document-anschreiben[data-resume-template="stilvoll"] .letter-preview {
-  padding-bottom: calc(var(--letter-padding-block) + 5mm);
-}
-
 .document-anschreiben[data-resume-template="kompakt"] .letter-preview {
   padding-bottom: calc(var(--letter-padding-block) + 5mm);
 }

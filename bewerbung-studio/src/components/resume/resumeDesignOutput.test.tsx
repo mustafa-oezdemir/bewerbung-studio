@@ -194,11 +194,18 @@ describe("Seitenränder and Innenabstand in preview and PDF", () => {
         // These layouts change their physical page box; the others shift managed text.
         expect(marginStyle(scope(name)), `${surface} ${name}`).not.toEqual(marginStyle(nativeScope));
         expect(paddingStyle(scope(name)), `${surface} ${name}`).toEqual(paddingStyle(nativeScope));
-        expect(textInset(scope(name)), `${surface} ${name}`).toBe(id !== "zweispaltig" && id !== "zeitgenoessisch" && id !== "kreativ");
+        expect(textInset(scope(name)), `${surface} ${name}`).toBe(id !== "zweispaltig" && id !== "zeitgenoessisch" && id !== "kreativ" && id !== "stilvoll");
         if (id === "zweispaltig") {
           const chosen = name === "margin" ? "16mm" : "6mm";
           expect(styleOf(scope(name))["--zweispaltig-margin-left"]).toBe(chosen);
           expect(styleOf(scope(name))["--zweispaltig-margin-right"]).toBe(chosen);
+          expect(styleOf(scope(name))["--resume-page-text-shift"]).toBeUndefined();
+        }
+        if (id === "stilvoll") {
+          const chosen = name === "margin" ? 16 : 6;
+          expect(styleOf(scope(name))["--stilvoll-margin-left"]).toBe(`${chosen + 5}mm`);
+          expect(styleOf(scope(name))["--stilvoll-margin-right"]).toBe(`${chosen}mm`);
+          expect(styleOf(scope(name))["--stilvoll-margin-bottom"]).toBe("15mm");
           expect(styleOf(scope(name))["--resume-page-text-shift"]).toBeUndefined();
         }
       }

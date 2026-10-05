@@ -29,7 +29,7 @@ import {
 import { getResumePersonalDetails } from "./resumePersonalData";
 import { getResumePhotoGrowth, resumePhotoShown } from "./resumePhoto";
 import { resolveExperience } from "./resumeCareer";
-import { estimateKreativHeaderTop, estimateResumeHeaderTop } from "./resumeHeaderGeometry";
+import { estimateKreativHeaderTop, estimateResumeHeaderTop, estimateStilvollHeaderTop } from "./resumeHeaderGeometry";
 import { resolveLanguagePresentation } from "../features/languages/language-levels";
 import { languageBlockHeight } from "./languageBlockHeight";
 
@@ -94,7 +94,8 @@ export type ResumePlanContext = {
   closing?: { visible: boolean; signature: boolean };
   /** Explicit user design overrides that change text or spacing metrics. */
   overrides?: {
-    bodySizePt?: number; lineHeight?: number; pageMarginMm?: number; innerPaddingMm?: number;
+    bodySizePt?: number; headingSizePt?: number; subheadingSizePt?: number;
+    lineHeight?: number; pageMarginMm?: number; innerPaddingMm?: number;
     sectionGapMm?: number; entryGapMm?: number;
     /** Lebenslauf-Design → Erweiterte Abstände: "Abstand nach Abschnittstitel", "Abstand nach Eintragstitel", "Spaltenabstand". */
     sectionTitleGapMm?: number; entryContentGapMm?: number; columnGapMm?: number;
@@ -1039,17 +1040,23 @@ export const createResumePagePlan = (
   const top1 = templateId === "kreativ" && profile && !context.atsMode
     ? estimateKreativHeaderTop(profile, showContacts, withPhoto,
         geometry.text.bulletFont * scale.font * 72 / 25.4, geometry.text.lineRatio * scale.line, scale.marginInset)
+    : templateId === "stilvoll" && profile && !context.atsMode
+    ? estimateStilvollHeaderTop(profile, showContacts, withPhoto,
+        geometry.text.bulletFont * scale.font * 72 / 25.4, geometry.text.lineRatio * scale.line, scale.marginInset,
+        context.overrides?.headingSizePt, context.overrides?.subheadingSizePt)
     : grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop1 : geometry.top1) + kompaktContactHeight + photoGrowth.main, false);
-  const top2 = templateId === "kreativ" && !context.atsMode
+  const top2 = (templateId === "kreativ" || templateId === "stilvoll") && !context.atsMode
     ? geometry.top2
     : grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop2 : geometry.top1) + kompaktContactHeight + photoGrowth.main, true);
-  const mainCap1 = (geometry.limit - top1 - 2 * scale.marginInset) * (geometry.safety ?? SAFETY);
-  const mainCap2 = (geometry.limit - top2 - 2 * scale.marginInset) * (geometry.safety ?? SAFETY);
+  const verticalInset = templateId === "stilvoll" && !context.atsMode
+    ? Math.max(0, scale.marginInset) : 2 * scale.marginInset;
+  const mainCap1 = (geometry.limit - top1 - verticalInset) * (geometry.safety ?? SAFETY);
+  const mainCap2 = (geometry.limit - top2 - verticalInset) * (geometry.safety ?? SAFETY);
   // Where the first sidebar block starts depends on how many contact entries (and wrapped values) precede it.
   const sidebarHero = zoneFlow && hasSidebarHero(templateId);
   const contactItems = sidebarHero && find("personalData")?.visible !== false ? getPehlioneContacts(profile) : [];
   const contactValueWidth = geometry.text.sideW + scale.sideDelta - CONTACT_ICON_MM;
-  const sideTop1 = templateId === "kreativ" && !context.atsMode
+  const sideTop1 = (templateId === "kreativ" || templateId === "stilvoll") && !context.atsMode
     ? top1
     : sidebarHero && geometry.sideTop1 !== null
     ? SIDEBAR_HERO_MM + photoGrowth.side + (contactItems.length
@@ -1063,7 +1070,7 @@ export const createResumePagePlan = (
         : estimateResumeHeaderTop(templateId, profile, "side", geometry.sideTop1 + photoGrowth.side, showContacts, withPhoto) ?? geometry.sideTop1 + photoGrowth.side;
   const sideCap1 = sideTop1 === null || flat
     ? 0
-    : (geometry.sideLimit - sideTop1 - 2 * scale.marginInset) * (zoneFlow ? ZONE_FLOW_SIDEBAR_SAFETY : SAFETY);
+    : (geometry.sideLimit - sideTop1 - verticalInset) * (zoneFlow ? ZONE_FLOW_SIDEBAR_SAFETY : SAFETY);
   const dense = context.atsMode ? geometry.ats.density : geometry.density;
 
   const blockLoad =(blocksOfZone: FlowBlock[], zone: PaginationZone) => {
@@ -1115,7 +1122,7 @@ export const createResumePagePlan = (
   const lanePages: LaneSegment[][] = [[]];
   const segmentHeight = ({ block, from, to }: LaneSegment) => (block.sideSplit ? block.sideSplit.height(from, to) : block.height);
   // The sidebar of a continuation page starts where its main column does.
-  const sideCap2 = (geometry.sideLimit - top2 - 2 * scale.marginInset) * ZONE_FLOW_SIDEBAR_SAFETY;
+  const sideCap2 = (geometry.sideLimit - top2 - verticalInset) * ZONE_FLOW_SIDEBAR_SAFETY;
   if (sidebarLane) {
     const capacity = (page: number) => (page === 0 ? sideCap1 : sideCap2) * ZONE_FLOW_HOST_SHARE;
     let used = blockLoad(firstBlocks, "sidebar");

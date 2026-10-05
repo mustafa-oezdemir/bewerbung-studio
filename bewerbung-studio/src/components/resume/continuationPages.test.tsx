@@ -391,3 +391,78 @@ it("recalculates Kreativ pagination and every managed section from resolved typo
     .reduce((total, item) => total + item.weight, 0);
   expect(weight(larger)).toBeGreaterThan(weight(smaller));
 });
+
+it("splits a Stilvoll CBF-style role between complete bullets on the same preview and PDF pages", () => {
+  const achievements = [
+    "Koordination laufender Produktionsprozesse und Abstimmung der Arbeitsschritte mit den beteiligten Teams.",
+    "Auswertung von Produktionsdaten und Aufbereitung der Ergebnisse für die tägliche Fertigungsplanung.",
+    "Überwachung von Produktionsterminen und frühzeitige Klärung von Abweichungen mit den Fachbereichen.",
+    "Abstimmung von Aufgaben und Prioritäten mit Einkauf, Fertigung und Qualitätssicherung.",
+    "Dokumentation der Prozesskennzahlen und Nachverfolgung vereinbarter Korrekturmaßnahmen.",
+    "Verbesserung des Informationsflusses zwischen den Teams während der laufenden Produktion.",
+  ];
+  const cbf = { id: crypto.randomUUID(), from: "12/2018", to: "03/2019", role: "Prozessplaner",
+    company: "CBF Tekstil ve Dış Tic. A.Ş.", city: "Tokat, Türkei", achievements };
+  const settings = getTemplateDocumentDesignDefaults("stilvoll");
+  const candidates = Array.from({ length: 5 }, (_, count) => count + 1).flatMap(count =>
+    Array.from({ length: 5 }, (_, bullets) => profileSchema.parse({
+      ...profile, education: [], experiences: [
+        ...profile.experiences.slice(0, count).map(entry => ({ ...entry, achievements: entry.achievements.slice(0, bullets + 2) })),
+        cbf,
+      ],
+    })),
+  );
+  const fixture = candidates.find(candidate => {
+    const plan = resolveCvDocument({ profile: candidate, templateId: "stilvoll", settings }).pagePlan;
+    const first = plan[0]?.items.find(item => item.id === cbf.id);
+    const next = plan[1]?.items.find(item => item.id === cbf.id);
+    return first?.kind === "experience" && next?.kind === "experience" && first.bullets && next.bullets
+      && first.bullets.to > 0 && first.bullets.to < achievements.length;
+  });
+  expect(fixture).toBeDefined();
+  if (!fixture) return;
+  const { resolved, pdfPages, previewPages } = render("stilvoll", fixture);
+  const ranges = resolved.pagePlan.flatMap(page => page.items.filter(item => item.id === cbf.id))
+    .map(item => item.kind === "experience" ? item.bullets : undefined);
+  expect(ranges[0]?.from).toBe(0);
+  expect(ranges.at(-1)?.to).toBe(achievements.length);
+  expect(ranges[0]?.to).toBeGreaterThan(0);
+  expect(ranges[0]?.to).toBeLessThan(achievements.length);
+  for (let index = 1; index < ranges.length; index += 1) expect(ranges[index]?.from).toBe(ranges[index - 1]?.to);
+  expect(pdfPages).toHaveLength(resolved.pagePlan.length);
+  expect(previewPages).toHaveLength(pdfPages.length);
+  for (const bullet of achievements) {
+    const seenOn = (pages: Element[]) => pages.flatMap((page, index) => text(page).includes(bullet) ? [index] : []);
+    expect(seenOn(pdfPages), bullet).toEqual(seenOn(previewPages));
+    expect(seenOn(pdfPages), bullet).toHaveLength(1);
+  }
+  for (let index = 1; index < pdfPages.length; index += 1) for (const page of [pdfPages[index], previewPages[index]]) {
+    expect(page.querySelector(".stilvoll-header--compact,.stilvoll-pdf-header.compact")).not.toBeNull();
+    expect(page.querySelector(".stilvoll-header figure,.stilvoll-pdf-photo,.stilvoll-background,.managed-pdf-background")).toBeNull();
+  }
+});
+
+it("recalculates Stilvoll pagination and the managed sections from resolved typography", () => {
+  const base = getTemplateDocumentDesignDefaults("stilvoll");
+  const smaller = render("stilvoll", profile, { ...base, cvOverrides: { typography: { bodySizePt: 10, lineHeight: 1.1 } } });
+  const larger = render("stilvoll", profile, { ...base, cvOverrides: { typography: { bodySizePt: 11, lineHeight: 1.4 } } });
+  for (const [output, body, line] of [[smaller, "10pt", "1.1"], [larger, "11pt", "1.4"]] as const) {
+    expect(output.pdfPages).toHaveLength(output.resolved.pagePlan.length);
+    expect(output.previewPages).toHaveLength(output.pdfPages.length);
+    for (const root of [output.previewPages[0].querySelector<HTMLElement>(".stilvoll-template"),
+      output.pdfPages[0].querySelector<HTMLElement>(".stilvoll-pdf")]) {
+      expect(root?.style.getPropertyValue("--doc-body-size")).toBe(body);
+      expect(root?.style.getPropertyValue("--doc-line-height")).toBe(line);
+    }
+    for (let index = 0; index < output.pdfPages.length; index += 1) {
+      const ids = (page: Element) => Array.from(page.querySelectorAll("[data-managed-section]"))
+        .map(section => section.getAttribute("data-managed-section"));
+      expect(ids(output.previewPages[index])).toEqual(ids(output.pdfPages[index]));
+    }
+    for (const id of ["summary", "experience", "strengths", "languages", "knowledge"])
+      expect(output.pdfPages.some(page => page.querySelector(`[data-managed-section="${id}"]`))).toBe(true);
+  }
+  const weight = (output: typeof smaller) => output.resolved.pagePlan.flatMap(page => page.items)
+    .reduce((total, item) => total + item.weight, 0);
+  expect(weight(larger)).toBeGreaterThan(weight(smaller));
+});

@@ -75,7 +75,7 @@ describe("section presentation of Stilvoll", () => {
     expect(isPlainListSection(stilvoll, "languages")).toBe(false);
     expect(hasSidebarHero(stilvoll)).toBe(false);
     const metrics = sectionListMetrics(stilvoll, "sidebar")!;
-    expect(metrics.headingMm).toBeCloseTo(7.55, 2);
+    expect(metrics.headingMm).toBeCloseTo(9.2, 2);
     expect(metrics.inheritBody).toBe(true);
   });
 

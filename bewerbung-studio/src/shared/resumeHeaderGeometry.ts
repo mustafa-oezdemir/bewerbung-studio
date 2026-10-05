@@ -9,6 +9,7 @@ import {
 import { formatPhoneForDisplay } from "./contactPresentation";
 import { getResumePhotoScale } from "./resumePhoto";
 import { kreativDefaults } from "./cvTemplateDefaults/kreativ.defaults";
+import { stilvollDefaults, stilvollDesign } from "./cvTemplateDefaults/stilvoll.defaults";
 
 /**
  * How far down a Lebenslauf header pushes the page content, from the data it shows.
@@ -293,6 +294,43 @@ export const estimateKreativHeaderTop = (
   const contentHeight = 18 + nameHeight + titleHeight + contactHeight;
   const photoMinimum = kreativDefaults.layout.headerHeightMm + 28 * (photoScale - 1);
   return Math.max(photoMinimum, contentHeight) + kreativDefaults.layout.headerToContentGapMm + 1.5;
+};
+
+/** Stilvoll's flexible contact row and rounded photo share one growing header. */
+export const estimateStilvollHeaderTop = (
+  profile: ApplicantProfile,
+  showContacts: boolean,
+  withPhoto: boolean,
+  bodySizePt: number,
+  lineHeight: number,
+  marginShiftMm = 0,
+  nameSizePt = stilvollDesign.tokens.typography.headingSizePt,
+  titleSizePt = stilvollDesign.tokens.typography.subheadingSizePt,
+): number => {
+  const photoScale = withPhoto ? getResumePhotoScale(profile) : 1;
+  const innerWidth = 210 - stilvollDefaults.page.marginLeftMm - stilvollDefaults.page.marginRightMm - 2 * marginShiftMm;
+  const identityWidth = innerWidth - (withPhoto ? 28 * photoScale + 10 : 0);
+  const lines = (length: number, fontPt: number) => Math.max(1,
+    Math.ceil(length * fontPt * 25.4 / 72 * .52 / Math.max(20, identityWidth)));
+  const nameHeight = lines(getResumeFullName(profile).length, nameSizePt) * nameSizePt * 25.4 / 72;
+  const titleHeight = profile.title.trim() ? 4.5 + lines(profile.title.trim().length, titleSizePt) * titleSizePt * 25.4 / 72 * lineHeight : 0;
+  const contactFontMm = bodySizePt * .88 * 25.4 / 72;
+  const topMargin = Math.max(10, stilvollDefaults.page.marginTopMm + marginShiftMm);
+  const contacts = showContacts ? getResumeHeaderContactTexts(profile) : [];
+  let rows = 0;
+  let used = 0;
+  for (const contact of contacts) {
+    const width = contact.length * contactFontMm * .52 + 8;
+    if (used && used + width > identityWidth) { rows += 1; used = 0; }
+    rows += Math.max(0, Math.ceil(width / identityWidth) - 1);
+    used = width % identityWidth || identityWidth;
+  }
+  if (used) rows += 1;
+  const contactHeight = rows ? rows * contactFontMm * lineHeight + Math.max(0, rows - 1) : 0;
+  const header = Math.max(stilvollDefaults.layout.headerHeightMm,
+    topMargin + nameHeight + titleHeight + contactHeight,
+    withPhoto ? topMargin + 26 * photoScale : 0);
+  return header + stilvollDefaults.layout.headerToContentGapMm + 1;
 };
 
 /**
