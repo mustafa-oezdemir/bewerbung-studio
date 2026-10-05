@@ -98,10 +98,13 @@ describe("the spacing adapter keeps Seitenränder and Innenabstand apart", () =>
     for (const page of [margin, padding, both]) {
       expect(columns(page).map((column) => column.getAttribute("style"))).toEqual(["padding:0 10mm", "padding:0 10mm"]);
     }
-    expect(scopeStyle(margin)).toEqual({ "--doc-page-margin": "16mm", "--resume-page-text-shift": "6mm" });
+    // Gepflegt moves the whole physical content lane with its resolved margin.
+    expect(scopeStyle(margin)).toEqual({ "--doc-page-margin": "16mm" });
     expect(scopeStyle(padding)).toEqual({ ...paddingVariables, "--resume-inner-text-inset": "-7.5mm" });
     expect(scopeStyle(both)).toEqual({ ...scopeStyle(margin), ...scopeStyle(padding) });
     for (const page of [margin, padding, both]) expect(columns(page).every((column) => !column.hasAttribute("data-resume-spacing-inner"))).toBe(true);
+    expect(margin.querySelector(".page-content")?.hasAttribute("data-resume-spacing-text")).toBe(false);
+    for (const page of [padding, both]) expect(page.querySelector(".page-content")?.hasAttribute("data-resume-spacing-text")).toBe(true);
   });
 
   it("uses a negative text shift for a smaller margin without widening the page", () => {
@@ -114,7 +117,8 @@ describe("the spacing adapter keeps Seitenränder and Innenabstand apart", () =>
   it("does not introduce an inner text inset when only page margin is chosen", () => {
     for (const [markup, id] of [[oneColumn, "klassisch"], [twoColumns, "gepflegt"]] as const) {
       const page = render(markup, id, { sectionGapMm: 7, pageMarginMm: 17 });
-      expect(page.querySelector("[data-resume-spacing-text]"), id).not.toBeNull();
+      if (id === "gepflegt") expect(page.querySelector("[data-resume-spacing-text]")).toBeNull();
+      else expect(page.querySelector("[data-resume-spacing-text]"), id).not.toBeNull();
       expect(scopeStyle(page)).not.toHaveProperty("--doc-inner-padding");
       expect(scopeStyle(page)).not.toHaveProperty("--resume-inner-text-inset");
     }

@@ -1,5 +1,6 @@
 import { zweispaltigDefaults } from "./cvTemplateDefaults/zweispaltig.defaults";
 import { stilvollDefaults, stilvollDesign } from "./cvTemplateDefaults/stilvoll.defaults";
+import { gepflegtGeometry } from "./gepflegtDesign";
 
 export type PaginationZone = "main" | "sidebar";
 
@@ -356,25 +357,26 @@ const geometry: Record<string, PaginationGeometry> = {
   },
   "gepflegt": {
     columns: 2,
+    safety: 0.82,
     sidebarLeft: true,
     zones: {summary: "sidebar", strengths: "sidebar", knowledge: "sidebar", languages: "sidebar"},
-    top1: 55.9,
-    top2: 26.8,
-    limit: 285.8,
-    sideTop1: 9,
-    sideLimit: 283,
+    top1: 64,
+    top2: 39,
+    limit: gepflegtGeometry.pageHeightMm - gepflegtGeometry.main.paddingBottomMm,
+    sideTop1: gepflegtGeometry.sidebar.paddingTopMm + gepflegtGeometry.sidebar.photoSizeMm + gepflegtGeometry.sidebar.photoGapMm,
+    sideLimit: gepflegtGeometry.pageHeightMm - gepflegtGeometry.sidebar.paddingBottomMm,
     atsTop1: 46.6,
     atsTop2: 46.6,
-    mainLeft: 81,
-    mainRight: 200,
-    contentLeft: 81,
-    contentRight: 200,
-    text: {contW: 185.6, cw: 0.49, bulletW: 113.6, bulletFont: 3.104, titleW: 88.6, titleFont: 4.06, orgW: 102.1, orgFont: 3.46, sumFont: 3.104, mainW: 119, sideW: 52, atsW: 172.6, lineRatio: 1.28, fullW: 191},
-    exp: {base: 9.8, list: 2.2, perBullet: 0.8, linePitch: 3.82, extraLine: 4.24, gap: 4.5, head: 11.1},
-    edu: {base: 10.1, extraLine: 4.44, gap: 4.5, head: 11.1},
-    blocks: {summary: [10.5, 4.03], strengths: [5.7, 8.63], knowledge: [18.8, 6.27], languages: [7.3, 7.08], sectionGap: 7, sideGap: 8.5},
-    items: {strengths: {w: 46.5, font: 3.104, pitch: 4.04, pad: 0.99, cw: 0.53, cols: 1, head: 10.5, gap: 3}, knowledge: {w: 46.5, font: 3.104, pitch: 3.97, pad: 0.03, cw: 0.45, cols: 1, head: 20.6, gap: 2}},
-    certs: {home: "first", zone: "sidebar", base: 9.2, perItem: 5.05, w: 48.0, font: 3.0, pitch: 3.75},
+    mainLeft: gepflegtGeometry.sidebarWidthMm + gepflegtGeometry.main.paddingLeftMm,
+    mainRight: gepflegtGeometry.pageWidthMm - gepflegtGeometry.main.paddingRightMm,
+    contentLeft: gepflegtGeometry.sidebarWidthMm + gepflegtGeometry.main.paddingLeftMm,
+    contentRight: gepflegtGeometry.pageWidthMm - gepflegtGeometry.main.paddingRightMm,
+    text: {contW: 97.2, cw: 0.49, bulletW: 97.2, bulletFont: 3.633, titleW: 72, titleFont: 4.06, orgW: 85, orgFont: 3.633, sumFont: 3.633, mainW: 102, sideW: 42, atsW: 172.6, lineRatio: 1.32, fullW: 102},
+    exp: {base: 12, list: 2.2, perBullet: 0.8, linePitch: 4.8, extraLine: 4.8, gap: 4, head: 11.5},
+    edu: {base: 12, extraLine: 4.8, gap: 4, head: 11.5, detailLine: 4.8, detailItem: 0.6, detailList: 1.8},
+    blocks: {summary: [11.4, 4.8], strengths: [11.4, 13.6], knowledge: [11.4, 4.8], languages: [11.4, 7.8], sectionGap: 6.5, sideGap: 6.5},
+    items: {strengths: {w: 42.5, font: 3.633, pitch: 4.8, pad: 1, cw: 0.53, cols: 1, head: 11.4, gap: 4}, knowledge: {w: 39, font: 3.633, pitch: 4.8, pad: 0.4, cw: 0.55, cols: 1, head: 11.4, gap: 2}},
+    certs: {home: "first", zone: "sidebar", base: 11.4, perItem: 5.5, w: 46, font: 3.633, pitch: 4.8},
     derivedStrengths: {visual: "first", ats: "single"},
     ats: {exp: 1.0, edu: 1.0, knowledge: {head: 8.44, title: 6.96, gap: 3, pitch: 3.6, font: 3, w: 84, tail: 3}, languages: [8.9, 3.6], certs: {base: 8.4, perItem: 3.6}, density: {compact: 0.94, dense: 0.88}},
     density: {compact: 0.96, dense: 0.91},

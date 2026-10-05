@@ -1045,8 +1045,13 @@ export const createResumePagePlan = (
         geometry.text.bulletFont * scale.font * 72 / 25.4, geometry.text.lineRatio * scale.line, scale.marginInset,
         context.overrides?.headingSizePt, context.overrides?.subheadingSizePt)
     : grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop1 : geometry.top1) + kompaktContactHeight + photoGrowth.main, false);
-  const top2 = (templateId === "kreativ" || templateId === "stilvoll") && !context.atsMode
-    ? geometry.top2
+  const gepflegtName = `${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`.trim();
+  const gepflegtMainContinuationGrowth = templateId === "gepflegt" && !context.atsMode
+    ? Math.max(0, Math.ceil(gepflegtName.length / 15) - 1) * 9
+      + Math.max(0, Math.ceil((profile?.title ?? "").length / 36) - 2) * 5
+    : 0;
+  const top2 = (templateId === "kreativ" || templateId === "stilvoll" || templateId === "gepflegt") && !context.atsMode
+    ? geometry.top2 + gepflegtMainContinuationGrowth
     : grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop2 : geometry.top1) + kompaktContactHeight + photoGrowth.main, true);
   const verticalInset = templateId === "stilvoll" && !context.atsMode
     ? Math.max(0, scale.marginInset) : 2 * scale.marginInset;
@@ -1121,8 +1126,12 @@ export const createResumePagePlan = (
   type LaneSegment = { block: FlowBlock; from: number; to: number };
   const lanePages: LaneSegment[][] = [[]];
   const segmentHeight = ({ block, from, to }: LaneSegment) => (block.sideSplit ? block.sideSplit.height(from, to) : block.height);
-  // The sidebar of a continuation page starts where its main column does.
-  const sideCap2 = (geometry.sideLimit - top2 - verticalInset) * ZONE_FLOW_SIDEBAR_SAFETY;
+  // Gepflegt's continuation identity occupies its sidebar above the movable sections.
+  const sideTop2 = templateId === "gepflegt" && !context.atsMode
+    ? 67 + Math.max(0, Math.ceil(gepflegtName.length / 12) - 1) * 7.5
+      + Math.max(0, Math.ceil((profile?.title ?? "").length / 26) - 3) * 4.2
+    : top2;
+  const sideCap2 = (geometry.sideLimit - sideTop2 - verticalInset) * ZONE_FLOW_SIDEBAR_SAFETY;
   if (sidebarLane) {
     const capacity = (page: number) => (page === 0 ? sideCap1 : sideCap2) * ZONE_FLOW_HOST_SHARE;
     let used = blockLoad(firstBlocks, "sidebar");

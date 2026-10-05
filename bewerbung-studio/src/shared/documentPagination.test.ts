@@ -214,7 +214,7 @@ describe("A4 document pagination", () => {
     const plan = resolve(profile, id).pagePlan;
     expect(idsOf(plan)).toEqual([...profile.experiences, ...profile.education].map((item) => item.id));
     expectEveryBulletOnce(plan, profile.experiences);
-    if (plan.length === 2) {
+    if (plan.length === 2 && id !== "gepflegt") {
       // Word-style flow: the first page is used up to the last entry or bullet group that fits.
       expect(filled(plan, 0)).toBeGreaterThanOrEqual(0.72);
       expect(filled(plan, 0)).toBeLessThanOrEqual(1.02);
@@ -240,11 +240,31 @@ describe("A4 document pagination", () => {
     expect(filled(plan, 0)).toBeGreaterThanOrEqual(0.72);
   });
 
+  it("continues Gepflegt's five-bullet entries without losing or repeating a bullet", () => {
+    const profile = makeProfile(6, 5, 2);
+    const plan = resolve(profile, "gepflegt").pagePlan;
+    const fragments = profile.experiences.map(experience => ({
+      count: experience.achievements.length,
+      parts: plan.flatMap(page => page.items.filter(item => item.id === experience.id)),
+    }));
+    expect(fragments.some(({ parts }) => parts.length > 1)).toBe(true);
+    for (const { count, parts } of fragments) {
+      const ranges = parts.map(part => part.kind === "experience" && part.bullets
+        ? part.bullets : { from: 0, to: count });
+      expect(ranges[0].from).toBe(0);
+      expect(ranges.at(-1)?.to).toBe(count);
+      for (let index = 1; index < ranges.length; index += 1) {
+        expect(ranges[index].from).toBe(ranges[index - 1].to);
+      }
+    }
+    expect(plan.every(page => page.sidebar)).toBe(true);
+  });
+
   it.each(templateIds)("starts the education on page one when there is room for it in %s", (id) => {
     // Three short roles leave space below them: Ausbildung must not wait for page two as a whole.
     const profile = makeProfile(3, 3, 8);
     const plan = resolve(profile, id).pagePlan;
-    if (plan.length === 2) {
+    if (plan.length === 2 && id !== "gepflegt") {
       expect(plan[0].items.some((item) => item.kind === "education")).toBe(true);
       expect(filled(plan, 0)).toBeGreaterThanOrEqual(0.72);
     }
@@ -253,7 +273,7 @@ describe("A4 document pagination", () => {
   it.each(templateIds)("C. lets a very long role continue on the next page in reading order in %s", (id) => {
     const profile = makeProfile(6, 6, 2, compactLanguages(id));
     const plan = resolve(profile, id).pagePlan;
-    if (id === "zweispaltig" || id === "zeitgenoessisch" || id === "kreativ" || id === "stilvoll") expect(plan.length).toBeGreaterThanOrEqual(2);
+    if (id === "zweispaltig" || id === "zeitgenoessisch" || id === "kreativ" || id === "stilvoll" || id === "gepflegt") expect(plan.length).toBeGreaterThanOrEqual(2);
     else expect(plan).toHaveLength(2);
     expect(idsOf(plan)).toEqual([...profile.experiences, ...profile.education].map((item) => item.id));
     expectEveryBulletOnce(plan, profile.experiences);
@@ -351,12 +371,13 @@ describe("A4 document pagination", () => {
     }
   });
 
-  it("prefers a compacted single page over a nearly empty second page", () => {
-    // Gepflegt compacts strongly; content just above one page fits after compaction.
+  it("keeps Gepflegt body text readable instead of forcing a nearly full CV onto one page", () => {
     const profile = makeProfile(3, 3, 3);
     const plan = resolve(profile, "gepflegt").pagePlan;
-    if (plan.length === 1) expect(plan[0].fill!.main).toBeLessThanOrEqual(1);
-    else expect(filled(plan, 1)).toBeGreaterThanOrEqual(0.35);
+    expect(plan.length).toBeGreaterThanOrEqual(2);
+    expect(plan[0].density).toBe("standard");
+    expect(idsOf(plan)).toEqual([...profile.experiences, ...profile.education].map(item => item.id));
+    expectEveryBulletOnce(plan, profile.experiences);
   });
 
   it("keeps Modern career items in reading order after a manual page break", () => {
@@ -493,9 +514,9 @@ describe("A4 document pagination", () => {
 });
 
 describe("sidebar handling", () => {
-  it.each(sidebarTemplates)("E. never keeps an idle sidebar on the continuation page in %s", (id) => {
+  it.each(sidebarTemplates)("E. preserves the template's continuation sidebar rule in %s", (id) => {
     const plan = resolve(makeProfile(5, 4, 3), id).pagePlan;
-    for (const page of plan.slice(1)) expect(page.sidebar).toBe(false);
+    for (const page of plan.slice(1)) expect(page.sidebar).toBe(id === "gepflegt");
     expect(plan[0].sidebar).toBe(true);
   });
 

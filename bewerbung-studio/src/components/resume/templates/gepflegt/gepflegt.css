@@ -469,42 +469,6 @@
   overflow-wrap: anywhere;
 }
 
-.gepflegt-page[data-density="compact"] {
-  /* The page sets its native values inline; the density of the page plan overrides them (as in the PDF). */
-  --gepflegt-section-gap: 5.7mm !important;
-  --gepflegt-entry-gap: 3.6mm !important;
-  --gepflegt-body-size: 8.35pt !important;
-  --gepflegt-line-height: 1.23 !important;
-}
-
-.gepflegt-page[data-density="compact"] .gepflegt-header {
-  margin-bottom: 9mm;
-}
-
-.gepflegt-page[data-density="compact"] .gepflegt-sidebar__section {
-  margin-bottom: 6.5mm;
-}
-
-.gepflegt-page[data-density="dense"] {
-  /* The page sets its native values inline; the density of the page plan overrides them (as in the PDF). */
-  --gepflegt-section-gap: 4.4mm !important;
-  --gepflegt-entry-gap: 2.8mm !important;
-  --gepflegt-body-size: 7.8pt !important;
-  --gepflegt-line-height: 1.18 !important;
-}
-
-.gepflegt-page[data-density="dense"] .gepflegt-header {
-  margin-bottom: 7mm;
-}
-
-.gepflegt-page[data-density="dense"] .gepflegt-sidebar__photo {
-  margin-bottom: 10mm;
-}
-
-.gepflegt-page[data-density="dense"] .gepflegt-sidebar__section {
-  margin-bottom: 5mm;
-}
-
 .gepflegt-page--ats::before {
   display: none;
 }

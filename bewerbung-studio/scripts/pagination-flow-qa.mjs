@@ -149,7 +149,8 @@ try {
       const component = await componentOf(id);
       const pages = resolved.pagePlan.map((plan, index) => renderToStaticMarkup(h(ManagedResumePreview, { designSettings: settings, resolvedCv: resolved, profile: resolved.profile, templateId: id, pageNumber: index + 1, totalPages: resolved.pagePlan.length },
         h(component, { profile: resolved.profile, templateId: id, name: `${profile.firstName} ${profile.lastName}`, atsMode: false, plan, totalPages: resolved.pagePlan.length, accentColor: template.accent, secondaryColor: template.secondary,
-          photoSource: resolved.profile.photoPath ?? null, resumeProfile: resolved.summary, sections: resolved.sections, backgroundId: settings.backgroundId, closingDate: resolved.closingDate }))));
+          photoSource: resolved.profile.photoPath ?? null, resumeProfile: resolved.summary, sections: resolved.sections, backgroundId: settings.backgroundId, closingDate: resolved.closingDate,
+          ...(id === 'gepflegt' ? { designVariables: resolved.gepflegtVariables } : {}) }))));
       const paperStyle = Object.entries({ '--doc-accent': template.accent, '--doc-secondary': template.secondary, '--doc-on-secondary': getReadableTextColor(template.secondary), ...getDocumentDesignVariables(settings) })
         .map(([key, value]) => `${key}:${value}`).join(';').replaceAll('"', '&quot;');
       const paper = (page) => `<div class="document-paper document-lebenslauf layout-${template.layout} column-${settings.columnLayout} background-${settings.backgroundId} background-scope-${settings.backgroundScope} print-background" style="${paperStyle}">${page}</div>`;

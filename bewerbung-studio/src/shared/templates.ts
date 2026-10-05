@@ -443,7 +443,7 @@ const allTemplates: TemplateDefinition[] = [
     supportsAtsMode: true,
     supportsPhoto: true,
     supportsFreeform: true,
-    sidebarWidthRatio: 0.3,
+    sidebarWidthRatio: 80 / 210,
     atsInfo:
       "Dieses Template wurde mit verbreiteten ATS-Systemen getestet. Dennoch muss der Inhalt in erster Linie klar, relevant und für Personalverantwortliche leicht erfassbar bleiben.",
     designDefaults: {

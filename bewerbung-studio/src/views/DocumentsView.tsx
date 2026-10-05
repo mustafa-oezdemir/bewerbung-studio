@@ -5,6 +5,7 @@ import { getZweispaltigLetterVariables, zweispaltigLetterCss } from "../shared/z
 import { zeitgenoessischLetterCss } from "../shared/zeitgenoessischDesign";
 import { kreativLetterCss } from "../shared/kreativDesign";
 import { stilvollLetterCss } from "../shared/stilvollDesign";
+import { gepflegtLetterCss } from "../shared/gepflegtDesign";
 import { getResumeSectionTitle } from "../features/resume-sections/resume-sections";
 import type { CvDesignTokens, ResumeDesignLayer } from "../shared/cvDesignSchema";
 import type { ResumeAppearance } from "../shared/resumeAppearance";
@@ -661,7 +662,7 @@ export function DocumentsView({
     : applicationRecipientLines(application);
   const coverSender = template.id === "stilvoll"
     ? stilvollCoverSenderFromProfile(resolvedCv.profile)
-    : template.id === "zweispaltig" || template.id === "zeitgenoessisch" || template.id === "kreativ"
+    : template.id === "zweispaltig" || template.id === "zeitgenoessisch" || template.id === "kreativ" || template.id === "gepflegt"
     ? coverSenderFromProfile(resolvedCv.profile)
     : resolveCoverSender(renderProfile, docs);
   const { name: coverSenderName, title: coverSenderTitle, contact: coverSenderContact } = coverSender;
@@ -698,6 +699,8 @@ export function DocumentsView({
         ? { ...paperStyle, ...resolvedCv.kreativVariables } as CSSProperties
       : template.id === "stilvoll"
         ? { ...paperStyle, ...resolvedCv.stilvollVariables } as CSSProperties
+      : template.id === "gepflegt"
+        ? { ...paperStyle, ...resolvedCv.gepflegtVariables } as CSSProperties
       : paperStyle;
   const designClassName = `column-${effectiveColumnLayout} background-${design.settings.backgroundId} background-scope-${design.settings.backgroundScope} ${
     design.settings.showBackgroundInPrint
@@ -2204,7 +2207,7 @@ export function DocumentsView({
             )}
             {tab === "anschreiben" && (
               <div
-                className={`document-paper document-anschreiben letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} layout-${template.layout} ${designClassName}${template.id === "zweispaltig" ? " zweispaltig-letter" : template.id === "zeitgenoessisch" ? " zeitgenoessisch-letter" : template.id === "kreativ" ? " kreativ-letter" : template.id === "stilvoll" ? " stilvoll-letter" : ""}`}
+                className={`document-paper document-anschreiben letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} layout-${template.layout} ${designClassName}${template.id === "zweispaltig" ? " zweispaltig-letter" : template.id === "zeitgenoessisch" ? " zeitgenoessisch-letter" : template.id === "kreativ" ? " kreativ-letter" : template.id === "stilvoll" ? " stilvoll-letter" : template.id === "gepflegt" ? " gepflegt-letter" : ""}`}
                 data-resume-template={template.id}
                 ref={letterPaperRef}
                 style={letterPaperStyle}>
@@ -2212,6 +2215,7 @@ export function DocumentsView({
                 {template.id === "zeitgenoessisch" ? <style>{zeitgenoessischLetterCss}</style> : null}
                 {template.id === "kreativ" ? <style>{kreativLetterCss}</style> : null}
                 {template.id === "stilvoll" ? <style>{stilvollLetterCss}</style> : null}
+                {template.id === "gepflegt" ? <style>{gepflegtLetterCss}</style> : null}
                 <DocumentBackgroundLayer
                   backgroundId={design.settings.backgroundId}
                   atsMode={isAtsMode}
@@ -2239,7 +2243,7 @@ export function DocumentsView({
                     {profile?.city ? `${profile.city}, ` : ""}
                     den {formatApplicationDateLong(application)}
                   </p>
-                  <h3 className={template.id === "zweispaltig" || template.id === "zeitgenoessisch" || template.id === "kreativ" || template.id === "stilvoll" ? "letter-subject" : undefined}>
+                  <h3 className={template.id === "zweispaltig" || template.id === "zeitgenoessisch" || template.id === "kreativ" || template.id === "stilvoll" || template.id === "gepflegt" ? "letter-subject" : undefined}>
                     {createCoverSubject(
                       application.job.title,
                       docs.coverSubject,
@@ -2507,6 +2511,7 @@ export function DocumentsView({
                           )}
                           resumeProfile={resolvedCv.summary}
                           sections={sections}
+                          designVariables={resolvedCv.gepflegtVariables}
                         />
                       ) : template.id === "elegant" ? (
                         <ElegantResume

@@ -76,7 +76,8 @@ describe("Gepflegt: shared document flow", () => {
     expect(ahead.resolved.pagePlan[0].blocks).toContain("certifications");
     for (const surface of ["preview", "pdf"] as const) {
       expect(section(behind.surfaces[surface][0], "certifications"), surface).toBeNull();
-      expect(section(behind.surfaces[surface][1], "certifications")?.getAttribute("data-cv-zone"), surface).toBe("main");
+      const laterCertificate = behind.surfaces[surface].slice(1).map(page => section(page, "certifications")).find(Boolean);
+      expect(laterCertificate?.getAttribute("data-cv-zone"), surface).toBe("main");
       expect(section(sidebar.surfaces[surface][0], "certifications")?.closest("aside"), surface).not.toBeNull();
       expect(section(sidebar.surfaces[surface][0], "certifications")?.getAttribute("data-cv-zone"), surface).toBe("sidebar");
       expect(section(ahead.surfaces[surface][0], "certifications")?.closest("main"), surface).not.toBeNull();

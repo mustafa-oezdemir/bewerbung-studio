@@ -99,7 +99,7 @@ describe.each(Object.keys(components))("continuation page of %s", (templateId) =
   const { resolved, pdfPages, previewPages } = render(templateId);
 
   it("plans the same two pages for preview and PDF", () => {
-    if (templateId === "zweispaltig" || templateId === "zeitgenoessisch") expect(resolved.pagePlan.length).toBeGreaterThanOrEqual(2);
+    if (templateId === "zweispaltig" || templateId === "zeitgenoessisch" || templateId === "gepflegt") expect(resolved.pagePlan.length).toBeGreaterThanOrEqual(2);
     else expect(resolved.pagePlan).toHaveLength(2);
     expect(pdfPages).toHaveLength(resolved.pagePlan.length);
     expect(previewPages).toHaveLength(resolved.pagePlan.length);
@@ -109,10 +109,11 @@ describe.each(Object.keys(components))("continuation page of %s", (templateId) =
     for (const index of [0, 1]) expect({ page: index + 1, ids: sectionIds(previewPages[index]) }).toEqual({ page: index + 1, ids: sectionIds(pdfPages[index]) });
   });
 
-  it.each(["preview", "pdf"] as const)("repeats the identity header without an idle sidebar in the %s", (surface) => {
+  it.each(["preview", "pdf"] as const)("repeats the identity header with the template's continuation lane in the %s", (surface) => {
     const first = surface === "pdf" ? pdfPages[0] : previewPages[0];
     const second = surface === "pdf" ? pdfPages[1] : previewPages[1];
-    expect(second.querySelector("aside")).toBeNull();
+    if (templateId === "gepflegt") expect(second.querySelector("aside")).not.toBeNull();
+    else expect(second.querySelector("aside")).toBeNull();
     const firstHeader = first.querySelector("header");
     const secondHeader = second.querySelector("header");
     // Pehlione, Kompakt and Zeitgenössisch list contacts in their first-page column.

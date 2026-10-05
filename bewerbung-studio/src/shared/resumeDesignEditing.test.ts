@@ -361,6 +361,6 @@ describe("Seitenränder and Innenabstand", () => {
     for (const { id } of templates) expect(resolveTemplateCvDesign(id).spacing.innerPaddingMm, id).toBeGreaterThanOrEqual(0);
     const compact = applyResumeSpacingPreset(start("gepflegt").draft, "compact");
     expect(compact.settings.cvOverrides?.spacing?.innerPaddingMm).toBe(8);
-    expect(compact.settings.cvOverrides?.spacing?.pageMarginMm).toBe(8);
+    expect(compact.settings.cvOverrides?.spacing?.pageMarginMm).toBe(16);
   });
 });
