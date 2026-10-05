@@ -131,6 +131,10 @@ export const kreativLetterCss = `
 .kreativ-letter :is(.recipient,.date,address,.paper-date,.letter-salutation,.letter-body,.letter-closing,.signature,.letter-signature,.signature-name){color:var(--kreativ-text);font-size:var(--letter-body-size)!important}
 .kreativ-letter :is(.recipient,address){min-height:20mm;margin-top:20mm;line-height:1.28}
 .kreativ-letter :is(.date,.paper-date){margin:0 0 20mm;text-align:right}
+.kreativ-letter :is(.date,.paper-date){line-height:1.3}
 .kreativ-letter :is(.subject,.letter-subject,.letter-preview h3){margin:0 0 6mm;color:var(--kreativ-dark)!important;font-family:var(--doc-heading-font);font-size:var(--letter-subject-size)!important;font-weight:var(--doc-section-heading-weight)!important}
+.kreativ-letter :is(.letter-preview,.letter-content)>.letter-salutation,.kreativ-letter :is(.letter-preview,.letter-content)>.letter-body{margin:0 0 3.2mm!important;line-height:1.28}
+.kreativ-letter :is(.letter-preview,.letter-content)>.letter-closing{margin-bottom:0!important}
+.kreativ-letter :is(.letter-signature,.signature){margin:3.2mm 0 0!important;line-height:1.28}
 .kreativ-letter :is(.attachments-note,.letter-attachments){color:var(--kreativ-muted)}
 `;

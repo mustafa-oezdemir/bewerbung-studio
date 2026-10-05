@@ -13,6 +13,20 @@ export const getCoverLetterMainBody = (
     .filter(Boolean)
     .join("\n\n");
 
+/** Kreativ's preview and PDF use the same Bewerbung text, including empty-draft placeholders. */
+export const resolveKreativCoverLetterParagraphs = (
+  application: Pick<Application, "company" | "job">,
+  documents: DocumentDraft,
+) => ({
+  introduction: documents.coverIntroduction ||
+    `die ausgeschriebene Position als ${application.job.title} bei ${application.company.name} spricht mich besonders an, weil sie fachliche Verantwortung mit konkretem Gestaltungsspielraum verbindet.`,
+  mainBody: getCoverLetterMainBody(documents) || "Hauptteil im Dokumenteditor ergänzen.",
+  companyFit: documents.coverCompanyFit ||
+    `An ${application.company.name} überzeugt mich besonders die Verbindung aus professionellem Anspruch und zukunftsorientierter Arbeitsweise.`,
+  closing: documents.coverClosing ||
+    "Gerne überzeuge ich Sie in einem persönlichen Gespräch davon, welchen konkreten Beitrag ich in Ihrem Team leisten kann. Auf Ihren Terminvorschlag freue ich mich.",
+});
+
 export const createCoverSubject = (jobTitle: string, current = "") => {
   const subject = current.trim();
   if (subject) {

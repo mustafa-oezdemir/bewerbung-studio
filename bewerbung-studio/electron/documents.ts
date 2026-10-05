@@ -62,6 +62,7 @@ import {
   createCoverSubject,
   getCoverLetterAttachments,
   getCoverLetterMainBody,
+  resolveKreativCoverLetterParagraphs,
 } from "../src/shared/coverLetter";
 import {
   knowledgeLevelLabels,
@@ -821,6 +822,7 @@ export const buildDocumentHtml = (
   const letterSender = template.id === "zweispaltig" || template.id === "zeitgenoessisch" || template.id === "kreativ"
     ? coverSenderFromProfile(resolvedCv.profile)
     : resolveCoverSender(profile, docs);
+  const kreativLetterParagraphs = template.id === "kreativ" ? resolveKreativCoverLetterParagraphs(application, docs) : undefined;
   const coverLetterAttachments = getCoverLetterAttachments(
     attachments,
     application.id,
@@ -850,11 +852,11 @@ export const buildDocumentHtml = (
         <p class="date">${escapeHtml(longApplicationDate)}</p>
         <p class="subject">${escapeHtml(`${createCoverSubject(role, docs.coverSubject)}${application.job.reference && !createCoverSubject(role, docs.coverSubject).includes(application.job.reference) ? ` - Referenz ${application.job.reference}` : ""}`)}</p>
         <p class="letter-salutation">${escapeHtml(docs.coverGreeting || applicationGreeting(application))}</p>
-        <p class="letter-body">${escapeHtml(docs.coverIntroduction || `die ausgeschriebene Position als ${role} bei ${company} spricht mich besonders an, weil sie fachliche Verantwortung mit konkretem Gestaltungsspielraum verbindet.`)}</p>
-        <p class="letter-body">${escapeHtml(getCoverLetterMainBody(docs) || "Hauptteil im Dokumenteditor ergänzen.")}</p>
+        <p class="letter-body">${escapeHtml(kreativLetterParagraphs?.introduction ?? (docs.coverIntroduction || `die ausgeschriebene Position als ${role} bei ${company} spricht mich besonders an, weil sie fachliche Verantwortung mit konkretem Gestaltungsspielraum verbindet.`))}</p>
+        <p class="letter-body">${escapeHtml(kreativLetterParagraphs?.mainBody ?? (getCoverLetterMainBody(docs) || "Hauptteil im Dokumenteditor ergänzen."))}</p>
         ${docs.coverExtraParagraph ? `<p class="letter-body">${escapeHtml(docs.coverExtraParagraph)}</p>` : ""}
-        <p class="letter-body">${escapeHtml(docs.coverCompanyFit || `An ${company} überzeugt mich besonders die Verbindung aus professionellem Anspruch und zukunftsorientierter Arbeitsweise.`)}</p>
-        <p class="letter-body letter-closing">${escapeHtml(docs.coverClosing || "Gerne überzeuge ich Sie in einem persönlichen Gespräch davon, welchen konkreten Beitrag ich in Ihrem Team leisten kann. Auf Ihren Terminvorschlag freue ich mich.")}</p>
+        <p class="letter-body">${escapeHtml(kreativLetterParagraphs?.companyFit ?? (docs.coverCompanyFit || `An ${company} überzeugt mich besonders die Verbindung aus professionellem Anspruch und zukunftsorientierter Arbeitsweise.`))}</p>
+        <p class="letter-body letter-closing">${escapeHtml(kreativLetterParagraphs?.closing ?? (docs.coverClosing || "Gerne überzeuge ich Sie in einem persönlichen Gespräch davon, welchen konkreten Beitrag ich in Ihrem Team leisten kann. Auf Ihren Terminvorschlag freue ich mich."))}</p>
         <div class="signature"><p>Mit freundlichen Grüßen</p>${signatureSource ? `<img class="signature-image" src="${escapeHtml(signatureSource)}" alt="">` : ""}<span class="signature-name">${escapeHtml(name)}</span></div>
         ${docs.showCoverLetterAttachments ? `<p class="attachments-note">Anlagen:<br>${coverLetterAttachments.map(escapeHtml).join("<br>")}</p>` : ""}
       </div>

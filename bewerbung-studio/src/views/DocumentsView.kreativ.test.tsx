@@ -74,6 +74,9 @@ describe("Kreativ Anschreiben and Lebenslauf", () => {
         expect(letter?.textContent).not.toContain("Alter Name");
         expect(letter?.textContent).toContain("Fachkraft Produktion");
       }
+      const paragraphs = (letter: HTMLElement | null) => Array.from(letter?.querySelectorAll(".letter-body") ?? [])
+        .map((node) => node.textContent?.trim());
+      expect(paragraphs(preview)).toEqual(paragraphs(pdfLetter));
     } finally {
       testStore.state = previous;
     }

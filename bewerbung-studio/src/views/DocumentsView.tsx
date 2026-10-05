@@ -96,6 +96,7 @@ import {
   createCoverSubject,
   getCoverLetterAttachments,
   getCoverLetterMainBody,
+  resolveKreativCoverLetterParagraphs,
 } from "../shared/coverLetter";
 import {
   getLetterPageStatus,
@@ -671,6 +672,7 @@ export function DocumentsView({
     settings: design.settings,
   });
   const coverGreeting = docs.coverGreeting || applicationGreeting(application);
+  const kreativLetterParagraphs = template.id === "kreativ" ? resolveKreativCoverLetterParagraphs(application, docs) : undefined;
   const resumePlan = resolvedCv.pagePlan;
   const letterStatus = getLetterPageStatus(docs);
   const isAtsMode =
@@ -2244,9 +2246,9 @@ export function DocumentsView({
                       : ""}
                   </h3>
                   <p className="letter-salutation">{coverGreeting}</p>
-                  <p className="letter-body">{docs.coverIntroduction}</p>
+                  <p className="letter-body">{kreativLetterParagraphs?.introduction ?? docs.coverIntroduction}</p>
                   <p className="letter-body">
-                    {getCoverLetterMainBody(docs) ||
+                    {kreativLetterParagraphs?.mainBody || getCoverLetterMainBody(docs) ||
                       profile?.summary ||
                       "Hauptteil ergänzen …"}
                   </p>
@@ -2254,10 +2256,10 @@ export function DocumentsView({
                     <p className="letter-body">{docs.coverExtraParagraph}</p>
                   ) : null}
                   <p className="letter-body">
-                    {docs.coverCompanyFit || "Unternehmensbezug ergänzen …"}
+                    {kreativLetterParagraphs?.companyFit || docs.coverCompanyFit || "Unternehmensbezug ergänzen …"}
                   </p>
                   <p className="letter-body letter-closing">
-                    {docs.coverClosing}
+                    {kreativLetterParagraphs?.closing ?? docs.coverClosing}
                   </p>
                   <p className="letter-signature">
                     <span>Mit freundlichen Grüßen</span>
