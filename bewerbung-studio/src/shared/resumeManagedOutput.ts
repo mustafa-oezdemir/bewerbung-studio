@@ -854,7 +854,7 @@ export const applyManagedResumeOutput = (
     else if (firstPageHeader) {
       // Later pages repeat the identity of the first page's header (name, title, photo) and the contacts the user chose
       // for them (e-mail, phone): never its address, links or other personal details.
-      if (number > 1 && resolved.templateId === "zeitgenoessisch") {
+      if (number > 1 && (resolved.templateId === "zeitgenoessisch" || resolved.templateId === "kreativ")) {
         // Both native renderers already draw the compact identity. Replacing it with page one's header
         // would repeat the large photo composition and waste the continuation page's upper area.
         ensureResumeHeaderContacts(root, continuationContacts);
@@ -894,6 +894,13 @@ export const applyManagedResumeOutput = (
       const zeitScope = (surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild) as HTMLElement | null;
       for (const [property, value] of Object.entries(resolved.zeitgenoessischVariables))
         zeitScope?.style.setProperty(property, value);
+    }
+    if (resolved.kreativVariables) {
+      const kreativScope = (surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild) as HTMLElement | null;
+      for (const [property, value] of Object.entries(resolved.kreativVariables)) {
+        (root as HTMLElement).style.setProperty(property, value);
+        kreativScope?.style.setProperty(property, value);
+      }
     }
     applyResumeMetadataLayout(root, profile, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
     // A footer closing must stay inside the main column when a sidebar shares the page.

@@ -354,7 +354,7 @@ const kreativHeading: SectionHeadingTokens = {
   height: 6.73,
 };
 const kreativList: SectionListTokens = {
-  fontSizePt: { standard: 8.4, compact: 8.4 }, lineHeight: { standard: 1.05, compact: 1.05 },
+  fontSizePt: { standard: 10.5, compact: 10.5 }, lineHeight: { standard: 1.26, compact: 1.26 },
   itemGap: { standard: 0.5, compact: 0.5 }, indent: 4.5, inheritBody: true, layout: "margins",
   markerColor: "var(--kreativ-primary,var(--accent))",
 };

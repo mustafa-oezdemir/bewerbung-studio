@@ -11,6 +11,7 @@ import {
   applyManagedResumeOutput,
   managedResumeCss,
 } from "../../shared/resumeManagedOutput";
+import { kreativResolvedCss } from "../../shared/kreativDesign";
 
 const inheritedStyles = new Map<string, string>();
 const templateStyles = (templateId: string) => {
@@ -60,7 +61,7 @@ export function ManagedResumePreview({
   );
   return (
     <>
-      <style>{managedResumeCss + templateStyles(templateId)}</style>
+      <style>{managedResumeCss + templateStyles(templateId) + (templateId === "kreativ" ? kreativResolvedCss : "")}</style>
       <div
         className="managed-resume-preview"
         dangerouslySetInnerHTML={{ __html: html }}

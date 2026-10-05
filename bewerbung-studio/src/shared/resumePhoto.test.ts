@@ -214,7 +214,13 @@ describe("page planner", () => {
   it.each(templates.map((template) => template.id))("plans %s for Mittel, Klein and an older profile identically", (id) => {
     const reference = JSON.stringify(plan(long({ resumePhotoSize: "medium" }), id));
     expect(JSON.stringify(plan(long(), id))).toBe(reference);
-    expect(JSON.stringify(plan(long({ resumePhotoSize: "small" }), id))).toBe(reference);
+    if (id === "kreativ") {
+      // Kreativ measures its actual banner and photo size, so Klein may free one more bullet on page one.
+      const small = plan(long({ resumePhotoSize: "small" }), id);
+      const medium = plan(long({ resumePhotoSize: "medium" }), id);
+      expect(small).toHaveLength(medium.length);
+      expect(small[0].items.length).toBeGreaterThanOrEqual(medium[0].items.length);
+    } else expect(JSON.stringify(plan(long({ resumePhotoSize: "small" }), id))).toBe(reference);
   });
 
   it.each(templates.map((template) => template.id))("never puts more on page one of %s for Groß than for Mittel", (id) => {

@@ -29,7 +29,7 @@ import {
 import { getResumePersonalDetails } from "./resumePersonalData";
 import { getResumePhotoGrowth, resumePhotoShown } from "./resumePhoto";
 import { resolveExperience } from "./resumeCareer";
-import { estimateResumeHeaderTop } from "./resumeHeaderGeometry";
+import { estimateKreativHeaderTop, estimateResumeHeaderTop } from "./resumeHeaderGeometry";
 import { resolveLanguagePresentation } from "../features/languages/language-levels";
 import { languageBlockHeight } from "./languageBlockHeight";
 
@@ -1036,15 +1036,22 @@ export const createResumePagePlan = (
     context.atsMode || (continuation && templateId?.startsWith("pehlione_"))
       ? top
       : estimateResumeHeaderTop(templateId, profile, "main", top, showContacts, withPhoto) ?? top;
-  const top1 = grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop1 : geometry.top1) + kompaktContactHeight + photoGrowth.main, false);
-  const top2 = grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop2 : geometry.top1) + kompaktContactHeight + photoGrowth.main, true);
+  const top1 = templateId === "kreativ" && profile && !context.atsMode
+    ? estimateKreativHeaderTop(profile, showContacts, withPhoto,
+        geometry.text.bulletFont * scale.font * 72 / 25.4, geometry.text.lineRatio * scale.line, scale.marginInset)
+    : grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop1 : geometry.top1) + kompaktContactHeight + photoGrowth.main, false);
+  const top2 = templateId === "kreativ" && !context.atsMode
+    ? geometry.top2
+    : grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop2 : geometry.top1) + kompaktContactHeight + photoGrowth.main, true);
   const mainCap1 = (geometry.limit - top1 - 2 * scale.marginInset) * (geometry.safety ?? SAFETY);
   const mainCap2 = (geometry.limit - top2 - 2 * scale.marginInset) * (geometry.safety ?? SAFETY);
   // Where the first sidebar block starts depends on how many contact entries (and wrapped values) precede it.
   const sidebarHero = zoneFlow && hasSidebarHero(templateId);
   const contactItems = sidebarHero && find("personalData")?.visible !== false ? getPehlioneContacts(profile) : [];
   const contactValueWidth = geometry.text.sideW + scale.sideDelta - CONTACT_ICON_MM;
-  const sideTop1 = sidebarHero && geometry.sideTop1 !== null
+  const sideTop1 = templateId === "kreativ" && !context.atsMode
+    ? top1
+    : sidebarHero && geometry.sideTop1 !== null
     ? SIDEBAR_HERO_MM + photoGrowth.side + (contactItems.length
       ? CONTACT_HEAD_MM
         + contactItems.reduce((total, item) => total + CONTACT_ITEM_MM

@@ -6,6 +6,7 @@ import { stilvollDefaults } from "../src/shared/cvTemplateDefaults/stilvoll.defa
 import { zweispaltigPageStyle } from "../src/shared/cvTemplateDefaults/zweispaltig.defaults";
 import { getZweispaltigLetterVariables, resolveZweispaltigApplicationColors, zweispaltigLetterCss } from "../src/shared/zweispaltigLetterIdentity";
 import { zeitgenoessischLetterCss } from "../src/shared/zeitgenoessischDesign";
+import { kreativLetterCss, kreativResolvedCss } from "../src/shared/kreativDesign";
 import { renderContactIcon } from "../src/shared/contactIcons";
 import { applyManagedResumeOutput, managedResumeCss } from "../src/shared/resumeManagedOutput";
 import { resolveResumeClosingLine } from "../src/shared/resumeClosing";
@@ -814,10 +815,10 @@ export const buildDocumentHtml = (
   const letterTemplateClass = `layout-${template.layout}`;
   const letterIdentityVariables = template.id === "zweispaltig"
     ? getZweispaltigLetterVariables(resolvedCv.design, designSettings, accent, secondary)
-    : resolvedCv.zeitgenoessischVariables;
+    : template.id === "zeitgenoessisch" ? resolvedCv.zeitgenoessischVariables : resolvedCv.kreativVariables;
   const letterIdentityStyle = letterIdentityVariables
     ? Object.entries(letterIdentityVariables).map(([key, value]) => `${key}:${escapeHtml(value)}`).join(";") : "";
-  const letterSender = template.id === "zweispaltig" || template.id === "zeitgenoessisch"
+  const letterSender = template.id === "zweispaltig" || template.id === "zeitgenoessisch" || template.id === "kreativ"
     ? coverSenderFromProfile(resolvedCv.profile)
     : resolveCoverSender(profile, docs);
   const coverLetterAttachments = getCoverLetterAttachments(
@@ -840,7 +841,7 @@ export const buildDocumentHtml = (
       ${renderDeckblattMarkup(deckblattModel)}
     </section>`;
   const letter = `
-    <section class="page letter-page letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} ${letterTemplateClass} ${designClasses}${template.id === "zweispaltig" ? " zweispaltig-letter" : template.id === "zeitgenoessisch" ? " zeitgenoessisch-letter" : ""}" data-resume-template="${escapeHtml(template.id)}"${letterIdentityVariables ? ` style="${letterIdentityStyle}"` : ""}>
+    <section class="page letter-page letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} ${letterTemplateClass} ${designClasses}${template.id === "zweispaltig" ? " zweispaltig-letter" : template.id === "zeitgenoessisch" ? " zeitgenoessisch-letter" : template.id === "kreativ" ? " kreativ-letter" : ""}" data-resume-template="${escapeHtml(template.id)}"${letterIdentityVariables ? ` style="${letterIdentityStyle}"` : ""}>
       ${backgroundLayer}
       <div class="page-content letter-content">
         <div class="letter-header"><div class="sender">${senderHeader(letterSender)}</div></div>
@@ -3532,7 +3533,7 @@ export const buildDocumentHtml = (
   const cvHtml = target === "mappe" ? buildDocumentHtml(application, profile, "lebenslauf", attachments, resumeDesign) : "";
   const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings, resolvedCv);
   const selected = target === "mappe" ? [cover, letter, managedResume] : target === "deckblatt" ? [cover] : target === "anschreiben" ? [letter] : [managedResume];
-  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${zweispaltigDocumentCss}${template.id === "zweispaltig" ? zweispaltigLetterCss : ""}${zeitgenoessischDocumentCss}${template.id === "zeitgenoessisch" ? zeitgenoessischLetterCss : ""}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}</style></head><body>${selected.join("")}${pageFitScript}${target === "deckblatt" || target === "mappe" ? deckblattFitScript : ""}</body></html>`;
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${zweispaltigDocumentCss}${template.id === "zweispaltig" ? zweispaltigLetterCss : ""}${zeitgenoessischDocumentCss}${template.id === "zeitgenoessisch" ? zeitgenoessischLetterCss : ""}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}${template.id === "kreativ" ? kreativResolvedCss + kreativLetterCss : ""}</style></head><body>${selected.join("")}${pageFitScript}${target === "deckblatt" || target === "mappe" ? deckblattFitScript : ""}</body></html>`;
 };
 
 export const buildCoverLetterMarkdown = (

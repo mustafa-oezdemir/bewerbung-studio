@@ -133,8 +133,8 @@ describe("A4 document pagination", () => {
 
   it("uses the measured geometry of each template instead of one shared capacity", () => {
     const profile = makeProfile(4, 3, 3);
-    // Wide two-column layouts fit the whole CV on one page; a narrow main column next to a tall sidebar does not.
-    expect(resolve(profile, "kreativ").pagePlan).toHaveLength(1);
+    // DIN margins and readable body text require a continuation page here.
+    expect(resolve(profile, "kreativ").pagePlan).toHaveLength(2);
     expect(resolve(profile, "pehlione_white_blue").pagePlan).toHaveLength(2);
   });
 
@@ -253,7 +253,7 @@ describe("A4 document pagination", () => {
   it.each(templateIds)("C. lets a very long role continue on the next page in reading order in %s", (id) => {
     const profile = makeProfile(6, 6, 2, compactLanguages(id));
     const plan = resolve(profile, id).pagePlan;
-    if (id === "zweispaltig" || id === "zeitgenoessisch") expect(plan.length).toBeGreaterThanOrEqual(2);
+    if (id === "zweispaltig" || id === "zeitgenoessisch" || id === "kreativ") expect(plan.length).toBeGreaterThanOrEqual(2);
     else expect(plan).toHaveLength(2);
     expect(idsOf(plan)).toEqual([...profile.experiences, ...profile.education].map((item) => item.id));
     expectEveryBulletOnce(plan, profile.experiences);
@@ -346,7 +346,7 @@ describe("A4 document pagination", () => {
       expect(plan.length).toBeLessThanOrEqual(2);
       if (plan.length === 1) expect(plan[0].density).not.toBe("dense");
     }
-    for (const id of ["kreativ", "kompakt", "stilvoll", "einspaltig", "klassisch", "tabellarisch", "ivy-league"]) {
+    for (const id of ["kompakt", "stilvoll", "einspaltig", "klassisch", "tabellarisch", "ivy-league"]) {
       expect(createResumePagePlan(profile, "", {}, id)).toHaveLength(1);
     }
   });

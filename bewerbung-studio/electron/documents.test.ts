@@ -433,7 +433,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(cssHtml).toContain(
       '[data-contact-kind="linkedin"] i{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere}',
     );
-    expect(cssHtml).not.toContain("text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal");
+    expect(cssHtml).toContain('[data-contact-kind="email"]>i{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal}');
 
     const zweispaltigCssHtml = buildDocumentHtml(
       applicationSchema.parse({ ...application, templateId: "zweispaltig" }),

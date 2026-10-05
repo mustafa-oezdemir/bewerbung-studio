@@ -191,10 +191,10 @@ describe("Seitenränder and Innenabstand in preview and PDF", () => {
       const scope = (name: keyof typeof changes) => scopeOf(changes[name][surface], surface);
       const nativeScope = scopeOf(native[surface], surface);
       for (const name of ["margin", "smaller"] as const) {
-        // Zweispaltig changes the physical page box; the remaining templates shift managed text.
+        // These layouts change their physical page box; the others shift managed text.
         expect(marginStyle(scope(name)), `${surface} ${name}`).not.toEqual(marginStyle(nativeScope));
         expect(paddingStyle(scope(name)), `${surface} ${name}`).toEqual(paddingStyle(nativeScope));
-        expect(textInset(scope(name)), `${surface} ${name}`).toBe(id !== "zweispaltig" && id !== "zeitgenoessisch");
+        expect(textInset(scope(name)), `${surface} ${name}`).toBe(id !== "zweispaltig" && id !== "zeitgenoessisch" && id !== "kreativ");
         if (id === "zweispaltig") {
           const chosen = name === "margin" ? "16mm" : "6mm";
           expect(styleOf(scope(name))["--zweispaltig-margin-left"]).toBe(chosen);

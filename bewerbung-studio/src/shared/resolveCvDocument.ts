@@ -15,6 +15,7 @@ import { resolveResumeClosingLine } from "./resumeClosing";
 import { resolveResumeSummary } from "./resumeSummary";
 import { formatLanguageForAts } from "../features/languages/language-levels";
 import { getZeitgenoessischDesignVariables } from "./zeitgenoessischDesign";
+import { getKreativDesignVariables } from "./kreativDesign";
 
 type CvDocumentInput = {
   profile: ApplicantProfile | undefined;
@@ -71,6 +72,10 @@ export const resolveCvDocument = ({
     ? getZeitgenoessischDesignVariables(design, settings.cvOverrides?.colors,
         application?.accentColor, application?.secondaryColor)
     : undefined;
+  const kreativVariables = templateId === "kreativ"
+    ? getKreativDesignVariables(design, settings.cvOverrides?.colors,
+        application?.accentColor, application?.secondaryColor)
+    : undefined;
   // The Kurzprofil every output shows (and the planner measures): the Bewerbung's own text, else the profile's.
   // The Deckblatt text is another field and never stands in for it.
   const summary = resolveResumeSummary(profile, resumeProfile);
@@ -98,9 +103,9 @@ export const resolveCvDocument = ({
       signature: !atsMode && profile.resumeClosing.showSignature && Boolean(getProfileMediaSource(profile.signaturePath)),
     },
     overrides: {
-      bodySizePt: templateId === "zeitgenoessisch" ? design.typography.bodySizePt : overrides?.typography?.bodySizePt,
-      lineHeight: templateId === "zeitgenoessisch" ? design.typography.lineHeight : overrides?.typography?.lineHeight,
-      pageMarginMm: templateId === "zeitgenoessisch" ? design.spacing.pageMarginMm : overrides?.spacing?.pageMarginMm,
+      bodySizePt: templateId === "zeitgenoessisch" || templateId === "kreativ" ? design.typography.bodySizePt : overrides?.typography?.bodySizePt,
+      lineHeight: templateId === "zeitgenoessisch" || templateId === "kreativ" ? design.typography.lineHeight : overrides?.typography?.lineHeight,
+      pageMarginMm: templateId === "zeitgenoessisch" || templateId === "kreativ" ? design.spacing.pageMarginMm : overrides?.spacing?.pageMarginMm,
       innerPaddingMm: overrides?.spacing?.innerPaddingMm,
       sectionGapMm: overrides?.spacing?.sectionGapMm,
       entryGapMm: overrides?.spacing?.entryGapMm,
@@ -127,6 +132,7 @@ export const resolveCvDocument = ({
     layout,
     design,
     zeitgenoessischVariables,
+    kreativVariables,
     summary,
     pagePlan,
   };
