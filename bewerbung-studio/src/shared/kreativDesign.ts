@@ -82,8 +82,6 @@ export const kreativResolvedCss = `
 .kreativ-template .kreativ-header__identity h1,.kreativ-pdf .kreativ-pdf-identity h1{font-family:var(--doc-heading-font);font-size:var(--doc-heading-size);font-weight:var(--doc-heading-weight);color:var(--kreativ-header-text)}
 .kreativ-template .kreativ-header__identity h2,.kreativ-pdf .kreativ-pdf-identity h2{font-family:var(--doc-heading-font);font-size:var(--doc-subheading-size);font-weight:var(--doc-subheading-weight);color:var(--kreativ-header-text);line-height:var(--doc-line-height)}
 .kreativ-template .kreativ-header__contacts,.kreativ-pdf .kreativ-pdf-contacts{font-size:calc(var(--doc-body-size) * .88);line-height:var(--doc-line-height)}
-.kreativ-template .kreativ-header__contacts>[data-contact-kind="email"],.kreativ-pdf .kreativ-pdf-contacts>[data-contact-kind="email"]{grid-column:1/-1;min-width:0}
-.kreativ-template .kreativ-header__contacts>[data-contact-kind="email"]>span,.kreativ-pdf .kreativ-pdf-contacts>[data-contact-kind="email"]>i{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal}
 .kreativ-template .kreativ-header--compact,.kreativ-pdf .kreativ-pdf-header.compact{min-height:24mm;color:var(--kreativ-dark)}
 .kreativ-template .kreativ-header--compact,.kreativ-pdf .kreativ-pdf-header.compact{background:#fff}
 .kreativ-template .kreativ-header--compact .kreativ-header__identity h1,.kreativ-pdf .kreativ-pdf-header.compact .kreativ-pdf-identity h1{font-size:15pt;color:var(--kreativ-dark)}

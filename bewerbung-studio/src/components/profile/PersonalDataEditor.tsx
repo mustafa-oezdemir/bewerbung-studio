@@ -193,17 +193,6 @@ export function PersonalDataEditor({
             />
           </div>
           <PersonalField
-            field="country"
-            label="Land"
-            required
-            full
-            value={profile.country}
-            autoComplete="country-name"
-            issue={issueText("country")}
-            onChange={set("country")}
-            onBlur={touch("country")}
-          />
-          <PersonalField
             field="phone"
             label="Telefonnummer"
             required
@@ -367,6 +356,14 @@ export function PersonalDataEditor({
           legen Sie in der Lebenslauf-Ansicht unter „Persönliche Daten“ fest.
         </p>
         <div className="form-grid">
+          <PersonalField
+            field="country"
+            label="Land"
+            full
+            value={profile.country}
+            autoComplete="country-name"
+            onChange={set("country")}
+          />
           <PersonalField
             field="title"
             label="Berufsbezeichnung"

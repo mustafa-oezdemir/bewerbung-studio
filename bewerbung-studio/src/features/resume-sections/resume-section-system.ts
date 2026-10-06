@@ -226,6 +226,7 @@ export const validateRequiredResumeSections = (
 
 export const resumePersonalFieldKeys = [
   "address",
+  "country",
   "phone",
   "email",
   "linkedin",
@@ -246,6 +247,7 @@ export type ResumePersonalFieldKey = (typeof resumePersonalFieldKeys)[number];
 export const resumePersonalFieldLabels: Record<ResumePersonalFieldKey, string> =
   {
     address: "Adresse",
+    country: "Land",
     phone: "Telefon",
     email: "E-Mail",
     linkedin: "LinkedIn",
@@ -266,6 +268,7 @@ export const defaultResumePersonalFieldVisibility = Object.fromEntries(
     key,
     ![
       "birthDate",
+      "country",
       "birthPlace",
       "nationality",
       "familyStatus",

@@ -18,7 +18,7 @@ export const getResumeDisplayProfile = (
     street: visible.address ? profile.street : "",
     postalCode: visible.address ? profile.postalCode : "",
     city: visible.address ? profile.city : "",
-    country: visible.address ? profile.country : "",
+    country: visible.address && visible.country ? profile.country : "",
     phone: visible.phone ? profile.phone : "",
     email: visible.email ? profile.email : "",
     linkedin: visible.linkedin ? profile.linkedin : "",

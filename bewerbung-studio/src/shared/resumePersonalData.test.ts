@@ -147,6 +147,7 @@ describe("Pflichtangaben and completeness", () => {
     expect(getPersonalDataIssues(profile)).toEqual({});
     expect(isPersonalDataComplete(profile)).toBe(true);
     expect(getMissingPersonalFields(profile)).toEqual([]);
+    expect(getPersonalDataIssues({ ...profile, country: "" })).toEqual({});
   });
 
   it("marks exactly the missing field", () => {
@@ -189,6 +190,8 @@ describe("visibility of the personal fields", () => {
     expect(defaultResumePersonalFieldVisibility.children).toBe(false);
     expect(profile.resumePersonalFieldVisibility.familyStatus).toBe(false);
     expect(profile.resumePersonalFieldVisibility.children).toBe(false);
+    expect(resumePersonalFieldKeys).toContain("country");
+    expect(profile.resumePersonalFieldVisibility.country).toBe(false);
   });
 
   it("loads a profile saved before the two keys existed without changing its choices", () => {
@@ -196,6 +199,7 @@ describe("visibility of the personal fields", () => {
     const legacy = profileSchema.parse({ ...base, resumePersonalFieldVisibility: saved });
     expect(legacy.resumePersonalFieldVisibility).toMatchObject({ phone: false, birthDate: true, email: false, address: false, familyStatus: false, children: false });
     expect(legacy.resumePersonalFieldVisibility.linkedin).toBe(false);
+    expect(legacy.resumePersonalFieldVisibility.country).toBe(false);
     expect(Object.keys(legacy.resumePersonalFieldVisibility).sort()).toEqual([...resumePersonalFieldKeys].sort());
   });
 
@@ -230,6 +234,7 @@ describe("the display profile is the one filter", () => {
       ["nationality", { nationality: "" }],
       ["familyStatus", { familyStatus: "" }],
       ["children", { children: "" }],
+      ["country", { country: "" }],
       ["address", { street: "", postalCode: "", city: "", country: "" }],
     ];
     for (const [key, blank] of cases) {

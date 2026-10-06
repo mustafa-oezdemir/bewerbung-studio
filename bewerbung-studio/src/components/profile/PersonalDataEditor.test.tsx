@@ -55,7 +55,7 @@ describe("Persönliche Daten editor", () => {
     const required = document.querySelector("section.personal-group");
     const expected: Array<[string, string, string | null]> = [
       ["firstName", "Vorname *", "text"], ["lastName", "Nachname *", "text"], ["street", "Straße und Hausnummer *", "text"],
-      ["postalCode", "PLZ *", "text"], ["city", "Ort *", "text"], ["country", "Land *", "text"],
+      ["postalCode", "PLZ *", "text"], ["city", "Ort *", "text"],
       ["phone", "Telefonnummer *", "tel"], ["email", "E-Mail-Adresse *", "email"],
     ];
     for (const [id, label, type] of expected) {
@@ -65,7 +65,7 @@ describe("Persönliche Daten editor", () => {
       expect(required?.contains(input(document, id) as Node), id).toBe(true);
     }
     expect(document.getElementById("personal-data-phone-hint")?.textContent).toBe("Für internationale Bewerbungen mit Ländervorwahl, z. B. +49 170 1234567.");
-    expect(document.querySelector(".personal-completeness")?.textContent).toBe("8 von 8 vollständig");
+    expect(document.querySelector(".personal-completeness")?.textContent).toBe("7 von 7 vollständig");
   });
 
   it("keeps the existing profile fields as the only data: values come from and go to the profile", () => {
@@ -81,6 +81,15 @@ describe("Persönliche Daten editor", () => {
     expect(document.querySelector('[id*="fullName"]')).toBeNull();
   });
 
+  it("treats Land as an optional profile field", () => {
+    const document = editor(profile({ country: "" }), true);
+    const field = input(document, "country") as Node;
+    expect(labelOf(document, "country")).toBe("Land");
+    expect(document.querySelectorAll("section.personal-group")[2].contains(field)).toBe(true);
+    expect(input(document, "country")?.getAttribute("aria-required")).toBeNull();
+    expect(input(document, "country")?.getAttribute("aria-invalid")).toBeNull();
+  });
+
   it("marks a missing Pflichtangabe of an older profile without blocking it", () => {
     const legacy = profile({ phone: "", street: "" });
     const hidden = editor(legacy, false);
@@ -90,7 +99,7 @@ describe("Persönliche Daten editor", () => {
     expect(input(shown, "phone")?.getAttribute("aria-invalid")).toBe("true");
     expect(input(shown, "street")?.getAttribute("aria-invalid")).toBe("true");
     expect(input(shown, "city")?.getAttribute("aria-invalid")).toBeNull();
-    expect(shown.querySelector(".personal-completeness")?.textContent).toBe("6 von 8 vollständig");
+    expect(shown.querySelector(".personal-completeness")?.textContent).toBe("5 von 7 vollständig");
   });
 
   it("explains an invalid e-mail inline instead of alerting", () => {
@@ -151,7 +160,7 @@ describe("Profil → 2. Persönliche Daten", () => {
     const legacy = profile({ phone: "", street: "", postalCode: "" });
     const existing = view([legacy], legacy);
     expect(existing.querySelectorAll(".field-issue")).toHaveLength(3);
-    expect(existing.querySelector(".personal-completeness")?.textContent).toBe("5 von 8 vollständig");
+    expect(existing.querySelector(".personal-completeness")?.textContent).toBe("4 von 7 vollständig");
     expect(existing.getElementById("personal-data-firstName")?.getAttribute("value")).toBe("Mustafa");
   });
 
@@ -180,11 +189,12 @@ describe("Persönliche Daten in the Lebenslauf panel", () => {
   it("switches every field separately and keeps Familienstand and Kinder off for an older profile", () => {
     const root = card(profile());
     for (const label of ["Adresse", "Telefon", "E-Mail", "LinkedIn", "GitHub", "Website"]) expect(checkbox(root, label)?.hasAttribute("checked"), label).toBe(true);
-    for (const label of ["Geburtsdatum", "Geburtsort", "Staatsangehörigkeit", "Familienstand", "Kinder"]) {
+    for (const label of ["Land", "Geburtsdatum", "Geburtsort", "Staatsangehörigkeit", "Familienstand", "Kinder"]) {
       expect(checkbox(root, label), label).toBeDefined();
       expect(checkbox(root, label)?.hasAttribute("checked"), label).toBe(false);
     }
     expect(Array.from(root.querySelectorAll("legend")).map((node) => node.textContent)).toEqual(["Kontaktdaten", "Kontakt auf Folgeseiten", "Freiwillige Angaben"]);
+    expect(Array.from(root.querySelectorAll("fieldset.visibility-group"))[2].contains(checkbox(root, "Land") as Node)).toBe(true);
     expect(checkbox(root, "E-Mail auf Folgeseiten wiederholen")?.hasAttribute("checked")).toBe(false);
     expect(checkbox(root, "Telefon auf Folgeseiten wiederholen")?.hasAttribute("checked")).toBe(false);
   });

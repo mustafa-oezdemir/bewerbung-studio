@@ -13,7 +13,7 @@ export const calibrationCheckboxes = [
 ] as const;
 export type CalibrationCheckbox = (typeof calibrationCheckboxes)[number];
 
-const allOn = Object.fromEntries([...calibrationCheckboxes, "drivingLicense"].map((key) => [key, true])) as Record<string, boolean>;
+const allOn = Object.fromEntries([...calibrationCheckboxes, "country", "drivingLicense"].map((key) => [key, true])) as Record<string, boolean>;
 /** Only what the reported Lebenslauf shows: phone, e-mail, LinkedIn, address, GitHub and the Website. */
 export const reportedHeader: Partial<Record<CalibrationCheckbox, boolean>> = {
   birthDate: false, birthPlace: false, nationality: false, familyStatus: false, children: false, onlineProfiles: false, xing: false,

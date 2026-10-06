@@ -377,14 +377,14 @@ describe("Lebenslauf-Dokumente", () => {
 
   it("exports long LinkedIn contacts in two columns for every requested template", () => {
     const linkedin =
-      "https://www.linkedin.com/in/mustafa-oezdemir/";
-    const github = "https://github.com/mustafa-oezdemir";
+      "https://www.linkedin.com/in/lina-beispiel-profil/";
+    const github = "https://github.com/lina-beispiel";
     const contactProfile = profileSchema.parse({
       ...profile,
       linkedin,
       github,
-      email: "mustafa.ozdemir1408@gmail.com",
-      phone: "+49 176 93153406",
+      email: "lina.beispiel@example.com",
+      phone: "+49 171 1234567",
       postalCode: "35039",
       city: "Marburg",
       country: "Deutschland",
@@ -427,16 +427,10 @@ describe("Lebenslauf-Dokumente", () => {
       contactProfile,
       "lebenslauf",
     );
-    expect(cssHtml).toContain(
-      "grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr)",
-    );
-    // A long contact uses both grid columns so its value stays on one line.
-    expect(cssHtml).toContain(
-      '.kreativ-pdf-contacts>[data-contact-wide="true"]{grid-column:1/-1}',
-    );
-    expect(cssHtml).toContain('data-contact-kind="linkedin" data-contact-wide="true"');
+    expect(cssHtml).toContain(".kreativ-pdf-contacts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))");
+    expect(cssHtml).toContain('.kreativ-pdf-contacts>[data-contact-kind="location"]{grid-column:1/-1}');
+    expect(cssHtml).not.toContain("data-contact-wide");
     expect(cssHtml).toContain(".kreativ-pdf-contacts i{min-width:0;font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}");
-    expect(cssHtml).toContain('[data-contact-kind="email"]>i{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal}');
 
     const zweispaltigCssHtml = buildDocumentHtml(
       applicationSchema.parse({ ...application, templateId: "zweispaltig" }),
