@@ -7,6 +7,30 @@ const blend = (first: string, second: string, share: number) => `#${[1, 3, 5].ma
     + Number.parseInt(second.slice(index, index + 2), 16) * (1 - share))
     .toString(16).padStart(2, "0")).join("").toUpperCase()}`;
 
+/**
+ * The one physical page geometry of Kompakt for the preview, the PDF and the page planner. "Seitenränder" is a horizontal
+ * control here: it sets the left edge and moves the right edge by the same amount (the native 25 / 20 mm DIN asymmetry
+ * stays), so header, photo, both columns and the footer follow the same left/right bounds. The top (12 mm) and the bottom
+ * safe area (15 mm) never move with it. The two columns share the usable width in the native 97 : 60 proportion around
+ * the independent Spaltenabstand.
+ */
+export const resolveKompaktGeometry = (pageMarginMm: number, columnGapMm: number, sidebarShare?: number) => {
+  const { page, layout } = kompaktDefaults;
+  const shift = pageMarginMm - page.marginLeftMm;
+  const left = Math.max(0, pageMarginMm);
+  const right = Math.max(0, page.marginRightMm + shift);
+  const contentWidth = Math.max(0, page.widthMm - left - right);
+  const columnGap = Math.max(0, Math.min(columnGapMm, contentWidth));
+  const columnsWidth = Math.max(0, contentWidth - columnGap);
+  const share = sidebarShare ?? layout.rightColumnWidthMm / (layout.leftColumnWidthMm + layout.rightColumnWidthMm);
+  return {
+    left, right, top: page.marginTopMm, bottom: page.marginBottomMm,
+    contentWidth, columnGap,
+    mainWidth: columnsWidth * (1 - share),
+    sideWidth: columnsWidth * share,
+  };
+};
+
 /** One resolved Kompakt palette and set of physical tokens for CV, planner and letter. */
 export const getKompaktDesignVariables = (
   design: CvDesignTokens,
@@ -24,8 +48,9 @@ export const getKompaktDesignVariables = (
     changedColors?.[key] ?? (changed && design.colors[key].toLowerCase() === native.toLowerCase() ? derived : design.colors[key]);
   const text = color("text", kompaktDefaults.colors.text, blend(primary, "#555B5F", .24));
   const muted = color("muted", kompaktDefaults.colors.muted, blend(primary, "#A0A5A8", .22));
-  const pageMargin = design.spacing.pageMarginMm;
-  const marginShift = pageMargin - kompaktDefaults.page.marginLeftMm;
+  const geometry = resolveKompaktGeometry(design.spacing.pageMarginMm, design.spacing.columnGapMm);
+  // The letter keeps its former page margins: there the chosen margin moves every side alike.
+  const letterShift = design.spacing.pageMarginMm - kompaktDefaults.page.marginLeftMm;
   return {
     "--kompakt-primary": primary,
     "--kompakt-accent": accent,
@@ -40,11 +65,13 @@ export const getKompaktDesignVariables = (
     "--kompakt-inactive": blend(muted, design.colors.background, .20),
     "--kompakt-icon": color("icon", kompaktDefaults.colors.accent, accent),
     "--kompakt-background": design.colors.background,
-    "--kompakt-margin-left": `${pageMargin}mm`,
-    "--kompakt-margin-right": `${Math.max(0, kompaktDefaults.page.marginRightMm + marginShift)}mm`,
-    "--kompakt-margin-top": `${Math.max(0, kompaktDefaults.page.marginTopMm + marginShift)}mm`,
-    "--kompakt-margin-bottom": `${Math.max(0, kompaktDefaults.page.marginBottomMm + marginShift)}mm`,
-    "--kompakt-column-gap": `${design.spacing.columnGapMm}mm`,
+    "--kompakt-margin-left": `${geometry.left}mm`,
+    "--kompakt-margin-right": `${geometry.right}mm`,
+    "--kompakt-margin-top": `${geometry.top}mm`,
+    "--kompakt-margin-bottom": `${geometry.bottom}mm`,
+    "--kompakt-column-gap": `${geometry.columnGap}mm`,
+    "--kompakt-letter-margin-top": `${Math.max(0, kompaktDefaults.page.marginTopMm + letterShift)}mm`,
+    "--kompakt-letter-margin-bottom": `${Math.max(0, kompaktDefaults.page.marginBottomMm + letterShift)}mm`,
     "--kompakt-section-gap-base": `${design.spacing.sectionGapMm}mm`,
     "--kompakt-entry-gap-base": `${design.spacing.entryGapMm}mm`,
     "--kompakt-section-title-gap": `${design.spacing.sectionTitleGapMm}mm`,
@@ -76,10 +103,11 @@ export const kompaktResolvedCss = `
 .kompakt-template[data-density="dense"],.kompakt-pdf[data-density="dense"]{--kompakt-section-gap:calc(var(--kompakt-section-gap-base) * .65);--kompakt-entry-gap:calc(var(--kompakt-entry-gap-base) * .65)}
 .kompakt-template .kompakt-background,.kompakt-pdf .managed-pdf-background{color:var(--kompakt-pattern);opacity:.72}
 .kompakt-template .kompakt-header,.kompakt-pdf .kompakt-pdf-header{min-height:var(--kompakt-header-height);padding:var(--kompakt-margin-top) var(--kompakt-margin-right) 0 var(--kompakt-margin-left)}
-.kompakt-template .kompakt-header h1,.kompakt-pdf .kompakt-pdf-header h1{max-width:calc(100% - 25mm);font-family:var(--doc-heading-font);font-size:var(--doc-heading-size);font-weight:var(--doc-heading-weight);color:var(--kompakt-primary);line-height:1;overflow-wrap:anywhere}
-.kompakt-template .kompakt-header h2,.kompakt-pdf .kompakt-pdf-header h2{max-width:calc(100% - 25mm);font-family:var(--doc-heading-font);font-size:var(--doc-subheading-size);font-weight:var(--doc-subheading-weight);line-height:var(--doc-line-height);color:var(--kompakt-subheading)}
+.kompakt-template .kompakt-header h1,.kompakt-pdf .kompakt-pdf-header h1{max-width:calc(100% - 25mm);letter-spacing:normal;font-family:var(--doc-heading-font);font-size:var(--doc-heading-size);font-weight:var(--doc-heading-weight);color:var(--kompakt-primary);line-height:1;overflow-wrap:anywhere}
+.kompakt-template .kompakt-header h2,.kompakt-pdf .kompakt-pdf-header h2{max-width:calc(100% - 25mm);margin:.5mm 0 0;letter-spacing:normal;font-family:var(--doc-heading-font);font-size:var(--doc-subheading-size);font-weight:var(--doc-subheading-weight);line-height:var(--doc-line-height);color:var(--kompakt-subheading)}
 .kompakt-template .kompakt-header:not(.kompakt-header--with-photo) h1,.kompakt-template .kompakt-header:not(.kompakt-header--with-photo) h2,.kompakt-pdf .kompakt-pdf-header:not(.with-photo) h1,.kompakt-pdf .kompakt-pdf-header:not(.with-photo) h2{max-width:100%}
-.kompakt-template .kompakt-header__photo,.kompakt-pdf .kompakt-pdf-photo{right:var(--kompakt-margin-right)}
+.kompakt-template .kompakt-header__photo,.kompakt-pdf .kompakt-pdf-photo{top:calc(var(--kompakt-margin-top) - 3mm);right:var(--kompakt-margin-right)}
+.kompakt-template .kompakt-header--with-photo :is(h1,h2),.kompakt-pdf .kompakt-pdf-header.with-photo :is(h1,h2){max-width:calc(100% - 20mm * var(--resume-photo-scale,1) - 5mm)}
 .kompakt-template .kompakt-header--with-photo,.kompakt-pdf .kompakt-pdf-header.with-photo{padding-bottom:calc(20mm * (var(--resume-photo-scale,1) - 1))}
 .kompakt-template .kompakt-header--compact,.kompakt-pdf .kompakt-pdf-header.compact{min-height:0;padding-top:var(--kompakt-margin-top);padding-bottom:2mm;border-color:var(--kompakt-divider)}
 .kompakt-template .kompakt-header--compact h1,.kompakt-pdf .kompakt-pdf-header.compact h1{font-size:calc(var(--doc-heading-size) * .72)}
@@ -88,6 +116,7 @@ export const kompaktResolvedCss = `
 .kompakt-template .kompakt-content,.kompakt-pdf .kompakt-pdf-columns{grid-template-columns:minmax(0,97fr) minmax(0,60fr);column-gap:var(--kompakt-column-gap);padding-left:var(--kompakt-margin-left);padding-right:var(--kompakt-margin-right);padding-bottom:var(--kompakt-footer-clearance)}
 .kompakt-template .kompakt-content>.kompakt-left,.kompakt-pdf .kompakt-pdf-columns>main{min-width:0}
 .kompakt-template .kompakt-content>.kompakt-right,.kompakt-pdf .kompakt-pdf-columns>aside{min-width:0}
+.kompakt-template .kompakt-content :is(h3,h4,p,li,a,span,strong,small,time),.kompakt-pdf .kompakt-pdf-columns :is(h3,h4,p,li,a,span,strong,small,time){overflow-wrap:anywhere}
 .kompakt-template .kompakt-content:not(.kompakt-content--continuation),.kompakt-pdf .kompakt-pdf-columns:not(.continuation){padding-top:var(--kompakt-header-content-gap)}
 .kompakt-template .kompakt-content--continuation,.kompakt-pdf .kompakt-pdf-columns.continuation{padding-top:4mm}
 .kompakt-template .kompakt-section,.kompakt-pdf .managed-pdf-section{margin-bottom:var(--kompakt-section-gap)}
@@ -100,6 +129,7 @@ export const kompaktResolvedCss = `
 .kompakt-template .kompakt-career-entry__meta strong,.kompakt-pdf .kompakt-pdf-meta strong{font-size:var(--doc-body-size);font-weight:600;line-height:var(--doc-line-height);color:var(--kompakt-accent)}
 .kompakt-template .kompakt-career-entry li,.kompakt-pdf .kompakt-pdf-entry li{font-size:var(--doc-body-size);line-height:var(--doc-line-height);color:var(--kompakt-paragraph)}
 .kompakt-template .kompakt-contacts address,.kompakt-pdf .kompakt-pdf-contacts{gap:calc(var(--kompakt-entry-gap) * .8)}
+.kompakt-template .kompakt-contacts address>*,.kompakt-pdf .kompakt-pdf-contact{font-size:calc(var(--doc-body-size) * .92);line-height:var(--doc-line-height)}
 .kompakt-template .kompakt-contacts :is(a,span),.kompakt-pdf .kompakt-pdf-contact :is(a,span){font-size:calc(var(--doc-body-size) * .92);line-height:var(--doc-line-height);color:var(--kompakt-primary);overflow-wrap:anywhere}
 .kompakt-template .kompakt-contacts i,.kompakt-pdf .kompakt-pdf-contact i,.kompakt-template .kompakt-strengths article>i,.kompakt-pdf .kompakt-pdf-strength>i{color:var(--kompakt-icon);font-size:var(--doc-body-size)}
 .kompakt-template .kompakt-strengths article,.kompakt-pdf .kompakt-pdf-strength{margin-bottom:var(--kompakt-entry-gap)}
@@ -125,7 +155,7 @@ export const kompaktResolvedCss = `
 
 /** The same resolved identity, palette and type family on both letter surfaces. */
 export const kompaktLetterCss = `
-.kompakt-letter :is(.letter-preview,.letter-content){padding:var(--kompakt-margin-top) var(--kompakt-margin-right) var(--kompakt-margin-bottom) var(--kompakt-margin-left)!important;color:var(--kompakt-text);font-family:var(--doc-font)!important;background:var(--kompakt-background)}
+.kompakt-letter :is(.letter-preview,.letter-content){padding:var(--kompakt-letter-margin-top) var(--kompakt-margin-right) var(--kompakt-letter-margin-bottom) var(--kompakt-margin-left)!important;color:var(--kompakt-text);font-family:var(--doc-font)!important;background:var(--kompakt-background)}
 .kompakt-letter .letter-header{display:flex;justify-content:flex-start;align-items:flex-start;min-height:24mm;padding:0 0 1mm;text-align:left}
 .kompakt-letter :is(.sender,.sender-line){margin:0;color:var(--kompakt-text);text-align:left}
 .kompakt-letter .sender-name{color:var(--kompakt-primary)!important;font-family:var(--doc-heading-font);font-size:var(--doc-heading-size)!important;font-weight:var(--doc-heading-weight)!important;line-height:1;text-transform:uppercase}

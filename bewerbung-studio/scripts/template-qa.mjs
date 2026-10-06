@@ -85,12 +85,14 @@ try {
       if (name !== 'max' && !name.startsWith('rand') && !name.startsWith('real') && atsMode) continue;
       const id = template.id;
       const settings = { ...getTemplateDocumentDesignDefaults(id), resumeOutputMode: atsMode ? 'ats' : 'visual',
-        ...(process.env.LANGUAGE_COLUMNS ? { languagesColumns: process.env.LANGUAGE_COLUMNS === 'auto' ? 'auto' : Number(process.env.LANGUAGE_COLUMNS) } : {}) };
+        ...(process.env.LANGUAGE_COLUMNS ? { languagesColumns: process.env.LANGUAGE_COLUMNS === 'auto' ? 'auto' : Number(process.env.LANGUAGE_COLUMNS) } : {}),
+        // PAGE_MARGIN=<mm>: Lebenslauf-Design → Seitenränder as a user override (geometry QA).
+        ...(process.env.PAGE_MARGIN ? { cvOverrides: { spacing: { pageMarginMm: Number(process.env.PAGE_MARGIN) } } } : {}) };
       const application = applicationSchema.parse({
         schemaVersion: 1, id: crypto.randomUUID(), folderName: 'QA', company: { name: 'QA', city: 'Berlin' }, contact: {}, job: { title: 'Entwicklung' },
         status: 'Entwurf', templateId: id, accentColor: template.accent, secondaryColor: template.secondary, designSettings: settings, documents: {}, statusHistory: [], createdAt: now, updatedAt: now,
       });
-      const file = `${name}-${id}-${atsMode ? 'ats' : 'vis'}`;
+      const file = `${name}-${id}-${atsMode ? 'ats' : 'vis'}${process.env.PAGE_MARGIN ? `-m${process.env.PAGE_MARGIN}` : ''}`;
       await writeFile(resolve(out, file + '.html'), buildDocumentHtml(application, profile, 'lebenslauf'));
       if (!atsMode) {
         const resolved = resolveCvDocument({ profile, templateId: id, settings, application });

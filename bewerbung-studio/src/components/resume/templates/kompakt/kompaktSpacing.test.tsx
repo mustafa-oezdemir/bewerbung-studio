@@ -164,6 +164,36 @@ describe("Kompakt spacing and section output", () => {
     }
   });
 
+  it("keeps the header top fixed when Seitenränder changes and moves it only sideways on both surfaces", () => {
+    for (const pageMarginMm of [18, 30]) {
+      const settings = { ...getTemplateDocumentDesignDefaults("kompakt"), cvOverrides: { spacing: { pageMarginMm } } };
+      for (const html of renderSurfaces(baseProfile, settings)) {
+        expect(html).toContain(`--kompakt-margin-left:${pageMarginMm}mm`);
+        expect(html).toContain(`--kompakt-margin-right:${pageMarginMm - 5}mm`);
+        expect(html).toContain("--kompakt-margin-top:12mm");
+        expect(html).toContain("--kompakt-margin-bottom:15mm");
+        expect(html).toContain("--kompakt-column-gap:8mm");
+      }
+    }
+  });
+
+  it("plans the pages from the column width the margin leaves (more wrapping, earlier break)", () => {
+    const long = profileSchema.parse({
+      ...baseProfile,
+      experiences: Array.from({ length: 6 }, (_, index) => ({
+        id: crypto.randomUUID(), role: `Station ${index + 1}`, company: "Beispiel GmbH", from: "2015", to: "2016",
+        achievements: Array.from({ length: 5 }, (_, item) => `Ergebnis ${index + 1}.${item + 1}: Planung, Steuerung und Dokumentation von Abläufen mit messbarer Verbesserung der Qualität im gesamten Team, abgestimmt mit Einkauf, Fertigung und Qualitätssicherung über mehrere Standorte.`),
+      })),
+    });
+    const firstPageBullets = (pageMarginMm: number) => {
+      const settings = { ...getTemplateDocumentDesignDefaults("kompakt"), cvOverrides: { spacing: { pageMarginMm } } };
+      const plan = resolveCvDocument({ profile: long, templateId: "kompakt", settings }).pagePlan;
+      return plan[0].items.filter((item) => item.kind === "experience")
+        .reduce((total, item) => total + (item.bullets ? item.bullets.to - item.bullets.from : 5), 0);
+    };
+    expect(firstPageBullets(30)).toBeLessThan(firstPageBullets(12));
+  });
+
   it("shares changed typography, spacing, and palette with the letter", () => {
     const settings = {
       ...getTemplateDocumentDesignDefaults("kompakt"),

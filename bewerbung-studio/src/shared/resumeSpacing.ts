@@ -150,6 +150,12 @@ const getSectionStack = (section: Element): Element | null => {
 };
 
 /** Annotate only explicitly changed fields; untouched templates keep native CSS. */
+/**
+ * Templates whose own geometry already places header, columns and footer at the chosen Seitenränder (their design
+ * variables); the generic text shift would move their content a second time. Kompakt: resolveKompaktGeometry.
+ */
+const ownPageMarginTemplates = new Set(["zeitgenoessisch", "kreativ", "stilvoll", "gepflegt", "kompakt"]);
+
 export const applyResumeSpacingOutput = (
   page: Element,
   templateId: string,
@@ -206,7 +212,7 @@ export const applyResumeSpacingOutput = (
     const margin = spacing?.pageMarginMm ?? marginLevelToMm[settings.marginLevel];
     scope.style.setProperty("--zweispaltig-margin-left", `${margin}mm`);
     scope.style.setProperty("--zweispaltig-margin-right", `${margin}mm`);
-  } else if (spacing?.pageMarginMm !== undefined && id !== "zeitgenoessisch" && id !== "kreativ" && id !== "stilvoll" && id !== "gepflegt") {
+  } else if (spacing?.pageMarginMm !== undefined && !ownPageMarginTemplates.has(id)) {
     scope.style.setProperty("--resume-page-text-shift", `${getPageMarginAdjustment(id, spacing.pageMarginMm).shiftMm}mm`);
   }
   if (spacing?.innerPaddingMm !== undefined) {
@@ -214,7 +220,7 @@ export const applyResumeSpacingOutput = (
     const nativePadding = resolveTemplateCvDesign(id).spacing.innerPaddingMm;
     scope.style.setProperty("--resume-inner-text-inset", `${Math.round((spacing.innerPaddingMm - nativePadding) * 100) / 100}mm`);
   }
-  if ((id !== "zweispaltig" && id !== "zeitgenoessisch" && id !== "kreativ" && id !== "stilvoll" && id !== "gepflegt" && spacing?.pageMarginMm !== undefined) || spacing?.innerPaddingMm !== undefined)
+  if ((id !== "zweispaltig" && !ownPageMarginTemplates.has(id) && spacing?.pageMarginMm !== undefined) || spacing?.innerPaddingMm !== undefined)
     scope.setAttribute("data-resume-spacing-text", "");
   if (spacing?.sectionGapMm !== undefined) scope.setAttribute("data-resume-spacing-section-gap", "");
   if (spacing?.entryGapMm !== undefined) scope.setAttribute("data-resume-spacing-entry-gap", "");
@@ -227,7 +233,7 @@ export const applyResumeSpacingOutput = (
   }
 
   const sections = Array.from(scope.querySelectorAll("[data-managed-section]"));
-  if ((id !== "zweispaltig" && id !== "zeitgenoessisch" && id !== "kreativ" && id !== "stilvoll" && id !== "gepflegt" && spacing?.pageMarginMm !== undefined) || spacing?.innerPaddingMm !== undefined) {
+  if ((id !== "zweispaltig" && !ownPageMarginTemplates.has(id) && spacing?.pageMarginMm !== undefined) || spacing?.innerPaddingMm !== undefined) {
     const zones = new Map<Element, Element[]>();
     const layoutHost = getResumeLayoutHost(scope, id, surface);
     for (const section of sections) {
