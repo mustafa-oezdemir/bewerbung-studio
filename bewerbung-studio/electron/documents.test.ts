@@ -436,6 +436,7 @@ describe("Lebenslauf-Dokumente", () => {
     );
     expect(cssHtml).toContain('data-contact-kind="linkedin" data-contact-wide="true"');
     expect(cssHtml).toContain(".kreativ-pdf-contacts i{min-width:0;font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}");
+    expect(cssHtml).toContain('[data-contact-kind="email"]>i{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal}');
 
     const zweispaltigCssHtml = buildDocumentHtml(
       applicationSchema.parse({ ...application, templateId: "zweispaltig" }),
@@ -2647,7 +2648,7 @@ describe("Lebenslauf-Dokumente", () => {
     );
     const body = html.slice(html.indexOf("<body>"));
 
-    expect(body.match(/data-resume-page="/g)).toHaveLength(1);
+    expect(body.match(/data-resume-page="/g)?.length).toBeGreaterThanOrEqual(2);
     expect(body).toContain('data-template="gepflegt"');
     expect(body).toContain("gepflegt-pdf-sidebar");
     expect(body).toContain("gepflegt-pdf-photo");

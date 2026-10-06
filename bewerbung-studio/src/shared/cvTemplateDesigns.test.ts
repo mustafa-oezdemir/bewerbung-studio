@@ -17,13 +17,13 @@ const nativeValues: Record<string, Record<string, number>> = {
   pehlione_white: { body: 9.2, line: 1.2, name: 29, section: 13, entry: 10.4, sectionGap: 6, entryGap: 4, titleGap: 3, margin: 7 },
   zweispaltig: { body: 10, line: 1.32, name: 24, section: 14, entry: 11.5, sectionGap: 6.5, entryGap: 3.5, titleGap: 2.5, margin: 25 },
   zeitgenoessisch: { body: 10.5, line: 1.26, name: 25, section: 12.5, entry: 11.5, sectionGap: 7, entryGap: 5, titleGap: 3, margin: 20 },
-  kreativ: { body: 8.4, line: 1.05, name: 23, section: 14, entry: 11, sectionGap: 4.5, entryGap: 2.5, titleGap: 3.5, margin: 12 },
+  kreativ: { body: 10.5, line: 1.26, name: 23, section: 14, entry: 11, sectionGap: 4.5, entryGap: 2.5, titleGap: 3.5, margin: 20 },
   "ivy-league": { body: 8.4, line: 1.05, name: 17.5, section: 13.5, entry: 9.7, sectionGap: 4.5, entryGap: 4.5, titleGap: 2.5, margin: 11 },
-  stilvoll: { body: 8.4, line: 1.05, name: 23, section: 9.5, entry: 11, sectionGap: 6, entryGap: 3.8, titleGap: 3, margin: 15 },
+  stilvoll: { body: 10.5, line: 1.25, name: 23, section: 11, entry: 11.5, sectionGap: 6, entryGap: 4, titleGap: 3, margin: 20 },
   kompakt: { body: 8.4, line: 1, name: 20, section: 8.5, entry: 10.5, sectionGap: 3.5, entryGap: 3.2, titleGap: 2.5, margin: 13 },
   einspaltig: { body: 9.6, line: 1.1, name: 24, section: 13.5, entry: 11.5, sectionGap: 5, entryGap: 4.5, titleGap: 2, margin: 15 },
   klassisch: { body: 8.4, line: 1.05, name: 26, section: 10.4, entry: 12.2, sectionGap: 3.8, entryGap: 3.2, titleGap: 2.2, margin: 15 },
-  gepflegt: { body: 8.8, line: 1.28, name: 24, section: 14.5, entry: 11.5, sectionGap: 7, entryGap: 4.5, titleGap: 3.6, margin: 10 },
+  gepflegt: { body: 10.3, line: 1.32, name: 24, section: 14.5, entry: 11.5, sectionGap: 6.5, entryGap: 4, titleGap: 3.6, margin: 20 },
   elegant: { body: 10.5, line: 1.35, name: 22, section: 12, entry: 11, sectionGap: 4.5, entryGap: 4, titleGap: 3.2, margin: 25 },
   modern: { body: 9.2, line: 1.2, name: 24, section: 9.2, entry: 11, sectionGap: 7, entryGap: 4.5, titleGap: 3.2, margin: 15 },
   tabellarisch: { body: 9.2, line: 1.1, name: 25, section: 15, entry: 12, sectionGap: 6.3, entryGap: 4.4, titleGap: 3.5, margin: 15 },
@@ -95,7 +95,7 @@ describe("native Lebenslauf designs", () => {
 
   it("stays in step with the document-level font size and line height that most stylesheets still read", () => {
     // Gepflegt sets its own sizes; Einspaltig adds a fixed offset to the document values in its stylesheet.
-    for (const { id } of templates.filter(({ id: templateId }) => templateId !== "gepflegt" && templateId !== "zeitgenoessisch" && templateId !== "elegant")) {
+    for (const { id } of templates.filter(({ id: templateId }) => !["gepflegt", "zeitgenoessisch", "elegant", "kreativ", "stilvoll"].includes(templateId))) {
       const settings = getTemplateDocumentDesignDefaults(id);
       const { typography } = resolveTemplateCvDesign(id);
       expect(typography.bodySizePt, id).toBeCloseTo(fontSizeToPt[settings.fontSize] + (id === "einspaltig" ? 1.2 : 0), 5);
@@ -104,6 +104,12 @@ describe("native Lebenslauf designs", () => {
     const zeit = resolveTemplateCvDesign("zeitgenoessisch").typography;
     expect(zeit.bodySizePt).toBe(10.5);
     expect(zeit.lineHeight).toBe(1.26);
+    const kreativ = resolveTemplateCvDesign("kreativ").typography;
+    expect(kreativ.bodySizePt).toBe(10.5);
+    expect(kreativ.lineHeight).toBe(1.26);
+    const stilvoll = resolveTemplateCvDesign("stilvoll").typography;
+    expect(stilvoll.bodySizePt).toBe(10.5);
+    expect(stilvoll.lineHeight).toBe(1.25);
   });
 
   it("derives the retired generic renderer's design from its document settings", () => {

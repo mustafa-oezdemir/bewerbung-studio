@@ -81,7 +81,7 @@ export function StilvollPage({
   }
   return (
     <div className="stilvoll-page__visual" data-renderer="visual">
-      {backgroundId === "geometric" ? <StilvollBackground /> : null}
+      {backgroundId === "geometric" && !isContinuation ? <StilvollBackground /> : null}
       <StilvollHeader
         profile={profile}
         name={name}

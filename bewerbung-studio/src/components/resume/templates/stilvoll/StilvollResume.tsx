@@ -10,10 +10,8 @@ export function StilvollResume({
   ...props
 }: StilvollResumeProps) {
   const variables = {
-    "--stilvoll-primary":
-      accentColor || stilvollDefaults.colors.primary,
-    "--stilvoll-primary-dark":
-      secondaryColor || stilvollDefaults.colors.primaryDark,
+    "--stilvoll-primary": accentColor || stilvollDefaults.colors.primary,
+    "--stilvoll-primary-dark": secondaryColor || stilvollDefaults.colors.primaryDark,
     "--stilvoll-header-content-gap": `${stilvollDefaults.layout.headerToContentGapMm}mm`,
     "--stilvoll-section-gap-base": `${stilvollDefaults.layout.sectionGapMm}mm`,
     "--stilvoll-entry-gap-base": `${stilvollDefaults.layout.entryGapMm}mm`,

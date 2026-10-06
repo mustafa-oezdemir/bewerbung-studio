@@ -4,7 +4,7 @@ import { resolveTemplateId } from "./templates";
 import { resolveResumePresentation } from "./resumePresentation";
 import { getResumeDisplayProfile } from "./resumeDisplayProfile";
 import { resolveResumeLayout } from "./resumeLayoutEngine";
-import { applyGlobalResumeDesign, resolveEffectiveDesignTokens } from "./resumeDesignSystem";
+import { applyGlobalResumeDesign, resolveEffectiveDesignTokens, resolveResumeAppearance } from "./resumeDesignSystem";
 import type { ResumeDesignLayer } from "./cvDesignSchema";
 import { getProfileMediaSource } from "./profileMedia";
 import { getManagerSections } from "../features/resume-sections/resume-manager";
@@ -15,6 +15,9 @@ import { resolveResumeClosingLine } from "./resumeClosing";
 import { resolveResumeSummary } from "./resumeSummary";
 import { formatLanguageForAts } from "../features/languages/language-levels";
 import { getZeitgenoessischDesignVariables } from "./zeitgenoessischDesign";
+import { getKreativDesignVariables } from "./kreativDesign";
+import { getStilvollDesignVariables } from "./stilvollDesign";
+import { getGepflegtDesignVariables } from "./gepflegtDesign";
 
 type CvDocumentInput = {
   profile: ApplicantProfile | undefined;
@@ -78,6 +81,18 @@ export const resolveCvDocument = ({
     ? getZeitgenoessischDesignVariables(design, settings.cvOverrides?.colors,
         application?.accentColor, application?.secondaryColor)
     : undefined;
+  const kreativVariables = templateId === "kreativ"
+    ? getKreativDesignVariables(design, settings.cvOverrides?.colors,
+        application?.accentColor, application?.secondaryColor)
+    : undefined;
+  const stilvollVariables = templateId === "stilvoll"
+    ? getStilvollDesignVariables(design, settings.cvOverrides?.colors,
+        application?.accentColor, application?.secondaryColor)
+    : undefined;
+  const gepflegtVariables = templateId === "gepflegt"
+    ? getGepflegtDesignVariables(design, resolveResumeAppearance(templateId, settings.resumeAppearance),
+        settings.cvOverrides?.colors, application?.accentColor, application?.secondaryColor)
+    : undefined;
   // The Kurzprofil every output shows (and the planner measures): the Bewerbung's own text, else the profile's.
   // The Deckblatt text is another field and never stands in for it.
   const summary = resolveResumeSummary(profile, resumeProfile);
@@ -105,9 +120,11 @@ export const resolveCvDocument = ({
       signature: !atsMode && profile.resumeClosing.showSignature && Boolean(getProfileMediaSource(profile.signaturePath)),
     },
     overrides: {
-      bodySizePt: templateId === "zeitgenoessisch" || templateId === "elegant" ? design.typography.bodySizePt : overrides?.typography?.bodySizePt,
-      lineHeight: templateId === "zeitgenoessisch" || templateId === "elegant" ? design.typography.lineHeight : overrides?.typography?.lineHeight,
-      pageMarginMm: templateId === "zeitgenoessisch" || templateId === "elegant" ? design.spacing.pageMarginMm : overrides?.spacing?.pageMarginMm,
+      bodySizePt: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt"].includes(templateId) ? design.typography.bodySizePt : overrides?.typography?.bodySizePt,
+      headingSizePt: templateId === "stilvoll" ? design.typography.headingSizePt : undefined,
+      subheadingSizePt: templateId === "stilvoll" ? design.typography.subheadingSizePt : undefined,
+      lineHeight: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt"].includes(templateId) ? design.typography.lineHeight : overrides?.typography?.lineHeight,
+      pageMarginMm: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt"].includes(templateId) ? design.spacing.pageMarginMm : overrides?.spacing?.pageMarginMm,
       innerPaddingMm: templateId === "elegant" ? design.spacing.innerPaddingMm : overrides?.spacing?.innerPaddingMm,
       sectionGapMm: templateId === "elegant" ? design.spacing.sectionGapMm : overrides?.spacing?.sectionGapMm,
       entryGapMm: templateId === "elegant" ? design.spacing.entryGapMm : overrides?.spacing?.entryGapMm,
@@ -117,9 +134,13 @@ export const resolveCvDocument = ({
     },
     settings,
   };
-  const pagePlan = createResumePagePlan(
+  const planned = createResumePagePlan(
     paginatedProfile, summary, {}, templateId, planContext,
   );
+  // Gepflegt's coloured sidebar is a full-page visual lane, including continuation identity pages.
+  const pagePlan = templateId === "gepflegt" && !atsMode
+    ? planned.map(page => ({ ...page, sidebar: true }))
+    : planned;
   // The closing of these templates prints the date of the application, exactly like the Anschreiben;
   // the others keep printing the date typed into the profile.
   return {
@@ -134,6 +155,9 @@ export const resolveCvDocument = ({
     layout,
     design,
     zeitgenoessischVariables,
+    kreativVariables,
+    stilvollVariables,
+    gepflegtVariables,
     summary,
     pagePlan,
   };

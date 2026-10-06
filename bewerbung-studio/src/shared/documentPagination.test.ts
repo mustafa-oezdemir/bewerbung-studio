@@ -155,8 +155,8 @@ describe("A4 document pagination", () => {
 
   it("uses the measured geometry of each template instead of one shared capacity", () => {
     const profile = makeProfile(4, 3, 3);
-    // Wide two-column layouts fit the whole CV on one page; a narrow main column next to a tall sidebar does not.
-    expect(resolve(profile, "kreativ").pagePlan).toHaveLength(1);
+    // DIN margins and readable body text require a continuation page here.
+    expect(resolve(profile, "kreativ").pagePlan).toHaveLength(2);
     expect(resolve(profile, "pehlione_white_blue").pagePlan).toHaveLength(2);
   });
 
@@ -238,7 +238,7 @@ describe("A4 document pagination", () => {
     const plan = resolve(profile, id).pagePlan;
     expect(idsOf(plan)).toEqual([...profile.experiences, ...profile.education].map((item) => item.id));
     expectEveryBulletOnce(plan, profile.experiences);
-    if (plan.length === 2) {
+    if (plan.length === 2 && id !== "gepflegt") {
       // Word-style flow: the first page is used up to the last entry or bullet group that fits.
       expect(filled(plan, 0)).toBeGreaterThanOrEqual(0.72);
       expect(filled(plan, 0)).toBeLessThanOrEqual(1.02);
@@ -264,11 +264,31 @@ describe("A4 document pagination", () => {
     expect(filled(plan, 0)).toBeGreaterThanOrEqual(0.72);
   });
 
+  it("continues Gepflegt's five-bullet entries without losing or repeating a bullet", () => {
+    const profile = makeProfile(6, 5, 2);
+    const plan = resolve(profile, "gepflegt").pagePlan;
+    const fragments = profile.experiences.map(experience => ({
+      count: experience.achievements.length,
+      parts: plan.flatMap(page => page.items.filter(item => item.id === experience.id)),
+    }));
+    expect(fragments.some(({ parts }) => parts.length > 1)).toBe(true);
+    for (const { count, parts } of fragments) {
+      const ranges = parts.map(part => part.kind === "experience" && part.bullets
+        ? part.bullets : { from: 0, to: count });
+      expect(ranges[0].from).toBe(0);
+      expect(ranges.at(-1)?.to).toBe(count);
+      for (let index = 1; index < ranges.length; index += 1) {
+        expect(ranges[index].from).toBe(ranges[index - 1].to);
+      }
+    }
+    expect(plan.every(page => page.sidebar)).toBe(true);
+  });
+
   it.each(templateIds)("starts the education on page one when there is room for it in %s", (id) => {
     // Three short roles leave space below them: Ausbildung must not wait for page two as a whole.
     const profile = makeProfile(3, 3, 8);
     const plan = resolve(profile, id).pagePlan;
-    if (plan.length === 2 && id !== "elegant") {
+    if (plan.length === 2 && id !== "elegant" && id !== "gepflegt") {
       expect(plan[0].items.some((item) => item.kind === "education")).toBe(true);
       expect(filled(plan, 0)).toBeGreaterThanOrEqual(0.72);
     }
@@ -277,7 +297,7 @@ describe("A4 document pagination", () => {
   it.each(templateIds)("C. lets a very long role continue on the next page in reading order in %s", (id) => {
     const profile = makeProfile(6, 6, 2, compactLanguages(id));
     const plan = resolve(profile, id).pagePlan;
-    if (id === "zweispaltig" || id === "zeitgenoessisch" || id === "elegant" || id === "tabellarisch") expect(plan.length).toBeGreaterThanOrEqual(2);
+    if (["zweispaltig", "zeitgenoessisch", "elegant", "tabellarisch", "kreativ", "stilvoll", "gepflegt"].includes(id)) expect(plan.length).toBeGreaterThanOrEqual(2);
     else expect(plan).toHaveLength(2);
     expect(idsOf(plan)).toEqual([...profile.experiences, ...profile.education].map((item) => item.id));
     expectEveryBulletOnce(plan, profile.experiences);
@@ -370,17 +390,18 @@ describe("A4 document pagination", () => {
       expect(plan.length).toBeLessThanOrEqual(2);
       if (plan.length === 1) expect(plan[0].density).not.toBe("dense");
     }
-    for (const id of ["kreativ", "kompakt", "stilvoll", "einspaltig", "klassisch", "tabellarisch", "ivy-league"]) {
+    for (const id of ["kompakt", "einspaltig", "klassisch", "tabellarisch", "ivy-league"]) {
       expect(createResumePagePlan(profile, "", {}, id)).toHaveLength(1);
     }
   });
 
-  it("prefers a compacted single page over a nearly empty second page", () => {
-    // Gepflegt compacts strongly; content just above one page fits after compaction.
+  it("keeps Gepflegt body text readable instead of forcing a nearly full CV onto one page", () => {
     const profile = makeProfile(3, 3, 3);
     const plan = resolve(profile, "gepflegt").pagePlan;
-    if (plan.length === 1) expect(plan[0].fill!.main).toBeLessThanOrEqual(1);
-    else expect(filled(plan, 1)).toBeGreaterThanOrEqual(0.35);
+    expect(plan.length).toBeGreaterThanOrEqual(2);
+    expect(plan[0].density).toBe("standard");
+    expect(idsOf(plan)).toEqual([...profile.experiences, ...profile.education].map(item => item.id));
+    expectEveryBulletOnce(plan, profile.experiences);
   });
 
   it("keeps Modern career items in reading order after a manual page break", () => {
@@ -522,9 +543,9 @@ describe("A4 document pagination", () => {
 });
 
 describe("sidebar handling", () => {
-  it.each(sidebarTemplates)("E. keeps only the continuation sidebar required by the template in %s", (id) => {
+  it.each(sidebarTemplates)("E. preserves the template's continuation sidebar rule in %s", (id) => {
     const plan = resolve(makeProfile(5, 4, 3), id).pagePlan;
-    for (const page of plan.slice(1)) expect(page.sidebar).toBe(id === "elegant");
+    for (const page of plan.slice(1)) expect(page.sidebar).toBe(id === "elegant" || id === "gepflegt");
     expect(plan[0].sidebar).toBe(true);
   });
 
@@ -644,8 +665,11 @@ describe("closing block and output modes", () => {
       const none = makeProfile(1, 2, 0);
       const growth = (id: string, settings: Partial<typeof defaultDocumentDesign> = {}) =>
         filled(resolve(many, id, settings).pagePlan, 0) - filled(resolve(none, id, settings).pagePlan, 0);
-      // Stilvoll draws none, Kompakt two of them; the plain layouts print all eight.
-      expect(growth("stilvoll")).toBeCloseTo(0, 6);
+      // Stilvoll can split the certificates across sidebar pages as the larger body consumes room.
+      const ranges = resolve(many, "stilvoll").pagePlan.flatMap(page => page.blockRanges?.certifications ? [page.blockRanges.certifications] : []);
+      expect(ranges[0]?.from).toBe(0);
+      expect(ranges.at(-1)?.to).toBe(8);
+      for (let index = 1; index < ranges.length; index += 1) expect(ranges[index].from).toBe(ranges[index - 1].to);
       expect(growth("stilvoll", ats)).toBeGreaterThan(0.08);
       expect(growth("kompakt", ats)).toBeGreaterThan(growth("kompakt") + 0.05);
     });

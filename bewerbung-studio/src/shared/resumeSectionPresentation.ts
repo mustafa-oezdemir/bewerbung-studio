@@ -11,6 +11,7 @@
  */
 
 import { pehlioneWhiteBlueDefaults, pehlioneWhiteDefaults, pehlioneWhiteBlueDesign } from "./cvTemplateDefaults/pehlione.defaults";
+import { stilvollDesign } from "./cvTemplateDefaults/stilvoll.defaults";
 
 export type SectionZone = "main" | "sidebar";
 export type SectionSurface = "preview" | "pdf";
@@ -120,7 +121,7 @@ export const isZoneFlowTemplate = (templateId: string | undefined): boolean =>
  * the others keep a sidebar block whole (page one, or the main column of the last page). Templates join one by
  * one, once both surfaces draw the continuation sidebar and its column surface.
  */
-export const sidebarContinuationTemplates: readonly string[] = ["zeitgenoessisch", "zweispaltig", "stilvoll", "kreativ"];
+export const sidebarContinuationTemplates: readonly string[] = ["zeitgenoessisch", "zweispaltig", "stilvoll", "kreativ", "gepflegt"];
 
 /**
  * Templates whose Bildungsweg entries the output can cut between their detail units (`applyEducationBreaks`): the planner
@@ -354,7 +355,7 @@ const kreativHeading: SectionHeadingTokens = {
   height: 6.73,
 };
 const kreativList: SectionListTokens = {
-  fontSizePt: { standard: 8.4, compact: 8.4 }, lineHeight: { standard: 1.05, compact: 1.05 },
+  fontSizePt: { standard: 10.5, compact: 10.5 }, lineHeight: { standard: 1.26, compact: 1.26 },
   itemGap: { standard: 0.5, compact: 0.5 }, indent: 4.5, inheritBody: true, layout: "margins",
   markerColor: "var(--kreativ-primary,var(--accent))",
 };
@@ -497,16 +498,16 @@ const gepflegt: TemplateTokens = {
  */
 const stilvollHeading: SectionHeadingTokens = {
   iconBox: 0, iconGap: 0, iconRadius: 0, glyphSize: 0, glyphStroke: 0,
-  fontSizePt: { standard: 9.5, compact: 9.5 }, fontWeight: 400, lineHeight: 1,
+  fontSizePt: { standard: stilvollDesign.tokens.typography.sectionHeadingSizePt, compact: stilvollDesign.tokens.typography.sectionHeadingSizePt }, fontWeight: 400, lineHeight: stilvollDesign.tokens.typography.lineHeight,
   letterSpacing: "normal", textTransform: "uppercase",
   marginBottom: { standard: 3, compact: 3 }, labelPadding: { standard: 1, compact: 1 },
   color: "var(--stilvoll-muted,var(--managed-muted))", dividerColor: "var(--stilvoll-divider,var(--managed-divider))", dividerWidth: ".3mm",
   iconColor: "currentColor", iconBackground: "transparent",
   sectionGap: { standard: 6, compact: 5.1, side: "bottom", expr: "var(--managed-section-gap,var(--stilvoll-section-gap))" },
-  height: 4.55,
+  height: 6.2,
 };
 const stilvollList: SectionListTokens = {
-  fontSizePt: { standard: 8.4, compact: 8.4 }, lineHeight: { standard: 1.05, compact: 1.05 },
+  fontSizePt: { standard: stilvollDesign.tokens.typography.bodySizePt, compact: stilvollDesign.tokens.typography.bodySizePt }, lineHeight: { standard: stilvollDesign.tokens.typography.lineHeight, compact: stilvollDesign.tokens.typography.lineHeight },
   itemGap: { standard: 0.3, compact: 0.3 }, indent: 4, inheritBody: true, layout: "margins", marginTop: 0.6,
 };
 const stilvoll: TemplateTokens = {

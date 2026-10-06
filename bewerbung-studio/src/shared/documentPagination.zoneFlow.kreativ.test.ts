@@ -37,8 +37,8 @@ describe("zone flow of kreativ", () => {
 
   it("lets a main-column block follow the career: page one while there is room, then page two", () => {
     const behind = (experiences: number) => plan(place(makeProfile(experiences), "certifications", "main", 99));
-    expect(pageOf(behind(4), "certifications")).toBe(1);
-    for (const experiences of [5, 6, 7]) {
+    expect(pageOf(behind(2), "certifications")).toBe(1);
+    for (const experiences of [4, 5, 6, 7]) {
       expect(behind(experiences), `${experiences} experiences`).toHaveLength(2);
       expect(pageOf(behind(experiences), "certifications"), `${experiences} experiences`).toBe(2);
     }

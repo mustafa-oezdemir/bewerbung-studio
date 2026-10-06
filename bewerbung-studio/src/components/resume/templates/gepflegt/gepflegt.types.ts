@@ -13,6 +13,7 @@ export interface GepflegtResumeProps {
   photoSource: string | null;
   resumeProfile: string;
   sections: ApplicantProfile["resumeSections"];
+  designVariables?: Record<string, string>;
 }
 
 export interface GepflegtHeaderProps {

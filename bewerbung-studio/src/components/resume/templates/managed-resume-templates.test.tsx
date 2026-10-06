@@ -511,9 +511,9 @@ describe("managed resume registration", () => {
       supportsMultiplePages: true,
     });
     expect(stilvollDefaults.layout).toMatchObject({
-      leftColumnWidthMm: 54,
-      columnGapMm: 11,
-      rightColumnWidthMm: 115,
+      leftColumnWidthMm: 50,
+      columnGapMm: 10,
+      rightColumnWidthMm: 105,
     });
     expect(kompaktDefaults.layout).toMatchObject({
       leftColumnWidthMm: 108,

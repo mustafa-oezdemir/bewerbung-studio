@@ -176,8 +176,13 @@ ${resumeSectionPresentationCss}`;
 /** Resolve section-title colors by column role on both HTML surfaces. */
 export const applyResumeSectionHeadingColors = (root: Element, settings: DocumentDesignSettings): void => {
   const appearance = resumeAppearanceSchema.parse(settings.resumeAppearance ?? {});
-  const sidebarColor = appearance.sidebarSectionHeadingColor ?? appearance.sidebarTextColor;
-  const mainColor = settings.cvOverrides?.colors?.sectionHeading;
+  const isGepflegt = root.matches('[data-template="gepflegt"]') || Boolean(root.querySelector(".gepflegt-page"));
+  const sidebarColor = isGepflegt
+    ? "var(--gepflegt-sidebar-title)"
+    : appearance.sidebarSectionHeadingColor ?? appearance.sidebarTextColor;
+  const mainColor = isGepflegt
+    ? "var(--gepflegt-section-heading)"
+    : settings.cvOverrides?.colors?.sectionHeading;
   if (!sidebarColor && !mainColor) return;
   const sidebar = root.querySelector(
     '[data-resume-layout-zone="sidebar"],.pehlione-sidebar,.pehlione-pdf-sidebar,.elegant-sidebar,.elegant-pdf-sidebar,.gepflegt-sidebar,.gepflegt-pdf-sidebar,.zeitgenoessisch-sidebar,.zeit-pdf-sidebar,.kreativ-sidebar,.kreativ-pdf-sidebar,.zweispaltig-sidebar,.zweispaltig-pdf-sidebar,.modern-resume-right-column,.modern-pdf-right,.kompakt-right,.kompakt-pdf-columns>aside,.stilvoll-content>aside,.stilvoll-pdf-columns>aside,aside',
@@ -889,7 +894,7 @@ export const applyManagedResumeOutput = (
     else if (firstPageHeader) {
       // Later pages repeat the identity of the first page's header (name, title, photo) and the contacts the user chose
       // for them (e-mail, phone): never its address, links or other personal details.
-      if (number > 1 && resolved.templateId === "zeitgenoessisch") {
+      if (number > 1 && (resolved.templateId === "zeitgenoessisch" || resolved.templateId === "kreativ" || resolved.templateId === "stilvoll")) {
         // Both native renderers already draw the compact identity. Replacing it with page one's header
         // would repeat the large photo composition and waste the continuation page's upper area.
         ensureResumeHeaderContacts(root, continuationContacts);
@@ -929,6 +934,27 @@ export const applyManagedResumeOutput = (
       const zeitScope = (surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild) as HTMLElement | null;
       for (const [property, value] of Object.entries(resolved.zeitgenoessischVariables))
         zeitScope?.style.setProperty(property, value);
+    }
+    if (resolved.kreativVariables) {
+      const kreativScope = (surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild) as HTMLElement | null;
+      for (const [property, value] of Object.entries(resolved.kreativVariables)) {
+        (root as HTMLElement).style.setProperty(property, value);
+        kreativScope?.style.setProperty(property, value);
+      }
+    }
+    if (resolved.stilvollVariables) {
+      const stilvollScope = (surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild) as HTMLElement | null;
+      for (const [property, value] of Object.entries(resolved.stilvollVariables)) {
+        (root as HTMLElement).style.setProperty(property, value);
+        stilvollScope?.style.setProperty(property, value);
+      }
+    }
+    if (resolved.gepflegtVariables) {
+      const gepflegtScope = (surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild) as HTMLElement | null;
+      for (const [property, value] of Object.entries(resolved.gepflegtVariables)) {
+        (root as HTMLElement).style.setProperty(property, value);
+        gepflegtScope?.style.setProperty(property, value);
+      }
     }
     applyResumeMetadataLayout(root, profile, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
     // A footer closing must stay inside the main column when a sidebar shares the page.

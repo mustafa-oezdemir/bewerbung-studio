@@ -356,15 +356,15 @@ describe("Kreativ rendering", () => {
       page: {
         widthMm: 210,
         heightMm: 297,
-        marginLeftMm: 15,
-        marginRightMm: 15,
-        marginBottomMm: 13,
+        marginLeftMm: 25,
+        marginRightMm: 20,
+        marginBottomMm: 15,
       },
       layout: {
         headerHeightMm: 46,
-        leftColumnWidthMm: 105,
-        columnGapMm: 11,
-        rightColumnWidthMm: 64,
+        leftColumnWidthMm: 96.3,
+        columnGapMm: 10,
+        rightColumnWidthMm: 58.7,
       },
     });
     expect(kreativLebenslaufTemplateConfig).toMatchObject({

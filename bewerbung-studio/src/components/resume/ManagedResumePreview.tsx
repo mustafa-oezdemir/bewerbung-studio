@@ -12,6 +12,9 @@ import {
   applyManagedResumeOutput,
   managedResumeCss,
 } from "../../shared/resumeManagedOutput";
+import { kreativResolvedCss } from "../../shared/kreativDesign";
+import { stilvollResolvedCss } from "../../shared/stilvollDesign";
+import { gepflegtResolvedCss } from "../../shared/gepflegtDesign";
 
 const inheritedStyles = new Map<string, string>();
 const templateStyles = (templateId: string) => {
@@ -61,7 +64,10 @@ export function ManagedResumePreview({
   );
   return (
     <>
-      <style>{managedResumeCss + templateStyles(templateId) + (templateId === "elegant" ? elegantManagedCss : "")}</style>
+      <style>{managedResumeCss + templateStyles(templateId) + (templateId === "elegant" ? elegantManagedCss
+        : templateId === "kreativ" ? kreativResolvedCss
+        : templateId === "stilvoll" ? stilvollResolvedCss
+        : templateId === "gepflegt" ? gepflegtResolvedCss : "")}</style>
       <div
         className="managed-resume-preview"
         dangerouslySetInnerHTML={{ __html: html }}

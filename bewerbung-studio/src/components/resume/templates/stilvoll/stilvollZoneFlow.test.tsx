@@ -60,7 +60,7 @@ const move = (profile: ReturnType<typeof makeProfile>, id: string, zone: "main" 
 describe("Stilvoll: sections follow their column", () => {
   it("A. the certificates stand in the sidebar of page one by default and follow the career once they are moved to the main column", () => {
     const inSidebar = render(makeProfile(5));
-    const inMain = render(move(makeProfile(5), "certifications", "main", 99));
+    const inMain = render(move(makeProfile(2), "certifications", "main", 99));
     const behindLong = render(move(makeProfile(6), "certifications", "main", 99));
     for (const surface of surfaces) {
       const node = sidebarSection(inSidebar.surfaces[surface][0], "certifications");
@@ -113,7 +113,7 @@ describe("Stilvoll: sections follow their column", () => {
   });
 
   it("D. a section moved to the main column starts on page one while there is room, else it flows on to page two", () => {
-    const fits = render(move(makeProfile(5), "certifications", "main", 99));
+    const fits = render(move(makeProfile(2), "certifications", "main", 99));
     const flows = render(move(makeProfile(6), "certifications", "main", 99));
     const above = render(move(makeProfile(6), "certifications", "main", 0));
     expect(fits.resolved.pagePlan).toHaveLength(1);

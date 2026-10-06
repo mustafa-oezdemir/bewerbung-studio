@@ -99,7 +99,7 @@ describe.each(Object.keys(components))("continuation page of %s", (templateId) =
   const { resolved, pdfPages, previewPages } = render(templateId);
 
   it("plans the same two pages for preview and PDF", () => {
-    if (templateId === "zweispaltig" || templateId === "zeitgenoessisch" || templateId === "elegant" || templateId === "tabellarisch") expect(resolved.pagePlan.length).toBeGreaterThanOrEqual(2);
+    if (["zweispaltig", "zeitgenoessisch", "elegant", "tabellarisch", "gepflegt"].includes(templateId)) expect(resolved.pagePlan.length).toBeGreaterThanOrEqual(2);
     else expect(resolved.pagePlan).toHaveLength(2);
     expect(pdfPages).toHaveLength(resolved.pagePlan.length);
     expect(previewPages).toHaveLength(resolved.pagePlan.length);
@@ -109,13 +109,14 @@ describe.each(Object.keys(components))("continuation page of %s", (templateId) =
     for (const [index, page] of previewPages.entries()) expect({ page: index + 1, ids: sectionIds(page) }).toEqual({ page: index + 1, ids: sectionIds(pdfPages[index]) });
   });
 
-  it.each(["preview", "pdf"] as const)("repeats the identity header without an idle sidebar in the %s", (surface) => {
+  it.each(["preview", "pdf"] as const)("repeats the identity header with the template's continuation lane in the %s", (surface) => {
     const first = surface === "pdf" ? pdfPages[0] : previewPages[0];
     const second = surface === "pdf" ? pdfPages[1] : previewPages[1];
     if (templateId === "elegant") {
       expect(second.querySelector("aside .elegant-sidebar__continuation")?.textContent).toContain("Mina Kaya");
       expect(second.querySelector("aside img")).toBeNull();
-    } else expect(second.querySelector("aside")).toBeNull();
+    } else if (templateId === "gepflegt") expect(second.querySelector("aside")).not.toBeNull();
+    else expect(second.querySelector("aside")).toBeNull();
     const firstHeader = first.querySelector("header");
     const secondHeader = second.querySelector("header");
     // Pehlione, Kompakt and Zeitgenössisch list contacts in their first-page column.
@@ -313,4 +314,159 @@ it("recalculates Zeitgenössisch pagination from the shared body size and line h
     .reduce((sum, item) => sum + item.weight, 0);
   expect(totalWeight(larger)).toBeGreaterThan(totalWeight(smaller));
   expect(larger.resolved.pagePlan[0].fill?.main ?? 0).toBeGreaterThan(smaller.resolved.pagePlan[0].fill?.main ?? 0);
+});
+
+it("splits a Kreativ CBF-style role between complete bullets in preview and PDF", () => {
+  const achievements = [
+    "Koordination laufender Produktionsprozesse und Abstimmung der Arbeitsschritte mit den beteiligten Teams.",
+    "Auswertung von Produktionsdaten und Aufbereitung der Ergebnisse für die tägliche Fertigungsplanung.",
+    "Überwachung von Produktionsterminen und frühzeitige Klärung von Abweichungen mit den Fachbereichen.",
+    "Abstimmung von Aufgaben und Prioritäten mit Einkauf, Fertigung und Qualitätssicherung.",
+    "Dokumentation der Prozesskennzahlen und Nachverfolgung vereinbarter Korrekturmaßnahmen.",
+    "Verbesserung des Informationsflusses zwischen den Teams während der laufenden Produktion.",
+    "Prüfung der Materialverfügbarkeit und Weitergabe offener Punkte an die zuständigen Stellen.",
+    "Erstellung regelmäßiger Berichte zu Auslastung, Terminen und beobachteten Engpässen.",
+  ];
+  const cbf = { id: crypto.randomUUID(), from: "12/2018", to: "03/2019", role: "Prozessplaner",
+    company: "CBF Tekstil und Außenhandel AG", city: "Tokat, Türkei", achievements };
+  const settings = getTemplateDocumentDesignDefaults("kreativ");
+  const candidates = Array.from({ length: 5 }, (_, count) => count + 1).flatMap((count) =>
+    Array.from({ length: 5 }, (_, bullets) => profileSchema.parse({
+      ...profile, education: [], experiences: [
+        ...profile.experiences.slice(0, count).map((entry) => ({ ...entry, achievements: entry.achievements.slice(0, bullets + 2) })),
+        cbf,
+      ],
+    })),
+  );
+  const fixture = candidates.find((candidate) => {
+    const plan = resolveCvDocument({ profile: candidate, templateId: "kreativ", settings }).pagePlan;
+    const first = plan[0]?.items.find((item) => item.id === cbf.id);
+    const next = plan[1]?.items.find((item) => item.id === cbf.id);
+    return first?.kind === "experience" && next?.kind === "experience" && first.bullets && next.bullets
+      && first.bullets.to > 0 && first.bullets.to < achievements.length;
+  });
+  expect(fixture).toBeDefined();
+  if (!fixture) return;
+  const { resolved, pdfPages, previewPages } = render("kreativ", fixture);
+  const ranges = resolved.pagePlan.flatMap((page) => page.items.filter((item) => item.id === cbf.id))
+    .map((item) => item.kind === "experience" ? item.bullets : undefined);
+  expect(ranges[0]?.from).toBe(0);
+  expect(ranges.at(-1)?.to).toBe(achievements.length);
+  expect(ranges[0]?.to).toBeGreaterThan(0);
+  expect(ranges[0]?.to).toBeLessThan(achievements.length);
+  for (let index = 1; index < ranges.length; index += 1) expect(ranges[index]?.from).toBe(ranges[index - 1]?.to);
+  expect(pdfPages).toHaveLength(resolved.pagePlan.length);
+  expect(previewPages).toHaveLength(pdfPages.length);
+  for (const bullet of achievements) {
+    const seenOn = (pages: Element[]) => pages.flatMap((page, index) => text(page).includes(bullet) ? [index] : []);
+    expect(seenOn(pdfPages), bullet).toEqual(seenOn(previewPages));
+    expect(seenOn(pdfPages), bullet).toHaveLength(1);
+  }
+  for (let index = 1; index < pdfPages.length; index += 1) {
+    for (const page of [pdfPages[index], previewPages[index]]) {
+      expect(page.querySelector(".kreativ-header--compact,.kreativ-pdf-header.compact")).not.toBeNull();
+      expect(page.querySelector(".kreativ-header__photo,.kreativ-pdf-photo,.kreativ-background,.kreativ-pdf-background")).toBeNull();
+    }
+  }
+});
+
+it("recalculates Kreativ pagination and every managed section from resolved typography", () => {
+  const base = getTemplateDocumentDesignDefaults("kreativ");
+  const smaller = render("kreativ", profile, { ...base, cvOverrides: { typography: { bodySizePt: 10, lineHeight: 1.1 } } });
+  const larger = render("kreativ", profile, { ...base, cvOverrides: { typography: { bodySizePt: 11, lineHeight: 1.4 } } });
+  for (const [output, body, line] of [[smaller, "10pt", "1.1"], [larger, "11pt", "1.4"]] as const) {
+    expect(output.pdfPages).toHaveLength(output.resolved.pagePlan.length);
+    expect(output.previewPages).toHaveLength(output.pdfPages.length);
+    const preview = output.previewPages[0].querySelector<HTMLElement>(".kreativ-template");
+    const pdf = output.pdfPages[0].querySelector<HTMLElement>(".kreativ-pdf");
+    for (const root of [preview, pdf]) {
+      expect(root?.style.getPropertyValue("--doc-body-size")).toBe(body);
+      expect(root?.style.getPropertyValue("--doc-line-height")).toBe(line);
+    }
+    for (let index = 0; index < output.pdfPages.length; index += 1) {
+      const ids = (page: Element) => Array.from(page.querySelectorAll("[data-managed-section]"))
+        .map((section) => section.getAttribute("data-managed-section"));
+      expect(ids(output.previewPages[index])).toEqual(ids(output.pdfPages[index]));
+    }
+    for (const id of ["summary", "experience", "strengths", "languages", "knowledge"])
+      expect(output.pdfPages.some((page) => page.querySelector(`[data-managed-section="${id}"]`))).toBe(true);
+  }
+  const weight = (output: typeof smaller) => output.resolved.pagePlan.flatMap((page) => page.items)
+    .reduce((total, item) => total + item.weight, 0);
+  expect(weight(larger)).toBeGreaterThan(weight(smaller));
+});
+
+it("splits a Stilvoll CBF-style role between complete bullets on the same preview and PDF pages", () => {
+  const achievements = [
+    "Koordination laufender Produktionsprozesse und Abstimmung der Arbeitsschritte mit den beteiligten Teams.",
+    "Auswertung von Produktionsdaten und Aufbereitung der Ergebnisse für die tägliche Fertigungsplanung.",
+    "Überwachung von Produktionsterminen und frühzeitige Klärung von Abweichungen mit den Fachbereichen.",
+    "Abstimmung von Aufgaben und Prioritäten mit Einkauf, Fertigung und Qualitätssicherung.",
+    "Dokumentation der Prozesskennzahlen und Nachverfolgung vereinbarter Korrekturmaßnahmen.",
+    "Verbesserung des Informationsflusses zwischen den Teams während der laufenden Produktion.",
+  ];
+  const cbf = { id: crypto.randomUUID(), from: "12/2018", to: "03/2019", role: "Prozessplaner",
+    company: "CBF Tekstil ve Dış Tic. A.Ş.", city: "Tokat, Türkei", achievements };
+  const settings = getTemplateDocumentDesignDefaults("stilvoll");
+  const candidates = Array.from({ length: 5 }, (_, count) => count + 1).flatMap(count =>
+    Array.from({ length: 5 }, (_, bullets) => profileSchema.parse({
+      ...profile, education: [], experiences: [
+        ...profile.experiences.slice(0, count).map(entry => ({ ...entry, achievements: entry.achievements.slice(0, bullets + 2) })),
+        cbf,
+      ],
+    })),
+  );
+  const fixture = candidates.find(candidate => {
+    const plan = resolveCvDocument({ profile: candidate, templateId: "stilvoll", settings }).pagePlan;
+    const first = plan[0]?.items.find(item => item.id === cbf.id);
+    const next = plan[1]?.items.find(item => item.id === cbf.id);
+    return first?.kind === "experience" && next?.kind === "experience" && first.bullets && next.bullets
+      && first.bullets.to > 0 && first.bullets.to < achievements.length;
+  });
+  expect(fixture).toBeDefined();
+  if (!fixture) return;
+  const { resolved, pdfPages, previewPages } = render("stilvoll", fixture);
+  const ranges = resolved.pagePlan.flatMap(page => page.items.filter(item => item.id === cbf.id))
+    .map(item => item.kind === "experience" ? item.bullets : undefined);
+  expect(ranges[0]?.from).toBe(0);
+  expect(ranges.at(-1)?.to).toBe(achievements.length);
+  expect(ranges[0]?.to).toBeGreaterThan(0);
+  expect(ranges[0]?.to).toBeLessThan(achievements.length);
+  for (let index = 1; index < ranges.length; index += 1) expect(ranges[index]?.from).toBe(ranges[index - 1]?.to);
+  expect(pdfPages).toHaveLength(resolved.pagePlan.length);
+  expect(previewPages).toHaveLength(pdfPages.length);
+  for (const bullet of achievements) {
+    const seenOn = (pages: Element[]) => pages.flatMap((page, index) => text(page).includes(bullet) ? [index] : []);
+    expect(seenOn(pdfPages), bullet).toEqual(seenOn(previewPages));
+    expect(seenOn(pdfPages), bullet).toHaveLength(1);
+  }
+  for (let index = 1; index < pdfPages.length; index += 1) for (const page of [pdfPages[index], previewPages[index]]) {
+    expect(page.querySelector(".stilvoll-header--compact,.stilvoll-pdf-header.compact")).not.toBeNull();
+    expect(page.querySelector(".stilvoll-header figure,.stilvoll-pdf-photo,.stilvoll-background,.managed-pdf-background")).toBeNull();
+  }
+});
+
+it("recalculates Stilvoll pagination and the managed sections from resolved typography", () => {
+  const base = getTemplateDocumentDesignDefaults("stilvoll");
+  const smaller = render("stilvoll", profile, { ...base, cvOverrides: { typography: { bodySizePt: 10, lineHeight: 1.1 } } });
+  const larger = render("stilvoll", profile, { ...base, cvOverrides: { typography: { bodySizePt: 11, lineHeight: 1.4 } } });
+  for (const [output, body, line] of [[smaller, "10pt", "1.1"], [larger, "11pt", "1.4"]] as const) {
+    expect(output.pdfPages).toHaveLength(output.resolved.pagePlan.length);
+    expect(output.previewPages).toHaveLength(output.pdfPages.length);
+    for (const root of [output.previewPages[0].querySelector<HTMLElement>(".stilvoll-template"),
+      output.pdfPages[0].querySelector<HTMLElement>(".stilvoll-pdf")]) {
+      expect(root?.style.getPropertyValue("--doc-body-size")).toBe(body);
+      expect(root?.style.getPropertyValue("--doc-line-height")).toBe(line);
+    }
+    for (let index = 0; index < output.pdfPages.length; index += 1) {
+      const ids = (page: Element) => Array.from(page.querySelectorAll("[data-managed-section]"))
+        .map(section => section.getAttribute("data-managed-section"));
+      expect(ids(output.previewPages[index])).toEqual(ids(output.pdfPages[index]));
+    }
+    for (const id of ["summary", "experience", "strengths", "languages", "knowledge"])
+      expect(output.pdfPages.some(page => page.querySelector(`[data-managed-section="${id}"]`))).toBe(true);
+  }
+  const weight = (output: typeof smaller) => output.resolved.pagePlan.flatMap(page => page.items)
+    .reduce((total, item) => total + item.weight, 0);
+  expect(weight(larger)).toBeGreaterThan(weight(smaller));
 });
