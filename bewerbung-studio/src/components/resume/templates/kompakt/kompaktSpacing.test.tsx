@@ -150,6 +150,20 @@ describe("Kompakt spacing and section output", () => {
     }
   });
 
+  it("moves the name, subtitle, both columns, and their gap with Seitenränder and Spaltenabstand", () => {
+    const settings = {
+      ...getTemplateDocumentDesignDefaults("kompakt"),
+      cvOverrides: { spacing: { pageMarginMm: 27, columnGapMm: 12 } },
+    };
+    const resolved = resolveCvDocument({ profile: baseProfile, templateId: "kompakt", settings });
+    expect(resolved.design.spacing.pageMarginMm).toBe(27);
+    for (const html of renderSurfaces(baseProfile, settings)) {
+      expect(html).toContain("--kompakt-margin-left:27mm");
+      expect(html).toContain("--kompakt-margin-right:22mm");
+      expect(html).toContain("--kompakt-column-gap:12mm");
+    }
+  });
+
   it("shares changed typography, spacing, and palette with the letter", () => {
     const settings = {
       ...getTemplateDocumentDesignDefaults("kompakt"),

@@ -15,6 +15,7 @@ import {
 } from "./documentDesign";
 import { getTemplateDocumentDesignDefaults, resolveTemplateCvDesign } from "./cvDesign";
 import { zweispaltigDefaults } from "./cvTemplateDefaults/zweispaltig.defaults";
+import { kompaktDefaults } from "./cvTemplateDefaults/kompakt.defaults";
 import { resolveSectionColumns } from "./resumeSectionLayout";
 import { hasSidebarHero, isZoneFlowTemplate, sectionListMetrics, supportsEducationSplit, supportsSidebarContinuation } from "./resumeSectionPresentation";
 import { normalizeCustomSection } from "./resumeCustomSections";
@@ -431,6 +432,25 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
       mainRatio: mainTextWidth / geometry.text.mainW,
       sideDelta: sideWidth - 2 * padding - geometry.text.sideW,
       marginInset: padding, ...factors, ...spacing };
+  }
+  if (templateId === "kompakt" && !single) {
+    const native = kompaktDefaults;
+    const chosenMargin = overrides.pageMarginMm ?? native.page.marginLeftMm + legacyMargin;
+    const marginShift = chosenMargin - native.page.marginLeftMm;
+    const contentWidth = native.page.widthMm - chosenMargin - native.page.marginRightMm - marginShift;
+    const gap = overrides.columnGapMm ?? native.layout.columnGapMm;
+    const sidebarRatio = (context.layout?.sidebarWidthPercent ?? 38) / 100;
+    const usableWidth = Math.max(24, contentWidth - gap);
+    const padding = overrides.innerPaddingMm !== undefined ? overrides.innerPaddingMm - nativePadding : 0;
+    const mainWidth = Math.max(12, usableWidth * (1 - sidebarRatio) - 2 * padding);
+    const sideWidth = Math.max(12, usableWidth * sidebarRatio - 2 * padding);
+    const fullWidth = Math.max(24, contentWidth - 2 * padding);
+    return { font, textHeight, line,
+      width: Math.max(0.5, (mainWidth - 4.8) / geometry.text.bulletW),
+      contWidth: fullWidth / geometry.text.bulletW,
+      mainRatio: mainWidth / geometry.text.mainW,
+      sideDelta: sideWidth - geometry.text.sideW,
+      marginInset: marginShift, ...factors, ...spacing };
   }
   if (single) {
     // The visual Tabellarisch career list keeps its narrow text column even

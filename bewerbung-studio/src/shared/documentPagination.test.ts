@@ -233,6 +233,20 @@ describe("A4 document pagination", () => {
     expect(wide).toBeGreaterThan(base);
   });
 
+  it("recalculates Kompakt content width for Seitenränder and Spaltenabstand", () => {
+    const profile = profileSchema.parse({ ...kreativPaginationProfile(), summary: "Klare Planung und verlässliche Abstimmung im Team" });
+    const base = resolve(profile, "kompakt");
+    const margin = resolve(profile, "kompakt", { cvOverrides: { spacing: { pageMarginMm: 27 } } });
+    const gap = resolve(profile, "kompakt", { cvOverrides: { spacing: { columnGapMm: 18 } } });
+    expect(margin.design.spacing.pageMarginMm).toBe(27);
+    expect(margin.pagePlan[0].fill!.main).toBeGreaterThan(base.pagePlan[0].fill!.main);
+    expect(gap.pagePlan).not.toEqual(base.pagePlan);
+    for (const result of [base, margin, gap]) {
+      expect(idsOf(result.pagePlan)).toEqual([...profile.experiences, ...profile.education].map((item) => item.id));
+      expectEveryBulletOnce(result.pagePlan, profile.experiences);
+    }
+  });
+
   it.each(templateIds)("B. fills page one before it starts page two in %s", (id) => {
     const profile = makeProfile(5, 4, 3);
     const plan = resolve(profile, id).pagePlan;

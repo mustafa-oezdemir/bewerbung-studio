@@ -103,6 +103,7 @@ export const kompaktResolvedCss = `
 .kompakt-template .kompakt-contacts :is(a,span),.kompakt-pdf .kompakt-pdf-contact :is(a,span){font-size:calc(var(--doc-body-size) * .92);line-height:var(--doc-line-height);color:var(--kompakt-primary);overflow-wrap:anywhere}
 .kompakt-template .kompakt-contacts i,.kompakt-pdf .kompakt-pdf-contact i,.kompakt-template .kompakt-strengths article>i,.kompakt-pdf .kompakt-pdf-strength>i{color:var(--kompakt-icon);font-size:var(--doc-body-size)}
 .kompakt-template .kompakt-strengths article,.kompakt-pdf .kompakt-pdf-strength{margin-bottom:var(--kompakt-entry-gap)}
+.kompakt-pdf .kompakt-pdf-strength:last-child{margin-bottom:0}
 .kompakt-template .kompakt-strengths h3,.kompakt-pdf .kompakt-pdf-strength h3{font-family:var(--doc-heading-font);font-size:var(--doc-body-size);font-weight:600;line-height:var(--doc-line-height);color:var(--kompakt-primary)}
 .kompakt-template .kompakt-strengths p,.kompakt-pdf .kompakt-pdf-strength p{font-size:var(--doc-body-size);line-height:var(--doc-line-height);color:var(--kompakt-paragraph)}
 .kompakt-template .kompakt-skills span,.kompakt-pdf .kompakt-pdf-skill{font-size:calc(var(--doc-body-size) * .94);line-height:var(--doc-line-height);font-weight:600;color:var(--kompakt-primary);border-color:var(--kompakt-divider)}
