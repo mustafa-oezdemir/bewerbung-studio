@@ -956,6 +956,13 @@ export const applyManagedResumeOutput = (
         gepflegtScope?.style.setProperty(property, value);
       }
     }
+    if (resolved.kompaktVariables) {
+      const kompaktScope = (surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild) as HTMLElement | null;
+      for (const [property, value] of Object.entries(resolved.kompaktVariables)) {
+        (root as HTMLElement).style.setProperty(property, value);
+        kompaktScope?.style.setProperty(property, value);
+      }
+    }
     applyResumeMetadataLayout(root, profile, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
     // A footer closing must stay inside the main column when a sidebar shares the page.
     const geometry = getPaginationGeometry(resolved.templateId);

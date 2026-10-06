@@ -378,7 +378,7 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
   // A larger font raises every line's box, even when an entry stays at the
   // same predicted line count. The nonlinear reserve covers word-wrap
   // thresholds observed in the rendered templates (notably Kreativ/Kompakt).
-  const textHeight = templateId === "kreativ" ? font : Math.max(1, Math.pow(font, 1.3));
+  const textHeight = templateId === "kreativ" || templateId === "kompakt" ? font : Math.max(1, Math.pow(font, 1.3));
   const line = overrides.lineHeight
     ? bounded(overrides.lineHeight, geometry.text.lineRatio) / geometry.text.lineRatio
     : settings ? lineHeightLevelToValue[settings.lineHeightLevel] / lineHeightLevelToValue[defaults.lineHeightLevel] : 1;
@@ -1036,7 +1036,7 @@ export const createResumePagePlan = (
   // height; the other templates have room for the shared contact line.
   const contactOnContinuation = find("personalData")?.visible !== false && Boolean(profile?.email?.trim() || profile?.phone?.trim());
   // Zeitgenössisch keeps its contacts in the sidebar too: a multi-page CV adds the same contact line to its header.
-  const kompaktContactHeight = !context.atsMode && (templateId === "kompakt" || templateId === "zeitgenoessisch") && contactOnContinuation ? 5.5 : 0;
+  const kompaktContactHeight = !context.atsMode && templateId === "zeitgenoessisch" && contactOnContinuation ? 5.5 : 0;
   // The plain layouts measured their offsets with every contact filled; a header that stacks
   // its contacts shrinks with each missing one, and every page repeats it.
   const stackedHeader = context.atsMode ? geometry.ats.header : undefined;
@@ -1060,7 +1060,9 @@ export const createResumePagePlan = (
     ? estimateStilvollHeaderTop(profile, showContacts, withPhoto,
         geometry.text.bulletFont * scale.font * 72 / 25.4, geometry.text.lineRatio * scale.line, scale.marginInset,
         context.overrides?.headingSizePt, context.overrides?.subheadingSizePt)
-    : grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop1 : geometry.top1) + kompaktContactHeight + photoGrowth.main, false);
+    : templateId === "kompakt" && !context.atsMode
+      ? geometry.top1 + photoGrowth.main
+      : grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop1 : geometry.top1) + kompaktContactHeight + photoGrowth.main, false);
   const gepflegtName = `${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`.trim();
   const gepflegtMainContinuationGrowth = templateId === "gepflegt" && !context.atsMode
     ? Math.max(0, Math.ceil(gepflegtName.length / 15) - 1) * 9
@@ -1068,7 +1070,9 @@ export const createResumePagePlan = (
     : 0;
   const top2 = (templateId === "kreativ" || templateId === "stilvoll" || templateId === "gepflegt") && !context.atsMode
     ? geometry.top2 + gepflegtMainContinuationGrowth
-    : grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop2 : geometry.top1) + kompaktContactHeight + photoGrowth.main, true);
+    : templateId === "kompakt" && !context.atsMode
+      ? geometry.top2 + (contactOnContinuation ? 5.5 : 0)
+      : grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop2 : geometry.top1) + kompaktContactHeight + photoGrowth.main, true);
   const verticalInset = templateId === "stilvoll" && !context.atsMode
     ? Math.max(0, scale.marginInset) : 2 * scale.marginInset;
   const mainCap1 = (geometry.limit - top1 - verticalInset) * (geometry.safety ?? SAFETY);
@@ -1088,6 +1092,7 @@ export const createResumePagePlan = (
       : 0)
     : geometry.sideTop1 === null ? null
       : context.atsMode ? geometry.sideTop1 + photoGrowth.side
+        : templateId === "kompakt" ? geometry.sideTop1 + photoGrowth.side
         : estimateResumeHeaderTop(templateId, profile, "side", geometry.sideTop1 + photoGrowth.side, showContacts, withPhoto) ?? geometry.sideTop1 + photoGrowth.side;
   const sideCap1 = sideTop1 === null || flat
     ? 0

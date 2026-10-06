@@ -15,6 +15,7 @@ import {
 import { kreativResolvedCss } from "../../shared/kreativDesign";
 import { stilvollResolvedCss } from "../../shared/stilvollDesign";
 import { gepflegtResolvedCss } from "../../shared/gepflegtDesign";
+import { kompaktResolvedCss } from "../../shared/kompaktDesign";
 
 const inheritedStyles = new Map<string, string>();
 const templateStyles = (templateId: string) => {
@@ -67,7 +68,8 @@ export function ManagedResumePreview({
       <style>{managedResumeCss + templateStyles(templateId) + (templateId === "elegant" ? elegantManagedCss
         : templateId === "kreativ" ? kreativResolvedCss
         : templateId === "stilvoll" ? stilvollResolvedCss
-        : templateId === "gepflegt" ? gepflegtResolvedCss : "")}</style>
+        : templateId === "gepflegt" ? gepflegtResolvedCss
+        : templateId === "kompakt" ? kompaktResolvedCss : "")}</style>
       <div
         className="managed-resume-preview"
         dangerouslySetInnerHTML={{ __html: html }}

@@ -18,6 +18,7 @@ import { getZeitgenoessischDesignVariables } from "./zeitgenoessischDesign";
 import { getKreativDesignVariables } from "./kreativDesign";
 import { getStilvollDesignVariables } from "./stilvollDesign";
 import { getGepflegtDesignVariables } from "./gepflegtDesign";
+import { getKompaktDesignVariables } from "./kompaktDesign";
 
 type CvDocumentInput = {
   profile: ApplicantProfile | undefined;
@@ -93,6 +94,10 @@ export const resolveCvDocument = ({
     ? getGepflegtDesignVariables(design, resolveResumeAppearance(templateId, settings.resumeAppearance),
         settings.cvOverrides?.colors, application?.accentColor, application?.secondaryColor)
     : undefined;
+  const kompaktVariables = templateId === "kompakt"
+    ? getKompaktDesignVariables(design, settings.cvOverrides?.colors,
+        application?.accentColor, application?.secondaryColor)
+    : undefined;
   // The Kurzprofil every output shows (and the planner measures): the Bewerbung's own text, else the profile's.
   // The Deckblatt text is another field and never stands in for it.
   const summary = resolveResumeSummary(profile, resumeProfile);
@@ -120,17 +125,17 @@ export const resolveCvDocument = ({
       signature: !atsMode && profile.resumeClosing.showSignature && Boolean(getProfileMediaSource(profile.signaturePath)),
     },
     overrides: {
-      bodySizePt: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt"].includes(templateId) ? design.typography.bodySizePt : overrides?.typography?.bodySizePt,
+      bodySizePt: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt"].includes(templateId) ? design.typography.bodySizePt : overrides?.typography?.bodySizePt,
       headingSizePt: templateId === "stilvoll" ? design.typography.headingSizePt : undefined,
       subheadingSizePt: templateId === "stilvoll" ? design.typography.subheadingSizePt : undefined,
-      lineHeight: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt"].includes(templateId) ? design.typography.lineHeight : overrides?.typography?.lineHeight,
-      pageMarginMm: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt"].includes(templateId) ? design.spacing.pageMarginMm : overrides?.spacing?.pageMarginMm,
+      lineHeight: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt"].includes(templateId) ? design.typography.lineHeight : overrides?.typography?.lineHeight,
+      pageMarginMm: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt"].includes(templateId) ? design.spacing.pageMarginMm : overrides?.spacing?.pageMarginMm,
       innerPaddingMm: templateId === "elegant" ? design.spacing.innerPaddingMm : overrides?.spacing?.innerPaddingMm,
-      sectionGapMm: templateId === "elegant" ? design.spacing.sectionGapMm : overrides?.spacing?.sectionGapMm,
-      entryGapMm: templateId === "elegant" ? design.spacing.entryGapMm : overrides?.spacing?.entryGapMm,
-      sectionTitleGapMm: templateId === "elegant" ? design.spacing.sectionTitleGapMm : overrides?.spacing?.sectionTitleGapMm,
-      entryContentGapMm: templateId === "elegant" ? design.spacing.entryContentGapMm : overrides?.spacing?.entryContentGapMm,
-      columnGapMm: templateId === "elegant" ? design.spacing.columnGapMm : overrides?.spacing?.columnGapMm,
+      sectionGapMm: ["elegant", "kompakt"].includes(templateId) ? design.spacing.sectionGapMm : overrides?.spacing?.sectionGapMm,
+      entryGapMm: ["elegant", "kompakt"].includes(templateId) ? design.spacing.entryGapMm : overrides?.spacing?.entryGapMm,
+      sectionTitleGapMm: ["elegant", "kompakt"].includes(templateId) ? design.spacing.sectionTitleGapMm : overrides?.spacing?.sectionTitleGapMm,
+      entryContentGapMm: ["elegant", "kompakt"].includes(templateId) ? design.spacing.entryContentGapMm : overrides?.spacing?.entryContentGapMm,
+      columnGapMm: ["elegant", "kompakt"].includes(templateId) ? design.spacing.columnGapMm : overrides?.spacing?.columnGapMm,
     },
     settings,
   };
@@ -158,6 +163,7 @@ export const resolveCvDocument = ({
     kreativVariables,
     stilvollVariables,
     gepflegtVariables,
+    kompaktVariables,
     summary,
     pagePlan,
   };

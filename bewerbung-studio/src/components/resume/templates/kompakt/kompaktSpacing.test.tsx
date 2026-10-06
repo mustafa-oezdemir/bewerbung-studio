@@ -79,7 +79,10 @@ describe("Kompakt spacing and section output", () => {
       const project = main.querySelector(`[data-managed-section="special:${projectId}"]`)!;
       const interests = sidebar.querySelector(`[data-managed-section="special:${interestsId}"]`)!;
       expect(root.textContent).toContain("Mina Kaya");
-      expect(sidebar.textContent).toContain(baseProfile.summary);
+      expect(main.textContent).toContain(baseProfile.summary);
+      expect(sidebar.textContent).toContain("Kontaktdaten");
+      expect(main.firstElementChild?.getAttribute("data-managed-section")).toBe("summary");
+      expect(sidebar.querySelector(".kompakt-contacts,.kompakt-pdf-contacts")).not.toBeNull();
       expect(experience.querySelectorAll("article")).toHaveLength(2);
       expect(education.querySelectorAll("article")).toHaveLength(2);
       expect(project.getAttribute("data-custom-template")).toBe("kompakt");
@@ -147,6 +150,25 @@ describe("Kompakt spacing and section output", () => {
     }
   });
 
+  it("shares changed typography, spacing, and palette with the letter", () => {
+    const settings = {
+      ...getTemplateDocumentDesignDefaults("kompakt"),
+      cvOverrides: {
+        colors: { heading: "#2457A6", accent: "#D45500" },
+        typography: { bodySizePt: 11, lineHeight: 1.3 },
+        spacing: { columnGapMm: 7, sectionGapMm: 5 },
+      },
+    };
+    for (const html of [...renderSurfaces(baseProfile, settings), buildDocumentHtml({ ...application, designSettings: settings }, baseProfile, "anschreiben")]) {
+      expect(html).toContain("--kompakt-primary:#2457A6");
+      expect(html).toContain("--kompakt-accent:#D45500");
+      expect(html).toContain("--doc-body-size:11pt");
+      expect(html).toContain("--doc-line-height:1.3");
+      expect(html).toContain("--kompakt-column-gap:7mm");
+      expect(html).toContain("--kompakt-section-gap-base:5mm");
+    }
+  });
+
   it("does not leave an empty Ausbildung heading at a PDF page break", () => {
     const long = "Koordination und Dokumentation komplexer Abläufe mit mehreren Beteiligten und termingerechter Umsetzung.";
     const heavy = profileSchema.parse({ ...baseProfile, experiences: baseProfile.experiences.map((item) => ({
@@ -188,7 +210,7 @@ describe("Kompakt spacing and section output", () => {
     for (const html of renderSurfaces(baseProfile, settings)) {
       const { document } = parseHTML(html);
       const scope = document.querySelector(".kompakt-template,.kompakt-pdf")!;
-      expect(scope.getAttribute("style")).toContain("--kompakt-section-gap-base:6.8mm");
+      expect(scope.getAttribute("style")).toContain("--kompakt-section-gap-base:7.8mm");
       expect(scope.hasAttribute("data-resume-spacing-entry-gap")).toBe(false);
     }
   });

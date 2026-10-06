@@ -516,9 +516,9 @@ describe("managed resume registration", () => {
       rightColumnWidthMm: 105,
     });
     expect(kompaktDefaults.layout).toMatchObject({
-      leftColumnWidthMm: 108,
-      columnGapMm: 10,
-      rightColumnWidthMm: 66,
+      leftColumnWidthMm: 97,
+      columnGapMm: 8,
+      rightColumnWidthMm: 60,
     });
     expect(getTemplate("einfach")).toMatchObject({
       id: "einspaltig",

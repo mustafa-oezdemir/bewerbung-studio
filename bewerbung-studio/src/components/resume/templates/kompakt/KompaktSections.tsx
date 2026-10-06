@@ -92,11 +92,9 @@ const contactRows = (profile: ApplicantProfile | undefined) => {
 
 export function KompaktRightColumn({
   profile,
-  summary,
   sections,
 }: {
   profile: ApplicantProfile | undefined;
-  summary: string;
   sections: ApplicantProfile["resumeSections"];
 }) {
   const contacts = contactRows(profile);
@@ -125,15 +123,6 @@ export function KompaktRightColumn({
               </div>
             ))}
           </address>
-        </section>
-      ) : null}
-      {sections.profile && summary ? (
-        <section
-          className="kompakt-section"
-          data-element-id="kompakt.summary"
-        >
-          <KompaktHeading>{getResumeSectionTitle(profile, "summary")}</KompaktHeading>
-          <p className="kompakt-summary">{summary}</p>
         </section>
       ) : null}
       {sections.strengths && strengths.length ? (

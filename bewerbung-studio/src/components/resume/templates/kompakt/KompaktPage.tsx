@@ -95,6 +95,12 @@ export function KompaktPage({
         className={`kompakt-content ${isContinuation ? "kompakt-content--continuation" : ""}`}
       >
         <main className="kompakt-left">
+          {sections.profile && summary && !isContinuation ? (
+            <section className="kompakt-section" data-element-id="kompakt.summary">
+              <KompaktHeading>{getResumeSectionTitle(profile, "summary")}</KompaktHeading>
+              <p className="kompakt-summary">{summary}</p>
+            </section>
+          ) : null}
           {sections.experience ? (
             <KompaktCareer
               kind="experience"
@@ -114,7 +120,6 @@ export function KompaktPage({
         {!isContinuation ? (
           <KompaktRightColumn
             profile={profile}
-            summary={summary}
             sections={sections}
           />
         ) : null}

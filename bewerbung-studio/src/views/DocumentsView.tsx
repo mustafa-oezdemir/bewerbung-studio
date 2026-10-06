@@ -7,6 +7,7 @@ import { getElegantDesignVariables, elegantLetterCss } from "../shared/elegantDe
 import { kreativLetterCss } from "../shared/kreativDesign";
 import { stilvollLetterCss } from "../shared/stilvollDesign";
 import { gepflegtLetterCss } from "../shared/gepflegtDesign";
+import { kompaktLetterCss } from "../shared/kompaktDesign";
 import { getResumeSectionTitle } from "../features/resume-sections/resume-sections";
 import type { CvDesignTokens, ResumeDesignLayer } from "../shared/cvDesignSchema";
 import type { ResumeAppearance } from "../shared/resumeAppearance";
@@ -663,7 +664,7 @@ export function DocumentsView({
     : applicationRecipientLines(application);
   const coverSender = template.id === "stilvoll"
     ? stilvollCoverSenderFromProfile(resolvedCv.profile)
-    : ["zweispaltig", "zeitgenoessisch", "elegant", "kreativ", "gepflegt"].includes(template.id)
+    : ["zweispaltig", "zeitgenoessisch", "elegant", "kreativ", "gepflegt", "kompakt"].includes(template.id)
     ? coverSenderFromProfile(resolvedCv.profile)
     : resolveCoverSender(renderProfile, docs);
   const { name: coverSenderName, title: coverSenderTitle, contact: coverSenderContact } = coverSender;
@@ -704,6 +705,8 @@ export function DocumentsView({
         ? { ...paperStyle, ...resolvedCv.stilvollVariables } as CSSProperties
       : template.id === "gepflegt"
         ? { ...paperStyle, ...resolvedCv.gepflegtVariables } as CSSProperties
+      : template.id === "kompakt"
+        ? { ...paperStyle, ...resolvedCv.kompaktVariables } as CSSProperties
       : paperStyle;
   const designClassName = `column-${effectiveColumnLayout} background-${design.settings.backgroundId} background-scope-${design.settings.backgroundScope} ${
     design.settings.showBackgroundInPrint
@@ -2111,7 +2114,7 @@ export function DocumentsView({
                       profile={profile}
                       controlledDraft={contentProfile ?? profile}
                       onDraftChange={(value) => setResumeContentDraft((current) => typeof value === "function" ? value(current ?? profile) : value)}
-                      singlePageExceeded={template.id === "kompakt" && resumePlan.length > 1}
+                      singlePageExceeded={false}
                       templateId={template.id}
                       languagesColumns={design.settings.languagesColumns}
                       onLanguagesColumnsChange={(value) => updateDesignSetting("languagesColumns", value)}
@@ -2210,7 +2213,7 @@ export function DocumentsView({
             )}
             {tab === "anschreiben" && (
               <div
-                className={`document-paper document-anschreiben letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} layout-${template.layout} ${designClassName}${template.id === "zweispaltig" ? " zweispaltig-letter" : template.id === "zeitgenoessisch" ? " zeitgenoessisch-letter" : template.id === "elegant" ? " elegant-letter" : template.id === "kreativ" ? " kreativ-letter" : template.id === "stilvoll" ? " stilvoll-letter" : template.id === "gepflegt" ? " gepflegt-letter" : ""}`}
+                className={`document-paper document-anschreiben letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} layout-${template.layout} ${designClassName}${template.id === "zweispaltig" ? " zweispaltig-letter" : template.id === "zeitgenoessisch" ? " zeitgenoessisch-letter" : template.id === "elegant" ? " elegant-letter" : template.id === "kreativ" ? " kreativ-letter" : template.id === "stilvoll" ? " stilvoll-letter" : template.id === "gepflegt" ? " gepflegt-letter" : template.id === "kompakt" ? " kompakt-letter" : ""}`}
                 data-resume-template={template.id}
                 ref={letterPaperRef}
                 style={letterPaperStyle}>
@@ -2220,6 +2223,7 @@ export function DocumentsView({
                 {template.id === "kreativ" ? <style>{kreativLetterCss}</style> : null}
                 {template.id === "stilvoll" ? <style>{stilvollLetterCss}</style> : null}
                 {template.id === "gepflegt" ? <style>{gepflegtLetterCss}</style> : null}
+                {template.id === "kompakt" ? <style>{kompaktLetterCss}</style> : null}
                 <DocumentBackgroundLayer
                   backgroundId={design.settings.backgroundId}
                   atsMode={isAtsMode}
@@ -2362,7 +2366,7 @@ export function DocumentsView({
                   <div
                     className={`document-paper document-lebenslauf layout-${template.layout} ${designClassName}`}
                     key={plan.pageNumber}
-                    style={paperStyle}>
+                    style={template.id === "kompakt" ? letterPaperStyle : paperStyle}>
                     <style>
                       {getResumeIdentityVisibilityCss(
                         renderProfile?.resumeSemanticSections,

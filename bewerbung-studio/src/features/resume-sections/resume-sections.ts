@@ -297,7 +297,7 @@ export const templateSectionCapabilities: Record<
   stilvoll: twoColumnCapabilities("stilvoll"),
   kompakt: {
     ...twoColumnCapabilities("kompakt"),
-    compactSinglePage: true,
+    compactSinglePage: false,
     allowedZonesBySection: {
       ...twoColumnCapabilities("kompakt").allowedZonesBySection,
       summary: ["main", "sidebar"],
@@ -306,6 +306,7 @@ export const templateSectionCapabilities: Record<
     },
     defaultZoneBySection: {
       ...twoColumnCapabilities("kompakt").defaultZoneBySection,
+      summary: "main",
       languages: "main",
     },
   },

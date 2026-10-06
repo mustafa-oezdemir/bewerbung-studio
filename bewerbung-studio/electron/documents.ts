@@ -10,6 +10,7 @@ import { getElegantDesignVariables, elegantLetterCss, elegantManagedCss } from "
 import { kreativLetterCss, kreativResolvedCss } from "../src/shared/kreativDesign";
 import { stilvollLetterCss, stilvollResolvedCss } from "../src/shared/stilvollDesign";
 import { gepflegtLetterCss, gepflegtResolvedCss } from "../src/shared/gepflegtDesign";
+import { kompaktLetterCss, kompaktResolvedCss } from "../src/shared/kompaktDesign";
 import { renderContactIcon } from "../src/shared/contactIcons";
 import { applyManagedResumeOutput, managedResumeCss } from "../src/shared/resumeManagedOutput";
 import { resolveResumeClosingLine } from "../src/shared/resumeClosing";
@@ -823,12 +824,13 @@ export const buildDocumentHtml = (
       ? getElegantDesignVariables(resolvedCv.design, designSettings, accent, secondary)
     : template.id === "zeitgenoessisch" ? resolvedCv.zeitgenoessischVariables
       : template.id === "stilvoll" ? resolvedCv.stilvollVariables
-      : template.id === "gepflegt" ? resolvedCv.gepflegtVariables : resolvedCv.kreativVariables;
+      : template.id === "gepflegt" ? resolvedCv.gepflegtVariables
+      : template.id === "kompakt" ? resolvedCv.kompaktVariables : resolvedCv.kreativVariables;
   const letterIdentityStyle = letterIdentityVariables
     ? Object.entries(letterIdentityVariables).map(([key, value]) => `${key}:${escapeHtml(value)}`).join(";") : "";
   const letterSender = template.id === "stilvoll"
     ? stilvollCoverSenderFromProfile(resolvedCv.profile)
-    : ["zweispaltig", "zeitgenoessisch", "elegant", "kreativ", "gepflegt"].includes(template.id)
+    : ["zweispaltig", "zeitgenoessisch", "elegant", "kreativ", "gepflegt", "kompakt"].includes(template.id)
     ? coverSenderFromProfile(resolvedCv.profile)
     : resolveCoverSender(profile, docs);
   const sharedLetterParagraphs = template.id === "kreativ" || template.id === "stilvoll" ? resolveKreativCoverLetterParagraphs(application, docs) : undefined;
@@ -852,7 +854,7 @@ export const buildDocumentHtml = (
       ${renderDeckblattMarkup(deckblattModel)}
     </section>`;
   const letter = `
-    <section class="page letter-page letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} ${letterTemplateClass} ${designClasses}${template.id === "zweispaltig" ? " zweispaltig-letter" : template.id === "zeitgenoessisch" ? " zeitgenoessisch-letter" : template.id === "elegant" ? " elegant-letter" : template.id === "kreativ" ? " kreativ-letter" : template.id === "stilvoll" ? " stilvoll-letter" : template.id === "gepflegt" ? " gepflegt-letter" : ""}" data-resume-template="${escapeHtml(template.id)}"${letterIdentityVariables ? ` style="${letterIdentityStyle}"` : ""}>
+    <section class="page letter-page letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} ${letterTemplateClass} ${designClasses}${template.id === "zweispaltig" ? " zweispaltig-letter" : template.id === "zeitgenoessisch" ? " zeitgenoessisch-letter" : template.id === "elegant" ? " elegant-letter" : template.id === "kreativ" ? " kreativ-letter" : template.id === "stilvoll" ? " stilvoll-letter" : template.id === "gepflegt" ? " gepflegt-letter" : template.id === "kompakt" ? " kompakt-letter" : ""}" data-resume-template="${escapeHtml(template.id)}"${letterIdentityVariables ? ` style="${letterIdentityStyle}"` : ""}>
       ${backgroundLayer}
       <div class="page-content letter-content">
         <div class="letter-header"><div class="sender">${senderHeader(letterSender)}</div></div>
@@ -2574,13 +2576,13 @@ export const buildDocumentHtml = (
         : "";
     const right = isContinuation
       ? ""
-      : `<aside>${managedSection("Kontaktdaten", `<address class="kompakt-pdf-contacts">${contacts}</address>`)}${sections.profile && resumeSummary ? managedSection(summaryTitle, `<p>${escapeHtml(managedSummary)}</p>`) : ""}${managedSection("Stärken", kompaktStrengths)}${managedSection("Erfolge", kompaktAchievements)}${managedSection("Fähigkeiten", kompaktSkills)}</aside>`;
+      : `<aside>${managedSection("Kontaktdaten", `<address class="kompakt-pdf-contacts">${contacts}</address>`)}${managedSection("Stärken", kompaktStrengths)}${managedSection("Erfolge", kompaktAchievements)}${managedSection("Fähigkeiten", kompaktSkills)}</aside>`;
     const photo = !isContinuation &&
       getResumeSemanticSection(profile?.resumeSemanticSections, "photo").visible &&
       photoSource
       ? `<img class="kompakt-pdf-photo" src="${escapeHtml(photoSource)}" alt="">`
       : "";
-    return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="kompakt" data-no-fit="true"><div class="page-content managed-pdf kompakt-pdf" data-density="${plan.density}">${designSettings.backgroundId === "abstract" && !isContinuation ? kompaktBackground : ""}<header class="managed-pdf-header kompakt-pdf-header${isContinuation ? " compact" : ""}${photo ? " with-photo" : ""}">${isContinuation ? `<p class="kicker">${escapeHtml(resumeHeading.continuationKicker)}</p>` : ""}<h1>${escapeHtml(name)}</h1>${managedJobTitle ? `<h2>${escapeHtml(managedJobTitle)}</h2>` : ""}${photo}</header><div class="kompakt-pdf-columns${isContinuation ? " continuation" : ""}"><main>${sections.experience && experiences ? managedSection(`Erfahrung${isContinuation ? " · Fortsetzung" : ""}`, `<div class="managed-pdf-list">${experiences}</div>`) : ""}${sections.education && education ? managedSection("Ausbildung", `<div class="managed-pdf-list">${education}</div>`) : ""}${plan.blocks?.includes("languages") && sections.languages ? managedSection("Sprachen", managedVisualLanguages("kompakt")) : ""}</main>${right}</div>${managedFooter(plan, true)}</div></section>`;
+    return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="kompakt" data-no-fit="true"><div class="page-content managed-pdf kompakt-pdf" data-density="${plan.density}">${designSettings.backgroundId === "abstract" && !isContinuation ? kompaktBackground : ""}<header class="managed-pdf-header kompakt-pdf-header${isContinuation ? " compact" : ""}${photo ? " with-photo" : ""}">${isContinuation ? `<p class="kicker">${escapeHtml(resumeHeading.continuationKicker)}</p>` : ""}<h1>${escapeHtml(name)}</h1>${managedJobTitle ? `<h2>${escapeHtml(managedJobTitle)}</h2>` : ""}${photo}</header><div class="kompakt-pdf-columns${isContinuation ? " continuation" : ""}"><main>${!isContinuation && sections.profile && resumeSummary ? managedSection(summaryTitle, `<p>${escapeHtml(managedSummary)}</p>`) : ""}${sections.experience && experiences ? managedSection(`Erfahrung${isContinuation ? " · Fortsetzung" : ""}`, `<div class="managed-pdf-list">${experiences}</div>`) : ""}${sections.education && education ? managedSection("Ausbildung", `<div class="managed-pdf-list">${education}</div>`) : ""}${plan.blocks?.includes("languages") && sections.languages ? managedSection("Sprachen", managedVisualLanguages("kompakt")) : ""}</main>${right}</div>${managedFooter(plan, true)}</div></section>`;
   };
   const renderEinspaltigResumePage = (plan: ResumePagePlan) => {
     if (atsMode) return renderManagedAtsPage(plan, "einfach", "einspaltig");
@@ -3552,7 +3554,8 @@ export const buildDocumentHtml = (
   const templateSpecificCss = template.id === "elegant" ? elegantManagedCss
     : template.id === "kreativ" ? kreativResolvedCss + kreativLetterCss
     : template.id === "stilvoll" ? stilvollResolvedCss + stilvollLetterCss
-    : template.id === "gepflegt" ? gepflegtResolvedCss + gepflegtLetterCss : "";
+    : template.id === "gepflegt" ? gepflegtResolvedCss + gepflegtLetterCss
+    : template.id === "kompakt" ? kompaktResolvedCss + kompaktLetterCss : "";
   return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${template.id === "elegant" ? elegantLetterCss : ""}${zweispaltigDocumentCss}${template.id === "zweispaltig" ? zweispaltigLetterCss : ""}${zeitgenoessischDocumentCss}${template.id === "zeitgenoessisch" ? zeitgenoessischLetterCss : ""}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}${templateSpecificCss}</style></head><body>${selected.join("")}${pageFitScript}${target === "deckblatt" || target === "mappe" ? deckblattFitScript : ""}</body></html>`;
 };
 

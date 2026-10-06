@@ -390,9 +390,9 @@ const ivyLeague: TemplateTokens = {
 /** Kompakt keeps its small ruled heading in either column; it has no heading icons. */
 const kompaktHeading: SectionHeadingTokens = {
   iconBox: 0, iconGap: 0, iconRadius: 0, glyphSize: 0, glyphStroke: 0,
-  fontSizePt: { standard: 8.5, compact: 8.5 }, fontWeight: 450, lineHeight: 1,
+  fontSizePt: { standard: 11, compact: 11 }, fontWeight: 500, lineHeight: 1.2,
   letterSpacing: "0", textTransform: "uppercase",
-  marginBottom: { standard: 2.5, compact: 2.5 }, labelPadding: { standard: 1, compact: 1 },
+  marginBottom: { standard: 3, compact: 3 }, labelPadding: { standard: 1, compact: 1 },
   color: "var(--kompakt-muted,var(--managed-muted,#6d757a))",
   dividerColor: "var(--kompakt-divider,var(--managed-divider,#aeb6ba))", dividerWidth: ".3mm",
   iconColor: "currentColor", iconBackground: "transparent",
@@ -400,8 +400,8 @@ const kompaktHeading: SectionHeadingTokens = {
   height: 5.5,
 };
 const kompaktList: SectionListTokens = {
-  fontSizePt: { standard: 8, compact: 8 }, lineHeight: { standard: 1.25, compact: 1.25 },
-  itemGap: { standard: 4, compact: 4 }, indent: 0, inheritBody: true, layout: "grid",
+  fontSizePt: { standard: 10.3, compact: 10.3 }, lineHeight: { standard: 1.2, compact: 1.2 },
+  itemGap: { standard: 3.2, compact: 3.2 }, indent: 0, inheritBody: true, layout: "grid",
   markerColor: "var(--kompakt-accent,var(--managed-accent,#ff6200))", itemPrefix: "★",
 };
 const kompakt: TemplateTokens = {
