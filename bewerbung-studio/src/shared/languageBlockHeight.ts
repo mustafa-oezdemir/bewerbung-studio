@@ -18,7 +18,7 @@ type LanguageRowModel = {
 const languageRowModels: Record<string, LanguageRowModel> = {
   einspaltig: { cols: 3, head: 5.95, row: 6.69, desc: 3.93, line: 3.68, dots: 24.8, colGap: 8, cw: 1.63 },
   elegant: { cols: 1, head: 5.86, row: 6.95, desc: 3.51, line: 3.95, dots: 14.8, colGap: 0, cw: 1.37 },
-  gepflegt: { cols: 1, head: 7.11, row: 7.08, desc: 3.65, line: 3.88, dots: 17.9, colGap: 0, cw: 1.45 },
+  gepflegt: { cols: 1, head: 9.86, row: 7.04, desc: 5.04, line: 5.04, dots: 22.5, colGap: 0, cw: 2.3 },
   "ivy-league": { cols: "ivy", head: 6.21, row: 6.94, desc: 3.51, line: 3.95, dots: 19.6, colGap: 8, cw: 1.43 },
   kompakt: { cols: 2, head: 3.7, row: 5.96, desc: 3.51, line: 2.96, dots: 17.7, colGap: 8, cw: 1.44 },
   kreativ: { cols: 1, head: 7.22, row: 6.57, desc: 3.51, line: 3.57, dots: 28, colGap: 0, cw: 1.51 },

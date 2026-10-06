@@ -100,7 +100,8 @@ describe("the spacing adapter keeps Seitenränder and Innenabstand apart", () =>
     }
     // Gepflegt moves the whole physical content lane with its resolved margin.
     expect(scopeStyle(margin)).toEqual({ "--doc-page-margin": "16mm" });
-    expect(scopeStyle(padding)).toEqual({ ...paddingVariables, "--resume-inner-text-inset": "-7.5mm" });
+    // Innenabstand is an extra inset (Gepflegt native 0): 2.5 mm moves the text 2.5 mm inwards, never outwards.
+    expect(scopeStyle(padding)).toEqual({ ...paddingVariables, "--resume-inner-text-inset": "2.5mm" });
     expect(scopeStyle(both)).toEqual({ ...scopeStyle(margin), ...scopeStyle(padding) });
     for (const page of [margin, padding, both]) expect(columns(page).every((column) => !column.hasAttribute("data-resume-spacing-inner"))).toBe(true);
     expect(margin.querySelector(".page-content")?.hasAttribute("data-resume-spacing-text")).toBe(false);

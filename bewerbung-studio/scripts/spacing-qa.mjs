@@ -31,7 +31,10 @@ try {
     style.textContent = resumeSpacingCss;
     document.head.appendChild(style);
     // A chosen page margin moves the template's own margin: the QA checks that adjustment, not a raw padding.
-    expected[id] = { ...getPageMarginAdjustment(id, settings.cvOverrides.spacing.pageMarginMm),
+    // Gepflegt and Kompakt move the column edges themselves (resolveGepflegtGeometry / resolveKompaktGeometry): no
+    // text shift inside the sections.
+    const ownGeometry = ['gepflegt', 'kompakt'].includes(id);
+    expected[id] = { ...getPageMarginAdjustment(id, settings.cvOverrides.spacing.pageMarginMm), ...(ownGeometry ? { shiftMm: 0 } : {}),
       innerShiftMm: settings.cvOverrides.spacing.innerPaddingMm - resolveTemplateCvDesign(id).spacing.innerPaddingMm };
     await fs.writeFile(path.join(output, `${id}-${surface}.html`), document.toString());
     count++;

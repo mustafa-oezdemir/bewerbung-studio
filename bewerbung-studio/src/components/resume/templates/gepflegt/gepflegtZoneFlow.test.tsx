@@ -57,12 +57,13 @@ describe("Gepflegt: shared document flow", () => {
     const sidebar = resolveSectionPresentation(templateId, "certifications", "sidebar")!;
     expect(main.icon).toBeNull();
     expect(sidebar.icon).toBeNull();
-    expect(main.heading.fontSizePt.standard).toBe(14.5);
-    expect(sidebar.heading.fontSizePt.standard).toBe(12.5);
+    expect(main.heading.fontSizePt.standard).toBe(14);
+    expect(sidebar.heading.fontSizePt.standard).toBe(13);
     expect(main.heading.color).toContain("--gepflegt-heading");
     expect(sidebar.heading.color).toContain("--gepflegt-sidebar-text");
     expect(main.heading.dividerColor).toContain("--gepflegt-divider");
-    expect(sidebar.heading.dividerColor).toContain("255,255,255");
+    // The sidebar rule is a tint of the sidebar text colour, so a changed sidebar palette keeps a matching line.
+    expect(sidebar.heading.dividerColor).toContain("--gepflegt-sidebar-text");
     expect(resumeSectionPresentationCss).toContain('[data-cv-zone="sidebar"]>.cv-heading');
   });
 

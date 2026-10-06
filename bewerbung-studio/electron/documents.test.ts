@@ -2642,7 +2642,9 @@ describe("Lebenslauf-Dokumente", () => {
     );
     const body = html.slice(html.indexOf("<body>"));
 
-    expect(body.match(/data-resume-page="/g)?.length).toBeGreaterThanOrEqual(2);
+    // Three stations and three degrees fit page one (measured in Chromium: main text ends at 234 mm, the footer starts at
+    // 276.6 mm); the planner must not break the page early.
+    expect(body.match(/data-resume-page="/g)?.length).toBe(1);
     expect(body).toContain('data-template="gepflegt"');
     expect(body).toContain("gepflegt-pdf-sidebar");
     expect(body).toContain("gepflegt-pdf-photo");

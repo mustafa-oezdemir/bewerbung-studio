@@ -10,6 +10,7 @@ import { formatPhoneForDisplay } from "./contactPresentation";
 import { getResumePhotoScale } from "./resumePhoto";
 import { kreativDefaults } from "./cvTemplateDefaults/kreativ.defaults";
 import { stilvollDefaults, stilvollDesign } from "./cvTemplateDefaults/stilvoll.defaults";
+import { gepflegtWideContactChars } from "./gepflegtDesign";
 
 /**
  * How far down a Lebenslauf header pushes the page content, from the data it shows.
@@ -21,12 +22,14 @@ import { stilvollDefaults, stilvollDesign } from "./cvTemplateDefaults/stilvoll.
  * wrapped line, plus `margin` = the largest under-estimate seen. Re-fit them when a header's CSS changes.
  * `main` is the top of the first section in the main column, `side` the first block of the sidebar (only where the
  * header or the contacts sit above it). A template draws contacts as a grid (`a` columns of `b` characters) or as a
- * flowing line (`a` characters per line, `b` characters of icon and gap per item).
+ * flowing line (`a` characters per line, `b` characters of icon and gap per item). In a grid with `wide`, a contact longer
+ * than `wide` characters takes a row of its own over all columns (Gepflegt).
  */
 type HeaderModel = {
   layout: "grid" | "flow";
   a: number;
   b: number;
+  wide?: number;
   titleChars: number;
   nameChars: number;
   base: number;
@@ -47,9 +50,10 @@ const headerModels: Record<string, Partial<Record<"main" | "side" | "mainPhoto" 
     main: { layout: "flow", a: 80, b: 4, titleChars: 60, nameChars: 18, base: 28.71, row: 5.35, line: 0.0, title: 5.44, hasTitle: 6.15, name: 8.56, margin: 2.1 },
     mainPhoto: { layout: "flow", a: 80, b: 4, titleChars: 60, nameChars: 18, base: 28.71, row: 5.35, line: 0.0, title: 5.44, hasTitle: 6.15, name: 8.56, margin: 2.1 },
   },
+  // Two contact columns; a contact longer than a cell takes the whole row (gepflegtWideContactChars). Re-fit 2026-10-06 at the 11 pt defaults.
   "gepflegt": {
-    main: { layout: "flow", a: 80, b: 4, titleChars: 44, nameChars: 26, base: 31.61, row: 5.45, line: 0.0, title: 5.2, hasTitle: 6.39, name: 17.49, margin: 2.9 },
-    mainPhoto: { layout: "flow", a: 80, b: 4, titleChars: 44, nameChars: 26, base: 31.61, row: 5.45, line: 0.0, title: 5.2, hasTitle: 6.39, name: 17.49, margin: 2.9 },
+    main: { layout: "grid", a: 2, b: 24, wide: gepflegtWideContactChars, titleChars: 36, nameChars: 18, base: 34.53, row: 4.13, line: 2.23, title: 4.02, hasTitle: 8.04, name: 9.24, margin: 5.7 },
+    mainPhoto: { layout: "grid", a: 2, b: 24, wide: gepflegtWideContactChars, titleChars: 36, nameChars: 18, base: 34.53, row: 4.13, line: 2.23, title: 4.02, hasTitle: 8.04, name: 9.24, margin: 5.7 },
   },
   "ivy-league": {
     main: { layout: "flow", a: 120, b: 2, titleChars: 95, nameChars: 26, base: 28.31, row: 4.11, line: 0.0, title: 3.44, hasTitle: 4.23, name: 4.57, margin: 3.6 },
@@ -217,10 +221,24 @@ const contactBlock = (lengths: readonly number[], model: HeaderModel) => {
   if (model.layout === "grid") {
     let rows = 0;
     let lines = 0;
-    for (let index = 0; index < lengths.length; index += model.a) {
+    let row: number[] = [];
+    const close = () => {
+      if (!row.length) return;
       rows += 1;
-      lines += Math.max(...lengths.slice(index, index + model.a).map((length) => Math.max(1, Math.ceil(length / model.b))));
+      lines += Math.max(...row.map((length) => Math.max(1, Math.ceil(length / model.b))));
+      row = [];
+    };
+    for (const length of lengths) {
+      if (model.wide !== undefined && length > model.wide) {
+        close();
+        rows += 1;
+        lines += Math.max(1, Math.ceil(length / (model.b * model.a)));
+        continue;
+      }
+      row.push(length);
+      if (row.length === model.a) close();
     }
+    close();
     return { rows, lines };
   }
   let lines = 0;
@@ -335,6 +353,8 @@ export const estimateResumeHeaderTop = (
   showContacts = true,
   /** A photo beside the name narrows the text: its own model. */
   withPhoto = false,
+  /** Header text width relative to the measured one (a template whose Seitenränder narrow its header). */
+  widthRatio = 1,
 ): number | undefined => {
   if (templateId === "tabellarisch") {
     if (zone !== "main" || !profile) return undefined;
@@ -343,8 +363,16 @@ export const estimateResumeHeaderTop = (
     return top + margin * Math.min(1, (top - measuredTop) / 10);
   }
   const models = templateId ? headerModels[templateId] : undefined;
-  const model = withPhoto ? models?.[`${zone}Photo`] ?? models?.[zone] : models?.[zone];
-  if (!model || !profile) return undefined;
+  const measured = withPhoto ? models?.[`${zone}Photo`] ?? models?.[zone] : models?.[zone];
+  if (!measured || !profile) return undefined;
+  // Fewer characters fit on a narrower line: the contact cells (or the flowing line), the title and the name.
+  const model = widthRatio === 1 ? measured : {
+    ...measured,
+    a: measured.layout === "flow" ? measured.a * widthRatio : measured.a,
+    b: measured.layout === "grid" ? measured.b * widthRatio : measured.b,
+    titleChars: measured.titleChars * widthRatio,
+    nameChars: measured.nameChars * widthRatio,
+  };
   const texts = showContacts ? getResumeHeaderContactTexts(profile) : [];
   const contacts = contactBlock(texts.map((text) => text.length), model);
   const title = profile.title.trim().length;

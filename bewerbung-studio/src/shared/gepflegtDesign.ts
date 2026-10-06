@@ -16,6 +16,13 @@ const readable = (preferred: string, background: string) => {
   return candidates.sort((a, b) => getColorContrastRatio(b, background) - getColorContrastRatio(a, background))[0];
 };
 
+/** Template colours of earlier versions: an application that still carries one shows today's accent. */
+const legacyNativeAccents = ["#00b8b5"];
+/** A colour as text on the paper: itself when readable, else darkened towards the heading grey. */
+const readableOnPaper = (color: string, paper: string) =>
+  [color, mix(color, "#26313A", .7), mix(color, "#26313A", .45), "#26313A"]
+    .find((candidate) => getColorContrastRatio(candidate, paper) >= 4.5) ?? "#26313A";
+
 /** Physical Gepflegt coordinates shared by the visual output and the planner. */
 export const gepflegtGeometry = {
   pageWidthMm: gepflegtDefaults.page.widthMm,
@@ -26,6 +33,40 @@ export const gepflegtGeometry = {
   main: gepflegtDefaults.main,
 };
 
+const nativeMargin = gepflegtDefaults.main.paddingRightMm;
+
+/**
+ * The one horizontal geometry of Gepflegt for the preview, the PDF and the page planner. Seitenränder only moves the
+ * outer text edges, both by the chosen value (default 10 mm): the left edge of the sidebar text and the right edge of
+ * the main column. The top and the bottom of both columns, the photo and the footer never move. Spaltenabstand is the
+ * distance between the coloured sidebar and the main text.
+ */
+export const resolveGepflegtGeometry = (
+  pageMarginMm: number = nativeMargin,
+  columnGapMm: number = gepflegtDefaults.main.paddingLeftMm,
+  sidebarWidthMm: number = gepflegtDefaults.layout.sidebarWidthMm,
+) => {
+  const { page, sidebar, main } = gepflegtDefaults;
+  const sideLeft = Math.max(0, pageMarginMm);
+  const mainRight = Math.max(0, pageMarginMm);
+  const mainLeft = Math.max(0, columnGapMm);
+  return {
+    sidebarWidth: sidebarWidthMm,
+    sidebar: { left: sideLeft, right: sidebar.paddingRightMm, top: sidebar.paddingTopMm, bottom: sidebar.paddingBottomMm },
+    main: { left: mainLeft, right: mainRight, top: main.paddingTopMm, bottom: main.paddingBottomMm },
+    footerBottom: main.footerBottomMm,
+    sideContentWidth: Math.max(0, sidebarWidthMm - sideLeft - sidebar.paddingRightMm),
+    mainContentWidth: Math.max(0, page.widthMm - sidebarWidthMm - mainLeft - mainRight),
+  };
+};
+
+/**
+ * The header shows its contacts in two aligned columns; a value longer than a cell holds at the native width (a long
+ * URL or address) takes the whole row instead of breaking inside a word. Preview and PDF ask the same question.
+ */
+export const gepflegtWideContactChars = 24;
+export const isWideGepflegtContact = (text: string) => text.trim().length > gepflegtWideContactChars;
+
 /** Semantic variables for both CV renderers and the independent DIN letter. */
 export const getGepflegtDesignVariables = (
   design: CvDesignTokens,
@@ -35,10 +76,15 @@ export const getGepflegtDesignVariables = (
   applicationSecondary?: string,
 ): Record<string, string> => {
   const native = gepflegtDefaults.colors;
-  const accent = changedColors?.accent ?? (applicationAccent && applicationAccent !== native.accent ? applicationAccent : design.colors.accent);
   const sidebar = appearance.sidebarBackgroundColor !== native.sidebarBackground
     ? appearance.sidebarBackgroundColor
     : applicationSecondary && applicationSecondary !== native.sidebarBackground ? applicationSecondary : appearance.sidebarBackgroundColor;
+  // One accent colour: the application colour the user chose, else the sidebar's teal (an earlier default cyan that an
+  // application only carried as its template colour is no choice). A changed sidebar takes the accent along.
+  const chosenAccent = applicationAccent && applicationAccent.toLowerCase() !== native.accent.toLowerCase()
+    && !legacyNativeAccents.includes(applicationAccent.toLowerCase()) ? applicationAccent : undefined;
+  const accent = changedColors?.accent ?? chosenAccent
+    ?? (sidebar.toLowerCase() !== native.sidebarBackground.toLowerCase() ? readableOnPaper(sidebar, design.colors.background) : design.colors.accent);
   const paletteChanged = accent.toLowerCase() !== native.accent.toLowerCase()
     || sidebar.toLowerCase() !== native.sidebarBackground.toLowerCase();
   const semantic = (key: keyof CvDesignTokens["colors"], nativeValue: string, derived: string) =>
@@ -50,8 +96,7 @@ export const getGepflegtDesignVariables = (
   const sidebarText = readable(appearance.sidebarTextColor, sidebar);
   const sidebarTitle = readable(appearance.sidebarSectionHeadingColor, sidebar);
   const sidebarMuted = readable(paletteChanged ? mix(sidebarText, sidebar, .92) : native.sidebarMutedText, sidebar);
-  const marginShift = design.spacing.pageMarginMm - nativeMargin;
-  const sidePaddingLeft = Math.max(gepflegtDefaults.sidebar.paddingLeftMm, gepflegtDefaults.sidebar.paddingLeftMm + marginShift);
+  const geometry = resolveGepflegtGeometry(design.spacing.pageMarginMm, design.spacing.columnGapMm);
   return {
     "--gepflegt-sidebar-width": `${gepflegtGeometry.sidebarWidthMm}mm`,
     "--gepflegt-topbar-height": `${gepflegtGeometry.topBarHeightMm}mm`,
@@ -72,17 +117,17 @@ export const getGepflegtDesignVariables = (
     "--gepflegt-muted": muted,
     "--gepflegt-divider": semantic("divider", native.divider, mix(heading, design.colors.background, .25)),
     "--gepflegt-paper": design.colors.background,
-    "--gepflegt-sidebar-padding-top": `${gepflegtGeometry.sidebar.paddingTopMm}mm`,
-    "--gepflegt-sidebar-padding-right": `${Math.max(gepflegtGeometry.sidebar.paddingRightMm, gepflegtGeometry.sidebar.paddingRightMm + marginShift)}mm`,
-    "--gepflegt-sidebar-padding-bottom": `${gepflegtGeometry.sidebar.paddingBottomMm}mm`,
-    "--gepflegt-sidebar-padding-left": `${sidePaddingLeft}mm`,
+    "--gepflegt-sidebar-padding-top": `${geometry.sidebar.top}mm`,
+    "--gepflegt-sidebar-padding-right": `${geometry.sidebar.right}mm`,
+    "--gepflegt-sidebar-padding-bottom": `${geometry.sidebar.bottom}mm`,
+    "--gepflegt-sidebar-padding-left": `${geometry.sidebar.left}mm`,
     "--gepflegt-photo-size": `${gepflegtGeometry.sidebar.photoSizeMm}mm`,
     "--gepflegt-photo-gap": `${gepflegtGeometry.sidebar.photoGapMm}mm`,
-    "--gepflegt-main-padding-top": `${Math.max(gepflegtGeometry.main.paddingTopMm, gepflegtGeometry.main.paddingTopMm + marginShift)}mm`,
-    "--gepflegt-main-padding-right": `${design.spacing.pageMarginMm}mm`,
-    "--gepflegt-main-padding-bottom": `${Math.max(gepflegtGeometry.main.paddingBottomMm, gepflegtGeometry.main.paddingBottomMm + marginShift)}mm`,
-    "--gepflegt-main-padding-left": `${Math.max(gepflegtGeometry.main.paddingLeftMm, gepflegtGeometry.main.paddingLeftMm + marginShift)}mm`,
-    "--gepflegt-footer-bottom": `${gepflegtGeometry.main.footerBottomMm}mm`,
+    "--gepflegt-main-padding-top": `${geometry.main.top}mm`,
+    "--gepflegt-main-padding-right": `${geometry.main.right}mm`,
+    "--gepflegt-main-padding-bottom": `${geometry.main.bottom}mm`,
+    "--gepflegt-main-padding-left": `${geometry.main.left}mm`,
+    "--gepflegt-footer-bottom": `${geometry.footerBottom}mm`,
     "--gepflegt-header-gap-base": `${gepflegtGeometry.main.headerGapMm}mm`,
     "--gepflegt-section-gap-base": `${design.spacing.sectionGapMm}mm`,
     "--gepflegt-entry-gap-base": `${design.spacing.entryGapMm}mm`,
@@ -108,8 +153,7 @@ export const getGepflegtDesignVariables = (
   };
 };
 
-const nativeMargin = gepflegtDefaults.main.paddingRightMm;
-const both = (preview: string, pdf: string, declarations: string) =>
+const both =(preview: string, pdf: string, declarations: string) =>
   `${[
     ...preview.split(",").map(selector => `.gepflegt-page:not(.gepflegt-page--ats) ${selector.trim()}`),
     ...pdf.split(",").map(selector => `.gepflegt-pdf:not(.gepflegt-pdf-ats) ${selector.trim()}`),
@@ -157,7 +201,7 @@ export const gepflegtResolvedCss = [
   both(".gepflegt-header--compact", ".gepflegt-pdf-header.compact", "margin-bottom:var(--gepflegt-header-gap);border-color:var(--gepflegt-divider)"),
   both(".gepflegt-header--compact .gepflegt-header__name", ".gepflegt-pdf-header.compact h1", "font-size:calc(var(--gepflegt-name-size) * .67)"),
   both(".gepflegt-header--compact .gepflegt-header__title", ".gepflegt-pdf-header.compact h2", "font-size:var(--gepflegt-small-size)"),
-  both(".gepflegt-sidebar__continuation h2", ".gepflegt-pdf-sidebar-continuation h2", "font-family:var(--gepflegt-heading-font);font-size:calc(var(--gepflegt-name-size) * .67);font-weight:var(--gepflegt-name-weight);line-height:var(--gepflegt-line-height);color:var(--gepflegt-sidebar-text)"),
+  both(".gepflegt-sidebar__continuation h2", ".gepflegt-pdf-sidebar-continuation h2", "font-family:var(--gepflegt-heading-font);font-size:calc(var(--gepflegt-name-size) * .67);font-weight:var(--gepflegt-name-weight);line-height:var(--gepflegt-line-height);letter-spacing:normal;color:var(--gepflegt-sidebar-text)"),
   both(".gepflegt-sidebar__continuation > p,.gepflegt-sidebar__continuation > small,.gepflegt-sidebar__continuation > span", ".gepflegt-pdf-sidebar-continuation > div > p,.gepflegt-pdf-sidebar-continuation > div > small,.gepflegt-pdf-sidebar-continuation > div > span", "font-size:var(--gepflegt-small-size);line-height:var(--gepflegt-line-height);color:var(--gepflegt-sidebar-muted);overflow-wrap:anywhere"),
   `.gepflegt-page [data-managed-section],.gepflegt-pdf [data-managed-section]{font-size:var(--gepflegt-body-size);line-height:var(--gepflegt-line-height)}`,
   `.gepflegt-page [data-managed-section] :is(p,li,strong,span),.gepflegt-pdf [data-managed-section] :is(p,li,strong,span){line-height:var(--gepflegt-line-height)}`,
@@ -166,6 +210,33 @@ export const gepflegtResolvedCss = [
   `.gepflegt-page [data-managed-section] [data-cv-heading],.gepflegt-pdf [data-managed-section] [data-cv-heading]{line-height:var(--gepflegt-line-height)!important}`,
   `.gepflegt-page [data-cv-zone="sidebar"] :is([data-cv-heading],[data-custom-role="heading"]),.gepflegt-pdf [data-cv-zone="sidebar"] :is([data-cv-heading],[data-custom-role="heading"]){font-size:var(--gepflegt-sidebar-title-size);color:var(--gepflegt-sidebar-title);border-color:var(--gepflegt-sidebar-muted)}`,
   `.gepflegt-page [data-managed-section] [data-custom-role="body"],.gepflegt-pdf [data-managed-section] [data-custom-role="body"]{font-size:var(--gepflegt-body-size);line-height:var(--gepflegt-line-height);color:var(--gepflegt-paragraph)}`,
+  // The app shell gives every h1-h3 a negative letter-spacing; inside the CV only the template's own rules count, so the
+  // preview wraps names and titles like the PDF (classed template rules are more specific and still apply).
+  `.gepflegt-page :is(h1,h2,h3,h4),.gepflegt-pdf :is(h1,h2,h3,h4){letter-spacing:normal}`,
+  // Modern layout, identical on both surfaces: a calm header (name, title, contacts in two aligned columns), a framed
+  // photo, accent bullet markers, and no leaked letter-spacing from the app shell.
+  both(".gepflegt-header__name", ".gepflegt-pdf-header h1", "line-height:1.08;letter-spacing:.02em"),
+  both(".gepflegt-header__title", ".gepflegt-pdf-header h2", "max-width:none;margin:2mm 0 0;line-height:1.25;letter-spacing:normal"),
+  both(".gepflegt-header__contacts", ".gepflegt-pdf-contacts", "display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.6mm 6mm;margin:4.5mm 0 0;font-weight:400"),
+  both(".gepflegt-header__contacts > a,.gepflegt-header__contacts > span", ".gepflegt-pdf-contact", "display:flex;align-items:flex-start;gap:1.6mm;max-width:none"),
+  both(".gepflegt-header__contacts > [data-wide]", ".gepflegt-pdf-contact[data-wide]", "grid-column:1 / -1"),
+  both(".gepflegt-header__contacts svg", ".gepflegt-pdf-contact svg", "margin-top:calc((var(--gepflegt-small-size) * var(--gepflegt-line-height) - 3.4mm) / 2)"),
+  both(".gepflegt-sidebar__photo", ".gepflegt-pdf-photo", "border-radius:2mm;box-shadow:0 0 0 .8mm color-mix(in srgb,var(--gepflegt-sidebar-text) 22%,transparent)"),
+  both(".gepflegt-entry__heading h3", ".gepflegt-pdf-entry-heading h4", "letter-spacing:normal"),
+  // Date and place stand at the right edge; a place like "Musterstadt, Deutschland" keeps one line.
+  both(".gepflegt-entry__heading span,.gepflegt-entry__subheading span", ".gepflegt-pdf-entry-heading span,.gepflegt-pdf-entry-subheading span", "max-width:46mm"),
+  both(".gepflegt-entry ul", ".gepflegt-pdf-entry ul", "list-style:disc"),
+  // Special sections (projects, interests): the shared renderer uses h3 in the preview and h4 in the PDF; both take the
+  // central entry title and small text sizes.
+  `.gepflegt-page .resume-special-output__entry :is(h3,h4),.gepflegt-pdf .resume-special-output__entry :is(h3,h4){font-size:var(--gepflegt-entry-title-size);line-height:1.15}`,
+  `.gepflegt-page .resume-special-output__meta,.gepflegt-pdf .resume-special-output__meta{font-size:var(--gepflegt-small-size);line-height:var(--gepflegt-line-height)}`,
+  // The preview stacks the special sections in a wrapper of their own; they keep the column's section gap like in the PDF.
+  `.gepflegt-page:not(.gepflegt-page--ats) .gepflegt-main>.resume-special-output-list{gap:var(--gepflegt-section-gap)}`,
+  // Footer: the link at the left text edge of the main column, the page number at its right edge.
+  both(".gepflegt-footer", ".gepflegt-pdf-footer", "justify-content:space-between"),
+  both(".gepflegt-footer > :first-child", ".gepflegt-pdf-footer > :first-child", "min-width:0;margin:0"),
+  both(".gepflegt-footer > span:last-child:not(:first-child)", ".gepflegt-pdf-footer > span:last-child:not(:first-child)", "flex:none;margin:0 0 0 auto;white-space:nowrap"),
+  both(".gepflegt-entry li::marker", ".gepflegt-pdf-entry li::marker", "color:var(--gepflegt-accent)"),
   `.gepflegt-page [data-resume-closing-placement="footer"],.cv-sheet[data-template="gepflegt"] [data-resume-closing-placement="footer"]{left:calc(var(--gepflegt-sidebar-width) + var(--gepflegt-main-padding-left));right:var(--gepflegt-main-padding-right);bottom:25mm;font-size:var(--gepflegt-small-size);color:var(--gepflegt-muted)}`,
 ].join("\n");
 
