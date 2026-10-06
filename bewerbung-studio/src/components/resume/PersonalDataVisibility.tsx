@@ -24,6 +24,7 @@ const contactKeys: readonly ResumePersonalFieldKey[] = [
   "onlineProfiles",
 ];
 const voluntaryKeys: readonly ResumePersonalFieldKey[] = [
+  "country",
   "birthDate",
   "birthPlace",
   "nationality",
@@ -41,7 +42,7 @@ const recommendedNotes: Partial<Record<ResumePersonalFieldKey, string>> = {
 };
 
 const profileFieldsOf: Partial<Record<ResumePersonalFieldKey, readonly PersonalRequiredField[]>> = {
-  address: ["street", "postalCode", "city", "country"],
+  address: ["street", "postalCode", "city"],
   phone: ["phone"],
   email: ["email"],
 };

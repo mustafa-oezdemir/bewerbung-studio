@@ -7,6 +7,7 @@ import { renderCv, resumeTemplateIds } from "./__parityHarness";
 /** What each switch of "Persönliche Daten" governs, as text the Lebenslauf prints. */
 const personalTokens: Record<ResumePersonalFieldKey, string[]> = {
   address: ["Musterstraße 12", "35037 Marburg"],
+  country: ["Schweiz"],
   phone: ["+49 170 1234567"],
   email: ["mustafa@example.com"],
   linkedin: ["linkedin.com/in/mustafa-oezdemir"],
@@ -43,6 +44,7 @@ describe.each(resumeTemplateIds)("visibility switches in %s", (templateId) => {
     for (const key of visibleKeys) {
       // Everything else is on and this one is off: exactly its tokens disappear.
       const profile = maximalProfile({
+        country: "Schweiz",
         resumePersonalFieldVisibility: Object.fromEntries(resumePersonalFieldKeys.map((other) => [other, other !== key])),
       });
       const result = renderCv(templateId, profile);
@@ -51,7 +53,7 @@ describe.each(resumeTemplateIds)("visibility switches in %s", (templateId) => {
           // The address also holds the postal code of other values; a token only counts for its own switch.
           expect(result[surface], `${key} off / ${surface}: ${token}`).not.toContain(token);
         }
-        for (const other of visibleKeys.filter((candidate) => candidate !== key && !["address", "birthDate", "birthPlace"].includes(candidate)))
+        for (const other of visibleKeys.filter((candidate) => candidate !== key && !(key === "address" && candidate === "country") && !["address", "birthDate", "birthPlace"].includes(candidate)))
           for (const token of personalTokens[other]) expect(result[surface], `${key} off, ${other} stays / ${surface}`).toContain(token);
       }
       expect(profile.birthDate).toBe("1990-05-17");

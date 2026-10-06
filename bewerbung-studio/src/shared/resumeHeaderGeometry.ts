@@ -259,37 +259,24 @@ export const estimateKreativHeaderTop = (
     ? 1.5 + lines(profile.title.trim().length, identityWidth, 11.5 * 25.4 / 72, 0.52) * 11.5 * 25.4 / 72 * lineHeight
     : 0;
   const contacts = showContacts ? getResumeHeaderContactTexts(profile) : [];
-  const contactWidth = Math.min(132, identityWidth);
-  const firstWidth = (contactWidth - 8) * 1.15 / 2 - 4.3;
-  const secondWidth = (contactWidth - 8) * 0.85 / 2 - 4.3;
   const contactFontMm = bodySizePt * 0.88 * 25.4 / 72;
-  let contactLines = 0;
+  // Address gets a full-width row, while other contacts occupy two equal cells.
+  const location = formatResumeAddress(profile);
+  const locationIndex = location ? contacts.indexOf(location) : -1;
   let contactRows = 0;
-  let pending: string[] = [];
-  const flush = () => {
-    if (!pending.length) return;
-    contactLines += Math.max(
-      lines(pending[0].length, firstWidth, contactFontMm, 0.51),
-      pending[1] ? lines(pending[1].length, secondWidth, contactFontMm, 0.51) : 0,
-    );
-    contactRows += 1;
-    pending = [];
-  };
-  const emailIndex = profile.email.trim() ? (profile.phone.trim() ? 1 : 0) : -1;
-  contacts.forEach((contact, index) => {
-    if (index === emailIndex) {
-      flush();
-      // The e-mail owns a complete row and is clipped with an ellipsis only for unusually long addresses.
-      contactLines += 1;
+  let occupied = 0;
+  contacts.forEach((_, index) => {
+    if (index === locationIndex) {
+      if (occupied) { contactRows += 1; occupied = 0; }
       contactRows += 1;
     } else {
-      pending.push(contact);
-      if (pending.length === 2) flush();
+      occupied += 1;
+      if (occupied === 2) { contactRows += 1; occupied = 0; }
     }
   });
-  flush();
+  if (occupied) contactRows += 1;
   const contactHeight = contacts.length
-    ? 2.2 + contactLines * contactFontMm * lineHeight + Math.max(0, contactRows - 1)
+    ? 2.2 + contactRows * contactFontMm * lineHeight + Math.max(0, contactRows - 1)
     : 0;
   const contentHeight = 18 + nameHeight + titleHeight + contactHeight;
   const photoMinimum = kreativDefaults.layout.headerHeightMm + 28 * (photoScale - 1);

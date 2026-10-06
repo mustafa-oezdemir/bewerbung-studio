@@ -189,7 +189,6 @@ export const personalRequiredFields = [
   "street",
   "postalCode",
   "city",
-  "country",
   "phone",
   "email",
 ] as const;
@@ -201,7 +200,6 @@ export const personalRequiredFieldLabels: Record<PersonalRequiredField, string> 
   street: "Straße und Hausnummer",
   postalCode: "PLZ",
   city: "Ort",
-  country: "Land",
   phone: "Telefonnummer",
   email: "E-Mail-Adresse",
 };

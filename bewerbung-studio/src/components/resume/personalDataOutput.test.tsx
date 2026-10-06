@@ -131,6 +131,18 @@ describe.each(Object.keys(components))("personal data of %s in the plain (ATS) l
   });
 });
 
+it.each(["kreativ", "tabellarisch"])("%s keeps the address while Land follows the central switch in preview and PDF", (templateId) => {
+  const shown = render(templateId, make({ resumePersonalFieldVisibility: allOn }));
+  const hidden = render(templateId, make({ resumePersonalFieldVisibility: { ...allOn, country: false } }));
+  const legacy = render(templateId, make());
+  for (const surface of ["preview", "pdf"] as const) {
+    expect(shown[surface]).toContain("Deutschland");
+    expect(hidden[surface]).not.toContain("Deutschland");
+    expect(legacy[surface]).not.toContain("Deutschland");
+    expect(hidden[surface]).toContain("Stuttgart");
+  }
+});
+
 describe("section title of the personal data", () => {
   const renamed = make({ resumeSemanticSections: [{ semanticType: "personalData", customTitle: "Angaben zur Person", visible: true, enabled: true, order: 1 }] });
 

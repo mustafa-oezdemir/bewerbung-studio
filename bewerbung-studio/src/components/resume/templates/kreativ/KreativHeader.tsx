@@ -86,7 +86,6 @@ export function KreativHeader({
         {!compact && contacts.length ? (
           <address className="kreativ-header__contacts">
             {contacts.map((contact) => {
-              const wide = (contact.value?.length ?? 0) > 24;
               const content = (
                 <>
                   <ContactIcon {...contact} />
@@ -98,7 +97,6 @@ export function KreativHeader({
                 <a
                   aria-label={`${contact.label}: ${contact.value}`}
                   data-contact-kind={contact.kind}
-                  data-contact-wide={wide || undefined}
                   href={contact.href}
                   title={contact.value}
                   key={contact.label}
@@ -109,7 +107,6 @@ export function KreativHeader({
                 <span
                   aria-label={`${contact.label}: ${contact.value}`}
                   data-contact-kind={contact.kind}
-                  data-contact-wide={wide || undefined}
                   title={contact.value}
                   key={contact.label}
                 >

@@ -535,7 +535,7 @@ const kreativDocumentCss = `
   .page .kreativ-pdf,.page .kreativ-pdf-ats{overflow:visible}
   .kreativ-pdf-header{position:relative;z-index:3;display:grid;grid-template-columns:minmax(0,1fr) calc(28mm * var(--resume-photo-scale,1));align-items:center;gap:10mm;width:100%;min-height:calc(46mm + 28mm * (var(--resume-photo-scale,1) - 1));height:auto;padding:12mm var(--kreativ-margin) 6mm;color:#fff;background:var(--accent)}
   .kreativ-pdf-identity{min-width:0}.kreativ-pdf-identity h1{margin:0;color:inherit;font-size:23pt;font-weight:750;letter-spacing:.015em;line-height:1;overflow-wrap:anywhere}.kreativ-pdf-identity h2{margin:1.5mm 0 0;color:inherit;font-size:11.5pt;font-weight:650;line-height:1.15;overflow-wrap:anywhere}
-  .kreativ-pdf-contacts{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:1mm 8mm;width:100%;max-width:132mm;margin:2.2mm 0 0;font-size:7.8pt;font-style:normal;line-height:1.15}.kreativ-pdf-contacts a,.kreativ-pdf-contacts>span{display:grid;grid-template-columns:3.2mm minmax(0,1fr);align-items:center;gap:1.1mm;min-width:0;color:inherit;text-decoration:none}.kreativ-pdf-contacts>[data-contact-wide="true"]{grid-column:1/-1}.kreativ-pdf-contacts svg{width:3mm;height:3mm;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:2.4}.kreativ-pdf-contacts i{min-width:0;font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .kreativ-pdf-contacts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1mm 4mm;width:100%;max-width:132mm;margin:2.2mm 0 0;font-size:7.8pt;font-style:normal;line-height:1.15}.kreativ-pdf-contacts a,.kreativ-pdf-contacts>span{display:grid;grid-template-columns:3.2mm minmax(0,1fr);align-items:center;gap:1.1mm;min-width:0;color:inherit;text-decoration:none}.kreativ-pdf-contacts>[data-contact-kind="location"]{grid-column:1/-1}.kreativ-pdf-contacts svg{width:3mm;height:3mm;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:2.4}.kreativ-pdf-contacts i{min-width:0;font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .kreativ-pdf-photo{display:block;width:calc(28mm * var(--resume-photo-scale,1));height:calc(28mm * var(--resume-photo-scale,1));overflow:hidden;border-radius:1.8mm;background:rgba(255,255,255,.18);object-fit:cover}
   .kreativ-pdf-header.no-photo{grid-template-columns:minmax(0,1fr)}
   .kreativ-pdf-header.compact{display:flex;flex-wrap:wrap;align-items:baseline;gap:1.5mm 4mm;height:auto;min-height:24mm;padding:12mm var(--kreativ-margin) 4mm;color:var(--kreativ-dark);background:#fff;border-bottom:.4mm solid var(--kreativ-divider)}
@@ -1808,7 +1808,7 @@ export const buildDocumentHtml = (
     return `<address class="kreativ-pdf-contacts">${kreativContacts
       .map((contact) => {
         const content = `${renderContactIcon(contact)}<i>${escapeHtml(contact.value)}</i>`;
-        const attributes = `aria-label="${escapeHtml(`${contact.label}: ${contact.value}`)}" title="${escapeHtml(contact.value)}" data-contact-kind="${contact.kind}"${(contact.value?.length ?? 0) > 24 ? ' data-contact-wide="true"' : ""}`;
+        const attributes = `aria-label="${escapeHtml(`${contact.label}: ${contact.value}`)}" title="${escapeHtml(contact.value)}" data-contact-kind="${contact.kind}"`;
         return contact.href
           ? `<a ${attributes} href="${escapeHtml(contact.href)}">${content}</a>`
           : `<span ${attributes}>${content}</span>`;
