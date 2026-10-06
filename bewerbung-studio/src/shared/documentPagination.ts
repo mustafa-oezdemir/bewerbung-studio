@@ -262,7 +262,9 @@ const experienceMetrics = (
   const { text, exp } = geometry;
   const resolved = resolveExperience(experience);
   const bullets = resolved.bullets;
-  const bulletCw = first ? text.bulletCw ?? text.cw : text.cw;
+  const bulletCw = first
+    ? (text.bulletCw ?? text.cw) * (1 + Math.max(0, 1 - widthScale) * (text.bulletNarrowSlack ?? 0))
+    : text.cw;
   const lines = bullets.map((bullet) => linesFor(bullet.length, text.bulletW * widthScale, text.bulletFont * scale.font, bulletCw));
   const titleLines = linesFor(resolved.role.length, text.titleW * widthScale, text.titleFont * scale.font, text.cw * 1.08);
   const orgLines = linesFor(resolved.organization.length, text.orgW * widthScale, text.orgFont * scale.font, text.cw * 1.06);
@@ -375,7 +377,7 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
   // A larger font raises every line's box, even when an entry stays at the
   // same predicted line count. The nonlinear reserve covers word-wrap
   // thresholds observed in the rendered templates (notably Kreativ/Kompakt).
-  const textHeight = Math.max(1, Math.pow(font, 1.3));
+  const textHeight = templateId === "kreativ" ? font : Math.max(1, Math.pow(font, 1.3));
   const line = overrides.lineHeight
     ? bounded(overrides.lineHeight, geometry.text.lineRatio) / geometry.text.lineRatio
     : settings ? lineHeightLevelToValue[settings.lineHeightLevel] / lineHeightLevelToValue[defaults.lineHeightLevel] : 1;
@@ -430,7 +432,10 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
       marginInset: padding, ...factors, ...spacing };
   }
   if (single) {
-    const width = geometry.text.atsW / geometry.text.bulletW;
+    // The visual Tabellarisch career list keeps its narrow text column even
+    // though the page has a single section stream. ATS uses the full width.
+    const width = templateId === "tabellarisch" && !context.atsMode
+      ? 1 : geometry.text.atsW / geometry.text.bulletW;
     const insetWidth = Math.max(0.55, (geometry.text.atsW - 2 * textInset) / geometry.text.atsW);
     return { font, textHeight, line, width: width * insetWidth, contWidth: width * insetWidth, mainRatio: insetWidth, sideDelta: 0, marginInset: textInset, ...factors, ...spacing };
   }
@@ -442,10 +447,12 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
   // A wider gap between the columns takes its millimetres from the main column.
   const columnDelta = spacing.columnGapDelta;
   const bulletRatio = Math.max(0.5, (geometry.text.bulletW - sideDelta - columnDelta) / geometry.text.bulletW);
-  // Continuation pages have no sidebar: their main column spans the page.
-  const contWidth = geometry.columns === 2 ? geometry.text.contW / geometry.text.bulletW : bulletRatio;
+  // Elegant keeps its compact identity sidebar on continuation pages, so its main text stays narrow.
+  const contWidth = templateId === "elegant" && !context.atsMode
+    ? bulletRatio : geometry.columns === 2 ? geometry.text.contW / geometry.text.bulletW : bulletRatio;
   const mainInset = Math.max(0.55, (geometry.text.mainW - 2 * textInset) / geometry.text.mainW);
-  const continuationInset = Math.max(0.55, (geometry.text.contW - 2 * textInset) / geometry.text.contW);
+  const continuationTextWidth = templateId === "elegant" && !context.atsMode ? geometry.text.mainW : geometry.text.contW;
+  const continuationInset = Math.max(0.55, (continuationTextWidth - 2 * textInset) / continuationTextWidth);
   const mainRatio = Math.max(0.5, (geometry.text.mainW - sideDelta - columnDelta) / geometry.text.mainW) * mainInset;
   return { font, textHeight, line, width: bulletRatio * mainInset, contWidth: contWidth * continuationInset, mainRatio, sideDelta, marginInset: textInset, ...factors, ...spacing };
 };
@@ -514,7 +521,7 @@ export const createResumePagePlan = (
   const customLayout = Boolean(templateId && profile?.resumeManagerLayouts?.[templateId]?.length);
   const zoneOf = (id: SectionId): PaginationZone => {
     if (flat) return "main";
-    const configured = customLayout ? find(id)?.zone : undefined;
+    const configured = customLayout || templateId === "kreativ" ? find(id)?.zone : undefined;
     if (configured) return configured;
     if (id === "summary" || id === "strengths" || id === "knowledge" || id === "languages") return geometry.zones[id];
     return "main";
@@ -568,7 +575,7 @@ export const createResumePagePlan = (
     }),
   ];
   const managerLayout = templateId ? profile?.resumeManagerLayouts?.[templateId] : undefined;
-  if (managerLayout?.length) {
+  if (managerLayout?.length && templateId !== "kreativ") {
     const order = managerLayout.map((entry) => entry.id);
     const rank = (kind: string) => {
       const index = order.indexOf(kind);
@@ -991,6 +998,15 @@ export const createResumePagePlan = (
     hostedIds.push(entry.id);
   }
 
+  // Kreativ auxiliary sections follow the complete career run in main, or flow
+  // through their own sidebar lane. None is pinned to page one.
+  if (templateId === "kreativ") for (const block of flow) {
+    block.home = "last";
+    block.singleOnly = false;
+    block.rank = managerRank(block.id);
+    block.hostable = block.zone === "sidebar" && !flat;
+  }
+
   // The gap below a section title (Lebenslauf-Design) is part of every block that has a title.
   if (scale.titleGapDelta) {
     const add = scale.titleGapDelta;
@@ -1058,6 +1074,110 @@ export const createResumePagePlan = (
     ? 0
     : (geometry.sideLimit - sideTop1 - 2 * scale.marginInset) * (zoneFlow ? ZONE_FLOW_SIDEBAR_SAFETY : SAFETY);
   const dense = context.atsMode ? geometry.ats.density : geometry.density;
+
+  // Tabellarisch has one physical column. Pack the resolved manager sequence as
+  // one stream, including the career sections, instead of pinning summary and
+  // strengths to page one and all other blocks behind the career run.
+  if (templateId === "tabellarisch") {
+    type OrderedPage = { plan: ResumePagePlan; used: number; lastKind?: ResumePageItem["kind"]; lastGap: number };
+    const pages: OrderedPage[] = [];
+    const capacity = (number: number) => Math.max(1, (number === 1 ? mainCap1 : mainCap2) - closingHeight);
+    const nextPage = () => {
+      const plan: ResumePagePlan = { pageNumber: pages.length + 1, items: [], blocks: [], density: "standard", sidebar: false,
+        fill: { main: 0, sidebar: 0 } };
+      const page: OrderedPage = { plan, used: 0, lastGap: 0 };
+      pages.push(page);
+      return page;
+    };
+    let page = nextPage();
+    const addBlock = (block: FlowBlock, from = 0, to = block.split?.ends.length ?? 0) => {
+      const height = block.split ? block.split.height(from, to) : block.height;
+      const gap = page.used > 0 ? sectionGap : 0;
+      page.used += gap + height;
+      page.plan.blocks!.push(block.id);
+      if (block.split && (from > 0 || to < block.split.ends.length)) {
+        const ends = block.split.ends;
+        (page.plan.blockRanges ??= {})[block.id] = { from: from ? ends[from - 1] : 0,
+          to: ends[to - 1], total: ends[ends.length - 1] };
+      }
+      page.lastKind = undefined;
+    };
+    const addItem = (item: MeasuredItem, from: number, to: number) => {
+      const mode = page.plan.pageNumber === 1 ? "first" : "cont";
+      const shown = item.parts && (from > 0 || to < item.parts[mode].lines.length)
+        ? { kind: item.kind, id: item.id, weight: Math.round(item.parts[mode].height(from, to) * 10) / 10,
+          bullets: { from, to, total: item.parts[mode].lines.length } }
+        : strip(item, mode);
+      const gap = page.lastKind === item.kind ? page.lastGap : (page.used > 0 ? sectionGap : 0) + sectionHead(item.kind);
+      page.used += gap + (item.parts ? item.parts[mode].height(from, to) : item[mode]);
+      page.plan.items.push(shown);
+      page.lastKind = item.kind;
+      page.lastGap = item.gapAfter;
+    };
+    const ordered = context.sections?.filter((entry) => entry.visible && !["heading", "personalData", "photo", "closing"].includes(entry.id))
+      .map((entry) => entry.id) ?? ["summary", "strengths", "experience", "education", ...flow.map((block) => block.id)];
+    const seen = new Set<string>();
+    for (const id of ordered) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      if (id === "experience" || id === "education") {
+        for (const item of items.filter((entry) => entry.kind === id)) {
+          const total = item.parts?.first.lines.length ?? 0;
+          let from = 0;
+          while (true) {
+            const mode = page.plan.pageNumber === 1 ? "first" : "cont";
+            const heading = page.lastKind === item.kind ? page.lastGap : (page.used > 0 ? sectionGap : 0) + sectionHead(item.kind);
+            const fullHeight = item.parts ? item.parts[mode].height(from, total) : item[mode];
+            if (page.used + heading + fullHeight <= capacity(page.plan.pageNumber) || (!page.used && !item.parts)) {
+              addItem(item, from, total);
+              break;
+            }
+            let end = from;
+            if (item.parts) for (let candidate = from + 1; candidate < total; candidate += 1) {
+              const before = item.parts[mode].lines.slice(from, candidate).reduce((sum, lines) => sum + lines, 0);
+              const after = item.parts.cont.lines.slice(candidate).reduce((sum, lines) => sum + lines, 0);
+              if (before < minLinesBefore(item.kind) || after < MIN_SPLIT_LINES) continue;
+              if (page.used + heading + item.parts[mode].height(from, candidate) <= capacity(page.plan.pageNumber)) end = candidate;
+            }
+            if (end > from) {
+              addItem(item, from, end);
+              from = end;
+              page = nextPage();
+            } else if (page.used > 0) page = nextPage();
+            else {
+              addItem(item, from, total);
+              break;
+            }
+          }
+        }
+        continue;
+      }
+      const block = flow.find((entry) => entry.id === id);
+      if (!block) continue;
+      if (!block.split) {
+        if (page.used && page.used + sectionGap + block.height > capacity(page.plan.pageNumber)) page = nextPage();
+        addBlock(block);
+        continue;
+      }
+      let from = 0;
+      while (from < block.split.ends.length) {
+        const gap = page.used > 0 ? sectionGap : 0;
+        let end = from;
+        for (let candidate = from + 1; candidate <= block.split.ends.length; candidate += 1)
+          if (page.used + gap + block.split.height(from, candidate) <= capacity(page.plan.pageNumber)) end = candidate;
+        if (end === from && page.used > 0) { page = nextPage(); continue; }
+        if (end === from) end = from + 1;
+        addBlock(block, from, end);
+        from = end;
+        if (from < block.split.ends.length) page = nextPage();
+      }
+    }
+    pages.forEach((entry, index) => {
+      entry.plan.fill = { main: (entry.used + (index === pages.length - 1 ? closingHeight : 0)) /
+        (index === 0 ? mainCap1 : mainCap2), sidebar: 0 };
+    });
+    return pages.map((entry) => entry.plan);
+  }
 
   const blockLoad =(blocksOfZone: FlowBlock[], zone: PaginationZone) => {
     const heights = blocksOfZone.filter((block) => block.zone === zone).map((block) => block.height);
@@ -1168,7 +1288,8 @@ export const createResumePagePlan = (
    * A page that keeps its sidebar keeps its narrow main column: what the main column holds there is measured like on
    * page one, not like on a continuation page where the column takes the full width.
    */
-  const laneOn = (page: number) => sidebarLane && Boolean(lanePages[page]?.length);
+  const laneOn = (page: number) => (templateId === "elegant" && !context.atsMode && page > 0)
+    || (sidebarLane && Boolean(lanePages[page]?.length));
   const pageMode = (page: number): "first" | "cont" => (laneOn(page) ? "first" : "cont");
   const laneLoad = (page: number) => sumHeights(
     [...(page === 0 ? firstBlocks.filter((block) => block.zone === "sidebar").map((block) => block.height) : []), ...lanePages[page].map(segmentHeight)],
@@ -1178,7 +1299,7 @@ export const createResumePagePlan = (
   // career sections belongs to page one; the others follow the career entries, and start on page one
   // for as long as it has room.
   const careerRank = Math.min(managerRank("experience"), managerRank("education"));
-  const headBlocks = zoneFlow && customLayout
+  const headBlocks = zoneFlow && customLayout && templateId !== "kreativ"
     ? lastBlocks.filter((block) => !hostedOnFirst.has(block.id) && block.zone === "main" && (block.rank ?? Number.MAX_SAFE_INTEGER) < careerRank)
     : [];
   const pageOneFlow = [...firstBlocks, ...lastBlocks.filter((block) => hostedOnFirst.has(block.id) || headBlocks.includes(block))];
@@ -1332,8 +1453,8 @@ export const createResumePagePlan = (
         density: densityTwo,
         blocks: [...tail.slice(cut.tail), ...pinned].map((block) => block.id),
         ...(ranges ? { blockRanges: ranges.last } : {}),
-        // Continuation pages never keep a sidebar: what did not fit on page one flows into the main column.
-        sidebar: false,
+        // Elegant retains its compact identity sidebar; remaining blocks use its narrow main column.
+        sidebar: templateId === "elegant" && !context.atsMode,
         fill: { main: loadLast(cut) / mainCap2, sidebar: 0 },
       },
     ];
@@ -1453,7 +1574,7 @@ export const createResumePagePlan = (
       }
       continuations.push({ pageNumber: continuations.length + 2, items: selectedItems,
         density: "standard", blocks: selectedBlocks,
-        ...(Object.keys(blockRanges).length ? { blockRanges } : {}), sidebar: false,
+        ...(Object.keys(blockRanges).length ? { blockRanges } : {}), sidebar: templateId === "elegant" && !context.atsMode,
         fill: { main: used / mainCap2, sidebar: 0 } });
     }
     if (continuations.length) continuations[continuations.length - 1].fill!.main += closingHeight / mainCap2;
@@ -1521,7 +1642,7 @@ export const createResumePagePlan = (
   // A last page that is only a stub takes back trailing content from page one.
   const factor = densityFactor[density];
   // (A last page that carries the sidebar lane is no stub, whatever the main column puts there.)
-  while (!laneSpill && index > 0 && loadLast(candidates[index]) / mainCap2 < MIN_LAST_FILL) {
+  while (templateId !== "kreativ" && !laneSpill && index > 0 && loadLast(candidates[index]) / mainCap2 < MIN_LAST_FILL) {
     const earlier = candidates[index - 1];
     if (loadFirst(earlier) / mainCap1 < MIN_FIRST_FILL || loadLast(earlier) * factor > mainCap2) break;
     index -= 1;

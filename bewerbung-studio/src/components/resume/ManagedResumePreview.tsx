@@ -6,6 +6,7 @@ import { resolveTemplateId } from "../../shared/templates";
 import { resumeTemplateStyleSources } from "./resumeTemplateStyleSources";
 import type { ApplicantProfile } from "../../shared/schema";
 import type { ResolvedCvDocument } from "../../shared/resolveCvDocument";
+import { elegantManagedCss } from "../../shared/elegantDesign";
 import type { ResumePagePlan } from "../../shared/documentPagination";
 import {
   applyManagedResumeOutput,
@@ -60,7 +61,7 @@ export function ManagedResumePreview({
   );
   return (
     <>
-      <style>{managedResumeCss + templateStyles(templateId)}</style>
+      <style>{managedResumeCss + templateStyles(templateId) + (templateId === "elegant" ? elegantManagedCss : "")}</style>
       <div
         className="managed-resume-preview"
         dangerouslySetInnerHTML={{ __html: html }}

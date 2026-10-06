@@ -28,7 +28,8 @@ describe("sidebar lane", () => {
 
   describe.each(sidebarContinuationTemplates)("%s", (id) => {
     it("A. fills page one's sidebar and continues the rest on page two instead of moving the whole block", () => {
-      const pages = plan(id, { knowledge: 24 });
+      const count = id === "kreativ" ? 40 : 24;
+      const pages = plan(id, { knowledge: count });
       expect(pages.length).toBeGreaterThanOrEqual(2);
       const first = range(pages[0], "knowledge");
       expect(pages[0].blocks).toContain("knowledge");
@@ -36,14 +37,14 @@ describe("sidebar lane", () => {
       expect(first).toBeDefined();
       expect(first!.from).toBe(0);
       expect(first!.to).toBeGreaterThan(0);
-      expect(first!.to).toBeLessThan(24);
-      expect(first!.total).toBe(24);
+      expect(first!.to).toBeLessThan(count);
+      expect(first!.total).toBe(count);
       // the rest goes on in the sidebar of page two: an exact partition, nothing twice, nothing lost
       const second = range(pages[1], "knowledge");
       expect(second).toBeDefined();
       expect(second!.from).toBe(first!.to);
       expect(pages[1].sidebar).toBe(true);
-      expect(itemsOnPages(pages, "knowledge", 24).reduce((sum, count) => sum + count, 0)).toBe(24);
+      expect(itemsOnPages(pages, "knowledge", count).reduce((sum, count) => sum + count, 0)).toBe(count);
       expect(pages[0].fill!.sidebar).toBeLessThanOrEqual(1);
     });
 
@@ -97,13 +98,14 @@ describe("sidebar lane", () => {
 
     it("D. the sidebar persists on every page that still has sidebar content and collapses where it has none", () => {
       const pages = plan(id, { knowledge: 24 });
-      for (const page of pages.slice(1)) expect(page.sidebar, `page ${page.pageNumber}`).toBe(Boolean(page.blocks?.includes("knowledge")));
+      for (const page of pages.slice(1)) expect(page.sidebar, `page ${page.pageNumber}`).toBe(Boolean(page.blocks?.some((block) =>
+        block === "knowledge" || (id === "kreativ" && ["summary", "strengths", "languages"].includes(block)))));
       const idle = plan(id, { knowledge: 3, stations: 5, bullets: 5, education: 4 });
       for (const page of idle.slice(1)) expect(page.sidebar, `page ${page.pageNumber}`).toBe(false);
     });
 
     it("E. the main column and the sidebar flow independently: both continue on page two", () => {
-      const pages = plan(id, { knowledge: 24, stations: 5, bullets: 6, education: 4 });
+      const pages = plan(id, { knowledge: id === "kreativ" ? 40 : 24, stations: 5, bullets: 6, education: 4 });
       expect(pages[1].items.length).toBeGreaterThan(0);
       expect(pages[1].blocks).toContain("knowledge");
       expect(pages[1].sidebar).toBe(true);

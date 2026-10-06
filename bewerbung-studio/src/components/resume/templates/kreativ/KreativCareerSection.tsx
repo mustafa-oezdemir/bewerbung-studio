@@ -22,9 +22,13 @@ export function KreativCareerSection({
       />
       <div className="kreativ-career__list">
         {items.map((item) => (
-          <article className="kreativ-career-entry" key={item.id}>
+          <article className="kreativ-career-entry" key={item.id}
+            data-resume-entry-id={item.id}
+            data-resume-entry-range={item.bullets ? `${item.bullets.from}:${item.bullets.to}` : undefined}
+            data-resume-entry-continued={item.bullets && item.bullets.from > 0 ? "" : undefined}
+            data-resume-entry-continues={item.bullets && item.bullets.to < item.bullets.total ? "" : undefined}>
             <div className="kreativ-career-entry__heading">
-              <h3>{item.title}</h3>
+              <h3>{item.title}{item.bullets && item.bullets.from > 0 ? <span data-resume-entry-marker="">· Fortsetzung</span> : null}</h3>
               <p className="kreativ-career-entry__meta">
                 {formatKreativDateRange(item.from, item.to)}
               </p>

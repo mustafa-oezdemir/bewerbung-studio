@@ -1,4 +1,5 @@
 import { zweispaltigDefaults } from "./cvTemplateDefaults/zweispaltig.defaults";
+import { kreativDefaults } from "./cvTemplateDefaults/kreativ.defaults";
 
 export type PaginationZone = "main" | "sidebar";
 
@@ -95,6 +96,8 @@ export type PaginationGeometry = {
     fullW: number;
     /** Glyph advance of the bullets beside the sidebar when it differs from `cw` (the narrow column wraps earlier than the page-wide one). */
     bulletCw?: number;
+    /** Additional word-wrap allowance as the first-page main column narrows. */
+    bulletNarrowSlack?: number;
   };
   /** Padding and divider an entry draws below itself except the last one (not part of the entry gap the user sets), mm. */
   entryChrome?: number;
@@ -245,23 +248,23 @@ const geometry: Record<string, PaginationGeometry> = {
     columns: 2,
     sidebarLeft: false,
     zones: {summary: "sidebar", strengths: "sidebar", knowledge: "sidebar", languages: "sidebar"},
-    top1: 57.6,
-    top2: 31.8,
-    limit: 285.1,
-    sideTop1: 13,
-    sideLimit: 283,
-    atsTop1: 87.9,
-    atsTop2: 87.9,
+    top1: 95,
+    top2: 55,
+    limit: 272,
+    sideTop1: 55,
+    sideLimit: 282,
+    atsTop1: 95,
+    atsTop2: 70,
     mainLeft: 0,
     mainRight: 140,
-    contentLeft: 13,
+    contentLeft: 25,
     contentRight: 130,
-    text: {contW: 179.1, cw: 0.51, bulletW: 112.1, bulletFont: 2.963, titleW: 87.1, titleFont: 3.88, orgW: 87.1, orgFont: 3.88, sumFont: 2.963, mainW: 117, sideW: 46, atsW: 179.1, lineRatio: 1.05, fullW: 187},
-    exp: {base: 9.7, list: 2, perBullet: 0.88, linePitch: 3, extraLine: 4.58, gap: 5, head: 9.6},
-    edu: {base: 10.1, extraLine: 4.66, gap: 5, head: 9.6},
-    blocks: {summary: [8.9, 3.11], strengths: [-2.3, 13.44], knowledge: [13.4, 10.48], languages: [5.5, 7.94], sectionGap: 4.5, sideGap: 4.5},
-    items: {strengths: {w: 40.5, font: 4.233, pitch: 5.5, pad: 1, cw: 0.56, cols: 1, head: 8.9, gap: 3}, knowledge: {w: 40.5, font: 4.233, pitch: 5.08, pad: 0.45, cw: 0.49, cols: 1, head: 27.5, gap: 0}},
-    certs: {home: "first", zone: "sidebar", base: 8.9, perItem: 3.12, w: 42.0, font: 2.96, pitch: 3.11},
+    text: {contW: 175, cw: 0.51, bulletW: 100.5, bulletFont: 3.705, titleW: 75, titleFont: 3.88, orgW: 75, orgFont: 3.705, sumFont: 3.705, mainW: 105, sideW: 38, atsW: 160, lineRatio: 1.35, fullW: 175},
+    exp: {base: 15, list: 2, perBullet: 0.88, linePitch: 5, extraLine: 5, gap: 4, head: 11},
+    edu: {base: 15, extraLine: 5, gap: 4, head: 11},
+    blocks: {summary: [10, 5], strengths: [-2.3, 13.44], knowledge: [13.4, 10.48], languages: [5.5, 7.94], sectionGap: 4.5, sideGap: 4.5},
+    items: {strengths: {w: 34.5, font: 3.705, pitch: 5, pad: 1, cw: 0.56, cols: 1, head: 9, gap: 3}, knowledge: {w: 34.5, font: 3.705, pitch: 5, pad: 0.45, cw: 0.49, cols: 1, head: 27.5, gap: 0}},
+    certs: {home: "first", zone: "sidebar", base: 9, perItem: 5, w: 34.5, font: 3.705, pitch: 5},
     derivedStrengths: {visual: "first", ats: "single"},
     ats: {exp: 1.12, edu: 1.44, knowledge: {head: 9.56, title: 8.49, gap: 3, pitch: 3.11, font: 2.96, w: 184, tail: 0}, header: {base: 40.44, perContact: 9.48}, languages: [5.1, 5.1], certs: {base: 9.4, perItem: 3.1}, density: {compact: 1, dense: 1}},
     density: {compact: 1, dense: 1},
@@ -329,21 +332,24 @@ const geometry: Record<string, PaginationGeometry> = {
     density: {compact: 1, dense: 1},
   },
   "kreativ": {
+    safety: 1,
     columns: 2,
     sidebarLeft: false,
     zones: {summary: "sidebar", strengths: "sidebar", knowledge: "sidebar", languages: "sidebar"},
     top1: 53,
     top2: 32.7,
-    limit: 285.8,
+    limit: kreativDefaults.page.heightMm - kreativDefaults.layout.footerClearanceMm,
     sideTop1: 53,
-    sideLimit: 284,
+    sideLimit: kreativDefaults.page.heightMm - kreativDefaults.layout.footerClearanceMm,
     atsTop1: 53.2,
     atsTop2: 53.2,
     mainLeft: 12,
     mainRight: 120.7,
     contentLeft: 12,
     contentRight: 120.7,
-    text: {contW: 181.1, cw: 0.515, bulletW: 103.8, bulletFont: 2.963, titleW: 81.9, titleFont: 3.88, orgW: 94.2, orgFont: 3.35, sumFont: 2.963, mainW: 108.7, sideW: 66.3, atsW: 183.1, lineRatio: 1.05, fullW: 186},
+    // Calibrated against Electron at native width and at a 45% sidebar: retain
+    // wrapping room without rounding every long bullet up by an extra line.
+    text: {contW: 181.1, cw: 0.515, bulletCw: 0.495, bulletNarrowSlack: 0.6, bulletW: 103.8, bulletFont: 2.963, titleW: 81.9, titleFont: 3.88, orgW: 94.2, orgFont: 3.35, sumFont: 2.963, mainW: 108.7, sideW: 66.3, atsW: 183.1, lineRatio: 1.05, fullW: 186},
     exp: {base: 10.7, list: 0.9, perBullet: 0.57, linePitch: 3.09, extraLine: 3.34, gap: 2.5, head: 10.2},
     edu: {base: 11, extraLine: 4.07, gap: 2.5, head: 10.2},
     blocks: {summary: [10.2, 3.11], strengths: [7.2, 7.85], knowledge: [17.8, 6], languages: [7.2, 6.56], sectionGap: 4.5, sideGap: 4.5},

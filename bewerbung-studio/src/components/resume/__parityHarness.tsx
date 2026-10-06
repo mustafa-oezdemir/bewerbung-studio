@@ -69,6 +69,7 @@ export const renderCv = (
           profile: resolved.profile, templateId, name: `${profile.firstName} ${profile.lastName}`, atsMode: settings.resumeOutputMode === "ats", plan,
           totalPages: resolved.pagePlan.length, accentColor: template.accent, secondaryColor: template.secondary, photoSource: null,
           resumeProfile: resolved.summary, sections: resolved.sections, backgroundId: "white", closingDate: resolved.closingDate,
+          design: resolved.design, designSettings: resolved.settings,
         })}
       </ManagedResumePreview>,
     )}</body></html>`).document.body as unknown as Element);

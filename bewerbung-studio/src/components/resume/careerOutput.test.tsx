@@ -24,6 +24,53 @@ import { StilvollResume } from "./templates/stilvoll";
 import { TabellarischResume } from "./templates/tabellarisch";
 import { ZeitgenoessischResume } from "./templates/zeitgenoessisch";
 import { ZweispaltigResume } from "./templates/zweispaltig";
+import { kreativPaginationProfile } from "../../shared/__kreativPaginationFixture";
+import { renderCv } from "./__parityHarness";
+import { moveManagerSection } from "../../features/resume-sections/resume-manager";
+
+describe("Kreativ planned continuation and main-section order", () => {
+  it("keeps the 3+2 split and places moved auxiliary sections after all career/education content on both surfaces", () => {
+    let profile = kreativPaginationProfile();
+    for (const id of ["strengths", "languages", "certifications"])
+      profile = moveManagerSection(profile, "kreativ", id, "main", 0);
+    const result = renderCv("kreativ", profile);
+    const split = result.resolved.pagePlan[0].items.at(-1)!;
+    expect(split.bullets).toEqual({ from: 0, to: 3, total: 5 });
+    expect(result.resolved.pagePlan[1].items[0].bullets).toEqual({ from: 3, to: 5, total: 5 });
+    const semantic = (pages: Element[]) => pages.map((page) => Array.from(page.querySelectorAll("[data-managed-section]")).map((section) => ({
+      id: section.getAttribute("data-managed-section"),
+      entries: Array.from(section.querySelectorAll("[data-resume-entry-id]")).map((entry) => ({
+        id: entry.getAttribute("data-resume-entry-id"),
+        bullets: Array.from(entry.querySelectorAll("li")).map((node) => node.textContent),
+        continued: entry.hasAttribute("data-resume-entry-continued"),
+      })),
+    })));
+    expect(semantic(result.previewPages)).toEqual(semantic(result.pdfPages));
+    for (const pages of [result.previewPages, result.pdfPages]) {
+      const ids = pages.flatMap((page) => Array.from(page.querySelectorAll('[data-managed-section][data-cv-zone="main"]')).map((node) => node.getAttribute("data-managed-section")));
+      const lastCareer = Math.max(ids.lastIndexOf("experience"), ids.lastIndexOf("education"));
+      for (const id of ["strengths", "languages", "certifications"]) expect(ids.indexOf(id), id).toBeGreaterThan(lastCareer);
+      const allBullets = pages.flatMap((page) => Array.from(page.querySelectorAll('[data-managed-section="experience"] li')).map((node) => node.textContent));
+      expect(allBullets).toEqual(profile.experiences.flatMap((entry) => entry.achievements));
+      expect(pages[1].querySelectorAll("[data-resume-entry-marker]")).toHaveLength(1);
+      expect(pages[1].querySelector('[data-managed-section="experience"]')?.textContent).toContain("Fortsetzung");
+    }
+  });
+
+  it("retains the planned sidebar on continuation pages with certificates pending", () => {
+    const profile = kreativPaginationProfile();
+    profile.certifications = Array.from({ length: 70 }, (_, index) => `Fiktive Weiterbildung ${index + 1}`);
+    const result = renderCv("kreativ", profile);
+    expect(result.resolved.pagePlan.slice(1).some((page) => page.sidebar)).toBe(true);
+    for (const pages of [result.previewPages, result.pdfPages]) {
+      result.resolved.pagePlan.forEach((plan, index) => {
+        if (plan.sidebar) expect(pages[index].querySelector("aside"), `page ${index + 1}`).not.toBeNull();
+      });
+      const certificates = pages.flatMap((page) => Array.from(page.querySelectorAll('[data-managed-section="certifications"] li')).map((node) => node.textContent));
+      expect(certificates).toEqual(profile.certifications);
+    }
+  });
+});
 
 const components: Record<string, unknown> = {
   elegant: ElegantResume, einspaltig: EinspaltigResume, gepflegt: GepflegtResume, klassisch: KlassischResume, kompakt: KompaktResume,

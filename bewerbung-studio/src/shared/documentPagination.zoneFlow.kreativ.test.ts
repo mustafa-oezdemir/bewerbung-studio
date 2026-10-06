@@ -44,14 +44,15 @@ describe("zone flow of kreativ", () => {
     }
   });
 
-  it("puts a block above the career sections on page one and brings a pushed block back when the user moves it", () => {
+  it("appends an auxiliary block even when moved to index zero, and returns it to the sidebar", () => {
     const base = makeProfile(6);
-    expect(pageOf(plan(place(base, "certifications", "main", 0)), "certifications")).toBe(1);
+    expect(pageOf(plan(place(base, "certifications", "main", 0)), "certifications")).toBe(2);
     const pushed = place(base, "certifications", "main", 99);
     expect(pageOf(plan(pushed), "certifications")).toBe(2);
     const back = place(pushed, "certifications", "sidebar", 0);
     expect(pageOf(plan(back), "certifications")).toBe(1);
-    expect(plan(back)).toEqual(plan(base));
+    expect(plan(back).map(({ fill, ...page }) => page)).toEqual(plan(base).map(({ fill, ...page }) => page));
+    expect(plan(back)[0].fill!.sidebar).toBeCloseTo(plan(base)[0].fill!.sidebar);
   });
 
   it("draws every block exactly once", () => {

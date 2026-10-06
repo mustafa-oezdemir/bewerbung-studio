@@ -7,10 +7,12 @@ export function TabellarischAdditionalSections({
   profile,
   sections,
   atsMode,
+  blocks,
 }: {
   profile: ApplicantProfile | undefined;
   sections: ApplicantProfile["resumeSections"];
   atsMode: boolean;
+  blocks?: readonly string[];
 }) {
   const languages = Array.from(
     new Set((profile?.languages ?? []).map((item) => item.trim()).filter(Boolean)),
@@ -25,11 +27,11 @@ export function TabellarischAdditionalSections({
 
   return (
     <div className="tabellarisch-additional">
-      {sections.skills && atsMode ? (
+      {sections.skills && atsMode && (!blocks || blocks.includes("knowledge")) ? (
         <TabellarischKnowledge profile={profile} atsMode={atsMode} />
       ) : null}
 
-      {sections.certifications && certifications.length > 0 ? (
+      {sections.certifications && certifications.length > 0 && (!blocks || blocks.includes("certifications")) ? (
         <section
           className="tabellarisch-section tabellarisch-list-section"
           data-element-id="tabellarisch.certifications"
@@ -43,7 +45,7 @@ export function TabellarischAdditionalSections({
         </section>
       ) : null}
 
-      {sections.languages && languages.length > 0 ? (
+      {sections.languages && languages.length > 0 && (!blocks || blocks.includes("languages")) ? (
         <section
           className="tabellarisch-section tabellarisch-list-section"
           data-element-id="tabellarisch.languages"

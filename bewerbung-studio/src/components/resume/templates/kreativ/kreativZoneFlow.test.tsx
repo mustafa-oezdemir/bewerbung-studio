@@ -84,13 +84,13 @@ describe("Kreativ: sections follow their column", () => {
     for (const profile of [makeProfile(3), move(makeProfile(3), "languages", "main"), move(makeProfile(5), "languages", "main", 1)]) {
       const rendered = render(profile);
       for (const surface of surfaces) {
-        const page = rendered.surfaces[surface][0];
+        const page = rendered.surfaces[surface].find((page) => sectionOn(page, "languages"))!;
         const node = sectionOn(page, "languages")!;
         expect(node, surface).not.toBeNull();
         const heading = node.querySelector(":scope > .cv-heading");
         expect(heading?.querySelector(":scope > .cv-heading__label")?.textContent, surface).toBe("Sprachen");
         expect(heading?.querySelector(".cv-heading__icon"), surface).toBeNull();
-        expect(node.querySelectorAll('[class*="language__dots"] i,[class*="pdf-dots"] i'), surface).toHaveLength(12);
+        expect(node.querySelectorAll('[data-resume-language-dots] i'), surface).toHaveLength(12);
         // Every managed heading of the page is drawn by the shared heading, in either column.
         for (const section of Array.from(page.querySelectorAll("[data-managed-section]")))
           expect(section.querySelector(":scope > .cv-heading"), `${surface} ${section.getAttribute("data-managed-section")}`).not.toBeNull();
@@ -118,12 +118,12 @@ describe("Kreativ: sections follow their column", () => {
     const above = render(move(makeProfile(6), "certifications", "main", 0));
     expect(fits.resolved.pagePlan).toHaveLength(1);
     expect(flows.resolved.pagePlan[0].blocks ?? []).not.toContain("certifications");
-    expect(above.resolved.pagePlan[0].blocks).toContain("certifications");
+    expect(above.resolved.pagePlan[0].blocks).not.toContain("certifications");
     for (const surface of surfaces) {
       expect(sectionOn(fits.surfaces[surface][0], "certifications")?.getAttribute("data-cv-zone"), surface).toBe("main");
       expect(sectionOn(flows.surfaces[surface][0], "certifications"), surface).toBeNull();
       expect(sectionOn(flows.surfaces[surface][1], "certifications")?.getAttribute("data-cv-zone"), surface).toBe("main");
-      expect(sectionOn(above.surfaces[surface][0], "certifications")?.getAttribute("data-cv-zone"), surface).toBe("main");
+      expect(sectionOn(above.surfaces[surface][1], "certifications")?.getAttribute("data-cv-zone"), surface).toBe("main");
     }
   });
 

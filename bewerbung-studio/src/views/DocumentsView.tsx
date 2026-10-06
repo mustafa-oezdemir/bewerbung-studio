@@ -3,6 +3,7 @@ import { applyResumeSpacingPreset } from "../shared/resumeSpacing";
 import { resolveCvDocument } from "../shared/resolveCvDocument";
 import { getZweispaltigLetterVariables, zweispaltigLetterCss } from "../shared/zweispaltigLetterIdentity";
 import { zeitgenoessischLetterCss } from "../shared/zeitgenoessischDesign";
+import { getElegantDesignVariables, elegantLetterCss } from "../shared/elegantDesign";
 import { getResumeSectionTitle } from "../features/resume-sections/resume-sections";
 import type { CvDesignTokens, ResumeDesignLayer } from "../shared/cvDesignSchema";
 import type { ResumeAppearance } from "../shared/resumeAppearance";
@@ -656,7 +657,7 @@ export function DocumentsView({
         .map((line) => line.trim())
         .filter(Boolean)
     : applicationRecipientLines(application);
-  const coverSender = template.id === "zweispaltig" || template.id === "zeitgenoessisch"
+  const coverSender = template.id === "zweispaltig" || template.id === "zeitgenoessisch" || template.id === "elegant"
     ? coverSenderFromProfile(resolvedCv.profile)
     : resolveCoverSender(renderProfile, docs);
   const { name: coverSenderName, title: coverSenderTitle, contact: coverSenderContact } = coverSender;
@@ -688,7 +689,9 @@ export function DocumentsView({
     ? { ...paperStyle, ...getZweispaltigLetterVariables(resolvedCv.design, resolvedCv.settings, design.accentColor, design.secondaryColor) } as CSSProperties
     : template.id === "zeitgenoessisch"
       ? { ...paperStyle, ...resolvedCv.zeitgenoessischVariables } as CSSProperties
-      : paperStyle;
+      : template.id === "elegant"
+        ? { ...paperStyle, ...getElegantDesignVariables(resolvedCv.design, resolvedCv.settings, design.accentColor, design.secondaryColor) } as CSSProperties
+        : paperStyle;
   const designClassName = `column-${effectiveColumnLayout} background-${design.settings.backgroundId} background-scope-${design.settings.backgroundScope} ${
     design.settings.showBackgroundInPrint
       ? "print-background"
@@ -2194,12 +2197,13 @@ export function DocumentsView({
             )}
             {tab === "anschreiben" && (
               <div
-                className={`document-paper document-anschreiben letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} layout-${template.layout} ${designClassName}${template.id === "zweispaltig" ? " zweispaltig-letter" : template.id === "zeitgenoessisch" ? " zeitgenoessisch-letter" : ""}`}
+                className={`document-paper document-anschreiben letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} layout-${template.layout} ${designClassName}${template.id === "zweispaltig" ? " zweispaltig-letter" : template.id === "zeitgenoessisch" ? " zeitgenoessisch-letter" : template.id === "elegant" ? " elegant-letter" : ""}`}
                 data-resume-template={template.id}
                 ref={letterPaperRef}
                 style={letterPaperStyle}>
                 {template.id === "zweispaltig" ? <style>{zweispaltigLetterCss}</style> : null}
                 {template.id === "zeitgenoessisch" ? <style>{zeitgenoessischLetterCss}</style> : null}
+                {template.id === "elegant" ? <style>{elegantLetterCss}</style> : null}
                 <DocumentBackgroundLayer
                   backgroundId={design.settings.backgroundId}
                   atsMode={isAtsMode}
@@ -2227,7 +2231,7 @@ export function DocumentsView({
                     {profile?.city ? `${profile.city}, ` : ""}
                     den {formatApplicationDateLong(application)}
                   </p>
-                  <h3 className={template.id === "zweispaltig" || template.id === "zeitgenoessisch" ? "letter-subject" : undefined}>
+                  <h3 className={template.id === "zweispaltig" || template.id === "zeitgenoessisch" || template.id === "elegant" ? "letter-subject" : undefined}>
                     {createCoverSubject(
                       application.job.title,
                       docs.coverSubject,
@@ -2505,6 +2509,8 @@ export function DocumentsView({
                           totalPages={resumePlan.length}
                           accentColor={design.accentColor}
                           secondaryColor={design.secondaryColor}
+                          design={resolvedCv.design}
+                          designSettings={resolvedCv.settings}
                           photoSource={getProfileMediaSource(
                             renderProfile?.photoPath,
                           )}

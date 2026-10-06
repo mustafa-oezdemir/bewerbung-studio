@@ -56,6 +56,13 @@ export const resolveCvDocument = ({
     }),
   };
   const managerSections = profile ? getManagerSections(profile, templateId) : [];
+  // Kreativ's main flow is career, education, auxiliary sections, then closing.
+  // Keep auxiliary and sidebar order stable within those groups.
+  if (templateId === "kreativ") {
+    const rank = (entry: typeof managerSections[number]) => entry.fixed && entry.id !== "closing" ? -1
+      : entry.id === "experience" ? 0 : entry.id === "education" ? 1 : entry.id === "closing" ? 3 : 2;
+    managerSections.sort((left, right) => rank(left) - rank(right));
+  }
   const closingDate = application ? formatApplicationDate(application) : undefined;
   const closingLine = profile ? resolveResumeClosingLine(profile, closingDate).text : "";
   const knowledgeGroups = profile
@@ -98,15 +105,15 @@ export const resolveCvDocument = ({
       signature: !atsMode && profile.resumeClosing.showSignature && Boolean(getProfileMediaSource(profile.signaturePath)),
     },
     overrides: {
-      bodySizePt: templateId === "zeitgenoessisch" ? design.typography.bodySizePt : overrides?.typography?.bodySizePt,
-      lineHeight: templateId === "zeitgenoessisch" ? design.typography.lineHeight : overrides?.typography?.lineHeight,
-      pageMarginMm: templateId === "zeitgenoessisch" ? design.spacing.pageMarginMm : overrides?.spacing?.pageMarginMm,
-      innerPaddingMm: overrides?.spacing?.innerPaddingMm,
-      sectionGapMm: overrides?.spacing?.sectionGapMm,
-      entryGapMm: overrides?.spacing?.entryGapMm,
-      sectionTitleGapMm: overrides?.spacing?.sectionTitleGapMm,
-      entryContentGapMm: overrides?.spacing?.entryContentGapMm,
-      columnGapMm: overrides?.spacing?.columnGapMm,
+      bodySizePt: templateId === "zeitgenoessisch" || templateId === "elegant" ? design.typography.bodySizePt : overrides?.typography?.bodySizePt,
+      lineHeight: templateId === "zeitgenoessisch" || templateId === "elegant" ? design.typography.lineHeight : overrides?.typography?.lineHeight,
+      pageMarginMm: templateId === "zeitgenoessisch" || templateId === "elegant" ? design.spacing.pageMarginMm : overrides?.spacing?.pageMarginMm,
+      innerPaddingMm: templateId === "elegant" ? design.spacing.innerPaddingMm : overrides?.spacing?.innerPaddingMm,
+      sectionGapMm: templateId === "elegant" ? design.spacing.sectionGapMm : overrides?.spacing?.sectionGapMm,
+      entryGapMm: templateId === "elegant" ? design.spacing.entryGapMm : overrides?.spacing?.entryGapMm,
+      sectionTitleGapMm: templateId === "elegant" ? design.spacing.sectionTitleGapMm : overrides?.spacing?.sectionTitleGapMm,
+      entryContentGapMm: templateId === "elegant" ? design.spacing.entryContentGapMm : overrides?.spacing?.entryContentGapMm,
+      columnGapMm: templateId === "elegant" ? design.spacing.columnGapMm : overrides?.spacing?.columnGapMm,
     },
     settings,
   };

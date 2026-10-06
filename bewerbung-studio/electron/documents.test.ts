@@ -196,7 +196,8 @@ describe("Lebenslauf-Dokumente", () => {
     expect(experience, `${templateId}: experience`).not.toBeNull();
     expect(education!.parentElement).toBe(experience!.parentElement);
     const ordered = Array.from(education!.parentElement!.children);
-    expect(ordered.indexOf(education!)).toBeLessThan(ordered.indexOf(experience!));
+    if (templateId === "kreativ") expect(ordered.indexOf(experience!)).toBeLessThan(ordered.indexOf(education!));
+    else expect(ordered.indexOf(education!)).toBeLessThan(ordered.indexOf(experience!));
     expect(education!.textContent).toContain("Mein Bildungsweg");
     expect(document.querySelectorAll('[data-managed-section="special:aaaa0000-0000-4000-8000-000000000000"]')).toHaveLength(1);
     const hidden = updateManagerSection(managed, templateId, "education", { visible: false });
@@ -429,11 +430,12 @@ describe("Lebenslauf-Dokumente", () => {
     expect(cssHtml).toContain(
       "grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr)",
     );
-    // A long link wraps inside its column; it is never cut off with an ellipsis.
+    // A long contact uses both grid columns so its value stays on one line.
     expect(cssHtml).toContain(
-      '[data-contact-kind="linkedin"] i{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere}',
+      '.kreativ-pdf-contacts>[data-contact-wide="true"]{grid-column:1/-1}',
     );
-    expect(cssHtml).not.toContain("text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal");
+    expect(cssHtml).toContain('data-contact-kind="linkedin" data-contact-wide="true"');
+    expect(cssHtml).toContain(".kreativ-pdf-contacts i{min-width:0;font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}");
 
     const zweispaltigCssHtml = buildDocumentHtml(
       applicationSchema.parse({ ...application, templateId: "zweispaltig" }),
@@ -999,7 +1001,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(html).toContain('data-template="elegant"');
     expect(html).toContain('data-no-fit="true"');
     expect(html).toContain('<aside class="elegant-pdf-sidebar">');
-    expect(html).toContain("box-shadow:inset 0 3.5mm 0 color-mix(in srgb,var(--secondary),black 28%)");
+    expect(html).toContain("box-shadow:inset 0 3.5mm 0 color-mix(in srgb,var(--elegant-sidebar),black 28%)");
     expect(html).toContain(
       "grid-template-columns:minmax(0,140mm) 70mm",
     );
@@ -1541,24 +1543,11 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).not.toContain("kreativ-pdf-background");
     expect(body).not.toContain('<img class="kreativ-pdf-photo"');
     expect(body).not.toContain('<aside class="kreativ-pdf-right');
-    expect(body.indexOf("Kurzprofil")).toBeLessThan(
-      body.indexOf("Beruflicher Werdegang"),
-    );
     expect(body.indexOf("Beruflicher Werdegang")).toBeLessThan(
       body.indexOf("Bildungsweg"),
     );
-    expect(body.indexOf("Bildungsweg")).toBeLessThan(
-      body.indexOf("Kenntnisse"),
-    );
-    expect(body.indexOf("Kenntnisse")).toBeLessThan(
-      body.indexOf("Sprachen"),
-    );
-    expect(body.indexOf("Sprachen")).toBeLessThan(
-      body.indexOf("Stärken"),
-    );
-    expect(body.indexOf("Stärken")).toBeLessThan(
-      body.indexOf("Zertifikate"),
-    );
+    for (const auxiliary of ["Kurzprofil", "Kenntnisse", "Sprachen", "Stärken", "Zertifikate"])
+      expect(body.indexOf(auxiliary), auxiliary).toBeGreaterThan(body.indexOf("Bildungsweg"));
   });
 
   it("renders Ivy League PDF as a centered watercolor single column", () => {

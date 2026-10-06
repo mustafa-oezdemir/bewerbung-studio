@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
-import { elegantDefaults } from "./elegant.defaults";
+import { getElegantDesignVariables } from "../../../../shared/elegantDesign";
+import { resolveEffectiveDesignTokens } from "../../../../shared/resumeDesignSystem";
 import type { ElegantResumeProps } from "./elegant.types";
 import { ElegantPage } from "./ElegantPage";
 import "./elegant.css";
@@ -12,31 +13,16 @@ export function ElegantResume({
   totalPages,
   accentColor,
   secondaryColor,
+  design,
+  designSettings,
   photoSource,
   resumeProfile,
   sections,
 }: ElegantResumeProps) {
-  const cssVariables = {
-    "--elegant-accent": atsMode
-      ? elegantDefaults.colors.heading
-      : accentColor || elegantDefaults.colors.primary,
-    "--elegant-sidebar":
-      secondaryColor || elegantDefaults.colors.sidebarBackground,
-    "--elegant-sidebar-width": `${elegantDefaults.layout.sidebarWidthMm}mm`,
-    "--elegant-heading": elegantDefaults.colors.heading,
-    "--elegant-text": elegantDefaults.colors.text,
-    "--elegant-muted": elegantDefaults.colors.mutedText,
-    "--elegant-line": elegantDefaults.colors.divider,
-    "--elegant-paper": elegantDefaults.colors.pageBackground,
-    "--elegant-sidebar-text": elegantDefaults.colors.sidebarText,
-    "--elegant-sidebar-muted": elegantDefaults.colors.sidebarMutedText,
-    "--elegant-name-size": `${elegantDefaults.typography.nameSizePt}pt`,
-    "--elegant-profession-size": `${elegantDefaults.typography.professionSizePt}pt`,
-    "--elegant-section-title-size": `${elegantDefaults.typography.sectionTitleSizePt}pt`,
-    "--elegant-sidebar-title-size": `${elegantDefaults.typography.sidebarSectionTitleSizePt}pt`,
-    "--elegant-entry-title-size": `${elegantDefaults.typography.entryTitleSizePt}pt`,
-    "--elegant-small-size": `${elegantDefaults.typography.smallSizePt}pt`,
-  } as CSSProperties;
+  const cssVariables = getElegantDesignVariables(
+    design ?? (designSettings ? resolveEffectiveDesignTokens("elegant", designSettings) : undefined),
+    designSettings, atsMode ? undefined : accentColor, secondaryColor,
+  ) as CSSProperties;
 
   return (
     <article

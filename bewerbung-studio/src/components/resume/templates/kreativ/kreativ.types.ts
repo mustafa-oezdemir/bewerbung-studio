@@ -9,6 +9,7 @@ export type KreativCareerItem = {
   organization: string;
   city?: string;
   achievements?: string[];
+  bullets?: { from: number; to: number; total: number };
 };
 
 export type KreativLanguage = {

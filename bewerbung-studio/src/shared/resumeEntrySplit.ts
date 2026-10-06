@@ -42,7 +42,7 @@ export const applyEntryBreaks = (
     if (from > 0) {
       entry.setAttribute("data-resume-entry-continued", "");
       const title = (titleSelector ? entry.querySelector(titleSelector) : null) ?? entry.querySelector("h3,h4");
-      if (title) {
+      if (title && !title.querySelector("[data-resume-entry-marker]")) {
         const marker = entry.ownerDocument.createElement("span");
         marker.setAttribute("data-resume-entry-marker", "");
         marker.textContent = "· Fortsetzung";
@@ -84,6 +84,8 @@ export const applyEducationBreaks = (
     // The title of this entry on this page, and the smallest element around it that holds every detail of the entry.
     const title = sections.flatMap((section) => leaves(section, normalize(view.title))).find((node) => !used.has(node));
     if (!title) continue;
+    // Native renderers may already have projected this exact range.
+    if (title.closest("[data-resume-entry-range]")) continue;
     let root: Element | null = title;
     while (root && !view.details.every((detail) => leaves(root!, normalize(detail)).length || normalize(root!.textContent ?? "").includes(normalize(detail)))) root = root.parentElement;
     if (!root || !sections.some((section) => section.contains(root))) continue;

@@ -28,6 +28,7 @@ import {
   type ManagerSection,
 } from "../features/resume-sections/resume-manager";
 import { getProfileMediaSource } from "./profileMedia";
+import { getElegantDesignVariables } from "./elegantDesign";
 import { getThemedTechnologyIconMarkup } from "./technologyBrand";
 import { defaultDocumentDesign, type DocumentDesignSettings } from "./documentDesign";
 import { resolveCvDocument, type ResolvedCvDocument } from "./resolveCvDocument";
@@ -218,6 +219,7 @@ export const applyResumeDesignOverrides = (
   settings: DocumentDesignSettings,
   design: CvDesignTokens,
 ): void => {
+  if (resolveTemplateId(templateId) === "elegant") return;
   const overrides = settings.cvOverrides;
   if (!overrides || (!overrides.colors && !overrides.typography)) return;
   const scope = (surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild) ?? root;
@@ -335,6 +337,16 @@ export const applyManagedResumeOutput = (
   const groups = resolved.knowledgeGroups;
   const pages = Array.from(document.querySelectorAll(".cv-sheet"));
   const roots = pages.length ? pages : [document.body];
+  if (resolved.templateId === "elegant" && !pages.length) {
+    const elegant = document.querySelector(".elegant-template");
+    if (elegant) {
+      const style = elegant.getAttribute("style") ?? "";
+      const previous = (name: string) => new RegExp(`(?:^|;)${name}:([^;]+)`).exec(style)?.[1];
+      const variables = getElegantDesignVariables(resolved.design, designSettings,
+        previous("--elegant-accent"), previous("--elegant-sidebar"));
+      for (const [name, value] of Object.entries(variables)) (elegant as HTMLElement).style.setProperty(name, value);
+    }
+  }
   const firstPageDocument = firstPageHtml ? parseHTML(`<html><body>${firstPageHtml}</body></html>`).document : null;
   let firstPageHeader: Element | null = firstPageDocument?.querySelector("header") ?? null;
   roots.forEach((root, rootIndex) => {
@@ -383,7 +395,9 @@ export const applyManagedResumeOutput = (
     const surface = root.matches(".cv-sheet") ? "pdf" : "preview";
     const headingTag = surface === "pdf" ? "h3" : "h2";
     const hosts = (id: string) => {
-      const movable = id === "knowledge" || id.startsWith("group:") || id.startsWith("special:") || (zoneFlow && id === "certifications");
+      const movable = id === "knowledge" || id.startsWith("group:") || id.startsWith("special:") || (zoneFlow && id === "certifications")
+        || resolved.templateId === "tabellarisch"
+        || (resolved.templateId === "kreativ" && ["summary", "strengths", "languages"].includes(id));
       if (!movable || !planned.some((page) => page.blocks?.includes(id))) return last;
       return Boolean(planned[number - 1]?.blocks?.includes(id));
     };
@@ -526,6 +540,23 @@ export const applyManagedResumeOutput = (
         nodes.delete(entry.id);
         continue;
       }
+      if (resolved.templateId === "kreativ" && (entry.id === "summary" || entry.id === "languages")) {
+        const content = entry.id === "summary" ? (resolved.summary ? `<p>${escape(resolved.summary)}</p>` : "")
+          : profile.languages.length ? `<ul>${profile.languages.map((value) => `<li>${escape(value)}</li>`).join("")}</ul>` : "";
+        existing.forEach((node) => node.remove());
+        nodes.delete(entry.id);
+        if (hosts(entry.id) && content) {
+          const node = existing[0] ?? document.createElement("section");
+          if (!existing.length) node.className = "managed-extra";
+          node.setAttribute("data-managed-section", entry.id);
+          if (entry.id !== "languages" || !existing.length)
+            node.innerHTML = `<${headingTag}>${escape(entry.title)}</${headingTag}>${content}`;
+          else setHeadingText(node.querySelector("h2,h3")!, entry.title);
+          appendSection(entry, node);
+          nodes.set(entry.id, [node]);
+        }
+        continue;
+      }
       // Plain lists of a zone-flow template: the page plan says where the certificates are drawn
       // (page one's sidebar, behind the career entries, or the last page) and one markup serves
       // every column; the languages stay where the template draws them and follow their column.
@@ -559,7 +590,7 @@ export const applyManagedResumeOutput = (
       // on their planned pages and are never copied across page boundaries.
       let content = "";
       if (entry.id === "strengths") {
-        if (number !== 1) {
+        if (resolved.templateId === "kreativ" || resolved.templateId === "tabellarisch" ? !hosts(entry.id) : number !== 1) {
           existing.forEach((node) => node.remove());
           nodes.delete(entry.id);
           continue;
@@ -771,10 +802,10 @@ export const applyManagedResumeOutput = (
       }
     }
     // An anchor preserves the template's header/contact/photo and footer order.
-    const placementOrder = main === sidebar && profile.resumeManagerLayouts?.[templateId]?.length
+    const placementOrder = resolved.templateId !== "tabellarisch" && main === sidebar && profile.resumeManagerLayouts?.[templateId]?.length
       ? [...entries.filter((entry) => entry.zone === "main"), ...entries.filter((entry) => entry.zone === "sidebar")]
       : entries;
-    for (const destination of profile.resumeManagerLayouts?.[templateId]?.length
+    for (const destination of (resolved.templateId === "kreativ" || resolved.templateId === "tabellarisch" || profile.resumeManagerLayouts?.[templateId]?.length)
       ? new Set([main, sidebar])
       : []) {
       const moving = placementOrder
@@ -800,6 +831,10 @@ export const applyManagedResumeOutput = (
       }
       anchor.remove();
     }
+    if (resolved.templateId === "tabellarisch")
+      root.querySelectorAll(".tabellarisch-additional,.tabellarisch-pdf-additional").forEach((wrapper) => {
+        if (!wrapper.children.length) wrapper.remove();
+      });
     const specialWrapperSelector = resolved.templateId === "kompakt"
       ? ".kompakt-left > .resume-special-output-list"
       : resolved.templateId === "klassisch"
@@ -912,7 +947,7 @@ export const applyManagedResumeOutput = (
     // The Fotogröße of the profile: one scale for the template's own photo (a photo the user hides gets none).
     if (resumeAppearanceSchema.parse(designSettings.resumeAppearance ?? {}).photoLayout !== "hidden")
       applyResumePhotoOutput(root, root.matches(".cv-sheet") ? "pdf" : "preview", profile);
-    applyResumeSectionHeadingColors(root, designSettings);
+    if (resolved.templateId !== "elegant") applyResumeSectionHeadingColors(root, designSettings);
     for (const section of nodes.get("languages") ?? []) {
       const zone = sidebar !== main && sidebar.contains(section) ? "sidebar" : "main";
       applyResumeLanguageOutput(section, profile, templateId, designSettings, zone, sidebar !== main && !isAts, isAts);

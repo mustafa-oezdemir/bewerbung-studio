@@ -473,6 +473,7 @@ const allTemplates: TemplateDefinition[] = [
     atsInfo:
       "Elegant unterstützt eine separate, lineare ATS-Ausgabe ohne Foto, Seitenleiste oder dekorative Elemente.",
     designDefaults: {
+      // Legacy slider baseline for saved documents; the resolved Elegant tokens set its actual geometry and type.
       marginLevel: 3,
       sectionSpacingLevel: 4,
       fontSize: "small",

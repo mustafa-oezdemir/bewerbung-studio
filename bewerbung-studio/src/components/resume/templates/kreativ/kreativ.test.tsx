@@ -20,6 +20,28 @@ import {
   uniqueKreativValues,
 } from "./kreativ.model";
 import { KreativResume } from "./KreativResume";
+import { kreativPaginationProfile } from "../../../../shared/__kreativPaginationFixture";
+
+it("consumes the planned 3+2 bullet ranges in native Kreativ markup", () => {
+  const source = kreativPaginationProfile();
+  const entry = source.experiences[0];
+  const pages = [
+    { from: 0, to: 3, total: 5 }, { from: 3, to: 5, total: 5 },
+  ].map((bullets, index) => {
+    const plan: ResumePagePlan = { pageNumber: index + 1, density: "standard", sidebar: true,
+      items: [{ kind: "experience", id: entry.id, weight: 50, bullets }] };
+    const data = createKreativPageData(source, plan);
+    expect(data.experiences[0].bullets).toEqual(bullets);
+    expect(data.experiences[0].achievements).toEqual(entry.achievements.slice(bullets.from, bullets.to));
+    return parseHTML(renderToStaticMarkup(<KreativResume profile={source} name="Lina Beispiel" atsMode={false}
+      plan={plan} totalPages={2} accentColor="#37B978" secondaryColor="#075D4E" photoSource={null}
+      resumeProfile="" sections={source.resumeSections} />)).document;
+  });
+  expect(pages[0].querySelectorAll(".kreativ-career-entry li")).toHaveLength(3);
+  expect(pages[1].querySelectorAll(".kreativ-career-entry li")).toHaveLength(2);
+  expect(pages[1].querySelectorAll("[data-resume-entry-marker]")).toHaveLength(1);
+  expect(pages[1].querySelector(".kreativ-right-column")).not.toBeNull();
+});
 
 const firstExperienceId = "33000000-0000-4000-8000-000000000001";
 const secondExperienceId = "33000000-0000-4000-8000-000000000002";
@@ -181,7 +203,8 @@ describe("Kreativ rendering", () => {
     const projectId = crypto.randomUUID();
     const hobbiesId = crypto.randomUUID();
     const hiddenId = crypto.randomUUID();
-    const source = profileSchema.parse({ ...profile, github: "github.com/marie", resumePersonalFieldVisibility: {
+    const source = profileSchema.parse({ ...profile, street: "Beispielstraße 12",
+      linkedin: "https://linkedin.com/in/marie-beispiel-person", github: "github.com/marie", resumePersonalFieldVisibility: {
       ...profile.resumePersonalFieldVisibility, phone: false, website: false,
     }, specialSections: [
       { id: projectId, kind: "projects", title: "Projekt-Highlight", contentType: "list", entries: [{ id: crypto.randomUUID(), title: "oiözio" }] },
@@ -217,6 +240,10 @@ describe("Kreativ rendering", () => {
       expect(document.querySelector(`[data-managed-section="special:${hiddenId}"]`)).toBeNull();
       expect(document.querySelector('[data-contact-kind="phone"]')).toBeNull();
       expect(document.querySelector('[data-contact-kind="github"]')?.textContent).toContain("github.com/marie");
+      expect(document.querySelector('[data-contact-kind="linkedin"]')?.getAttribute("data-contact-wide")).toBe("true");
+      expect(document.querySelector('[data-contact-kind="linkedin"]')?.textContent).toContain("linkedin.com/in/marie-beispiel-person");
+      expect(document.querySelector('[data-contact-kind="location"]')?.getAttribute("data-contact-wide")).toBe("true");
+      expect(document.querySelector('[data-contact-kind="location"]')?.textContent).toContain("Beispielstraße 12, 80331 München");
       expect(document.querySelector('[data-contact-kind="website"]')).toBeNull();
       expect(document.querySelector(`${mainSelector} [data-managed-section="experience"]`)).not.toBeNull();
       expect(document.querySelector(`${mainSelector} [data-managed-section="education"]`)).not.toBeNull();

@@ -48,4 +48,19 @@ describe("ResumeSectionsPanel flexible blocks", () => {
     expect(html).toContain('aria-label="Beruflicher Werdegang Position"');
     expect(html).toContain("Pfeil links oder rechts für Spalte");
   });
+  it("shows Tabellarisch in one movable order across saved zones", () => {
+    const base = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: new Date().toISOString() });
+    const profile = { ...base, resumeManagerLayouts: { ...base.resumeManagerLayouts,
+      tabellarisch: [
+        { id: "experience", zone: "main" as const }, { id: "education", zone: "main" as const },
+        { id: "summary", zone: "sidebar" as const }, { id: "strengths", zone: "sidebar" as const },
+      ],
+    } };
+    const html = renderToStaticMarkup(<ResumeSectionsPanel profile={profile} templateId="tabellarisch" layoutMode="single"
+      singlePageExceeded={false} onSave={vi.fn()} onPreview={vi.fn()} />);
+    expect(html.indexOf('aria-label="Beruflicher Werdegang nach oben"')).toBeLessThan(html.indexOf('aria-label="Kurzprofil nach oben"'));
+    expect(html).toContain('aria-label="Kurzprofil nach oben"');
+    expect(html).not.toContain('aria-label="Kurzprofil nach oben" disabled');
+    expect(html).toContain("Reihenfolge im Lebenslauf");
+  });
 });

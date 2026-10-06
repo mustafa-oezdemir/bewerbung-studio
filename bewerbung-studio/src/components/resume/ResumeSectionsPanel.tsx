@@ -103,6 +103,7 @@ export function ResumeSectionsPanel({
     draft.resumeKnowledgeGroups,
   );
   const zones = managerZones(templateId);
+  const tabellarischOrder = templateId === "tabellarisch";
   const change = (id: string, update: { title?: string; visible?: boolean }) =>
     setDraft((current) =>
       updateManagerSection(current, templateId, id, update),
@@ -299,7 +300,7 @@ export function ResumeSectionsPanel({
               else if (event.key === "ArrowDown" && index < siblings.length - 1) move(entry.id, entry.zone, index + 1);
               else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
                 const zone = event.key === "ArrowLeft" ? "main" : "sidebar";
-                if (zone !== entry.zone) move(entry.id, zone, entries.filter((item) => !item.fixed && item.zone === zone).length);
+                if (zone !== entry.zone) move(entry.id, zone, tabellarischOrder ? index : entries.filter((item) => !item.fixed && item.zone === zone).length);
                 else return;
               } else return;
               event.preventDefault();
@@ -358,8 +359,7 @@ export function ResumeSectionsPanel({
                 move(
                   entry.id,
                   event.target.value as ManagerZone,
-                  entries.filter((item) => item.zone === event.target.value)
-                    .length,
+                  tabellarischOrder ? index : entries.filter((item) => item.zone === event.target.value).length,
                 )
               }>
               {managerAllowedZones(templateId, entry.id).map((zone) => (
@@ -395,7 +395,14 @@ export function ResumeSectionsPanel({
             .map((entry, index, siblings) => card(entry, index, siblings))}
         </div>
       </div>
-      <div className="resume-section-zones">
+      {tabellarischOrder ? (
+        <div className="resume-section-zone">
+          <span>Reihenfolge im Lebenslauf</span>
+          <div className="resume-section-list">
+            {entries.filter((entry) => !entry.fixed).map((entry, index, siblings) => card(entry, index, siblings))}
+          </div>
+        </div>
+      ) : <div className="resume-section-zones">
         {zones.map((zone) => {
           const siblings = entries.filter(
             (entry) => !entry.fixed && entry.zone === zone,
@@ -419,7 +426,7 @@ export function ResumeSectionsPanel({
             </div>
           );
         })}
-      </div>
+      </div>}
       <div className="manager-add">
         <label className="field">
           <span>Weiteren Bereich hinzufügen</span>

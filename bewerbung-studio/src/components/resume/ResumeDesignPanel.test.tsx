@@ -62,6 +62,11 @@ describe("Lebenslauf design panel", () => {
     // Line height and the space below a title have one control each, whichever section the setting is named in.
     expect(labels.filter((label) => label.startsWith("Zeilenhöhe"))).toHaveLength(1);
     expect(labels.filter((label) => /Abstand (danach|nach Abschnittstitel)/.test(label))).toHaveLength(1);
+    for (const label of ["Abstand davor (mm)", "Abstand danach (mm)"]) {
+      const section = frameOf(document, label).closest(".rds-sub");
+      expect(section?.getAttribute("aria-label")).toBe("Abstände um Abschnittstitel");
+      expect(section?.closest(".rds-group")?.querySelector("summary strong")?.textContent).toBe("Erweiterte Abstände");
+    }
   });
 
   it.each(templates)("shows the real values of $name as the effective ones", ({ id }) => {

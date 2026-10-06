@@ -3,7 +3,7 @@ import { toKreativExternalHref } from "./kreativ.model";
 import type { KreativHeaderProps } from "./kreativ.types";
 import { resolveResumeHeading } from "../../../../shared/resumeHeading";
 import { formatResumeAddress, formatResumeBirth, getResumePersonalDetails } from "../../../../shared/resumePersonalData";
-import { formatPhoneForDisplay, phoneHref } from "../../../../shared/contactPresentation";
+import { formatPhoneForDisplay, formatUrlForDisplay, phoneHref } from "../../../../shared/contactPresentation";
 
 type KreativContact = {
   kind: "phone" | "email" | "linkedin" | "github" | "website" | "location" | "birth" | "nationality" | "familyStatus" | "children";
@@ -37,7 +37,7 @@ export function KreativHeader({
     {
       kind: "linkedin",
       label: "LinkedIn",
-      value: profile?.linkedin,
+      value: formatUrlForDisplay(profile?.linkedin),
       href: profile?.linkedin
         ? toKreativExternalHref(profile.linkedin)
         : "",
@@ -45,13 +45,13 @@ export function KreativHeader({
     {
       kind: "github",
       label: "GitHub",
-      value: profile?.github,
+      value: formatUrlForDisplay(profile?.github),
       href: profile?.github ? toKreativExternalHref(profile.github) : "",
     },
     {
       kind: "website",
       label: "Website",
-      value: profile?.portfolio,
+      value: formatUrlForDisplay(profile?.portfolio),
       href: profile?.portfolio ? toKreativExternalHref(profile.portfolio) : "",
     },
     {
@@ -86,6 +86,7 @@ export function KreativHeader({
         {!compact && contacts.length ? (
           <address className="kreativ-header__contacts">
             {contacts.map((contact) => {
+              const wide = (contact.value?.length ?? 0) > 24;
               const content = (
                 <>
                   <ContactIcon {...contact} />
@@ -97,7 +98,9 @@ export function KreativHeader({
                 <a
                   aria-label={`${contact.label}: ${contact.value}`}
                   data-contact-kind={contact.kind}
+                  data-contact-wide={wide || undefined}
                   href={contact.href}
+                  title={contact.value}
                   key={contact.label}
                 >
                   {content}
@@ -106,6 +109,8 @@ export function KreativHeader({
                 <span
                   aria-label={`${contact.label}: ${contact.value}`}
                   data-contact-kind={contact.kind}
+                  data-contact-wide={wide || undefined}
+                  title={contact.value}
                   key={contact.label}
                 >
                   {content}

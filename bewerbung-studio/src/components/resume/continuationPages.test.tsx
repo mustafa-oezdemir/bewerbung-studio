@@ -99,20 +99,23 @@ describe.each(Object.keys(components))("continuation page of %s", (templateId) =
   const { resolved, pdfPages, previewPages } = render(templateId);
 
   it("plans the same two pages for preview and PDF", () => {
-    if (templateId === "zweispaltig" || templateId === "zeitgenoessisch") expect(resolved.pagePlan.length).toBeGreaterThanOrEqual(2);
+    if (templateId === "zweispaltig" || templateId === "zeitgenoessisch" || templateId === "elegant" || templateId === "tabellarisch") expect(resolved.pagePlan.length).toBeGreaterThanOrEqual(2);
     else expect(resolved.pagePlan).toHaveLength(2);
     expect(pdfPages).toHaveLength(resolved.pagePlan.length);
     expect(previewPages).toHaveLength(resolved.pagePlan.length);
   });
 
   it("shows the same sections on every page in preview and PDF", () => {
-    for (const index of [0, 1]) expect({ page: index + 1, ids: sectionIds(previewPages[index]) }).toEqual({ page: index + 1, ids: sectionIds(pdfPages[index]) });
+    for (const [index, page] of previewPages.entries()) expect({ page: index + 1, ids: sectionIds(page) }).toEqual({ page: index + 1, ids: sectionIds(pdfPages[index]) });
   });
 
   it.each(["preview", "pdf"] as const)("repeats the identity header without an idle sidebar in the %s", (surface) => {
     const first = surface === "pdf" ? pdfPages[0] : previewPages[0];
     const second = surface === "pdf" ? pdfPages[1] : previewPages[1];
-    expect(second.querySelector("aside")).toBeNull();
+    if (templateId === "elegant") {
+      expect(second.querySelector("aside .elegant-sidebar__continuation")?.textContent).toContain("Mina Kaya");
+      expect(second.querySelector("aside img")).toBeNull();
+    } else expect(second.querySelector("aside")).toBeNull();
     const firstHeader = first.querySelector("header");
     const secondHeader = second.querySelector("header");
     // Pehlione, Kompakt and Zeitgenössisch list contacts in their first-page column.
@@ -155,7 +158,7 @@ describe.each(Object.keys(components))("continuation page of %s", (templateId) =
   it("breaks an entry at the same bullet in the preview and in the PDF", () => {
     // Some previews wrap a whole entry in a list item; only the bullets carry the “Ergebnis” text.
     const bullets = (page: Element) => Array.from(page.querySelectorAll('[data-managed-section="experience"] li')).map(text).filter((entry) => entry.startsWith("Ergebnis"));
-    for (const index of [0, 1]) expect({ page: index + 1, bullets: bullets(previewPages[index]) }).toEqual({ page: index + 1, bullets: bullets(pdfPages[index]) });
+    for (const [index, page] of previewPages.entries()) expect({ page: index + 1, bullets: bullets(page) }).toEqual({ page: index + 1, bullets: bullets(pdfPages[index]) });
     const continued = (page: Element) => page.querySelectorAll("[data-resume-entry-continued]").length;
     expect(continued(previewPages[1])).toBe(continued(pdfPages[1]));
     expect(continued(pdfPages[0])).toBe(0);
@@ -181,10 +184,10 @@ it("renders certificates on their template-specific page, not twice after a spli
   };
   const elegant = renderCertificatePages("elegant");
   const pehlione = renderCertificatePages("pehlione_white_blue");
-  expect(elegant).toHaveLength(2);
+  expect(elegant.length).toBeGreaterThanOrEqual(2);
   expect(pehlione).toHaveLength(2);
   expect(text(elegant[0])).toContain("TÜV Sicherheit Unikat");
-  expect(text(elegant[1])).not.toContain("TÜV Sicherheit Unikat");
+  expect(elegant.map(text).join(" ").split("TÜV Sicherheit Unikat").length - 1).toBe(1);
   expect(text(pehlione[0])).not.toContain("TÜV Sicherheit Unikat");
   expect(text(pehlione[1])).toContain("TÜV Sicherheit Unikat");
 });

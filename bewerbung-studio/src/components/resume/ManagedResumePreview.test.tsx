@@ -171,7 +171,8 @@ describe("managed template previews", () => {
     expect(education).not.toBeNull(); expect(experience).not.toBeNull();
     expect(education!.parentElement).toBe(experience!.parentElement);
     const siblings = Array.from(education!.parentElement!.children);
-    expect(siblings.indexOf(education!)).toBeLessThan(siblings.indexOf(experience!));
+    if (templateId === "kreativ") expect(siblings.indexOf(experience!)).toBeLessThan(siblings.indexOf(education!));
+    else expect(siblings.indexOf(education!)).toBeLessThan(siblings.indexOf(experience!));
     expect(document.querySelectorAll('[data-managed-section="special:bbbb0000-0000-4000-8000-000000000000"]')).toHaveLength(1);
   });
   it.each(Object.entries(components))("applies section placement and visibility equally in preview and PDF for %s", (templateId, component) => {
@@ -250,6 +251,14 @@ describe("managed template previews", () => {
       documents: {}, statusHistory: [], createdAt: now, updatedAt: now, designSettings: settings });
     for (const html of [preview, buildDocumentHtml(application, profile, "lebenslauf")]) {
       const document = parseHTML(html).document;
+      if (templateId === "elegant") {
+        const scope = document.querySelector(".elegant-template,.cv-sheet[data-template=elegant]");
+        expect(scope).not.toBeNull();
+        expect(scope!.getAttribute("style")).toContain("--elegant-base-entry-gap:3mm");
+        expect(scope!.getAttribute("style")).toContain("--elegant-base-section-gap:7mm");
+        expect(scope!.getAttribute("style")).toContain("--elegant-line-height:1.3");
+        continue;
+      }
       const scope = document.querySelector("[data-resume-spacing-entry-gap]");
       expect(scope, templateId).not.toBeNull();
       expect(scope!.getAttribute("style"), templateId).toContain("--doc-entry-gap:3mm");

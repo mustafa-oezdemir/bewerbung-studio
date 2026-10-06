@@ -291,6 +291,15 @@ export const moveManagerSection = (
   const moved = entries.find((item) => item.id === id);
   if (!moved) return profile;
   const rest = entries.filter((item) => item.id !== id);
+  if (templateId === "tabellarisch") {
+    // Its editor and document both have one ordered section stream. Keep the
+    // saved zone while moving a section across the old main/sidebar boundary.
+    rest.splice(Math.max(0, Math.min(index, rest.length)), 0, { ...moved, zone });
+    return { ...profile, resumeManagerLayouts: {
+      ...profile.resumeManagerLayouts,
+      [templateId]: rest.map(({ id: sectionId, zone: sectionZone }) => ({ id: sectionId, zone: sectionZone })),
+    } };
+  }
   const destination = rest.filter((item) => item.zone === zone);
   const before = destination[Math.max(0, index)];
   rest.splice(before ? rest.indexOf(before) : rest.length, 0, {

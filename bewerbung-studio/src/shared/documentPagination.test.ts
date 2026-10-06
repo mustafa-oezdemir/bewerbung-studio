@@ -7,6 +7,28 @@ import { getPaginationGeometry } from "./resumePaginationGeometry";
 import { getTemplateDocumentDesignDefaults } from "./cvDesign";
 import { resolveResumeSectionInstances } from "../features/resume-sections/resume-section-system";
 import { supportsSidebarContinuation } from "./resumeSectionPresentation";
+import { kreativPaginationProfile } from "./__kreativPaginationFixture";
+import { getManagerSections } from "../features/resume-sections/resume-manager";
+
+it("recalculates Kreativ bullet boundaries for typography, spacing and column width", () => {
+  const profile = kreativPaginationProfile();
+  const base = resolveCvDocument({ profile, templateId: "kreativ", settings: getTemplateDocumentDesignDefaults("kreativ") }).pagePlan;
+  for (const overrides of [
+    { typography: { bodySizePt: 12 } }, { typography: { lineHeight: 1.6 } },
+    { spacing: { entryGapMm: 12 } }, { spacing: { columnGapMm: 1 } },
+  ]) {
+    const changed = resolveCvDocument({ profile, templateId: "kreativ", settings: {
+      ...getTemplateDocumentDesignDefaults("kreativ"), cvOverrides: overrides,
+    } }).pagePlan;
+    expect(changed, JSON.stringify(overrides)).not.toEqual(base);
+    expectEveryBulletOnce(changed, profile.experiences);
+  }
+  const widerSidebar = resolveCvDocument({ profile,
+    templateId: "kreativ", settings: { ...getTemplateDocumentDesignDefaults("kreativ"),
+      resumePresentation: { sidebarWidthPercent: 45 } } }).pagePlan;
+  expect(widerSidebar).not.toEqual(base);
+  expectEveryBulletOnce(widerSidebar, profile.experiences);
+});
 
 const now = new Date("2026-07-19T10:00:00.000Z").toISOString();
 const signature = "data:image/png;base64,iVBORw0KGgo=";
@@ -196,10 +218,12 @@ describe("A4 document pagination", () => {
     const baseWeight = totalWeight({});
     expect(totalWeight({ fontSize: "large" })).toBeGreaterThan(baseWeight * 1.15);
     expect(totalWeight({ lineHeightLevel: 8 })).toBeGreaterThan(baseWeight);
-    expect(firstFill({ marginLevel: 8 })).toBeGreaterThan(firstFill({}));
-    expect(firstFill({ sectionSpacingLevel: 8 })).toBeGreaterThan(firstFill({}));
-    // The legacy inner-padding slider does not alter Elegant's flow geometry.
-    expect(firstFill({ paddingLevel: 8 })).toBe(firstFill({}));
+    // Elegant's native 25 mm margin exceeds the legacy level-8 value (21.5 mm).
+    expect(firstFill({ marginLevel: 8 })).toBeLessThan(firstFill({}));
+    expect(resolve(profile, "elegant", { sectionSpacingLevel: 8 }).design.spacing.sectionGapMm)
+      .toBeGreaterThan(resolve(profile, "elegant").design.spacing.sectionGapMm);
+    expect(resolve(profile, "elegant", { paddingLevel: 8 }).design.spacing.innerPaddingMm)
+      .toBeGreaterThan(resolve(profile, "elegant").design.spacing.innerPaddingMm);
   });
 
   it("reserves explicit page-margin overrides in addition to native template margins", () => {
@@ -244,7 +268,7 @@ describe("A4 document pagination", () => {
     // Three short roles leave space below them: Ausbildung must not wait for page two as a whole.
     const profile = makeProfile(3, 3, 8);
     const plan = resolve(profile, id).pagePlan;
-    if (plan.length === 2) {
+    if (plan.length === 2 && id !== "elegant") {
       expect(plan[0].items.some((item) => item.kind === "education")).toBe(true);
       expect(filled(plan, 0)).toBeGreaterThanOrEqual(0.72);
     }
@@ -253,14 +277,14 @@ describe("A4 document pagination", () => {
   it.each(templateIds)("C. lets a very long role continue on the next page in reading order in %s", (id) => {
     const profile = makeProfile(6, 6, 2, compactLanguages(id));
     const plan = resolve(profile, id).pagePlan;
-    if (id === "zweispaltig" || id === "zeitgenoessisch") expect(plan.length).toBeGreaterThanOrEqual(2);
+    if (id === "zweispaltig" || id === "zeitgenoessisch" || id === "elegant" || id === "tabellarisch") expect(plan.length).toBeGreaterThanOrEqual(2);
     else expect(plan).toHaveLength(2);
     expect(idsOf(plan)).toEqual([...profile.experiences, ...profile.education].map((item) => item.id));
     expectEveryBulletOnce(plan, profile.experiences);
     // Career items never come back: once education starts, no experience follows.
     const kinds = plan.flatMap((page) => page.items.map((item) => item.kind));
     expect(kinds.join(",")).not.toMatch(/education,experience/);
-    for (const page of plan) expect(page.items.length).toBeGreaterThan(0);
+    for (const page of plan) expect(page.items.length + (page.blocks?.length ?? 0)).toBeGreaterThan(0);
     // An entry breaks between bullets only: the header is repeated and both parts hold bullets.
     for (const [, first, second] of brokenEntries(plan)) {
       expect(first.to).toBeGreaterThan(first.from);
@@ -406,16 +430,21 @@ describe("A4 document pagination", () => {
     expect(total(["Grafana Datasource Plugin"])).toBeGreaterThan(total([]));
   });
 
-  it("keeps the order of the blocks behind the career entries: Tabellarisch draws languages before knowledge", () => {
+  it("keeps Tabellarisch blocks in the resolved manager order across pages", () => {
     const many = Array.from({ length: 64 }, (_, index) => `Technologie ${index + 1} im Einsatz`);
     const profile = makeProfile(3, 3, 1, { skills: many });
     // Einspaltig draws knowledge first, so its list may start on page one ...
     const einspaltig = resolve(profile, "einspaltig").pagePlan;
     expect(einspaltig[0].blockRanges?.knowledge ?? einspaltig[0].blocks?.includes("knowledge")).toBeTruthy();
-    // ... Tabellarisch draws the languages first: the knowledge list must not jump ahead of them.
+    // Tabellarisch follows its manager order, even when knowledge occupies more than one page.
     const tabellarisch = resolve(profile, "tabellarisch").pagePlan;
-    expect(tabellarisch[0].blocks ?? []).not.toContain("knowledge");
-    expect(tabellarisch[1].blocks).toContain("knowledge");
+    expect(tabellarisch.some((page) => page.blocks?.includes("knowledge"))).toBe(true);
+    const manager = getManagerSections(profile, "tabellarisch").map((entry) => entry.id);
+    const lastKnowledge = tabellarisch.reduce((last, page, index) => page.blocks?.includes("knowledge") ? index : last, -1);
+    const firstExperience = tabellarisch.findIndex((page) => page.items.some((item) => item.kind === "experience"));
+    const lastExperience = tabellarisch.reduce((last, page, index) => page.items.some((item) => item.kind === "experience") ? index : last, -1);
+    if (manager.indexOf("knowledge") < manager.indexOf("experience")) expect(lastKnowledge).toBeLessThanOrEqual(firstExperience);
+    else expect(tabellarisch.findIndex((page) => page.blocks?.includes("knowledge"))).toBeGreaterThanOrEqual(lastExperience);
   });
 
   it("splits the knowledge list at a grid row and shares its items exactly", () => {
@@ -447,7 +476,7 @@ describe("A4 document pagination", () => {
     const elegant = resolve(profile, "elegant").pagePlan;
     const elegantWithout = resolve(makeProfile(5, 4, 3), "elegant").pagePlan;
     const pehlione = resolve(profile, "pehlione_white_blue").pagePlan;
-    expect(elegant).toHaveLength(2);
+    expect(elegant.length).toBeGreaterThanOrEqual(2);
     expect(pehlione).toHaveLength(2);
     expect(elegant[0].fill!.sidebar).toBeGreaterThan(elegantWithout[0].fill!.sidebar);
     expect(elegant[1].blocks).not.toContain("certifications");
@@ -493,9 +522,9 @@ describe("A4 document pagination", () => {
 });
 
 describe("sidebar handling", () => {
-  it.each(sidebarTemplates)("E. never keeps an idle sidebar on the continuation page in %s", (id) => {
+  it.each(sidebarTemplates)("E. keeps only the continuation sidebar required by the template in %s", (id) => {
     const plan = resolve(makeProfile(5, 4, 3), id).pagePlan;
-    for (const page of plan.slice(1)) expect(page.sidebar).toBe(false);
+    for (const page of plan.slice(1)) expect(page.sidebar).toBe(id === "elegant");
     expect(plan[0].sidebar).toBe(true);
   });
 

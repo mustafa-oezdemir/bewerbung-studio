@@ -8,7 +8,7 @@ export function KreativSectionHeading({
   return (
     <h2 className="kreativ-section__title">
       {title}
-      {continuation ? <small>Fortsetzung</small> : null}
+      {continuation ? <small> · Fortsetzung</small> : null}
     </h2>
   );
 }

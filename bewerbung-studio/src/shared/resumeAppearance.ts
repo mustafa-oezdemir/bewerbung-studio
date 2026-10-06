@@ -90,7 +90,7 @@ export const applyGeneralResumeAppearance = (
       if (appearance.photoLayout === "square") set(target, "border-radius", "0");
     }
   }
-  if (sidebar !== main && appearance.sidebarTextColor) {
+  if (templateId !== "elegant" && sidebar !== main && appearance.sidebarTextColor) {
     set(sidebar, "color", appearance.sidebarTextColor);
     for (const node of sidebar.querySelectorAll("p,li,small,a")) set(node, "color", appearance.sidebarTextColor);
   }

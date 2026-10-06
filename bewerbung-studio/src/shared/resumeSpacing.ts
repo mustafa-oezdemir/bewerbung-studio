@@ -161,6 +161,9 @@ export const applyResumeSpacingOutput = (
   const spacing = overrides?.spacing;
   const lineHeight = overrides?.typography?.lineHeight;
   const id = resolveTemplateId(templateId);
+  // Elegant receives every resolved spacing value through getElegantDesignVariables on both surfaces.
+  // The generic text shift would apply the page margin and inner inset a second time.
+  if (id === "elegant") return;
   const defaults = getTemplateDocumentDesignDefaults(id);
   const zweispaltigLegacyTypography = id === "zweispaltig" &&
     (settings.fontSize !== defaults.fontSize || settings.lineHeightLevel !== defaults.lineHeightLevel);

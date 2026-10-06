@@ -8,6 +8,8 @@ import type { ResumeDesignLayer } from "../../shared/cvDesignSchema";
 import { createResumePagePlan } from "../../shared/documentPagination";
 import { applyGlobalResumeDesign } from "../../shared/resumeDesignSystem";
 import { resolveCvDocument } from "../../shared/resolveCvDocument";
+import { getElegantDesignVariables } from "../../shared/elegantDesign";
+import { getColorContrastRatio } from "../../shared/documentDesign";
 import { applicationSchema, profileSchema } from "../../shared/schema";
 import { templates } from "../../shared/templates";
 import { ManagedResumePreview } from "./ManagedResumePreview";
@@ -55,6 +57,7 @@ const previewHtml = (templateId: string, settings: ReturnType<typeof getTemplate
   const child = createElement(components[templateId] as ComponentType<Record<string, unknown>>, {
     profile: resolved.profile, templateId, name: "Mina Kaya", atsMode: false, plan, totalPages: resolved.pagePlan.length,
     accentColor: "#123456", secondaryColor: "#234567", photoSource: null, resumeProfile: "", sections: resolved.sections, backgroundId: settings.backgroundId,
+    design: resolved.design, designSettings: resolved.settings,
   });
   return renderToStaticMarkup(createElement(ManagedResumePreview, {
     profile: resolved.profile, templateId, pageNumber: plan.pageNumber, totalPages: resolved.pagePlan.length,
@@ -63,6 +66,46 @@ const previewHtml = (templateId: string, settings: ReturnType<typeof getTemplate
 };
 
 describe("the Lebenslauf design of one Bewerbung in the outputs", () => {
+  it("uses two readable Elegant type settings and the same resolved tokens in preview, PDF and letter", () => {
+    const settingsOf = (bodySizePt: number, lineHeight: number) => ({
+      ...getTemplateDocumentDesignDefaults("elegant"),
+      cvOverrides: { typography: { bodySizePt, lineHeight } },
+    });
+    const first = settingsOf(10, 1.35);
+    const second = settingsOf(11, 1.5);
+    const firstPlan = resolveCvDocument({ profile, templateId: "elegant", settings: first }).pagePlan;
+    const secondPlan = resolveCvDocument({ profile, templateId: "elegant", settings: second }).pagePlan;
+    expect(secondPlan[0].items[0].weight).toBeGreaterThan(firstPlan[0].items[0].weight);
+    for (const [settings, size, line] of [[first, "10pt", "1.35"], [second, "11pt", "1.5"]] as const) {
+      const pdf = buildDocumentHtml(applicationFor("elegant", settings), profile, "lebenslauf");
+      const preview = previewHtml("elegant", settings);
+      const letter = buildDocumentHtml(applicationFor("elegant", settings), profile, "anschreiben");
+      for (const html of [pdf, preview, letter]) {
+        expect(html).toContain(`--elegant-body-size:${size}`);
+        expect(html).toContain(`--elegant-line-height:${line}`);
+      }
+    }
+  });
+
+  it("resolves a custom Elegant palette once for the CV and letter with readable sidebar text", () => {
+    const settings = { ...getTemplateDocumentDesignDefaults("elegant"), cvOverrides: { colors: {
+      accent: "#7A3DB8", surface: "#34264A", heading: "#302D33",
+    } } };
+    const resolved = resolveCvDocument({ profile, templateId: "elegant", settings });
+    const colors = getElegantDesignVariables(resolved.design, settings);
+    expect(colors["--elegant-accent"]).toBe("#7A3DB8");
+    expect(colors["--elegant-sidebar"]).toBe("#34264A");
+    expect(colors["--elegant-heading"]).toBe("#302D33");
+    for (const key of ["--elegant-sidebar-text", "--elegant-sidebar-muted", "--elegant-sidebar-title"])
+      expect(getColorContrastRatio(colors[key], colors["--elegant-sidebar"])).toBeGreaterThanOrEqual(4.5);
+    for (const html of [buildDocumentHtml(applicationFor("elegant", settings), profile, "lebenslauf"),
+      previewHtml("elegant", settings), buildDocumentHtml(applicationFor("elegant", settings), profile, "anschreiben")]) {
+      expect(html).toContain("--elegant-accent:#7A3DB8");
+      expect(html).toContain("--elegant-sidebar:#34264A");
+      expect(html).toContain("--elegant-heading:#302D33");
+    }
+  });
+
   it.each(templates)("applies a live global colour, font and spacing beneath own overrides in preview and PDF of $name", ({ id }) => {
     const shared: ResumeDesignLayer = { cvOverrides: {
       colors: { text: "#123ABC" }, typography: { fontId: "inter", bodySizePt: 10.2, lineHeight: 1.35 },
@@ -74,6 +117,14 @@ describe("the Lebenslauf design of one Bewerbung in the outputs", () => {
       .querySelector(".managed-resume-preview")?.firstElementChild;
     for (const surface of [pdf, preview]) {
       const style = surface?.getAttribute("style") ?? "";
+      if (id === "elegant") {
+        expect(style).toContain("--elegant-base-section-gap:5mm");
+        expect(style).toContain("--elegant-main-left:27.5mm");
+        expect(style).toContain("--elegant-line-height:1.35");
+        expect(style).toContain("--elegant-body-size:10.2pt");
+        expect(style).toContain("--elegant-font:Inter");
+        continue;
+      }
       expect(style, id).toContain("--doc-section-gap:5mm");
       expect(style, id).toContain("--doc-inner-padding:2.5mm");
       expect(style, id).toContain("--doc-line-height:1.35");
@@ -99,6 +150,12 @@ describe("the Lebenslauf design of one Bewerbung in the outputs", () => {
       ];
       for (const scope of scopes) {
         const style = scope?.getAttribute("style") ?? "";
+        if (id === "elegant") {
+          expect(style).toContain("--elegant-base-section-gap:7mm");
+          expect(style).toContain("--elegant-base-entry-gap:6mm");
+          expect(style).toContain("--elegant-line-height:1.3");
+          continue;
+        }
         expect(style, id).toContain("--doc-section-gap:7mm");
         expect(style, id).toContain("--doc-entry-gap:6mm");
         expect(style, id).toContain("--doc-line-height:1.3");
@@ -113,7 +170,9 @@ describe("the Lebenslauf design of one Bewerbung in the outputs", () => {
         const { document } = parseHTML(html.includes("<body>") ? html : `<body>${html}</body>`);
         const titled = Array.from(document.querySelectorAll("[data-managed-section]"))
           .flatMap((section) => Array.from(section.querySelectorAll("h2,h3,[data-cv-heading]")).slice(0, 1));
-        expect(titled.some((heading) => /font-size:\s*13pt/.test(heading.getAttribute("style") ?? "")), id).toBe(true);
+        if (id === "elegant") {
+          expect(html).toContain("--elegant-section-title-size:13pt");
+        } else expect(titled.some((heading) => /font-size:\s*13pt/.test(heading.getAttribute("style") ?? "")), id).toBe(true);
         expect(titled.some((heading) => /text-align:\s*center/.test(heading.getAttribute("style") ?? "")), id).toBe(true);
       }
     });
@@ -187,6 +246,18 @@ describe("Seitenränder and Innenabstand in preview and PDF", () => {
       bothLess: outputs(id, own(id, { pageMarginMm: 16, innerPaddingMm: 2 })),
       smallerBoth: outputs(id, own(id, { pageMarginMm: 6, innerPaddingMm: 2 })),
     };
+    if (id === "elegant") {
+      for (const surface of ["pdf", "preview"] as const) {
+        const selected = (name: keyof typeof changes) => styleOf(scopeOf(changes[name][surface], surface));
+        expect(selected("margin")["--elegant-main-left"]).toBe("16mm");
+        expect(selected("smaller")["--elegant-main-left"]).toBe("6mm");
+        expect(selected("padding")["--elegant-main-left"]).toBe("27.5mm");
+        expect(selected("both")["--elegant-main-left"]).toBe("18.5mm");
+        expect(selected("bothLess")["--elegant-main-left"]).toBe("18mm");
+        expect(selected("smallerBoth")["--elegant-main-left"]).toBe("8mm");
+      }
+      return;
+    }
     for (const surface of ["pdf", "preview"] as const) {
       const scope = (name: keyof typeof changes) => scopeOf(changes[name][surface], surface);
       const nativeScope = scopeOf(native[surface], surface);
@@ -269,7 +340,7 @@ describe("two-column geometry stays independent of text spacing", () => {
       expect(scopeStyle?.margin, `${id} ${surface}`).toBe("");
       expect(scopeStyle?.width, `${id} ${surface}`).toBe("");
       expect(scopeStyle?.height, `${id} ${surface}`).toBe("");
-      expect(scope?.hasAttribute("data-resume-spacing-text")).toBe(true);
+      expect(scope?.hasAttribute("data-resume-spacing-text")).toBe(id !== "elegant");
       const nativeDoc = parseHTML(native[surface]).document;
       expect(document.querySelectorAll("[data-resume-background-layer]").length).toBe(nativeDoc.querySelectorAll("[data-resume-background-layer]").length);
       const photoDecoration = '[class*="photo-shape"],[class*="photo-pale"],[class*="photo-soft"],[class*="photo-accent"]';

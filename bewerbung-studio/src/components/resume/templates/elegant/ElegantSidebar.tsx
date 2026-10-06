@@ -1,7 +1,4 @@
-import {
-  toElegantExternalHref,
-  uniqueElegantValues,
-} from "./elegant.model";
+import { uniqueElegantValues } from "./elegant.model";
 import { parseTemplateLanguage } from "../resume-template-data";
 import type { ElegantSidebarProps } from "./elegant.types";
 import { ElegantKnowledge } from "./ElegantKnowledge";
@@ -24,11 +21,6 @@ export function ElegantSidebar({
     parseTemplateLanguage,
   );
   const certifications = uniqueElegantValues(profile?.certifications ?? []);
-  const continuationLink =
-    profile?.portfolio || profile?.linkedin || profile?.github;
-  const continuationHref = continuationLink
-    ? toElegantExternalHref(continuationLink)
-    : "";
 
   return (
     <aside
@@ -50,11 +42,6 @@ export function ElegantSidebar({
           {profile?.resumeContinuationContactVisibility.phone && profile.phone ? (
             <a href={`tel:${profile.phone.replace(/[^\d+]/g, "")}`}>
               {profile.phone}
-            </a>
-          ) : null}
-          {continuationLink ? (
-            <a href={continuationHref}>
-              {continuationHref}
             </a>
           ) : null}
         </div>

@@ -11,7 +11,7 @@ import type {
 import { externalUrl } from "../../../../shared/contactPresentation";
 import { resolveResumeSummary } from "../../../../shared/resumeSummary";
 import { formatCareerPeriod } from "../../../../shared/resumeCareer";
-import { toTemplateEducationItem } from "../../../../shared/resumeEducation";
+import { toTemplateEducationItem, resolveEducationPresentation, sliceEducationDetails } from "../../../../shared/resumeEducation";
 import { toTemplateExperienceItem } from "../../../../shared/resumeCareer";
 
 export type KreativPageData = {
@@ -20,30 +20,27 @@ export type KreativPageData = {
   isContinuation: boolean;
 };
 
-const selectedIds = (
-  plan: ResumePagePlan,
-  kind: ResumePagePlan["items"][number]["kind"],
-) =>
-  new Set(
-    plan.items
-      .filter((item) => item.kind === kind)
-      .map((item) => item.id),
-  );
-
 export const createKreativPageData = (
   profile: ApplicantProfile | undefined,
   plan: ResumePagePlan,
 ): KreativPageData => {
-  const experienceIds = selectedIds(plan, "experience");
-  const educationIds = selectedIds(plan, "education");
-
   return {
-    experiences: (profile?.experiences ?? [])
-      .filter((entry) => experienceIds.has(entry.id))
-      .map(toTemplateExperienceItem),
-    education: (profile?.education ?? [])
-      .filter((entry) => educationIds.has(entry.id))
-      .map((entry) => toTemplateEducationItem(entry, profile?.resumeEducationFieldVisibility)),
+    experiences: plan.items.flatMap((item) => {
+      if (item.kind !== "experience") return [];
+      const entry = profile?.experiences.find((entry) => entry.id === item.id);
+      if (!entry) return [];
+      const view = toTemplateExperienceItem(entry);
+      return [{ ...view, bullets: item.bullets,
+        achievements: item.bullets ? view.achievements.slice(item.bullets.from, item.bullets.to) : view.achievements }];
+    }),
+    education: plan.items.flatMap((item) => {
+      if (item.kind !== "education") return [];
+      const entry = profile?.education.find((entry) => entry.id === item.id);
+      if (!entry) return [];
+      const view = resolveEducationPresentation(entry, profile?.resumeEducationFieldVisibility);
+      return [{ ...toTemplateEducationItem(entry, profile?.resumeEducationFieldVisibility), bullets: item.bullets,
+        achievements: sliceEducationDetails(view.details, view.descriptionIndex, item.bullets) }];
+    }),
     isContinuation: plan.pageNumber > 1,
   };
 };

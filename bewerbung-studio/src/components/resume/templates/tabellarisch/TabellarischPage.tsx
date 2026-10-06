@@ -18,7 +18,6 @@ import {
 } from "./tabellarisch.model";
 import type { TabellarischPageProps } from "./tabellarisch.types";
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
-import { ResumeSpecialSections } from "../../ResumeSpecialSections";
 
 export function TabellarischPage({
   profile,
@@ -34,6 +33,7 @@ export function TabellarischPage({
     createTabellarischPageData(profile, plan);
   const summary = resolveTabellarischSummary(profile, resumeProfile);
   const isLastPage = plan.pageNumber === totalPages;
+  const onPage = (id: string) => plan.blocks ? plan.blocks.includes(id) : !isContinuation;
   const experienceContinues =
     !isLastPage &&
     experiences.length > 0 &&
@@ -61,11 +61,11 @@ export function TabellarischPage({
           />
         )}
 
-        {sections.profile && !isContinuation ? (
+        {sections.profile && onPage("summary") ? (
           <TabellarischSummary text={summary} profile={profile} />
         ) : null}
 
-        {sections.strengths && !isContinuation ? (
+        {sections.strengths && onPage("strengths") ? (
           <TabellarischStrengths profile={profile} atsMode={atsMode} />
         ) : null}
 
@@ -100,14 +100,14 @@ export function TabellarischPage({
           </section>
         ) : null}
 
-        {isLastPage ? (
+        {plan.blocks?.some((id) => ["knowledge", "certifications", "languages"].includes(id)) || (!plan.blocks && isLastPage) ? (
           <TabellarischAdditionalSections
             profile={profile}
             sections={sections}
             atsMode={atsMode}
+            blocks={plan.blocks}
           />
         ) : null}
-        {isLastPage ? <ResumeSpecialSections profile={profile} sectionClassName="tabellarisch-section" headingClassName="tabellarisch-section__title" /> : null}
       </main>
 
       <TabellarischFooter

@@ -1,5 +1,7 @@
 import type { ResumePagePlan } from "../../../../shared/documentPagination";
 import type { ApplicantProfile } from "../../../../shared/schema";
+import type { CvDesignTokens } from "../../../../shared/cvDesignSchema";
+import type { DocumentDesignSettings } from "../../../../shared/documentDesign";
 
 export type ElegantCareerItem = {
   id: string;
@@ -19,6 +21,8 @@ export type ElegantResumeProps = {
   totalPages: number;
   accentColor: string;
   secondaryColor: string;
+  design?: CvDesignTokens;
+  designSettings?: DocumentDesignSettings;
   photoSource: string | null;
   resumeProfile: string;
   sections: ApplicantProfile["resumeSections"];
@@ -26,7 +30,7 @@ export type ElegantResumeProps = {
 
 export type ElegantPageProps = Omit<
   ElegantResumeProps,
-  "accentColor" | "secondaryColor"
+  "accentColor" | "secondaryColor" | "design" | "designSettings"
 >;
 
 export type ElegantHeaderProps = {

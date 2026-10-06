@@ -120,7 +120,7 @@ export const isZoneFlowTemplate = (templateId: string | undefined): boolean =>
  * the others keep a sidebar block whole (page one, or the main column of the last page). Templates join one by
  * one, once both surfaces draw the continuation sidebar and its column surface.
  */
-export const sidebarContinuationTemplates: readonly string[] = ["zeitgenoessisch", "zweispaltig", "stilvoll"];
+export const sidebarContinuationTemplates: readonly string[] = ["zeitgenoessisch", "zweispaltig", "stilvoll", "kreativ"];
 
 /**
  * Templates whose Bildungsweg entries the output can cut between their detail units (`applyEducationBreaks`): the planner

@@ -383,11 +383,6 @@ export function ResumeDesignPanel({ documentId = "", templateId, templateName, s
           options={(["left", "center", "right"] as const).map((key) => [key, key === native.appearance.sectionHeadingAlignment ? `${alignmentLabels[key]} (Vorlage)` : alignmentLabels[key]] as const)}
           templateText={alignmentLabels[native.appearance.sectionHeadingAlignment]}
           onChange={(value) => onEditAppearance(scope, "sectionHeadingAlignment", value)} {...appearance("sectionHeadingAlignment")} />
-        <NumberField label="Abstand davor" unit="mm" min={resumeAppearanceLimits.sectionHeadingMarginBeforeMm[0]} max={resumeAppearanceLimits.sectionHeadingMarginBeforeMm[1]} step={0.5} contextKey={contextKey}
-          value={displayed.appearance.sectionHeadingMarginBeforeMm} templateValue={native.appearance.sectionHeadingMarginBeforeMm}
-          note="Zusätzlich zum Abschnittsabstand."
-          onCommit={(value) => onEditAppearance(scope, "sectionHeadingMarginBeforeMm", value)} {...appearance("sectionHeadingMarginBeforeMm")} />
-        {tokenNumber("spacing", "sectionTitleGapMm", "Abstand danach", "mm", cvDesignLimits.sectionTitleGapMm[0], cvDesignLimits.sectionTitleGapMm[1], 0.1, "Das ist der Abstand nach Abschnittstitel.")}
       </Sub>
 
       <Sub title="Linien und Foto">
@@ -459,7 +454,14 @@ export function ResumeDesignPanel({ documentId = "", templateId, templateName, s
             ? "Abstand der Inhalte zum Blattrand. Links und rechts gleich; Kopfbereich und beide Spalten folgen dem Seitenrand."
             : spacingNotes[key]))}
       </Sub>
-      <p className="rds-note">Der Abstand nach dem Abschnittstitel und die Zeilenhöhe stehen nur einmal im Panel: unter „Abschnittstitel“ bzw. „Typografie im Detail“.</p>
+      <Sub title="Abstände um Abschnittstitel">
+        <NumberField label="Abstand davor" unit="mm" min={resumeAppearanceLimits.sectionHeadingMarginBeforeMm[0]} max={resumeAppearanceLimits.sectionHeadingMarginBeforeMm[1]} step={0.5} contextKey={contextKey}
+          value={displayed.appearance.sectionHeadingMarginBeforeMm} templateValue={native.appearance.sectionHeadingMarginBeforeMm}
+          note="Zusätzlich zum Abschnittsabstand."
+          onCommit={(value) => onEditAppearance(scope, "sectionHeadingMarginBeforeMm", value)} {...appearance("sectionHeadingMarginBeforeMm")} />
+        {tokenNumber("spacing", "sectionTitleGapMm", "Abstand danach", "mm", cvDesignLimits.sectionTitleGapMm[0], cvDesignLimits.sectionTitleGapMm[1], 0.1, "Das ist der Abstand nach Abschnittstitel.")}
+      </Sub>
+      <p className="rds-note">Die Zeilenhöhe steht unter „Typografie im Detail“.</p>
     </Group>
   </section>;
 }

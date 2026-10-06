@@ -86,7 +86,7 @@ export function KreativPage({
         compact={isContinuation}
       />
       <div
-        className={`kreativ-content ${isContinuation ? "kreativ-content--continuation" : ""}`}
+        className={`kreativ-content ${isContinuation && !plan.sidebar ? "kreativ-content--continuation" : ""}`}
       >
         <KreativLeftColumn
           experiences={experiences}
@@ -97,7 +97,7 @@ export function KreativPage({
         >
           {isLastPage ? <ResumeSpecialSections profile={profile} sectionClassName="kreativ-section" headingClassName="kreativ-section__title" /> : null}
         </KreativLeftColumn>
-        {!isContinuation ? (
+        {(!isContinuation || plan.sidebar) ? (
           <KreativRightColumn
             profile={profile}
             sections={sections}

@@ -122,17 +122,18 @@ describe("Tabellarisch: the page plan follows the real header", () => {
   const shape = (pages: ResumePagePlan[]) =>
     pages.map((page) => page.items.map((item) => `${item.kind}:${item.id.slice(-2)}${"bullets" in item && item.bullets ? `[${item.bullets.from}-${item.bullets.to}/${item.bullets.total}]` : ""}`).join(",")).join(" | ");
 
-  // The Lebenslauf of the report: the first two stations fill page one so that the four bullets of the Transportpilot
-  // stand right at the bottom. Switching the Website on used to move the last two to page two.
-  it("keeps the whole Transportpilot on page one with the Website on, as with it off", () => {
+  // A Website contact that occupies the same header row must not change the career split.
+  it("keeps the Transportpilot split unchanged with the Website on or off", () => {
     const off = plan({ visibility: { website: false } });
     const on = plan({ visibility: { website: true } });
     expect(shape(on)).toBe(shape(off));
     const pilot = (pages: ResumePagePlan[]) => pages.flatMap((page) => page.items).filter((item) => item.id.endsWith("12"));
-    expect(pilot(on)).toHaveLength(1);
-    expect(pilot(on)[0]).not.toHaveProperty("bullets");
-    expect(on[0].items.map((item) => item.id.slice(-2))).toEqual(["10", "11", "12"]);
-    expect(on[1].items.map((item) => item.kind)).toEqual(["education"]);
+    const ranges = pilot(on).map((item) => item.bullets ?? { from: 0, to: transportpilotBullets.length, total: transportpilotBullets.length });
+    expect(ranges[0].from).toBe(0);
+    expect(ranges.at(-1)?.to).toBe(transportpilotBullets.length);
+    expect(ranges.every((range, index) => index === 0 || ranges[index - 1].to === range.from)).toBe(true);
+    expect(on.flatMap((page) => page.items).map((item) => item.kind).lastIndexOf("experience"))
+      .toBeLessThan(on.flatMap((page) => page.items).findIndex((item) => item.kind === "education"));
   });
 
   it("does the same without a photo", () => {

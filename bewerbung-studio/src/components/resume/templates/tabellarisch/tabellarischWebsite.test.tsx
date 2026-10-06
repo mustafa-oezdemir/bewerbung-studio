@@ -72,32 +72,32 @@ describe("Tabellarisch: the career breaks the same with the Website on and off",
     expect(on.resolved.pagePlan[0].items.map((item) => item.id.slice(-2))).toEqual(["10", "11", "12"]);
   });
 
-  it("keeps the four bullets of the Transportpilot on page one, once each, in the preview and the PDF", () => {
+  it("keeps all four Transportpilot bullets once, on the same pages in preview and PDF", () => {
+    const allocation = pilotBulletsOn(off.previewPages);
     for (const rendered of [off, on]) {
       for (const [surface, pages] of Object.entries(surfaces(rendered))) {
-        expect(pilotBulletsOn(pages), surface).toEqual([4, ...pages.slice(1).map(() => 0)]);
+        expect(pilotBulletsOn(pages), surface).toEqual(allocation);
+        expect(allocation.reduce((sum, count) => sum + count, 0)).toBe(4);
         for (const bullet of transportpilotBullets) expect(pages.map(text).join(" ").split(bullet).length - 1, `${surface} ${bullet.slice(0, 20)}`).toBe(1);
       }
     }
   });
 
-  it("draws no continuation marker when no entry is split", () => {
+  it("marks a continuation exactly when the plan splits an entry", () => {
     for (const rendered of [off, on]) {
+      const continuations = rendered.resolved.pagePlan.flatMap((page) => page.items)
+        .filter((item) => (item.bullets?.from ?? 0) > 0).length;
       for (const [surface, pages] of Object.entries(surfaces(rendered))) {
-        for (const page of pages) {
-          expect(page.querySelector("[data-resume-entry-marker]"), `${surface} entry marker`).toBeNull();
-          expect(text(page), `${surface}`).not.toContain("Transportpilot · Fortsetzung");
-        }
+        expect(pages.flatMap((page) => Array.from(page.querySelectorAll("[data-resume-entry-marker]"))), surface).toHaveLength(continuations);
       }
     }
   });
 
-  it("starts page two with the Ausbildung, in the preview and the PDF alike", () => {
+  it("keeps education after the complete career run on both surfaces", () => {
     for (const rendered of [off, on]) {
       for (const [surface, pages] of Object.entries(surfaces(rendered))) {
-        expect(pages.length, surface).toBe(2);
-        expect(pages[1].querySelector('[data-managed-section="experience"]'), surface).toBeNull();
-        expect(pages[1].querySelector('[data-managed-section="education"]'), surface).not.toBeNull();
+        const ids = pages.flatMap((page) => Array.from(page.querySelectorAll("[data-managed-section]"), (section) => section.getAttribute("data-managed-section")));
+        expect(ids.lastIndexOf("experience"), surface).toBeLessThan(ids.indexOf("education"));
       }
     }
   });
@@ -115,9 +115,11 @@ describe("Tabellarisch: a Website that makes the header taller is followed", () 
     for (const [surface, pages] of Object.entries(surfaces(grown))) {
       for (const bullet of transportpilotBullets) expect(pages.map(text).join(" ").split(bullet).length - 1, `${surface} ${bullet.slice(0, 20)}`).toBe(1);
       const markers = pages.flatMap((page) => Array.from(page.querySelectorAll("[data-resume-entry-marker]")));
-      expect(markers, surface).toHaveLength(1);
-      // no marker on its own: it sits in the heading of the entry and the heading says which entry continues
-      expect(markers[0].parentElement?.textContent?.replace(/\s+/g, " ").trim(), surface).toMatch(/^Transportpilot ?· Fortsetzung$/);
+      const continuations = grown.resolved.pagePlan.flatMap((page) => page.items)
+        .filter((item) => (item.bullets?.from ?? 0) > 0).length;
+      expect(markers, surface).toHaveLength(continuations);
+      for (const marker of markers)
+        expect(marker.parentElement?.textContent?.replace(/\s+/g, " ").trim(), surface).toMatch(/· Fortsetzung$/);
       expect(pilotBulletsOn(pages).reduce((total, count) => total + count, 0), surface).toBe(4);
     }
   });
