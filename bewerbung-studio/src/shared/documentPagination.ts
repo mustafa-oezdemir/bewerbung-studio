@@ -861,6 +861,9 @@ export const createResumePagePlan = (
     const headed = normalized.contentType === "entries" || normalized.contentType === "timeline";
     const entries = normalized.entries.slice(range?.[0] ?? 0, range?.[1]).map((entry) => {
       const indent = listed ? metrics.indentMm : 0;
+      if (section.kind === "projects") return lines(entry.title, indent) * pitch * 1.13
+        + lines(entry.technologies.join(" · "), indent) * pitch * .88
+        + lines(entry.description, indent) * pitch;
       const meta = [entry.location, entry.date.trim() || [entry.from, entry.to].filter((value) => value.trim()).join(" – ")].filter((value) => value.trim()).join(" · ");
       const head = headed
         ? lines(entry.title, indent) * pitch * 1.13 + (entry.subtitle.trim() ? 6.7 : 0) + (meta ? 4.1 : 0)
@@ -1143,13 +1146,14 @@ export const createResumePagePlan = (
     const font = geometry.text.bulletFont * scale.font;
     const pitch = font * geometry.text.lineRatio * scale.line;
     const lineCount = (value: string) => value.trim() ? linesFor(value.trim().length, availableWidth, font, SPECIAL_CW) : 0;
+    const visibleTexts = (item: typeof normalized.entries[number]) => special.kind === "projects"
+      ? [item.title, item.technologies.join(" · "), item.description]
+      : [item.title, item.subtitle, item.location, item.date, item.description, item.url, ...item.bullets];
     const height = 9 + normalized.entries.reduce((total, item) => total + 4 +
-      [item.title, item.subtitle, item.location, item.date, item.description, item.url, ...item.bullets]
-        .reduce((lines, value) => lines + lineCount(value) * pitch, 0), 0);
+      visibleTexts(item).reduce((lines, value) => lines + lineCount(value) * pitch, 0), 0);
     const inSidebar = (zoneFlow || templateId === "elegant") && zone === "sidebar";
     const legacyPartHeight = (from: number, to: number) => 9 + normalized.entries.slice(from, to).reduce((total, item) => total + 4 +
-      [item.title, item.subtitle, item.location, item.date, item.description, item.url, ...item.bullets]
-        .reduce((lines, value) => lines + lineCount(value) * pitch, 0), 0);
+      visibleTexts(item).reduce((lines, value) => lines + lineCount(value) * pitch, 0), 0);
     flow.push({
       id: `special:${special.id}`,
       zone,

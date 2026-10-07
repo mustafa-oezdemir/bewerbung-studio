@@ -80,6 +80,7 @@ import { TabellarischResume } from "../components/resume/templates/tabellarisch"
 import { ZeitgenoessischResume } from "../components/resume/templates/zeitgenoessisch";
 import { ZweispaltigResume } from "../components/resume/templates/zweispaltig";
 import { analyzeKeywordMatch } from "../lib/keywordMatch";
+import { matchProjects } from "../lib/projectMatch";
 import {
   applicationGreeting,
   applicationRecipientLines,
@@ -653,6 +654,8 @@ export function DocumentsView({
   );
   const sections = resolvedCv.sections;
   const keywordMatch = analyzeKeywordMatch(application, renderProfile);
+  const projectMatches = matchProjects(application, contentProfile);
+  const selectedProjectEntryIds = design.settings.resumePresentation?.selectedProjectEntryIds;
   const name = renderProfile
     ? `${renderProfile.firstName} ${renderProfile.lastName}`
     : "Vorname Nachname";
@@ -772,6 +775,23 @@ export function DocumentsView({
         closing: { ...current.settings.resumePresentation?.closing, [key]: value } },
     } }));
   };
+  const updateProjectSelection = (projectId: string, checked: boolean) => {
+    setDesign((current) => {
+      const allIds = (contentProfile?.specialSections ?? [])
+        .filter((section) => section.kind === "projects")
+        .flatMap((section) => section.entries.map((entry) => entry.id));
+      const selected = current.settings.resumePresentation?.selectedProjectEntryIds ?? allIds;
+      const next = checked ? [...new Set([...selected, projectId])] : selected.filter((id) => id !== projectId);
+      return { ...current, settings: { ...current.settings, resumePresentation: {
+        ...current.settings.resumePresentation, selectedProjectEntryIds: next,
+      } } };
+    });
+  };
+  const clearProjectSelection = () => setDesign((current) => ({ ...current, settings: {
+    ...current.settings, resumePresentation: {
+      ...current.settings.resumePresentation, selectedProjectEntryIds: [],
+    },
+  } }));
   const storeCustomDesign = () => {
     const name = customDesignName.trim();
     if (!name) return;
@@ -2108,6 +2128,31 @@ export function DocumentsView({
                       </span>
                     </div>
                   ) : null}
+                  {projectMatches.length > 0 && <section className="application-projects">
+                    <header><strong>Projekte für diese Bewerbung</strong>
+                      <small>Wähle nur die Projekte, die im Lebenslauf erscheinen sollen. 2–3 reichen meist.</small>
+                    </header>
+                    <button className="button secondary small-button" type="button"
+                      onClick={clearProjectSelection} disabled={selectedProjectEntryIds?.length === 0}>
+                      Auswahl leeren
+                    </button>
+                    <div className="application-projects__list">
+                      {projectMatches.map(({ project, matchedTechnologies }) => (
+                        <label className="application-projects__item" key={project.id}>
+                          <input type="checkbox" checked={selectedProjectEntryIds === undefined || selectedProjectEntryIds.includes(project.id)}
+                            onChange={(event) => updateProjectSelection(project.id, event.target.checked)} />
+                          <span><strong>{project.title || "Projekt ohne Namen"}</strong>
+                            {project.technologies.length > 0 && <small>{project.technologies.join(" · ")}</small>}
+                            {matchedTechnologies.length > 0 && <em>Passend: {matchedTechnologies.join(" · ")}</em>}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    <small>{selectedProjectEntryIds === undefined
+                      ? "Bisherige Standardeinstellung: alle Projekte. Mit „Auswahl leeren“ eine eigene Auswahl starten."
+                      : `${selectedProjectEntryIds.length} Projekt${selectedProjectEntryIds.length === 1 ? "" : "e"} ausgewählt.`}
+                      {" "}Die Auswahl gilt nur für diese Bewerbung. Mit „Texte speichern“ sichern.</small>
+                  </section>}
                   {profile ? (
                     <ResumeSectionsPanel
                       key={`${application.id}:${profile.id}:${template.id}:${resumeEditorRevision}`}
