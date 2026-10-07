@@ -4,7 +4,6 @@ import type { ElegantSidebarProps } from "./elegant.types";
 import { ElegantKnowledge } from "./ElegantKnowledge";
 import { ElegantStrengths } from "./ElegantStrengths";
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
-import { resolveResumeHeading } from "../../../../shared/resumeHeading";
 import { LanguageDescriptionText, LanguageLevelText, languageDotsLabel, presentLanguage } from "../LanguageLevelText";
 
 export function ElegantSidebar({
@@ -29,10 +28,6 @@ export function ElegantSidebar({
     >
       {isContinuation ? (
         <div className="elegant-sidebar__continuation">
-          <p>{resolveResumeHeading(profile).kicker}</p>
-          <h2>{name}</h2>
-          {profile?.title ? <span>{profile.title}</span> : null}
-          <i aria-hidden="true" />
           <small>
             Fortsetzung · Seite {pageNumber} von {totalPages}
           </small>

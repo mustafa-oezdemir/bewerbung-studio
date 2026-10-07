@@ -60,7 +60,7 @@ try {
   const buildProfile = (random) => {
     const counts = random
       ? { strengths: int(0, 7), knowledge: int(0, 34), stations: int(1, 5), education: int(1, 4), languages: int(1, 6), certifications: int(0, 6), specials: int(0, 2) }
-      : { strengths: Number(process.env.STRENGTHS ?? 6), knowledge: Number(process.env.KNOWLEDGE ?? 10), stations: Number(process.env.STATIONS ?? 3), education: 4, languages: Number(process.env.LANGUAGES ?? 3), certifications: 0, specials: 0 };
+      : { strengths: Number(process.env.STRENGTHS ?? 6), knowledge: Number(process.env.KNOWLEDGE ?? 10), stations: Number(process.env.STATIONS ?? 3), education: Number(process.env.EDUCATION ?? 4), languages: Number(process.env.LANGUAGES ?? 3), certifications: Number(process.env.CERTIFICATIONS ?? 0), specials: 0 };
     const tokens = { knowledge: [], bullets: [], education: [], strengths: [], languages: [], certifications: [], specials: [] };
     const knowledgeItems = Array.from({ length: counts.knowledge }, (_, index) => {
       const token = `K${String(index).padStart(2, '0')}`;
@@ -82,7 +82,7 @@ try {
     });
     const languageNames = ['Deutsch', 'Englisch', 'Türkisch', 'Französisch', 'Spanisch', 'Italienisch'];
     const languages = languageNames.slice(0, counts.languages).map((name, index) => { tokens.languages.push(name); return `${name} – ${['C1', 'B2', 'C2', 'A2', 'B1', 'C1'][index]}`; });
-    const certifications = Array.from({ length: counts.certifications }, (_, index) => { tokens.certifications.push(`X${index}`); return text(int(20, 90), `X${index}`); });
+    const certifications = Array.from({ length: counts.certifications }, (_, index) => { tokens.certifications.push(`X${index}`); return process.env.SHORT_CERTS ? `Fiktives Zertifikat ${index + 1} X${index}` : text(int(20, 90), `X${index}`); });
     const specialSections = Array.from({ length: counts.specials }, (_, index) => ({
       id: uid(400 + index), kind: 'custom', title: ['Interessen', 'Projekte'][index], isVisible: true, contentType: 'list',
       entries: Array.from({ length: int(2, 6) }, (_, entry) => { tokens.specials.push(`P${index}${entry}`); return { id: uid(420 + index * 10 + entry), title: text(int(12, 60), `P${index}${entry}`), description: '', bullets: [] }; }),
@@ -90,8 +90,8 @@ try {
     const experiences = Array.from({ length: counts.stations }, (_, index) => ({
       id: uid(200 + index), from: `0${(index % 9) + 1}/20${15 + index * 2}`, to: `0${(index % 8) + 2}/20${17 + index * 2}`, role: ['Praktikum Softwareentwicklung', 'Prozessplanerin', 'Transportpilotin', 'Produktionskoordination', 'Qualitätssicherung'][index % 5],
       company: ['Universitätsstadt Muster', 'Beispiel Tekstil AG', 'Muster Luftfahrtbereich', 'Beispiel Werke', 'Muster Qualität'][index % 5], city: 'Musterstadt',
-      tasks: Array.from({ length: random ? int(0, 7) : 5 + (index % 3) }, (_, bullet) => {
-        const token = `B${index}${bullet}`;
+      tasks: Array.from({ length: random ? int(0, 7) : Number(process.env.BULLETS ?? 5 + (index % 3)) }, (_, bullet) => {
+        const token = `B${index}_${String(bullet).padStart(3, '0')}`;
         tokens.bullets.push(token);
         return random ? text(int(30, 130), token) : `${bulletPool[bullet % bulletPool.length]} ${token}`;
       }),
@@ -108,7 +108,7 @@ try {
         street: 'Musterstraße 12', postalCode: '12345', city: 'Musterstadt', country: 'Germany',
         phone: '+49 170 12345678', email: 'mina.kaya@example.com',
         linkedin: 'https://www.linkedin.com/in/mina-kaya/', github: 'https://github.com/mina-kaya', portfolio: 'https://example.com/',
-        summary: random ? text(int(80, 420), 'Z').replace(' Z', '') : 'Industrieingenieurin mit Erfahrung in Prozessanalyse, Produktionssteuerung und der strukturierten Bearbeitung technischer Aufgabenstellungen. Praxis in der Auswertung technischer Daten und der Optimierung von Prozessen im Monitoring-Umfeld.',
+        summary: random ? text(int(80, 420), 'Z').replace(' Z', '') : process.env.SUMMARY_LENGTH ? text(Number(process.env.SUMMARY_LENGTH), 'Z') : 'Industrieingenieurin mit Erfahrung in Prozessanalyse, Produktionssteuerung und der strukturierten Bearbeitung technischer Aufgabenstellungen. Praxis in der Auswertung technischer Daten und der Optimierung von Prozessen im Monitoring-Umfeld.',
         strengths, languages, certifications, specialSections, experiences, education,
         // Lebenslauf → Sprachen: Punkte / Niveau / Beschreibung (random in RANDOM runs, LANG_DISPLAY=dots,level,description otherwise)
         resumeLanguageDisplay: random
@@ -134,11 +134,16 @@ try {
       // The user assigned sections to the Seitenspalte: a hand-arranged layout names every zone.
       const arranged = getManagerSections(base, id).filter((entry) => !entry.fixed).map((entry) => ({
         id: entry.id,
-        zone: entry.id === 'knowledge' ? built.zones.knowledge : entry.id === 'certifications' ? built.zones.certifications : entry.id.startsWith('special:') ? built.zones.special : entry.zone,
+        zone: process.env.REORDER && id === 'elegant' && (entry.id === 'summary' || entry.id === 'knowledge') ? 'main'
+          : entry.id === 'knowledge' ? built.zones.knowledge : entry.id === 'certifications' ? built.zones.certifications : entry.id.startsWith('special:') ? built.zones.special : entry.zone,
       }));
+      if (process.env.REORDER && id === 'elegant') {
+        const order = ['experience', 'summary', 'education', 'knowledge', 'languages', 'strengths', 'certifications'];
+        arranged.sort((left, right) => order.indexOf(left.id) - order.indexOf(right.id));
+      }
       const profile = setResumePhotoVisible(profileSchema.parse({ ...built.input, photoPath: photo, resumeManagerLayouts: { [id]: arranged } }), true);
       // SURFACES=1: the user colours both columns (Hintergrundfarbe der Haupt- und der Seitenspalte).
-      const settings = { ...getTemplateDocumentDesignDefaults(id), resumeOutputMode: 'visual', ...(process.env.SURFACES ? { resumeAppearance: { sidebarBackgroundColor: '#cfe8d5', mainBackgroundColor: '#f1f6f2' } } : {}) };
+      const settings = { ...getTemplateDocumentDesignDefaults(id), resumeOutputMode: 'visual', ...(process.env.PAGE_MARGIN ? { cvOverrides: { spacing: { pageMarginMm: Number(process.env.PAGE_MARGIN) } } } : {}), ...(process.env.SURFACES ? { resumeAppearance: { sidebarBackgroundColor: '#cfe8d5', mainBackgroundColor: '#f1f6f2' } } : {}) };
       const application = applicationSchema.parse({
         schemaVersion: 1, id: crypto.randomUUID(), folderName: 'QA', company: { name: 'QA', city: 'Berlin' }, contact: {}, job: { title: 'Entwicklung' },
         status: 'Entwurf', templateId: id, accentColor: template.accent, secondaryColor: template.secondary, designSettings: settings, documents: {}, statusHistory: [], createdAt: now, updatedAt: now,
@@ -156,7 +161,9 @@ try {
       const paper = (page) => `<div class="document-paper document-lebenslauf layout-${template.layout} column-${settings.columnLayout} background-${settings.backgroundId} background-scope-${settings.backgroundScope} print-background" style="${paperStyle}">${page}</div>`;
       await writeFile(resolve(out, file + '-preview.html'), `<!doctype html><html><head><meta charset="utf-8"><style>${preflight}${appCss}${resumeTemplateStyleSources[id]} body{margin:0;background:white}</style></head><body>${pages.map(paper).join('')}</body></html>`);
       await writeFile(resolve(out, file + '-plan.json'), JSON.stringify(resolved.pagePlan, null, 1));
-      manifest.push({ file, id, scenario: scenario.name, zones: built.zones, tokens: built.tokens, sidebarLane: supportsSidebarContinuation(id) });
+      manifest.push({ file, id, scenario: scenario.name,
+        zones: process.env.REORDER && id === 'elegant' ? { ...built.zones, knowledge: 'main' } : built.zones,
+        tokens: built.tokens, sidebarLane: supportsSidebarContinuation(id) });
     }
   }
   await writeFile(resolve(out, 'manifest.json'), JSON.stringify(manifest));

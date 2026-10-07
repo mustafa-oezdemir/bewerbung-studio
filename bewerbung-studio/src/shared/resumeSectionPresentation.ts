@@ -115,13 +115,13 @@ export const isZoneFlowTemplate = (templateId: string | undefined): boolean =>
   Boolean(templateId && zoneFlowTemplates.includes(templateId));
 
 /**
- * Two-column templates that draw a sidebar on every page that carries sidebar content (preview and PDF), so
+ * Two-column templates that draw a continuation sidebar (preview and PDF), so
  * that a section the user put into the Seitenspalte stays there on page two and later. Only these templates let
  * the sidebar run through the pages as a lane of its own and break a sidebar section at its item boundaries;
  * the others keep a sidebar block whole (page one, or the main column of the last page). Templates join one by
  * one, once both surfaces draw the continuation sidebar and its column surface.
  */
-export const sidebarContinuationTemplates: readonly string[] = ["zeitgenoessisch", "zweispaltig", "stilvoll", "kreativ", "gepflegt"];
+export const sidebarContinuationTemplates: readonly string[] = ["zeitgenoessisch", "zweispaltig", "stilvoll", "kreativ", "gepflegt", "elegant"];
 
 /**
  * Templates whose Bildungsweg entries the output can cut between their detail units (`applyEducationBreaks`): the planner

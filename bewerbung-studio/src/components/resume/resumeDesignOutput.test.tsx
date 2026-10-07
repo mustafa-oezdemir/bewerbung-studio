@@ -119,7 +119,7 @@ describe("the Lebenslauf design of one Bewerbung in the outputs", () => {
       const style = surface?.getAttribute("style") ?? "";
       if (id === "elegant") {
         expect(style).toContain("--elegant-base-section-gap:5mm");
-        expect(style).toContain("--elegant-main-left:27.5mm");
+        expect(style).toContain("--elegant-main-left:12.5mm");
         expect(style).toContain("--elegant-line-height:1.35");
         expect(style).toContain("--elegant-body-size:10.2pt");
         expect(style).toContain("--elegant-font:Inter");
@@ -251,7 +251,7 @@ describe("Seitenränder and Innenabstand in preview and PDF", () => {
         const selected = (name: keyof typeof changes) => styleOf(scopeOf(changes[name][surface], surface));
         expect(selected("margin")["--elegant-main-left"]).toBe("16mm");
         expect(selected("smaller")["--elegant-main-left"]).toBe("6mm");
-        expect(selected("padding")["--elegant-main-left"]).toBe("27.5mm");
+        expect(selected("padding")["--elegant-main-left"]).toBe("12.5mm");
         expect(selected("both")["--elegant-main-left"]).toBe("18.5mm");
         expect(selected("bothLess")["--elegant-main-left"]).toBe("18mm");
         expect(selected("smallerBoth")["--elegant-main-left"]).toBe("8mm");

@@ -6,10 +6,10 @@ import { stilvollDefaults } from "../src/shared/cvTemplateDefaults/stilvoll.defa
 import { zweispaltigPageStyle } from "../src/shared/cvTemplateDefaults/zweispaltig.defaults";
 import { getZweispaltigLetterVariables, resolveZweispaltigApplicationColors, zweispaltigLetterCss } from "../src/shared/zweispaltigLetterIdentity";
 import { zeitgenoessischLetterCss } from "../src/shared/zeitgenoessischDesign";
-import { getElegantDesignVariables, elegantLetterCss, elegantManagedCss } from "../src/shared/elegantDesign";
+import { getElegantDesignVariables, elegantLetterCss, elegantManagedCss, isElegantWideContact } from "../src/shared/elegantDesign";
 import { kreativLetterCss, kreativResolvedCss } from "../src/shared/kreativDesign";
 import { stilvollLetterCss, stilvollResolvedCss } from "../src/shared/stilvollDesign";
-import { gepflegtLetterCss, gepflegtResolvedCss } from "../src/shared/gepflegtDesign";
+import { gepflegtLetterCss, gepflegtResolvedCss, isGepflegtWideContact } from "../src/shared/gepflegtDesign";
 import { kompaktLetterCss, kompaktResolvedCss } from "../src/shared/kompaktDesign";
 import { renderContactIcon } from "../src/shared/contactIcons";
 import { applyManagedResumeOutput, managedResumeCss } from "../src/shared/resumeManagedOutput";
@@ -347,12 +347,16 @@ const elegantDocumentCss = `
   .elegant-pdf *{box-sizing:border-box}
   .elegant-pdf-main{position:relative;min-width:0;height:100%;padding:var(--elegant-main-top) var(--elegant-main-right) var(--elegant-main-bottom) var(--elegant-main-left);overflow:hidden;background:var(--elegant-paper)}
   .elegant-pdf-header{position:relative;padding-bottom:0}
-  .elegant-pdf-header-compact{padding-bottom:3.2mm;border-bottom:.3mm solid var(--elegant-line)}
+  .elegant-pdf-header-compact{display:flex;flex-wrap:wrap;align-items:baseline;gap:1.5mm 4mm;padding-bottom:3.2mm}
   .elegant-pdf-header .kicker{margin:0 0 2.2mm;color:var(--elegant-accent);font-size:var(--elegant-kicker-size);font-weight:700;letter-spacing:.16em;text-transform:uppercase}
   .elegant-pdf-header h1{margin:0;color:var(--elegant-heading);font-family:var(--elegant-heading-font);font-size:var(--elegant-name-size);font-weight:var(--elegant-heading-weight);letter-spacing:.01em;line-height:var(--elegant-line-height);text-transform:uppercase;overflow-wrap:anywhere}
   .elegant-pdf-header h2{margin:2mm 0 0;color:var(--elegant-subheading);font-family:var(--elegant-heading-font);font-size:var(--elegant-profession-size);font-weight:var(--elegant-subheading-weight);line-height:var(--elegant-line-height);overflow-wrap:anywhere}
-  .elegant-pdf-contacts{display:flex;flex-wrap:wrap;gap:1.2mm 3.5mm;margin:3.3mm 0 0;color:var(--elegant-text);font-size:var(--elegant-small-size);font-style:normal;line-height:var(--elegant-line-height)}
-  .elegant-pdf-contacts a,.elegant-pdf-contacts>span{display:inline-flex;align-items:baseline;gap:1mm;min-width:0;color:inherit;text-decoration:none}
+  .elegant-pdf-header-compact .kicker{flex-basis:100%;margin-bottom:0}
+  .elegant-pdf-header-compact h1{font-size:calc(var(--elegant-name-size) * .72);letter-spacing:0}
+  .elegant-pdf-header-compact h2{margin:0;color:var(--elegant-muted);font-size:var(--elegant-small-size)}
+  .elegant-pdf-contacts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.2mm 3.5mm;margin:3.3mm 0 0;color:var(--elegant-text);font-size:var(--elegant-small-size);font-style:normal;line-height:var(--elegant-line-height)}
+  .elegant-pdf-contacts a,.elegant-pdf-contacts>span{display:inline-flex;align-items:baseline;gap:1mm;min-width:0;color:inherit;text-decoration:none;overflow-wrap:anywhere}
+  .elegant-pdf-contacts>.elegant-pdf-contact-wide{grid-column:1/-1}
   .elegant-pdf-contacts i{color:var(--elegant-line);font-size:var(--elegant-small-size);font-style:normal}
   .elegant-pdf-contacts span{min-width:0;overflow-wrap:anywhere}
   .elegant-pdf-section{margin-top:var(--elegant-section-gap)}
@@ -401,7 +405,7 @@ const elegantDocumentCss = `
   .elegant-pdf[data-density="dense"] .elegant-pdf-main{padding-top:calc(var(--elegant-main-top) * .9)}
   .elegant-pdf[data-density="dense"] .elegant-pdf-sidebar{padding-top:calc(var(--elegant-sidebar-top) * .9)}
   .elegant-pdf-ats .elegant-pdf-contacts{display:block}
-  .elegant-pdf-ats .elegant-pdf-contacts a,.elegant-pdf-ats .elegant-pdf-contacts span{display:block;margin-top:.8mm}
+  .elegant-pdf-ats .elegant-pdf-contacts a,.elegant-pdf-ats .elegant-pdf-contacts span{display:block;margin-top:.8mm;overflow:visible;white-space:normal;text-overflow:clip}
   .elegant-pdf-ats .elegant-pdf-entry-head{display:block}
   .elegant-pdf-ats .elegant-pdf-entry-meta{margin-top:.8mm;text-align:left}
   .elegant-pdf-ats .elegant-pdf-entry-meta strong,.elegant-pdf-ats .elegant-pdf-entry-meta span{display:inline}
@@ -947,9 +951,10 @@ export const buildDocumentHtml = (
     return `<address class="elegant-pdf-contacts">${contacts
       .map((contact) => {
         const content = `<i aria-hidden="true">${renderContactIcon(contact)}</i><span>${escapeHtml(contact.value)}</span>`;
+        const wide = isElegantWideContact(contact.value) ? ' class="elegant-pdf-contact-wide"' : '';
         return contact.href
-          ? `<a href="${escapeHtml(contact.href)}">${content}</a>`
-          : `<span>${content}</span>`;
+          ? `<a${wide} href="${escapeHtml(contact.href)}">${content}</a>`
+          : `<span${wide}>${content}</span>`;
       })
       .join("")}</address>`;
   };
@@ -1096,10 +1101,6 @@ export const buildDocumentHtml = (
     const sidebarMarkup = isContinuation
       ? `<aside class="elegant-pdf-sidebar elegant-pdf-continuation">
           <div class="elegant-sidebar__continuation">
-          <p>${escapeHtml(resumeHeading.kicker)}</p>
-          <h2>${escapeHtml(name)}</h2>
-          ${profile?.title ? `<span>${escapeHtml(profile.title)}</span>` : ""}
-          <i aria-hidden="true"></i>
           <small>Fortsetzung · Seite ${plan.pageNumber} von ${resumePlan.length}</small>
           ${profile?.resumeContinuationContactVisibility.email && profile.email ? `<a href="mailto:${escapeHtml(profile.email)}">${escapeHtml(profile.email)}</a>` : ""}
           ${profile?.resumeContinuationContactVisibility.phone && profile.phone ? `<a href="${escapeHtml(phoneHref(profile.phone))}">${escapeHtml(formatPhoneForDisplay(profile.phone))}</a>` : ""}
@@ -3279,17 +3280,20 @@ export const buildDocumentHtml = (
   const gepflegtLocation = formatResumeAddress(profile);
   const gepflegtContacts = [
     {
+      kind: "phone",
       icon: gepflegtIconMarkup("phone"),
       value: formatPhoneForDisplay(profile?.phone),
       href: phoneHref(profile?.phone),
     },
     {
+      kind: "email",
       icon: gepflegtIconMarkup("mail"),
       value: profile?.email || "",
       href: profile?.email ? `mailto:${profile.email}` : "",
     },
-    ...getResumeLinkContacts(profile).map((link) => ({ icon: gepflegtIconMarkup("link"), value: link.value, href: link.href })),
+    ...getResumeLinkContacts(profile).map((link) => ({ kind: link.kind, icon: gepflegtIconMarkup("link"), value: link.value, href: link.href })),
     {
+      kind: "location",
       icon: gepflegtIconMarkup("location"),
       value: gepflegtLocation,
       href: "",
@@ -3308,9 +3312,11 @@ export const buildDocumentHtml = (
           .map((contact) => {
             const value = `<span>${escapeHtml(contact.value)}</span>`;
             const content = `${ats ? "" : renderContactIcon(contact)}${value}`;
+            const wide = isGepflegtWideContact(contact.value, contact.kind)
+              ? ' data-contact-wide="true"' : "";
             return contact.href
-              ? `<a class="gepflegt-pdf-contact" href="${escapeHtml(contact.href)}">${content}</a>`
-              : `<span class="gepflegt-pdf-contact">${content}</span>`;
+              ? `<a class="gepflegt-pdf-contact"${wide} href="${escapeHtml(contact.href)}">${content}</a>`
+              : `<span class="gepflegt-pdf-contact"${wide}>${content}</span>`;
           })
           .join("")}</address>`
       : "";

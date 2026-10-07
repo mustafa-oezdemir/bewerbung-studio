@@ -5,20 +5,23 @@ import { elegantDefaults } from "./cvTemplateDefaults/elegant.defaults";
 import { resolveResumeAppearance } from "./resumeDesignSystem";
 import { getReadableTextColor } from "./templates";
 
+/** Long contacts use the full header width so every contact occupies one line. */
+export const isElegantWideContact = (value: string) => value.length > 33;
+
 /** The same physical box and semantic tokens are handed to React, the planner and Electron. */
 export const elegantGeometry = (spacing: CvDesignTokens["spacing"]) => {
   const margin = spacing.pageMarginMm;
   const inset = spacing.innerPaddingMm;
-  const edge = (native: number) => Math.max(0, margin + native - elegantDefaults.layout.mainLeftMm) + inset;
+  const column = spacing.columnGapMm / 2;
   return {
-    mainTop: edge(elegantDefaults.layout.mainTopMm),
-    mainRight: edge(elegantDefaults.layout.mainRightMm),
-    mainBottom: edge(elegantDefaults.layout.mainBottomMm),
-    mainLeft: edge(elegantDefaults.layout.mainLeftMm),
-    sidebarTop: edge(elegantDefaults.layout.sidebarTopMm),
-    sidebarRight: edge(elegantDefaults.layout.sidebarRightMm),
-    sidebarBottom: edge(elegantDefaults.layout.sidebarBottomMm),
-    sidebarLeft: edge(elegantDefaults.layout.sidebarLeftMm),
+    mainTop: elegantDefaults.layout.mainTopMm + inset,
+    mainRight: elegantDefaults.layout.mainRightMm + column + inset,
+    mainBottom: elegantDefaults.layout.mainBottomMm + inset,
+    mainLeft: margin + inset,
+    sidebarTop: elegantDefaults.layout.sidebarTopMm + inset,
+    sidebarRight: margin + inset,
+    sidebarBottom: elegantDefaults.layout.sidebarBottomMm + inset,
+    sidebarLeft: elegantDefaults.layout.sidebarLeftMm + column + inset,
   };
 };
 
@@ -130,14 +133,11 @@ export const elegantLetterCss = `
 /** Managed sections are rebuilt after the native template renders; these rules keep their metrics identical. */
 export const elegantManagedCss = `
 :is(.elegant-template,.elegant-pdf) .resume-special-output-list{gap:0}
+:is(.elegant-sidebar,.elegant-pdf-sidebar) [data-managed-section]>:is(h2,h3){position:relative;margin:0 0 2.4mm!important;padding-bottom:1.6mm;border-bottom:.3mm solid var(--elegant-sidebar-muted);color:var(--elegant-sidebar-title);font-family:var(--elegant-heading-font);font-size:var(--elegant-sidebar-title-size);font-weight:var(--elegant-section-weight);letter-spacing:.075em;line-height:var(--elegant-line-height);text-transform:var(--elegant-section-transform)}
+:is(.elegant-sidebar,.elegant-pdf-sidebar) [data-managed-section="languages"] .resume-language-grid{padding:0!important}
 .elegant-pdf-continuation>[data-managed-section]{margin-top:var(--elegant-section-gap)!important}
 :is(.elegant-template,.elegant-pdf) .elegant-sidebar__continuation{display:flex;flex-direction:column;min-width:0;color:var(--elegant-sidebar-muted)}
-:is(.elegant-template,.elegant-pdf) .elegant-sidebar__continuation>:is(p,h2,span,small){margin:0}
-:is(.elegant-template,.elegant-pdf) .elegant-sidebar__continuation>p{color:var(--elegant-accent);font-size:var(--elegant-kicker-size);font-weight:700;letter-spacing:.16em;text-transform:uppercase}
-:is(.elegant-template,.elegant-pdf) .elegant-sidebar__continuation>h2{margin-top:3.5mm;color:var(--elegant-sidebar-title);font-family:var(--elegant-heading-font);font-size:calc(var(--elegant-name-size) * .62);font-weight:700;letter-spacing:0!important;line-height:var(--elegant-line-height);overflow-wrap:break-word}
-:is(.elegant-template,.elegant-pdf) .elegant-sidebar__continuation>span{margin-top:1.8mm;font-size:var(--elegant-small-size);line-height:var(--elegant-line-height);overflow-wrap:anywhere}
-:is(.elegant-template,.elegant-pdf) .elegant-sidebar__continuation>i{width:18mm;height:.6mm;margin:6mm 0;background:var(--elegant-accent)}
-:is(.elegant-template,.elegant-pdf) .elegant-sidebar__continuation>small{margin-bottom:5mm;font-size:var(--elegant-small-size);letter-spacing:.03em}
+:is(.elegant-template,.elegant-pdf) .elegant-sidebar__continuation>small{margin:0;font-size:var(--elegant-small-size);letter-spacing:.03em}
 :is(.elegant-template,.elegant-pdf) .elegant-sidebar__continuation>a{margin-top:1.7mm;color:var(--elegant-sidebar-text);font-size:var(--elegant-small-size);text-decoration:none;overflow-wrap:anywhere}
 :is(.elegant-template,.elegant-pdf) [data-managed-section]{font-size:var(--elegant-body-size)!important;line-height:var(--elegant-line-height)!important}
 :is(.elegant-template,.elegant-pdf) [data-managed-section] :is(p,li,.managed-item-text,.managed-strength-card strong,.managed-knowledge-category h4,.managed-knowledge-category h5){font-size:var(--elegant-body-size)!important;line-height:var(--elegant-line-height)!important}

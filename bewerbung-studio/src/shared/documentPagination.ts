@@ -16,6 +16,8 @@ import {
 import { getTemplateDocumentDesignDefaults, resolveTemplateCvDesign } from "./cvDesign";
 import { zweispaltigDefaults } from "./cvTemplateDefaults/zweispaltig.defaults";
 import { kompaktDefaults } from "./cvTemplateDefaults/kompakt.defaults";
+import { gepflegtDefaults } from "./cvTemplateDefaults/gepflegt.defaults";
+import { elegantDefaults } from "./cvTemplateDefaults/elegant.defaults";
 import { resolveKompaktGeometry } from "./kompaktDesign";
 import { resolveSectionColumns } from "./resumeSectionLayout";
 import { hasSidebarHero, isZoneFlowTemplate, sectionListMetrics, supportsEducationSplit, supportsSidebarContinuation } from "./resumeSectionPresentation";
@@ -31,7 +33,7 @@ import {
 import { getResumePersonalDetails } from "./resumePersonalData";
 import { getResumePhotoGrowth, resumePhotoShown } from "./resumePhoto";
 import { resolveExperience } from "./resumeCareer";
-import { estimateKreativHeaderTop, estimateResumeHeaderTop, estimateStilvollHeaderTop } from "./resumeHeaderGeometry";
+import { estimateElegantHeaderTop, estimateGepflegtHeaderTop, estimateKreativHeaderTop, estimateResumeHeaderTop, estimateStilvollHeaderTop } from "./resumeHeaderGeometry";
 import { resolveLanguagePresentation } from "../features/languages/language-levels";
 import { languageBlockHeight } from "./languageBlockHeight";
 
@@ -323,7 +325,8 @@ const educationMetrics = (
     }, []);
     const detailLines = details.reduce((sum, length) => sum + linesFor(length, detailWidth, detailFont, detailCw), 0);
     const list = details.length ? edu.detailList ?? 0 : 0;
-    return (edu.base + scale.contentGapDelta + list + header + (edu.detailLine ?? edu.extraLine) * detailLines + (edu.detailItem ?? 0) * details.length) * scale.edu * scale.textHeight;
+    return (edu.base + (details.length ? edu.detailBase ?? 0 : 0) + scale.contentGapDelta + list + header
+      + (edu.detailLine ?? edu.extraLine) * detailLines + (edu.detailItem ?? 0) * details.length) * scale.edu * scale.textHeight;
   };
   return { lines, height };
 };
@@ -380,7 +383,8 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
   // A larger font raises every line's box, even when an entry stays at the
   // same predicted line count. The nonlinear reserve covers word-wrap
   // thresholds observed in the rendered templates (notably Kreativ/Kompakt).
-  const textHeight = templateId === "kreativ" || templateId === "kompakt" ? font : Math.max(1, Math.pow(font, 1.3));
+  const textHeight = templateId === "kreativ" || templateId === "kompakt" || templateId === "gepflegt" || templateId === "elegant"
+    ? font : Math.max(1, Math.pow(font, 1.3));
   const line = overrides.lineHeight
     ? bounded(overrides.lineHeight, geometry.text.lineRatio) / geometry.text.lineRatio
     : settings ? lineHeightLevelToValue[settings.lineHeightLevel] / lineHeightLevelToValue[defaults.lineHeightLevel] : 1;
@@ -453,6 +457,39 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
       mainRatio: mainWidth / geometry.text.mainW,
       sideDelta: sideWidth - geometry.text.sideW,
       marginInset: 0, ...factors, ...spacing };
+  }
+  if (templateId === "gepflegt" && !single) {
+    // Gepflegt's Seitenränder move the outer text edges, not the vertical page limit.
+    // Keep the planner's two columns in step with the shared CSS variables.
+    const margin = overrides.pageMarginMm ?? nativeMargin;
+    const padding = overrides.innerPaddingMm !== undefined ? overrides.innerPaddingMm - nativePadding : 0;
+    const mainWidth = Math.max(12, gepflegtDefaults.page.widthMm - gepflegtDefaults.layout.sidebarWidthMm
+      - gepflegtDefaults.main.paddingLeftMm - margin - 2 * padding);
+    const sidebarWidth = Math.max(12, gepflegtDefaults.layout.sidebarWidthMm - margin
+      - gepflegtDefaults.sidebar.paddingRightMm - 2 * padding);
+    const nativeSidebarWidth = gepflegtDefaults.layout.sidebarWidthMm
+      - gepflegtDefaults.sidebar.paddingLeftMm - gepflegtDefaults.sidebar.paddingRightMm;
+    return { font, textHeight, line,
+      width: Math.max(0.5, (mainWidth - 4.8) / geometry.text.bulletW),
+      contWidth: Math.max(0.5, (mainWidth - 4.8) / geometry.text.bulletW),
+      mainRatio: mainWidth / geometry.text.mainW,
+      sideDelta: sidebarWidth - nativeSidebarWidth,
+      marginInset: 0, ...factors, ...spacing };
+  }
+  if (templateId === "elegant" && !single) {
+    const margin = overrides.pageMarginMm ?? nativeMargin;
+    const padding = overrides.innerPaddingMm ?? nativePadding;
+    const gap = overrides.columnGapMm ?? 0;
+    const mainWidth = Math.max(12, elegantDefaults.layout.mainWidthMm
+      - margin - elegantDefaults.layout.mainRightMm - gap / 2 - 2 * padding);
+    const sideWidth = Math.max(12, elegantDefaults.layout.sidebarWidthMm
+      - elegantDefaults.layout.sidebarLeftMm - gap / 2 - margin - 2 * padding);
+    return { font, textHeight, line,
+      width: mainWidth / geometry.text.mainW,
+      contWidth: mainWidth / geometry.text.mainW,
+      mainRatio: mainWidth / geometry.text.mainW,
+      sideDelta: sideWidth - geometry.text.sideW,
+      marginInset: padding, ...factors, ...spacing };
   }
   if (single) {
     // The visual Tabellarisch career list keeps its narrow text column even
@@ -809,12 +846,12 @@ export const createResumePagePlan = (
     const languageRows = languages.map((entry) =>
       resolveLanguagePresentation(entry, profile?.resumeLanguageDisplay, { dots: true, ats: context.atsMode }));
     /** The block's height when it stands in `at`: from the printed rows, measured per template (languageBlockHeight). */
-    const languageHeightIn = (at: PaginationZone, fullWidth = false) => {
+    const languageHeightIn = (at: PaginationZone, fullWidth = false, rows = languageRows) => {
       const beside = !flat && !fullWidth && geometry.columns === 2;
       const columns = resolveSectionColumns(settings.languagesColumns, templateId ?? "", at === "sidebar" ? "sidebar" : "main",
-        languageRows.map((language) => ({ title: language.primaryText, description: language.secondaryText })), settings, beside);
+        rows.map((language) => ({ title: language.primaryText, description: language.secondaryText })), settings, beside);
       return templateId && !context.atsMode
-        ? languageBlockHeight(templateId, languageRows, {
+        ? languageBlockHeight(templateId, rows, {
           column: at === "sidebar" ? geometry.text.sideW + scale.sideDelta : fullWidth ? geometry.text.fullW : geometry.text.mainW * scale.mainRatio,
           font: scale.font,
           textHeight: scale.textHeight,
@@ -834,10 +871,14 @@ export const createResumePagePlan = (
       id: "languages",
       zone,
       height: languageHeight,
-      home: !flat && geometry.zones.languages === "sidebar" ? "first" : "last",
+      home: !flat && geometry.zones.languages === "sidebar" && templateId !== "elegant" ? "first" : "last",
       rank: managerRank("languages"),
-      hostable: templateId === "kompakt" && zoneFlow && zone === "sidebar",
+      hostable: (templateId === "kompakt" && zoneFlow || templateId === "elegant") && zone === "sidebar" && !flat,
       contHeight: templateId === "kompakt" && zoneFlow ? (languageHeightIn("main", true) ?? plainListHeight("main", languageRows.map((row) => row.primaryText), true)) : undefined,
+      sideSplit: templateId === "elegant" && zone === "sidebar" && !flat
+        ? { ends: languageRows.map((_, index) => index + 1), height: (from, to) =>
+          languageHeightIn("sidebar", false, languageRows.slice(from, to)) ?? 0 }
+        : undefined,
     });
   }
   const projectVisible = find("projects")?.visible ?? true;
@@ -958,7 +999,12 @@ export const createResumePagePlan = (
     // A template that keeps them in its sidebar draws them on page one; flattened layouts append them.
     const zone = flat ? "main" : ((customLayout ? find("certifications")?.zone : undefined) ?? certificates.zone);
     const legacyHeight = (model.base + model.perItem * shown.length + certificates.pitch * scale.line * wrapped) * scale.textHeight;
-    const inSidebar = zoneFlow && zone === "sidebar";
+    const inSidebar = (zoneFlow || templateId === "elegant") && zone === "sidebar";
+    const certificateHeight = (values: readonly string[]) => {
+      const extraLines = values.reduce((total, entry) => total + Math.max(0,
+        linesFor(entry.length, width, certificates.font * scale.font, geometry.text.cw) - 1), 0);
+      return (model.base + model.perItem * values.length + certificates.pitch * scale.line * extraLines) * scale.textHeight;
+    };
     flow.push({
       id: "certifications",
       zone,
@@ -967,11 +1013,12 @@ export const createResumePagePlan = (
       contHeight: zoneFlow ? plainListHeight("main", shown, true) : undefined,
       // A zone-flow template hosts the certificates on page one when their column has room, whatever home the
       // template's own geometry gives them (some draw them beside page one, some behind the career).
-      home: zoneFlow ? "last" : certificateHome === "none" ? "last" : certificateHome,
+      home: zoneFlow || templateId === "elegant" ? "last" : certificateHome === "none" ? "last" : certificateHome,
       rank: managerRank("certifications"),
       hostable: inSidebar,
       sideSplit: inSidebar
-        ? { ends: shown.map((_, index) => index + 1), height: (from, to) => plainListHeight("sidebar", shown.slice(from, to)) }
+        ? { ends: shown.map((_, index) => index + 1), height: (from, to) => templateId === "elegant"
+          ? certificateHeight(shown.slice(from, to)) * 1.2 : plainListHeight("sidebar", shown.slice(from, to)) }
         : undefined,
     });
   }
@@ -988,7 +1035,10 @@ export const createResumePagePlan = (
     const height = 9 + normalized.entries.reduce((total, item) => total + 4 +
       [item.title, item.subtitle, item.location, item.date, item.description, item.url, ...item.bullets]
         .reduce((lines, value) => lines + lineCount(value) * pitch, 0), 0);
-    const inSidebar = zoneFlow && zone === "sidebar";
+    const inSidebar = (zoneFlow || templateId === "elegant") && zone === "sidebar";
+    const legacyPartHeight = (from: number, to: number) => 9 + normalized.entries.slice(from, to).reduce((total, item) => total + 4 +
+      [item.title, item.subtitle, item.location, item.date, item.description, item.url, ...item.bullets]
+        .reduce((lines, value) => lines + lineCount(value) * pitch, 0), 0);
     flow.push({
       id: `special:${special.id}`,
       zone,
@@ -999,7 +1049,8 @@ export const createResumePagePlan = (
       hostable: inSidebar,
       // The entries of a special section are its safe break points in the sidebar.
       sideSplit: inSidebar
-        ? { ends: normalized.entries.map((_, index) => index + 1), height: (from, to) => specialHeight("sidebar", special, false, [from, to]) }
+        ? { ends: normalized.entries.map((_, index) => index + 1), height: (from, to) => templateId === "elegant"
+          ? legacyPartHeight(from, to) * 1.2 : specialHeight("sidebar", special, false, [from, to]) }
         : undefined,
     });
     hostedIds.push(`special:${special.id}`);
@@ -1082,6 +1133,16 @@ export const createResumePagePlan = (
     ? estimateStilvollHeaderTop(profile, showContacts, withPhoto,
         geometry.text.bulletFont * scale.font * 72 / 25.4, geometry.text.lineRatio * scale.line, scale.marginInset,
         context.overrides?.headingSizePt, context.overrides?.subheadingSizePt)
+    : templateId === "elegant" && profile && !context.atsMode
+    ? estimateElegantHeaderTop(profile, showContacts, scale.marginInset, sectionGap,
+        context.overrides?.pageMarginMm ?? elegantDefaults.layout.mainLeftMm,
+        context.overrides?.columnGapMm ?? 0,
+        geometry.text.lineRatio * scale.line, context.overrides?.headingSizePt,
+        context.overrides?.subheadingSizePt, context.overrides?.bodySizePt)
+    : templateId === "gepflegt" && profile && !context.atsMode
+    ? estimateGepflegtHeaderTop(profile, showContacts, geometry.text.lineRatio * scale.line,
+        context.overrides?.pageMarginMm ?? gepflegtDefaults.main.paddingRightMm,
+        context.overrides?.headingSizePt, context.overrides?.subheadingSizePt)
     : templateId === "kompakt" && !context.atsMode
       ? geometry.top1 + photoGrowth.main
       : grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop1 : geometry.top1) + kompaktContactHeight + photoGrowth.main, false);
@@ -1092,11 +1153,15 @@ export const createResumePagePlan = (
     : 0;
   const top2 = (templateId === "kreativ" || templateId === "stilvoll" || templateId === "gepflegt") && !context.atsMode
     ? geometry.top2 + gepflegtMainContinuationGrowth
+    : templateId === "elegant" && !context.atsMode
+    ? elegantDefaults.layout.mainTopMm + scale.marginInset + 18.2 + sectionGap
     : templateId === "kompakt" && !context.atsMode
       ? geometry.top2 + (contactOnContinuation ? 5.5 : 0)
       : grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop2 : geometry.top1) + kompaktContactHeight + photoGrowth.main, true);
-  const verticalInset = templateId === "stilvoll" && !context.atsMode
-    ? Math.max(0, scale.marginInset) : 2 * scale.marginInset;
+  const verticalInset = templateId === "elegant" && !context.atsMode
+    ? scale.marginInset
+    : templateId === "stilvoll" && !context.atsMode
+      ? Math.max(0, scale.marginInset) : 2 * scale.marginInset;
   const mainCap1 = (geometry.limit - top1 - verticalInset) * (geometry.safety ?? SAFETY);
   const mainCap2 = (geometry.limit - top2 - verticalInset) * (geometry.safety ?? SAFETY);
   // Where the first sidebar block starts depends on how many contact entries (and wrapped values) precede it.
@@ -1269,12 +1334,20 @@ export const createResumePagePlan = (
    * of the main column: the sections of the Seitenspalte keep their order, fill every page down to its usable
    * bottom, and a section that does not fit breaks at an item boundary and goes on in the sidebar of the next page.
    */
-  const sidebarLane = zoneFlow && supportsSidebarContinuation(templateId) && sideCap1 > 0 && !flat;
+  const sidebarLane = (zoneFlow && supportsSidebarContinuation(templateId) || templateId === "elegant" && !context.atsMode)
+    && sideCap1 > 0 && !flat;
   type LaneSegment = { block: FlowBlock; from: number; to: number };
   const lanePages: LaneSegment[][] = [[]];
-  const segmentHeight = ({ block, from, to }: LaneSegment) => (block.sideSplit ? block.sideSplit.height(from, to) : block.height);
-  // Gepflegt's continuation identity occupies its sidebar above the movable sections.
-  const sideTop2 = templateId === "gepflegt" && !context.atsMode
+  const segmentHeight = ({ block, from, to }: LaneSegment) => {
+    const height = block.sideSplit ? block.sideSplit.height(from, to) : block.height;
+    return templateId === "elegant" && block.id === "knowledge" ? height * 1.35 : height;
+  };
+  // Elegant repeats only the page cue and optional contacts in the continuation sidebar.
+  const elegantContinuationContacts = (profile?.resumeContinuationContactVisibility.email && profile.email ? 1 : 0)
+    + (profile?.resumeContinuationContactVisibility.phone && profile.phone ? 1 : 0);
+  const sideTop2 = templateId === "elegant" && !context.atsMode
+    ? elegantDefaults.layout.sidebarTopMm + scale.marginInset + 4 + sectionGap + elegantContinuationContacts * 6
+    : templateId === "gepflegt" && !context.atsMode
     ? 67 + Math.max(0, Math.ceil(gepflegtName.length / 12) - 1) * 7.5
       + Math.max(0, Math.ceil((profile?.title ?? "").length / 26) - 3) * 4.2
     : top2;

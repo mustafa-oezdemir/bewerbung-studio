@@ -4,6 +4,7 @@ import type { ElegantHeaderProps } from "./elegant.types";
 import { resolveResumeHeading } from "../../../../shared/resumeHeading";
 import { formatResumeAddress, formatResumeBirth, getResumePersonalDetails, getResumeLinkContacts } from "../../../../shared/resumePersonalData";
 import { formatPhoneForDisplay, phoneHref } from "../../../../shared/contactPresentation";
+import { isElegantWideContact } from "../../../../shared/elegantDesign";
 
 export function ElegantHeader({
   profile,
@@ -54,11 +55,11 @@ export function ElegantHeader({
               </>
             );
             return contact.href ? (
-              <a href={contact.href} key={`${contact.value}-${index}`}>
+              <a href={contact.href} key={`${contact.value}-${index}`} className={isElegantWideContact(contact.value) ? "elegant-header__contact--wide" : undefined}>
                 {content}
               </a>
             ) : (
-              <span key={`${contact.value}-${index}`}>{content}</span>
+              <span key={`${contact.value}-${index}`} className={isElegantWideContact(contact.value) ? "elegant-header__contact--wide" : undefined}>{content}</span>
             );
           })}
         </address>

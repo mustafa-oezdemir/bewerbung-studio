@@ -401,6 +401,7 @@ export const applyManagedResumeOutput = (
     const headingTag = surface === "pdf" ? "h3" : "h2";
     const hosts = (id: string) => {
       const movable = id === "knowledge" || id.startsWith("group:") || id.startsWith("special:") || (zoneFlow && id === "certifications")
+        || (resolved.templateId === "elegant" && (id === "languages" || id === "certifications"))
         || resolved.templateId === "tabellarisch"
         || (resolved.templateId === "kreativ" && ["summary", "strengths", "languages"].includes(id));
       if (!movable || !planned.some((page) => page.blocks?.includes(id))) return last;
@@ -565,14 +566,15 @@ export const applyManagedResumeOutput = (
       // Plain lists of a zone-flow template: the page plan says where the certificates are drawn
       // (page one's sidebar, behind the career entries, or the last page) and one markup serves
       // every column; the languages stay where the template draws them and follow their column.
-      if (zoneFlow && (entry.id === "certifications" || entry.id === "languages") && isPlainListSection(resolved.templateId, entry.id) && !items.length) {
+      if ((zoneFlow && (entry.id === "certifications" || entry.id === "languages") && isPlainListSection(resolved.templateId, entry.id) && !items.length)
+        || resolved.templateId === "elegant" && (entry.id === "languages" || entry.id === "certifications")) {
         // Languages go through the shared resolver (Lebenslauf → Sprachen: Punkte, Niveau, Beschreibung), never as stored.
         const allListed = (entry.id === "certifications" ? profile.certifications : profile.languages)
           .map((value) => value.trim()).filter(Boolean)
           .map((value) => (entry.id === "languages" ? resolveLanguagePresentation(value, profile.resumeLanguageDisplay, { ats: isAts }).primaryText : value));
         // The part of a certificate list that stands on this page when the list breaks between two pages.
         const listed = blockRange ? allListed.slice(blockRange.from, blockRange.to) : allListed;
-        const drawn = entry.id === "languages" ? existing.length > 0 && number === 1 : hosts(entry.id);
+        const drawn = entry.id === "languages" && resolved.templateId !== "elegant" ? existing.length > 0 && number === 1 : hosts(entry.id);
         const certificateRange = entry.id === "certifications" ? blockRange : undefined;
         // The PDF markup of the certificates leaves its section open, so the closing is written inside it.
         for (const node of existing)
@@ -684,7 +686,7 @@ export const applyManagedResumeOutput = (
                 ? itemHtml.map((item) => `<p>${item}</p>`).join("")
                 : `<ul>${itemHtml.map((item) => `<li>${item}</li>`).join("")}</ul>`;
         }
-      } else if (zoneFlow && entry.id.startsWith("special:") && existing.length && !hosts(entry.id)) {
+      } else if ((zoneFlow || resolved.templateId === "elegant") && entry.id.startsWith("special:") && existing.length && !hosts(entry.id)) {
         // The plan draws this section on another page; a copy the template drew itself must not stay.
         existing.forEach((node) => node.remove());
         nodes.delete(entry.id);
@@ -894,7 +896,7 @@ export const applyManagedResumeOutput = (
     else if (firstPageHeader) {
       // Later pages repeat the identity of the first page's header (name, title, photo) and the contacts the user chose
       // for them (e-mail, phone): never its address, links or other personal details.
-      if (number > 1 && (resolved.templateId === "zeitgenoessisch" || resolved.templateId === "kreativ" || resolved.templateId === "stilvoll")) {
+      if (number > 1 && (resolved.templateId === "zeitgenoessisch" || resolved.templateId === "kreativ" || resolved.templateId === "stilvoll" || resolved.templateId === "elegant")) {
         // Both native renderers already draw the compact identity. Replacing it with page one's header
         // would repeat the large photo composition and waste the continuation page's upper area.
         ensureResumeHeaderContacts(root, continuationContacts);
@@ -983,7 +985,8 @@ export const applyManagedResumeOutput = (
     if (resolved.templateId !== "elegant") applyResumeSectionHeadingColors(root, designSettings);
     for (const section of nodes.get("languages") ?? []) {
       const zone = sidebar !== main && sidebar.contains(section) ? "sidebar" : "main";
-      applyResumeLanguageOutput(section, profile, templateId, designSettings, zone, sidebar !== main && !isAts, isAts);
+      applyResumeLanguageOutput(section, profile, templateId, designSettings, zone, sidebar !== main && !isAts, isAts,
+        resolved.templateId === "elegant" ? planned[number - 1]?.blockRanges?.languages : undefined);
     }
     if (number === 1) firstPageHeader = root.querySelector("header")?.cloneNode(true) as Element | null;
   });

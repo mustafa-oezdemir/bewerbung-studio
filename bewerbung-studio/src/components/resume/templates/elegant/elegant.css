@@ -99,8 +99,8 @@
 }
 
 .elegant-header__contacts {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.2mm 3.5mm;
   min-width: 0;
   margin: 3.3mm 0 0;
@@ -118,6 +118,11 @@
   min-width: 0;
   color: inherit;
   text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.elegant-header__contacts > .elegant-header__contact--wide {
+  grid-column: 1 / -1;
 }
 
 .elegant-header__contacts i {
@@ -610,6 +615,13 @@
 .elegant-ats .elegant-header__contacts > span {
   display: block;
   margin-top: 0.8mm;
+  overflow: visible;
+  white-space: normal;
+}
+
+.elegant-ats .elegant-header__contacts span {
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .elegant-ats .elegant-header__contacts strong {

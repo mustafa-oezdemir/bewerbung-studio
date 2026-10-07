@@ -2613,7 +2613,7 @@ describe("Lebenslauf-Dokumente", () => {
         "Kundenorientierung: Anforderungen in belastbare Lösungen übersetzt",
         "Mentorship: Neue Teammitglieder strukturiert eingearbeitet",
       ],
-      experiences: Array.from({ length: 3 }, (_, index) => ({
+      experiences: Array.from({ length: 4 }, (_, index) => ({
         id: crypto.randomUUID(),
         from: `${2012 + index * 4}`,
         to: `${2016 + index * 4}`,
@@ -2621,7 +2621,7 @@ describe("Lebenslauf-Dokumente", () => {
         company: `Unternehmen ${index + 1}`,
         city: "Berlin",
         achievements: Array.from(
-          { length: 3 },
+          { length: 7 },
           (_, achievementIndex) =>
             `Messbares Projektergebnis ${achievementIndex + 1} erfolgreich erreicht.`,
         ),

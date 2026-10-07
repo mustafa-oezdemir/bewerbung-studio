@@ -26,6 +26,10 @@ export const gepflegtGeometry = {
   main: gepflegtDefaults.main,
 };
 
+/** Long contact labels take both grid columns so their full value stays on one line. */
+export const isGepflegtWideContact = (value: string, kind?: string) =>
+  kind === "linkedin" || kind === "location" || value.length > 36;
+
 /** Semantic variables for both CV renderers and the independent DIN letter. */
 export const getGepflegtDesignVariables = (
   design: CvDesignTokens,
@@ -50,8 +54,6 @@ export const getGepflegtDesignVariables = (
   const sidebarText = readable(appearance.sidebarTextColor, sidebar);
   const sidebarTitle = readable(appearance.sidebarSectionHeadingColor, sidebar);
   const sidebarMuted = readable(paletteChanged ? mix(sidebarText, sidebar, .92) : native.sidebarMutedText, sidebar);
-  const marginShift = design.spacing.pageMarginMm - nativeMargin;
-  const sidePaddingLeft = Math.max(gepflegtDefaults.sidebar.paddingLeftMm, gepflegtDefaults.sidebar.paddingLeftMm + marginShift);
   return {
     "--gepflegt-sidebar-width": `${gepflegtGeometry.sidebarWidthMm}mm`,
     "--gepflegt-topbar-height": `${gepflegtGeometry.topBarHeightMm}mm`,
@@ -73,15 +75,15 @@ export const getGepflegtDesignVariables = (
     "--gepflegt-divider": semantic("divider", native.divider, mix(heading, design.colors.background, .25)),
     "--gepflegt-paper": design.colors.background,
     "--gepflegt-sidebar-padding-top": `${gepflegtGeometry.sidebar.paddingTopMm}mm`,
-    "--gepflegt-sidebar-padding-right": `${Math.max(gepflegtGeometry.sidebar.paddingRightMm, gepflegtGeometry.sidebar.paddingRightMm + marginShift)}mm`,
+    "--gepflegt-sidebar-padding-right": `${gepflegtGeometry.sidebar.paddingRightMm}mm`,
     "--gepflegt-sidebar-padding-bottom": `${gepflegtGeometry.sidebar.paddingBottomMm}mm`,
-    "--gepflegt-sidebar-padding-left": `${sidePaddingLeft}mm`,
+    "--gepflegt-sidebar-padding-left": `${design.spacing.pageMarginMm}mm`,
     "--gepflegt-photo-size": `${gepflegtGeometry.sidebar.photoSizeMm}mm`,
     "--gepflegt-photo-gap": `${gepflegtGeometry.sidebar.photoGapMm}mm`,
-    "--gepflegt-main-padding-top": `${Math.max(gepflegtGeometry.main.paddingTopMm, gepflegtGeometry.main.paddingTopMm + marginShift)}mm`,
+    "--gepflegt-main-padding-top": `${gepflegtGeometry.main.paddingTopMm}mm`,
     "--gepflegt-main-padding-right": `${design.spacing.pageMarginMm}mm`,
-    "--gepflegt-main-padding-bottom": `${Math.max(gepflegtGeometry.main.paddingBottomMm, gepflegtGeometry.main.paddingBottomMm + marginShift)}mm`,
-    "--gepflegt-main-padding-left": `${Math.max(gepflegtGeometry.main.paddingLeftMm, gepflegtGeometry.main.paddingLeftMm + marginShift)}mm`,
+    "--gepflegt-main-padding-bottom": `${gepflegtGeometry.main.paddingBottomMm}mm`,
+    "--gepflegt-main-padding-left": `${gepflegtGeometry.main.paddingLeftMm}mm`,
     "--gepflegt-footer-bottom": `${gepflegtGeometry.main.footerBottomMm}mm`,
     "--gepflegt-header-gap-base": `${gepflegtGeometry.main.headerGapMm}mm`,
     "--gepflegt-section-gap-base": `${design.spacing.sectionGapMm}mm`,
@@ -95,6 +97,7 @@ export const getGepflegtDesignVariables = (
     "--gepflegt-entry-title-size": `${design.typography.entryHeadingSizePt}pt`,
     "--gepflegt-body-size": `${design.typography.bodySizePt}pt`,
     "--gepflegt-small-size": `max(9pt, calc(${design.typography.bodySizePt}pt * .88))`,
+    "--gepflegt-contact-size": `${gepflegtDefaults.typography.contactSizePt}pt`,
     "--gepflegt-line-height": String(design.typography.lineHeight),
     "--gepflegt-name-weight": String(design.typography.headingWeight),
     "--gepflegt-title-weight": String(design.typography.subheadingWeight),
@@ -108,7 +111,6 @@ export const getGepflegtDesignVariables = (
   };
 };
 
-const nativeMargin = gepflegtDefaults.main.paddingRightMm;
 const both = (preview: string, pdf: string, declarations: string) =>
   `${[
     ...preview.split(",").map(selector => `.gepflegt-page:not(.gepflegt-page--ats) ${selector.trim()}`),
@@ -142,9 +144,10 @@ export const gepflegtResolvedCss = [
   both(".gepflegt-header", ".gepflegt-pdf-header", "margin-bottom:var(--gepflegt-header-gap)"),
   both(".gepflegt-header__name", ".gepflegt-pdf-header h1", "font-family:var(--gepflegt-heading-font);font-size:var(--gepflegt-name-size);font-weight:var(--gepflegt-name-weight);line-height:var(--gepflegt-line-height);color:var(--gepflegt-heading)"),
   both(".gepflegt-header__title", ".gepflegt-pdf-header h2", "font-family:var(--gepflegt-heading-font);font-size:var(--gepflegt-title-size);font-weight:var(--gepflegt-title-weight);line-height:var(--gepflegt-line-height);color:var(--gepflegt-subheading)"),
-  both(".gepflegt-header__contacts", ".gepflegt-pdf-contacts", "font-size:var(--gepflegt-small-size);line-height:var(--gepflegt-line-height);color:var(--gepflegt-text)"),
-  both(".gepflegt-header__contacts > a,.gepflegt-header__contacts > span", ".gepflegt-pdf-contact", "max-width:100%;min-width:0;overflow-wrap:anywhere"),
-  both(".gepflegt-header__contacts :is(a,span) span", ".gepflegt-pdf-contact span", "white-space:normal;overflow-wrap:anywhere"),
+  both(".gepflegt-header__contacts", ".gepflegt-pdf-contacts", "display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:3mm;row-gap:2.1mm;font-size:var(--gepflegt-contact-size);line-height:var(--gepflegt-line-height);color:var(--gepflegt-text)"),
+  both(".gepflegt-header__contacts > a,.gepflegt-header__contacts > span", ".gepflegt-pdf-contact", "max-width:100%;min-width:0;white-space:nowrap"),
+  both(".gepflegt-header__contacts > [data-contact-wide=\"true\"]", ".gepflegt-pdf-contact[data-contact-wide=\"true\"]", "grid-column:span 2"),
+  both(".gepflegt-header__contacts :is(a,span) span", ".gepflegt-pdf-contact span", "white-space:nowrap;overflow:hidden;text-overflow:ellipsis"),
   both(".gepflegt-header__contacts svg", ".gepflegt-pdf-contact svg", "color:var(--gepflegt-icon);stroke:var(--gepflegt-icon)"),
   both(".gepflegt-main", ".gepflegt-pdf-main", "gap:var(--gepflegt-section-gap)"),
   both(".gepflegt-section__title", ".gepflegt-pdf-title", "margin-bottom:var(--gepflegt-section-title-gap);font-family:var(--gepflegt-heading-font);font-size:var(--gepflegt-section-title-size);font-weight:var(--gepflegt-section-weight);line-height:var(--gepflegt-line-height);text-transform:var(--gepflegt-heading-case);color:var(--gepflegt-section-heading);border-color:var(--gepflegt-divider)"),

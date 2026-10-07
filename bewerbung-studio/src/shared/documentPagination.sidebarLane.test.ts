@@ -85,8 +85,8 @@ describe("sidebar lane", () => {
         if (first) expect(first.to - first.from, label).toBeGreaterThanOrEqual(1);
         expect(itemsOnPages(pages, "knowledge", 9).reduce((sum, value) => sum + value, 0), label).toBe(9);
       }
-      // Gepflegt's 10.3pt body makes all nine rows too tall to stay whole with the fixed identity blocks.
-      if (id !== "gepflegt") expect(outcomes.has("whole")).toBe(true);
+      // Fixed identity blocks leave less space for nine rows in Gepflegt and Elegant.
+      if (id !== "gepflegt" && id !== "elegant") expect(outcomes.has("whole")).toBe(true);
       else expect(outcomes.has("broken")).toBe(true);
       expect(outcomes.has("page two")).toBe(true);
     });
@@ -103,7 +103,7 @@ describe("sidebar lane", () => {
       for (const page of pages.slice(1)) expect(page.sidebar, `page ${page.pageNumber}`).toBe(Boolean(page.blocks?.some((block) =>
         block === "knowledge" || (id === "kreativ" && ["summary", "strengths", "languages"].includes(block)))));
       const idle = plan(id, { knowledge: 3, stations: 5, bullets: 5, education: 4 });
-      for (const page of idle.slice(1)) expect(page.sidebar, `page ${page.pageNumber}`).toBe(id === "gepflegt");
+      for (const page of idle.slice(1)) expect(page.sidebar, `page ${page.pageNumber}`).toBe(id === "gepflegt" || id === "elegant");
     });
 
     it("E. the main column and the sidebar flow independently: both continue on page two", () => {
@@ -132,7 +132,7 @@ describe("sidebar lane", () => {
     it("G. a Seitenspalte assignment holds on every page: a knowledge section in the main column never joins the lane", () => {
       const pages = plan(id, { knowledge: 30, zone: "main" });
       for (const page of pages.slice(1)) {
-        if (!page.sidebar || id === "gepflegt") continue;
+        if (!page.sidebar || id === "gepflegt" || id === "elegant") continue;
         // only sidebar blocks may keep a continuation sidebar alive; the main-column knowledge list does not
         expect(page.blocks?.includes("knowledge") ?? false).toBe(false);
       }
@@ -156,8 +156,8 @@ describe("sidebar lane", () => {
 
   describe.each(sidebarContinuationTemplates)("%s: the main column beside a continuation sidebar", (id) => {
     it("I. is measured narrow: the main-column list on page two takes more room beside the lane than on a full-width page", () => {
-      if (id === "gepflegt") {
-        // Its visual lane stays 80 mm wide on every continuation, even when that lane has no section.
+      if (id === "gepflegt" || id === "elegant") {
+        // Their identity sidebar stays visible on every continuation, even when it has no section.
         expect(plan(id, { knowledge: 3, stations: 5, bullets: 5, education: 4 }).slice(1).every(page => page.sidebar)).toBe(true);
         return;
       }

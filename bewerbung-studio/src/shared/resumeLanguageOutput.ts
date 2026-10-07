@@ -13,8 +13,10 @@ export function applyResumeLanguageOutput(
   zone: "main" | "sidebar",
   hasSidebar: boolean,
   atsMode: boolean,
+  range?: { from: number; to: number },
 ): void {
-  const entries = [...new Set(profile.languages.map((value) => value.trim()).filter(Boolean))];
+  const allEntries = [...new Set(profile.languages.map((value) => value.trim()).filter(Boolean))];
+  const entries = range ? allEntries.slice(range.from, range.to) : allEntries;
   if (!entries.length) return;
   const heading = section.querySelector("h2,h3");
   if (!heading) return;
@@ -65,7 +67,9 @@ export function applyResumeLanguageOutput(
       if (language.showDots) {
         const originalDots = source?.querySelector('[aria-label][class*="dot"],[class*="dots"],[aria-label][role="img"]');
         const dots = originalDots?.cloneNode(true) as Element | undefined ?? document.createElement("span");
-        if (!originalDots) dots.className = "resume-language-dots";
+        if (!originalDots) dots.className = templateId === "elegant"
+          ? section.closest(".cv-sheet") ? "elegant-pdf-language-dots" : "elegant-language__dots"
+          : "resume-language-dots";
         dots.setAttribute("data-resume-language-dots", "");
         dots.setAttribute("role", "img");
         dots.setAttribute("aria-label", `${language.name}: ${[language.cefrLevel, language.description].filter(Boolean).join(" · ")}`);

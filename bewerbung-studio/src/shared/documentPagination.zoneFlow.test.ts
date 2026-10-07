@@ -145,9 +145,9 @@ describe("zone flow of zweispaltig", () => {
   });
 });
 
-describe("zone flow of the templates that have not joined", () => {
-  it("does not plan the certificates as a movable block: they keep the historic home on the last page", () => {
+describe("Elegant sidebar continuation", () => {
+  it("plans saved sidebar certificates as a movable block", () => {
     const profile = place(makeProfile(7), "elegant", "certifications", "sidebar", 0);
-    expect(plan(profile, "elegant").flatMap((page) => page.blocks ?? [])).not.toContain("certifications");
+    expect(plan(profile, "elegant").flatMap((page) => page.blocks ?? [])).toContain("certifications");
   });
 });

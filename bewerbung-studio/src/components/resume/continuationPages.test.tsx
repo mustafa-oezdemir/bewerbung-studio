@@ -113,7 +113,11 @@ describe.each(Object.keys(components))("continuation page of %s", (templateId) =
     const first = surface === "pdf" ? pdfPages[0] : previewPages[0];
     const second = surface === "pdf" ? pdfPages[1] : previewPages[1];
     if (templateId === "elegant") {
-      expect(second.querySelector("aside .elegant-sidebar__continuation")?.textContent).toContain("Mina Kaya");
+      const sidebarCue = second.querySelector("aside .elegant-sidebar__continuation");
+      expect(sidebarCue?.textContent).toContain("Fortsetzung");
+      expect(sidebarCue?.textContent).not.toContain("Mina Kaya");
+      expect(sidebarCue?.textContent).not.toContain(headline);
+      expect(sidebarCue?.textContent).not.toContain("Lebenslauf");
       expect(second.querySelector("aside img")).toBeNull();
     } else if (templateId === "gepflegt") expect(second.querySelector("aside")).not.toBeNull();
     else expect(second.querySelector("aside")).toBeNull();

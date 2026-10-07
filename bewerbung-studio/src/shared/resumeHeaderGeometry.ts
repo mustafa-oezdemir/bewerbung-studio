@@ -4,12 +4,17 @@ import {
   formatResumeBirth,
   getResumeFullName,
   getResumeHeaderContactTexts,
+  getResumeLinkContacts,
   getResumePersonalDetails,
 } from "./resumePersonalData";
 import { formatPhoneForDisplay } from "./contactPresentation";
 import { getResumePhotoScale } from "./resumePhoto";
 import { kreativDefaults } from "./cvTemplateDefaults/kreativ.defaults";
 import { stilvollDefaults, stilvollDesign } from "./cvTemplateDefaults/stilvoll.defaults";
+import { gepflegtDefaults } from "./cvTemplateDefaults/gepflegt.defaults";
+import { isGepflegtWideContact } from "./gepflegtDesign";
+import { elegantDefaults } from "./cvTemplateDefaults/elegant.defaults";
+import { isElegantWideContact } from "./elegantDesign";
 
 /**
  * How far down a Lebenslauf header pushes the page content, from the data it shows.
@@ -44,12 +49,8 @@ const headerModels: Record<string, Partial<Record<"main" | "side" | "mainPhoto" 
     mainPhoto: { layout: "flow", a: 60, b: 2, titleChars: 36, nameChars: 26, base: 41.37, row: 3.29, line: 0.0, title: 2.09, hasTitle: 1.13, name: 13.51, margin: 8.5 },
   },
   "elegant": {
-    main: { layout: "flow", a: 80, b: 4, titleChars: 60, nameChars: 18, base: 28.71, row: 5.35, line: 0.0, title: 5.44, hasTitle: 6.15, name: 8.56, margin: 2.1 },
-    mainPhoto: { layout: "flow", a: 80, b: 4, titleChars: 60, nameChars: 18, base: 28.71, row: 5.35, line: 0.0, title: 5.44, hasTitle: 6.15, name: 8.56, margin: 2.1 },
-  },
-  "gepflegt": {
-    main: { layout: "flow", a: 80, b: 4, titleChars: 44, nameChars: 26, base: 31.61, row: 5.45, line: 0.0, title: 5.2, hasTitle: 6.39, name: 17.49, margin: 2.9 },
-    mainPhoto: { layout: "flow", a: 80, b: 4, titleChars: 44, nameChars: 26, base: 31.61, row: 5.45, line: 0.0, title: 5.2, hasTitle: 6.39, name: 17.49, margin: 2.9 },
+    main: { layout: "grid", a: 2, b: 33, titleChars: 60, nameChars: 18, base: 38, row: 4.5, line: 0, title: 5.7, hasTitle: 7.7, name: 10.5, margin: 1 },
+    mainPhoto: { layout: "grid", a: 2, b: 33, titleChars: 60, nameChars: 18, base: 38, row: 4.5, line: 0, title: 5.7, hasTitle: 7.7, name: 10.5, margin: 1 },
   },
   "ivy-league": {
     main: { layout: "flow", a: 120, b: 2, titleChars: 95, nameChars: 26, base: 28.31, row: 4.11, line: 0.0, title: 3.44, hasTitle: 4.23, name: 4.57, margin: 3.6 },
@@ -211,6 +212,88 @@ export const estimateTabellarischTop = (
   const identity = 1 + nameLines * tabellarischText.nameLine + (title ? 2.3 + titleLines * tabellarischText.titleLine : 0) + contacts;
   const headerHeight = Math.max(identity, 30, withPhoto ? 30 * photoScale : 0);
   return { top: 15 + headerHeight + 6.3, margin: 1 };
+};
+
+/** Gepflegt's visual header uses the same two-column contact placement on both renderers. */
+export const estimateGepflegtHeaderTop = (
+  profile: ApplicantProfile,
+  showContacts: boolean,
+  lineHeight: number,
+  pageMarginMm: number,
+  headingSizePt = gepflegtDefaults.typography.nameSizePt,
+  titleSizePt = gepflegtDefaults.typography.jobTitleSizePt,
+): number => {
+  const width = gepflegtDefaults.page.widthMm - gepflegtDefaults.layout.sidebarWidthMm
+    - gepflegtDefaults.main.paddingLeftMm - pageMarginMm;
+  const name = getResumeFullName(profile);
+  const nameLines = Math.max(1, Math.ceil(name.length * headingSizePt * 25.4 / 72 * .54 / width));
+  const title = profile.title.trim();
+  const titleLines = title ? Math.max(1, Math.ceil(title.length * titleSizePt * 25.4 / 72 * .49 / width)) : 0;
+  const contacts = showContacts ? [
+    { kind: "phone", text: formatPhoneForDisplay(profile.phone) },
+    { kind: "email", text: profile.email },
+    ...getResumeLinkContacts(profile).map((link) => ({ kind: link.kind, text: link.value })),
+    { kind: "location", text: formatResumeAddress(profile) },
+    { kind: "birth", text: formatResumeBirth(profile) },
+    ...getResumePersonalDetails(profile).map((detail) => ({ kind: detail.kind, text: detail.text })),
+  ].filter((contact) => contact.text.trim()) : [];
+  let rows = 0;
+  let occupied = false;
+  for (const contact of contacts) {
+    const wide = isGepflegtWideContact(contact.text, contact.kind);
+    if (wide) {
+      if (occupied) { rows += 1; occupied = false; }
+      rows += 1;
+    } else if (occupied) {
+      rows += 1;
+      occupied = false;
+    } else occupied = true;
+  }
+  if (occupied) rows += 1;
+  const ptToMm = 25.4 / 72;
+  return gepflegtDefaults.main.paddingTopMm
+    + nameLines * headingSizePt * ptToMm * lineHeight
+    + (titleLines ? 2.4 + titleLines * titleSizePt * ptToMm * lineHeight : 0)
+    + (rows ? 4 + rows * gepflegtDefaults.typography.contactSizePt * ptToMm * lineHeight + (rows - 1) * 2.1 : 0)
+    + gepflegtDefaults.main.headerGapMm;
+};
+
+/** Elegant's main header is a two-column grid; its first section follows the rendered rows. */
+export const estimateElegantHeaderTop = (
+  profile: ApplicantProfile,
+  showContacts: boolean,
+  insetMm: number,
+  sectionGapMm: number,
+  pageMarginMm: number,
+  columnGapMm: number,
+  lineHeight: number,
+  nameSizePt: number = elegantDefaults.typography.nameSizePt,
+  titleSizePt: number = elegantDefaults.typography.professionSizePt,
+  bodySizePt: number = elegantDefaults.typography.bodySizePt,
+): number => {
+  const ptMm = 25.4 / 72;
+  const width = Math.max(20, elegantDefaults.layout.mainWidthMm
+    - pageMarginMm - elegantDefaults.layout.mainRightMm - columnGapMm / 2 - 2 * insetMm);
+  const nameLines = Math.max(1, Math.ceil(getResumeFullName(profile).length * nameSizePt * ptMm * .54 / width));
+  const title = profile.title.trim();
+  const titleLines = title ? Math.max(1, Math.ceil(title.length * titleSizePt * ptMm * .52 / width)) : 0;
+  const contacts = showContacts ? getResumeHeaderContactTexts(profile) : [];
+  const contactSizePt = Math.max(9, bodySizePt * .9);
+  let rows = 0;
+  let occupied = false;
+  for (const contact of contacts) {
+    if (isElegantWideContact(contact)) {
+      if (occupied) { rows += 1; occupied = false; }
+      rows += Math.max(1, Math.ceil(contact.length * contactSizePt * ptMm * .5 / width));
+    } else if (occupied) { rows += 1; occupied = false; }
+    else occupied = true;
+  }
+  if (occupied) rows += 1;
+  return elegantDefaults.layout.mainTopMm + insetMm
+    + nameLines * nameSizePt * ptMm * lineHeight
+    + (titleLines ? 2 + titleLines * titleSizePt * ptMm * lineHeight : 0)
+    + (rows ? 3.3 + rows * contactSizePt * ptMm * lineHeight + (rows - 1) * 1.2 : 0)
+    + sectionGapMm;
 };
 
 const contactBlock = (lengths: readonly number[], model: HeaderModel) => {
