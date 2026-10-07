@@ -200,6 +200,27 @@ describe("Modern: sections follow their column", () => {
 });
 
 describe("Modern: what the preview and the PDF draw alike", () => {
+  it("uses the chosen line height for strengths, certificates and a custom interests section", () => {
+    const specialId = "88000000-0000-4000-8000-000000000099";
+    const profile = makeProfile(1, { specialSections: [{
+      id: specialId, kind: "custom", title: "Fiktive Interessen", isVisible: true, contentType: "list",
+      entries: ["Modellbau", "Zeichnen"].map((title) => ({ id: crypto.randomUUID(), title, description: "", bullets: [] })),
+    }] });
+    const sidebarLoads: number[] = [];
+    for (const lineHeight of [1.05, 1.45]) {
+      const rendered = render(profile, { cvOverrides: { typography: { lineHeight } } });
+      sidebarLoads.push(rendered.resolved.pagePlan[0].fill!.sidebar);
+      for (const surface of surfaces) {
+        const page = rendered.surfaces[surface][0];
+        const root = page.querySelector(".modern-resume-page,.modern-pdf");
+        expect(root?.getAttribute("style"), surface).toContain(`--doc-line-height:${lineHeight}`);
+        expect(sectionOn(page, "strengths")?.querySelector(".managed-strength-card strong"), surface).not.toBeNull();
+        expect(sectionOn(page, "certifications")?.querySelector("li"), surface).not.toBeNull();
+        expect(sectionOn(page, `special:${specialId}`)?.querySelector('[data-custom-role="entry"]'), surface).not.toBeNull();
+      }
+    }
+    expect(sidebarLoads[1]).toBeGreaterThan(sidebarLoads[0]);
+  });
   it("J. the contact line stands in the header of the first page only; later pages keep the name and the title", () => {
     const rendered = render(move(makeProfile(6), "certifications", "main", 99));
     expect(rendered.resolved.pagePlan).toHaveLength(2);

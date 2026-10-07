@@ -113,6 +113,44 @@ const expectEveryBulletOnce = (plan: ResumePagePlan[], experiences: { id: string
 };
 
 describe("A4 document pagination", () => {
+  it("uses Modern's free first-page space for the final education entry", () => {
+    const input = makeSidebarLaneInput("modern", {
+      stations: 3, bullets: 1, education: 3, knowledge: 3,
+      certifications: 4, specials: 1, specialEntries: 2, specialsZone: "sidebar",
+    });
+    input.summary = "Ingenieurin mit Erfahrung in Prozessanalyse, Produktionssteuerung und der strukturierten Bearbeitung technischer Aufgabenstellungen. Praxis in der Auswertung von Daten und der Optimierung von Prozessen im Monitoring-Umfeld.";
+    const degrees = ["Fachinformatikerin für Anwendungsentwicklung", "Hochschulabschluss in Industrieingenieurwesen", "Pilotenausbildung"];
+    const institutions = ["Muster Akademie GmbH", "Beispiel Universität", "Militärisches Ausbildungszentrum"];
+    const descriptions = [
+      "Ausbildung zur Fachinformatikerin für Anwendungsentwicklung. Erfolgreich bestandene Abschlussprüfung bei der Kammer. Schwerpunkt auf Softwareentwicklung und der praktischen Umsetzung technischer Anwendungen.",
+      "Vierjähriges Hochschulstudium im Bereich Industrieingenieurwesen. Der ausländische Hochschulabschluss wurde als einem deutschen Hochschulabschluss auf Bachelor-Ebene entsprechend bewertet.",
+      "Fachrichtung: Pilotenausbildung / Transportfliegerei. Schwerpunkt auf sicherheitskritischen Prozessen, Einsatzplanung und verantwortungsbewusster Entscheidungsfindung.",
+    ];
+    input.education.forEach((entry, index) => {
+      entry.degree = degrees[index];
+      entry.institution = institutions[index];
+      entry.description = descriptions[index];
+    });
+    const pages = resolve(profileSchema.parse(input), "modern").pagePlan;
+    const educationIds = input.education.map((entry) => entry.id);
+    expect(educationIds.every((id) => pages[0].items.some((item) => item.id === id))).toBe(true);
+    expect(pages[0].blocks).toContain("certifications");
+    expect(pages[0].blocks).toContain(`special:${input.specialSections[0].id}`);
+  });
+  it("lets a two-entry Modern interests section continue at its next entry", () => {
+    const id = crypto.randomUUID();
+    const profile = makeProfile(4, 2, 2, {
+      specialSections: [{ id, kind: "custom", title: "Fiktive Interessen", isVisible: true,
+        contentType: "list", entries: [
+          { id: crypto.randomUUID(), title: "Modellbau", description: "", bullets: [] },
+          { id: crypto.randomUUID(), title: "Zeichnen", description: bullet(0).repeat(3), bullets: [] },
+        ] }],
+    });
+    const pages = resolve(profile, "modern").pagePlan;
+    expect(pages).toHaveLength(2);
+    expect(pages[0].blockRanges?.[`special:${id}`]).toEqual({ from: 0, to: 1, total: 2 });
+    expect(pages[1].blockRanges?.[`special:${id}`]).toEqual({ from: 1, to: 2, total: 2 });
+  });
   it("fills Elegant's first main column with a short custom section in manager order", () => {
     const input = makeSidebarLaneInput("elegant", {
       stations: 1, bullets: 1, education: 3, specials: 2, specialEntries: 2, specialsZone: "main",

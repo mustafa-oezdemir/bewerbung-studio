@@ -590,6 +590,8 @@ type FlowBlock = {
     height: (from: number, to: number) => number;
     firstHeight?: (items: number) => number;
     narrowHeight?: (from: number, to: number) => number;
+    /** A custom section may break after one entry; grid lists keep two rows on each side. */
+    minRows?: number;
   };
   /**
    * The same for a block that stands in the sidebar: rows are the safe break points (a grid row, a list entry, a
@@ -829,7 +831,8 @@ export const createResumePagePlan = (
     });
     // The entries of a sidebar section may be styled like the template's own entries (margins, a divider's padding).
     const side = zone === "sidebar" && listed ? geometry.specialSide : undefined;
-    const between = side?.between ?? geometry.exp.gap + (zone === "sidebar" && listed ? metrics.gapMm : 3);
+    const between = side?.between ?? (templateId === "modern" && listed
+      ? metrics.gapMm : geometry.exp.gap + (zone === "sidebar" && listed ? metrics.gapMm : 3));
     return (metrics.headingMm + (side?.edge ?? 0) + entries.reduce((total, value) => total + value, 0) + between * Math.max(0, entries.length - 1)) * scale.textHeight;
   };
   /**
@@ -1112,6 +1115,14 @@ export const createResumePagePlan = (
       home: "last",
       rank: managerRank(`special:${special.id}`),
       hostable: inSidebar,
+      split: templateId === "modern" && zone === "main" && normalized.entries.length > 1
+        ? {
+          ends: normalized.entries.map((_, index) => index + 1),
+          height: (from, to) => specialHeight("main", special, true, [from, to]),
+          firstHeight: (to) => specialHeight("main", special, false, [0, to]),
+          minRows: 1,
+        }
+        : undefined,
       // The entries of a special section are its safe break points in the sidebar.
       sideSplit: inSidebar
         ? { ends: normalized.entries.map((_, index) => index + 1), height: (from, to) => templateId === "elegant"
@@ -1366,8 +1377,12 @@ export const createResumePagePlan = (
     return pages.map((entry) => entry.plan);
   }
 
+  // Modern's generic sidebar block measurements include extra line reserve that its compact renderer does not draw.
+  // Retain enough headroom for long sidebar text at the page boundary.
+  const sidebarHeight = (block: FlowBlock) => templateId === "modern" ? block.height * 0.96 : block.height;
   const blockLoad =(blocksOfZone: FlowBlock[], zone: PaginationZone) => {
-    const heights = blocksOfZone.filter((block) => block.zone === zone).map((block) => block.height);
+    const heights = blocksOfZone.filter((block) => block.zone === zone)
+      .map((block) => zone === "sidebar" ? sidebarHeight(block) : block.height);
     return sumHeights(heights, zone === "sidebar" ? sideGap : sectionGap);
   };
   const firstBlocks = flow.filter((block) => block.home === "first" && !block.singleOnly);
@@ -1472,7 +1487,7 @@ export const createResumePagePlan = (
   } else if (sideCap1) {
     let sideLoad = blockLoad(firstBlocks, "sidebar");
     for (const block of hostable) {
-      const next = sideLoad + (sideLoad > 0 ? sideGap : 0) + block.height;
+      const next = sideLoad + (sideLoad > 0 ? sideGap : 0) + sidebarHeight(block);
       if (next <= sideCap1 * (zoneFlow ? ZONE_FLOW_HOST_SHARE : SIDEBAR_HOST_SHARE)) {
         hostedOnFirst.add(block.id);
         sideLoad = next;
@@ -1600,9 +1615,10 @@ export const createResumePagePlan = (
     if (item) for (const kept of breakPoints(item)) cuts.push({ count, kept, tail: 0, rows: 0 });
   }
   for (let whole = 1; whole <= tail.length; whole += 1) {
-    // A list block may end page one at any of its rows, keeping two rows on either side.
+    // A list block may end page one at a safe row boundary; a custom section needs its heading and one entry.
     const split = tail[whole - 1].split;
-    if (split) for (let rows = 2; rows <= split.ends.length - 2; rows += 1) cuts.push({ count: items.length, kept: 0, tail: whole - 1, rows });
+    if (split) for (let rows = split.minRows ?? 2; rows <= split.ends.length - (split.minRows ?? 2); rows += 1)
+      cuts.push({ count: items.length, kept: 0, tail: whole - 1, rows });
     cuts.push({ count: items.length, kept: 0, tail: whole, rows: 0 });
   }
   // The signature never travels alone: the last page needs something besides the closing block (the sidebar
@@ -1631,7 +1647,7 @@ export const createResumePagePlan = (
     lastItems.push(...items.slice(cut.count + (split ? 1 : 0)).map((item) => strip(item, pageMode(1))));
     // A list block that breaks between the pages is drawn on both, each with its own items.
     const broken = cut.rows ? tail[cut.tail] : undefined;
-    const total = broken?.split ? knowledgeItemCount : 0;
+    const total = broken?.split?.ends.at(-1) ?? 0;
     const shown = broken?.split ? broken.split.ends[cut.rows - 1] : 0;
     const ranges = broken?.split
       ? { first: { [broken.id]: { from: 0, to: shown, total } }, last: { [broken.id]: { from: shown, to: total, total } } }
@@ -1755,7 +1771,8 @@ export const createResumePagePlan = (
         if (next.source.split) {
           let best = next.from;
           for (let end = next.from + 1; end < next.to; end += 1) {
-            if (end - next.from < 2 || next.to - end < 2) continue;
+            const minRows = next.source.split.minRows ?? 2;
+            if (end - next.from < minRows || next.to - end < minRows) continue;
             if (used + gap + splitHeightOn(next.source.split, next.from, end, pageIndex) <= continuationCap) best = end;
           }
           if (best > next.from) {
@@ -1847,10 +1864,11 @@ export const createResumePagePlan = (
   // additional pages instead of compressing page two beyond its A4 capacity.
   if (density === "dense" && loadLast(candidates[greedy("standard")]) > mainCap2)
     return withSidebarLane(continueAfterSecond(assemble(candidates[greedy("standard")], "standard", "standard")));
-  // A last page that is only a stub takes back trailing content from page one.
+  // A last page that is only a stub takes back trailing content from page one. Modern keeps the
+  // latest safe break instead: moving an entire special section leaves usable space above the break.
   const factor = densityFactor[density];
   // (A last page that carries the sidebar lane is no stub, whatever the main column puts there.)
-  while (templateId !== "kreativ" && !laneSpill && index > 0 && loadLast(candidates[index]) / mainCap2 < MIN_LAST_FILL) {
+  while (templateId !== "kreativ" && templateId !== "modern" && !laneSpill && index > 0 && loadLast(candidates[index]) / mainCap2 < MIN_LAST_FILL) {
     const earlier = candidates[index - 1];
     if (loadFirst(earlier) / mainCap1 < MIN_FIRST_FILL || loadLast(earlier) * factor > mainCap2) break;
     index -= 1;

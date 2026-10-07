@@ -2,7 +2,7 @@
 // tmp/pagination-flow-qa, plus the page plan of each document. Scenarios: `dense` (a fixed résumé like a real, full one:
 // six strengths, three languages, ten knowledge items, three stations, four education entries) and RANDOM=<n> seeded
 // random ones (SEED=<n>). Every text carries a unique token, so the checker can see lost and doubled content.
-//   node scripts/pagination-flow-qa.mjs [templateId…]   (env: KNOWLEDGE, STRENGTHS, STATIONS, LANGUAGES, SPECIALS, SPECIAL_ENTRIES, SPECIAL_ZONE, LANG_DISPLAY=dots,level,description, SURFACES=1, PAGE_MARGIN, COLUMN_GAP, RANDOM, SEED)
+//   node scripts/pagination-flow-qa.mjs [templateId…]   (env: KNOWLEDGE, STRENGTHS, STATIONS, LANGUAGES, SPECIALS, SPECIAL_ENTRIES, SPECIAL_ZONE, SPECIAL_LAST_DESCRIPTION, LINE_HEIGHT, LANG_DISPLAY=dots,level,description, SURFACES=1, PAGE_MARGIN, COLUMN_GAP, RANDOM, SEED)
 // Check the result with check-pagination-flow-qa.cjs (real Chromium).
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -83,10 +83,13 @@ try {
     const languageNames = ['Deutsch', 'Englisch', 'Türkisch', 'Französisch', 'Spanisch', 'Italienisch'];
     const languages = languageNames.slice(0, counts.languages).map((name, index) => { tokens.languages.push(name); return `${name} – ${['C1', 'B2', 'C2', 'A2', 'B1', 'C1'][index]}`; });
     const certifications = Array.from({ length: counts.certifications }, (_, index) => { tokens.certifications.push(`X${index}`); return process.env.SHORT_CERTS ? `Fiktives Zertifikat ${index + 1} X${index}` : text(int(20, 90), `X${index}`); });
-    const specialSections = Array.from({ length: counts.specials }, (_, index) => ({
-      id: uid(400 + index), kind: 'custom', title: ['Interessen', 'Projekte'][index], isVisible: true, contentType: 'list',
-      entries: Array.from({ length: Number(process.env.SPECIAL_ENTRIES ?? int(2, 6)) }, (_, entry) => { tokens.specials.push(`P${index}${entry}`); return { id: uid(420 + index * 10 + entry), title: text(int(12, 60), `P${index}${entry}`), description: '', bullets: [] }; }),
-    }));
+    const specialSections = Array.from({ length: counts.specials }, (_, index) => {
+      const entryCount = Number(process.env.SPECIAL_ENTRIES ?? int(2, 6));
+      return {
+        id: uid(400 + index), kind: 'custom', title: ['Interessen', 'Projekte'][index], isVisible: true, contentType: 'list',
+        entries: Array.from({ length: entryCount }, (_, entry) => { tokens.specials.push(`P${index}${entry}`); return { id: uid(420 + index * 10 + entry), title: text(int(12, 60), `P${index}${entry}`), description: process.env.SPECIAL_LAST_DESCRIPTION && entry === entryCount - 1 ? text(Number(process.env.SPECIAL_LAST_DESCRIPTION), 'detail') : '', bullets: [] }; }),
+      };
+    });
     const experiences = Array.from({ length: counts.stations }, (_, index) => ({
       id: uid(200 + index), from: `0${(index % 9) + 1}/20${15 + index * 2}`, to: `0${(index % 8) + 2}/20${17 + index * 2}`, role: ['Praktikum Softwareentwicklung', 'Prozessplanerin', 'Transportpilotin', 'Produktionskoordination', 'Qualitätssicherung'][index % 5],
       company: ['Universitätsstadt Muster', 'Beispiel Tekstil AG', 'Muster Luftfahrtbereich', 'Beispiel Werke', 'Muster Qualität'][index % 5], city: 'Musterstadt',
@@ -147,7 +150,8 @@ try {
         ...(process.env.PAGE_MARGIN !== undefined ? { pageMarginMm: Number(process.env.PAGE_MARGIN) } : {}),
         ...(process.env.COLUMN_GAP !== undefined ? { columnGapMm: Number(process.env.COLUMN_GAP) } : {}),
       };
-      const settings = { ...getTemplateDocumentDesignDefaults(id), resumeOutputMode: 'visual', ...(Object.keys(qaSpacing).length ? { cvOverrides: { spacing: qaSpacing } } : {}), ...(process.env.SURFACES ? { resumeAppearance: { sidebarBackgroundColor: '#cfe8d5', mainBackgroundColor: '#f1f6f2' } } : {}) };
+      const qaTypography = process.env.LINE_HEIGHT !== undefined ? { lineHeight: Number(process.env.LINE_HEIGHT) } : {};
+      const settings = { ...getTemplateDocumentDesignDefaults(id), resumeOutputMode: 'visual', ...(Object.keys(qaSpacing).length || Object.keys(qaTypography).length ? { cvOverrides: { spacing: qaSpacing, typography: qaTypography } } : {}), ...(process.env.SURFACES ? { resumeAppearance: { sidebarBackgroundColor: '#cfe8d5', mainBackgroundColor: '#f1f6f2' } } : {}) };
 
       const application = applicationSchema.parse({
         schemaVersion: 1, id: crypto.randomUUID(), folderName: 'QA', company: { name: 'QA', city: 'Berlin' }, contact: {}, job: { title: 'Entwicklung' },

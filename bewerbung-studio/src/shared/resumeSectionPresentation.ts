@@ -537,7 +537,7 @@ const modernHeading: SectionHeadingTokens = {
 const modernList: SectionListTokens = {
   fontSizePt: { standard: 9.2, compact: 9.2 }, lineHeight: { standard: 1.25, compact: 1.25 },
   itemGap: { standard: 4, compact: 4 }, indent: 0, inheritBody: true, layout: "grid", listStyle: "none",
-  fontExpr: "var(--body-size,var(--doc-body-size,9.2pt))", lineHeightExpr: "1.25",
+  fontExpr: "var(--body-size,var(--doc-body-size,9.2pt))", lineHeightExpr: "var(--doc-line-height,1.25)",
 };
 const modern: TemplateTokens = {
   main: { icons: false, heading: modernHeading, list: modernList },
@@ -583,7 +583,9 @@ ${host} [data-cv-zone="sidebar"] .resume-special-output__entry ul{margin-inline-
     plainLists: ["certifications"],
     sidebarHero: false,
     sidebarInheritsText: false,
-    zoneCss: (host) => `${host} [data-cv-zone]{display:block;gap:0}`,
+    zoneCss: (host) => `${host} [data-cv-zone]{display:block;gap:0}
+${host} [data-managed-section="strengths"] .managed-strength-card :is(strong,p),
+${host} [data-managed-section^="special:"] [data-custom-role="entry"]{line-height:var(--doc-line-height,1.25)}`,
   },
   stilvoll: {
     tokens: stilvoll,

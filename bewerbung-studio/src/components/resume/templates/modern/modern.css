@@ -52,13 +52,12 @@
   --modern-company-size: 9.2pt;
   --modern-body-size: 8.4pt;
   --modern-small-size: 7.9pt;
-  --modern-line-height: 1.27;
+  --modern-line-height: var(--doc-line-height, 1.27);
 }
 
 .modern-resume-page[data-density="compact"] {
   --modern-body-size: 8.1pt;
   --modern-small-size: 7.6pt;
-  --modern-line-height: 1.23;
 }
 
 .modern-resume-page[data-density="compact"] .modern-resume-left-column,
@@ -74,7 +73,6 @@
 .modern-resume-page[data-density="dense"] {
   --modern-body-size: 7.7pt;
   --modern-small-size: 7.3pt;
-  --modern-line-height: 1.2;
 }
 
 .modern-resume-page[data-density="dense"] .modern-resume-left-column,
@@ -489,7 +487,7 @@
   color: var(--modern-heading);
   font-size: 9.5pt;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: var(--modern-line-height);
 }
 
 .modern-strengths-item__description {

@@ -25,6 +25,8 @@ const probe = (sheetSelector, tokens) => {
     };
     const inSidebar = (node) => Boolean(node.closest('aside,[data-cv-zone="sidebar"],.modern-resume-right-column,.modern-pdf-right,.kompakt-right'));
     const sections = [...sheet.querySelectorAll('[data-managed-section]')].map((node) => ({ id: node.getAttribute('data-managed-section'), zone: node.getAttribute('data-cv-zone') || (inSidebar(node) ? 'sidebar' : 'main'), ...rel(node) }));
+    const careerEntries = [...sheet.querySelectorAll('.modern-pdf-entry,.modern-experience-entry,.modern-education-entry')]
+      .map((node) => ({ text: (node.textContent || '').trim().slice(0, 45), ...rel(node) }));
     const leaves = [...sheet.querySelectorAll('li,p,h3,h4,h5,span,strong,small,div')]
       .filter((node) => node.children.length === 0 && (node.textContent || '').trim() && node.getBoundingClientRect().width > 0 && !node.closest('footer,[class*="footer"],header,style'));
     const bottomOf = (filter) => Math.max(0, ...leaves.filter(filter).map((node) => rel(node).bottom));
@@ -43,6 +45,14 @@ const probe = (sheetSelector, tokens) => {
       }
     }
     const footer = sheet.querySelector('footer,[class*="footer"]');
+    const lineHeights = Object.fromEntries(Object.entries({
+      strengths: '[data-managed-section="strengths"] .managed-strength-card strong',
+      certifications: '[data-managed-section="certifications"] [data-cv-list] li',
+      specials: '[data-managed-section^="special:"] [data-custom-role="entry"]',
+    }).flatMap(([key, selector]) => {
+      const node = sheet.querySelector(selector);
+      return node ? [[key, getComputedStyle(node).lineHeight]] : [];
+    }));
     return {
       page: index + 1,
       height: mm(box.height),
@@ -51,8 +61,10 @@ const probe = (sheetSelector, tokens) => {
       mainBottom: bottomOf((node) => !inSidebar(node)),
       footerTop: footer ? rel(footer).top : null,
       sections,
+      careerEntries,
       surfaces,
       found,
+      lineHeights,
       overflow: leaves.filter((node) => rel(node).bottom > mm(box.height) + 0.5 || rel(node).right > 210.5).length,
     };
   });
