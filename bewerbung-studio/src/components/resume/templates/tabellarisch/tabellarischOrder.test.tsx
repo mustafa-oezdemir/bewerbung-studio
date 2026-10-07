@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getManagerSections, moveManagerSection } from "../../../../features/resume-sections/resume-manager";
+import { getManagerSections, reorderManagerSection } from "../../../../features/resume-sections/resume-manager";
 import { profileSchema } from "../../../../shared/schema";
 import { renderCv } from "../../__parityHarness";
 
@@ -78,11 +78,12 @@ describe("Tabellarisch manager section order", () => {
   it("updates the preview order after a manager move while keeping saved zones", () => {
     const source = order(["summary", "experience", "education", "strengths"]);
     const before = visible(sections(renderCv("tabellarisch", source).previewPages));
-    const moved = moveManagerSection(source, "tabellarisch", "strengths", "main", 2);
+    const moved = reorderManagerSection(source, "tabellarisch", "strengths", 2);
     const result = renderCv("tabellarisch", moved);
     expect(visible(sections(result.previewPages)).slice(0, 4)).toEqual(["summary", "experience", "strengths", "education"]);
     expect(visible(sections(result.previewPages))).not.toEqual(before);
     expect(visible(sections(result.pdfPages))).toEqual(visible(sections(result.previewPages)));
+    expect(moved.resumeManagerLayouts.tabellarisch.find((entry) => entry.id === "strengths")?.zone).toBe("sidebar");
   });
 
   it("does not group a sidebar-zoned section ahead of the single-column manager order", () => {

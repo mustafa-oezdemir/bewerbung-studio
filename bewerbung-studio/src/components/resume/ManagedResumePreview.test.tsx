@@ -9,7 +9,7 @@ import { buildDocumentHtml } from "../../../electron/documents";
 import { createResumePagePlan } from "../../shared/documentPagination";
 import { resolveCvDocument } from "../../shared/resolveCvDocument";
 import { formatApplicationDate } from "../../shared/applicationDate";
-import { moveManagerSection, updateManagerSection } from "../../features/resume-sections/resume-manager";
+import { moveManagerSection, reorderManagerSection, updateManagerSection } from "../../features/resume-sections/resume-manager";
 import { resolveResumePresentation } from "../../shared/resumePresentation";
 import { ManagedResumePreview } from "./ManagedResumePreview";
 import { ElegantResume } from "./templates/elegant";
@@ -217,13 +217,14 @@ describe("managed template previews", () => {
       expect(document.querySelector('[data-managed-section="education"]'), templateId).toBeNull();
     }
   });
-  it("stacks main sections before sidebar sections in a customized single-column CV", () => {
+  it("uses the saved global order across zones in a customized single-column CV", () => {
     const now = new Date().toISOString();
     let profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: now,
       summary: "Profiltext", experiences: [{ id: crypto.randomUUID(), from: "2020", to: "2024", role: "Entwicklerin", company: "Arbeitgeber", achievements: [] }],
     });
     profile = moveManagerSection(profile, "einspaltig", "experience", "main", 0);
     profile = moveManagerSection(profile, "einspaltig", "summary", "sidebar", 0);
+    profile = reorderManagerSection(profile, "einspaltig", "experience", 0);
     const plan = createResumePagePlan(profile, "", {}, "einspaltig")[0];
     const child = createElement(EinspaltigResume, { profile, name: "Mina Kaya", atsMode: false, plan, totalPages: 1,
       accentColor: "#123456", secondaryColor: "#234567", photoSource: null, resumeProfile: "", sections: profile.resumeSections, backgroundId: "white" });

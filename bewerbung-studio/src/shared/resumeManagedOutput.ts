@@ -397,12 +397,14 @@ export const applyManagedResumeOutput = (
     );
     // Zone-flow templates draw every section in the column the user gave it, on the page the plan names.
     const zoneFlow = isZoneFlowTemplate(resolved.templateId) && !isAts;
+    const orderedSingle = resolved.layout.mode === "single" && Boolean(profile.resumeManagerLayouts?.[templateId]?.length);
     const surface = root.matches(".cv-sheet") ? "pdf" : "preview";
     const headingTag = surface === "pdf" ? "h3" : "h2";
     const hosts = (id: string) => {
       const movable = id === "knowledge" || id.startsWith("group:") || id.startsWith("special:") || (zoneFlow && id === "certifications")
         || (resolved.templateId === "elegant" && (id === "languages" || id === "certifications"))
         || resolved.templateId === "tabellarisch"
+        || orderedSingle
         || (resolved.templateId === "kreativ" && ["summary", "strengths", "languages"].includes(id));
       if (!movable || !planned.some((page) => page.blocks?.includes(id))) return last;
       return Boolean(planned[number - 1]?.blocks?.includes(id));
@@ -516,7 +518,7 @@ export const applyManagedResumeOutput = (
       }).join("");
     };
     const container = (entry: ManagerSection) =>
-      entry.zone === "sidebar" ? sidebar : main;
+      resolved.layout.mode === "single" ? main : entry.zone === "sidebar" ? sidebar : main;
     const rankOf = (id: string | null | undefined) => (id ? entries.findIndex((item) => item.id === id) : -1);
     const appendSection = (entry: ManagerSection, node: Element) => {
       const destination = container(entry);
@@ -542,6 +544,11 @@ export const applyManagedResumeOutput = (
       const blockRange = planned[number - 1]?.blockRanges?.[entry.id];
       const shownItems = blockRange && entry.id !== "knowledge" ? items.slice(blockRange.from, blockRange.to) : items;
       if (!entry.visible) {
+        existing.forEach((node) => node.remove());
+        nodes.delete(entry.id);
+        continue;
+      }
+      if (orderedSingle && ["summary", "strengths", "languages"].includes(entry.id) && !hosts(entry.id)) {
         existing.forEach((node) => node.remove());
         nodes.delete(entry.id);
         continue;
@@ -574,7 +581,8 @@ export const applyManagedResumeOutput = (
           .map((value) => (entry.id === "languages" ? resolveLanguagePresentation(value, profile.resumeLanguageDisplay, { ats: isAts }).primaryText : value));
         // The part of a certificate list that stands on this page when the list breaks between two pages.
         const listed = blockRange ? allListed.slice(blockRange.from, blockRange.to) : allListed;
-        const drawn = entry.id === "languages" && resolved.templateId !== "elegant" ? existing.length > 0 && number === 1 : hosts(entry.id);
+        const drawn = entry.id === "languages" && resolved.templateId !== "elegant" && !orderedSingle
+          ? existing.length > 0 && number === 1 : hosts(entry.id);
         const certificateRange = entry.id === "certifications" ? blockRange : undefined;
         // The PDF markup of the certificates leaves its section open, so the closing is written inside it.
         for (const node of existing)
@@ -597,7 +605,7 @@ export const applyManagedResumeOutput = (
       // on their planned pages and are never copied across page boundaries.
       let content = "";
       if (entry.id === "strengths") {
-        if (resolved.templateId === "kreativ" || resolved.templateId === "tabellarisch" ? !hosts(entry.id) : number !== 1) {
+        if (orderedSingle || resolved.templateId === "kreativ" || resolved.templateId === "tabellarisch" ? !hosts(entry.id) : number !== 1) {
           existing.forEach((node) => node.remove());
           nodes.delete(entry.id);
           continue;
@@ -654,7 +662,14 @@ export const applyManagedResumeOutput = (
         }
         continue;
       }
-      if (entry.id === "knowledge" && !items.length) {
+      if (entry.id === "summary" && orderedSingle && hosts(entry.id)) {
+        content = resolved.summary ? `<p>${escape(resolved.summary)}</p>` : "";
+      } else if (entry.id === "languages" && orderedSingle && hosts(entry.id) && !existing.length) {
+        // Some native single-column templates only draw their language node on page one.
+        // A later planned position still needs a real section in both outputs.
+        content = profile.languages.length ? `<ul data-cv-list>${profile.languages.map((value) =>
+          `<li>${escape(resolveLanguagePresentation(value, profile.resumeLanguageDisplay, { dots: true, ats: isAts }).primaryText)}</li>`).join("")}</ul>` : "";
+      } else if (entry.id === "knowledge" && !items.length) {
         if (!hosts(entry.id)) {
           existing.forEach((node) => node.remove());
           nodes.delete(entry.id);
@@ -809,7 +824,7 @@ export const applyManagedResumeOutput = (
       }
     }
     // An anchor preserves the template's header/contact/photo and footer order.
-    const placementOrder = resolved.templateId !== "tabellarisch" && main === sidebar && profile.resumeManagerLayouts?.[templateId]?.length
+    const placementOrder = resolved.layout.mode === "two-column" && main === sidebar && profile.resumeManagerLayouts?.[templateId]?.length
       ? [...entries.filter((entry) => entry.zone === "main"), ...entries.filter((entry) => entry.zone === "sidebar")]
       : entries;
     for (const destination of (resolved.templateId === "kreativ" || resolved.templateId === "tabellarisch" || profile.resumeManagerLayouts?.[templateId]?.length)

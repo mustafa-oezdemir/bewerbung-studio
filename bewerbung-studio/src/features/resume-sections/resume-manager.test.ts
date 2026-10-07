@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { profileSchema } from "../../shared/schema";
-import { getManagerSections, moveManagerSection, updateManagerSection } from "./resume-manager";
+import { getManagerSections, managerAllowedZones, managerZones, moveManagerSection, reorderManagerSection, updateManagerSection } from "./resume-manager";
 import { resolveResumeSectionInstances } from "./resume-section-system";
 
 const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: new Date().toISOString() });
@@ -29,21 +29,25 @@ describe("unified resume manager", () => {
       .find((entry) => entry.id === "summary")?.zone).toBe("sidebar");
     expect(profile.resumeManagerLayouts).toEqual({});
   });
-  it("moves Tabellarisch Kurzprofil above career across saved zones", () => {
+  it.each(["tabellarisch", "klassisch", "einspaltig", "ivy-league"])("reorders %s globally while preserving saved zones", (templateId) => {
     const arranged = { ...profile, resumeManagerLayouts: { ...profile.resumeManagerLayouts,
-      tabellarisch: [
+      [templateId]: [
         { id: "experience", zone: "main" as const },
         { id: "education", zone: "main" as const },
         { id: "summary", zone: "sidebar" as const },
         { id: "strengths", zone: "sidebar" as const },
       ],
     } };
-    const once = moveManagerSection(arranged, "tabellarisch", "summary", "sidebar", 1);
-    const twice = moveManagerSection(once, "tabellarisch", "summary", "sidebar", 0);
-    expect(getManagerSections(once, "tabellarisch").filter((entry) => !entry.fixed).slice(0, 4).map((entry) => entry.id))
+    const once = reorderManagerSection(arranged, templateId, "summary", 1);
+    const twice = reorderManagerSection(once, templateId, "summary", 0);
+    expect(getManagerSections(once, templateId).filter((entry) => !entry.fixed).slice(0, 4).map((entry) => entry.id))
       .toEqual(["experience", "summary", "education", "strengths"]);
-    expect(getManagerSections(twice, "tabellarisch").filter((entry) => !entry.fixed).slice(0, 4).map((entry) => entry.id))
+    expect(getManagerSections(twice, templateId).filter((entry) => !entry.fixed).slice(0, 4).map((entry) => entry.id))
       .toEqual(["summary", "experience", "education", "strengths"]);
-    expect(getManagerSections(twice, "tabellarisch").find((entry) => entry.id === "summary")?.zone).toBe("sidebar");
+    expect(getManagerSections(twice, templateId).find((entry) => entry.id === "summary")?.zone).toBe("sidebar");
+    expect(twice.resumeManagerLayouts.modern).toBeUndefined();
+    expect(managerZones(templateId, "single")).toEqual(["main"]);
+    expect(managerAllowedZones(templateId, "summary", "single")).toEqual(["main"]);
+    expect(managerZones(templateId, "two-column")).toEqual(["main", "sidebar"]);
   });
 });

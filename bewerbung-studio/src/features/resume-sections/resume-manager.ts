@@ -45,15 +45,16 @@ const legacyKeys: Record<string, keyof ApplicantProfile["resumeSections"]> = {
 };
 const nativeSingleTemplates = new Set(["ivy-league", "einspaltig", "klassisch", "tabellarisch"]);
 const defaultSidebarSections = new Set(["summary", "strengths", "knowledge", "languages", "certifications"]);
-// Placement is independent of the selected visual layout. In single-column
-// mode the sidebar group follows the main group; switching back restores it.
-export const managerZones = (_templateId: string): ManagerZone[] =>
-  ["main", "sidebar"];
+// Stored placement is independent of the selected visual layout. The editor
+// presents one list in single-column mode and restores both zones on return.
+export const managerZones = (_templateId: string, layoutMode?: "single" | "two-column"): ManagerZone[] =>
+  layoutMode === "single" ? ["main"] : ["main", "sidebar"];
 export const managerAllowedZones = (
   _templateId: string,
   _id: string,
+  layoutMode?: "single" | "two-column",
 ): ManagerZone[] =>
-  ["main", "sidebar"];
+  managerZones(_templateId, layoutMode);
 export const baseGroupType = (type: string) =>
   ({
     "core-competencies": "strengths",
@@ -291,15 +292,6 @@ export const moveManagerSection = (
   const moved = entries.find((item) => item.id === id);
   if (!moved) return profile;
   const rest = entries.filter((item) => item.id !== id);
-  if (templateId === "tabellarisch") {
-    // Its editor and document both have one ordered section stream. Keep the
-    // saved zone while moving a section across the old main/sidebar boundary.
-    rest.splice(Math.max(0, Math.min(index, rest.length)), 0, { ...moved, zone });
-    return { ...profile, resumeManagerLayouts: {
-      ...profile.resumeManagerLayouts,
-      [templateId]: rest.map(({ id: sectionId, zone: sectionZone }) => ({ id: sectionId, zone: sectionZone })),
-    } };
-  }
   const destination = rest.filter((item) => item.zone === zone);
   const before = destination[Math.max(0, index)];
   rest.splice(before ? rest.indexOf(before) : rest.length, 0, {
@@ -313,4 +305,22 @@ export const moveManagerSection = (
       [templateId]: rest.map(({ id, zone }) => ({ id, zone })),
     },
   };
+};
+
+/** Reorder the one visible stream without changing the zones saved for a later two-column layout. */
+export const reorderManagerSection = (
+  profile: ApplicantProfile,
+  templateId: string,
+  id: string,
+  index: number,
+): ApplicantProfile => {
+  const entries = getManagerSections(profile, templateId).filter((item) => !item.fixed);
+  const moved = entries.find((item) => item.id === id);
+  if (!moved) return profile;
+  const rest = entries.filter((item) => item.id !== id);
+  rest.splice(Math.max(0, Math.min(index, rest.length)), 0, moved);
+  return { ...profile, resumeManagerLayouts: {
+    ...profile.resumeManagerLayouts,
+    [templateId]: rest.map(({ id: sectionId, zone }) => ({ id: sectionId, zone })),
+  } };
 };

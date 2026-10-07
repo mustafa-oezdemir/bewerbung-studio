@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { profileSchema } from "../../shared/schema";
 import { getDefaultKnowledgeGroups } from "../../features/resume-sections/resume-section-system";
+import { getManagerSections } from "../../features/resume-sections/resume-manager";
 import { ResumeSectionsPanel } from "./ResumeSectionsPanel";
 
 describe("ResumeSectionsPanel flexible blocks", () => {
@@ -38,13 +39,26 @@ describe("ResumeSectionsPanel flexible blocks", () => {
     expect(html).toContain("Pfeil hoch oder runter für Reihenfolge");
     expect(html).toContain('aria-label="Beruflicher Werdegang Position"');
   });
-  it("offers both placement groups and keyboard controls on a native single-column template", () => {
+  it.each(["tabellarisch", "klassisch", "einspaltig", "ivy-league"])("shows one global section list in %s single layout", (templateId) => {
     const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: new Date().toISOString() });
-    const html = renderToStaticMarkup(<ResumeSectionsPanel profile={profile} templateId="einspaltig" layoutMode="single"
+    const html = renderToStaticMarkup(<ResumeSectionsPanel profile={profile} templateId={templateId} layoutMode="single"
       singlePageExceeded={false} onSave={vi.fn()} onPreview={vi.fn()} />);
-    expect(html).toContain("Im einspaltigen Layout erscheinen beide Gruppen in einer Spalte.");
-    expect(html).toContain("Hauptspalte");
-    expect(html).toContain("Seitenspalte");
+    expect(html).toContain("Im einspaltigen Layout werden alle Bereiche in einer gemeinsamen Reihenfolge angeordnet.");
+    expect(html.match(/>Reihenfolge im Lebenslauf</g)).toHaveLength(1);
+    expect(html.match(/draggable="true"/g)).toHaveLength(getManagerSections(profile, templateId).filter((entry) => !entry.fixed).length);
+    expect(html).not.toContain(">Hauptspalte<");
+    expect(html).not.toContain(">Seitenspalte<");
+    expect(html).not.toContain('aria-label="Beruflicher Werdegang Position"');
+    expect(html).not.toContain("Pfeil links oder rechts für Spalte");
+    expect(html).toContain('aria-label="Kurzprofil nach oben" disabled');
+    expect(html.match(/aria-label="[^"]+ nach unten" disabled/g)).toHaveLength(1);
+  });
+  it.each(["tabellarisch", "klassisch", "einspaltig", "ivy-league"])("restores zone controls in %s two-column layout", (templateId) => {
+    const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: new Date().toISOString() });
+    const html = renderToStaticMarkup(<ResumeSectionsPanel profile={profile} templateId={templateId} layoutMode="two-column"
+      singlePageExceeded={false} onSave={vi.fn()} onPreview={vi.fn()} />);
+    expect(html).toContain(">Hauptspalte<");
+    expect(html).toContain(">Seitenspalte<");
     expect(html).toContain('aria-label="Beruflicher Werdegang Position"');
     expect(html).toContain("Pfeil links oder rechts für Spalte");
   });
