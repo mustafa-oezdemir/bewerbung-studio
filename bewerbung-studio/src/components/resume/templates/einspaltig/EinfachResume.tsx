@@ -1,20 +1,17 @@
 import type { CSSProperties } from "react";
-import { einspaltigDefaults } from "./einfach.defaults";
+import { einspaltigDesign } from "./einfach.defaults";
+import { getEinspaltigDesignVariables } from "../../../../shared/einspaltigDesign";
 import type { EinspaltigResumeProps } from "./einfach.types";
 import { EinfachPage } from "./EinfachPage";
 import "./einfach.css";
 
+/** The native Einspaltig variables with the application's accent; the managed output replaces them with the resolved design. */
 export function EinspaltigResume({
   accentColor,
-  secondaryColor,
+  secondaryColor: _secondaryColor,
   ...props
 }: EinspaltigResumeProps) {
-  const variables = {
-    "--einfach-primary":
-      accentColor || einspaltigDefaults.colors.primary,
-    "--einfach-accent":
-      secondaryColor || einspaltigDefaults.colors.accent,
-  } as CSSProperties;
+  const variables = getEinspaltigDesignVariables(einspaltigDesign.tokens, undefined, accentColor) as CSSProperties;
   return (
     <article
       className="einfach-template"

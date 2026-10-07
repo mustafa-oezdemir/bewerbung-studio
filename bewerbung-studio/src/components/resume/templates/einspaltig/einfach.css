@@ -3,22 +3,13 @@
   margin: 0;
 }
 
+/*
+ * Every size, distance and colour comes from getEinspaltigDesignVariables (src/shared/einspaltigDesign.ts), i.e. from the
+ * resolved Lebenslauf design: the PDF (.einfach-pdf in electron/documents.ts) reads the same variables.
+ */
 .einfach-template {
-  --einfach-primary: #0b3485;
-  --einfach-accent: #4aaaf4;
-  --einfach-text: #3e484e;
-  --einfach-muted: #68747a;
-  --einfach-pattern: #eaf5fd;
-  --einfach-inactive: #e3e7ea;
-  --einfach-margin: max(15mm, var(--doc-margin, 15mm));
-  --einfach-section-gap: calc(var(--doc-section-gap, 5.5mm) + 0.5mm);
-  --einfach-entry-gap: 4.5mm;
-  --einfach-body-size: calc(var(--doc-body-size, 9.2pt) + 1.2pt);
-  --einfach-line-height: clamp(
-    1.1,
-    calc(var(--doc-line-height, 1.4) - 0.25),
-    1.12
-  );
+  --einfach-section-gap: var(--einfach-section-gap-base);
+  --einfach-entry-gap: var(--einfach-entry-gap-base);
   position: relative;
   box-sizing: border-box;
   width: 100%;
@@ -26,8 +17,8 @@
   min-height: 297mm;
   overflow: hidden;
   color: var(--einfach-text);
-  background: #fff;
-  font-family: var(--doc-font, "Source Sans 3", "Segoe UI", Arial, sans-serif);
+  background: var(--einfach-paper);
+  font-family: var(--einfach-font);
   font-size: var(--einfach-body-size);
   line-height: var(--einfach-line-height);
   print-color-adjust: exact;
@@ -38,6 +29,21 @@
 .einfach-template *::before,
 .einfach-template *::after {
   box-sizing: border-box;
+}
+
+.einfach-template a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Every paragraph and list item of a section reads at the body size, whichever layer drew it. */
+.einfach-template [data-managed-section] :where(p, li) {
+  font-size: var(--einfach-body-size);
+  line-height: var(--einfach-line-height);
+}
+
+.einfach-template [data-managed-section] :where(p) {
+  margin-block: 0;
 }
 
 .einfach-page__visual {
@@ -54,7 +60,7 @@
   width: 100%;
   height: 100%;
   color: var(--einfach-pattern);
-  opacity: 0.78;
+  opacity: var(--einfach-pattern-opacity);
   pointer-events: none;
 }
 
@@ -67,94 +73,106 @@
   position: relative;
   z-index: 2;
   height: 100%;
-  padding: max(14mm, calc(var(--einfach-margin) - 1mm))
-    var(--einfach-margin) 16mm;
+  padding: var(--einfach-margin-top) var(--einfach-margin-right) var(--einfach-margin-bottom) var(--einfach-margin-left);
 }
 
 .einfach-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) calc(36mm * var(--resume-photo-scale, 1));
-  gap: 8mm;
+  grid-template-columns: minmax(0, 1fr) calc(var(--einfach-photo-size) * var(--resume-photo-scale, 1));
+  column-gap: var(--einfach-photo-gap);
   align-items: start;
-  min-height: 35mm;
-  margin-bottom: 3.5mm;
+  margin: 0 0 var(--einfach-header-gap);
+  padding: 0 0 var(--einfach-header-padding);
+  border-bottom: var(--einfach-rule) solid var(--einfach-border);
 }
 
 .einfach-header > div {
   min-width: 0;
 }
 
-.einfach-header h1 {
+.einfach-template .einfach-header h1 {
   margin: 0;
-  color: var(--einfach-primary);
-  font-size: 24pt;
-  font-weight: 750;
-  letter-spacing: 0.01em;
-  line-height: 1;
+  color: var(--einfach-name-color);
+  font-family: var(--einfach-heading-font);
+  font-size: var(--einfach-name-size);
+  font-weight: var(--einfach-name-weight);
+  letter-spacing: var(--einfach-name-tracking);
+  line-height: var(--einfach-name-line-height);
   text-transform: uppercase;
   overflow-wrap: anywhere;
 }
 
-.einfach-header h2 {
-  margin: 2mm 0;
-  color: var(--einfach-accent);
-  font-size: 11.5pt;
-  font-weight: 700;
-  line-height: 1.2;
+.einfach-template .einfach-header h2 {
+  margin: var(--einfach-title-gap) 0 0;
+  color: var(--einfach-subheading);
+  font-family: var(--einfach-heading-font);
+  font-size: var(--einfach-title-size);
+  font-weight: var(--einfach-title-weight);
+  letter-spacing: 0;
+  line-height: var(--einfach-line-height);
   overflow-wrap: anywhere;
 }
 
 .einfach-header address {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-  gap: 1mm 8mm;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--einfach-contact-row-gap) var(--einfach-contact-column-gap);
   width: 100%;
-  max-width: 132mm;
-  margin: 0;
+  margin: var(--einfach-contacts-gap) 0 0;
   color: var(--einfach-text);
-  font-size: 8.2pt;
-  line-height: 1.18;
+  font-size: var(--einfach-contact-size);
   font-style: normal;
+  line-height: var(--einfach-contact-line-height);
 }
 
 .einfach-header address > span {
-  display: grid;
-  grid-template-columns: 4mm minmax(0, 1fr);
-  gap: 1mm;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--einfach-contact-icon-gap);
   min-width: 0;
 }
 
 .einfach-header address i {
-  color: var(--einfach-accent);
+  display: block;
+  flex: 0 0 var(--einfach-contact-icon);
+  height: var(--einfach-contact-icon);
+  margin-top: calc((var(--einfach-contact-size) * var(--einfach-contact-line-height) - var(--einfach-contact-icon)) / 2);
+  color: var(--einfach-icon);
   font-style: normal;
-  font-weight: 700;
+  line-height: 0;
+}
+
+.einfach-header address i svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .einfach-header address a,
-.einfach-header address span {
+.einfach-header address span span {
   min-width: 0;
   color: inherit;
-  font-weight: 600;
+  font-weight: 400;
   text-decoration: none;
   overflow-wrap: anywhere;
 }
 
-.einfach-header address
-  [data-contact-kind="linkedin"]
-  > a {
-  /* A long link wraps; it is never cut off. */
-  overflow: visible;
-  white-space: normal;
-  overflow-wrap: anywhere;
+.einfach-template .einfach-header [data-resume-header-extra-contact] {
+  gap: var(--einfach-contact-row-gap) var(--einfach-contact-column-gap);
+  margin: var(--einfach-contacts-gap) 0 0;
+  color: var(--einfach-text);
+  font-size: var(--einfach-contact-size);
+  line-height: var(--einfach-contact-line-height);
 }
 
 .einfach-header figure {
-  width: calc(34mm * var(--resume-photo-scale, 1));
-  height: calc(34mm * var(--resume-photo-scale, 1));
+  justify-self: end;
+  width: calc(var(--einfach-photo-size) * var(--resume-photo-scale, 1));
+  height: calc(var(--einfach-photo-size) * var(--resume-photo-scale, 1));
   margin: 0;
   overflow: hidden;
   border-radius: 50%;
-  background: #edf1f3;
+  background: var(--einfach-inactive);
 }
 
 .einfach-header figure img {
@@ -169,34 +187,28 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* Later pages: a running head (Lebenslauf heading, name, Berufsbezeichnung, the contacts chosen for later pages). */
 .einfach-header--compact {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 1mm 5mm;
-  min-height: auto;
-  margin-bottom: 6mm;
-  padding-bottom: 3mm;
-  border-bottom: 0.5mm solid var(--einfach-primary);
+  display: block;
 }
 
-.einfach-header--compact p {
-  flex-basis: 100%;
-  margin: 0;
+.einfach-template .einfach-header--compact p {
+  margin: 0 0 var(--einfach-organization-gap);
   color: var(--einfach-accent);
-  font-size: 7pt;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  font-size: var(--einfach-meta-size);
+  font-weight: var(--einfach-section-heading-weight);
+  letter-spacing: 0.08em;
+  line-height: var(--einfach-line-height);
   text-transform: uppercase;
 }
 
-.einfach-header--compact h1 {
-  font-size: 16pt;
+.einfach-template .einfach-header--compact h1 {
+  font-size: var(--einfach-continuation-name-size);
 }
 
-.einfach-header--compact h2 {
-  margin: 0;
-  font-size: 9pt;
+.einfach-template .einfach-header--compact h2 {
+  margin-top: var(--einfach-organization-gap);
+  font-size: var(--einfach-body-size);
 }
 
 .einfach-section {
@@ -206,68 +218,73 @@
   page-break-inside: auto;
 }
 
-.einfach-section__title,
+.einfach-template .einfach-section__title,
 .einfach-template .managed-extra > h3 {
-  margin: 0 0 2mm;
-  padding: 1mm 0;
+  margin: 0 0 var(--einfach-section-title-gap);
+  padding: 0 0 var(--einfach-section-rule-padding);
   border-top: 0;
-  border-bottom: 0.3mm solid var(--einfach-primary);
-  color: var(--einfach-primary);
-  font-size: 13.5pt;
-  font-weight: 750;
-  line-height: 1;
-  text-transform: uppercase;
+  border-bottom: var(--einfach-rule) solid var(--einfach-divider);
+  color: var(--einfach-section-heading);
+  font-family: var(--einfach-heading-font);
+  font-size: var(--einfach-section-heading-size);
+  font-weight: var(--einfach-section-heading-weight);
+  letter-spacing: 0.02em;
+  line-height: var(--einfach-heading-line-height);
+  text-transform: var(--einfach-heading-case);
   break-after: avoid;
   page-break-after: avoid;
 }
 
-.einfach-summary,
-.einfach-knowledge {
+/* A rebuilt section title draws its rule on its label (resumeSectionPresentation), never a second one of its own. */
+.einfach-template [data-managed-section] > .cv-heading {
+  padding: 0;
+  border: 0;
+}
+
+/* A strength card stretched to its row keeps title and description at its top. */
+.einfach-template [data-managed-section="strengths"] .managed-strength-card {
+  align-content: start;
+}
+
+.einfach-template .einfach-summary,
+.einfach-template .einfach-knowledge {
   margin: 0;
+  color: var(--einfach-paragraph);
+  font-size: var(--einfach-body-size);
   line-height: var(--einfach-line-height);
   hyphens: auto;
   overflow-wrap: break-word;
 }
 
-.einfach-summary {
-  font-size: 9pt;
-  text-align: justify;
-  text-justify: inter-word;
-}
-
-.einfach-header + .einfach-section {
-  margin-top: -1mm;
-}
-
 .einfach-strengths > div {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4mm 8mm;
+  gap: var(--einfach-strength-row-gap) var(--einfach-strength-column-gap);
 }
 
 .einfach-strengths article {
   display: grid;
-  grid-template-columns: 7mm minmax(0, 1fr);
-  gap: 2mm;
+  grid-template-columns: var(--einfach-strength-icon) minmax(0, 1fr);
+  gap: var(--einfach-contact-icon-gap);
 }
 
-.einfach-strengths article > i {
-  color: var(--einfach-accent);
-  font-size: 14pt;
-  font-style: normal;
-  line-height: 1;
+.einfach-template .einfach-strengths article > .technology-brand-icon {
+  width: var(--einfach-strength-icon);
+  height: var(--einfach-strength-icon);
+  color: var(--einfach-icon);
 }
 
-.einfach-strengths h3 {
-  margin: 0 0 1.5mm;
-  color: var(--einfach-primary);
-  font-size: 9.5pt;
-  font-weight: 700;
-  line-height: 1.15;
+.einfach-template .einfach-strengths h3 {
+  margin: 0;
+  color: var(--einfach-entry-heading);
+  font-size: var(--einfach-body-size);
+  font-weight: var(--einfach-organization-weight);
+  letter-spacing: 0;
+  line-height: var(--einfach-line-height);
   overflow-wrap: anywhere;
 }
 
-.einfach-strengths p {
+.einfach-template .einfach-strengths p {
   margin: 0;
 }
 
@@ -278,23 +295,19 @@
 }
 
 .einfach-career article {
-  padding-bottom: 3mm;
-  border-bottom: 0.25mm dashed #d4d9dc;
+  min-width: 0;
   break-inside: auto;
   page-break-inside: auto;
 }
 
-.einfach-career article:last-child {
-  padding-bottom: 0;
-  border-bottom: 0;
-}
-
-.einfach-career h3 {
+.einfach-template .einfach-career h3 {
   margin: 0;
-  color: var(--einfach-primary);
-  font-size: 11.5pt;
-  font-weight: 500;
-  line-height: 1.15;
+  color: var(--einfach-entry-heading);
+  font-family: var(--einfach-heading-font);
+  font-size: var(--einfach-entry-heading-size);
+  font-weight: var(--einfach-entry-heading-weight);
+  letter-spacing: 0;
+  line-height: var(--einfach-heading-line-height);
   overflow-wrap: anywhere;
 }
 
@@ -302,72 +315,89 @@
 .einfach-career__organization {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 4mm;
+  column-gap: var(--einfach-meta-gap);
   align-items: baseline;
 }
 
-.einfach-career__heading time,
-.einfach-career__organization span {
+.einfach-template .einfach-career__heading time,
+.einfach-template .einfach-career__organization span {
   color: var(--einfach-muted);
-  font-size: 8.1pt;
+  font-size: var(--einfach-meta-size);
+  line-height: var(--einfach-line-height);
   text-align: right;
   white-space: nowrap;
 }
 
-.einfach-career h4 {
-  margin: 1mm 0 0;
-  color: var(--einfach-accent);
-  font-size: 10pt;
-  font-weight: 700;
-  line-height: 1.15;
+.einfach-template .einfach-career h4 {
+  margin: 0;
+  color: var(--einfach-text);
+  font-size: var(--einfach-body-size);
+  font-weight: var(--einfach-organization-weight);
+  line-height: var(--einfach-line-height);
   overflow-wrap: anywhere;
 }
 
 .einfach-career__organization {
-  margin: 1mm 0 1.5mm;
+  margin: var(--einfach-organization-gap) 0 0;
 }
 
 .einfach-career ul,
 .einfach-section > ul {
-  margin: 0;
-  padding-left: 4.5mm;
+  margin: var(--einfach-entry-content-gap) 0 0;
+  padding-left: var(--einfach-list-indent);
+  list-style: disc;
 }
 
-.einfach-career li,
-.einfach-section > ul li {
-  margin: 0.3mm 0;
-  padding-left: 0.4mm;
+.einfach-template .einfach-career li,
+.einfach-template .einfach-section > ul li {
+  margin: 0;
+  padding-left: 0.5mm;
+  color: var(--einfach-paragraph);
+  font-size: var(--einfach-body-size);
+  line-height: var(--einfach-line-height);
   hyphens: auto;
   overflow-wrap: break-word;
+}
+
+.einfach-template .einfach-career li + li,
+.einfach-template .einfach-section > ul li + li {
+  margin-top: var(--einfach-bullet-gap);
+}
+
+.einfach-career li::marker,
+.einfach-section > ul li::marker {
+  color: var(--einfach-accent);
 }
 
 .einfach-languages > div {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 3mm 8mm;
+  gap: var(--einfach-language-row-gap) var(--einfach-language-column-gap);
 }
 
 .einfach-languages article {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 3mm;
+  column-gap: 3mm;
   align-items: center;
 }
 
-.einfach-languages strong {
-  color: var(--einfach-primary);
-  font-size: 9.5pt;
+.einfach-template .einfach-languages strong {
+  color: var(--einfach-entry-heading);
+  font-size: var(--einfach-body-size);
+  font-weight: var(--einfach-organization-weight);
+  line-height: var(--einfach-line-height);
 }
 
-.einfach-languages article > span[role="img"] {
+.einfach-template .einfach-languages article > span[role="img"] {
   display: flex;
-  gap: 1mm;
+  gap: 0.8mm;
 }
 
 .einfach-languages i {
   display: block;
-  width: 2.8mm;
-  height: 2.8mm;
+  width: 2.2mm;
+  height: 2.2mm;
   border-radius: 50%;
   background: var(--einfach-inactive);
 }
@@ -378,83 +408,65 @@
 
 .einfach-footer {
   position: absolute;
-  right: var(--einfach-margin);
-  bottom: 6mm;
-  left: var(--einfach-margin);
+  right: var(--einfach-margin-right);
+  bottom: var(--einfach-footer-bottom);
+  left: var(--einfach-margin-left);
   z-index: 3;
   display: flex;
   justify-content: space-between;
   gap: 8mm;
   color: var(--einfach-muted);
-  font-size: 7pt;
+  font-size: var(--einfach-footer-size);
+  line-height: var(--einfach-line-height);
 }
 
 .einfach-footer a {
-  color: var(--einfach-primary);
+  color: inherit;
   text-decoration: none;
 }
 
+/* Place and date close the text box on the last page: inside the side margins, on the bottom margin. */
+.einfach-template [data-resume-closing-placement="footer"] {
+  right: var(--einfach-margin-right);
+  bottom: var(--einfach-margin-bottom);
+  left: var(--einfach-margin-left);
+  font-size: var(--einfach-body-size);
+}
+
+/* Compact and dense pages only tighten the gaps; text sizes stay. */
 .einfach-template[data-density="compact"] {
-  --einfach-section-gap: max(5mm, var(--doc-section-gap, 5.5mm));
-  --einfach-entry-gap: 3.8mm;
+  --einfach-section-gap: calc(var(--einfach-section-gap-base) * 0.85);
+  --einfach-entry-gap: calc(var(--einfach-entry-gap-base) * 0.85);
 }
 
 .einfach-template[data-density="dense"] {
-  --einfach-section-gap: max(
-    4.5mm,
-    calc(var(--doc-section-gap, 5.5mm) - 0.5mm)
-  );
-  --einfach-entry-gap: 3mm;
+  --einfach-section-gap: calc(var(--einfach-section-gap-base) * 0.7);
+  --einfach-entry-gap: calc(var(--einfach-entry-gap-base) * 0.7);
 }
 
-.einfach-template[data-density="dense"] .einfach-header {
-  min-height: 32mm;
-  margin-bottom: 3mm;
-}
-
-.einfach-template[data-density="dense"] .einfach-section__title {
-  font-size: 12.5pt;
-}
-
-.einfach-template[data-ats-mode="true"] {
-  --einfach-primary: #173b63;
-  --einfach-accent: #173b63;
-}
-
+/* Plain (ATS) output: the same page box and type scale, one font, no photo, background or icons. */
 .einfach-ats {
   width: 100%;
   height: 100%;
-  padding: max(14mm, calc(var(--einfach-margin) - 1mm))
-    var(--einfach-margin) 16mm;
+  padding: var(--einfach-margin-top) var(--einfach-margin-right) var(--einfach-margin-bottom) var(--einfach-margin-left);
   overflow: hidden;
+  color: #303b42;
   background: #fff;
   font-family: Arial, sans-serif;
 }
 
 .einfach-ats .einfach-header {
   display: block;
-  min-height: auto;
-  margin-bottom: 0;
-  padding-bottom: 4mm;
-  border-bottom: 0.4mm solid var(--einfach-primary);
 }
 
-.einfach-ats .einfach-header h1 {
-  font-size: 20pt;
+.einfach-template .einfach-ats .einfach-header :is(h1, h2),
+.einfach-template .einfach-ats .einfach-section__title {
+  color: #173b63;
+  font-family: Arial, sans-serif;
 }
 
-.einfach-ats .einfach-header h2 {
-  font-size: 10pt;
-}
-
-.einfach-ats .einfach-section {
-  margin-top: var(--einfach-section-gap);
-  margin-bottom: 0;
-}
-
-.einfach-ats .einfach-section__title {
-  margin-bottom: 2.5mm;
-  font-size: 11pt;
+.einfach-template .einfach-ats .einfach-section__title {
+  border-bottom-color: #aeb8bf;
 }
 
 .einfach-strengths--ats > div,
@@ -466,6 +478,15 @@
 .einfach-strengths--ats p,
 .einfach-languages--ats p {
   margin: 0.5mm 0;
+}
+
+/* The plain strength cards carry no icon: title and description take the whole cell. */
+.einfach-ats [data-managed-section="strengths"] .managed-strength-card {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.einfach-ats [data-managed-section="strengths"] .managed-strength-card :is(strong, p) {
+  grid-column: 1;
 }
 
 @media print {
@@ -487,15 +508,4 @@
   .einfach-template .editor-grid {
     display: none !important;
   }
-}
-
-/* As in the PDF (.einfach-pdf p, .einfach-pdf li): text takes the size of its block, not the page's base size. */
-.einfach-template p,
-.einfach-template li {
-  font-size: inherit;
-  line-height: inherit;
-}
-
-.einfach-template .einfach-summary {
-  font-size: 9pt;
 }

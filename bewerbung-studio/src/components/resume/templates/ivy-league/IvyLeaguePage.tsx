@@ -13,6 +13,7 @@ import { IvyLeagueLanguagesSection } from "./IvyLeagueLanguagesSection";
 import { IvyLeagueSectionHeading } from "./IvyLeagueSectionHeading";
 import { IvyLeagueStrengthsSection } from "./IvyLeagueStrengthsSection";
 import { ResumeSpecialSections } from "../../ResumeSpecialSections";
+import { sectionOnPage } from "../../../../shared/documentPagination";
 import {
   getProfileResumeSectionLayout,
   getResumeSectionTitle,
@@ -56,6 +57,7 @@ export function IvyLeaguePage({
       </section>
     ) : null;
 
+  // Kurzprofil, Stärken and Sprachen (ATS also Zertifikate) stand on the page the plan gives them.
   const renderOrderedSections = (mode: "visual" | "ats") => {
     const order = hasCustomLayout
       ? sectionLayout.map(({ type }) => type)
@@ -64,7 +66,7 @@ export function IvyLeaguePage({
         : ["summary", "strengths", "experience", "education", "knowledge", "languages", "certifications"];
     return order.map((type) => {
       if (type === "summary") {
-        return sections.profile && summary && !isContinuation ? (
+        return sections.profile && summary && sectionOnPage(plan, "summary", !isContinuation) ? (
           <section className="ivy-league-section" data-element-id="ivy-league.summary" key={type}>
             <IvyLeagueSectionHeading>{getResumeSectionTitle(profile, "summary")}</IvyLeagueSectionHeading>
             <p className="ivy-league-summary">{summary}</p>
@@ -72,7 +74,7 @@ export function IvyLeaguePage({
         ) : null;
       }
       if (type === "strengths") {
-        return sections.strengths && !isContinuation ? (
+        return sections.strengths && sectionOnPage(plan, "strengths", !isContinuation) ? (
           <IvyLeagueStrengthsSection key={type} profile={profile} atsMode={mode === "ats"} />
         ) : null;
       }
@@ -90,10 +92,10 @@ export function IvyLeaguePage({
         return isLastPage && sections.skills ? <IvyLeagueKnowledgeSection key={type} profile={profile} /> : null;
       }
       if (type === "languages") {
-        return isLastPage && sections.languages ? <IvyLeagueLanguagesSection key={type} profile={profile} atsMode={mode === "ats"} /> : null;
+        return sectionOnPage(plan, "languages", isLastPage) && sections.languages ? <IvyLeagueLanguagesSection key={type} profile={profile} atsMode={mode === "ats"} /> : null;
       }
       if (type === "certifications") {
-        return isLastPage ? <div key={type}>{certificationSection}</div> : null;
+        return (mode === "ats" ? sectionOnPage(plan, "certifications", isLastPage) : isLastPage) ? <div key={type}>{certificationSection}</div> : null;
       }
       return null;
     });

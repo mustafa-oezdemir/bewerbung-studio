@@ -22,6 +22,7 @@ import {
 } from "./EinfachSections";
 import { getResumeSemanticTitle } from "../../../../features/resume-sections/resume-section-system";
 import { formatResumeContactLine } from "../../../../shared/resumePersonalData";
+import { sectionOnPage } from "../../../../shared/documentPagination";
 
 type Props = Omit<EinspaltigResumeProps, "accentColor" | "secondaryColor">;
 
@@ -68,9 +69,10 @@ export function EinfachPage({
             "languages",
             "certifications",
           ];
+    // Kurzprofil, Stärken and Sprachen (ATS also Zertifikate) stand on the page the plan gives them.
     return order.map((type) => {
       if (type === "summary") {
-        return sections.profile && summary && !isContinuation ? (
+        return sections.profile && summary && sectionOnPage(plan, "summary", !isContinuation) ? (
           <section
             key={type}
             className="einfach-section"
@@ -84,8 +86,7 @@ export function EinfachPage({
       }
       if (type === "strengths") {
         return sections.strengths &&
-          !isContinuation &&
-          (!atsMode || isLastPage) ? (
+          sectionOnPage(plan, "strengths", !isContinuation && (!atsMode || isLastPage)) ? (
           <EinfachStrengths key={type} profile={profile} atsMode={atsMode} />
         ) : null;
       }
@@ -116,12 +117,12 @@ export function EinfachPage({
         ) : null;
       }
       if (type === "languages") {
-        return isLastPage && sections.languages ? (
+        return sectionOnPage(plan, "languages", isLastPage) && sections.languages ? (
           <EinfachLanguages key={type} profile={profile} atsMode={atsMode} />
         ) : null;
       }
       if (type === "certifications") {
-        return isLastPage && sections.certifications ? (
+        return (atsMode ? sectionOnPage(plan, "certifications", isLastPage) : isLastPage) && sections.certifications ? (
           <EinfachCertifications key={type} profile={profile} />
         ) : null;
       }
@@ -162,7 +163,7 @@ export function EinfachPage({
   }
   return (
     <div className="einfach-page__visual" data-renderer="visual">
-      {backgroundId === "geometric" ? <EinfachBackground /> : null}
+      {backgroundId === "geometric" && !isContinuation ? <EinfachBackground /> : null}
       <div className="einfach-content">
         <EinfachHeader
           profile={profile}

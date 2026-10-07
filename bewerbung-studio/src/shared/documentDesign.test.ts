@@ -32,19 +32,20 @@ describe("Dokumenthintergründe", () => {
 
 describe("Anschreiben typography", () => {
   it.each(["small", "medium", "large"] as const)("uses a readable letter size for %s while keeping the CV linked to the shared size setting", (size) => {
-    const defaults = getTemplateDocumentDesignDefaults("einspaltig");
+    const defaults = getTemplateDocumentDesignDefaults("tabellarisch");
     const settings = { ...defaults, fontSize: size };
     const variables = getDocumentDesignVariables(settings);
     expect(variables["--letter-body-size"]).toBe(`${letterFontSizeToPt[size]}pt`);
     expect(letterFontSizeToPt[size]).toBeGreaterThanOrEqual(10);
     expect(letterFontSizeToPt[size]).toBeLessThanOrEqual(12);
     if (size !== defaults.fontSize) {
-      expect(resolveEffectiveDesignTokens("einspaltig", settings).typography.bodySizePt)
-        .not.toBe(resolveEffectiveDesignTokens("einspaltig", defaults).typography.bodySizePt);
+      expect(resolveEffectiveDesignTokens("tabellarisch", settings).typography.bodySizePt)
+        .not.toBe(resolveEffectiveDesignTokens("tabellarisch", defaults).typography.bodySizePt);
     }
-    // Klassisch keeps its 11 pt Lebenslauf: the document-wide size belongs to the Anschreiben and the Deckblatt there.
+    // Klassisch and Einspaltig keep their 11 pt Lebenslauf: the document-wide size belongs to the Anschreiben and the Deckblatt there.
     const klassisch = getTemplateDocumentDesignDefaults("klassisch");
     expect(resolveEffectiveDesignTokens("klassisch", { ...klassisch, fontSize: size }).typography.bodySizePt).toBe(11);
+    expect(resolveEffectiveDesignTokens("einspaltig", { ...getTemplateDocumentDesignDefaults("einspaltig"), fontSize: size }).typography.bodySizePt).toBe(11);
     expect(getDocumentDesignVariables({ ...klassisch, fontSize: size })["--letter-body-size"]).toBe(`${letterFontSizeToPt[size]}pt`);
   });
 });

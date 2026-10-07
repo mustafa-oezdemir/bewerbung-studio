@@ -184,6 +184,19 @@ const naturalOrder: readonly ResumeSectionType[] = [
   "references",
 ];
 
+const languagesFirstOrder: readonly ResumeSectionType[] = [
+  "summary",
+  "strengths",
+  "experience",
+  "education",
+  "projects",
+  "knowledge",
+  "languages",
+  "certifications",
+  "additional",
+  "references",
+];
+
 const mainOnlyCapabilities = (
   templateId: string,
   options: Pick<
@@ -278,21 +291,8 @@ export const templateSectionCapabilities: Record<
 > = {
   pehlione_white_blue: pehlioneCapabilities("pehlione_white_blue"),
   pehlione_white: pehlioneCapabilities("pehlione_white"),
-  "ivy-league": {
-    ...mainOnlyCapabilities("ivy-league"),
-    defaultSectionOrder: [
-      "summary",
-      "experience",
-      "education",
-      "knowledge",
-      "languages",
-      "strengths",
-      "certifications",
-      "projects",
-      "additional",
-      "references",
-    ],
-  },
+  // Ivy League draws its sections in the same order: the section list shows it.
+  "ivy-league": { ...mainOnlyCapabilities("ivy-league"), defaultSectionOrder: languagesFirstOrder },
   // Stilvoll draws a left sidebar (summary, strengths, languages, knowledge) beside the career column.
   stilvoll: twoColumnCapabilities("stilvoll"),
   kompakt: {
@@ -310,8 +310,9 @@ export const templateSectionCapabilities: Record<
       languages: "main",
     },
   },
-  einspaltig: mainOnlyCapabilities("einspaltig"),
-  klassisch: mainOnlyCapabilities("klassisch"),
+  // Einspaltig and Klassisch draw their languages ahead of the certificates: the section list shows that order.
+  einspaltig: { ...mainOnlyCapabilities("einspaltig"), defaultSectionOrder: languagesFirstOrder },
+  klassisch: { ...mainOnlyCapabilities("klassisch"), defaultSectionOrder: languagesFirstOrder },
   tabellarisch: mainOnlyCapabilities("tabellarisch", {
     timelineSections: ["experience", "education"],
   }),

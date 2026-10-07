@@ -13,6 +13,8 @@
 import { pehlioneWhiteBlueDefaults, pehlioneWhiteDefaults, pehlioneWhiteBlueDesign } from "./cvTemplateDefaults/pehlione.defaults";
 import { stilvollDesign } from "./cvTemplateDefaults/stilvoll.defaults";
 import { klassischDefaults } from "./cvTemplateDefaults/klassisch.defaults";
+import { einspaltigDefaults } from "./cvTemplateDefaults/einfach.defaults";
+import { einspaltigSectionTitleMm } from "./einspaltigDesign";
 
 export type SectionZone = "main" | "sidebar";
 export type SectionSurface = "preview" | "pdf";
@@ -410,22 +412,27 @@ const kompakt: TemplateTokens = {
   sidebar: { icons: false, heading: kompaktHeading, list: kompaktList },
 };
 
-/** Einspaltig has one physical column and a large blue ruled heading without an icon. */
+/** Einspaltig: an iconless 14 pt title over an accent rule, one physical column; every value from einspaltigDefaults. */
+const einspaltigType = einspaltigDefaults.typography;
+const einspaltigLayout = einspaltigDefaults.layout;
 const einspaltigHeading: SectionHeadingTokens = {
   iconBox: 0, iconGap: 0, iconRadius: 0, glyphSize: 0, glyphStroke: 0,
-  fontSizePt: { standard: 13.5, compact: 13.5 }, fontWeight: 750, lineHeight: 1,
-  letterSpacing: "0", textTransform: "uppercase",
-  marginBottom: { standard: 2, compact: 2 }, labelPadding: { standard: 1, compact: 1 }, labelPaddingTop: 1,
-  color: "var(--einfach-primary,var(--managed-primary,#0b3485))",
-  dividerColor: "var(--einfach-primary,var(--managed-primary,#0b3485))", dividerWidth: ".3mm",
+  fontSizePt: { standard: einspaltigType.sectionHeadingSizePt, compact: einspaltigType.sectionHeadingSizePt },
+  fontWeight: einspaltigType.sectionHeadingWeight, lineHeight: einspaltigType.headingLineHeight,
+  letterSpacing: "0.02em", textTransform: "uppercase", fontFamily: "var(--einfach-heading-font)",
+  marginBottom: { standard: einspaltigLayout.sectionTitleGapMm, compact: einspaltigLayout.sectionTitleGapMm },
+  labelPadding: { standard: einspaltigLayout.sectionRulePaddingMm, compact: einspaltigLayout.sectionRulePaddingMm },
+  color: "var(--einfach-section-heading)",
+  dividerColor: "var(--einfach-divider)", dividerWidth: "var(--einfach-rule)",
   iconColor: "currentColor", iconBackground: "transparent",
-  sectionGap: { standard: 6, compact: 6, side: "bottom", expr: "var(--einfach-section-gap,var(--managed-section-gap,6mm))" },
-  height: 7,
+  sectionGap: { standard: einspaltigLayout.sectionGapMm, compact: einspaltigLayout.sectionGapMm, side: "bottom", expr: "var(--einfach-section-gap)" },
+  height: einspaltigSectionTitleMm(einspaltigType.sectionHeadingSizePt),
 };
 const einspaltigList: SectionListTokens = {
-  fontSizePt: { standard: 9.2, compact: 9.2 }, lineHeight: { standard: 1.12, compact: 1.12 },
-  itemGap: { standard: 0.3, compact: 0.3 }, indent: 4.5, inheritBody: true,
-  layout: "margins", markerColor: "var(--einfach-primary,var(--managed-primary,#0b3485))",
+  fontSizePt: { standard: einspaltigType.bodySizePt, compact: einspaltigType.bodySizePt }, lineHeight: { standard: einspaltigType.lineHeight, compact: einspaltigType.lineHeight },
+  itemGap: { standard: einspaltigLayout.bulletGapMm, compact: einspaltigLayout.bulletGapMm }, indent: einspaltigLayout.listIndentMm, inheritBody: true,
+  layout: "margins", marginTop: einspaltigLayout.entryContentGapMm, markerColor: "var(--einfach-accent)",
+  fontExpr: "var(--einfach-body-size)", lineHeightExpr: "var(--einfach-line-height)",
 };
 const einspaltig: TemplateTokens = {
   main: { icons: false, heading: einspaltigHeading, list: einspaltigList },

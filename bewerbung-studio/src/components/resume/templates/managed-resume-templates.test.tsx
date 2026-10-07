@@ -524,16 +524,19 @@ describe("managed resume registration", () => {
       id: "einspaltig",
       name: "Einspaltig",
     });
+    // DIN-oriented text box (25 / 20 / 25 / 20 mm) and one accent colour.
     expect(einspaltigDefaults.page).toMatchObject({
       widthMm: 210,
       heightMm: 297,
-      marginLeftMm: 15,
-      marginRightMm: 15,
+      marginLeftMm: 25,
+      marginRightMm: 20,
+      marginTopMm: 25,
+      marginBottomMm: 20,
     });
     expect(einspaltigDefaults.colors).toMatchObject({
       primary: "#0B3485",
-      accent: "#4AAAF4",
-      text: "#3E484E",
+      accent: "#0B3485",
+      text: "#3B454B",
       pattern: "#EAF5FD",
     });
     expect(stilvollLebenslaufTemplateConfig).toMatchObject({

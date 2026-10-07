@@ -345,7 +345,7 @@ describe("Seitenränder and Innenabstand", () => {
   });
 
   it("keeps the old slider level of the other field when one of them is edited", () => {
-    const { draft } = start("einspaltig");
+    const { draft } = start("tabellarisch");
     const state: DesignEditState = { draft: { ...draft, settings: { ...draft.settings, marginLevel: 7, paddingLevel: 3 } }, global: undefined };
     expect(effective(state)).toMatchObject({ pageMarginMm: 20, innerPaddingMm: 2.5 });
     const padded = set(state, "document", "innerPaddingMm", 2);

@@ -48,7 +48,7 @@ export function EinfachHeader({
         {compact ? <p>{resolveResumeHeading(profile).continuationKicker}</p> : null}
         <h1>{name}</h1>
         {profession ? <h2>{profession}</h2> : null}
-        {!compact && contacts.length ? (
+        {!compact && !atsMode && contacts.length ? (
           <address>
             {contacts.map((contact, index) => (
               <span

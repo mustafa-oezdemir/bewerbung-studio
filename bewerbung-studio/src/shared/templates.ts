@@ -389,7 +389,8 @@ const allTemplates: TemplateDefinition[] = [
       lineHeightLevel: 2,
       columnLayout: "single",
       resumeOutputMode: "visual",
-      backgroundId: "geometric",
+      // White by default: the geometric pattern stays available as a quiet option.
+      backgroundId: "white",
       showBackgroundInPrint: true,
       fontId: "source-sans",
       headingFontId: "source-sans",

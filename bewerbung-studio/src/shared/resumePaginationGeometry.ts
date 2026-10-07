@@ -21,6 +21,22 @@ const klassischEntryHead = klassischTitleLine + klassischDefaults.layout.organiz
 const klassischHeaderClose = klassischDefaults.layout.headerPaddingBottomMm + 25.4 / 96 + klassischDefaults.layout.headerGapMm;
 const klassischHeaderTop = klassischGeometry.top + klassischLine(klassischDefaults.typography.nameSizePt, klassischDefaults.typography.nameLineHeight)
   + klassischDefaults.layout.titleGapMm + klassischLine(klassischDefaults.typography.titleSizePt) + klassischHeaderClose;
+import { einspaltigDefaults } from "./cvTemplateDefaults/einfach.defaults";
+import { einspaltigSectionTitleMm, resolveEinspaltigGeometry } from "./einspaltigDesign";
+
+const einspaltigGeometry = resolveEinspaltigGeometry();
+const einspaltigLine = (pt: number, lineHeight: number = einspaltigDefaults.typography.lineHeight) => pt * PT_MM * lineHeight;
+const einspaltigBodyMm = einspaltigDefaults.typography.bodySizePt * PT_MM;
+const einspaltigBodyLine = einspaltigLine(einspaltigDefaults.typography.bodySizePt);
+const einspaltigTitleLine = einspaltigLine(einspaltigDefaults.typography.entryHeadingSizePt, einspaltigDefaults.typography.headingLineHeight);
+const einspaltigSectionHead = einspaltigSectionTitleMm(einspaltigDefaults.typography.sectionHeadingSizePt) + einspaltigDefaults.layout.sectionTitleGapMm;
+const einspaltigListInset = einspaltigDefaults.layout.listIndentMm + 0.5;
+const einspaltigBulletWidth = einspaltigGeometry.contentWidth - einspaltigListInset;
+/** Title row, the gap, organisation row: an entry without bullets. */
+const einspaltigEntryHead = einspaltigTitleLine + einspaltigDefaults.layout.organizationGapMm + einspaltigBodyLine;
+const einspaltigHeaderClose = einspaltigDefaults.layout.headerPaddingBottomMm + 25.4 / 96 + einspaltigDefaults.layout.headerGapMm;
+const einspaltigHeaderTop = einspaltigGeometry.top + einspaltigLine(einspaltigDefaults.typography.nameSizePt, einspaltigDefaults.typography.nameLineHeight)
+  + einspaltigDefaults.layout.titleGapMm + einspaltigLine(einspaltigDefaults.typography.titleSizePt) + einspaltigHeaderClose;
 
 export type PaginationZone = "main" | "sidebar";
 
@@ -489,30 +505,59 @@ const geometry: Record<string, PaginationGeometry> = {
     ats: {exp: 1.0, edu: 1.0, knowledge: {head: 7.54, title: 6.08, gap: 3, pitch: 3.11, font: 2.96, w: 180, tail: 0}, languages: [7.3, 3.4], certs: {base: 7.3, perItem: 3.4}, density: {compact: 0.99, dense: 0.96}},
     density: {compact: 1, dense: 0.98},
   },
+  // Einspaltig (DIN-oriented, one column): every line box and gap follows from einspaltigDefaults and the stylesheet both
+  // surfaces share (11 pt x 1.25 = 4.851 mm per line; ruled 14 pt section titles). Career entries, the summary, knowledge
+  // rows and the header are wrapped with the measured font advances (`wrap`, estimateEinspaltigHeaderTop); the character
+  // model (`cw`) only serves other fonts.
   "einspaltig": {
     columns: 1,
+    safety: 1,
     sidebarLeft: false,
     zones: {summary: "main", strengths: "main", knowledge: "main", languages: "main"},
-    top1: 51.5,
-    top2: 31,
-    limit: 285.8,
+    // A header with name and Berufsbezeichnung / the running head; estimateEinspaltigHeaderTop computes the real ones.
+    top1: einspaltigHeaderTop,
+    top2: einspaltigGeometry.top + einspaltigLine(einspaltigDefaults.typography.metaSizePt) + einspaltigLine(einspaltigDefaults.typography.continuationNameSizePt, einspaltigDefaults.typography.nameLineHeight) + einspaltigHeaderClose,
+    limit: einspaltigGeometry.contentBottom,
     sideTop1: null,
-    sideLimit: 285.8,
-    atsTop1: 56.6,
-    atsTop2: 34.7,
+    sideLimit: einspaltigGeometry.contentBottom,
+    atsTop1: einspaltigHeaderTop,
+    atsTop2: einspaltigGeometry.top + einspaltigLine(einspaltigDefaults.typography.metaSizePt) + einspaltigLine(einspaltigDefaults.typography.continuationNameSizePt, einspaltigDefaults.typography.nameLineHeight) + einspaltigHeaderClose,
     mainLeft: 0,
-    mainRight: 210,
-    contentLeft: 15,
-    contentRight: 195,
-    text: {contW: 175.6, cw: 0.485, bulletW: 175.6, bulletFont: 3.387, titleW: 152.3, titleFont: 4.06, orgW: 165, orgFont: 3.53, sumFont: 3.175, mainW: 180, sideW: 0, atsW: 175.6, lineRatio: 1.1, fullW: 180},
-    exp: {base: 13.7, list: 0.5, perBullet: 0.53, linePitch: 3.6, extraLine: 2.4, gap: 4.5, head: 9},
-    edu: {base: 13.9, extraLine: 2.4, gap: 4.5, head: 9},
-    blocks: {summary: [9, 3.49], strengths: [5.7, 4.77], knowledge: [9.3, 3.21], languages: [9.9, 1.67], sectionGap: 5, sideGap: 4.5},
-    items: {strengths: {w: 83, font: 3.387, pitch: 4.4, pad: 1, cw: 0.53, cols: 2, head: 9, gap: 3}, knowledge: {w: 52.5, font: 3.387, pitch: 3.73, pad: 0.27, cw: 0.45, cols: 3, head: 14.2, gap: 0}},
-    certs: {home: "last", zone: "main", base: 10.4, perItem: 3.72, w: 169.4, font: 3.39, pitch: 3.73},
+    mainRight: einspaltigDefaults.page.widthMm,
+    contentLeft: einspaltigGeometry.left,
+    contentRight: einspaltigDefaults.page.widthMm - einspaltigGeometry.right,
+    text: {contW: einspaltigBulletWidth, cw: 0.5, bulletW: einspaltigBulletWidth, bulletFont: einspaltigBodyMm, titleW: einspaltigGeometry.contentWidth - 30, titleFont: einspaltigDefaults.typography.entryHeadingSizePt * PT_MM,
+      orgW: einspaltigGeometry.contentWidth - 30, orgFont: einspaltigBodyMm, sumFont: einspaltigBodyMm, mainW: einspaltigGeometry.contentWidth, sideW: 0, atsW: einspaltigGeometry.contentWidth,
+      lineRatio: einspaltigDefaults.typography.lineHeight, fullW: einspaltigGeometry.contentWidth,
+      // Date and place stand beside title and organisation, as wide as they are (they never wrap).
+      wrap: {fontId: "source-sans", bodyWeight: 400, titleWeight: einspaltigDefaults.typography.entryHeadingWeight, orgWeight: einspaltigDefaults.typography.organizationWeight,
+        listInset: einspaltigListInset, metaGap: einspaltigDefaults.layout.metaGapMm, metaRatio: einspaltigDefaults.typography.metaSizePt / einspaltigDefaults.typography.bodySizePt,
+        metaMinPt: einspaltigDefaults.typography.metaSizePt, metaMaxWidth: 999, paragraphs: true, marker: true, atsWidth: 0.98}},
+    // Entry: title row and organisation row (each beside its meta), then the list (top margin, gaps between bullets, lines).
+    exp: {base: einspaltigEntryHead, list: einspaltigDefaults.layout.entryContentGapMm - einspaltigDefaults.layout.bulletGapMm, perBullet: einspaltigDefaults.layout.bulletGapMm,
+      linePitch: einspaltigBodyLine, extraLine: einspaltigTitleLine, gap: einspaltigDefaults.layout.entryGapMm, head: einspaltigSectionHead},
+    edu: {base: einspaltigEntryHead, extraLine: einspaltigTitleLine, gap: einspaltigDefaults.layout.entryGapMm, head: einspaltigSectionHead,
+      detailBase: -einspaltigDefaults.layout.bulletGapMm, detailLine: einspaltigBodyLine, detailItem: einspaltigDefaults.layout.bulletGapMm, detailList: einspaltigDefaults.layout.entryContentGapMm},
+    blocks: {summary: [einspaltigSectionHead, einspaltigBodyLine], strengths: [einspaltigSectionHead, einspaltigBodyLine], knowledge: [einspaltigSectionHead, einspaltigBodyLine],
+      languages: [einspaltigSectionHead, einspaltigBodyLine * 2], sectionGap: einspaltigDefaults.layout.sectionGapMm, sideGap: einspaltigDefaults.layout.sectionGapMm},
+    items: {
+      // The managed strength cards: title line 1.3, description at 0.92 em with 1.4 (resumeManagedOutput's card CSS).
+      strengths: {w: 50, font: einspaltigBodyMm, pitch: einspaltigBodyMm * 1.3, pad: 0, cw: 0.5, cols: 3, head: einspaltigSectionHead, gap: 3,
+        descPitch: einspaltigBodyMm * 0.92 * 1.4, titleWeight: 700},
+      // The managed item grid: heading, category title (+1.5 mm) and rows 2 mm apart.
+      knowledge: {w: 76, font: einspaltigBodyMm, pitch: einspaltigBodyLine, pad: 0, cw: 0.5, cols: 2, head: einspaltigSectionHead + einspaltigBodyLine + 1.5, gap: 2},
+    },
+    certs: {home: "last", zone: "main", base: einspaltigSectionHead, perItem: einspaltigBodyLine + einspaltigDefaults.layout.bulletGapMm, w: einspaltigBulletWidth, font: einspaltigBodyMm, pitch: einspaltigBodyLine},
     derivedStrengths: {visual: "first", ats: "single"},
-    ats: {exp: 1.0, edu: 1.0, head: 7.9, knowledge: {head: 7.9, title: 7.11, gap: 3.38, pitch: 3.73, font: 3.39, w: 180, tail: 0}, languages: [7.6, 4], certs: {base: 7.6, perItem: 4}, density: {compact: 1, dense: 0.99}},
-    density: {compact: 1, dense: 0.99},
+    // Plain layout: the same type scale in Arial; knowledge = category title (+1.5 mm) and a comma-separated paragraph per
+    // category; languages and certificates are list lines.
+    ats: {exp: 1.0, edu: 1.0, head: einspaltigSectionHead, sectionGap: einspaltigDefaults.layout.sectionGapMm,
+      knowledge: {head: einspaltigSectionHead, title: einspaltigBodyLine + 1.5, gap: 3, pitch: einspaltigBodyLine, font: einspaltigBodyMm, w: einspaltigGeometry.contentWidth, tail: 0},
+      languages: [einspaltigSectionHead - einspaltigDefaults.layout.bulletGapMm, einspaltigBodyLine + einspaltigDefaults.layout.bulletGapMm],
+      certs: {base: einspaltigSectionHead - einspaltigDefaults.layout.bulletGapMm, perItem: einspaltigBodyLine + einspaltigDefaults.layout.bulletGapMm},
+      density: {compact: 0.985, dense: 0.965}},
+    // Compact/dense only shrink the gaps (x .85 / x .7), never the text.
+    density: {compact: 0.985, dense: 0.965},
   },
   // Klassisch (DIN-oriented, one column): every line box and gap follows from klassischDefaults and the stylesheet that
   // both surfaces share (measured equal in the PDF: 11 pt x 1.2 = 4.656 mm per line, 14 pt titles 5.927 mm, entry head

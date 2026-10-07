@@ -9,7 +9,7 @@ import { buildDocumentHtml } from "../../../electron/documents";
 import { createResumePagePlan } from "../../shared/documentPagination";
 import { resolveCvDocument } from "../../shared/resolveCvDocument";
 import { formatApplicationDate } from "../../shared/applicationDate";
-import { moveManagerSection, updateManagerSection } from "../../features/resume-sections/resume-manager";
+import { getManagerSections, moveManagerSection, reorderManagerSection, updateManagerSection } from "../../features/resume-sections/resume-manager";
 import { resolveResumePresentation } from "../../shared/resumePresentation";
 import { ManagedResumePreview } from "./ManagedResumePreview";
 import { ElegantResume } from "./templates/elegant";
@@ -93,16 +93,17 @@ describe("managed template previews", () => {
       expect(document.querySelector('[data-managed-section="special:bbbb0000-0000-4000-8000-000000000000"]')).not.toBeNull();
     }
     const previewCss = readFileSync(new URL("./templates/einspaltig/einfach.css", import.meta.url), "utf8");
-    const previewTitleRule = previewCss.match(/\.einfach-section__title,\s*\.einfach-template \.managed-extra > h3\s*\{([^}]+)\}/)?.[1];
-    const pdfTitleRule = pdf.match(/\.einfach-pdf \.managed-pdf-title,\.einfach-pdf \.managed-extra>h3\{([^}]+)\}/)?.[1];
+    const previewTitleRule = previewCss.match(/\.einfach-template \.einfach-section__title,\s*\.einfach-template \.managed-extra > h3\s*\{([^}]+)\}/)?.[1];
+    const pdfTitleRule = pdf.match(/\.einfach-pdf\.managed-pdf \.managed-pdf-title,\.einfach-pdf\.managed-pdf \.managed-extra>h3\{([^}]+)\}/)?.[1];
     for (const rule of [previewTitleRule, pdfTitleRule]) {
       expect(rule).toBeDefined();
       expect(rule).toMatch(/border-top:\s*0\s*;/);
-      expect(rule).toMatch(/border-bottom:\s*0?\.3mm solid/);
+      expect(rule).toMatch(/border-bottom:\s*var\(--einfach-rule\) solid/);
       expect(rule).not.toMatch(/border-block/);
     }
-    expect(previewCss).toMatch(/\.einfach-career article\s*\{[^}]*border-bottom:\s*[^;]*dashed/);
-    expect(pdf).toMatch(/\.einfach-pdf-entry\{[^}]*border-bottom:\s*[^;]*dashed/);
+    // Entries are separated by the entry gap alone, on both surfaces (no dashed divider any more).
+    expect(previewCss).not.toMatch(/dashed/);
+    expect(pdf).not.toMatch(/\.einfach-pdf[^{]*\{[^}]*dashed/);
   });
   it.each(Object.entries(components))("matches preview and PDF section columns in %s", (templateId, component) => {
     const now = new Date().toISOString();
@@ -217,20 +218,26 @@ describe("managed template previews", () => {
       expect(document.querySelector('[data-managed-section="education"]'), templateId).toBeNull();
     }
   });
-  it("stacks main sections before sidebar sections in a customized single-column CV", () => {
+  it("draws a customized single-column CV in the order of the whole list, whatever column a section was saved in", () => {
     const now = new Date().toISOString();
-    let profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: now,
+    const source = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: now,
       summary: "Profiltext", experiences: [{ id: crypto.randomUUID(), from: "2020", to: "2024", role: "Entwicklerin", company: "Arbeitgeber", achievements: [] }],
     });
-    profile = moveManagerSection(profile, "einspaltig", "experience", "main", 0);
-    profile = moveManagerSection(profile, "einspaltig", "summary", "sidebar", 0);
-    const plan = createResumePagePlan(profile, "", {}, "einspaltig")[0];
-    const child = createElement(EinspaltigResume, { profile, name: "Mina Kaya", atsMode: false, plan, totalPages: 1,
-      accentColor: "#123456", secondaryColor: "#234567", photoSource: null, resumeProfile: "", sections: profile.resumeSections, backgroundId: "white" });
-    const html = renderToStaticMarkup(<ManagedResumePreview profile={profile} templateId="einspaltig" pageNumber={1} totalPages={1}>{child}</ManagedResumePreview>);
-    const { document } = parseHTML(html);
-    const sections = Array.from(document.querySelectorAll("[data-managed-section]")).map(node => node.getAttribute("data-managed-section"));
-    expect(sections.indexOf("experience")).toBeLessThan(sections.indexOf("summary"));
+    const draw = (profile: typeof source) => {
+      const plan = createResumePagePlan(profile, "", {}, "einspaltig")[0];
+      const child = createElement(EinspaltigResume, { profile, name: "Mina Kaya", atsMode: false, plan, totalPages: 1,
+        accentColor: "#123456", secondaryColor: "#234567", photoSource: null, resumeProfile: "", sections: profile.resumeSections, backgroundId: "white" });
+      const html = renderToStaticMarkup(<ManagedResumePreview profile={profile} templateId="einspaltig" pageNumber={1} totalPages={1}>{child}</ManagedResumePreview>);
+      return Array.from(parseHTML(html).document.querySelectorAll("[data-managed-section]")).map(node => node.getAttribute("data-managed-section"));
+    };
+    // The Kurzprofil stays saved in the side column; one column draws it where the list has it, ahead of the career.
+    const sideSummary = moveManagerSection(source, "einspaltig", "summary", "sidebar", 0);
+    expect(getManagerSections(sideSummary, "einspaltig").find((entry) => entry.id === "summary")?.zone).toBe("sidebar");
+    expect(draw(sideSummary).indexOf("summary")).toBeLessThan(draw(sideSummary).indexOf("experience"));
+    // Moved behind the career in the one list, it is drawn there, with its saved column kept.
+    const behind = reorderManagerSection(sideSummary, "einspaltig", "summary", 2);
+    expect(getManagerSections(behind, "einspaltig").find((entry) => entry.id === "summary")?.zone).toBe("sidebar");
+    expect(draw(behind).indexOf("experience")).toBeLessThan(draw(behind).indexOf("summary"));
   });
   it.each(Object.entries(components))("applies semantic spacing to preview and PDF only when overridden in %s", (templateId, component) => {
     const now = new Date().toISOString();

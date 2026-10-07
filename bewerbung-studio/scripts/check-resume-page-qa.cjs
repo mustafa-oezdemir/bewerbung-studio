@@ -1,14 +1,14 @@
-// Klassisch page QA in real Chromium (tmp/klassisch-page-qa from `node scripts/klassisch-page-qa.mjs`): measures the
+// One-column DIN template page QA in real Chromium (tmp/<TEMPLATE>-page-qa from `node scripts/resume-page-qa.mjs`): measures the
 // preview HTML and the PDF HTML side by side (content edges, header, sections, every career bullet, footer, free space
 // below the flow), prints both with the exporter's printToPDF options to <file>.pdf / <file>-preview.pdf and writes
-// measure.json. Rasterise / extract the PDFs with scripts/check-klassisch-pdf.py.
-//   npx electron scripts/check-klassisch-page-qa.cjs [filter…]
+// measure.json. Rasterise / extract the PDFs with scripts/check-resume-page-pdf.py.
+//   [TEMPLATE=einspaltig] npx electron scripts/check-resume-page-qa.cjs [filter…]
 const { app, BrowserWindow } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const out = path.resolve('tmp/klassisch-page-qa');
-const only = process.argv.slice(2).filter((arg) => !arg.startsWith('-') && !arg.includes('check-klassisch'));
+const out = path.resolve(`tmp/${process.env.TEMPLATE || 'klassisch'}-page-qa`);
+const only = process.argv.slice(2).filter((arg) => !arg.startsWith('-') && !arg.includes('check-resume'));
 
 const probe = (surface) => {
   const mm = (px) => Math.round((px * 25.4) / 96 * 100) / 100;
@@ -16,13 +16,14 @@ const probe = (surface) => {
   return sheets.map((sheet, index) => {
     const box = sheet.getBoundingClientRect();
     const rel = (node) => { if (!node) return null; const r = node.getBoundingClientRect(); return { left: mm(r.left - box.left), right: mm(r.right - box.left), top: mm(r.top - box.top), bottom: mm(r.bottom - box.top) }; };
-    const root = sheet.querySelector(surface === 'pdf' ? '.klassisch-pdf' : '.klassisch-template');
-    const content = sheet.querySelector('.klassisch-pdf-content,.klassisch-content,.klassisch-ats') ?? (root?.matches('.klassisch-pdf-ats') ? root : null);
+    const root = sheet.querySelector(surface === 'pdf' ? '.page-content' : '[data-template]');
+    const content = sheet.querySelector('.klassisch-pdf-content,.klassisch-content,.klassisch-ats,.einfach-pdf-inner,.einfach-content,.einfach-ats')
+      ?? (root?.matches('.klassisch-pdf-ats,.managed-pdf-ats') ? root : null);
     const contentStyle = content && getComputedStyle(content);
     const contentBox = content && (() => { const r = content.getBoundingClientRect(); return {
       left: mm(r.left - box.left + parseFloat(contentStyle.paddingLeft)), right: mm(r.right - box.left - parseFloat(contentStyle.paddingRight)),
       top: mm(r.top - box.top + parseFloat(contentStyle.paddingTop)), bottom: mm(r.bottom - box.top - parseFloat(contentStyle.paddingBottom)) }; })();
-    const footer = sheet.querySelector('.klassisch-pdf-footer,.klassisch-footer');
+    const footer = sheet.querySelector('.klassisch-pdf-footer,.klassisch-footer,.managed-pdf-footer,.einfach-footer');
     const header = sheet.querySelector('header');
     const textRects = (scope) => {
       const rects = [];
@@ -83,7 +84,7 @@ const probe = (surface) => {
       flowBottom: flow.length ? mm(Math.max(...flow.map((r) => r.bottom)) - box.top) : null,
       sectionBottom: (() => { const nodes = [...sheet.querySelectorAll('[data-managed-section]')]; return nodes.length ? mm(Math.max(...nodes.map((n) => n.getBoundingClientRect().bottom)) - box.top) : null; })(),
       firstUnit,
-      header: rel(header), name: rel(header?.querySelector('h1')), photo: rel(sheet.querySelector('.klassisch-pdf-photo,.klassisch-header figure')),
+      header: rel(header), name: rel(header?.querySelector('h1')), photo: rel(sheet.querySelector('.klassisch-pdf-photo,.klassisch-header figure,.einfach-pdf-photo,.einfach-header figure')),
       firstSection: sections[0] ?? null, sections, entries,
       footer: rel(footer), footerText: (footer?.textContent ?? '').trim(),
       styles: { body: style('[data-managed-section="experience"] li'), summary: style('[data-managed-section="summary"] p'), section: style('[data-managed-section] > .cv-heading, [data-managed-section] > h2, [data-managed-section] > h3'),

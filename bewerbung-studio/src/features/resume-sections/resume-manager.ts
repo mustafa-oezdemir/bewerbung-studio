@@ -45,15 +45,20 @@ const legacyKeys: Record<string, keyof ApplicantProfile["resumeSections"]> = {
 };
 const nativeSingleTemplates = new Set(["ivy-league", "einspaltig", "klassisch", "tabellarisch"]);
 const defaultSidebarSections = new Set(["summary", "strengths", "knowledge", "languages", "certifications"]);
-// Placement is independent of the selected visual layout. In single-column
-// mode the sidebar group follows the main group; switching back restores it.
-export const managerZones = (_templateId: string): ManagerZone[] =>
-  ["main", "sidebar"];
+/** The effective layout of the Lebenslauf (`resolveResumeLayout(...).mode`). */
+export type ManagerLayoutMode = "single" | "two-column";
+// The saved zone of a section is independent of the selected layout: a one-column layout draws every section in
+// its one content flow ("main") in the order of the whole list, and keeps the zone for a later two-column layout.
+export const effectiveManagerZone = (zone: ManagerZone, layoutMode?: ManagerLayoutMode): ManagerZone =>
+  layoutMode === "single" ? "main" : zone;
+export const managerZones = (_templateId: string, layoutMode: ManagerLayoutMode = "two-column"): ManagerZone[] =>
+  layoutMode === "single" ? ["main"] : ["main", "sidebar"];
 export const managerAllowedZones = (
-  _templateId: string,
+  templateId: string,
   _id: string,
+  layoutMode: ManagerLayoutMode = "two-column",
 ): ManagerZone[] =>
-  ["main", "sidebar"];
+  managerZones(templateId, layoutMode);
 export const baseGroupType = (type: string) =>
   ({
     "core-competencies": "strengths",
@@ -277,6 +282,19 @@ export const updateManagerSection = (
   return next;
 };
 
+const saveManagerLayout = (
+  profile: ApplicantProfile,
+  templateId: string,
+  entries: readonly ManagerSection[],
+): ApplicantProfile => ({
+  ...profile,
+  resumeManagerLayouts: {
+    ...profile.resumeManagerLayouts,
+    [templateId]: entries.map(({ id, zone }) => ({ id, zone })),
+  },
+});
+
+/** Two-column layout: moves a section to position `index` of the column `zone` (and into that column). */
 export const moveManagerSection = (
   profile: ApplicantProfile,
   templateId: string,
@@ -291,26 +309,34 @@ export const moveManagerSection = (
   const moved = entries.find((item) => item.id === id);
   if (!moved) return profile;
   const rest = entries.filter((item) => item.id !== id);
-  if (templateId === "tabellarisch") {
-    // Its editor and document both have one ordered section stream. Keep the
-    // saved zone while moving a section across the old main/sidebar boundary.
-    rest.splice(Math.max(0, Math.min(index, rest.length)), 0, { ...moved, zone });
-    return { ...profile, resumeManagerLayouts: {
-      ...profile.resumeManagerLayouts,
-      [templateId]: rest.map(({ id: sectionId, zone: sectionZone }) => ({ id: sectionId, zone: sectionZone })),
-    } };
-  }
   const destination = rest.filter((item) => item.zone === zone);
   const before = destination[Math.max(0, index)];
   rest.splice(before ? rest.indexOf(before) : rest.length, 0, {
     ...moved,
     zone,
   });
-  return {
-    ...profile,
-    resumeManagerLayouts: {
-      ...profile.resumeManagerLayouts,
-      [templateId]: rest.map(({ id, zone }) => ({ id, zone })),
-    },
-  };
+  return saveManagerLayout(profile, templateId, rest);
+};
+
+/**
+ * One-column layout: the movable sections form one list, the order of the Lebenslauf. Moves a section to position
+ * `index` of that whole list; every saved zone stays as it is, so a later two-column layout finds its columns again.
+ * Only this template's saved order changes.
+ */
+export const reorderManagerSection = (
+  profile: ApplicantProfile,
+  templateId: string,
+  id: string,
+  index: number,
+) => {
+  const entries = getManagerSections(profile, templateId).filter(
+    (item) => !item.fixed,
+  );
+  const from = entries.findIndex((item) => item.id === id);
+  if (from < 0) return profile;
+  const to = Math.max(0, Math.min(Math.trunc(index), entries.length - 1));
+  if (to === from) return profile;
+  const [moved] = entries.splice(from, 1);
+  entries.splice(to, 0, moved!);
+  return saveManagerLayout(profile, templateId, entries);
 };

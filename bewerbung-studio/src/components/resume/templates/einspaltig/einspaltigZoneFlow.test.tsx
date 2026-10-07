@@ -55,11 +55,13 @@ describe("Einspaltig: shared document flow", () => {
     const behind = render(moveManagerSection(base, templateId, "certifications", "main", 99));
     const above = render(moveManagerSection(base, templateId, "certifications", "main", 0));
     expect(behind.resolved.pagePlan.length).toBeGreaterThan(1);
-    expect(behind.resolved.pagePlan[1].blocks).toContain("certifications");
+    // Behind the career sections they stand on a later page.
+    const behindPage = behind.resolved.pagePlan.findIndex((page) => page.blocks?.includes("certifications"));
+    expect(behindPage).toBeGreaterThan(0);
     expect(above.resolved.pagePlan[0].blocks).toContain("certifications");
     for (const surface of ["preview", "pdf"] as const) {
       expect(section(behind.surfaces[surface][0], "certifications"), surface).toBeNull();
-      expect(section(behind.surfaces[surface][1], "certifications"), surface).not.toBeNull();
+      expect(section(behind.surfaces[surface][behindPage], "certifications"), surface).not.toBeNull();
       expect(section(above.surfaces[surface][0], "certifications"), surface).not.toBeNull();
     }
   });

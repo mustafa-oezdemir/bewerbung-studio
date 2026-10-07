@@ -19,9 +19,11 @@ import { kompaktDefaults } from "./cvTemplateDefaults/kompakt.defaults";
 import { gepflegtDefaults } from "./cvTemplateDefaults/gepflegt.defaults";
 import { elegantDefaults } from "./cvTemplateDefaults/elegant.defaults";
 import { klassischDefaults } from "./cvTemplateDefaults/klassisch.defaults";
+import { einspaltigDefaults } from "./cvTemplateDefaults/einfach.defaults";
 import { resolveKompaktGeometry } from "./kompaktDesign";
 import { resolveGepflegtGeometry } from "./gepflegtDesign";
 import { estimateKlassischHeaderTop, resolveKlassischGeometry } from "./klassischDesign";
+import { einspaltigSectionTitleMm, estimateEinspaltigHeaderTop, resolveEinspaltigGeometry } from "./einspaltigDesign";
 import { textWidthMm, wrappedLines } from "./textMetrics";
 import { resolveSectionColumns } from "./resumeSectionLayout";
 import { hasSidebarHero, isZoneFlowTemplate, sectionListMetrics, supportsEducationSplit, supportsSidebarContinuation } from "./resumeSectionPresentation";
@@ -68,6 +70,11 @@ export type ResumePagePlan = {
   blocks?: string[];
   /** A block that breaks between two pages is drawn on both; its items are shared out as ranges. */
   blockRanges?: Record<string, KnowledgeRange>;
+  /**
+   * One-column templates that follow the order of the section list (`orderedOneColumnTemplates`): the blocks this plan
+   * places itself, the same list on every page. Each stands on the page whose `blocks` name it (`sectionOnPage`).
+   */
+  placed?: string[];
   /**
    * Whether this page keeps its sidebar column. Page one always does. A later page has one when sidebar content
    * of the user's layout is still pending (only templates with `supportsSidebarContinuation`); otherwise the
@@ -476,18 +483,26 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
     contentGapDelta: delta(overrides.entryContentGapMm, nativeSpacing?.entryContentGapMm),
     columnGapDelta: single || geometry.columns !== 2 ? 0 : delta(overrides.columnGapMm, nativeSpacing?.columnGapMm),
   };
-  if (templateId === "klassisch") {
-    // The geometry the preview and the PDF draw (resolveKlassischGeometry): Seitenränder moves only the left and right edge,
-    // so the text column narrows or widens and the top and bottom of the page stay (no vertical inset). Only the
-    // Innenabstand insets the sections on every side (the shared spacing CSS pads the first and the last one).
-    const box = resolveKlassischGeometry(overrides.pageMarginMm);
+  if (templateId === "klassisch" || templateId === "einspaltig") {
+    // The geometry the preview and the PDF draw (resolveKlassischGeometry / resolveEinspaltigGeometry): Seitenränder moves
+    // only the left and right edge, so the text column narrows or widens and the top and bottom of the page stay (no
+    // vertical inset). Only the Innenabstand insets the sections on every side (the shared spacing CSS pads the first and
+    // the last one).
+    const box = templateId === "klassisch" ? resolveKlassischGeometry(overrides.pageMarginMm) : resolveEinspaltigGeometry(overrides.pageMarginMm);
     const padding = overrides.innerPaddingMm !== undefined ? overrides.innerPaddingMm - nativePadding : 0;
     // The plain layout sets Arial: its lines are wrapped on a slightly narrower column (`wrap.atsWidth`).
     const textWidth = Math.max(24, box.contentWidth - 2 * padding) * (context.atsMode ? geometry.text.wrap?.atsWidth ?? 1 : 1);
     const ratio = textWidth / geometry.text.mainW;
     const bullets = Math.max(0.2, (textWidth - (geometry.text.mainW - geometry.text.bulletW)) / geometry.text.bulletW);
+    // Einspaltig: a section title of another size (Typografie → Abschnittstitel) changes the height of every titled block
+    // like the gap below it does.
+    const headingDelta = templateId === "einspaltig" && overrides.sectionHeadingPt !== undefined
+      ? einspaltigSectionTitleMm(overrides.sectionHeadingPt) - einspaltigSectionTitleMm(einspaltigDefaults.typography.sectionHeadingSizePt) : 0;
+    // Einspaltig: the organisation row of an entry head is set at the body line height, so another Zeilenhöhe changes it.
+    const organizationDelta = templateId === "einspaltig" ? (line - 1) * geometry.text.bulletFont * font * geometry.text.lineRatio : 0;
     return { font, textHeight, line, width: bullets, contWidth: bullets, mainRatio: ratio, sideDelta: 0,
-      marginInset: padding, fullRatio: ratio, ...factors, ...spacing };
+      marginInset: padding, fullRatio: ratio, ...factors, ...spacing, titleGapDelta: spacing.titleGapDelta + headingDelta,
+      contentGapDelta: spacing.contentGapDelta + organizationDelta };
   }
   if (templateId === "zweispaltig") {
     const native = zweispaltigDefaults.layout;
@@ -635,7 +650,32 @@ type FlowBlock = {
 const sumHeights = (values: number[], gap: number) =>
   values.length ? values.reduce((total, value) => total + value, 0) + gap * (values.length - 1) : 0;
 
+/**
+ * One-column templates whose pages follow the order of the section list, also across page breaks: a Kurzprofil or
+ * Stärken behind the career flows with the blocks after it, every block behind the career keeps the order of the list,
+ * and the template draws Kurzprofil, Stärken, Sprachen (ATS also Zertifikate) on the page the plan names.
+ * Tabellarisch has its own ordered page flow.
+ */
+export const orderedOneColumnTemplates = new Set(["klassisch", "einspaltig", "ivy-league"]);
+
+/** Whether a section stands on this page: where the plan placed it, else by the template's own rule (`fallback`). */
+export const sectionOnPage = (plan: Pick<ResumePagePlan, "blocks" | "placed">, id: string, fallback: boolean): boolean =>
+  plan.placed?.includes(id) ? Boolean(plan.blocks?.includes(id)) : fallback;
+
 export const createResumePagePlan = (
+  profile: ApplicantProfile | undefined,
+  resumeProfile = "",
+  options: ResumePaginationOptions = {},
+  templateId?: string,
+  context: ResumePlanContext = {},
+): ResumePagePlan[] => {
+  const plan = planResumePages(profile, resumeProfile, options, templateId, context);
+  if (!templateId || !orderedOneColumnTemplates.has(templateId)) return plan;
+  const placed = [...new Set(plan.flatMap((page) => page.blocks ?? []))];
+  return plan.map((page) => ({ ...page, placed }));
+};
+
+const planResumePages = (
   profile: ApplicantProfile | undefined,
   resumeProfile = "",
   options: ResumePaginationOptions = {},
@@ -680,6 +720,13 @@ export const createResumePagePlan = (
     const index = context.sections?.findIndex((section) => section.id === id) ?? -1;
     return index < 0 ? Number.MAX_SAFE_INTEGER : index;
   };
+  const careerRank = Math.min(managerRank("experience"), managerRank("education"));
+  const ordered = Boolean(templateId && orderedOneColumnTemplates.has(templateId));
+  /** A block's place in the user's order; the ordered one-column templates read every block from the list. */
+  const rankOf = (block: FlowBlock) => (ordered ? managerRank(block.id) : block.rank ?? Number.MAX_SAFE_INTEGER);
+  const byRank = (left: FlowBlock, right: FlowBlock) => rankOf(left) - rankOf(right);
+  /** Kurzprofil and Stärken stand on page one, unless the user's order puts them behind the career (ordered templates). */
+  const leadHome = (id: string): FlowBlock["home"] => (ordered && customLayout && managerRank(id) > careerRank ? "last" : "first");
 
   const closingVisible = context.closing?.visible ?? Boolean(profile?.resumeClosing && (profile.resumeClosing.showPlace || profile.resumeClosing.showDate || profile.resumeClosing.showSignature));
   const closingHeight = closingVisible
@@ -935,7 +982,8 @@ export const createResumePagePlan = (
       height: zoneFlow
         ? summaryHead * scale.textHeight + blocks.summary[1] * scale.line * lines * summaryScale
         : (summaryHead + blocks.summary[1] * scale.line * lines) * scale.textHeight,
-      home: "first",
+      home: leadHome("summary"),
+      rank: managerRank("summary"),
     });
   }
   // Skills shown as strengths are only drawn by some templates, and some only on a one-page résumé.
@@ -946,7 +994,8 @@ export const createResumePagePlan = (
       id: "strengths",
       zone,
       height: listBlockHeight(gridModel("strengths", strengthEntries, zone, "first"), scale, strengthEntries),
-      home: "first",
+      home: derivedStrengths === "single" ? "first" : leadHome("strengths"),
+      rank: managerRank("strengths"),
       singleOnly: derivedStrengths === "single",
     });
   }
@@ -965,7 +1014,8 @@ export const createResumePagePlan = (
         ? languageBlockHeight(templateId, rows, {
           column: at === "sidebar" ? geometry.text.sideW + scale.sideDelta : fullWidth ? geometry.text.fullW * (scale.fullRatio ?? 1) : geometry.text.mainW * scale.mainRatio,
           font: scale.font,
-          textHeight: scale.textHeight,
+          // Einspaltig sets its language rows at the body line height.
+          textHeight: scale.textHeight * (templateId === "einspaltig" ? scale.line : 1),
           columns,
           zone: at === "sidebar" ? "sidebar" : "main",
         })
@@ -1276,7 +1326,28 @@ export const createResumePagePlan = (
       ats: context.atsMode,
     })
     : undefined;
-  const top1 = gepflegtHeaderTop(showContacts) ?? klassischHeaderTop(false) ?? (templateId === "kreativ" && profile && !context.atsMode
+  // Einspaltig: the same from its own stylesheet (capital name, ruled section titles).
+  const einspaltigHeaderTop = (continuation: boolean) => templateId === "einspaltig" && profile
+    ? estimateEinspaltigHeaderTop(profile, {
+      continuation,
+      contacts: showContacts,
+      continuationContacts: showContacts ? [
+        profile.resumeContinuationContactVisibility.email ? profile.email : "",
+        profile.resumeContinuationContactVisibility.phone ? formatPhoneForDisplay(profile.phone) : "",
+      ] : [],
+      photoScale: withPhoto ? getResumePhotoScale(profile) : 0,
+      contentWidthMm: geometry.text.mainW * scale.mainRatio,
+      namePt: context.overrides?.headingSizePt ?? einspaltigDefaults.typography.nameSizePt,
+      titlePt: context.overrides?.subheadingSizePt ?? einspaltigDefaults.typography.titleSizePt,
+      bodyPt: geometry.text.bulletFont * scale.font / PT_TO_MM,
+      lineHeight: geometry.text.lineRatio * scale.line,
+      sectionHeadingPt: context.overrides?.sectionHeadingPt ?? einspaltigDefaults.typography.sectionHeadingSizePt,
+      sectionGapMm: sectionGap,
+      titleGapMm: context.overrides?.sectionTitleGapMm ?? einspaltigDefaults.layout.sectionTitleGapMm,
+      ats: context.atsMode,
+    })
+    : undefined;
+  const top1 = gepflegtHeaderTop(showContacts) ?? klassischHeaderTop(false) ?? einspaltigHeaderTop(false) ?? (templateId === "kreativ" && profile && !context.atsMode
     ? estimateKreativHeaderTop(profile, showContacts, withPhoto,
         geometry.text.bulletFont * scale.font * 72 / 25.4, geometry.text.lineRatio * scale.line, scale.marginInset)
     : templateId === "stilvoll" && profile && !context.atsMode
@@ -1299,7 +1370,7 @@ export const createResumePagePlan = (
     ? Math.max(0, Math.ceil(gepflegtName.length / (17 * scale.mainRatio)) - 1) * 9.14
       + Math.max(0, Math.ceil((profile?.title ?? "").length / (38 * scale.mainRatio)) - 1) * 5.73
     : 0;
-  const top2 = gepflegtHeaderTop(false) ?? klassischHeaderTop(true) ?? ((templateId === "kreativ" || templateId === "stilvoll" || templateId === "gepflegt") && !context.atsMode
+  const top2 = gepflegtHeaderTop(false) ?? klassischHeaderTop(true) ?? einspaltigHeaderTop(true) ?? ((templateId === "kreativ" || templateId === "stilvoll" || templateId === "gepflegt") && !context.atsMode
     ? geometry.top2 + gepflegtMainContinuationGrowth
     : templateId === "elegant" && !context.atsMode
     ? elegantDefaults.layout.mainTopMm + scale.marginInset + 18.2 + sectionGap
@@ -1465,7 +1536,7 @@ export const createResumePagePlan = (
       pageNumber: 1,
       items: items.map((item) => strip(item, "first")),
       density,
-      blocks: flow.filter((block) => block.home === "last" || block.hostable).map((block) => block.id),
+      blocks: flow.filter((block) => block.home === "last" || block.hostable || ordered).map((block) => block.id),
       sidebar: geometry.columns === 2 && !flat,
       fill: { main: wholeMain() / mainCap1, sidebar: sideCap1 ? wholeSide() / sideCap1 : 0 },
     },
@@ -1574,9 +1645,8 @@ export const createResumePagePlan = (
   // Zone flow and Elegant: the main column keeps the order of the user's layout. A block that stands above the
   // career sections belongs to page one; the others follow the career entries, and start on page one
   // for as long as it has room.
-  const careerRank = Math.min(managerRank("experience"), managerRank("education"));
-  const headBlocks = (zoneFlow || templateId === "elegant") && customLayout && templateId !== "kreativ"
-    ? lastBlocks.filter((block) => !hostedOnFirst.has(block.id) && block.zone === "main" && (block.rank ?? Number.MAX_SAFE_INTEGER) < careerRank)
+  const headBlocks = (zoneFlow || templateId === "elegant" || ordered) && customLayout && templateId !== "kreativ"
+    ? lastBlocks.filter((block) => !hostedOnFirst.has(block.id) && block.zone === "main" && rankOf(block) < careerRank)
     : [];
   const pageOneFlow = [...firstBlocks, ...lastBlocks.filter((block) => hostedOnFirst.has(block.id) || headBlocks.includes(block))];
   // The sidebar lane places its blocks on every page itself: none of them flows into the main column.
@@ -1607,8 +1677,8 @@ export const createResumePagePlan = (
     tail.push(
       ...pageTwoFlow
         .filter((block) => block.zone === "main")
-        .sort((left, right) => customLayout
-          ? (left.rank ?? Number.MAX_SAFE_INTEGER) - (right.rank ?? Number.MAX_SAFE_INTEGER)
+        .sort((left, right) => customLayout || ordered
+          ? byRank(left, right)
           : nativeRank(left.id) - nativeRank(right.id)),
     );
   } else if (!customLayout) {
@@ -1620,6 +1690,8 @@ export const createResumePagePlan = (
     }
   }
   const pinned = pageTwoFlow.filter((block) => !tail.includes(block));
+  // The ordered one-column templates draw the blocks behind the career in the order of the list on every page.
+  if (ordered) pinned.sort(byRank);
   const pinnedLoad = sumHeights(pinned.map((block) => heightOn(block, 1)), sectionGap);
   const load1Fixed = blockLoad(pageOneFlow, "main");
   const sideLoadOne = sidebarLane ? laneLoad(0) : blockLoad(pageOneFlow, "sidebar");
@@ -1719,7 +1791,8 @@ export const createResumePagePlan = (
         pageNumber: 1,
         items: firstItems,
         density: densityOne,
-        blocks: [...pageOneFlow.filter((block) => block.home === "last"), ...tail.slice(0, cut.tail + (broken ? 1 : 0))].map((block) => block.id),
+        // An ordered one-column template also reads Kurzprofil and Stärken from the plan.
+        blocks: [...pageOneFlow.filter((block) => block.home === "last" || ordered), ...tail.slice(0, cut.tail + (broken ? 1 : 0))].map((block) => block.id),
         ...(ranges ? { blockRanges: ranges.first } : {}),
         sidebar: geometry.columns === 2 && !flat,
         fill: { main: loadFirst(cut) / mainCap1, sidebar: sideFill },

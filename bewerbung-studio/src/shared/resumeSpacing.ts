@@ -153,9 +153,10 @@ const getSectionStack = (section: Element): Element | null => {
 /**
  * Templates whose own geometry already places header, columns and footer at the chosen Seitenränder (their design
  * variables); the generic text shift would move their content a second time. Kompakt: resolveKompaktGeometry;
- * Klassisch: resolveKlassischGeometry (horizontal only: header, sections and footer share the left and right edge).
+ * Klassisch: resolveKlassischGeometry, Einspaltig: resolveEinspaltigGeometry (horizontal only: header, sections and
+ * footer share the left and right edge).
  */
-const ownPageMarginTemplates = new Set(["zeitgenoessisch", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch"]);
+const ownPageMarginTemplates = new Set(["zeitgenoessisch", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch", "einspaltig"]);
 
 export const applyResumeSpacingOutput = (
   page: Element,

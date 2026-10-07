@@ -23,6 +23,7 @@ import {
 } from "../../../../features/resume-sections/resume-sections";
 import { getResumeSemanticTitle } from "../../../../features/resume-sections/resume-section-system";
 import { formatResumeContactLine } from "../../../../shared/resumePersonalData";
+import { sectionOnPage } from "../../../../shared/documentPagination";
 
 type Props = Omit<KlassischResumeProps, "accentColor" | "secondaryColor">;
 
@@ -48,7 +49,7 @@ export function KlassischPage({
   );
   const renderSection = (type: ResumeSectionType, mode: "visual" | "ats") => {
     if (type === "summary") {
-      return sections.profile && summary && !isContinuation ? (
+      return sections.profile && summary && sectionOnPage(plan, "summary", !isContinuation) ? (
         <section key={type} className="klassisch-section" data-element-id="klassisch.summary">
           <KlassischHeading>{getResumeSectionTitle(profile, "summary")}</KlassischHeading>
           <p className="klassisch-summary">{summary}</p>
@@ -56,12 +57,13 @@ export function KlassischPage({
       ) : null;
     }
     // The plain layout lists its strengths on the last page, like the PDF; the managed output places them.
-    if (type === "strengths") return (mode === "ats" ? isLastPage : !isContinuation) && sections.strengths ? <KlassischStrengths key={type} profile={profile} atsMode={mode === "ats"} /> : null;
+    if (type === "strengths") return sectionOnPage(plan, "strengths", mode === "ats" ? isLastPage : !isContinuation) && sections.strengths ? <KlassischStrengths key={type} profile={profile} atsMode={mode === "ats"} /> : null;
     if (type === "experience") return sections.experience ? <KlassischCareer key={type} kind="experience" title={getResumeSectionTitle(profile, "experience")} items={experiences} continuation={isContinuation} /> : null;
     if (type === "education") return sections.education ? <KlassischCareer key={type} kind="education" title={getResumeSectionTitle(profile, "education")} items={education} /> : null;
     if (type === "knowledge") return isLastPage && sections.skills ? <KlassischKnowledge key={type} profile={profile} /> : null;
-    if (type === "languages") return isLastPage && sections.languages ? <KlassischLanguages key={type} profile={profile} atsMode={mode === "ats"} /> : null;
-    if (type === "certifications") return isLastPage && sections.certifications ? <KlassischCertifications key={type} profile={profile} /> : null;
+    // Kurzprofil, Stärken and Sprachen (ATS also Zertifikate) stand on the page the plan gives them.
+    if (type === "languages") return sectionOnPage(plan, "languages", isLastPage) && sections.languages ? <KlassischLanguages key={type} profile={profile} atsMode={mode === "ats"} /> : null;
+    if (type === "certifications") return (mode === "ats" ? sectionOnPage(plan, "certifications", isLastPage) : isLastPage) && sections.certifications ? <KlassischCertifications key={type} profile={profile} /> : null;
     return null;
   };
   const visualOrder: ResumeSectionType[] = hasCustomLayout

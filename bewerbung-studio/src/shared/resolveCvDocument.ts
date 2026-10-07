@@ -7,7 +7,7 @@ import { resolveResumeLayout } from "./resumeLayoutEngine";
 import { applyGlobalResumeDesign, resolveEffectiveDesignTokens, resolveResumeAppearance } from "./resumeDesignSystem";
 import type { ResumeDesignLayer } from "./cvDesignSchema";
 import { getProfileMediaSource } from "./profileMedia";
-import { getManagerSections } from "../features/resume-sections/resume-manager";
+import { effectiveManagerZone, getManagerSections } from "../features/resume-sections/resume-manager";
 import { resolveKnowledgeGroups } from "../features/resume-sections/resume-section-system";
 import { createResumePagePlan, type ResumePlanContext } from "./documentPagination";
 import { formatApplicationDate, type ApplicationDateSource } from "./applicationDate";
@@ -20,6 +20,7 @@ import { getStilvollDesignVariables } from "./stilvollDesign";
 import { getGepflegtDesignVariables } from "./gepflegtDesign";
 import { getKompaktDesignVariables } from "./kompaktDesign";
 import { getKlassischDesignVariables } from "./klassischDesign";
+import { getEinspaltigDesignVariables } from "./einspaltigDesign";
 
 type CvDocumentInput = {
   profile: ApplicantProfile | undefined;
@@ -78,6 +79,9 @@ export const resolveCvDocument = ({
   const layout = resolveResumeLayout(
     templateId, settings.resumePresentation, atsMode, sourceProfile?.resumeColumnRatio,
   );
+  // One column: every section stands in the one content flow, in the order of the whole list. The saved columns
+  // stay in the profile for a two-column layout; the preview, the PDF and the page plan read these effective zones.
+  for (const entry of managerSections) entry.zone = effectiveManagerZone(entry.zone, layout.mode);
   const design = resolveEffectiveDesignTokens(templateId, settings);
   const zeitgenoessischVariables = templateId === "zeitgenoessisch"
     ? getZeitgenoessischDesignVariables(design, settings.cvOverrides?.colors,
@@ -101,6 +105,10 @@ export const resolveCvDocument = ({
     : undefined;
   // Klassisch: one geometry and type scale for the preview, the PDF and the planner (resolveKlassischGeometry).
   const klassischVariables = templateId === "klassisch" ? getKlassischDesignVariables(design) : undefined;
+  // Einspaltig: the same for its page, type scale, spacing and its one accent colour (resolveEinspaltigGeometry).
+  const einspaltigVariables = templateId === "einspaltig"
+    ? getEinspaltigDesignVariables(design, settings.cvOverrides?.colors, application?.accentColor)
+    : undefined;
   // The Kurzprofil every output shows (and the planner measures): the Bewerbung's own text, else the profile's.
   // The Deckblatt text is another field and never stands in for it.
   const summary = resolveResumeSummary(profile, resumeProfile);
@@ -128,18 +136,18 @@ export const resolveCvDocument = ({
       signature: !atsMode && profile.resumeClosing.showSignature && Boolean(getProfileMediaSource(profile.signaturePath)),
     },
     overrides: {
-      bodySizePt: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch"].includes(templateId) ? design.typography.bodySizePt : overrides?.typography?.bodySizePt,
-      headingSizePt: ["elegant", "stilvoll", "gepflegt", "klassisch"].includes(templateId) ? design.typography.headingSizePt : undefined,
-      subheadingSizePt: ["elegant", "stilvoll", "gepflegt", "klassisch"].includes(templateId) ? design.typography.subheadingSizePt : undefined,
-      fontId: templateId === "gepflegt" || templateId === "klassisch" ? design.typography.fontId : undefined,
-      sectionHeadingPt: templateId === "gepflegt" || templateId === "klassisch" ? design.typography.sectionHeadingSizePt : undefined,
-      lineHeight: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch"].includes(templateId) ? design.typography.lineHeight : overrides?.typography?.lineHeight,
-      pageMarginMm: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch"].includes(templateId) ? design.spacing.pageMarginMm : overrides?.spacing?.pageMarginMm,
+      bodySizePt: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch", "einspaltig"].includes(templateId) ? design.typography.bodySizePt : overrides?.typography?.bodySizePt,
+      headingSizePt: ["elegant", "stilvoll", "gepflegt", "klassisch", "einspaltig"].includes(templateId) ? design.typography.headingSizePt : undefined,
+      subheadingSizePt: ["elegant", "stilvoll", "gepflegt", "klassisch", "einspaltig"].includes(templateId) ? design.typography.subheadingSizePt : undefined,
+      fontId: templateId === "gepflegt" || templateId === "klassisch" || templateId === "einspaltig" ? design.typography.fontId : undefined,
+      sectionHeadingPt: templateId === "gepflegt" || templateId === "klassisch" || templateId === "einspaltig" ? design.typography.sectionHeadingSizePt : undefined,
+      lineHeight: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch", "einspaltig"].includes(templateId) ? design.typography.lineHeight : overrides?.typography?.lineHeight,
+      pageMarginMm: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch", "einspaltig"].includes(templateId) ? design.spacing.pageMarginMm : overrides?.spacing?.pageMarginMm,
       innerPaddingMm: templateId === "elegant" ? design.spacing.innerPaddingMm : overrides?.spacing?.innerPaddingMm,
-      sectionGapMm: ["elegant", "kompakt", "klassisch"].includes(templateId) ? design.spacing.sectionGapMm : overrides?.spacing?.sectionGapMm,
-      entryGapMm: ["elegant", "kompakt", "klassisch"].includes(templateId) ? design.spacing.entryGapMm : overrides?.spacing?.entryGapMm,
-      sectionTitleGapMm: ["elegant", "kompakt", "klassisch"].includes(templateId) ? design.spacing.sectionTitleGapMm : overrides?.spacing?.sectionTitleGapMm,
-      entryContentGapMm: ["elegant", "kompakt", "klassisch"].includes(templateId) ? design.spacing.entryContentGapMm : overrides?.spacing?.entryContentGapMm,
+      sectionGapMm: ["elegant", "kompakt", "klassisch", "einspaltig"].includes(templateId) ? design.spacing.sectionGapMm : overrides?.spacing?.sectionGapMm,
+      entryGapMm: ["elegant", "kompakt", "klassisch", "einspaltig"].includes(templateId) ? design.spacing.entryGapMm : overrides?.spacing?.entryGapMm,
+      sectionTitleGapMm: ["elegant", "kompakt", "klassisch", "einspaltig"].includes(templateId) ? design.spacing.sectionTitleGapMm : overrides?.spacing?.sectionTitleGapMm,
+      entryContentGapMm: ["elegant", "kompakt", "klassisch", "einspaltig"].includes(templateId) ? design.spacing.entryContentGapMm : overrides?.spacing?.entryContentGapMm,
       columnGapMm: ["elegant", "kompakt", "gepflegt"].includes(templateId) ? design.spacing.columnGapMm : overrides?.spacing?.columnGapMm,
     },
     settings,
@@ -170,6 +178,7 @@ export const resolveCvDocument = ({
     gepflegtVariables,
     kompaktVariables,
     klassischVariables,
+    einspaltigVariables,
     summary,
     pagePlan,
   };

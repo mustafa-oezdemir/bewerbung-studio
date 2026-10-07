@@ -139,7 +139,7 @@ describe("Klassisch: DIN-oriented page geometry", () => {
 
 describe("Seitenränder of the other templates", () => {
   it("still shifts the section text of a template without own margin geometry", () => {
-    const output = renderCv("einspaltig", shortLineProfile(), { overrides: { cvOverrides: { spacing: { pageMarginMm: 18 } } } });
+    const output = renderCv("tabellarisch", shortLineProfile(), { overrides: { cvOverrides: { spacing: { pageMarginMm: 18 } } } });
     for (const page of [...output.previewPages, ...output.pdfPages]) {
       const scope = page.querySelector("[data-resume-spacing-text]");
       expect(scope?.getAttribute("style")).toContain("--resume-page-text-shift");

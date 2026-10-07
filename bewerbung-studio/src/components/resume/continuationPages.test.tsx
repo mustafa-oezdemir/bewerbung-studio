@@ -99,7 +99,7 @@ describe.each(Object.keys(components))("continuation page of %s", (templateId) =
   const { resolved, pdfPages, previewPages } = render(templateId);
 
   it("plans the same two pages for preview and PDF", () => {
-    if (["zweispaltig", "zeitgenoessisch", "elegant", "tabellarisch", "gepflegt", "klassisch"].includes(templateId)) expect(resolved.pagePlan.length).toBeGreaterThanOrEqual(2);
+    if (["zweispaltig", "zeitgenoessisch", "elegant", "tabellarisch", "gepflegt", "klassisch", "einspaltig"].includes(templateId)) expect(resolved.pagePlan.length).toBeGreaterThanOrEqual(2);
     else expect(resolved.pagePlan).toHaveLength(2);
     expect(pdfPages).toHaveLength(resolved.pagePlan.length);
     expect(previewPages).toHaveLength(resolved.pagePlan.length);

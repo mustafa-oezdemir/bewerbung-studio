@@ -832,10 +832,12 @@ describe("Lebenslauf-Dokumente", () => {
       "lebenslauf",
     );
 
-    expect(html.match(/data-resume-page="/g)).toHaveLength(2);
-    expect(html).toContain('data-resume-page="1"');
-    expect(html).toContain('data-resume-page="2"');
-    expect(html).not.toContain('data-resume-page="3"');
+    // Complete A4 sheets numbered 1..n, exactly as many as the page plan has (no clipped or extra sheet).
+    const pages = resolveCvDocument({ profile: denseProfile, templateId: application.templateId, settings: application.designSettings, application }).pagePlan.length;
+    expect(pages).toBeGreaterThanOrEqual(2);
+    expect(html.match(/data-resume-page="/g)).toHaveLength(pages);
+    for (let page = 1; page <= pages; page += 1) expect(html).toContain(`data-resume-page="${page}"`);
+    expect(html).not.toContain(`data-resume-page="${pages + 1}"`);
     expect(html).toContain("cv-continuation");
   });
 
@@ -2027,7 +2029,7 @@ describe("Lebenslauf-Dokumente", () => {
 
     expect(body).toContain('data-template="einspaltig"');
     expect(body).toContain("einfach-pdf-inner");
-    expect(html).toContain(".einfach-pdf .managed-pdf-background{z-index:-1");
+    expect(html).toContain(".einfach-pdf .managed-pdf-background{z-index:0;color:var(--einfach-pattern);opacity:var(--einfach-pattern-opacity)}");
     expect(body).toContain('class="managed-pdf-background"');
     expect(body).toContain('<img class="einfach-pdf-photo"');
     expect(body).toContain("managed-strengths-grid");

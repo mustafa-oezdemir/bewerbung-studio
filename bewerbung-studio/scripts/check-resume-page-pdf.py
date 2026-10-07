@@ -1,18 +1,19 @@
-"""Klassisch real-PDF check (tmp/klassisch-page-qa after check-klassisch-page-qa.cjs).
+"""Real-PDF check of a one-column DIN template (tmp/<TEMPLATE>-page-qa after check-resume-page-qa.cjs).
 
 For every fixture: page count of the exported PDF and of the printed preview, every career bullet exactly once in the
 exported PDF text (no bullet lost, none twice), each break between the pages at the same bullet in both PDFs, and the
 pixel difference of the rasterised pages (150 dpi). `--png` also writes page PNGs for a visual check.
-    python scripts/check-klassisch-pdf.py [filter...] [--png]
+    [TEMPLATE=einspaltig] python scripts/check-resume-page-pdf.py [filter...] [--png]
 """
 import json
+import os
 import re
 import sys
 from pathlib import Path
 
 import fitz  # PyMuPDF
 
-OUT = Path("tmp/klassisch-page-qa")
+OUT = Path(f"tmp/{os.environ.get('TEMPLATE', 'klassisch')}-page-qa")
 args = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
 png = "--png" in sys.argv
 

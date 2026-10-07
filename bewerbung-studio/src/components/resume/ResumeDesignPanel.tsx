@@ -454,7 +454,9 @@ export function ResumeDesignPanel({ documentId = "", templateId, templateName, s
             ? "Abstand der Inhalte zum Blattrand. Links und rechts gleich; Kopfbereich und beide Spalten folgen dem Seitenrand."
             : templateId === "klassisch" && key === "pageMarginMm"
               ? "Abstand der Inhalte zum Blattrand. Standard: links 25 mm, rechts 20 mm. Änderungen wirken nur auf den linken und rechten Seitenrand."
-              : spacingNotes[key]))}
+              : templateId === "einspaltig" && key === "pageMarginMm"
+                ? "Abstand der Inhalte zum Blattrand. Standard: links 25 mm, rechts 20 mm. Änderungen wirken nur auf den linken und rechten Seitenrand. Oberer und unterer Seitenrand bleiben unverändert."
+                : spacingNotes[key]))}
       </Sub>
       <Sub title="Abstände um Abschnittstitel">
         <NumberField label="Abstand davor" unit="mm" min={resumeAppearanceLimits.sectionHeadingMarginBeforeMm[0]} max={resumeAppearanceLimits.sectionHeadingMarginBeforeMm[1]} step={0.5} contextKey={contextKey}

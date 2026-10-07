@@ -19,11 +19,13 @@ import {
   managerAllowedZones,
   managerZones,
   moveManagerSection,
+  reorderManagerSection,
   updateManagerSection,
   type ManagerSection,
   type ManagerZone,
 } from "../../features/resume-sections/resume-manager";
 import { resolveKnowledgeGroups } from "../../features/resume-sections/resume-section-system";
+import { resolveResumeLayout } from "../../shared/resumeLayoutEngine";
 import {
   createKnowledgeBlock,
   resumeBlockRegistry,
@@ -102,15 +104,20 @@ export function ResumeSectionsPanel({
     templateId,
     draft.resumeKnowledgeGroups,
   );
-  const zones = managerZones(templateId);
-  const tabellarischOrder = templateId === "tabellarisch";
+  // The effective layout decides the list: one column shows one order of all sections (their saved columns are
+  // kept for a two-column layout), two columns show one list per column.
+  const single = (layoutMode ?? resolveResumeLayout(templateId, undefined).mode) === "single";
+  const zones = managerZones(templateId, single ? "single" : "two-column");
   const change = (id: string, update: { title?: string; visible?: boolean }) =>
     setDraft((current) =>
       updateManagerSection(current, templateId, id, update),
     );
+  /** Moves a section to `index` of the list it is shown in: the whole order (one column) or the column `zone`. */
   const move = (id: string, zone: ManagerZone, index: number) =>
     setDraft((current) =>
-      moveManagerSection(current, templateId, id, zone, index),
+      single
+        ? reorderManagerSection(current, templateId, id, index)
+        : moveManagerSection(current, templateId, id, zone, index),
     );
   const updateGroup = (id: string, update: Partial<(typeof groups)[number]>) =>
     setDraft((current) => ({
@@ -294,13 +301,15 @@ export function ResumeSectionsPanel({
       <div className="resume-section-card">
         {entry.fixed ? <GripVertical size={16} aria-hidden="true" /> : (
           <button type="button" className="manager-drag-handle"
-            aria-label={`${entry.title} verschieben: Pfeil hoch oder runter für Reihenfolge, Pfeil links oder rechts für Spalte`}
+            aria-label={single
+              ? `${entry.title} verschieben: Pfeil hoch oder runter für Reihenfolge`
+              : `${entry.title} verschieben: Pfeil hoch oder runter für Reihenfolge, Pfeil links oder rechts für Spalte`}
             onKeyDown={(event) => {
               if (event.key === "ArrowUp" && index > 0) move(entry.id, entry.zone, index - 1);
               else if (event.key === "ArrowDown" && index < siblings.length - 1) move(entry.id, entry.zone, index + 1);
-              else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+              else if (!single && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
                 const zone = event.key === "ArrowLeft" ? "main" : "sidebar";
-                if (zone !== entry.zone) move(entry.id, zone, tabellarischOrder ? index : entries.filter((item) => !item.fixed && item.zone === zone).length);
+                if (zone !== entry.zone) move(entry.id, zone, entries.filter((item) => !item.fixed && item.zone === zone).length);
                 else return;
               } else return;
               event.preventDefault();
@@ -350,7 +359,7 @@ export function ResumeSectionsPanel({
             </button>
           </>
         )}
-        {!entry.fixed &&
+        {!entry.fixed && !single &&
           managerAllowedZones(templateId, entry.id).length > 1 && (
             <select
               aria-label={`${entry.title} Position`}
@@ -359,7 +368,7 @@ export function ResumeSectionsPanel({
                 move(
                   entry.id,
                   event.target.value as ManagerZone,
-                  tabellarischOrder ? index : entries.filter((item) => item.zone === event.target.value).length,
+                  entries.filter((item) => item.zone === event.target.value).length,
                 )
               }>
               {managerAllowedZones(templateId, entry.id).map((zone) => (
@@ -384,7 +393,7 @@ export function ResumeSectionsPanel({
             Bereiche ziehen oder am Griff mit den Pfeiltasten verschieben.
             Mit dem Auge ein- oder ausblenden; Titel öffnen die Inhalte.
           </small>
-          {layoutMode === "single" && <small>Im einspaltigen Layout erscheinen beide Gruppen in einer Spalte.</small>}
+          {single && <small>Im einspaltigen Layout werden alle Bereiche in einer gemeinsamen Reihenfolge angeordnet.</small>}
         </div>
       </div>
       <div className="resume-section-zone">
@@ -395,8 +404,17 @@ export function ResumeSectionsPanel({
             .map((entry, index, siblings) => card(entry, index, siblings))}
         </div>
       </div>
-      {tabellarischOrder ? (
-        <div className="resume-section-zone">
+      {single ? (
+        <div
+          className={`resume-section-zone${dropTarget === "zone:order" ? " is-drop-target" : ""}`}
+          onDragOver={(event) => { event.preventDefault(); setDropTarget("zone:order"); }}
+          onDrop={(event) => {
+            event.preventDefault();
+            const source = dragged || event.dataTransfer.getData("text/plain");
+            if (source) move(source, "main", entries.filter((entry) => !entry.fixed).length - 1);
+            setDragged(null);
+            setDropTarget(null);
+          }}>
           <span>Reihenfolge im Lebenslauf</span>
           <div className="resume-section-list">
             {entries.filter((entry) => !entry.fixed).map((entry, index, siblings) => card(entry, index, siblings))}

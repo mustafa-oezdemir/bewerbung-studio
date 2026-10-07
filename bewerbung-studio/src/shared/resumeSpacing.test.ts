@@ -58,8 +58,8 @@ describe("semantic resume spacing", () => {
 
 /** The page and column boxes keep their native geometry; only text children receive the inset. */
 describe("the spacing adapter keeps Seitenränder and Innenabstand apart", () => {
-  // A one-column template without a margin geometry of its own (Einspaltig, native 15 mm): the generic text shift.
-  const oneColumn = `<div class="page-content"><div class="einfach-pdf-inner" style="padding:0 15mm"><header class="einfach-pdf-header"></header><section data-managed-section="summary"><p>Text</p></section></div></div>`;
+  // A one-column template without a margin geometry of its own (Tabellarisch, native 15 mm): the generic text shift.
+  const oneColumn = `<div class="page-content"><div class="tabellarisch-pdf-content" style="padding:0 15mm"><header class="tabellarisch-pdf-header"></header><section data-managed-section="summary"><p>Text</p></section></div></div>`;
   const klassischPage = `<div class="page-content klassisch-pdf"><div class="klassisch-pdf-content"><header class="klassisch-pdf-header"></header><section data-managed-section="summary"><p>Text</p></section></div></div>`;
   const twoColumns = `<div class="page-content gepflegt-pdf"><aside class="gepflegt-pdf-sidebar" style="padding:0 10mm"><section data-managed-section="languages"><p>Text</p></section></aside><div class="gepflegt-pdf-content" style="padding:0 10mm"><header></header><main><section data-managed-section="experience"><p>Text</p></section></main></div></div>`;
   const styleOf = (element: Element | null) => Object.fromEntries((element?.getAttribute("style") ?? "").split(";").filter(Boolean).map((part) => {
@@ -81,10 +81,10 @@ describe("the spacing adapter keeps Seitenränder and Innenabstand apart", () =>
   });
 
   it("keeps the one-column host unchanged for both independent text insets", () => {
-    const margin = render(oneColumn, "einspaltig", { pageMarginMm: 16 });
-    const padding = render(oneColumn, "einspaltig", { innerPaddingMm: 2.5 });
-    const both = render(oneColumn, "einspaltig", { pageMarginMm: 16, innerPaddingMm: 2.5 });
-    const host = (page: Element) => page.querySelector(".einfach-pdf-inner")!;
+    const margin = render(oneColumn, "tabellarisch", { pageMarginMm: 16 });
+    const padding = render(oneColumn, "tabellarisch", { innerPaddingMm: 2.5 });
+    const both = render(oneColumn, "tabellarisch", { pageMarginMm: 16, innerPaddingMm: 2.5 });
+    const host = (page: Element) => page.querySelector(".tabellarisch-pdf-content")!;
     for (const page of [margin, padding, both]) expect(host(page).getAttribute("style")).toBe("padding:0 15mm");
     expect(scopeStyle(margin)).toEqual({ "--doc-page-margin": "16mm", "--resume-page-text-shift": "1mm" });
     expect(scopeStyle(padding)).toEqual(paddingVariables);
@@ -111,14 +111,14 @@ describe("the spacing adapter keeps Seitenränder and Innenabstand apart", () =>
   });
 
   it("uses a negative text shift for a smaller margin without widening the page", () => {
-    const margin = render(oneColumn, "einspaltig", { pageMarginMm: 10 });
-    const both = render(oneColumn, "einspaltig", { pageMarginMm: 10, innerPaddingMm: 2.5 });
+    const margin = render(oneColumn, "tabellarisch", { pageMarginMm: 10 });
+    const both = render(oneColumn, "tabellarisch", { pageMarginMm: 10, innerPaddingMm: 2.5 });
     expect(scopeStyle(margin)).toEqual({ "--doc-page-margin": "10mm", "--resume-page-text-shift": "-5mm" });
     expect(scopeStyle(both)).toEqual({ ...scopeStyle(margin), ...paddingVariables });
   });
 
   it("does not introduce an inner text inset when only page margin is chosen", () => {
-    for (const [markup, id] of [[oneColumn, "einspaltig"], [twoColumns, "gepflegt"]] as const) {
+    for (const [markup, id] of [[oneColumn, "tabellarisch"], [twoColumns, "gepflegt"]] as const) {
       const page = render(markup, id, { sectionGapMm: 7, pageMarginMm: 17 });
       if (id === "gepflegt") expect(page.querySelector("[data-resume-spacing-text]")).toBeNull();
       else expect(page.querySelector("[data-resume-spacing-text]"), id).not.toBeNull();

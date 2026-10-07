@@ -6,6 +6,7 @@ import { applyResumeClosingOutput, resumeClosingCss } from "./resumeClosing";
 import { applyPehlioneAppearance, pehlioneAppearanceCss } from "./pehlioneAppearance";
 import { getPehlioneContacts } from "./pehlioneContacts";
 import { applyResumeSectionPresentation, isPlainListSection, isZoneFlowTemplate, plainListItemPrefix, resumeSectionPresentationCss } from "./resumeSectionPresentation";
+import { orderedOneColumnTemplates, sectionOnPage } from "./documentPagination";
 import {
   keepDatesOnOneLine,
   normalizeContinuationHeader,
@@ -597,7 +598,9 @@ export const applyManagedResumeOutput = (
       // on their planned pages and are never copied across page boundaries.
       let content = "";
       if (entry.id === "strengths") {
-        if (resolved.templateId === "kreativ" || resolved.templateId === "tabellarisch" ? !hosts(entry.id) : number !== 1) {
+        if (resolved.templateId === "kreativ" || resolved.templateId === "tabellarisch" ? !hosts(entry.id)
+          : orderedOneColumnTemplates.has(resolved.templateId) ? !sectionOnPage(planned[number - 1] ?? {}, "strengths", number === 1)
+          : number !== 1) {
           existing.forEach((node) => node.remove());
           nodes.delete(entry.id);
           continue;
@@ -686,7 +689,8 @@ export const applyManagedResumeOutput = (
                 ? itemHtml.map((item) => `<p>${item}</p>`).join("")
                 : `<ul>${itemHtml.map((item) => `<li>${item}</li>`).join("")}</ul>`;
         }
-      } else if ((zoneFlow || resolved.templateId === "elegant") && entry.id.startsWith("special:") && existing.length && !hosts(entry.id)) {
+      } else if ((zoneFlow || resolved.templateId === "elegant" || orderedOneColumnTemplates.has(resolved.templateId))
+        && entry.id.startsWith("special:") && existing.length && !hosts(entry.id)) {
         // The plan draws this section on another page; a copy the template drew itself must not stay.
         existing.forEach((node) => node.remove());
         nodes.delete(entry.id);
@@ -808,11 +812,15 @@ export const applyManagedResumeOutput = (
         }
       }
     }
-    // An anchor preserves the template's header/contact/photo and footer order.
-    const placementOrder = resolved.templateId !== "tabellarisch" && main === sidebar && profile.resumeManagerLayouts?.[templateId]?.length
+    // An anchor preserves the template's header/contact/photo and footer order. A one-column layout draws the
+    // sections in the order of the whole list (the page plan's order); a two-column template whose columns share one
+    // host keeps its main column ahead of its side column.
+    const placementOrder = resolved.layout.mode === "two-column" && main === sidebar && profile.resumeManagerLayouts?.[templateId]?.length
       ? [...entries.filter((entry) => entry.zone === "main"), ...entries.filter((entry) => entry.zone === "sidebar")]
       : entries;
-    for (const destination of (resolved.templateId === "kreativ" || resolved.templateId === "tabellarisch" || profile.resumeManagerLayouts?.[templateId]?.length)
+    // The one-column templates that follow the section list draw its order on every page, arranged or not.
+    const listOrder = orderedOneColumnTemplates.has(resolved.templateId) && resolved.layout.mode === "single";
+    for (const destination of (resolved.templateId === "kreativ" || resolved.templateId === "tabellarisch" || listOrder || profile.resumeManagerLayouts?.[templateId]?.length)
       ? new Set([main, sidebar])
       : []) {
       const moving = placementOrder
@@ -896,7 +904,7 @@ export const applyManagedResumeOutput = (
     else if (firstPageHeader) {
       // Later pages repeat the identity of the first page's header (name, title, photo) and the contacts the user chose
       // for them (e-mail, phone): never its address, links or other personal details.
-      if (number > 1 && (resolved.templateId === "zeitgenoessisch" || resolved.templateId === "kreativ" || resolved.templateId === "stilvoll" || resolved.templateId === "elegant" || resolved.templateId === "klassisch")) {
+      if (number > 1 && (resolved.templateId === "zeitgenoessisch" || resolved.templateId === "kreativ" || resolved.templateId === "stilvoll" || resolved.templateId === "elegant" || resolved.templateId === "klassisch" || resolved.templateId === "einspaltig")) {
         // Both native renderers already draw the compact identity. Replacing it with page one's header
         // would repeat the large photo composition and waste the continuation page's upper area
         // (Klassisch: a running head, so the text of a later page fills it like a Word document).
@@ -966,7 +974,15 @@ export const applyManagedResumeOutput = (
         kompaktScope?.style.setProperty(property, value);
       }
     }
-    // Klassisch: the resolved geometry, type scale and spacing replace the native values on both surfaces.
+    // Klassisch and Einspaltig: the resolved geometry, type scale, spacing (and Einspaltig's palette) replace the native
+    // values on both surfaces.
+    for (const variables of [resolved.einspaltigVariables].filter(Boolean) as Record<string, string>[]) {
+      const scope = (surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild) as HTMLElement | null;
+      for (const [property, value] of Object.entries(variables)) {
+        (root as HTMLElement).style.setProperty(property, value);
+        scope?.style.setProperty(property, value);
+      }
+    }
     if (resolved.klassischVariables) {
       const klassischScope = (surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild) as HTMLElement | null;
       for (const [property, value] of Object.entries(resolved.klassischVariables)) {

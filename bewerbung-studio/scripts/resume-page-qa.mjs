@@ -1,11 +1,13 @@
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createServer } from 'vite';
-// Klassisch page QA (fictional data only): every scenario × Seitenränder (native, PAGE_MARGINS=mm,mm) as the PDF HTML
+// Page QA of a one-column DIN template (TEMPLATE=klassisch|einspaltig, fictional data only): every scenario × Seitenränder
+// (native, PAGE_MARGINS=mm,mm) × design variants (BODY=pt, LINE=lh, SECTION=pt) as the PDF HTML
 // (buildDocumentHtml, the exporter's markup), the preview HTML (ManagedResumePreview + app CSS) and plan.json (page plan,
-// expected bullets per experience). Check with `npx electron scripts/check-klassisch-page-qa.cjs` (real printToPDF).
-//   [RANDOM=n SEED=s] [PAGE_MARGINS=18,10] [ATS=1] node scripts/klassisch-page-qa.mjs
-const out = resolve('tmp/klassisch-page-qa');
+// expected bullets per experience). Check with `npx electron scripts/check-resume-page-qa.cjs` (real printToPDF).
+//   [TEMPLATE=einspaltig] [RANDOM=n SEED=s] [PAGE_MARGINS=18,10] [ATS=1] [BODY=11.8] [LINE=1.35] [SECTION=15] node scripts/resume-page-qa.mjs
+const templateId = process.env.TEMPLATE || 'klassisch';
+const out = resolve(`tmp/${templateId}-page-qa`);
 await mkdir(out, { recursive: true });
 const vite = await createServer({ configFile: false, root: process.cwd(), appType: 'custom', logLevel: 'error', esbuild: { jsx: 'automatic' }, server: { middlewareMode: true } });
 try {
@@ -19,13 +21,15 @@ try {
   const { ManagedResumePreview } = await vite.ssrLoadModule('/src/components/resume/ManagedResumePreview.tsx');
   const { resumeTemplateStyleSources } = await vite.ssrLoadModule('/src/components/resume/resumeTemplateStyleSources.ts');
   const { resolveCvDocument } = await vite.ssrLoadModule('/src/shared/resolveCvDocument.ts');
-  const { KlassischResume } = await vite.ssrLoadModule('/src/components/resume/templates/klassisch/index.ts');
+  const Resume = templateId === 'einspaltig'
+    ? (await vite.ssrLoadModule('/src/components/resume/templates/einspaltig/index.ts')).EinspaltigResume
+    : (await vite.ssrLoadModule('/src/components/resume/templates/klassisch/index.ts')).KlassischResume;
   const photo = (await readFile('scripts/fixtures/qa-photo.b64', 'utf8')).trim();
   const preflight = await readFile('node_modules/tailwindcss/preflight.css', 'utf8');
   const appCss = (await readFile('src/app.css', 'utf8')).replace('@import "tailwindcss";', '');
   const { createElement: h } = await import('react');
   const { renderToStaticMarkup } = await import('react-dom/server');
-  const template = getTemplate('klassisch');
+  const template = getTemplate(templateId);
   const now = '2026-10-07T10:00:00.000Z';
   const uid = (n) => `7c000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
   const words = ['Planung', 'und', 'Steuerung', 'von', 'Projekten', 'mit', 'internen', 'Fachabteilungen', 'sowie', 'externen', 'Partnern',
@@ -80,23 +84,27 @@ try {
     const parsed = profileSchema.parse(make());
     const profile = parsed.photoPath ? setResumePhotoVisible(parsed, true) : parsed;
     for (const margin of margins) for (const ats of process.env.ATS ? [false, true] : [false]) {
-      const settings = { ...getTemplateDocumentDesignDefaults('klassisch'), resumeOutputMode: ats ? 'ats' : 'visual',
-        ...(margin !== undefined ? { cvOverrides: { spacing: { pageMarginMm: margin } } } : {}) };
+      // Design variants through the Lebenslauf design (cvOverrides), like the panel stores them.
+      const typography = Object.fromEntries([['bodySizePt', process.env.BODY], ['lineHeight', process.env.LINE], ['sectionHeadingSizePt', process.env.SECTION]]
+        .filter(([, value]) => value).map(([key, value]) => [key, Number(value)]));
+      const cvOverrides = { ...(margin !== undefined ? { spacing: { pageMarginMm: margin } } : {}), ...(Object.keys(typography).length ? { typography } : {}) };
+      const settings = { ...getTemplateDocumentDesignDefaults(templateId), resumeOutputMode: ats ? 'ats' : 'visual',
+        ...(Object.keys(cvOverrides).length ? { cvOverrides } : {}) };
       const application = applicationSchema.parse({
         schemaVersion: 1, id: uid(90), folderName: 'QA', company: { name: 'Beispiel AG', city: 'Berlin' }, contact: {}, job: { title: 'Projektleitung' },
-        status: 'Entwurf', templateId: 'klassisch', accentColor: template.accent, secondaryColor: template.secondary, designSettings: settings,
+        status: 'Entwurf', templateId, accentColor: template.accent, secondaryColor: template.secondary, designSettings: settings,
         applicationDate: '2026-10-07', documents: {}, statusHistory: [], createdAt: now, updatedAt: now,
       });
       const file = `${name}${margin !== undefined ? `-m${margin}` : ''}${ats ? '-ats' : ''}`;
       await writeFile(resolve(out, `${file}.html`), buildDocumentHtml(application, profile, 'lebenslauf'));
-      const resolved = resolveCvDocument({ profile, templateId: 'klassisch', settings, application });
-      const pages = resolved.pagePlan.map((plan, index) => renderToStaticMarkup(h(ManagedResumePreview, { designSettings: settings, resolvedCv: resolved, profile: resolved.profile, templateId: 'klassisch', pageNumber: index + 1, totalPages: resolved.pagePlan.length },
-        h(KlassischResume, { profile: resolved.profile, name: `${profile.firstName} ${profile.lastName}`, atsMode: ats, plan, totalPages: resolved.pagePlan.length, accentColor: template.accent, secondaryColor: template.secondary,
+      const resolved = resolveCvDocument({ profile, templateId, settings, application });
+      const pages = resolved.pagePlan.map((plan, index) => renderToStaticMarkup(h(ManagedResumePreview, { designSettings: settings, resolvedCv: resolved, profile: resolved.profile, templateId, pageNumber: index + 1, totalPages: resolved.pagePlan.length },
+        h(Resume, { profile: resolved.profile, name: `${profile.firstName} ${profile.lastName}`, atsMode: ats, plan, totalPages: resolved.pagePlan.length, accentColor: template.accent, secondaryColor: template.secondary,
           photoSource: resolved.profile.photoPath || null, resumeProfile: resolved.summary, sections: resolved.sections, backgroundId: settings.backgroundId }))));
       const paperStyle = Object.entries({ '--doc-accent': template.accent, '--doc-secondary': template.secondary, '--doc-on-secondary': getReadableTextColor(template.secondary), ...getDocumentDesignVariables(settings) })
         .map(([key, value]) => `${key}:${value}`).join(';').replaceAll('"', '&quot;');
       const paper = (page) => `<div class="document-paper document-lebenslauf layout-${template.layout} column-${settings.columnLayout} background-${settings.backgroundId} background-scope-${settings.backgroundScope} print-background" style="${paperStyle}">${page}</div>`;
-      await writeFile(resolve(out, `${file}-preview.html`), `<!doctype html><html><head><meta charset="utf-8"><style>${preflight}${appCss}${resumeTemplateStyleSources.klassisch} @page{size:A4;margin:0} body{margin:0;background:white} .document-paper{break-after:page}</style></head><body>${pages.map(paper).join('')}</body></html>`);
+      await writeFile(resolve(out, `${file}-preview.html`), `<!doctype html><html><head><meta charset="utf-8"><style>${preflight}${appCss}${resumeTemplateStyleSources[templateId]} @page{size:A4;margin:0} body{margin:0;background:white} .document-paper{break-after:page}</style></head><body>${pages.map(paper).join('')}</body></html>`);
       const expected = profile.experiences.map((entry) => ({ id: entry.id, role: resolveExperience(entry).role, bullets: resolveExperience(entry).bullets }));
       await writeFile(resolve(out, `${file}.plan.json`), JSON.stringify({ pagePlan: resolved.pagePlan, expected, margin: margin ?? null, ats }, null, 1));
       manifest.push({ file, scenario: name, margin: margin ?? null, ats, pages: resolved.pagePlan.length });
