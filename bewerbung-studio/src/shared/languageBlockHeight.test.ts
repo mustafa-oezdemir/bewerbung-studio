@@ -54,10 +54,10 @@ describe("language block height follows what is printed", () => {
     // Tabellarisch (180 mm column, 84 mm list): short names fill one line, long lines of text one line each.
     expect(high("tabellarisch", flags(false, false, false), 180, 4)).toBeCloseTo(13.5, 0);
     expect(high("tabellarisch", flags(false, true, true), 180, 4)).toBeCloseTo(29.9, 0);
-    // Klassisch (112 mm, two columns): six names are three rows.
-    expect(high("klassisch", flags(false, false, false), 180)).toBeCloseTo(19.9, 0);
-    // ... and as soon as the lines are long the list spans the page, so they stay in one line (no wrapped rows).
-    expect(high("klassisch", flags(false, true, true), 180)).toBeCloseTo(19.9, 0);
+    // Klassisch (two columns, 11 pt): six names are three rows (title 8.43 mm, rows 4.85 mm, 1.5 mm apart).
+    expect(high("klassisch", flags(false, false, false), 180)).toBeCloseTo(26, 0);
+    // ... long lines span the page (no 112 mm cap any more); at 11 pt the longest still wraps once in its half-page cell.
+    expect(high("klassisch", flags(false, true, true), 180)).toBeCloseTo(30.8, 0);
   });
 
   it("scales with the design", () => {

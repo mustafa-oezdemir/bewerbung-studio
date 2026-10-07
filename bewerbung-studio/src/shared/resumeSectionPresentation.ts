@@ -12,6 +12,7 @@
 
 import { pehlioneWhiteBlueDefaults, pehlioneWhiteDefaults, pehlioneWhiteBlueDesign } from "./cvTemplateDefaults/pehlione.defaults";
 import { stilvollDesign } from "./cvTemplateDefaults/stilvoll.defaults";
+import { klassischDefaults } from "./cvTemplateDefaults/klassisch.defaults";
 
 export type SectionZone = "main" | "sidebar";
 export type SectionSurface = "preview" | "pdf";
@@ -431,21 +432,25 @@ const einspaltig: TemplateTokens = {
   sidebar: { icons: false, heading: einspaltigHeading, list: einspaltigList },
 };
 
-/** Klassisch keeps its small grey, iconless title and one physical column. */
+/** Klassisch: an iconless 14 pt title in capitals and one physical column; every value from klassischDefaults. */
+const klassischType = klassischDefaults.typography;
+const klassischLayout = klassischDefaults.layout;
 const klassischHeading: SectionHeadingTokens = {
   iconBox: 0, iconGap: 0, iconRadius: 0, glyphSize: 0, glyphStroke: 0,
-  fontSizePt: { standard: 10.4, compact: 10.4 }, fontWeight: 750, lineHeight: 1,
-  letterSpacing: "0.01em", textTransform: "uppercase",
-  marginBottom: { standard: 2.2, compact: 2.2 }, labelPadding: { standard: 0, compact: 0 },
-  color: "var(--klassisch-heading,#5a6267)", dividerColor: "transparent", dividerWidth: "0",
+  fontSizePt: { standard: klassischType.sectionHeadingSizePt, compact: klassischType.sectionHeadingSizePt },
+  fontWeight: klassischType.sectionHeadingWeight, lineHeight: klassischType.headingLineHeight,
+  letterSpacing: `${klassischType.sectionHeadingTrackingEm}em`, textTransform: "uppercase", fontFamily: "var(--klassisch-heading-font)",
+  marginBottom: { standard: klassischLayout.sectionTitleGapMm, compact: klassischLayout.sectionTitleGapMm }, labelPadding: { standard: 0, compact: 0 },
+  color: "var(--klassisch-heading)", dividerColor: "transparent", dividerWidth: "0",
   iconColor: "currentColor", iconBackground: "transparent",
-  sectionGap: { standard: 3.8, compact: 3.8, side: "bottom", expr: "var(--klassisch-section-gap,var(--managed-section-gap,3.8mm))" },
-  height: 4.5,
+  sectionGap: { standard: klassischLayout.sectionGapMm, compact: klassischLayout.sectionGapMm, side: "bottom", expr: "var(--klassisch-section-gap)" },
+  height: Math.round(klassischType.sectionHeadingSizePt * 0.3528 * klassischType.headingLineHeight * 100) / 100,
 };
 const klassischList: SectionListTokens = {
-  fontSizePt: { standard: 8.5, compact: 8.5 }, lineHeight: { standard: 1.25, compact: 1.25 },
-  itemGap: { standard: 0.15, compact: 0.15 }, indent: 4.3, inheritBody: true,
-  layout: "margins", marginTop: 0.8, markerColor: "var(--klassisch-muted,#68747a)",
+  fontSizePt: { standard: klassischType.bodySizePt, compact: klassischType.bodySizePt }, lineHeight: { standard: klassischType.lineHeight, compact: klassischType.lineHeight },
+  itemGap: { standard: klassischLayout.bulletGapMm, compact: klassischLayout.bulletGapMm }, indent: klassischLayout.listIndentMm, inheritBody: true,
+  layout: "margins", marginTop: klassischLayout.entryContentGapMm, markerColor: "var(--klassisch-muted)",
+  fontExpr: "var(--klassisch-body-size)", lineHeightExpr: "var(--klassisch-line-height)",
 };
 const klassisch: TemplateTokens = {
   main: { icons: false, heading: klassischHeading, list: klassischList },

@@ -105,7 +105,7 @@ describe("Lebenslauf design panel", () => {
     const document = panel(state);
     expect(valueOf(document, "Abschnittsabstand (mm)")).toBe("7");
     expect(frameOf(document, "Abschnittsabstand (mm)").querySelector(".rds-badge--document")?.textContent).toBe("Bewerbung");
-    expect(frameOf(document, "Abschnittsabstand (mm)").textContent).toContain("Vorlage: 3,8 mm");
+    expect(frameOf(document, "Abschnittsabstand (mm)").textContent).toContain("Vorlage: 6 mm");
     expect(frameOf(document, "Abschnittsabstand (mm)").textContent).toContain("Auf Vorlagenwert zurücksetzen");
     expect(valueOf(document, "Ausrichtung Abschnittstitel")).toBe("Mitte");
     expect(frameOf(document, "Innenabstand (mm)").querySelector(".rds-badge")).toBeNull();
@@ -160,8 +160,8 @@ describe("Seitenränder and Innenabstand in the panel", () => {
     ["own margin 10 and own padding 2,5", (state) => set(set(state, "document", "pageMarginMm", 10), "document", "innerPaddingMm", 2.5), ["10", "2,5"], ["Bewerbung", "Bewerbung"]],
     ["own margin 16 and own padding 2,5", (state) => set(set(state, "document", "pageMarginMm", 16), "document", "innerPaddingMm", 2.5), ["16", "2,5"], ["Bewerbung", "Bewerbung"]],
     ["own margin 16 and own padding 2", (state) => set(set(state, "document", "pageMarginMm", 16), "document", "innerPaddingMm", 2), ["16", "2"], ["Bewerbung", "Bewerbung"]],
-    ["own padding 2,5 only", (state) => set(state, "document", "innerPaddingMm", 2.5), ["15", "2,5"], [null, "Bewerbung"]],
-    ["nothing changed", (state) => state, ["15", "0"], [null, null]],
+    ["own padding 2,5 only", (state) => set(state, "document", "innerPaddingMm", 2.5), ["25", "2,5"], [null, "Bewerbung"]],
+    ["nothing changed", (state) => state, ["25", "0"], [null, null]],
   ];
 
   it.each(scenarios)("shows what the resolver returns for both fields: %s", (_name, build, [margin, padding], [marginOrigin, paddingOrigin]) => {

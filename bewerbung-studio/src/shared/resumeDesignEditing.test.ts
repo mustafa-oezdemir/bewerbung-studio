@@ -57,9 +57,10 @@ describe("editing the Lebenslauf design", () => {
     const native = resolveTemplateCvDesign("klassisch").spacing.sectionGapMm;
     let state = editCvDesignField(start(), "document", "spacing", "sectionGapMm", native);
     expect(state.draft.settings.cvOverrides).toBeUndefined();
-    state = editCvDesignField(start(), "global", "spacing", "sectionGapMm", 6);
+    // A shared value that differs from the template's own (Klassisch: 6 mm).
+    state = editCvDesignField(start(), "global", "spacing", "sectionGapMm", 7);
     // Restating the shared value is no override; stating the template's value is, because it differs from the shared one.
-    expect(editCvDesignField(state, "document", "spacing", "sectionGapMm", 6).draft.settings.cvOverrides).toBeUndefined();
+    expect(editCvDesignField(state, "document", "spacing", "sectionGapMm", 7).draft.settings.cvOverrides).toBeUndefined();
     const pinned = editCvDesignField(state, "document", "spacing", "sectionGapMm", native);
     expect(pinned.draft.settings.cvOverrides).toEqual({ spacing: { sectionGapMm: native } });
     expect(gap(pinned)).toBe(native);
@@ -67,7 +68,7 @@ describe("editing the Lebenslauf design", () => {
 
   it("keeps such a pinned value in the snapshot of a template the document leaves", () => {
     const native = resolveTemplateCvDesign("klassisch").spacing.sectionGapMm;
-    let state = editCvDesignField(start(), "global", "spacing", "sectionGapMm", 6);
+    let state = editCvDesignField(start(), "global", "spacing", "sectionGapMm", 7);
     state = editCvDesignField(state, "document", "spacing", "sectionGapMm", native);
     state = { ...state, draft: selectDocumentTemplate(state.draft, "kompakt", state.global) };
     expect(state.draft.templateDesigns.klassisch.settings.cvOverrides).toEqual({ spacing: { sectionGapMm: native } });
@@ -344,7 +345,7 @@ describe("Seitenränder and Innenabstand", () => {
   });
 
   it("keeps the old slider level of the other field when one of them is edited", () => {
-    const { draft } = start("klassisch");
+    const { draft } = start("einspaltig");
     const state: DesignEditState = { draft: { ...draft, settings: { ...draft.settings, marginLevel: 7, paddingLevel: 3 } }, global: undefined };
     expect(effective(state)).toMatchObject({ pageMarginMm: 20, innerPaddingMm: 2.5 });
     const padded = set(state, "document", "innerPaddingMm", 2);
@@ -355,6 +356,19 @@ describe("Seitenränder and Innenabstand", () => {
     expect(effective(margined)).toMatchObject({ pageMarginMm: 12, innerPaddingMm: 2.5 });
     expect(margined.draft.settings.cvOverrides).toEqual({ spacing: { pageMarginMm: 12 } });
     expect(margined.draft.settings.paddingLevel).toBe(3);
+  });
+
+  it("draws Klassisch from its own design and the Lebenslauf settings, never from the document-wide size sliders", () => {
+    const { draft } = start("klassisch");
+    // The app-wide slider defaults a new Bewerbung carries (marginLevel 5, Schriftgröße medium, ...) and older levels.
+    const state: DesignEditState = { draft: { ...draft, settings: { ...draft.settings, marginLevel: 7, paddingLevel: 3, sectionSpacingLevel: 5, lineHeightLevel: 5, fontSize: "medium" } }, global: undefined };
+    expect(effective(state)).toMatchObject({ pageMarginMm: 25, innerPaddingMm: 0, sectionGapMm: 6 });
+    const view = resolveResumeDesignView("klassisch", state.draft.settings);
+    expect(view.effective.tokens.typography).toMatchObject({ bodySizePt: 11, lineHeight: 1.2 });
+    expect(view.sourceOfToken("spacing", "pageMarginMm")).toBe("template");
+    expect(view.sourceOfToken("typography", "bodySizePt")).toBe("template");
+    // The Lebenslauf panel's own Seitenränder still applies.
+    expect(effective(set(state, "document", "pageMarginMm", 18))).toMatchObject({ pageMarginMm: 18 });
   });
 
   it("preserves each template's native inner padding as a distinct spacing value", () => {

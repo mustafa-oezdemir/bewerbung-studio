@@ -22,7 +22,8 @@ const nativeValues: Record<string, Record<string, number>> = {
   stilvoll: { body: 10.5, line: 1.25, name: 23, section: 11, entry: 11.5, sectionGap: 6, entryGap: 4, titleGap: 3, margin: 20 },
   kompakt: { body: 10.3, line: 1.2, name: 21, section: 11, entry: 11.3, sectionGap: 3.5, entryGap: 3.2, titleGap: 3, margin: 25 },
   einspaltig: { body: 9.6, line: 1.1, name: 24, section: 13.5, entry: 11.5, sectionGap: 5, entryGap: 4.5, titleGap: 2, margin: 15 },
-  klassisch: { body: 8.4, line: 1.05, name: 26, section: 10.4, entry: 12.2, sectionGap: 3.8, entryGap: 3.2, titleGap: 2.2, margin: 15 },
+  // DIN-oriented project standard (2026-10-07): 11 pt / 1.2, 14 pt titles, 25 mm left margin (right 20 mm in resolveKlassischGeometry).
+  klassisch: { body: 11, line: 1.2, name: 24, section: 14, entry: 14, sectionGap: 6, entryGap: 4, titleGap: 2.5, margin: 25 },
   gepflegt: { body: 11, line: 1.3, name: 24, section: 14, entry: 12, sectionGap: 6.5, entryGap: 4, titleGap: 3.6, margin: 10 },
   elegant: { body: 10.5, line: 1.2, name: 22, section: 13, entry: 11, sectionGap: 4.5, entryGap: 2, titleGap: 3.2, margin: 10 },
 
@@ -43,7 +44,7 @@ describe("native Lebenslauf designs", () => {
     const design = getNativeResumeDesign("klassisch");
     design.tokens.spacing.sectionGapMm = 15;
     design.appearance.sectionHeadingAlignment = "right";
-    expect(getNativeResumeDesign("klassisch").tokens.spacing.sectionGapMm).toBe(3.8);
+    expect(getNativeResumeDesign("klassisch").tokens.spacing.sectionGapMm).toBe(6);
     expect(resolveTemplateResumeAppearance("klassisch").sectionHeadingAlignment).toBe("left");
   });
 
@@ -95,8 +96,9 @@ describe("native Lebenslauf designs", () => {
   });
 
   it("stays in step with the document-level font size and line height that most stylesheets still read", () => {
-    // Gepflegt sets its own sizes; Einspaltig adds a fixed offset to the document values in its stylesheet.
-    for (const { id } of templates.filter(({ id: templateId }) => !["gepflegt", "zeitgenoessisch", "elegant", "kreativ", "stilvoll", "kompakt"].includes(templateId))) {
+    // Gepflegt sets its own sizes; Einspaltig adds a fixed offset to the document values in its stylesheet; Klassisch reads its
+    // resolved design (getKlassischDesignVariables), not the document-level sliders.
+    for (const { id } of templates.filter(({ id: templateId }) => !["gepflegt", "zeitgenoessisch", "elegant", "kreativ", "stilvoll", "kompakt", "klassisch"].includes(templateId))) {
       const settings = getTemplateDocumentDesignDefaults(id);
       const { typography } = resolveTemplateCvDesign(id);
       expect(typography.bodySizePt, id).toBeCloseTo(fontSizeToPt[settings.fontSize] + (id === "einspaltig" ? 1.2 : 0), 5);

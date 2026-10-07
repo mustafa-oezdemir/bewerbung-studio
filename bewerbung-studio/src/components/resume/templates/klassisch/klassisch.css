@@ -3,20 +3,13 @@
   margin: 0;
 }
 
+/*
+ * Every size, distance and neutral colour comes from getKlassischDesignVariables (src/shared/klassischDesign.ts):
+ * the same variables reach the PDF stylesheet (klassischDocumentCss), so preview and PDF share one geometry.
+ */
 .klassisch-template {
-  --klassisch-primary: #2b2f32;
-  --klassisch-accent: #00afc5;
-  --klassisch-heading: #5a6267;
-  --klassisch-text: #3f484d;
-  --klassisch-muted: #68747a;
-  --klassisch-soft: #cdeff3;
-  --klassisch-border: #d5dbde;
-  --klassisch-margin: max(15mm, var(--doc-margin, 15mm));
-  --klassisch-section-gap: var(--doc-section-gap, 6mm);
+  --klassisch-section-gap: var(--klassisch-section-gap-base);
   --klassisch-entry-gap: var(--klassisch-entry-gap-base);
-  --klassisch-education-entry-gap: calc(var(--klassisch-entry-gap) - 0.4mm);
-  --klassisch-body-size: var(--doc-body-size, 8.5pt);
-  --klassisch-line-height: var(--doc-line-height, 1.25);
   position: relative;
   isolation: isolate;
   box-sizing: border-box;
@@ -26,7 +19,7 @@
   overflow: hidden;
   color: var(--klassisch-text);
   background: #fff;
-  font-family: var(--doc-font, "Source Sans 3", "Segoe UI", Arial, sans-serif);
+  font-family: var(--klassisch-font);
   font-size: var(--klassisch-body-size);
   line-height: var(--klassisch-line-height);
   print-color-adjust: exact;
@@ -37,6 +30,21 @@
 .klassisch-template *::before,
 .klassisch-template *::after {
   box-sizing: border-box;
+}
+
+.klassisch-template a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Every paragraph and list item of a section reads at the body size, whichever layer drew it. */
+.klassisch-template [data-managed-section] :where(p, li) {
+  font-size: var(--klassisch-body-size);
+  line-height: var(--klassisch-line-height);
+}
+
+.klassisch-template [data-managed-section] :where(p) {
+  margin-block: 0;
 }
 
 .klassisch-page__visual {
@@ -52,6 +60,7 @@
   z-index: -1;
   width: 100%;
   height: 100%;
+  opacity: var(--klassisch-wave-opacity);
   pointer-events: none;
 }
 
@@ -70,84 +79,95 @@
   position: relative;
   z-index: 2;
   height: 100%;
-  padding: 14mm var(--klassisch-margin) 17mm;
+  padding: var(--klassisch-margin-top) var(--klassisch-margin-right) var(--klassisch-margin-bottom) var(--klassisch-margin-left);
 }
 
 .klassisch-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) calc(34mm * var(--resume-photo-scale, 1));
-  gap: 8mm;
+  grid-template-columns: minmax(0, 1fr) calc(var(--klassisch-photo-size) * var(--resume-photo-scale, 1));
+  column-gap: var(--klassisch-photo-gap);
   align-items: start;
-  min-height: 33mm;
-  margin-bottom: 7mm;
+  margin: 0 0 var(--klassisch-header-gap);
+  padding: 0 0 var(--klassisch-header-padding);
+  border-bottom: var(--klassisch-rule) solid var(--klassisch-border);
 }
 
 .klassisch-header__identity {
   min-width: 0;
 }
 
-.klassisch-header h1 {
-  max-width: 138mm;
+.klassisch-template .klassisch-header h1 {
   margin: 0;
   color: var(--klassisch-primary);
-  font-size: 26pt;
-  font-weight: 750;
-  letter-spacing: -0.01em;
-  line-height: 1;
+  font-family: var(--klassisch-heading-font);
+  font-size: var(--klassisch-name-size);
+  font-weight: var(--klassisch-name-weight);
+  letter-spacing: 0;
+  line-height: var(--klassisch-name-line-height);
   overflow-wrap: anywhere;
 }
 
-.klassisch-header h2 {
-  margin: 2mm 0 1.5mm;
+.klassisch-template .klassisch-header h2 {
+  margin: var(--klassisch-title-gap) 0 0;
   color: var(--klassisch-text);
-  font-size: 12.2pt;
-  font-weight: 400;
-  line-height: 1.12;
+  font-family: var(--klassisch-heading-font);
+  font-size: var(--klassisch-title-size);
+  font-weight: var(--klassisch-title-weight);
+  letter-spacing: 0;
+  line-height: var(--klassisch-line-height);
   overflow-wrap: anywhere;
 }
 
 .klassisch-header address {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-  gap: 0.8mm 8mm;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--klassisch-contact-row-gap) var(--klassisch-contact-column-gap);
   width: 100%;
-  max-width: 132mm;
-  margin: 0;
+  margin: var(--klassisch-contacts-gap) 0 0;
   color: var(--klassisch-text);
-  font-size: 8pt;
+  font-size: var(--klassisch-contact-size);
   font-style: normal;
-  line-height: 1.25;
+  line-height: var(--klassisch-contact-line-height);
 }
 
 .klassisch-header address span {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--klassisch-contact-icon-gap);
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
 .klassisch-header address svg {
-  margin-right: 1.3mm;
+  flex: 0 0 auto;
+  width: var(--klassisch-contact-icon);
+  height: var(--klassisch-contact-icon);
+  margin-top: calc((var(--klassisch-contact-size) * var(--klassisch-contact-line-height) - var(--klassisch-contact-icon)) / 2);
+  color: var(--klassisch-accent);
 }
 
 .klassisch-header address a {
+  min-width: 0;
   color: inherit;
   text-decoration: none;
 }
 
-.klassisch-header address [data-contact-kind="linkedin"] {
-  /* A long link wraps; it is never cut off. */
-  overflow: visible;
-  white-space: normal;
-  overflow-wrap: anywhere;
+.klassisch-template .klassisch-header [data-resume-header-extra-contact] {
+  gap: var(--klassisch-contact-row-gap) var(--klassisch-contact-column-gap);
+  margin: var(--klassisch-contacts-gap) 0 0;
+  color: var(--klassisch-text);
+  font-size: var(--klassisch-contact-size);
+  line-height: var(--klassisch-contact-line-height);
 }
 
 .klassisch-header figure {
   justify-self: end;
-  width: calc(32mm * var(--resume-photo-scale, 1));
-  height: calc(32mm * var(--resume-photo-scale, 1));
+  width: calc(var(--klassisch-photo-size) * var(--resume-photo-scale, 1));
+  height: calc(var(--klassisch-photo-size) * var(--resume-photo-scale, 1));
   margin: 0;
   overflow: hidden;
   border-radius: 50%;
-  background: #edf1f3;
+  background: var(--klassisch-border);
 }
 
 .klassisch-header figure img {
@@ -159,37 +179,31 @@
 }
 
 .klassisch-header--no-photo {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
+/* Later pages: a running head (Lebenslauf heading, name, Berufsbezeichnung, the contacts chosen for later pages). */
 .klassisch-header--compact {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 1mm 5mm;
-  min-height: auto;
-  margin-bottom: 6mm;
-  padding-bottom: 2.5mm;
-  border-bottom: 0.3mm solid var(--klassisch-border);
+  display: block;
 }
 
-.klassisch-header--compact p {
-  flex-basis: 100%;
-  margin: 0;
+.klassisch-template .klassisch-header--compact p {
+  margin: 0 0 var(--klassisch-organization-gap);
   color: var(--klassisch-accent);
-  font-size: 7pt;
-  font-weight: 700;
-  letter-spacing: 0.09em;
+  font-size: var(--klassisch-meta-size);
+  font-weight: var(--klassisch-section-heading-weight);
+  letter-spacing: var(--klassisch-section-heading-tracking);
+  line-height: var(--klassisch-line-height);
   text-transform: uppercase;
 }
 
-.klassisch-header--compact h1 {
-  font-size: 15.5pt;
+.klassisch-template .klassisch-header--compact h1 {
+  font-size: var(--klassisch-continuation-name-size);
 }
 
-.klassisch-header--compact h2 {
-  margin: 0;
-  font-size: 8.8pt;
+.klassisch-template .klassisch-header--compact h2 {
+  margin-top: var(--klassisch-organization-gap);
+  font-size: var(--klassisch-body-size);
 }
 
 .klassisch-section {
@@ -202,18 +216,22 @@
 .klassisch-template .klassisch-section__title {
   margin: 0 0 var(--klassisch-section-title-gap);
   color: var(--klassisch-heading);
-  font-size: 10.4pt;
-  font-weight: 750;
-  letter-spacing: 0.01em;
-  line-height: 1;
-  text-transform: uppercase;
+  font-family: var(--klassisch-heading-font);
+  font-size: var(--klassisch-section-heading-size);
+  font-weight: var(--klassisch-section-heading-weight);
+  letter-spacing: var(--klassisch-section-heading-tracking);
+  line-height: var(--klassisch-heading-line-height);
+  text-transform: var(--klassisch-heading-case);
   break-after: avoid;
   page-break-after: avoid;
 }
 
-.klassisch-summary,
-.klassisch-knowledge {
+.klassisch-template .klassisch-section > p,
+.klassisch-template .klassisch-summary,
+.klassisch-template .klassisch-knowledge {
   margin: 0;
+  font-size: var(--klassisch-body-size);
+  line-height: var(--klassisch-line-height);
   hyphens: auto;
   overflow-wrap: break-word;
 }
@@ -221,27 +239,36 @@
 .klassisch-strengths > div {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4mm 9mm;
+  gap: var(--klassisch-strength-row-gap) var(--klassisch-strength-column-gap);
 }
 
 .klassisch-strengths article {
   display: grid;
-  grid-template-columns: 7mm minmax(0, 1fr);
-  gap: 2mm;
+  grid-template-columns: var(--klassisch-strength-icon) minmax(0, 1fr);
+  gap: var(--klassisch-contact-icon-gap);
   min-width: 0;
 }
 
-.klassisch-strengths h3 {
-  margin: 0 0 1.2mm;
+.klassisch-template .klassisch-strengths article > .technology-brand-icon {
+  width: var(--klassisch-strength-icon);
+  height: var(--klassisch-strength-icon);
   color: var(--klassisch-accent);
-  font-size: 9.8pt;
-  font-weight: 750;
-  line-height: 1.1;
+}
+
+.klassisch-template .klassisch-strengths h3 {
+  margin: 0;
+  letter-spacing: 0;
+  color: var(--klassisch-accent);
+  font-size: var(--klassisch-body-size);
+  font-weight: var(--klassisch-organization-weight);
+  line-height: var(--klassisch-line-height);
   overflow-wrap: anywhere;
 }
 
-.klassisch-strengths p {
+.klassisch-template .klassisch-strengths p {
   margin: 0;
+  font-size: var(--klassisch-body-size);
+  line-height: var(--klassisch-line-height);
   hyphens: auto;
 }
 
@@ -259,8 +286,8 @@
 
 .klassisch-career__heading {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 34mm;
-  gap: 7mm;
+  grid-template-columns: minmax(0, 1fr) var(--klassisch-meta-width);
+  column-gap: var(--klassisch-meta-gap);
   align-items: start;
 }
 
@@ -270,44 +297,53 @@
   overflow-wrap: anywhere;
 }
 
-.klassisch-career h3 {
+.klassisch-template .klassisch-career h3 {
   color: var(--klassisch-primary);
-  font-size: 12.2pt;
-  font-weight: 450;
-  line-height: 1.08;
+  font-family: var(--klassisch-heading-font);
+  font-size: var(--klassisch-entry-heading-size);
+  font-weight: var(--klassisch-entry-heading-weight);
+  letter-spacing: 0;
+  line-height: var(--klassisch-heading-line-height);
 }
 
-.klassisch-career h4 {
-  margin-top: var(--klassisch-entry-content-gap);
+.klassisch-template .klassisch-career h4 {
+  margin-top: var(--klassisch-organization-gap);
   color: var(--klassisch-accent);
-  font-size: 10pt;
-  font-weight: 650;
-  line-height: 1.12;
+  font-size: var(--klassisch-body-size);
+  font-weight: var(--klassisch-organization-weight);
+  line-height: var(--klassisch-line-height);
 }
 
-.klassisch-career__heading > p {
+.klassisch-template .klassisch-career__heading > p {
   display: flex;
   flex-direction: column;
-  gap: 1.4mm;
   margin: 0;
   color: var(--klassisch-muted);
-  font-size: 7.8pt;
-  line-height: 1.15;
+  font-size: var(--klassisch-meta-size);
+  line-height: var(--klassisch-line-height);
   text-align: right;
 }
 
 .klassisch-career ul,
 .klassisch-section > ul {
   margin: var(--klassisch-entry-content-gap) 0 0;
-  padding-left: 4.3mm;
+  padding-left: var(--klassisch-list-indent);
+  list-style: disc;
 }
 
-.klassisch-career li,
-.klassisch-section > ul li {
-  margin: 0.15mm 0;
+.klassisch-template .klassisch-career li,
+.klassisch-template .klassisch-section > ul li {
+  margin: 0;
   padding-left: 0.5mm;
+  font-size: var(--klassisch-body-size);
+  line-height: var(--klassisch-line-height);
   hyphens: auto;
   overflow-wrap: break-word;
+}
+
+.klassisch-template .klassisch-career li + li,
+.klassisch-template .klassisch-section > ul li + li {
+  margin-top: var(--klassisch-bullet-gap);
 }
 
 .klassisch-career li::marker,
@@ -315,39 +351,26 @@
   color: var(--klassisch-muted);
 }
 
-.klassisch-career--education > div {
-  gap: var(--klassisch-education-entry-gap);
-}
-
-.klassisch-career--education h3 {
-  font-size: 11.7pt;
-}
-
-.klassisch-career--education h4 {
+.klassisch-template .klassisch-career--education h4 {
   color: var(--klassisch-text);
-  font-size: 9.4pt;
-  font-weight: 450;
+  font-weight: 400;
 }
 
 .klassisch-languages > div {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2mm 18mm;
-  max-width: 112mm;
+  gap: var(--klassisch-language-row-gap) var(--klassisch-language-column-gap);
 }
 
-.klassisch-languages--wide > div {
-  max-width: none;
-}
-
-.klassisch-languages p {
+.klassisch-template .klassisch-languages p {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 3mm;
   margin: 0;
   color: var(--klassisch-text);
-  font-size: 9pt;
+  font-size: var(--klassisch-body-size);
+  line-height: var(--klassisch-line-height);
 }
 
 .klassisch-language__dots {
@@ -369,20 +392,21 @@
 
 .klassisch-languages strong {
   color: var(--klassisch-primary);
-  font-weight: 500;
+  font-weight: var(--klassisch-organization-weight);
 }
 
 .klassisch-footer {
   position: absolute;
-  right: var(--klassisch-margin);
-  bottom: 6mm;
-  left: var(--klassisch-margin);
+  right: var(--klassisch-margin-right);
+  bottom: var(--klassisch-footer-bottom);
+  left: var(--klassisch-margin-left);
   z-index: 3;
   display: flex;
   justify-content: space-between;
   gap: 8mm;
   color: var(--klassisch-muted);
-  font-size: 7pt;
+  font-size: var(--klassisch-footer-size);
+  line-height: var(--klassisch-line-height);
 }
 
 .klassisch-footer a {
@@ -390,30 +414,30 @@
   text-decoration: none;
 }
 
+/* Place and date close the text box on the last page: inside the side margins, on the bottom margin. */
+.klassisch-template [data-resume-closing-placement="footer"] {
+  right: var(--klassisch-margin-right);
+  bottom: var(--klassisch-margin-bottom);
+  left: var(--klassisch-margin-left);
+  font-size: var(--klassisch-body-size);
+}
+
+/* Compact and dense pages only tighten the gaps; text sizes stay. */
 .klassisch-template[data-density="compact"] {
-  --klassisch-section-gap: max(3mm, calc(var(--doc-section-gap, 3.8mm) * 0.85));
+  --klassisch-section-gap: calc(var(--klassisch-section-gap-base) * 0.85);
   --klassisch-entry-gap: calc(var(--klassisch-entry-gap-base) * 0.85);
 }
 
 .klassisch-template[data-density="dense"] {
-  --klassisch-section-gap: max(2.6mm, calc(var(--doc-section-gap, 3.8mm) * 0.7));
-  --klassisch-entry-gap: max(2.4mm, calc(var(--klassisch-entry-gap-base) * 0.7));
-  --klassisch-body-size: max(8pt, calc(var(--doc-body-size, 8.5pt) - 0.3pt));
+  --klassisch-section-gap: calc(var(--klassisch-section-gap-base) * 0.7);
+  --klassisch-entry-gap: calc(var(--klassisch-entry-gap-base) * 0.7);
 }
 
-.klassisch-template[data-density="dense"] .klassisch-header {
-  min-height: 29mm;
-  margin-bottom: 5mm;
-}
-
-.klassisch-template[data-density="dense"] .klassisch-header h1 {
-  font-size: 23pt;
-}
-
+/* Plain (ATS) output: the same page box and type scale, one font, no photo, background or icons. */
 .klassisch-ats {
   width: 100%;
   height: 100%;
-  padding: 14mm var(--klassisch-margin) 16mm;
+  padding: var(--klassisch-margin-top) var(--klassisch-margin-right) var(--klassisch-margin-bottom) var(--klassisch-margin-left);
   overflow: hidden;
   color: #303b42;
   background: #fff;
@@ -422,43 +446,37 @@
 
 .klassisch-ats .klassisch-header {
   display: block;
-  min-height: auto;
-  margin: 0 0 5mm;
-  padding-bottom: 3mm;
-  border-bottom: 0.3mm solid #aeb8bf;
 }
 
-.klassisch-ats .klassisch-header h1 {
-  font-size: 19pt;
-}
-
-.klassisch-ats .klassisch-header h2 {
+.klassisch-template .klassisch-ats .klassisch-header :is(h1, h2),
+.klassisch-template .klassisch-ats .klassisch-section__title {
   color: #173b63;
-  font-size: 10pt;
+  font-family: Arial, sans-serif;
 }
 
-.klassisch-ats .klassisch-section {
-  margin: 0 0 var(--klassisch-section-gap);
-}
-
+/* The rule under a plain title lies on the bottom of its line box: the title keeps the height of the styled one. */
 .klassisch-ats .klassisch-section__title {
-  margin-bottom: 2mm;
-  padding-bottom: 1mm;
-  border-bottom: 0.3mm solid #aeb8bf;
-  color: #173b63;
-  font-size: 10.5pt;
+  background: linear-gradient(#aeb8bf, #aeb8bf) left bottom / 100% var(--klassisch-rule) no-repeat;
 }
 
 .klassisch-ats .klassisch-strengths > div,
 .klassisch-ats .klassisch-languages > div {
   display: block;
-  max-width: none;
 }
 
 .klassisch-ats .klassisch-strengths article,
 .klassisch-ats .klassisch-languages p {
   display: block;
   margin: 0.7mm 0;
+}
+
+/* The plain strength cards carry no icon: title and description take the whole cell. */
+.klassisch-ats [data-managed-section="strengths"] .managed-strength-card {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.klassisch-ats [data-managed-section="strengths"] .managed-strength-card :is(strong, p) {
+  grid-column: 1;
 }
 
 @media print {
