@@ -5237,6 +5237,7 @@ body.is-resizing-split-view * {
 .application-projects { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-muted); }
 .application-projects > header { display: grid; gap: 3px; }
 .application-projects > header strong { font-size: .78rem; }
+.application-projects > button { justify-self: start; }
 .application-projects small { color: var(--muted); font-size: .64rem; line-height: 1.4; }
 .application-projects__list { display: grid; gap: 6px; }
 .application-projects__item { display: flex; align-items: flex-start; gap: 8px; padding: 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; }

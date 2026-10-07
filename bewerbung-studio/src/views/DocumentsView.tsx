@@ -787,6 +787,11 @@ export function DocumentsView({
       } } };
     });
   };
+  const clearProjectSelection = () => setDesign((current) => ({ ...current, settings: {
+    ...current.settings, resumePresentation: {
+      ...current.settings.resumePresentation, selectedProjectEntryIds: [],
+    },
+  } }));
   const storeCustomDesign = () => {
     const name = customDesignName.trim();
     if (!name) return;
@@ -2123,6 +2128,31 @@ export function DocumentsView({
                       </span>
                     </div>
                   ) : null}
+                  {projectMatches.length > 0 && <section className="application-projects">
+                    <header><strong>Projekte für diese Bewerbung</strong>
+                      <small>Wähle nur die Projekte, die im Lebenslauf erscheinen sollen. 2–3 reichen meist.</small>
+                    </header>
+                    <button className="button secondary small-button" type="button"
+                      onClick={clearProjectSelection} disabled={selectedProjectEntryIds?.length === 0}>
+                      Auswahl leeren
+                    </button>
+                    <div className="application-projects__list">
+                      {projectMatches.map(({ project, matchedTechnologies }) => (
+                        <label className="application-projects__item" key={project.id}>
+                          <input type="checkbox" checked={selectedProjectEntryIds === undefined || selectedProjectEntryIds.includes(project.id)}
+                            onChange={(event) => updateProjectSelection(project.id, event.target.checked)} />
+                          <span><strong>{project.title || "Projekt ohne Namen"}</strong>
+                            {project.technologies.length > 0 && <small>{project.technologies.join(" · ")}</small>}
+                            {matchedTechnologies.length > 0 && <em>Passend: {matchedTechnologies.join(" · ")}</em>}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    <small>{selectedProjectEntryIds === undefined
+                      ? "Bisherige Standardeinstellung: alle Projekte. Mit „Auswahl leeren“ eine eigene Auswahl starten."
+                      : `${selectedProjectEntryIds.length} Projekt${selectedProjectEntryIds.length === 1 ? "" : "e"} ausgewählt.`}
+                      {" "}Die Auswahl gilt nur für diese Bewerbung. Mit „Texte speichern“ sichern.</small>
+                  </section>}
                   {profile ? (
                     <ResumeSectionsPanel
                       key={`${application.id}:${profile.id}:${template.id}:${resumeEditorRevision}`}
@@ -2185,24 +2215,6 @@ export function DocumentsView({
                       übernommen.
                     </small>
                   </section>
-                  {projectMatches.length > 0 && <section className="application-projects">
-                    <header><strong>Projekte für diese Bewerbung</strong>
-                      <small>2–3 passende Projekte reichen meist für den Lebenslauf.</small>
-                    </header>
-                    <div className="application-projects__list">
-                      {projectMatches.map(({ project, matchedTechnologies }) => (
-                        <label className="application-projects__item" key={project.id}>
-                          <input type="checkbox" checked={selectedProjectEntryIds === undefined || selectedProjectEntryIds.includes(project.id)}
-                            onChange={(event) => updateProjectSelection(project.id, event.target.checked)} />
-                          <span><strong>{project.title || "Projekt ohne Namen"}</strong>
-                            {project.technologies.length > 0 && <small>{project.technologies.join(" · ")}</small>}
-                            {matchedTechnologies.length > 0 && <em>Passend: {matchedTechnologies.join(" · ")}</em>}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                    <small>Die Auswahl gilt nur für diese Bewerbung. Änderungen mit „Texte speichern“ sichern.</small>
-                  </section>}
                 </>
               )}
               <div className="editor-note">
