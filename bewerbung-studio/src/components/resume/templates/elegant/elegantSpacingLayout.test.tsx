@@ -113,7 +113,7 @@ describe("Elegant with own Seitenränder / Innenabstand", () => {
     for (const pages of Object.values(scopes(result))) {
       const first = pages[0];
       expect(Array.from(first.querySelectorAll("main > [data-managed-section]")).map((node) => node.getAttribute("data-managed-section")))
-        .toEqual(["experience", "summary", "education"]);
+        .toEqual(["experience", "summary", "education", `special:${profile.specialSections[0].id}`]);
       expect(Array.from(first.querySelectorAll("aside > [data-managed-section]")).map((node) => node.getAttribute("data-managed-section")))
         .toEqual(["languages", "strengths", "knowledge", "certifications"]);
     }

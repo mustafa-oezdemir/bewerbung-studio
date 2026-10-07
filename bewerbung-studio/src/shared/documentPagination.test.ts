@@ -9,6 +9,7 @@ import { resolveResumeSectionInstances } from "../features/resume-sections/resum
 import { supportsSidebarContinuation } from "./resumeSectionPresentation";
 import { kreativPaginationProfile } from "./__kreativPaginationFixture";
 import { getManagerSections } from "../features/resume-sections/resume-manager";
+import { makeSidebarLaneInput } from "./__sidebarLaneFixture";
 
 it("recalculates Kreativ bullet boundaries for typography, spacing and column width", () => {
   const profile = kreativPaginationProfile();
@@ -112,6 +113,24 @@ const expectEveryBulletOnce = (plan: ResumePagePlan[], experiences: { id: string
 };
 
 describe("A4 document pagination", () => {
+  it("fills Elegant's first main column with a short custom section in manager order", () => {
+    const input = makeSidebarLaneInput("elegant", {
+      stations: 1, bullets: 1, education: 3, specials: 2, specialEntries: 2, specialsZone: "main",
+    });
+    input.specialSections[1].entries = Array.from({ length: 24 }, (_, index) => ({
+      id: `9d000000-0000-4000-8000-${String(500 + index).padStart(12, "0")}`,
+      title: `Langes Zusatzthema ${index + 1} mit ausführlicher Beschreibung`, description: "", bullets: [],
+    }));
+    const pages = resolve(profileSchema.parse(input), "elegant").pagePlan;
+    const short = "special:9d000000-0000-4000-8000-000000000400";
+    const long = "special:9d000000-0000-4000-8000-000000000401";
+    expect(pages.length).toBeGreaterThanOrEqual(2);
+    expect(pages[0].blocks).toContain(short);
+    expect(pages[0].blocks).not.toContain(long);
+    expect(pages.slice(1).flatMap(page => page.blocks ?? [])).toContain(long);
+    expect(pages.slice(1).flatMap(page => page.blocks ?? [])).not.toContain(short);
+    expect(pages[0].fill!.main).toBeLessThanOrEqual(1);
+  });
   it("keeps compact resumes on one page", () => {
     expect(createResumePagePlan(makeProfile(1, 1, 0))).toHaveLength(1);
   });

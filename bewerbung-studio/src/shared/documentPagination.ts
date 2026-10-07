@@ -1494,11 +1494,11 @@ export const createResumePagePlan = (
     [...(page === 0 ? firstBlocks.filter((block) => block.zone === "sidebar").map((block) => block.height) : []), ...lanePages[page].map(segmentHeight)],
     sideGap,
   );
-  // Zone flow: the main column keeps the order of the user's layout. A block that stands above the
+  // Zone flow and Elegant: the main column keeps the order of the user's layout. A block that stands above the
   // career sections belongs to page one; the others follow the career entries, and start on page one
   // for as long as it has room.
   const careerRank = Math.min(managerRank("experience"), managerRank("education"));
-  const headBlocks = zoneFlow && customLayout && templateId !== "kreativ"
+  const headBlocks = (zoneFlow || templateId === "elegant") && customLayout && templateId !== "kreativ"
     ? lastBlocks.filter((block) => !hostedOnFirst.has(block.id) && block.zone === "main" && (block.rank ?? Number.MAX_SAFE_INTEGER) < careerRank)
     : [];
   const pageOneFlow = [...firstBlocks, ...lastBlocks.filter((block) => hostedOnFirst.has(block.id) || headBlocks.includes(block))];
@@ -1521,7 +1521,7 @@ export const createResumePagePlan = (
       ? ["languages", "knowledge"]
       : ["projects", "knowledge", "languages", "certifications"];
   const tail: FlowBlock[] = [];
-  if (zoneFlow) {
+  if (zoneFlow || templateId === "elegant") {
     // Every block of the main column can start on page one: the project highlight and the knowledge
     // list first, then the free groups, the certificates and the special sections (the order the
     // template draws them in), or the order of the user's layout.

@@ -2,7 +2,7 @@
 // tmp/pagination-flow-qa, plus the page plan of each document. Scenarios: `dense` (a fixed résumé like a real, full one:
 // six strengths, three languages, ten knowledge items, three stations, four education entries) and RANDOM=<n> seeded
 // random ones (SEED=<n>). Every text carries a unique token, so the checker can see lost and doubled content.
-//   node scripts/pagination-flow-qa.mjs [templateId…]   (env: KNOWLEDGE, STRENGTHS, STATIONS, LANGUAGES, LANG_DISPLAY=dots,level,description, SURFACES=1, PAGE_MARGIN, COLUMN_GAP, RANDOM, SEED)
+//   node scripts/pagination-flow-qa.mjs [templateId…]   (env: KNOWLEDGE, STRENGTHS, STATIONS, LANGUAGES, SPECIALS, SPECIAL_ENTRIES, SPECIAL_ZONE, LANG_DISPLAY=dots,level,description, SURFACES=1, PAGE_MARGIN, COLUMN_GAP, RANDOM, SEED)
 // Check the result with check-pagination-flow-qa.cjs (real Chromium).
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -60,7 +60,7 @@ try {
   const buildProfile = (random) => {
     const counts = random
       ? { strengths: int(0, 7), knowledge: int(0, 34), stations: int(1, 5), education: int(1, 4), languages: int(1, 6), certifications: int(0, 6), specials: int(0, 2) }
-      : { strengths: Number(process.env.STRENGTHS ?? 6), knowledge: Number(process.env.KNOWLEDGE ?? 10), stations: Number(process.env.STATIONS ?? 3), education: Number(process.env.EDUCATION ?? 4), languages: Number(process.env.LANGUAGES ?? 3), certifications: Number(process.env.CERTIFICATIONS ?? 0), specials: 0 };
+      : { strengths: Number(process.env.STRENGTHS ?? 6), knowledge: Number(process.env.KNOWLEDGE ?? 10), stations: Number(process.env.STATIONS ?? 3), education: Number(process.env.EDUCATION ?? 4), languages: Number(process.env.LANGUAGES ?? 3), certifications: Number(process.env.CERTIFICATIONS ?? 0), specials: Number(process.env.SPECIALS ?? 0) };
     const tokens = { knowledge: [], bullets: [], education: [], strengths: [], languages: [], certifications: [], specials: [] };
     const knowledgeItems = Array.from({ length: counts.knowledge }, (_, index) => {
       const token = `K${String(index).padStart(2, '0')}`;
@@ -85,7 +85,7 @@ try {
     const certifications = Array.from({ length: counts.certifications }, (_, index) => { tokens.certifications.push(`X${index}`); return process.env.SHORT_CERTS ? `Fiktives Zertifikat ${index + 1} X${index}` : text(int(20, 90), `X${index}`); });
     const specialSections = Array.from({ length: counts.specials }, (_, index) => ({
       id: uid(400 + index), kind: 'custom', title: ['Interessen', 'Projekte'][index], isVisible: true, contentType: 'list',
-      entries: Array.from({ length: int(2, 6) }, (_, entry) => { tokens.specials.push(`P${index}${entry}`); return { id: uid(420 + index * 10 + entry), title: text(int(12, 60), `P${index}${entry}`), description: '', bullets: [] }; }),
+      entries: Array.from({ length: Number(process.env.SPECIAL_ENTRIES ?? int(2, 6)) }, (_, entry) => { tokens.specials.push(`P${index}${entry}`); return { id: uid(420 + index * 10 + entry), title: text(int(12, 60), `P${index}${entry}`), description: '', bullets: [] }; }),
     }));
     const experiences = Array.from({ length: counts.stations }, (_, index) => ({
       id: uid(200 + index), from: `0${(index % 9) + 1}/20${15 + index * 2}`, to: `0${(index % 8) + 2}/20${17 + index * 2}`, role: ['Praktikum Softwareentwicklung', 'Prozessplanerin', 'Transportpilotin', 'Produktionskoordination', 'Qualitätssicherung'][index % 5],
@@ -118,7 +118,7 @@ try {
         resumeClosing: { showPlace: true, showDate: true, showSignature: false },
       },
       tokens,
-      zones: random ? { knowledge: rnd() < 0.85 ? 'sidebar' : 'main', certifications: rnd() < 0.5 ? 'sidebar' : 'main', special: rnd() < 0.5 ? 'sidebar' : 'main' } : { knowledge: 'sidebar', certifications: 'sidebar', special: 'sidebar' },
+      zones: random ? { knowledge: rnd() < 0.85 ? 'sidebar' : 'main', certifications: rnd() < 0.5 ? 'sidebar' : 'main', special: rnd() < 0.5 ? 'sidebar' : 'main' } : { knowledge: 'sidebar', certifications: 'sidebar', special: process.env.SPECIAL_ZONE === 'main' ? 'main' : 'sidebar' },
     };
   };
 
