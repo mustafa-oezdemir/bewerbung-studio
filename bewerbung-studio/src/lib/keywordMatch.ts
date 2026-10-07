@@ -49,14 +49,17 @@ const stopWords = new Set([
   "arbeit",
 ]);
 
-const normalize = (value: string) =>
+export const normalizeKeywordText = (value: string) =>
   value
     .toLocaleLowerCase("de-DE")
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "");
 
-const includesPhrase = (haystack: string, phrase: string) =>
-  normalize(haystack).includes(normalize(phrase));
+export const includesKeywordPhrase = (haystack: string, phrase: string) =>
+  normalizeKeywordText(haystack).includes(normalizeKeywordText(phrase));
+
+const normalize = normalizeKeywordText;
+const includesPhrase = includesKeywordPhrase;
 
 export type KeywordMatchResult = {
   score: number;

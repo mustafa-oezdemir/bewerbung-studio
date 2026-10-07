@@ -15,7 +15,7 @@ type Special = ApplicantProfile["specialSections"][number];
 type SpecialEntry = Special["entries"][number];
 const newEntry = (): SpecialEntry => ({
   id: crypto.randomUUID(), title: "", subtitle: "", from: "", to: "", date: "",
-  location: "", url: "", description: "", bullets: [],
+  location: "", url: "", description: "", bullets: [], technologies: [],
 });
 
 /** One profile experience for the existing knowledge, language, certificate and qualification sources. */

@@ -24,6 +24,35 @@ const makeProfile = () => profileSchema.parse({
 });
 
 describe("shared CV document resolution", () => {
+  it("filters project catalogue per Bewerbung before pagination and PDF rendering", () => {
+    const projects = ["Alpha", "Beta", "Gamma"].map((title) => ({ id: crypto.randomUUID(), title,
+      url: `https://example.com/${title.toLowerCase()}`, technologies: ["Go"], description: `${title} description` }));
+    const sectionId = crypto.randomUUID();
+    const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya",
+      updatedAt: new Date().toISOString(), specialSections: [{ id: sectionId, kind: "projects", title: "Projekte", entries: projects }] });
+    const source = JSON.stringify(profile);
+    const make = (selection?: string[]) => ({ ...defaultDocumentDesign,
+      ...(selection !== undefined ? { resumePresentation: { selectedProjectEntryIds: selection } } : {}) });
+    const legacy = resolveCvDocument({ profile, templateId: "modern", settings: make() });
+    expect(legacy.profile?.specialSections[0].entries).toHaveLength(3);
+    const empty = resolveCvDocument({ profile, templateId: "modern", settings: make([]) });
+    expect(empty.profile?.specialSections[0].entries).toHaveLength(0);
+    expect(empty.managerSections.find((entry) => entry.id === `special:${sectionId}`)?.visible).toBe(false);
+    expect(empty.pagePlan.flatMap((page) => page.items).some((item) => item.id === `special:${sectionId}`)).toBe(false);
+    const chosen = resolveCvDocument({ profile, templateId: "modern", settings: make([projects[2].id, "deleted", projects[0].id]) });
+    expect(chosen.profile?.specialSections[0].entries.map((entry) => entry.title)).toEqual(["Alpha", "Gamma"]);
+    expect(profile.specialSections[0].entries).toHaveLength(3);
+    expect(JSON.stringify(profile)).toBe(source);
+    const app = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Beispiel",
+      company: { name: "Beispiel GmbH", city: "Berlin" }, contact: {}, job: { title: "Go" }, status: "Entwurf",
+      templateId: "modern", accentColor: "#123456", documents: {}, designSettings: make([projects[0].id]),
+      statusHistory: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+    const html = buildDocumentHtml(app, profile, "lebenslauf");
+    expect(html).toContain("Alpha description");
+    expect(html).not.toContain("Beta description");
+    expect(html).not.toContain("Gamma description");
+    expect(resolveCvDocument({ profile, templateId: "modern", settings: make([projects[1].id]) }).profile?.specialSections[0].entries[0].title).toBe("Beta");
+  });
   it.each(templateIds)("resolves the same page and layout decisions for %s before and after preview projection", (templateId) => {
     const profile = makeProfile();
     const settings = {

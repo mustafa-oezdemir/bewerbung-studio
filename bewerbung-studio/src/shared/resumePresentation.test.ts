@@ -51,6 +51,10 @@ describe("resume content and template presentation", () => {
     expect(keepResumeLayoutOverrides({ sidebarWidthPercent: 40, sections: { summary: { visible: false } } }, undefined))
       .toEqual({ sections: { summary: { visible: false } } });
   });
+  it("keeps per-application project selection when section content is saved", () => {
+    expect(keepResumeLayoutOverrides({ sections: {} }, { selectedProjectEntryIds: [] }).selectedProjectEntryIds).toEqual([]);
+    expect(keepResumeLayoutOverrides({ sections: {} }, { selectedProjectEntryIds: ["project-a"] }).selectedProjectEntryIds).toEqual(["project-a"]);
+  });
   it("retains closing placement and alignment while independently saving visibility", () => {
     const previous = { closing: { placement: "main" as const, alignment: "right" as const, showDate: false } };
     const merged = keepResumeLayoutOverrides({ closing: { showPlace: false } }, previous);

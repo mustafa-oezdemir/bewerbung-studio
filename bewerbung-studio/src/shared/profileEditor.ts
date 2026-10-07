@@ -1,5 +1,6 @@
 import type { ApplicantProfile } from "./schema";
 import { externalUrl } from "./contactPresentation";
+import { safeExternalUrl } from "./safeExternalUrl";
 import { normalizeResumeHeading, validateResumeHeading } from "./resumeHeading";
 import { normalizeSummaryText } from "./resumeSummary";
 import { normalizeExperience } from "./resumeCareer";
@@ -40,7 +41,10 @@ export function normalizeApplicantProfileForSave(profile: ApplicantProfile): App
         ...entry,
         title: entry.title.trim(),
         description: entry.description.trim(),
-        url: externalUrl(entry.url),
+        url: section.kind === "projects" ? (safeExternalUrl(entry.url.trim()) ?? "") : externalUrl(entry.url),
+        ...(section.kind === "projects" ? {
+          technologies: [...new Set(entry.technologies.map((technology) => technology.trim()).filter(Boolean))],
+        } : {}),
         bullets: entry.bullets.map((bullet) => bullet.trim()).filter(Boolean),
       })),
     })),

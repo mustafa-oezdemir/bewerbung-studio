@@ -1,5 +1,6 @@
 import type { ApplicantProfile } from "./schema";
 import type { ResumeCustomContentType } from "./resumeCustomSectionTypes";
+import { safeExternalUrl } from "./safeExternalUrl";
 
 type Section = ApplicantProfile["specialSections"][number];
 type Entry = Section["entries"][number];
@@ -12,7 +13,7 @@ const hasContent = (entry: Entry) => Boolean(entry.title.trim() || entry.descrip
 /** Legacy sections are resolved without modifying stored data or inspecting headings. */
 export const normalizeCustomSection = (section: Section) => {
   const entries = section.entries.filter(hasContent);
-  const contentType: ResumeCustomContentType = section.contentType ?? (
+  const contentType: ResumeCustomContentType = section.kind === "projects" ? "entries" : section.contentType ?? (
     entries.some(hasMetadata) ? "entries" :
     entries.length > 1 || entries.some(entry => entry.bullets.some(value => value.trim())) ? "list" : "text"
   );
@@ -29,6 +30,19 @@ const escape = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<",
 export const renderCustomSectionContent = (section: Section, range?: { from: number; to: number }): string => {
   const normalized = normalizeCustomSection(section);
   const items = normalized.entries.slice(range?.from ?? 0, range?.to).map(entry => {
+    if (section.kind === "projects") {
+      const title = entry.title.trim();
+      const url = safeExternalUrl(entry.url.trim());
+      const heading = title ? `<h3 data-custom-role="entry-title" data-section-type="subsection">${url
+        ? `<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${escape(title)}</a>`
+        : escape(title)}</h3>` : "";
+      const technologies = entry.technologies.map((technology) => technology.trim()).filter(Boolean);
+      const technologyLine = technologies.length
+        ? `<p class="resume-special-output__technologies" data-custom-role="supporting">${technologies.map(escape).join(" · ")}</p>` : "";
+      const description = entry.description.trim()
+        ? `<p data-custom-role="body">${escape(entry.description)}</p>` : "";
+      return `<article data-custom-role="entry" class="resume-special-output__entry resume-special-output__project" data-entry-id="${escape(entry.id)}">${heading}${technologyLine}${description}</article>`;
+    }
     const period = entry.date.trim() || [entry.from, entry.to].filter(value => value.trim()).join(" – ");
     const metadata = [entry.location, period].filter(value => value.trim()).join(" · ");
     const titleTag = entry.sectionType === "subsection" ? "h3" : "p";

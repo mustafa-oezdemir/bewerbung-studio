@@ -48,7 +48,17 @@ export const resolveCvDocument = ({
   const projected = presentationAlreadyApplied
     ? sourceProfile
     : resolveResumePresentation(sourceProfile, templateId, settings.resumePresentation);
-  let profile = getResumeDisplayProfile(projected);
+  const selectedProjectEntryIds = settings.resumePresentation?.selectedProjectEntryIds;
+  const selectedProjects = selectedProjectEntryIds === undefined ? projected : projected && {
+    ...projected,
+    specialSections: projected.specialSections.map((section) => {
+      if (section.kind !== "projects") return section;
+      const selected = new Set(selectedProjectEntryIds);
+      const entries = section.entries.filter((entry) => selected.has(entry.id));
+      return { ...section, entries, isVisible: section.isVisible && entries.length > 0 };
+    }),
+  };
+  let profile = getResumeDisplayProfile(selectedProjects);
   const sections = {
     ...(profile?.resumeSections ?? {
       profile: true,

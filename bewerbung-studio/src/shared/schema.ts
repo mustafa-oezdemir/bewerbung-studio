@@ -140,6 +140,7 @@ const resumeSpecialSectionEntrySchema = z.object({
   url: optionalText,
   description: optionalText,
   bullets: z.array(z.string()).default([]),
+  technologies: z.array(z.string()).default([]),
 });
 
 const resumeSpecialSectionSchema = z.object({

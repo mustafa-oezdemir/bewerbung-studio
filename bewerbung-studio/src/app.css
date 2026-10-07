@@ -4988,6 +4988,9 @@ body.is-resizing-split-view * {
   margin: 0;
 }
 
+.resume-special-output__project a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.resume-special-output__project .resume-special-output__technologies { font-size: .88em; opacity: .82; }
+
 .resume-special-output__meta,
 .resume-special-output__url {
   opacity: 0.78;
@@ -5230,6 +5233,17 @@ body.is-resizing-split-view * {
   border-radius: 12px;
   background: color-mix(in srgb, var(--brand-soft), transparent 48%);
 }
+
+.application-projects { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-muted); }
+.application-projects > header { display: grid; gap: 3px; }
+.application-projects > header strong { font-size: .78rem; }
+.application-projects small { color: var(--muted); font-size: .64rem; line-height: 1.4; }
+.application-projects__list { display: grid; gap: 6px; }
+.application-projects__item { display: flex; align-items: flex-start; gap: 8px; padding: 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; }
+.application-projects__item input { margin-top: 2px; flex: none; }
+.application-projects__item > span { display: grid; min-width: 0; gap: 3px; }
+.application-projects__item strong { font-size: .68rem; overflow-wrap: anywhere; }
+.application-projects__item em { color: var(--brand); font-size: .62rem; font-style: normal; }
 
 .match-analysis header {
   display: grid;
@@ -6055,6 +6069,14 @@ body.is-resizing-split-view * {
   border-radius: 9px;
   background: var(--surface-muted);
 }
+
+.resume-project-fields { display: grid; gap: 10px; }
+.resume-project-technology-editor .entry-list-editor__items { display: flex; flex-wrap: wrap; gap: 6px; }
+.resume-project-technology-editor .entry-list-editor__row { display: flex; align-items: center; gap: 4px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.resume-project-technology-editor .entry-list-editor__row .field { min-width: 105px; }
+.resume-project-technology-editor .entry-list-editor__row .field span { font-size: .56rem; }
+.resume-project-details { border-top: 1px solid var(--line); padding-top: 7px; }
+.resume-project-details summary { cursor: pointer; font-size: .65rem; font-weight: 700; }
 
 .resume-data-card-heading {
   display: flex;
