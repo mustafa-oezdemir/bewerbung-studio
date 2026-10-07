@@ -45,6 +45,20 @@ const profile = profileSchema.parse({
 });
 
 describe("ResumeDataEditor", () => {
+  it("shows focused project fields while keeping legacy details available", () => {
+    const sectionId = crypto.randomUUID();
+    const extended = profileSchema.parse({ ...profile, specialSections: [{ id: sectionId, kind: "projects", title: "Projekte",
+      entries: [{ id: crypto.randomUUID(), title: "Beispielprojekt", url: "https://example.com/repo", technologies: ["Go"],
+        description: "Kurze Beschreibung", bullets: ["Historischer Detailpunkt"] }] }] });
+    const markup = renderToStaticMarkup(<ResumeDataEditor profile={extended} section={`special:${sectionId}`} defaultOpen
+      onPreview={vi.fn()} onSave={vi.fn()} />);
+    expect(markup).toContain("Projektname");
+    expect(markup).toContain("Repository");
+    expect(markup).toContain("Technologien");
+    expect(markup).toContain("Kurzbeschreibung");
+    expect(markup).toContain("Historischer Detailpunkt");
+    expect(markup).not.toContain("Rolle / Organisation / Zusatz");
+  });
   it("shows the Bewerbung's language column choice beside the language display options", () => {
     const html = renderToStaticMarkup(<ResumeDataEditor profile={profile} section="languages" defaultOpen
       languagesColumns={3} onLanguagesColumnsChange={vi.fn()} onPreview={vi.fn()} onSave={vi.fn()} />);

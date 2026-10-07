@@ -19,6 +19,15 @@ export const createDocumentDesignDraft = (application: Application) => ({
 
 export type DocumentDesignDraft = ReturnType<typeof createDocumentDesignDraft>;
 
+/** Project selection belongs to the Bewerbung, so a template change or design reset keeps it. */
+const carryProjectSelection = (current: DocumentDesignDraft, next: DocumentDesignDraft["settings"]): DocumentDesignDraft["settings"] => {
+  const selectedProjectEntryIds = current.settings.resumePresentation?.selectedProjectEntryIds;
+  const { selectedProjectEntryIds: _old, ...presentation } = next.resumePresentation ?? {};
+  const merged = { ...presentation, ...(selectedProjectEntryIds !== undefined ? { selectedProjectEntryIds } : {}) };
+  const { resumePresentation: _nextPresentation, ...otherSettings } = next;
+  return { ...otherSettings, ...(Object.keys(merged).length ? { resumePresentation: merged } : {}) };
+};
+
 const snapshotTemplateOverrides = (current: DocumentDesignDraft): Application["templateDesigns"][string] => {
   const template = getTemplate(current.templateId);
   const defaults = getTemplateDocumentDesignDefaults(template.id);
@@ -69,10 +78,10 @@ export const selectDocumentTemplate = (
     templateDesigns,
     accentColor: saved?.accentColor ?? template.accent,
     secondaryColor: saved?.secondaryColor ?? template.secondary,
-    settings: {
+    settings: carryProjectSelection(current, {
       ...getTemplateDocumentDesignDefaults(template.id),
       ...Object.fromEntries(Object.entries(saved?.settings ?? {}).filter(([, value]) => value !== undefined)),
-    },
+    }),
   };
 };
 
@@ -85,7 +94,7 @@ export const resetDocumentDesign = (current: DocumentDesignDraft): DocumentDesig
     ...current, templateDesigns,
     accentColor: template.accent,
     secondaryColor: template.secondary,
-    settings: getTemplateDocumentDesignDefaults(template.id),
+    settings: carryProjectSelection(current, getTemplateDocumentDesignDefaults(template.id)),
   };
 };
 

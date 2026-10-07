@@ -3,19 +3,22 @@
 > Bewerbungen erstellen, organisieren und als professionelle Unterlagen exportieren – lokal auf Ihrem Windows-PC.
 
 [![CI](https://github.com/mustafa-oezdemir/bewerbung-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/mustafa-oezdemir/bewerbung-studio/actions/workflows/ci.yml)
-[![Latest Release](https://img.shields.io/github/v/release/mustafa-oezdemir/bewerbung-studio)](https://github.com/mustafa-oezdemir/bewerbung-studio/releases/latest)
 [![Lizenz: Apache-2.0](https://img.shields.io/badge/Lizenz-Apache_2.0-blue.svg)](LICENSE)
 ![Windows 10/11 x64](https://img.shields.io/badge/Windows-10%20%2F%2011%20x64-0078D4)
 
 BewerbungsManager ist eine Desktop-Anwendung für den gesamten Bewerbungsablauf: von der Stellenanzeige und dem
 Profil über Anschreiben, Deckblatt und Lebenslauf bis zur fertigen Bewerbungsmappe, mit Kalender und Aufgabenliste.
-Alle Daten bleiben in einem Ordner auf Ihrem Rechner. Die Oberfläche ist auf Deutsch.
+Ihre Bewerbungsdaten werden lokal im gewählten Workspace gespeichert; kleine Anwendungseinstellungen wie der
+Workspace-Pfad liegen zusätzlich im lokalen Electron-Benutzerordner. Die Oberfläche ist auf Deutsch.
 
-**[➡ Aktuelle Windows-Version herunterladen](https://github.com/mustafa-oezdemir/bewerbung-studio/releases/latest)**
+**Offizielle Downloads:** [GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases). Derzeit
+ist noch kein öffentlicher Windows-Release verfügbar.
 
 ## Download
 
-Die aktuelle Version finden Sie unter [GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases/latest).
+Sobald ein öffentlicher Release verfügbar ist, finden Sie ihn ausschließlich unter
+[GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases). Offizielle Windows-Dateien werden
+aus den Quellen dieses Repositories mit GitHub Actions gebaut. Lokale Builds sind nur für Tests bestimmt.
 
 | Datei | Verwendung |
 | --- | --- |
@@ -26,18 +29,16 @@ Die aktuelle Version finden Sie unter [GitHub Releases](https://github.com/musta
 Beide Varianten enthalten dieselbe Anwendung. Ihre Bewerbungsdaten liegen in einem Ordner, den Sie selbst wählen,
 also außerhalb des Installationsordners.
 
-> Die veröffentlichten Windows-Dateien sind derzeit nicht code-signiert. Windows kann deshalb eine
-> SmartScreen-Warnung anzeigen. Prüfen Sie im Zweifel die SHA-256-Prüfsumme mit der veröffentlichten
-> `SHA256SUMS.txt`:
+> Vor dem ersten öffentlichen Release gibt es hier noch keine herunterladbaren Windows-Dateien. Falls später ein
+> ausdrücklich als **UNSIGNED/PREVIEW** gekennzeichneter Vorab-Release erscheint, kann Windows eine
+> SmartScreen-Warnung anzeigen. Prüfen Sie dessen SHA-256-Prüfsumme mit der beigefügten `SHA256SUMS.txt`:
 >
 > ```powershell
 > Get-FileHash .\BewerbungsManager-<Version>-x64-Setup.exe -Algorithm SHA256
 > ```
 
-> **Funktionsstand:** Die Abschnitte [Workspace & Computerwechsel](#workspace--computerwechsel) und
-> [Datensicherheit & Verschlüsselung](#datensicherheit--verschlüsselung) beschreiben den Stand nach Version 1.0.2,
-> einschließlich der überarbeiteten Einstellungen. In Version 1.0.2 selbst sind Workspace-Auswahl, Computerwechsel
-> und Verschlüsselung noch nicht enthalten.
+> **Funktionsstand:** Die folgende Beschreibung gilt für den aktuellen Quellcode. Sie ist keine Zusage über
+> Funktionen einer älteren Binärdatei oder eines noch nicht veröffentlichten Releases.
 
 ## Warum BewerbungsManager?
 
@@ -99,7 +100,7 @@ Mitgelieferte Word-Muster für den Lebenslauf (Beispieldaten) liegen in
 
 ## Schnellstart
 
-1. Setup- oder Portable-Version herunterladen und die Prüfsumme kontrollieren.
+1. Sobald verfügbar, Setup- oder Portable-Version von GitHub Releases herunterladen und die Prüfsumme kontrollieren.
 2. Anwendung starten.
 3. Den Bewerbungsordner wählen, in dem alle Bewerbungsdaten gespeichert werden.
 4. Optional die Verschlüsselung aktivieren.
@@ -113,13 +114,16 @@ Bewerbungsunterlagen.
 
 - Die Daten liegen lokal im gewählten Bewerbungsordner. Sie können ihn jederzeit wechseln.
 - Es gibt kein Benutzerkonto und keine Cloud-Synchronisierung.
-- Der Quellcode enthält keine Telemetrie und keinen automatischen Update-Abruf. Netzwerkzugriffe gibt es nur über
-  Links, die Sie selbst öffnen.
+- Der geprüfte Anwendungscode enthält keine Telemetrie, keinen automatischen Update-Abruf und keinen automatischen
+  Upload des Bewerbungsordners. Externe HTTP/HTTPS-Links werden nur auf Ihre Aktion hin im Systembrowser geöffnet;
+  Browser und Zielwebsite haben eigene Datenschutzregeln.
 - Automatische und manuelle Sicherungen sind eingebaut, die Verschlüsselung ist optional (siehe unten).
 
 Die Anwendung überträgt den Bewerbungsordner nicht automatisch an ein Git-Remote.
 Ein früher eingerichtetes Git-Repository oder frühere Commits bleiben auf dem Datenträger;
 entfernen Sie diese bei Bedarf separat und prüfen Sie bereits veröffentlichte Remotes.
+
+Die vollständige [Datenschutzerklärung](PRIVACY.md) beschreibt auch Exporte, Sicherungen und lokale Aufbewahrung.
 
 ## Workspace & Computerwechsel
 
@@ -287,9 +291,26 @@ vX.Y.Z (Tag)
 ```
 
 Die Workflows [`ci.yml`](.github/workflows/ci.yml) und [`release.yml`](.github/workflows/release.yml) rufen die
-vorhandenen npm-Skripte auf. Ohne hinterlegte Signing-Secrets entstehen unsignierte Dateien. Checkliste, Signierung
-und der genaue Ablauf stehen in [`bewerbung-studio/RELEASE.md`](bewerbung-studio/RELEASE.md). Änderungen einer
-einzelnen Version stehen in den Release Notes auf GitHub, nicht in dieser Datei.
+vorhandenen npm-Skripte auf. Ein Versions-Tag darf ohne die bisher vorgesehenen Signing-Secrets **keinen** GitHub
+Release veröffentlichen. Ein manueller Workflow-Lauf kann unsignierte Test-Artefakte erzeugen, veröffentlicht sie
+aber nicht automatisch. Checkliste, Signierung und der genaue Ablauf stehen in
+[`bewerbung-studio/RELEASE.md`](bewerbung-studio/RELEASE.md). Änderungen einer einzelnen Version stehen später in
+den Release Notes auf GitHub.
+
+## Code signing policy
+
+Das Projekt ist unter [Apache-2.0](LICENSE) offen lizenziert. Offizielle Quelle ist ausschließlich
+<https://github.com/mustafa-oezdemir/bewerbung-studio>, offizieller Download-Ort
+[GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases). Production-Binärdateien stammen
+ausschließlich aus GitHub Actions auf Basis dieses Repositories. Die Rollen, Datenschutzregeln und der noch offene
+SignPath-Status stehen in der vollständigen [Code signing policy](CODE_SIGNING.md).
+
+Falls SignPath Foundation die kostenlose Signierung bewilligt und sie für einen Release eingesetzt wird, erscheint
+auf dessen Download-Seite dieser Hinweis:
+
+> Free code signing provided by SignPath.io, certificate by SignPath Foundation
+
+Derzeit ist **keine** SignPath-Signierung eingerichtet oder zugesagt.
 
 ## Projektstruktur
 

@@ -2,13 +2,15 @@
 
 ## Supported versions
 
-Security fixes are provided for the latest release only. Please update to the
-[latest release](https://github.com/mustafa-oezdemir/bewerbung-studio/releases/latest) before you report a problem.
+There is no public Windows release yet. Once releases begin, security fixes will target the latest supported
+release. Check [GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases) before reporting an
+issue; reports against the current source are also welcome.
 
 | Version | Supported |
 | --- | --- |
-| Latest release | Yes |
-| Older releases | No |
+| Current source before the first release | Best effort |
+| Future latest release | Planned support |
+| Future older releases | No commitment |
 
 ## Reporting a vulnerability
 
@@ -43,3 +45,6 @@ certificates.
 - Remove personal data from logs and screenshots before you share them.
 - Never commit real application data, credentials or signing certificates (`.pfx`, `.p12`) to this repository. If you
   find such data in the repository or its history, report it privately as described above.
+
+See the [privacy policy](PRIVACY.md) for local data handling and the [Code signing policy](CODE_SIGNING.md) for
+release provenance, maintainer roles and MFA requirements.

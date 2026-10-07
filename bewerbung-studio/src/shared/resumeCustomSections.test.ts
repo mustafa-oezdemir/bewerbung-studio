@@ -43,4 +43,28 @@ describe("custom section normalization", () => {
   it("recognizes legacy metadata as an entry", () => {
     expect(normalizeCustomSection(section({ entries: [{ id: crypto.randomUUID(), title: "Arbeit", subtitle: "Verein" }] })).contentType).toBe("entries");
   });
+  it("links only safe project titles and never prints a second repository URL", () => {
+    const project = section({ kind: "projects", title: "Projekte", entries: [{
+      id: crypto.randomUUID(), title: 'Mina & <Team>', url: "https://github.com/example/sample",
+      technologies: ["Go", "PostgreSQL"], description: "Ein <sicheres> Projekt", bullets: ["Long detail"],
+    }] });
+    const html = renderCustomSectionContent(project);
+    const { document } = parseHTML(html);
+    const link = document.querySelector("h3 a");
+    expect(link?.getAttribute("href")).toBe("https://github.com/example/sample");
+    expect(link?.getAttribute("target")).toBe("_blank");
+    expect(link?.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(link?.textContent).toBe("Mina & <Team>");
+    expect(document.querySelector(".resume-special-output__technologies")?.textContent).toBe("Go · PostgreSQL");
+    expect(document.querySelector(".resume-special-output__url")).toBeNull();
+    expect(html).not.toContain("<sicheres>");
+    expect(html).not.toContain("Long detail");
+  });
+  it.each(["javascript:alert(1)", "data:text/html,evil", "file:///C:/secret", "vbscript:evil", "https://user:pass@example.com", "C:\\secret.txt"])("does not link unsafe project URL %s", url => {
+    const html = renderCustomSectionContent(section({ kind: "projects", entries: [{ id: crypto.randomUUID(), title: "Projekt", url }] }));
+    const { document } = parseHTML(html);
+    expect(document.querySelector("a")).toBeNull();
+    expect(document.querySelector("h3")?.textContent).toBe("Projekt");
+    expect(document.querySelector(".resume-special-output__url")).toBeNull();
+  });
 });

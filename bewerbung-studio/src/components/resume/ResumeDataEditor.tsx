@@ -28,6 +28,7 @@ import { TechnologyIconPicker } from "../profile/TechnologyIconPicker";
 import { CareerEditor } from "../profile/CareerEditor";
 import { EducationEditor } from "../profile/EducationEditor";
 import { normalizeApplicantProfileForSave, validateApplicantProfile } from "../../shared/profileEditor";
+import { ProjectEntryEditor } from "./ProjectEntryEditor";
 
 type Props = {
   profile: ApplicantProfile;
@@ -481,6 +482,7 @@ export function ResumeSpecialSectionsEditor({
         <button
           className="button secondary small-button"
           type="button"
+          disabled={newKind === "projects" && value.some((section) => section.kind === "projects")}
           onClick={() =>
             onChange([
               ...value,
@@ -526,14 +528,14 @@ export function ResumeSpecialSectionsEditor({
                 value={section.title}
                 onChange={(title) => updateSection(section.id, { title })}
               />
-              <label className="field">
+              {section.kind !== "projects" && <label className="field">
                 <span>Inhaltstyp</span>
                 <select value={section.contentType ?? ""} onChange={(event) => updateSection(section.id, { contentType: (event.target.value || undefined) as ResumeCustomContentType | undefined })}>
                   <option value="">Automatisch</option>
                   {Object.entries(resumeCustomContentLabels).map(([type, label]) => <option key={type} value={type}>{label}</option>)}
                 </select>
-              </label>
-              <label className="field">
+              </label>}
+              {section.kind !== "projects" && <label className="field">
                 <span>Bereichstyp</span>
                 <select
                   value={section.kind}
@@ -548,7 +550,7 @@ export function ResumeSpecialSectionsEditor({
                     </option>
                   ))}
                 </select>
-              </label>
+              </label>}
             </div>
             <label className="checkbox-field" hidden={Boolean(selectedId)}>
               <input
@@ -589,6 +591,8 @@ export function ResumeSpecialSectionsEditor({
                       <Trash2 size={15} />
                     </button>
                   </div>
+                  {section.kind === "projects" ? <ProjectEntryEditor entry={entry}
+                    onChange={(change) => updateEntry(section.id, entry.id, change)} /> : <>
                   <div className="resume-data-field-grid">
                     <EditorInput
                       label="Titel / Bezeichnung"
@@ -666,6 +670,7 @@ export function ResumeSpecialSectionsEditor({
                       }
                     />
                   </div>
+                  </>}
                 </article>
               ))}
             </div>
@@ -688,6 +693,7 @@ export function ResumeSpecialSectionsEditor({
                         url: "",
                         description: "",
                         bullets: [],
+                        technologies: [],
                       },
                     ],
                   })

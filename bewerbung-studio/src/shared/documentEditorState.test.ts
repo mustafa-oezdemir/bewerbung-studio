@@ -8,6 +8,14 @@ const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, 
 const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Firma", company: { name: "Firma", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" }, status: "Entwurf", templateId: "modern", accentColor: "#123456", secondaryColor: "#abcdef", documents: {}, profileId: profile.id, statusHistory: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
 
 describe("document editor persistence", () => {
+  it("keeps application project selection through template changes and design reset", () => {
+    const base = createDocumentDesignDraft(application);
+    const selected = { ...base, settings: { ...base.settings, resumePresentation: { selectedProjectEntryIds: ["project-a"] } } };
+    const other = selectDocumentTemplate(selected, "kompakt");
+    expect(other.settings.resumePresentation?.selectedProjectEntryIds).toEqual(["project-a"]);
+    expect(resetDocumentDesign(other).settings.resumePresentation?.selectedProjectEntryIds).toEqual(["project-a"]);
+    expect(selectDocumentTemplate(other, "modern").settings.resumePresentation?.selectedProjectEntryIds).toEqual(["project-a"]);
+  });
   it("stores Pehlione appearance sparsely per template and resets to native defaults", () => {
     let draft = selectDocumentTemplate(createDocumentDesignDraft(application), "pehlione_white_blue");
     draft = updateResumeAppearanceField(draft, "sectionDividerVisible", false);

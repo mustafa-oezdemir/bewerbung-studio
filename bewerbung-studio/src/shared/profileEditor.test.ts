@@ -36,6 +36,23 @@ describe("one ApplicantProfile for Profil and Lebenslauf", () => {
     expect(normalized.certifications).toEqual(["Zertifikat"]);
     expect(validateApplicantProfile(normalized)).toEqual([]);
   });
+  it("reads legacy projects and normalizes only project technologies and repository", () => {
+    const draft = makeProfile(minaId, { specialSections: [
+      { id: crypto.randomUUID(), kind: "projects", title: "Projekte", entries: [{ id: crypto.randomUUID(), title: "  Beispiel  ",
+        description: "  Kurz  ", url: " https://github.com/example/repo ", technologies: [" Go ", "Go", "go", " "], }] },
+      { id: crypto.randomUUID(), kind: "interests", title: "Interessen", entries: [{ id: crypto.randomUUID(), title: "Lesen" }] },
+    ] });
+    const normalized = normalizeApplicantProfileForSave(draft);
+    expect(normalized.specialSections[0].entries[0]).toMatchObject({ title: "Beispiel", description: "Kurz",
+      url: "https://github.com/example/repo", technologies: ["Go", "go"] });
+    expect(normalized.specialSections[1].entries[0].title).toBe("Lesen");
+    const legacy = makeProfile(minaId, { specialSections: [{ id: crypto.randomUUID(), kind: "projects", title: "Projekte",
+      entries: [{ id: crypto.randomUUID(), title: "Alt" }] }] });
+    expect(legacy.specialSections[0].entries[0].technologies).toEqual([]);
+    expect(normalizeApplicantProfileForSave({ ...draft, specialSections: [{ ...draft.specialSections[0], entries: [{
+      ...draft.specialSections[0].entries[0], url: "javascript:alert(1)",
+    }] }] }).specialSections[0].entries[0].url).toBe("");
+  });
 
   it("rebases an old editor draft without reverting phone, photo or closing changes", () => {
     const base = makeProfile(minaId, { phone: "111" });

@@ -42,6 +42,23 @@ describe.each(resumeTemplateIds)("maximal profile in %s", (templateId) => {
   });
 });
 
+it.each(["modern", "elegant", "klassisch"])("renders selected project content and links equally in %s preview and PDF", templateId => {
+  const base = minimalProfile();
+  const ids = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()];
+  const profile = { ...base, specialSections: [{ id: crypto.randomUUID(), kind: "projects" as const, title: "Projekte", isVisible: true,
+    entries: ids.map((id, index) => ({ id, title: `Beispielprojekt ${index + 1}`, subtitle: "", from: "", to: "", date: "", location: "",
+      url: `https://example.com/project-${index + 1}`, technologies: ["Go"], description: `Beschreibung ${index + 1}`, bullets: [] })) }] };
+  const result = renderCv(templateId, profile, { overrides: { resumePresentation: { selectedProjectEntryIds: [ids[1]] } } });
+  for (const surface of ["preview", "pdf"] as const) {
+    expect(result[surface]).toContain("Beispielprojekt 2");
+    expect(result[surface]).not.toContain("Beispielprojekt 1");
+    expect(result[surface]).not.toContain("Beispielprojekt 3");
+  }
+  expect(result.previewPages.length).toBe(result.pdfPages.length);
+  expect(result.previewPages.flatMap(page => Array.from(page.querySelectorAll('a[href="https://example.com/project-2"]')))).toHaveLength(1);
+  expect(result.pdfPages.flatMap(page => Array.from(page.querySelectorAll('a[href="https://example.com/project-2"]')))).toHaveLength(1);
+});
+
 const customTitles = {
   summary: "Über mich",
   strengths: "Meine Stärken",

@@ -8,7 +8,7 @@ type Entry = Section["entries"][number];
 
 const newEntry = (): Entry => ({
   id: crypto.randomUUID(), title: "", subtitle: "", from: "", to: "", date: "",
-  location: "", url: "", description: "", bullets: [],
+  location: "", url: "", description: "", bullets: [], technologies: [],
 });
 
 /** The first interests section is edited here; other legacy sections stay untouched. */

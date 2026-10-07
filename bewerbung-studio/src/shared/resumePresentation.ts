@@ -11,6 +11,8 @@ export const keepResumeLayoutOverrides = (
   previous: ResumePresentation | undefined,
 ): ResumePresentation => ({
   ...Object.fromEntries(Object.entries(next).filter(([key]) => key !== "sidebarWidthPercent")),
+  ...(previous?.selectedProjectEntryIds !== undefined && next.selectedProjectEntryIds === undefined
+    ? { selectedProjectEntryIds: previous.selectedProjectEntryIds } : {}),
   ...((next.closing || previous?.closing?.placement || previous?.closing?.alignment) ? { closing: {
     ...next.closing,
     ...(previous?.closing?.placement ? { placement: previous.closing.placement } : {}),

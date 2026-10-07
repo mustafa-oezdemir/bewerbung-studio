@@ -20,6 +20,7 @@ import {
   copyResumeHeading,
 } from "../shared/resumeHeading";
 import { EntryListEditor } from "../components/profile/EntryListEditor";
+import { ProjectEntryEditor } from "../components/resume/ProjectEntryEditor";
 import { KnowledgeProfileEditor } from "../components/profile/KnowledgeProfileEditor";
 import { TechnologyIconPicker } from "../components/profile/TechnologyIconPicker";
 import { defaultKnowledgeSection } from "../features/knowledge/knowledge.constants";
@@ -973,6 +974,7 @@ function SpecialSectionsEditor({
     );
 
   const addSection = () => {
+    if (newKind === "projects" && value.some((section) => section.kind === "projects")) return;
     const label =
       specialSectionOptions.find((option) => option.kind === newKind)?.label ??
       "Eigener Abschnitt";
@@ -1005,6 +1007,7 @@ function SpecialSectionsEditor({
           url: "",
           description: "",
           bullets: [],
+          technologies: [],
         },
       ],
     });
@@ -1046,6 +1049,7 @@ function SpecialSectionsEditor({
         <button
           type="button"
           className="button secondary small-button"
+          disabled={newKind === "projects" && value.some((section) => section.kind === "projects")}
           onClick={addSection}>
           <Plus size={15} /> Bereich hinzufügen
         </button>
@@ -1063,14 +1067,14 @@ function SpecialSectionsEditor({
                 value={section.title}
                 onChange={(title) => updateSection(section.id, { title })}
               />
-              <label className="field">
+              {section.kind !== "projects" && <label className="field">
                 <span>Inhaltstyp</span>
                 <select value={section.contentType ?? ""} onChange={(event) => updateSection(section.id, { contentType: (event.target.value || undefined) as ResumeCustomContentType | undefined })}>
                   <option value="">Automatisch</option>
                   {Object.entries(resumeCustomContentLabels).map(([type, label]) => <option key={type} value={type}>{label}</option>)}
                 </select>
-              </label>
-              <label className="field">
+              </label>}
+              {section.kind !== "projects" && <label className="field">
                 <span>Bereichstyp</span>
                 <select
                   value={section.kind}
@@ -1085,7 +1089,7 @@ function SpecialSectionsEditor({
                     </option>
                   ))}
                 </select>
-              </label>
+              </label>}
             </div>
             <div className="special-section-actions">
               <label className="checkbox-field">
@@ -1131,6 +1135,8 @@ function SpecialSectionsEditor({
           <div className="special-entry-list">
             {section.entries.map((entry, entryIndex) => (
               <div className="special-entry-card" key={entry.id}>
+                {section.kind === "projects" ? <ProjectEntryEditor entry={entry}
+                  onChange={(change) => updateEntry(section.id, entry.id, change)} /> : <>
                 <div className="resume-card-fields">
                   <div className="form-grid">
                     <TextField
@@ -1208,6 +1214,7 @@ function SpecialSectionsEditor({
                     }
                   />
                 </div>
+                </>}
                 <SortActions
                   index={entryIndex}
                   length={section.entries.length}

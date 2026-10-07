@@ -103,6 +103,7 @@ const setHeadingText = (heading: Element, title: string) => {
 export const managedResumeCss = `
 :is(footer,[class*="footer"]) a[href^="http"]{display:inline-block;max-width:62%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
 .resume-special-output__entry :is(ul,ol){margin:.8mm 0 0;padding-left:4.5mm;list-style:disc}.resume-special-output__entry li{margin:0}
+.resume-special-output__project{break-inside:avoid}.resume-special-output__project h3{margin:0 0 .6mm}.resume-special-output__project p{margin:0 0 .5mm}.resume-special-output__project .resume-special-output__technologies{font-size:.88em;opacity:.82}.resume-special-output__project a{color:inherit;text-decoration:underline;text-underline-offset:1px}
 .resume-language-level{font-weight:400;letter-spacing:0;text-transform:none;opacity:.85}
 
 :has(>.resume-language-description){row-gap:.6mm!important}
