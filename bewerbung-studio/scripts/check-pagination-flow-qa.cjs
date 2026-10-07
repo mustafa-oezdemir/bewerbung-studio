@@ -23,8 +23,8 @@ const probe = (sheetSelector, tokens) => {
       const r = node.getBoundingClientRect();
       return { top: mm(r.top - box.top), bottom: mm(r.bottom - box.top), left: mm(r.left - box.left), right: mm(r.right - box.left) };
     };
-    const inSidebar = (node) => Boolean(node.closest('aside,[data-cv-zone="sidebar"],.modern-resume-right-column,.modern-pdf-right,.kompakt-right'));
-    const sections = [...sheet.querySelectorAll('[data-managed-section]')].map((node) => ({ id: node.getAttribute('data-managed-section'), zone: node.getAttribute('data-cv-zone') || (inSidebar(node) ? 'sidebar' : 'main'), ...rel(node) }));
+    const inSidebar = (node) => Boolean(node.closest('aside,[data-cv-zone="sidebar"],[data-resume-layout-zone="sidebar"],.modern-resume-right-column,.modern-pdf-right,.kompakt-right'));
+    const sections = [...sheet.querySelectorAll('[data-managed-section]')].map((node) => ({ id: node.getAttribute('data-managed-section'), zone: inSidebar(node) ? 'sidebar' : node.getAttribute('data-cv-zone') || 'main', ...rel(node) }));
     const careerEntries = [...sheet.querySelectorAll('.modern-pdf-entry,.modern-experience-entry,.modern-education-entry')]
       .map((node) => ({ text: (node.textContent || '').trim().slice(0, 45), ...rel(node) }));
     const leaves = [...sheet.querySelectorAll('li,p,h3,h4,h5,span,strong,small,div')]

@@ -1406,10 +1406,9 @@ const planResumePages = (
     : (geometry.sideLimit - sideTop1 - verticalInset) * (zoneFlow ? ZONE_FLOW_SIDEBAR_SAFETY : SAFETY);
   const dense = context.atsMode ? geometry.ats.density : geometry.density;
 
-  // Tabellarisch has one physical column. Pack the resolved manager sequence as
-  // one stream, including the career sections, instead of pinning summary and
-  // strengths to page one and all other blocks behind the career run.
-  if (templateId === "tabellarisch") {
+  // A hand-arranged single-column document is one stream, including blocks
+  // between the two career sections. Their saved sidebar zones remain metadata.
+  if (flat && (templateId === "tabellarisch" || (customLayout && !context.atsMode))) {
     type OrderedPage = { plan: ResumePagePlan; used: number; lastKind?: ResumePageItem["kind"]; lastGap: number };
     const pages: OrderedPage[] = [];
     const capacity = (number: number) => Math.max(1, (number === 1 ? mainCap1 : mainCap2) - closingHeight);

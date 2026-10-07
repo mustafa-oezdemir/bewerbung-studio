@@ -1725,8 +1725,8 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body.indexOf("Kenntnisse")).toBeLessThan(
       body.indexOf("Sprachen"),
     );
-    expect(body.indexOf("Sprachen")).toBeLessThan(
-      body.indexOf("Stärken"),
+    expect(body.indexOf("Stärken")).toBeLessThan(
+      body.indexOf("Sprachen"),
     );
     expect(body.indexOf("Stärken")).toBeLessThan(
       body.indexOf("Zertifikate"),
@@ -2117,8 +2117,8 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body.indexOf("Kenntnisse")).toBeLessThan(
       body.indexOf("Sprachen"),
     );
-    expect(body.indexOf("Sprachen")).toBeLessThan(
-      body.indexOf("Stärken"),
+    expect(body.indexOf("Stärken")).toBeLessThan(
+      body.indexOf("Sprachen"),
     );
     expect(body.indexOf("Stärken")).toBeLessThan(
       body.indexOf("Zertifikate"),
@@ -2218,8 +2218,8 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body.indexOf("Kenntnisse")).toBeLessThan(
       body.indexOf("Sprachen"),
     );
-    expect(body.indexOf("Sprachen")).toBeLessThan(
-      body.indexOf("Stärken"),
+    expect(body.indexOf("Stärken")).toBeLessThan(
+      body.indexOf("Sprachen"),
     );
     expect(body.indexOf("Stärken")).toBeLessThan(
       body.indexOf("Zertifikate"),

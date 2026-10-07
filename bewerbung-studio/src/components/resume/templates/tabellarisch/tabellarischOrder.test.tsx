@@ -86,6 +86,7 @@ describe("Tabellarisch manager section order", () => {
     expect(zones(moved)).toEqual(zones(source));
     expect(visible(sections(result.previewPages))).not.toEqual(before);
     expect(visible(sections(result.pdfPages))).toEqual(visible(sections(result.previewPages)));
+    expect(moved.resumeManagerLayouts.tabellarisch.find((entry) => entry.id === "strengths")?.zone).toBe("sidebar");
   });
 
   it("does not group a sidebar-zoned section ahead of the single-column manager order", () => {

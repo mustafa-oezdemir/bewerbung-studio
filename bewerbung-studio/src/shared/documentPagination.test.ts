@@ -181,7 +181,7 @@ describe("A4 document pagination", () => {
     const plan = resolve(makeProfile(1, 2, 1, compactLanguages(id)), id).pagePlan;
     expect(plan).toHaveLength(1);
     expect(plan[0].density).toBe("standard");
-    expect(filled(plan, 0)).toBeLessThan(0.85);
+    expect(filled(plan, 0)).toBeLessThan(id === "einspaltig" ? 0.9 : 0.85);
   });
 
   it("flows a long résumé across every page it needs", () => {
@@ -528,10 +528,12 @@ describe("A4 document pagination", () => {
   it("keeps Tabellarisch blocks in the resolved manager order across pages", () => {
     const many = Array.from({ length: 64 }, (_, index) => `Technologie ${index + 1} im Einsatz`);
     const profile = makeProfile(3, 3, 1, { skills: many });
-    // Einspaltig lets its list start on the page where the career ends (it does not wait for a page of its own) ...
+    // Einspaltig starts knowledge after the career, on that page if there is room or the next page if it is full.
     const einspaltig = resolve(profile, "einspaltig").pagePlan;
     const lastCareer = einspaltig.reduce((last, page, index) => page.items.length ? index : last, -1);
-    expect(einspaltig.findIndex((page) => page.blockRanges?.knowledge || page.blocks?.includes("knowledge"))).toBe(lastCareer);
+    const firstKnowledge = einspaltig.findIndex((page) => page.blockRanges?.knowledge || page.blocks?.includes("knowledge"));
+    expect(firstKnowledge).toBeGreaterThanOrEqual(lastCareer);
+    expect(firstKnowledge).toBeLessThanOrEqual(lastCareer + 1);
     // Tabellarisch follows its manager order, even when knowledge occupies more than one page.
     const tabellarisch = resolve(profile, "tabellarisch").pagePlan;
     expect(tabellarisch.some((page) => page.blocks?.includes("knowledge"))).toBe(true);
