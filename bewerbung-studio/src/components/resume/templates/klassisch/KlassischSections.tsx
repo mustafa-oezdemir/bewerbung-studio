@@ -25,6 +25,17 @@ export function KlassischStrengths({
 }) {
   const strengths = parseTemplateStrengths(profile, 3);
   if (!strengths.length) return null;
+  // The plain layout lists them like the PDF: one line each, title in bold, the description behind a dash.
+  if (atsMode) return (
+    <section className="klassisch-section klassisch-strengths klassisch-strengths--ats" data-element-id="klassisch.strengths">
+      <KlassischHeading>{getResumeSectionTitle(profile, "strengths")}</KlassischHeading>
+      <ul>
+        {strengths.map((strength) => (
+          <li key={`${strength.title}-${strength.description}`}><strong>{strength.title}</strong>{strength.description ? ` – ${strength.description}` : ""}</li>
+        ))}
+      </ul>
+    </section>
+  );
   return (
     <section
       className={`klassisch-section klassisch-strengths ${atsMode ? "klassisch-strengths--ats" : ""}`}

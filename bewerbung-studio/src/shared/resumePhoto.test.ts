@@ -214,8 +214,8 @@ describe("page planner", () => {
   it.each(templates.map((template) => template.id))("plans %s for Mittel, Klein and an older profile identically", (id) => {
     const reference = JSON.stringify(plan(long({ resumePhotoSize: "medium" }), id));
     expect(JSON.stringify(plan(long(), id))).toBe(reference);
-    if (id === "kreativ") {
-      // Kreativ measures its actual banner and photo size, so Klein may free one more bullet on page one.
+    if (id === "kreativ" || id === "klassisch") {
+      // Kreativ and Klassisch measure their actual header and photo size, so Klein may free one more bullet on page one.
       const small = plan(long({ resumePhotoSize: "small" }), id);
       const medium = plan(long({ resumePhotoSize: "medium" }), id);
       expect(small).toHaveLength(medium.length);
@@ -231,9 +231,12 @@ describe("page planner", () => {
   it("moves an entry to page two when the bigger photo takes the room it needed", () => {
     const firstPageBullets = (source: ReturnType<typeof long>, id: string) => plan(source, id)[0].items
       .reduce((total, item) => total + (item.bullets ? item.bullets.to - item.bullets.from : 0), 0);
-    const lost = ["zweispaltig", "einspaltig", "stilvoll", "kreativ", "klassisch"].filter(id =>
-      firstPageBullets(long({ resumePhotoSize: "large" }), id) < firstPageBullets(long({ resumePhotoSize: "medium" }), id));
-    expect(lost.length).toBeGreaterThan(0);
+    // Klassisch computes its header from the photo: on a full page one (a longer summary) Groß costs a bullet.
+    const full = (size: "medium" | "large") => long({ resumePhotoSize: size, summary: "Erfahrener Entwickler. ".repeat(34).trim() });
+    const lost = ["zweispaltig", "einspaltig", "stilvoll", "kreativ"].filter(id =>
+      firstPageBullets(long({ resumePhotoSize: "large" }), id) < firstPageBullets(long({ resumePhotoSize: "medium" }), id))
+      .concat(firstPageBullets(full("large"), "klassisch") < firstPageBullets(full("medium"), "klassisch") ? ["klassisch"] : []);
+    expect(lost).toContain("klassisch");
   });
 
   it("does not reserve room when the photo is not drawn", () => {

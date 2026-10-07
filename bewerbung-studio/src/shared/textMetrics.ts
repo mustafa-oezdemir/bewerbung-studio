@@ -33,8 +33,11 @@ export const textWidthMm = (text: string, fontMm: number, weight = 400, letterSp
   return (units / 1000 + letterSpacingEm * count) * fontMm;
 };
 
-/** Lines that `text` takes in a column of `widthMm` (0 for no text). */
-export const wrappedLines = (text: string, widthMm: number, fontMm: number, weight = 400, letterSpacingEm = 0): number => {
+/**
+ * Lines that `text` takes in a column of `widthMm` (0 for no text). `trailingMm`: an unbreakable box glued to the last word
+ * (a "· Fortsetzung" marker without a space before it), which moves to the next line together with that word.
+ */
+export const wrappedLines = (text: string, widthMm: number, fontMm: number, weight = 400, letterSpacingEm = 0, trailingMm = 0): number => {
   // A break may follow a hyphen inside a word (Grafana-Datasource-Plugins).
   const words = text.trim().split(/\s+/).filter(Boolean)
     .flatMap((word, index) => word.split(/(?<=[^\s-]-)(?=[^\s-])/).map((part, at) => ({ part, space: index > 0 && at === 0 })));
@@ -42,8 +45,8 @@ export const wrappedLines = (text: string, widthMm: number, fontMm: number, weig
   const space = textWidthMm(" ", fontMm, weight, letterSpacingEm);
   let lines = 1;
   let used = 0;
-  for (const word of words) {
-    let width = textWidthMm(word.part, fontMm, weight, letterSpacingEm);
+  for (const [index, word] of words.entries()) {
+    let width = textWidthMm(word.part, fontMm, weight, letterSpacingEm) + (index === words.length - 1 ? trailingMm : 0);
     if (used > 0) {
       const next = used + (word.space ? space : 0) + width;
       if (next <= widthMm + 0.01) { used = next; continue; }

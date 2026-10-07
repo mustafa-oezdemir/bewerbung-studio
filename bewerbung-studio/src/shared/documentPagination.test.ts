@@ -223,8 +223,10 @@ describe("A4 document pagination", () => {
     const heightOf = (profile: ReturnType<typeof makeProfile>, id: string) =>
       createResumePagePlan(profile, "", {}, id)[0].items[0].weight;
     expect(heightOf(longer, "modern")).toBeGreaterThan(heightOf(plain, "modern"));
-    // The same entry wraps into fewer lines in the wide single column of Klassisch.
-    expect(heightOf(longer, "klassisch")).toBeLessThan(heightOf(longer, "pehlione_white_blue"));
+    // The same entry wraps into fewer lines in a wider column: Klassisch at 10 mm Seitenränder against 30 mm.
+    const atMargin = (pageMarginMm: number) =>
+      createResumePagePlan(longer, "", {}, "klassisch", { overrides: { pageMarginMm } })[0].items[0].weight;
+    expect(atMargin(10)).toBeLessThan(atMargin(30));
   });
 
   it("measures the education details actually drawn in the CV", () => {
@@ -368,7 +370,7 @@ describe("A4 document pagination", () => {
   it.each(templateIds)("C. lets a very long role continue on the next page in reading order in %s", (id) => {
     const profile = makeProfile(6, 6, 2, compactLanguages(id));
     const plan = resolve(profile, id).pagePlan;
-    if (["zweispaltig", "zeitgenoessisch", "elegant", "tabellarisch", "kreativ", "stilvoll", "gepflegt", "kompakt"].includes(id)) expect(plan.length).toBeGreaterThanOrEqual(2);
+    if (["zweispaltig", "zeitgenoessisch", "elegant", "tabellarisch", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch"].includes(id)) expect(plan.length).toBeGreaterThanOrEqual(2);
     else expect(plan).toHaveLength(2);
     expect(idsOf(plan)).toEqual([...profile.experiences, ...profile.education].map((item) => item.id));
     expectEveryBulletOnce(plan, profile.experiences);
@@ -659,7 +661,8 @@ describe("closing block and output modes", () => {
     const lastFill = (extra: Record<string, unknown>) => {
       const plan = createResumePagePlan(makeProfile(6, 5, 1, extra), "", { firstPageItemCount: 3 }, "klassisch");
       expect(plan.length).toBeGreaterThanOrEqual(2);
-      return filled(plan, 1);
+      // The closing stands on the last page.
+      return filled(plan, plan.length - 1);
     };
     const withSignature = lastFill({ signaturePath: signature });
     const placeOnly = lastFill({ signaturePath: "", resumeClosing: { showPlace: true, showDate: true, showSignature: false } });
@@ -726,7 +729,8 @@ describe("closing block and output modes", () => {
 
     it("counts a paragraph line per wrapped line: longer skill lists take more room", () => {
       const list = (count: number) => makeProfile(1, 2, 0, { skills: Array.from({ length: count }, (_, index) => `Technologie ${index + 1} im Einsatz`) });
-      const at = (count: number) => filled(resolve(list(count), "klassisch", ats).pagePlan, 0);
+      // All pages: a long list may move behind page one.
+      const at = (count: number) => resolve(list(count), "klassisch", ats).pagePlan.reduce((sum, page) => sum + (page.fill?.main ?? 0), 0);
       expect(at(6)).toBeLessThan(at(24));
       expect(at(24)).toBeLessThan(at(48));
     });

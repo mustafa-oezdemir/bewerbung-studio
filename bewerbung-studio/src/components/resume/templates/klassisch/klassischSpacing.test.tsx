@@ -46,14 +46,13 @@ const application = applicationSchema.parse({
 
 const renderSurfaces = (source = profile, settings = getTemplateDocumentDesignDefaults("klassisch")) => {
   const resolved = resolveCvDocument({ profile: source, templateId: "klassisch", settings });
-  const plan = resolved.pagePlan[0];
-  const previewHtml = renderToStaticMarkup(createElement(KlassischResume, {
+  // Every page of the preview (the 11 pt layout may need a second page), like the PDF.
+  const preview = resolved.pagePlan.map((plan) => applyManagedResumeOutput(renderToStaticMarkup(createElement(KlassischResume, {
     profile: resolved.profile, name: "Mina Kaya", atsMode: false, plan,
     totalPages: resolved.pagePlan.length, accentColor: template.accent,
     secondaryColor: template.secondary, backgroundId: settings.backgroundId,
     photoSource: source.photoPath || null, resumeProfile: "", sections: resolved.sections,
-  }));
-  const preview = applyManagedResumeOutput(previewHtml, resolved.profile, "klassisch", 1, resolved.pagePlan.length, settings, resolved);
+  })), resolved.profile, "klassisch", plan.pageNumber, resolved.pagePlan.length, settings, resolved)).join("");
   const pdf = buildDocumentHtml({ ...application, designSettings: settings }, source, "lebenslauf");
   return [preview, pdf] as const;
 };
@@ -65,14 +64,18 @@ describe("Klassisch spacing and section output", () => {
       const root = document.querySelector(".klassisch-template,.klassisch-pdf")!;
       const experience = root.querySelector('[data-managed-section="experience"]')!;
       const education = root.querySelector('[data-managed-section="education"]')!;
-      const project = root.querySelector(`[data-managed-section="special:${projectId}"]`)!;
-      const interests = root.querySelector(`[data-managed-section="special:${interestsId}"]`)!;
+      const project = document.querySelector(`[data-managed-section="special:${projectId}"]`)!;
+      const interests = document.querySelector(`[data-managed-section="special:${interestsId}"]`)!;
       expect(root.textContent).toContain("Mina Kaya");
       expect(root.textContent).toContain(profile.summary);
       expect(experience.querySelectorAll("article")).toHaveLength(2);
       expect(education.querySelectorAll("article")).toHaveLength(2);
-      expect(project.parentElement).toBe(experience.parentElement);
-      expect(interests.parentElement).toBe(education.parentElement);
+      // Custom sections flow in the same content host as the career sections, on whichever page the plan puts them.
+      const host = ".klassisch-content,.klassisch-pdf-content";
+      expect(project.parentElement?.matches(host)).toBe(true);
+      expect(interests.parentElement?.matches(host)).toBe(true);
+      expect(experience.parentElement?.matches(host)).toBe(true);
+      expect(education.parentElement?.matches(host)).toBe(true);
       expect(project.querySelector('[data-custom-role="heading"]')?.textContent).toBe("Projekt-Highlight");
       expect(interests.querySelector('[data-custom-role="heading"]')?.textContent).toBe("Hobbys & Interesses");
       expect(project.textContent).toContain("Open Source");
@@ -130,7 +133,7 @@ describe("Klassisch spacing and section output", () => {
         expect(root.hasAttribute("data-resume-spacing-entry-gap")).toBe(true);
         expect(root.hasAttribute("data-resume-spacing-section-gap")).toBe(true);
         for (const list of lists) expect(list.querySelector('[data-resume-spacing-entry-following]')).not.toBeNull();
-        expect(root.querySelector(`[data-managed-section="special:${projectId}"] [data-resume-spacing-title]`)).not.toBeNull();
+        expect(document.querySelector(`[data-managed-section="special:${projectId}"] [data-resume-spacing-title]`)).not.toBeNull();
       }
     }
   });

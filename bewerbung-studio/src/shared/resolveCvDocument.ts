@@ -19,6 +19,7 @@ import { getKreativDesignVariables } from "./kreativDesign";
 import { getStilvollDesignVariables } from "./stilvollDesign";
 import { getGepflegtDesignVariables } from "./gepflegtDesign";
 import { getKompaktDesignVariables } from "./kompaktDesign";
+import { getKlassischDesignVariables } from "./klassischDesign";
 
 type CvDocumentInput = {
   profile: ApplicantProfile | undefined;
@@ -98,6 +99,8 @@ export const resolveCvDocument = ({
     ? getKompaktDesignVariables(design, settings.cvOverrides?.colors,
         application?.accentColor, application?.secondaryColor)
     : undefined;
+  // Klassisch: one geometry and type scale for the preview, the PDF and the planner (resolveKlassischGeometry).
+  const klassischVariables = templateId === "klassisch" ? getKlassischDesignVariables(design) : undefined;
   // The Kurzprofil every output shows (and the planner measures): the Bewerbung's own text, else the profile's.
   // The Deckblatt text is another field and never stands in for it.
   const summary = resolveResumeSummary(profile, resumeProfile);
@@ -125,18 +128,18 @@ export const resolveCvDocument = ({
       signature: !atsMode && profile.resumeClosing.showSignature && Boolean(getProfileMediaSource(profile.signaturePath)),
     },
     overrides: {
-      bodySizePt: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt"].includes(templateId) ? design.typography.bodySizePt : overrides?.typography?.bodySizePt,
-      headingSizePt: ["elegant", "stilvoll", "gepflegt"].includes(templateId) ? design.typography.headingSizePt : undefined,
-      subheadingSizePt: ["elegant", "stilvoll", "gepflegt"].includes(templateId) ? design.typography.subheadingSizePt : undefined,
-      fontId: templateId === "gepflegt" ? design.typography.fontId : undefined,
-      sectionHeadingPt: templateId === "gepflegt" ? design.typography.sectionHeadingSizePt : undefined,
-      lineHeight: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt"].includes(templateId) ? design.typography.lineHeight : overrides?.typography?.lineHeight,
-      pageMarginMm: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt"].includes(templateId) ? design.spacing.pageMarginMm : overrides?.spacing?.pageMarginMm,
+      bodySizePt: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch"].includes(templateId) ? design.typography.bodySizePt : overrides?.typography?.bodySizePt,
+      headingSizePt: ["elegant", "stilvoll", "gepflegt", "klassisch"].includes(templateId) ? design.typography.headingSizePt : undefined,
+      subheadingSizePt: ["elegant", "stilvoll", "gepflegt", "klassisch"].includes(templateId) ? design.typography.subheadingSizePt : undefined,
+      fontId: templateId === "gepflegt" || templateId === "klassisch" ? design.typography.fontId : undefined,
+      sectionHeadingPt: templateId === "gepflegt" || templateId === "klassisch" ? design.typography.sectionHeadingSizePt : undefined,
+      lineHeight: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch"].includes(templateId) ? design.typography.lineHeight : overrides?.typography?.lineHeight,
+      pageMarginMm: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch"].includes(templateId) ? design.spacing.pageMarginMm : overrides?.spacing?.pageMarginMm,
       innerPaddingMm: templateId === "elegant" ? design.spacing.innerPaddingMm : overrides?.spacing?.innerPaddingMm,
-      sectionGapMm: ["elegant", "kompakt"].includes(templateId) ? design.spacing.sectionGapMm : overrides?.spacing?.sectionGapMm,
-      entryGapMm: ["elegant", "kompakt"].includes(templateId) ? design.spacing.entryGapMm : overrides?.spacing?.entryGapMm,
-      sectionTitleGapMm: ["elegant", "kompakt"].includes(templateId) ? design.spacing.sectionTitleGapMm : overrides?.spacing?.sectionTitleGapMm,
-      entryContentGapMm: ["elegant", "kompakt"].includes(templateId) ? design.spacing.entryContentGapMm : overrides?.spacing?.entryContentGapMm,
+      sectionGapMm: ["elegant", "kompakt", "klassisch"].includes(templateId) ? design.spacing.sectionGapMm : overrides?.spacing?.sectionGapMm,
+      entryGapMm: ["elegant", "kompakt", "klassisch"].includes(templateId) ? design.spacing.entryGapMm : overrides?.spacing?.entryGapMm,
+      sectionTitleGapMm: ["elegant", "kompakt", "klassisch"].includes(templateId) ? design.spacing.sectionTitleGapMm : overrides?.spacing?.sectionTitleGapMm,
+      entryContentGapMm: ["elegant", "kompakt", "klassisch"].includes(templateId) ? design.spacing.entryContentGapMm : overrides?.spacing?.entryContentGapMm,
       columnGapMm: ["elegant", "kompakt", "gepflegt"].includes(templateId) ? design.spacing.columnGapMm : overrides?.spacing?.columnGapMm,
     },
     settings,
@@ -166,6 +169,7 @@ export const resolveCvDocument = ({
     stilvollVariables,
     gepflegtVariables,
     kompaktVariables,
+    klassischVariables,
     summary,
     pagePlan,
   };

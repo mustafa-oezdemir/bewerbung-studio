@@ -26,7 +26,8 @@ const languageRowModels: Record<string, LanguageRowModel> = {
   stilvoll: { cols: 1, head: 4.55, row: 6.22, desc: 3.51, line: 3.22, dots: 14, colGap: 0, cw: 1.48 },
   zeitgenoessisch: { cols: 1, head: 6.49, row: 6.57, desc: 3.51, line: 3.57, dots: 13.1, colGap: 0, cw: 1.63 },
   zweispaltig: { cols: 1, head: 6.54, row: 6.06, desc: 3.52, line: 3.57, dots: 22, colGap: 0, cw: 1.51 },
-  klassisch: { cols: 2, head: 3.87, row: 5.33, desc: 3.72, line: 3.33, dots: 20.2, colGap: 18, cw: 1.53, maxWidth: 112, wideWhenLong: true },
+  // Klassisch (11 pt, measured 2026-10-07): heading 5.93 + 2.5 mm, rows of name (4.85) + 1.5 mm row gap, description 0.6 + 3.82 mm.
+  klassisch: { cols: 2, head: 6.93, row: 6.35, desc: 4.42, line: 4.85, dots: 20.2, colGap: 14, cw: 2.0, wideWhenLong: true },
   tabellarisch: { cols: 1, head: 8.05, row: 5.47, desc: 3.79, line: 5.47, dots: 23, colGap: 3, cw: 1.47 },
   pehlione_white: { cols: 1, head: 8.65, row: 4.79, desc: 3.5, line: 3.44, dots: 18, colGap: 0, cw: 1.32, indent: 6.5 },
   pehlione_white_blue: { cols: 1, head: 9.65, row: 4.79, desc: 3.5, line: 3.44, dots: 18, colGap: 0, cw: 1.32, indent: 4 },

@@ -911,9 +911,10 @@ export const applyManagedResumeOutput = (
     else if (firstPageHeader) {
       // Later pages repeat the identity of the first page's header (name, title, photo) and the contacts the user chose
       // for them (e-mail, phone): never its address, links or other personal details.
-      if (number > 1 && (resolved.templateId === "zeitgenoessisch" || resolved.templateId === "kreativ" || resolved.templateId === "stilvoll" || resolved.templateId === "elegant")) {
+      if (number > 1 && (resolved.templateId === "zeitgenoessisch" || resolved.templateId === "kreativ" || resolved.templateId === "stilvoll" || resolved.templateId === "elegant" || resolved.templateId === "klassisch")) {
         // Both native renderers already draw the compact identity. Replacing it with page one's header
-        // would repeat the large photo composition and waste the continuation page's upper area.
+        // would repeat the large photo composition and waste the continuation page's upper area
+        // (Klassisch: a running head, so the text of a later page fills it like a Word document).
         ensureResumeHeaderContacts(root, continuationContacts);
       } else if (number > 1) repeatResumeHeader(root, firstPageHeader, continuationContacts, { title: profile.title });
     }
@@ -978,6 +979,14 @@ export const applyManagedResumeOutput = (
       for (const [property, value] of Object.entries(resolved.kompaktVariables)) {
         (root as HTMLElement).style.setProperty(property, value);
         kompaktScope?.style.setProperty(property, value);
+      }
+    }
+    // Klassisch: the resolved geometry, type scale and spacing replace the native values on both surfaces.
+    if (resolved.klassischVariables) {
+      const klassischScope = (surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild) as HTMLElement | null;
+      for (const [property, value] of Object.entries(resolved.klassischVariables)) {
+        (root as HTMLElement).style.setProperty(property, value);
+        klassischScope?.style.setProperty(property, value);
       }
     }
     applyResumeMetadataLayout(root, profile, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);

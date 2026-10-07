@@ -55,7 +55,8 @@ export function KlassischPage({
         </section>
       ) : null;
     }
-    if (type === "strengths") return !isContinuation && sections.strengths ? <KlassischStrengths key={type} profile={profile} atsMode={mode === "ats"} /> : null;
+    // The plain layout lists its strengths on the last page, like the PDF; the managed output places them.
+    if (type === "strengths") return (mode === "ats" ? isLastPage : !isContinuation) && sections.strengths ? <KlassischStrengths key={type} profile={profile} atsMode={mode === "ats"} /> : null;
     if (type === "experience") return sections.experience ? <KlassischCareer key={type} kind="experience" title={getResumeSectionTitle(profile, "experience")} items={experiences} continuation={isContinuation} /> : null;
     if (type === "education") return sections.education ? <KlassischCareer key={type} kind="education" title={getResumeSectionTitle(profile, "education")} items={education} /> : null;
     if (type === "knowledge") return isLastPage && sections.skills ? <KlassischKnowledge key={type} profile={profile} /> : null;

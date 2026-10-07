@@ -2,7 +2,7 @@ import { compactCvDesignOverrides, getCvDesignVariables, getTemplateDocumentDesi
 import { cvDesignLimits, type CvDesignTokens, type ResumeDesignLayer } from "./cvDesignSchema";
 import { fontSizeToPt, lineHeightLevelToValue, marginLevelToMm, sectionSpacingLevelToMm, type DocumentDesignSettings } from "./documentDesign";
 import type { DocumentDesignDraft } from "./documentEditorState";
-import { resolveEffectiveDesignTokens, resolveResumeDesignView } from "./resumeDesignSystem";
+import { foldsDocumentSizeSliders, resolveEffectiveDesignTokens, resolveResumeDesignView } from "./resumeDesignSystem";
 import { resumeSectionStyleSources } from "./resumeSectionStyleInheritance";
 import { resolveTemplateId } from "./templates";
 import { getResumeColumnsHost, getResumeLayoutHost } from "./resumeLayoutEngine";
@@ -35,7 +35,7 @@ export const getResumeSpacingPresetValues = (templateId: string, preset: "compac
 
 export const getResumeSpacingPreset = (templateId: string, settings: DocumentDesignSettings, global?: ResumeDesignLayer): ResumeSpacingPreset => {
   const defaults = getTemplateDocumentDesignDefaults(templateId);
-  const legacyChanged = (["marginLevel", "paddingLevel", "sectionSpacingLevel", "lineHeightLevel"] as const)
+  const legacyChanged = foldsDocumentSizeSliders(templateId) && (["marginLevel", "paddingLevel", "sectionSpacingLevel", "lineHeightLevel"] as const)
     .some((key) => settings[key] !== defaults[key]);
   const spacing = settings.cvOverrides?.spacing;
   const lineHeight = settings.cvOverrides?.typography?.lineHeight;
@@ -152,9 +152,10 @@ const getSectionStack = (section: Element): Element | null => {
 /** Annotate only explicitly changed fields; untouched templates keep native CSS. */
 /**
  * Templates whose own geometry already places header, columns and footer at the chosen Seitenränder (their design
- * variables); the generic text shift would move their content a second time. Kompakt: resolveKompaktGeometry.
+ * variables); the generic text shift would move their content a second time. Kompakt: resolveKompaktGeometry;
+ * Klassisch: resolveKlassischGeometry (horizontal only: header, sections and footer share the left and right edge).
  */
-const ownPageMarginTemplates = new Set(["zeitgenoessisch", "kreativ", "stilvoll", "gepflegt", "kompakt"]);
+const ownPageMarginTemplates = new Set(["zeitgenoessisch", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch"]);
 
 export const applyResumeSpacingOutput = (
   page: Element,

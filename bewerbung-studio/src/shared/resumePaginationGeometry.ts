@@ -1,6 +1,26 @@
 import { zweispaltigDefaults } from "./cvTemplateDefaults/zweispaltig.defaults";
 import { stilvollDefaults, stilvollDesign } from "./cvTemplateDefaults/stilvoll.defaults";
 import { gepflegtGeometry } from "./gepflegtDesign";
+import { klassischDefaults } from "./cvTemplateDefaults/klassisch.defaults";
+import { resolveKlassischGeometry } from "./klassischDesign";
+
+const PT_MM = 25.4 / 72;
+const klassischGeometry = resolveKlassischGeometry();
+const klassischLine = (pt: number, lineHeight: number = klassischDefaults.typography.lineHeight) => pt * PT_MM * lineHeight;
+const klassischBodyMm = klassischDefaults.typography.bodySizePt * PT_MM;
+const klassischBodyLine = klassischLine(klassischDefaults.typography.bodySizePt);
+const klassischTitleLine = klassischLine(klassischDefaults.typography.entryHeadingSizePt, klassischDefaults.typography.headingLineHeight);
+const klassischSectionHead = klassischLine(klassischDefaults.typography.sectionHeadingSizePt, klassischDefaults.typography.headingLineHeight) + klassischDefaults.layout.sectionTitleGapMm;
+/** The list takes its indent and the item padding off the column. */
+const klassischListInset = klassischDefaults.layout.listIndentMm + 0.5;
+const klassischBulletWidth = klassischGeometry.contentWidth - klassischListInset;
+const klassischTitleWidth = klassischGeometry.contentWidth - klassischDefaults.layout.metaWidthMm - klassischDefaults.layout.metaGapMm;
+/** Title + organisation (with the gap between them): the left half of an entry head, taller than date and place. */
+const klassischEntryHead = klassischTitleLine + klassischDefaults.layout.organizationGapMm + klassischBodyLine;
+/** Below a header: its padding, the hairline (one CSS pixel) and the gap to the first section. */
+const klassischHeaderClose = klassischDefaults.layout.headerPaddingBottomMm + 25.4 / 96 + klassischDefaults.layout.headerGapMm;
+const klassischHeaderTop = klassischGeometry.top + klassischLine(klassischDefaults.typography.nameSizePt, klassischDefaults.typography.nameLineHeight)
+  + klassischDefaults.layout.titleGapMm + klassischLine(klassischDefaults.typography.titleSizePt) + klassischHeaderClose;
 
 export type PaginationZone = "main" | "sidebar";
 
@@ -26,6 +46,8 @@ export type ItemBlockModel = {
   gap: number;
   /** Line pitch (mm) of the description under an item, when it is not 0.92 × `pitch`. */
   descPitch?: number;
+  /** Font of the description relative to the title (default 0.92: set a little smaller). */
+  descRatio?: number;
   /** CSS weight of the item title where the template wraps measured text (`text.wrap`). */
   titleWeight?: number;
 };
@@ -107,7 +129,20 @@ export type PaginationGeometry = {
      * column (indent + item padding), the gap beside the date / place, and their font as a share of the body size
      * (`max(minPt, body × ratio)`). Used while the template's own font is chosen.
      */
-    wrap?: { fontId: string; bodyWeight: number; titleWeight: number; orgWeight: number; listInset: number; metaGap: number; metaRatio: number; metaMinPt: number; metaMaxWidth: number };
+    wrap?: {
+      fontId: string; bodyWeight: number; titleWeight: number; orgWeight: number; listInset: number; metaGap: number; metaRatio: number; metaMinPt: number; metaMaxWidth: number;
+      /** A date/place column of fixed width beside title and organisation (Klassisch's grid), instead of one as wide as the date. */
+      metaColumn?: number;
+      /** The summary paragraph is wrapped with the measured font too. */
+      paragraphs?: boolean;
+      /** The title of a continued entry part carries the shared "· Fortsetzung" marker (resumeEntrySplitCss): it may wrap. */
+      marker?: boolean;
+      /**
+       * The plain (ATS) layout is wrapped with the same advances, its columns taken as this share of their width (Arial
+       * sets about 2 % wider than the measured Segoe UI advances: 0.98 left no line under-estimated on 854 measured bullets).
+       */
+      atsWidth?: number;
+    };
   };
   /** Padding and divider an entry draws below itself except the last one (not part of the entry gap the user sets), mm. */
   entryChrome?: number;
@@ -479,30 +514,60 @@ const geometry: Record<string, PaginationGeometry> = {
     ats: {exp: 1.0, edu: 1.0, head: 7.9, knowledge: {head: 7.9, title: 7.11, gap: 3.38, pitch: 3.73, font: 3.39, w: 180, tail: 0}, languages: [7.6, 4], certs: {base: 7.6, perItem: 4}, density: {compact: 1, dense: 0.99}},
     density: {compact: 1, dense: 0.99},
   },
+  // Klassisch (DIN-oriented, one column): every line box and gap follows from klassischDefaults and the stylesheet that
+  // both surfaces share (measured equal in the PDF: 11 pt x 1.2 = 4.656 mm per line, 14 pt titles 5.927 mm, entry head
+  // 11.08 mm). Career entries, the summary, knowledge rows and the header are wrapped with the measured font advances
+  // (`wrap`, estimateKlassischHeaderTop); the character model (`cw`) only serves the plain (ATS) layout and other fonts.
   "klassisch": {
     columns: 1,
+    safety: 1,
     sidebarLeft: false,
     zones: {summary: "main", strengths: "main", knowledge: "main", languages: "main"},
-    top1: 54,
-    top2: 31.8,
-    limit: 285.9,
+    // A header with name and Berufsbezeichnung / the running head; estimateKlassischHeaderTop computes the real ones
+    // (page one with its contacts and photo, the running head of later pages, the plain page one).
+    top1: klassischHeaderTop,
+    top2: klassischGeometry.top + klassischLine(klassischDefaults.typography.metaSizePt) + klassischLine(klassischDefaults.typography.continuationNameSizePt, klassischDefaults.typography.nameLineHeight) + klassischHeaderClose,
+    limit: klassischGeometry.contentBottom,
     sideTop1: null,
-    sideLimit: 285.9,
-    atsTop1: 60.1,
-    atsTop2: 39.9,
+    sideLimit: klassischGeometry.contentBottom,
+    atsTop1: klassischHeaderTop,
+    atsTop2: klassischGeometry.top + klassischLine(klassischDefaults.typography.metaSizePt) + klassischLine(klassischDefaults.typography.continuationNameSizePt, klassischDefaults.typography.nameLineHeight) + klassischHeaderClose,
     mainLeft: 0,
-    mainRight: 210,
-    contentLeft: 15,
-    contentRight: 195,
-    text: {contW: 175.2, cw: 0.51, bulletW: 175.2, bulletFont: 2.963, titleW: 139, titleFont: 4.3, orgW: 139, orgFont: 3.53, sumFont: 2.963, mainW: 180, sideW: 0, atsW: 175.2, lineRatio: 1.05, fullW: 180},
-    exp: {base: 9, list: 1.2, perBullet: 0.18, linePitch: 3.1, extraLine: 4.4, gap: 3.2, head: 5.9},
-    edu: {base: 9, extraLine: 2.4, gap: 2.8, head: 5.9},
-    blocks: {summary: [5.9, 3.11], strengths: [2.7, 4.46], knowledge: [5.6, 3.21], languages: [6.5, 2.67], sectionGap: 3.8, sideGap: 4.5},
-    items: {strengths: {w: 83, font: 2.963, pitch: 3.85, pad: 1, cw: 0.53, cols: 2, head: 5.9, gap: 3}, knowledge: {w: 83, font: 2.963, pitch: 3.11, pad: 0.89, cw: 0.45, cols: 2, head: 10.5, gap: 2}},
-    certs: {home: "last", zone: "main", base: 5.7, perItem: 3.27, w: 175.7, font: 2.96, pitch: 3.11},
+    mainRight: klassischDefaults.page.widthMm,
+    contentLeft: klassischGeometry.left,
+    contentRight: klassischDefaults.page.widthMm - klassischGeometry.right,
+    text: {contW: klassischBulletWidth, cw: 0.5, bulletW: klassischBulletWidth, bulletFont: klassischBodyMm, titleW: klassischTitleWidth, titleFont: klassischDefaults.typography.entryHeadingSizePt * PT_MM,
+      orgW: klassischTitleWidth, orgFont: klassischBodyMm, sumFont: klassischBodyMm, mainW: klassischGeometry.contentWidth, sideW: 0, atsW: klassischGeometry.contentWidth,
+      lineRatio: klassischDefaults.typography.lineHeight, fullW: klassischGeometry.contentWidth,
+      wrap: {fontId: "source-sans", bodyWeight: 400, titleWeight: klassischDefaults.typography.entryHeadingWeight, orgWeight: klassischDefaults.typography.organizationWeight,
+        listInset: klassischListInset, metaGap: klassischDefaults.layout.metaGapMm, metaRatio: klassischDefaults.typography.metaSizePt / klassischDefaults.typography.bodySizePt,
+        metaMinPt: klassischDefaults.typography.metaSizePt, metaMaxWidth: klassischDefaults.layout.metaWidthMm, metaColumn: klassischDefaults.layout.metaWidthMm, paragraphs: true, marker: true, atsWidth: 0.98}},
+    // Entry: title + organisation beside the date column, then the list (top margin, a gap between two bullets, lines).
+    exp: {base: klassischEntryHead, list: klassischDefaults.layout.entryContentGapMm - klassischDefaults.layout.bulletGapMm, perBullet: klassischDefaults.layout.bulletGapMm,
+      linePitch: klassischBodyLine, extraLine: klassischTitleLine, gap: klassischDefaults.layout.entryGapMm, head: klassischSectionHead},
+    edu: {base: klassischEntryHead, extraLine: klassischTitleLine, gap: klassischDefaults.layout.entryGapMm, head: klassischSectionHead,
+      detailBase: -klassischDefaults.layout.bulletGapMm, detailLine: klassischBodyLine, detailItem: klassischDefaults.layout.bulletGapMm, detailList: klassischDefaults.layout.entryContentGapMm},
+    blocks: {summary: [klassischSectionHead, klassischBodyLine], strengths: [klassischSectionHead, klassischBodyLine], knowledge: [klassischSectionHead, klassischBodyLine],
+      languages: [klassischSectionHead, klassischBodyLine * 2], sectionGap: klassischDefaults.layout.sectionGapMm, sideGap: klassischDefaults.layout.sectionGapMm},
+    items: {
+      // The managed strength cards (more than three strengths, skills shown as strengths, the plain layout): measured title
+      // line 5.04 mm, description lines 5.0 mm at 0.92 em. Up to three explicit strengths are the template's own cards (gridModel).
+      strengths: {w: 44.5, font: klassischBodyMm, pitch: 5.04, pad: 0, cw: 0.5, cols: 3, head: klassischSectionHead, gap: klassischDefaults.layout.strengthRowGapMm,
+        descPitch: 5.0, titleWeight: klassischDefaults.typography.organizationWeight},
+      // The managed item grid: heading, category title (+1.5 mm) and rows 2 mm apart.
+      knowledge: {w: 76, font: klassischBodyMm, pitch: klassischBodyLine, pad: 0, cw: 0.5, cols: 2, head: klassischSectionHead + klassischBodyLine + 1.5, gap: 2},
+    },
+    certs: {home: "last", zone: "main", base: klassischSectionHead, perItem: klassischBodyLine + klassischDefaults.layout.bulletGapMm, w: klassischBulletWidth, font: klassischBodyMm, pitch: klassischBodyLine},
     derivedStrengths: {visual: "first", ats: "single"},
-    ats: {exp: 1.0, edu: 1.0, head: 6.9, knowledge: {head: 6.9, title: 6.08, gap: 3, pitch: 3.11, font: 2.96, w: 180, tail: 0}, languages: [6.1, 4.05], certs: {base: 6.7, perItem: 3.27}, density: {compact: 0.99, dense: 0.98}},
-    density: {compact: 0.99, dense: 0.98},
+    // Plain layout: the same type scale in Arial; knowledge = category title (+1.5 mm) and a comma-separated paragraph per
+    // category (3 mm apart); languages and certificates are list lines (the list margin hides in the title gap).
+    ats: {exp: 1.0, edu: 1.0, head: klassischSectionHead, sectionGap: klassischDefaults.layout.sectionGapMm,
+      knowledge: {head: klassischSectionHead, title: klassischBodyLine + 1.5, gap: 3, pitch: klassischBodyLine, font: klassischBodyMm, w: klassischGeometry.contentWidth, tail: 0},
+      languages: [klassischSectionHead - klassischDefaults.layout.bulletGapMm, klassischBodyLine + klassischDefaults.layout.bulletGapMm],
+      certs: {base: klassischSectionHead - klassischDefaults.layout.bulletGapMm, perItem: klassischBodyLine + klassischDefaults.layout.bulletGapMm},
+      density: {compact: 0.985, dense: 0.965}},
+    // Compact/dense only shrink the gaps (x .85 / x .7), never the text.
+    density: {compact: 0.985, dense: 0.965},
   },
   "tabellarisch": {
     columns: 1,

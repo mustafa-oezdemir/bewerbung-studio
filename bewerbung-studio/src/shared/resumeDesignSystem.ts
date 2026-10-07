@@ -9,6 +9,7 @@ import {
 import {
   defaultSectionDividerWidthMm, resumeAppearanceSchema, type ResolvedResumeAppearance, type ResumeAppearance,
 } from "./resumeAppearance";
+import { resolveTemplateId } from "./templates";
 
 /**
  * The Lebenslauf design system in one place.
@@ -101,12 +102,26 @@ export const applyGlobalResumeDesign = <Settings extends DocumentDesignSettings>
 const roundTenth = (value: number) => Math.round(value * 10) / 10;
 
 /**
+ * Templates whose Lebenslauf ignores the document-wide size sliders (Seitenrand-, Innenabstand-, Abschnitts-,
+ * Zeilenhöhen- und Schriftgrößenstufe of the "Dokumentweit: Anschreiben und Deckblatt" group): their CV is drawn from
+ * the native design plus the semantic Lebenslauf settings only. Klassisch: a new Bewerbung carries the app-wide slider
+ * defaults, which would otherwise read as a choice and replace its DIN-oriented page (25 / 20 mm, 11 pt / 1.2).
+ */
+const nativeSizeTemplates = new Set(["klassisch"]);
+export const foldsDocumentSizeSliders = (templateId: string) => !nativeSizeTemplates.has(resolveTemplateId(templateId));
+
+/**
  * The tokens a document shows. Saved legacy slider/font levels still count while no semantic override names the same
  * value, so documents created before the semantic panel keep their look and are displayed accurately.
  */
 export const resolveEffectiveDesignTokens = (templateId: string, settings: DocumentDesignSettings): CvDesignTokens => {
   const design = resolveCvDesign(templateId, settings.cvOverrides);
-  const defaults = getTemplateDocumentDesignDefaults(templateId);
+  const sliders = getTemplateDocumentDesignDefaults(templateId);
+  // A template that ignores the size sliders compares them with themselves: no level counts as changed.
+  const defaults = foldsDocumentSizeSliders(templateId) ? sliders : {
+    ...sliders, marginLevel: settings.marginLevel, paddingLevel: settings.paddingLevel, sectionSpacingLevel: settings.sectionSpacingLevel,
+    lineHeightLevel: settings.lineHeightLevel, fontSize: settings.fontSize,
+  };
   const semantic = settings.cvOverrides;
   const spacing = { ...design.spacing };
   const typography = { ...design.typography };
@@ -221,14 +236,15 @@ export const resolveResumeDesignView = (
   // The legacy appearance field "space below the title" is the same CSS margin as the spacing token.
   const legacyTitleGap = settings.resumeAppearance?.sectionHeadingMarginAfterMm;
   const defaults = getTemplateDocumentDesignDefaults(templateId);
+  const sliders = foldsDocumentSizeSliders(templateId);
   const legacyLevel: Record<string, boolean> = {
-    "spacing.pageMarginMm": settings.marginLevel !== defaults.marginLevel,
-    "spacing.innerPaddingMm": settings.paddingLevel !== defaults.paddingLevel,
-    "spacing.sectionGapMm": settings.sectionSpacingLevel !== defaults.sectionSpacingLevel,
-    "typography.lineHeight": settings.lineHeightLevel !== defaults.lineHeightLevel,
+    "spacing.pageMarginMm": sliders && settings.marginLevel !== defaults.marginLevel,
+    "spacing.innerPaddingMm": sliders && settings.paddingLevel !== defaults.paddingLevel,
+    "spacing.sectionGapMm": sliders && settings.sectionSpacingLevel !== defaults.sectionSpacingLevel,
+    "typography.lineHeight": sliders && settings.lineHeightLevel !== defaults.lineHeightLevel,
     "typography.fontId": settings.fontId !== defaults.fontId,
     "typography.headingFontId": settings.headingFontId !== defaults.headingFontId,
-    "typography.bodySizePt": settings.fontSize !== defaults.fontSize,
+    "typography.bodySizePt": sliders && settings.fontSize !== defaults.fontSize,
   };
   return {
     templateId, native, editableGlobal, inherited, effective,
