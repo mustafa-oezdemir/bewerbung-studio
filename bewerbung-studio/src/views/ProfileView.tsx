@@ -16,6 +16,12 @@ import { moveListItem } from "../shared/listOrder";
 import { OrderControls } from "../components/profile/OrderControls";
 import { ResumeSectionTitleEditor } from "../components/resume/ResumeSectionTitleEditor";
 import { ResumeHeadingEditor } from "../components/resume/ResumeHeadingEditor";
+import { ResumeSpecialSectionPicker } from "../components/resume/ResumeSpecialSectionPicker";
+import {
+  canAddResumeSpecialSection,
+  createResumeSpecialSection,
+  resumeSpecialSectionCatalog,
+} from "../shared/resumeSpecialSectionCatalog";
 import {
   copyResumeHeading,
 } from "../shared/resumeHeading";
@@ -126,25 +132,6 @@ const newProfile = (): ApplicantProfile => ({
 });
 
 type ProfileKey = keyof ApplicantProfile;
-
-const specialSectionOptions: Array<{
-  kind: ResumeSpecialSectionKind;
-  label: string;
-}> = [
-  { kind: "projects", label: "Projekte" },
-  { kind: "internships", label: "Praktika" },
-  { kind: "trainings", label: "Weiterbildungen" },
-  { kind: "internationalExperience", label: "Auslandserfahrung" },
-  { kind: "scholarships", label: "Stipendien" },
-  { kind: "awards", label: "Auszeichnungen" },
-  { kind: "publications", label: "Veröffentlichungen" },
-  { kind: "volunteer", label: "Ehrenamt" },
-  { kind: "interests", label: "Interessen und Hobbys" },
-  { kind: "drivingLicenses", label: "Führerschein" },
-  { kind: "additional", label: "Zusatzangaben" },
-  { kind: "references", label: "Referenzen" },
-  { kind: "custom", label: "Eigener Abschnitt" },
-];
 
 const moveItem = <T extends { id: string }>(
   items: T[],
@@ -961,8 +948,6 @@ function SpecialSectionsEditor({
   value: ApplicantProfile["specialSections"];
   onChange: (value: ApplicantProfile["specialSections"]) => void;
 }) {
-  const [newKind, setNewKind] = useState<ResumeSpecialSectionKind>("projects");
-
   const updateSection = (
     sectionId: string,
     update: Partial<ApplicantProfile["specialSections"][number]>,
@@ -973,21 +958,9 @@ function SpecialSectionsEditor({
       ),
     );
 
-  const addSection = () => {
-    if (newKind === "projects" && value.some((section) => section.kind === "projects")) return;
-    const label =
-      specialSectionOptions.find((option) => option.kind === newKind)?.label ??
-      "Eigener Abschnitt";
-    onChange([
-      ...value,
-      {
-        id: crypto.randomUUID(),
-        kind: newKind,
-        title: label,
-        isVisible: true,
-        entries: [],
-      },
-    ]);
+  const addSection = (kind: ResumeSpecialSectionKind) => {
+    if (!canAddResumeSpecialSection(kind, value)) return;
+    onChange([...value, createResumeSpecialSection(kind)]);
   };
 
   const addEntry = (sectionId: string) => {
@@ -1031,29 +1004,7 @@ function SpecialSectionsEditor({
 
   return (
     <div className="special-sections-editor">
-      <div className="special-section-add">
-        <label className="field">
-          <span>Bereich auswählen</span>
-          <select
-            value={newKind}
-            onChange={(event) =>
-              setNewKind(event.target.value as ResumeSpecialSectionKind)
-            }>
-            {specialSectionOptions.map((option) => (
-              <option key={option.kind} value={option.kind}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          className="button secondary small-button"
-          disabled={newKind === "projects" && value.some((section) => section.kind === "projects")}
-          onClick={addSection}>
-          <Plus size={15} /> Bereich hinzufügen
-        </button>
-      </div>
+      <ResumeSpecialSectionPicker sections={value} onAdd={addSection} />
 
       {value.map((section, sectionIndex) => (
         <article className="special-section-card" key={section.id}>
@@ -1083,7 +1034,7 @@ function SpecialSectionsEditor({
                       kind: event.target.value as ResumeSpecialSectionKind,
                     })
                   }>
-                  {specialSectionOptions.map((option) => (
+                  {resumeSpecialSectionCatalog.map((option) => (
                     <option key={option.kind} value={option.kind}>
                       {option.label}
                     </option>

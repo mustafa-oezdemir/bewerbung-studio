@@ -8,7 +8,6 @@ import {
 import { GepflegtSidebarPhoto } from "./GepflegtSidebarPhoto";
 import type { GepflegtSidebarProps } from "./gepflegt.types";
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
-import { resolveResumeHeading } from "../../../../shared/resumeHeading";
 import { LanguageDescriptionText, LanguageLevelText, languageDotsLabel, presentLanguage } from "../LanguageLevelText";
 import { formatPhoneForDisplay } from "../../../../shared/contactPresentation";
 
@@ -33,17 +32,14 @@ export function GepflegtSidebar({
   );
 
   if (!atsMode && isContinuation) {
-    // Only what the user chose for later pages (Lebenslauf → Persönliche Daten): never the address or a link.
+    // The header of the main column repeats name and Berufsbezeichnung: the sidebar keeps only the page cue and what
+    // the user chose for later pages (Lebenslauf → Persönliche Daten), never the address or a link.
     const continuation = profile?.resumeContinuationContactVisibility;
     const email = continuation?.email ? profile?.email?.trim() : "";
     const phone = continuation?.phone ? profile?.phone?.trim() : "";
     return (
       <aside className="gepflegt-sidebar gepflegt-sidebar--continuation">
         <div className="gepflegt-sidebar__continuation">
-          <p>{resolveResumeHeading(profile).kicker}</p>
-          <h2>{name}</h2>
-          {profile?.title ? <span>{profile.title}</span> : null}
-          <i aria-hidden="true" />
           <small>
             Fortsetzung · Seite {pageNumber} von {totalPages}
           </small>

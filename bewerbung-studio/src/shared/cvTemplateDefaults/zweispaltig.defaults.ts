@@ -7,9 +7,9 @@ export const zweispaltigDefaults = {
   },
   layout: {
     marginTopMm: 20,
-    marginRightMm: 20,
+    marginRightMm: 15,
     marginBottomMm: 15,
-    marginLeftMm: 25,
+    marginLeftMm: 15,
     leftColumnRatio: 0.62,
     rightColumnRatio: 0.38,
     columnGapMm: 11,

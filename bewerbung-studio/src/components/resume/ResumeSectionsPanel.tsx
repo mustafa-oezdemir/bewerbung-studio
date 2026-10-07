@@ -11,7 +11,11 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import type { ApplicantProfile } from "../../shared/schema";
+import type { ApplicantProfile, ResumeSpecialSectionKind } from "../../shared/schema";
+import {
+  canAddResumeSpecialSection,
+  createResumeSpecialSection,
+} from "../../shared/resumeSpecialSectionCatalog";
 import type { SectionColumnMode } from "../../shared/documentDesign";
 import {
   baseGroupType,
@@ -31,6 +35,7 @@ import {
   resumeBlockRegistry,
 } from "../../features/resume-sections/knowledge-block-registry";
 import { normalizeResumeDataDraft, ResumeDataEditor } from "./ResumeDataEditor";
+import { ResumeSpecialSectionPicker } from "./ResumeSpecialSectionPicker";
 import { validateApplicantProfile } from "../../shared/profileEditor";
 import { PersonalDataVisibility } from "./PersonalDataVisibility";
 import { PersonalDataEditor } from "../profile/PersonalDataEditor";
@@ -127,6 +132,16 @@ export function ResumeSectionsPanel({
         current.resumeKnowledgeGroups,
       ).map((group) => (group.id === id ? { ...group, ...update } : group)),
     }));
+  /** A Lebenslauf-Bereich is a profile special section: it joins the list as `special:<id>` and opens for editing. */
+  const addSpecialSection = (kind: ResumeSpecialSectionKind) => {
+    if (!canAddResumeSpecialSection(kind, draft.specialSections)) return;
+    const section = createResumeSpecialSection(kind);
+    setDraft((current) => ({
+      ...current,
+      specialSections: [...current.specialSections, section],
+    }));
+    setExpanded(`special:${section.id}`);
+  };
   const save = async () => {
     const issue = validateApplicantProfile(draft)[0];
     if (issue) { window.alert(issue.startsWith("personal:") ? "Bitte Pflichtangaben im Profil prüfen." : issue); return; }
@@ -445,56 +460,68 @@ export function ResumeSectionsPanel({
           );
         })}
       </div>}
-      <div className="manager-add">
-        <label className="field">
-          <span>Weiteren Bereich hinzufügen</span>
-          <select
-            value={newBlock}
-            onChange={(event) => setNewBlock(event.target.value)}>
-            {resumeBlockRegistry.map((block) => (
-              <option key={block.id} value={block.id}>
-                {block.title}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          className="button secondary"
-          onClick={() => {
-            const definition = resumeBlockRegistry.find(
-              (item) => item.id === newBlock,
-            )!;
-            const base = baseGroupType(definition.id);
-            const existing = groups.find(
-              (item) =>
-                item.semanticType === definition.id ||
-                (base && baseGroupType(item.semanticType) === base),
-            );
-            if (existing) {
-              setExpanded(base ?? `group:${existing.id}`);
-              return;
-            }
-            const block = createKnowledgeBlock(
-              templateId,
-              definition,
-              groups.length,
-            );
-            setDraft((current) => ({
-              ...current,
-              resumeKnowledgeGroups: [
-                ...resolveKnowledgeGroups(
-                  templateId,
-                  current.resumeKnowledgeGroups,
-                ),
-                block,
-              ],
-            }));
-            setExpanded(base ?? `group:${block.id}`);
-          }}>
-          <Plus size={15} /> Bereich hinzufügen
-        </button>
-      </div>
+      <ResumeSpecialSectionPicker
+        title="Weiteren Bereich hinzufügen"
+        sections={draft.specialSections}
+        onAdd={addSpecialSection}
+      />
+      <details className="manager-advanced-blocks">
+        <summary>Erweiterte Bausteine</summary>
+        <p className="manager-hint">
+          Kenntnisbausteine mit eigenen Inhalten, z. B. Kernkompetenzen, Tools
+          oder Soft Skills.
+        </p>
+        <div className="manager-add">
+          <label className="field">
+            <span>Kenntnisbaustein hinzufügen</span>
+            <select
+              value={newBlock}
+              onChange={(event) => setNewBlock(event.target.value)}>
+              {resumeBlockRegistry.map((block) => (
+                <option key={block.id} value={block.id}>
+                  {block.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="button secondary small-button"
+            onClick={() => {
+              const definition = resumeBlockRegistry.find(
+                (item) => item.id === newBlock,
+              )!;
+              const base = baseGroupType(definition.id);
+              const existing = groups.find(
+                (item) =>
+                  item.semanticType === definition.id ||
+                  (base && baseGroupType(item.semanticType) === base),
+              );
+              if (existing) {
+                setExpanded(base ?? `group:${existing.id}`);
+                return;
+              }
+              const block = createKnowledgeBlock(
+                templateId,
+                definition,
+                groups.length,
+              );
+              setDraft((current) => ({
+                ...current,
+                resumeKnowledgeGroups: [
+                  ...resolveKnowledgeGroups(
+                    templateId,
+                    current.resumeKnowledgeGroups,
+                  ),
+                  block,
+                ],
+              }));
+              setExpanded(base ?? `group:${block.id}`);
+            }}>
+            <Plus size={15} /> Baustein hinzufügen
+          </button>
+        </div>
+      </details>
       {singlePageExceeded && (
         <p className="resume-sections-warning">
           Der Lebenslauf umfasst mehr als eine Seite. Prüfen Sie die Vorschau

@@ -4,7 +4,9 @@ import { parseHTML } from "linkedom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { profileSchema, type ApplicantProfile } from "../../shared/schema";
 import { getManagerSections } from "../../features/resume-sections/resume-manager";
-import { getDefaultKnowledgeGroups } from "../../features/resume-sections/resume-section-system";
+import { getDefaultKnowledgeGroups, resolveKnowledgeGroups } from "../../features/resume-sections/resume-section-system";
+import { createKnowledgeBlock, resumeBlockRegistry } from "../../features/resume-sections/knowledge-block-registry";
+import { createResumeSpecialSection, resumeSpecialSectionCatalog } from "../../shared/resumeSpecialSectionCatalog";
 import { ResumeSectionsPanel } from "./ResumeSectionsPanel";
 
 const singleColumnTemplates = ["tabellarisch", "klassisch", "einspaltig", "ivy-league"];
@@ -161,6 +163,9 @@ const mount = async (templateId: string, layoutMode: "single" | "two-column", in
     order: () => movable(draft, templateId).map((entry) => entry.id),
     zone: (id: string) => movable(draft, templateId).find((entry) => entry.id === id)?.zone,
     click: (label: string) => fire(find(label), "click"),
+    /** Clicks the button whose text is `text` (the picker cards and add buttons have no aria-label). */
+    press: (text: string, scope = "body") => fire(Array.from(window.document.querySelectorAll(`${scope} button`)).find((button) => button.textContent?.trim() === text)!, "click"),
+    query: (selector: string) => window.document.querySelector(selector),
     key: (title: string, key: string) => fire(find(`${title} verschieben: Pfeil hoch oder runter für Reihenfolge${layoutMode === "single" ? "" : ", Pfeil links oder rechts für Spalte"}`), "keydown", { key }),
     drag: async (sourceTitle: string, targetTitle: string) => {
       const card = (title: string) => find(`${title} ausblenden`).closest("article")!;
@@ -211,6 +216,97 @@ describe("ResumeSectionsPanel order in a real React tree", () => {
     expect(panel.zone("experience")).toBe("sidebar");
     await panel.key("Beruflicher Werdegang", "ArrowLeft");
     expect(panel.zone("experience")).toBe("main");
+    await panel.unmount();
+  });
+});
+
+describe("ResumeSectionsPanel: Weiteren Bereich hinzufügen", () => {
+  const softSkills = () => {
+    const block = createKnowledgeBlock("modern", resumeBlockRegistry.find((item) => item.title === "Soft Skills")!, 0);
+    return { ...block, items: [{ id: crypto.randomUUID(), text: "Teamfähigkeit", description: "", icon: "", level: "", order: 0, visible: true }] };
+  };
+  const withData = (extra: Record<string, unknown>) =>
+    profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: new Date().toISOString(), ...extra });
+  const picker = ".resume-manager > .special-section-picker";
+  const pickerLabels = (html: string) => {
+    const { document } = parseHTML(`<html><body>${html}</body></html>`);
+    return Array.from(document.querySelectorAll(".special-section-option span"), (node) => node.textContent);
+  };
+
+  it("offers the 13 Lebenslauf-Bereiche of the profile and keeps knowledge blocks apart as Erweiterte Bausteine", () => {
+    const html = render(blank(), "modern");
+    expect(pickerLabels(html)).toEqual(resumeSpecialSectionCatalog.map((entry) => entry.label));
+    expect(pickerLabels(html)).toHaveLength(13);
+    expect(pickerLabels(html)).not.toContain("Soft Skills");
+    expect(html).toContain("Weiteren Bereich hinzufügen");
+    const { document } = parseHTML(`<html><body>${html}</body></html>`);
+    const advanced = document.querySelector("details.manager-advanced-blocks")!;
+    expect(advanced.hasAttribute("open")).toBe(false);
+    expect(advanced.querySelector("summary")?.textContent).toBe("Erweiterte Bausteine");
+    expect(advanced.textContent).toContain("Kenntnisbaustein hinzufügen");
+    expect(Array.from(advanced.querySelectorAll("option"), (option) => option.textContent)).toEqual(resumeBlockRegistry.map((block) => block.title));
+    expect(advanced.querySelector(".special-section-option")).toBeNull();
+  });
+
+  it("disables Projekte once the profile has a Projekte section", () => {
+    const { document } = parseHTML(`<html><body>${render(withData({ specialSections: [createResumeSpecialSection("projects")] }), "modern")}</body></html>`);
+    const projects = document.querySelector('.special-section-option[data-kind="projects"]')!;
+    expect(projects.hasAttribute("disabled")).toBe(true);
+    expect(projects.textContent).toContain("Bereits hinzugefügt");
+    expect(document.querySelector('.special-section-option[data-kind="custom"]')!.hasAttribute("disabled")).toBe(false);
+  });
+
+  it("adds Praktika as a profile special section that the manager lists and opens, without touching knowledge blocks", async () => {
+    const references = createResumeSpecialSection("references");
+    const groups = [softSkills()];
+    const initial = withData({ specialSections: [references], resumeKnowledgeGroups: groups });
+    const panel = await mount("modern", "two-column", initial);
+    await panel.press("Praktika", picker);
+    await panel.press("Bereich hinzufügen", picker);
+    const sections = panel.draft().specialSections;
+    expect(sections).toHaveLength(2);
+    expect(sections[0]).toEqual(references);
+    const added = sections[1]!;
+    expect(added).toEqual({ id: expect.any(String), kind: "internships", title: "Praktika", isVisible: true, entries: [] });
+    const entries = getManagerSections(panel.draft(), "modern");
+    expect(entries.find((entry) => entry.id === `special:${added.id}`)).toMatchObject({ title: "Praktika", visible: true });
+    // The new card is listed and opened with the special-section editor.
+    const title = Array.from(panel.query("body")!.querySelectorAll(".manager-card-title")).find((node) => node.textContent?.trim() === "Praktika")!;
+    expect(title.getAttribute("aria-expanded")).toBe("true");
+    const card = title.closest("article")!;
+    expect(Array.from(card.querySelectorAll(".resume-data-group:not([hidden]) > summary"), (node) => node.textContent)).toEqual(["Praktika"]);
+    // The card edits this one section: no second picker inside it.
+    expect(card.querySelector(".special-section-picker")).toBeNull();
+    expect(panel.query("body")!.querySelectorAll(".special-section-picker")).toHaveLength(1);
+    // Saved knowledge blocks stay as they are and stay in the list.
+    expect(panel.draft().resumeKnowledgeGroups).toEqual(initial.resumeKnowledgeGroups);
+    expect(entries.some((entry) => entry.id === `group:${groups[0]!.id}`)).toBe(true);
+    await panel.unmount();
+  });
+
+  it("adds Eigener Abschnitt again and again, Projekte only once", async () => {
+    const panel = await mount("einspaltig", "single", blank());
+    for (let round = 0; round < 2; round += 1) {
+      await panel.press("Eigener Abschnitt", picker);
+      await panel.press("Bereich hinzufügen", picker);
+    }
+    await panel.press("Projekte", picker);
+    await panel.press("Bereich hinzufügen", picker);
+    expect(panel.draft().specialSections.map((section) => section.kind)).toEqual(["custom", "custom", "projects"]);
+    expect(panel.query('.special-section-option[data-kind="projects"]')!.hasAttribute("disabled")).toBe(true);
+    const ids = getManagerSections(panel.draft(), "einspaltig").map((entry) => entry.id);
+    for (const section of panel.draft().specialSections) expect(ids).toContain(`special:${section.id}`);
+    await panel.unmount();
+  });
+
+  it("still adds a knowledge block from Erweiterte Bausteine", async () => {
+    const panel = await mount("modern", "two-column", blank());
+    // The template's default blocks are written with the new one, as before.
+    const before = resolveKnowledgeGroups("modern", panel.draft().resumeKnowledgeGroups).length;
+    await panel.press("Baustein hinzufügen");
+    expect(panel.draft().resumeKnowledgeGroups).toHaveLength(before + 1);
+    expect(panel.draft().resumeKnowledgeGroups.at(-1)?.semanticType).toBe(resumeBlockRegistry[0]!.id);
+    expect(panel.draft().specialSections).toEqual([]);
     await panel.unmount();
   });
 });

@@ -15,7 +15,7 @@ const legacyTemplateIds = ["classic-professional", "modern-sidebar", "minimal-cl
 const nativeValues: Record<string, Record<string, number>> = {
   pehlione_white_blue: { body: 9.2, line: 1.2, name: 29, section: 13, entry: 9, sectionGap: 6, entryGap: 4, titleGap: 3, margin: 7 },
   pehlione_white: { body: 9.2, line: 1.2, name: 29, section: 13, entry: 10.4, sectionGap: 6, entryGap: 4, titleGap: 3, margin: 7 },
-  zweispaltig: { body: 10, line: 1.32, name: 24, section: 14, entry: 11.5, sectionGap: 6.5, entryGap: 3.5, titleGap: 2.5, margin: 25 },
+  zweispaltig: { body: 10, line: 1.32, name: 24, section: 14, entry: 11.5, sectionGap: 6.5, entryGap: 3.5, titleGap: 2.5, margin: 15 },
   zeitgenoessisch: { body: 10.5, line: 1.26, name: 25, section: 12.5, entry: 11.5, sectionGap: 7, entryGap: 5, titleGap: 3, margin: 20 },
   kreativ: { body: 10.5, line: 1.26, name: 23, section: 14, entry: 11, sectionGap: 4.5, entryGap: 2.5, titleGap: 3.5, margin: 20 },
   "ivy-league": { body: 8.4, line: 1.05, name: 17.5, section: 13.5, entry: 9.7, sectionGap: 4.5, entryGap: 4.5, titleGap: 2.5, margin: 11 },

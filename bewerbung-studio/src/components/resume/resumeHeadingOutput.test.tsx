@@ -77,7 +77,7 @@ describe.each(variants)("continuation heading of the %s mode", (_mode, profile, 
     expect(resolveResumeHeading(profile).continuationKicker).toBe(`${kicker} · Fortsetzung`);
   });
 
-  it("keeps Elegant's continuation sidebar free of the repeated identity", () => {
+  it("keeps the continuation sidebars of Elegant and Gepflegt free of the repeated identity", () => {
     const sidebar = { profile, name: "Mustafa Özdemir", summary: "", sections: profile.resumeSections, photoSource: null, atsMode: false, isContinuation: true, pageNumber: 2, totalPages: 2 };
     const elegant = markup(renderToStaticMarkup(createElement(ElegantSidebar as unknown as AnyComponent, sidebar)))
       .querySelector(".elegant-sidebar__continuation")!;
@@ -85,8 +85,8 @@ describe.each(variants)("continuation heading of the %s mode", (_mode, profile, 
     expect(textOf(elegant.outerHTML)).toContain("Fortsetzung · Seite 2 von 2");
     const gepflegt = markup(renderToStaticMarkup(createElement(GepflegtSidebar as unknown as AnyComponent, sidebar)))
       .querySelector(".gepflegt-sidebar__continuation")!;
-    expect(gepflegt.querySelector("p")?.textContent).toBe(kicker);
-    expect(gepflegt.querySelector("h2")?.textContent).toBe("Mustafa Özdemir");
+    expect(gepflegt.querySelector("p,h2,i")).toBeNull();
+    expect(textOf(gepflegt.outerHTML)).toBe("Fortsetzung · Seite 2 von 2");
   });
 
   it("is drawn by the Pehlione continuation sidebar", () => {

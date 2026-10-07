@@ -69,6 +69,16 @@ try {
     'long-entry-nophoto': () => base({ experiences: [station(0, longBullets), station(1, ['Einführung eines digitalen Rechnungsworkflows für 40 Standorte.'])] }),
     'three-pages': () => base({ photoPath: photo, experiences: Array.from({ length: 7 }, (_, n) => station(n, Array.from({ length: 5 }, (_, i) => `Ergebnis ${n + 1}.${i + 1}: ${sentence(10 + (n + i * 3) % 12)}.`))) }),
     'one-page': () => base({ photoPath: photo, experiences: [station(0, ['Einführung eines digitalen Rechnungsworkflows.', 'Leitung eines Teams von sechs Personen.'])] }),
+    'projects-interests': () => base({ experiences: [station(0, ['Schnittstellen für die Buchhaltung entwickelt.'])], specialSections: [
+      { id: uid(50), kind: 'projects', title: 'Projekte', entries: [
+        { id: uid(51), title: 'Go Ledger Platform', url: 'https://example.org/ledger', technologies: ['Go', 'Chi', 'PostgreSQL', 'sqlc', 'Next.js', 'TypeScript', 'RabbitMQ', 'Docker Compose'], description: 'Full-Stack-Banking-Simulation mit Go-Backend, PostgreSQL und Next.js-Frontend sowie atomarem Double-Entry-Ledger.' },
+        { id: uid(52), title: 'Go E-Commerce Operations', url: 'https://example.org/shop', technologies: ['Go', 'Gin', 'GORM', 'MySQL', 'HTML Templates', 'Docker Compose', 'Prometheus', 'Grafana'], description: 'Serverseitig gerenderte E-Commerce-Anwendung mit Go, Gin, GORM und MySQL.' },
+        { id: uid(53), title: 'Go Shipping & Returns Service', url: 'https://example.org/shipping', technologies: ['Go', 'Gin', 'MySQL', 'REST APIs', 'Docker Compose', 'Prometheus'], description: 'Eigenständiger Shipping- und Returns-Service für Sendungen, Tracking, Retouren und Status-Callbacks.' },
+      ] },
+      { id: uid(54), kind: 'interests', title: 'Hobbys & Interesses', contentType: 'list', entries: [
+        { id: uid(55), title: 'Code' }, { id: uid(56), title: 'Gartenarbeit' },
+      ] },
+    ] }),
   };
   for (let k = 0; k < Number(process.env.RANDOM || 0); k++) {
     scenarios[`rand${k}`] = () => base({

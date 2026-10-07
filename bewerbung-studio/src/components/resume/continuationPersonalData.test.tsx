@@ -130,6 +130,28 @@ describe("Gepflegt: the header of a later page", () => {
     }
   });
 
+  it("names the person and the Berufsbezeichnung once on a later page: in the header, not again in the sidebar", () => {
+    // Enough Zertifikate to continue in the sidebar of page two.
+    const certifications = Array.from({ length: 16 }, (_, index) => `${2008 + index} · Zertifikat ${index + 1} · Beispiel Akademie`);
+    for (const choice of [{ email: false, phone: false }, { email: true, phone: true }]) {
+      const rendered = renderCv("gepflegt", profileOf(7, { certifications, resumeContinuationContactVisibility: choice }));
+      for (const pages of [rendered.previewPages, rendered.pdfPages]) {
+        const continued = pages.slice(1).filter((page) => page.querySelector('aside[class*="continuation"]'));
+        expect(continued.length, "a sidebar continues on a later page").toBeGreaterThan(0);
+        for (const page of continued) {
+          expect(occurrences(page).name).toBe(1);
+          expect(page.querySelector("header")?.textContent).toContain("Softwareentwickler | Fachinformatiker für Anwendungsentwicklung");
+          const aside = page.querySelector('aside[class*="continuation"]')!;
+          const cue = aside.querySelector("small")!;
+          expect(cue.textContent).toMatch(/^Fortsetzung · Seite \d von \d$/);
+          // Nothing of the old identity block (kicker, name, title, rule) stands above the cue.
+          expect(cue.parentElement!.firstElementChild).toBe(cue);
+          expect(aside.textContent).not.toMatch(/Lebenslauf|Mustafa|Fachinformatiker/);
+        }
+      }
+    }
+  });
+
   it("does not delete or change the address of the profile", () => {
     const profile = profileOf(7);
     renderCv("gepflegt", profile);
@@ -149,7 +171,7 @@ describe("Gepflegt: the continuation sidebar follows the continuation visibility
 
   it("names no contact by default, and never the address or a link", () => {
     const text = sidebar({ email: false, phone: false });
-    expect(text).toContain("Mustafa Özdemir");
+    expect(text.trim()).toBe("Fortsetzung · Seite 2 von 2");
     for (const value of [email, "1234567", address, "linkedin", "github"]) expect(text).not.toContain(value);
   });
 

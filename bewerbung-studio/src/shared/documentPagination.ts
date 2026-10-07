@@ -151,6 +151,11 @@ const PT_TO_MM = 0.3528;
 const SAFETY = 0.97;
 /** What Gepflegt's computed header keeps in reserve (sub-pixel rounding of the line boxes). */
 const GEPFLEGT_HEADER_RESERVE_MM = 0.5;
+/**
+ * What a Gepflegt continuation sidebar keeps free below its estimated sections: the wrap estimate of a narrow sidebar
+ * (Seitenränder 20–30 mm) ran up to 4.8 mm long on 40 random documents once the page cue alone stood above them.
+ */
+const GEPFLEGT_CONTINUATION_SIDE_RESERVE_MM = 5;
 /** Sidebar blocks must fit with this share of the column to be hosted on page one. */
 const SIDEBAR_HOST_SHARE = 0.94;
 /** Zone-flow templates size the sidebar blocks from their tokens, so they may fill the whole column. */
@@ -899,6 +904,7 @@ const planResumePages = (
     const metrics = zoneFlow && templateId ? sectionListMetrics(templateId, zone) : undefined;
     if (!metrics) return 0;
     const normalized = normalizeCustomSection(section);
+    const compact = section.kind === "projects" || section.kind === "interests";
     const listed = normalized.contentType === "list" || normalized.contentType === "skills" || normalized.contentType === "timeline";
     const column = zone === "sidebar" ? geometry.text.sideW + scale.sideDelta
       : fullWidth ? geometry.text.fullW * (scale.fullRatio ?? 1) : geometry.text.mainW * scale.mainRatio;
@@ -922,9 +928,9 @@ const planResumePages = (
     });
     // The entries of a sidebar section may be styled like the template's own entries (margins, a divider's padding).
     const side = zone === "sidebar" && listed ? geometry.specialSide : undefined;
-    const between = side?.between ?? (templateId === "modern" && listed
+    const between = compact ? 0 : side?.between ?? (templateId === "modern" && listed
       ? metrics.gapMm : geometry.exp.gap + (zone === "sidebar" && listed ? metrics.gapMm : 3));
-    return (metrics.headingMm + (side?.edge ?? 0) + entries.reduce((total, value) => total + value, 0) + between * Math.max(0, entries.length - 1)) * scale.textHeight;
+    return (metrics.headingMm + (compact ? 0 : side?.edge ?? 0) + entries.reduce((total, value) => total + value, 0) + between * Math.max(0, entries.length - 1)) * scale.textHeight;
   };
   /**
    * The project highlight in the sidebar: the title, the company line and the bullets keep their body sizes,
@@ -1190,6 +1196,7 @@ const planResumePages = (
   for (const special of profile?.specialSections ?? []) {
     const entry = find(`special:${special.id}`);
     const normalized = normalizeCustomSection(special);
+    const compact = special.kind === "projects" || special.kind === "interests";
     if (!special.isVisible || entry?.visible === false || !normalized.entries.length) continue;
     const zone = flat ? "main" : entry?.zone ?? "main";
     const availableWidth = zone === "sidebar" ? geometry.text.sideW + scale.sideDelta : geometry.text.mainW * scale.mainRatio;
@@ -1199,10 +1206,10 @@ const planResumePages = (
     const visibleTexts = (item: typeof normalized.entries[number]) => special.kind === "projects"
       ? [item.title, item.technologies.join(" · "), item.description]
       : [item.title, item.subtitle, item.location, item.date, item.description, item.url, ...item.bullets];
-    const height = 9 + normalized.entries.reduce((total, item) => total + 4 +
+    const height = 9 + normalized.entries.reduce((total, item) => total + (compact ? 0 : 4) +
       visibleTexts(item).reduce((lines, value) => lines + lineCount(value) * pitch, 0), 0);
     const inSidebar = (zoneFlow || templateId === "elegant") && zone === "sidebar";
-    const legacyPartHeight = (from: number, to: number) => 9 + normalized.entries.slice(from, to).reduce((total, item) => total + 4 +
+    const legacyPartHeight = (from: number, to: number) => 9 + normalized.entries.slice(from, to).reduce((total, item) => total + (compact ? 0 : 4) +
       visibleTexts(item).reduce((lines, value) => lines + lineCount(value) * pitch, 0), 0);
     flow.push({
       id: `special:${special.id}`,
@@ -1569,14 +1576,19 @@ const planResumePages = (
     const height = block.sideSplit ? block.sideSplit.height(from, to) : block.height;
     return templateId === "elegant" && block.id === "knowledge" ? height * 1.35 : height;
   };
-  // Elegant repeats only the page cue and optional contacts in the continuation sidebar.
-  const elegantContinuationContacts = (profile?.resumeContinuationContactVisibility.email && profile.email ? 1 : 0)
+  // Elegant and Gepflegt repeat only the page cue and optional contacts in the continuation sidebar (name and
+  // Berufsbezeichnung stand in the header of the main column).
+  const continuationSideContacts = (profile?.resumeContinuationContactVisibility.email && profile.email ? 1 : 0)
     + (profile?.resumeContinuationContactVisibility.phone && profile.phone ? 1 : 0);
+  // Gepflegt: cue and contacts are small lines (max(9 pt, 0.88 × body) × line height) below the sidebar padding;
+  // the first contact stands 3 mm, the next 2 mm below (measured: cue 14–18.4 mm, contacts to 32.3 mm).
+  const gepflegtSmallLine = Math.max(9 * PT_TO_MM, geometry.text.bulletFont * scale.font * 0.88) * geometry.text.lineRatio * scale.line;
   const sideTop2 = templateId === "elegant" && !context.atsMode
-    ? elegantDefaults.layout.sidebarTopMm + scale.marginInset + 4 + sectionGap + elegantContinuationContacts * 6
+    ? elegantDefaults.layout.sidebarTopMm + scale.marginInset + 4 + sectionGap + continuationSideContacts * 6
     : templateId === "gepflegt" && !context.atsMode
-    ? 67 + Math.max(0, Math.ceil(gepflegtName.length / 12) - 1) * 7.5
-      + Math.max(0, Math.ceil((profile?.title ?? "").length / 26) - 3) * 4.2
+    ? gepflegtDefaults.sidebar.paddingTopMm + gepflegtSmallLine
+      + (continuationSideContacts ? 1 + continuationSideContacts * (2 + gepflegtSmallLine) : 0)
+      + GEPFLEGT_CONTINUATION_SIDE_RESERVE_MM
     : top2;
   const sideCap2 = (geometry.sideLimit - sideTop2 - verticalInset) * ZONE_FLOW_SIDEBAR_SAFETY;
   if (sidebarLane) {

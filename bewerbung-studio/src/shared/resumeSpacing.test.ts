@@ -15,6 +15,32 @@ const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.rando
   contact: {}, job: { title: "Entwicklung" }, status: "Entwurf", templateId: "modern", accentColor: "#123456", documents: {},
   statusHistory: [], createdAt: now, updatedAt: now });
 
+describe("Zweispaltig Seitenränder presets", () => {
+  it("sets only the page margin of Kompakt to 10 mm and keeps Groß at its 30 mm", () => {
+    expect(getResumeSpacingPresetValues("zweispaltig", "compact").spacing.pageMarginMm).toBe(10);
+    expect(getResumeSpacingPresetValues("zweispaltig", "large").spacing.pageMarginMm).toBe(30);
+    expect(resolveTemplateCvDesign("zweispaltig").spacing.pageMarginMm).toBe(15);
+    // Every other field follows the shared preset scaling.
+    const native = resolveTemplateCvDesign("zweispaltig");
+    for (const preset of ["compact", "large"] as const) {
+      const values = getResumeSpacingPresetValues("zweispaltig", preset);
+      const factor = preset === "compact" ? 0.8 : 1.2;
+      for (const { key } of resumeSpacingFields.filter((field) => field.key !== "pageMarginMm")) {
+        const [low, high] = cvDesignLimits[key];
+        expect(values.spacing[key], `${preset} ${key}`).toBe(Math.round(Math.max(low, Math.min(high, native.spacing[key] * factor)) * 10) / 10);
+      }
+    }
+  });
+
+  it("leaves the Kompakt margin of every other template to the shared scaling", () => {
+    for (const { id } of templates.filter((template) => template.id !== "zweispaltig")) {
+      const [low, high] = cvDesignLimits.pageMarginMm;
+      const expected = Math.round(Math.max(low, Math.min(high, resolveTemplateCvDesign(id).spacing.pageMarginMm * 0.8)) * 10) / 10;
+      expect(getResumeSpacingPresetValues(id, "compact").spacing.pageMarginMm, id).toBe(expected);
+    }
+  });
+});
+
 describe("semantic resume spacing", () => {
   it.each(templates)("keeps $name native until a user chooses a spacing preset", ({ id }) => {
     const draft = selectDocumentTemplate(createDocumentDesignDraft(application), id);

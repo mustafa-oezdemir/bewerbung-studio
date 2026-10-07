@@ -29,6 +29,13 @@ import { CareerEditor } from "../profile/CareerEditor";
 import { EducationEditor } from "../profile/EducationEditor";
 import { normalizeApplicantProfileForSave, validateApplicantProfile } from "../../shared/profileEditor";
 import { ProjectEntryEditor } from "./ProjectEntryEditor";
+import { ResumeSpecialSectionPicker } from "./ResumeSpecialSectionPicker";
+import {
+  canAddResumeSpecialSection,
+  createResumeSpecialSection,
+  resumeSpecialSectionCatalog,
+  resumeSpecialSectionLabel,
+} from "../../shared/resumeSpecialSectionCatalog";
 
 type Props = {
   profile: ApplicantProfile;
@@ -406,22 +413,6 @@ function SectionUpdateButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-const specialSectionLabels: Record<ResumeSpecialSectionKind, string> = {
-  projects: "Projekte",
-  internships: "Praktika",
-  trainings: "Weiterbildungen",
-  internationalExperience: "Auslandserfahrung",
-  scholarships: "Stipendien",
-  awards: "Auszeichnungen",
-  publications: "Veröffentlichungen",
-  volunteer: "Ehrenamt",
-  interests: "Interessen und Hobbys",
-  drivingLicenses: "Führerschein",
-  additional: "Zusatzangaben",
-  references: "Referenzen",
-  custom: "Eigener Abschnitt",
-};
-
 export function ResumeSpecialSectionsEditor({
   selectedId,
   value,
@@ -433,9 +424,6 @@ export function ResumeSpecialSectionsEditor({
   onChange: (value: ApplicantProfile["specialSections"]) => void;
   onUpdate: () => void;
 }) {
-  const [newKind, setNewKind] =
-    useState<ResumeSpecialSectionKind>("additional");
-
   const updateSection = (
     sectionId: string,
     update: Partial<ApplicantProfile["specialSections"][number]>,
@@ -464,47 +452,25 @@ export function ResumeSpecialSectionsEditor({
 
   return (
     <div className="resume-special-section-groups">
-      <div className="resume-special-section-add" hidden={Boolean(selectedId)}>
-        <label className="field">
-          <span>Weiteren Profilabschnitt hinzufügen</span>
-          <select
-            value={newKind}
-            onChange={(event) =>
-              setNewKind(event.target.value as ResumeSpecialSectionKind)
-            }>
-            {Object.entries(specialSectionLabels).map(([kind, label]) => (
-              <option key={kind} value={kind}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          className="button secondary small-button"
-          type="button"
-          disabled={newKind === "projects" && value.some((section) => section.kind === "projects")}
-          onClick={() =>
-            onChange([
-              ...value,
-              {
-                id: crypto.randomUUID(),
-                kind: newKind,
-                title: specialSectionLabels[newKind],
-                isVisible: true,
-                entries: [],
-              },
-            ])
-          }>
-          <Plus size={15} /> Abschnitt hinzufügen
-        </button>
-      </div>
+      {!selectedId && (
+        <div className="resume-special-section-add">
+          <ResumeSpecialSectionPicker
+            title="Weiteren Profilabschnitt hinzufügen"
+            sections={value}
+            onAdd={(kind) => {
+              if (canAddResumeSpecialSection(kind, value))
+                onChange([...value, createResumeSpecialSection(kind)]);
+            }}
+          />
+        </div>
+      )}
 
       {value
         .filter((item) => !selectedId || item.id === selectedId)
         .map((section) => (
           <details className="resume-data-group" key={section.id} open>
             <summary>
-              {section.title || specialSectionLabels[section.kind]}
+              {section.title || resumeSpecialSectionLabel(section.kind)}
             </summary>
             {!selectedId && (
               <OrderControls
@@ -544,9 +510,9 @@ export function ResumeSpecialSectionsEditor({
                       kind: event.target.value as ResumeSpecialSectionKind,
                     })
                   }>
-                  {Object.entries(specialSectionLabels).map(([kind, label]) => (
-                    <option key={kind} value={kind}>
-                      {label}
+                  {resumeSpecialSectionCatalog.map((option) => (
+                    <option key={option.kind} value={option.kind}>
+                      {option.label}
                     </option>
                   ))}
                 </select>

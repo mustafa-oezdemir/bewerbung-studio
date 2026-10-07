@@ -57,8 +57,9 @@ describe("Zweispaltig DIN page and career flow", () => {
   it("uses the same A4 content edges in the native page, planner, preview and PDF", () => {
     const { page, layout } = zweispaltigDefaults;
     const geometry = getPaginationGeometry("zweispaltig");
-    expect([page.widthMm, page.heightMm, layout.marginLeftMm, layout.marginRightMm]).toEqual([210, 297, 25, 20]);
-    expect(layout.marginBottomMm).toBeGreaterThanOrEqual(15);
+    // Standard Seitenränder: 15 mm left and right; top 20 mm and bottom 15 mm stay.
+    expect([page.widthMm, page.heightMm, layout.marginLeftMm, layout.marginRightMm]).toEqual([210, 297, 15, 15]);
+    expect([layout.marginTopMm, layout.marginBottomMm]).toEqual([20, 15]);
     expect(geometry.contentLeft).toBe(layout.marginLeftMm);
     expect(geometry.contentRight).toBe(page.widthMm - layout.marginRightMm);
     expect(geometry.limit).toBe(page.heightMm - layout.marginBottomMm);

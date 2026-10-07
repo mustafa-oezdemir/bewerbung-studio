@@ -429,38 +429,15 @@
   width: 100%;
 }
 
-.gepflegt-sidebar__continuation p,
-.gepflegt-sidebar__continuation h2,
 .gepflegt-sidebar__continuation span,
 .gepflegt-sidebar__continuation small {
   display: block;
   margin: 0;
 }
 
-.gepflegt-sidebar__continuation p {
-  font-size: 8pt;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.gepflegt-sidebar__continuation h2 {
-  margin-top: 2mm;
-  font-size: 16pt;
-  line-height: 1.05;
-  text-transform: uppercase;
-}
-
 .gepflegt-sidebar__continuation > span {
   margin-top: 2mm;
   color: var(--gepflegt-sidebar-muted, #d8f0ef);
-}
-
-.gepflegt-sidebar__continuation i {
-  display: block;
-  width: 16mm;
-  height: 0.5mm;
-  margin: 8mm 0;
-  background: var(--gepflegt-sidebar-text, #fff);
 }
 
 .gepflegt-sidebar__continuation small + span {

@@ -16,9 +16,9 @@
   --zweispaltig-left-ratio: 0.62fr;
   --zweispaltig-right-ratio: 0.38fr;
   --zweispaltig-margin-top: 20mm;
-  --zweispaltig-margin-right: 20mm;
+  --zweispaltig-margin-right: 15mm;
   --zweispaltig-margin-bottom: 15mm;
-  --zweispaltig-margin-left: 25mm;
+  --zweispaltig-margin-left: 15mm;
   --zweispaltig-column-gap: 11mm;
   /* The template's own Abschnittsabstand; the central one (Lebenslauf-Design) replaces the base, never a floor on it. */
   --zweispaltig-section-gap: var(--zweispaltig-section-gap-base, 6.5mm);

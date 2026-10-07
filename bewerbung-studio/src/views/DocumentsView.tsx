@@ -2128,6 +2128,27 @@ export function DocumentsView({
                       </span>
                     </div>
                   ) : null}
+                  {profile ? (
+                    <ResumeSectionsPanel
+                      key={`${application.id}:${profile.id}:${template.id}:${resumeEditorRevision}`}
+                      profile={profile}
+                      controlledDraft={contentProfile ?? profile}
+                      onDraftChange={(value) => setResumeContentDraft((current) => typeof value === "function" ? value(current ?? profile) : value)}
+                      singlePageExceeded={false}
+                      templateId={template.id}
+                      languagesColumns={design.settings.languagesColumns}
+                      onLanguagesColumnsChange={(value) => updateDesignSetting("languagesColumns", value)}
+                      layoutMode={resumeLayout.mode}
+                      closingPlacement={design.settings.resumePresentation?.closing?.placement}
+                      closingAlignment={design.settings.resumePresentation?.closing?.alignment ?? (template.id.startsWith("pehlione_") ? "distributed" : "left")}
+                      onClosingLayoutChange={updateClosingLayout}
+                      legacySummary={docs.legacyResumeProfile || docs.resumeProfile}
+                      onPickMedia={(kind) => void pickProfileMedia(kind)}
+                      onRemoveMedia={(kind) => void removeProfileMedia(kind)}
+                      onSave={saveResumeSections}
+                      onPreview={handleResumeSectionPreview}
+                    />
+                  ) : null}
                   {projectMatches.length > 0 && <section className="application-projects">
                     <header><strong>Projekte für diese Bewerbung</strong>
                       <small>Wähle nur die Projekte, die im Lebenslauf erscheinen sollen. 2–3 reichen meist.</small>
@@ -2153,27 +2174,6 @@ export function DocumentsView({
                       : `${selectedProjectEntryIds.length} Projekt${selectedProjectEntryIds.length === 1 ? "" : "e"} ausgewählt.`}
                       {" "}Die Auswahl gilt nur für diese Bewerbung. Mit „Texte speichern“ sichern.</small>
                   </section>}
-                  {profile ? (
-                    <ResumeSectionsPanel
-                      key={`${application.id}:${profile.id}:${template.id}:${resumeEditorRevision}`}
-                      profile={profile}
-                      controlledDraft={contentProfile ?? profile}
-                      onDraftChange={(value) => setResumeContentDraft((current) => typeof value === "function" ? value(current ?? profile) : value)}
-                      singlePageExceeded={false}
-                      templateId={template.id}
-                      languagesColumns={design.settings.languagesColumns}
-                      onLanguagesColumnsChange={(value) => updateDesignSetting("languagesColumns", value)}
-                      layoutMode={resumeLayout.mode}
-                      closingPlacement={design.settings.resumePresentation?.closing?.placement}
-                      closingAlignment={design.settings.resumePresentation?.closing?.alignment ?? (template.id.startsWith("pehlione_") ? "distributed" : "left")}
-                      onClosingLayoutChange={updateClosingLayout}
-                      legacySummary={docs.legacyResumeProfile || docs.resumeProfile}
-                      onPickMedia={(kind) => void pickProfileMedia(kind)}
-                      onRemoveMedia={(kind) => void removeProfileMedia(kind)}
-                      onSave={saveResumeSections}
-                      onPreview={handleResumeSectionPreview}
-                    />
-                  ) : null}
                   <section className="match-analysis">
                     <header>
                       <div>

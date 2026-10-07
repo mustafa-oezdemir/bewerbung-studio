@@ -149,6 +149,10 @@ export const managedResumeCss = `
 :where([data-custom-template]) [data-custom-role="entry"]{display:block;min-width:0;break-inside:auto;overflow-wrap:anywhere}
 :where([data-custom-template]) :is(p,h3,h4,h5){margin:0}
 :where([data-custom-template]) .resume-special-output__meta{opacity:1}
+:is([data-custom-kind="projects"],[data-custom-kind="interests"]) [data-custom-role="entries"]{row-gap:0!important;margin-block:0!important}
+:is([data-custom-kind="projects"],[data-custom-kind="interests"]) [data-custom-role="entry"]{margin-block:0!important;padding:0!important;line-height:var(--doc-line-height,1.25)!important}
+:is([data-custom-kind="projects"],[data-custom-kind="interests"]) .resume-special-output__entry{gap:0!important}
+:is([data-custom-kind="projects"],[data-custom-kind="interests"]) [data-custom-role="entry"] :is(h3,h4,h5,p,li){margin-block:0!important;line-height:var(--doc-line-height,1.25)!important}
 :where([data-custom-template="kreativ"]) [data-content-type="list"]>[data-custom-role="entry"]{display:list-item}
 :where([data-custom-template="kreativ"]) [data-content-type="list"]>[data-custom-role="entry"]::marker{color:var(--kreativ-primary,var(--accent,currentColor))}
 [data-managed-section]{break-inside:auto}
@@ -768,6 +772,12 @@ export const applyManagedResumeOutput = (
         const surface = root.matches(".cv-sheet") ? "pdf" : "preview";
         const sources = resumeSectionStyleSources[surface][resolvedId as keyof typeof resumeSectionStyleSources.preview];
         node.setAttribute("data-custom-template", resolvedId);
+        if (id.startsWith("special:")) {
+          const kind = profile.specialSections.find((section) => section.id === id.slice(8))?.kind;
+          if (kind) node.setAttribute("data-custom-kind", kind);
+          if (kind === "projects" || kind === "interests")
+            (node as HTMLElement).style.setProperty("--doc-line-height", String(resolved.design.typography.lineHeight));
+        }
         // Legacy fallback selectors must not override the native style contract.
         node.classList.remove("managed-extra");
         for (const [role, index] of [["entry-title", 2], ["supporting", 3]] as const) {

@@ -7,6 +7,8 @@ import { getTemplateDocumentDesignDefaults, resolveTemplateCvDesign } from "../.
 import type { ResumeDesignLayer } from "../../shared/cvDesignSchema";
 import { createResumePagePlan } from "../../shared/documentPagination";
 import { applyGlobalResumeDesign } from "../../shared/resumeDesignSystem";
+import { createDocumentDesignDraft } from "../../shared/documentEditorState";
+import { applyResumeSpacingPreset } from "../../shared/resumeSpacing";
 import { resolveCvDocument } from "../../shared/resolveCvDocument";
 import { getElegantDesignVariables } from "../../shared/elegantDesign";
 import { getColorContrastRatio } from "../../shared/documentDesign";
@@ -219,8 +221,8 @@ describe("Seitenränder and Innenabstand in preview and PDF", () => {
     const defaults = getTemplateDocumentDesignDefaults(id);
     for (const surface of ["pdf", "preview"] as const) {
       const original = scopeOf(outputs(id, defaults)[surface], surface);
-      expect(styleOf(original)["--zweispaltig-margin-left"]).toBe("25mm");
-      expect(styleOf(original)["--zweispaltig-margin-right"]).toBe("20mm");
+      expect(styleOf(original)["--zweispaltig-margin-left"]).toBe("15mm");
+      expect(styleOf(original)["--zweispaltig-margin-right"]).toBe("15mm");
       for (const mm of [15, 20, 25]) {
         const selected = scopeOf(outputs(id, own(id, { pageMarginMm: mm }))[surface], surface);
         expect(styleOf(selected)["--zweispaltig-margin-left"]).toBe(`${mm}mm`);
@@ -232,6 +234,21 @@ describe("Seitenränder and Innenabstand in preview and PDF", () => {
       const legacy = scopeOf(outputs(id, { ...defaults, marginLevel: 7 })[surface], surface);
       expect(styleOf(legacy)["--zweispaltig-margin-left"]).toBe("20mm");
       expect(styleOf(legacy)["--zweispaltig-margin-right"]).toBe("20mm");
+    }
+  });
+
+  it("draws Zweispaltig's Kompakt with 10 mm and Standard with 15 mm Seitenränder, left and right only, in preview and PDF", () => {
+    const id = "zweispaltig";
+    const preset = (name: "compact" | "standard") =>
+      applyResumeSpacingPreset(createDocumentDesignDraft(applicationFor(id)), name).settings as ReturnType<typeof own>;
+    for (const [name, side] of [["compact", "10mm"], ["standard", "15mm"]] as const) {
+      const settings = preset(name);
+      for (const surface of ["pdf", "preview"] as const) {
+        const style = styleOf(scopeOf(outputs(id, settings)[surface], surface));
+        expect(only(style, ["--zweispaltig-margin-top", "--zweispaltig-margin-right", "--zweispaltig-margin-bottom", "--zweispaltig-margin-left"]), `${name} ${surface}`)
+          .toEqual({ "--zweispaltig-margin-top": "20mm", "--zweispaltig-margin-right": side, "--zweispaltig-margin-bottom": "15mm", "--zweispaltig-margin-left": side });
+        expect(style["--resume-page-text-shift"]).toBeUndefined();
+      }
     }
   });
 

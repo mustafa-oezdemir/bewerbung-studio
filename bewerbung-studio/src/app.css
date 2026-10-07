@@ -4751,8 +4751,7 @@ body.is-resizing-split-view * {
   text-align: center;
 }
 
-.profile-subsection-header,
-.special-section-add {
+.profile-subsection-header {
   display: flex;
   align-items: end;
   justify-content: space-between;
@@ -4877,10 +4876,6 @@ body.is-resizing-split-view * {
   background: var(--surface-strong);
 }
 
-.special-section-add .field {
-  width: min(330px, 100%);
-}
-
 .special-section-card {
   display: grid;
   gap: 13px;
@@ -4926,8 +4921,7 @@ body.is-resizing-split-view * {
 }
 
 .resume-data-section-update,
-.resume-special-section-actions,
-.resume-special-section-add {
+.resume-special-section-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -4935,12 +4929,7 @@ body.is-resizing-split-view * {
 }
 
 .resume-special-section-add {
-  justify-content: flex-start;
   margin-bottom: 10px;
-}
-
-.resume-special-section-add .field {
-  min-width: 260px;
 }
 
 .resume-special-section-actions .resume-data-section-update {
@@ -6157,20 +6146,6 @@ body.is-resizing-split-view * {
   justify-self: end;
 }
 
-.resume-data-editor .resume-special-section-add {
-  align-items: stretch;
-  flex-direction: column;
-}
-
-.resume-data-editor .resume-special-section-add .field {
-  width: 100%;
-  min-width: 0;
-}
-
-.resume-data-editor .resume-special-section-add .button {
-  width: 100%;
-}
-
 .resume-data-editor .resume-special-section-actions {
   flex-wrap: wrap;
 }
@@ -7109,7 +7084,6 @@ body.is-resizing-split-view * {
     justify-self: end;
   }
 
-  .special-section-add,
   .profile-subsection-header {
     align-items: stretch;
     flex-direction: column;
@@ -7868,6 +7842,48 @@ body.is-resizing-split-view * {
 .manager-item-actions { display: grid; justify-items: center; gap: 6px; }
 .manager-add { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
 .manager-add .field { flex: 1; }
+.manager-advanced-blocks { padding-top: 4px; border-top: 1px solid var(--line); }
+.manager-advanced-blocks > summary { width: fit-content; padding: 6px 0; color: var(--muted); font-size: .66rem; font-weight: 600; cursor: pointer; }
+.manager-advanced-blocks > summary:hover { color: var(--ink); }
+.manager-advanced-blocks > summary:focus-visible { border-radius: 4px; outline: 2px solid var(--brand); outline-offset: 2px; }
+.manager-advanced-blocks[open] { display: grid; gap: 9px; }
+.resume-manager > .special-section-picker { padding-top: 12px; border-top: 1px solid var(--line); }
+
+/* Lebenslauf-Bereiche: the one picker of Profil and Lebenslauf (ResumeSpecialSectionPicker). */
+.special-section-picker { display: grid; gap: 10px; min-width: 0; }
+.special-section-picker-head { display: grid; gap: 3px; }
+.special-section-picker-head strong { font-size: .72rem; }
+.special-section-picker-head small,
+.special-section-picker-actions small { color: var(--muted); font-size: .63rem; line-height: 1.4; }
+.special-section-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 6px; }
+.special-section-option {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink);
+  background: var(--surface);
+  font-size: .66rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  transition: border-color .16s ease, background-color .16s ease, color .16s ease;
+}
+.special-section-option > svg { flex: none; color: var(--muted); }
+.special-section-option > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.special-section-option > small { flex-basis: 100%; padding-left: 23px; color: var(--muted); font-size: .56rem; font-weight: 600; }
+.special-section-option:hover:not(:disabled) { border-color: color-mix(in srgb, var(--brand) 45%, var(--line)); }
+.special-section-option[aria-pressed="true"] { border-color: var(--brand); color: var(--brand-dark); background: var(--brand-soft); box-shadow: inset 0 0 0 1px var(--brand); }
+.special-section-option[aria-pressed="true"] > svg { color: var(--brand); }
+.special-section-option:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.special-section-option:disabled { border-style: dashed; color: var(--muted); background: var(--surface-muted); cursor: not-allowed; }
+.special-section-picker-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.special-section-picker-actions small { flex: 1 1 180px; }
 .manager-media { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .manager-media img { max-width: 100px; max-height: 90px; object-fit: contain; }
 .managed-resume-preview { display: contents; }

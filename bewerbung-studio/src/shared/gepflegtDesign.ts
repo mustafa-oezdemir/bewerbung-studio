@@ -201,8 +201,9 @@ export const gepflegtResolvedCss = [
   both(".gepflegt-header--compact", ".gepflegt-pdf-header.compact", "margin-bottom:var(--gepflegt-header-gap);border-color:var(--gepflegt-divider)"),
   both(".gepflegt-header--compact .gepflegt-header__name", ".gepflegt-pdf-header.compact h1", "font-size:calc(var(--gepflegt-name-size) * .67)"),
   both(".gepflegt-header--compact .gepflegt-header__title", ".gepflegt-pdf-header.compact h2", "font-size:var(--gepflegt-small-size)"),
-  both(".gepflegt-sidebar__continuation h2", ".gepflegt-pdf-sidebar-continuation h2", "font-family:var(--gepflegt-heading-font);font-size:calc(var(--gepflegt-name-size) * .67);font-weight:var(--gepflegt-name-weight);line-height:var(--gepflegt-line-height);letter-spacing:normal;color:var(--gepflegt-sidebar-text)"),
-  both(".gepflegt-sidebar__continuation > p,.gepflegt-sidebar__continuation > small,.gepflegt-sidebar__continuation > span", ".gepflegt-pdf-sidebar-continuation > div > p,.gepflegt-pdf-sidebar-continuation > div > small,.gepflegt-pdf-sidebar-continuation > div > span", "font-size:var(--gepflegt-small-size);line-height:var(--gepflegt-line-height);color:var(--gepflegt-sidebar-muted);overflow-wrap:anywhere"),
+  both(".gepflegt-sidebar__continuation > small,.gepflegt-sidebar__continuation > span", ".gepflegt-pdf-sidebar-continuation > div > small,.gepflegt-pdf-sidebar-continuation > div > span", "font-size:var(--gepflegt-small-size);line-height:var(--gepflegt-line-height);color:var(--gepflegt-sidebar-muted);overflow-wrap:anywhere"),
+  // The first continuation contact stands 3 mm below the page cue on both surfaces (the PDF had 2 mm).
+  both(".gepflegt-sidebar__continuation > small + span", ".gepflegt-pdf-sidebar-continuation > div > small + span", "margin-top:3mm"),
   `.gepflegt-page [data-managed-section],.gepflegt-pdf [data-managed-section]{font-size:var(--gepflegt-body-size);line-height:var(--gepflegt-line-height)}`,
   `.gepflegt-page [data-managed-section] :is(p,li,strong,span),.gepflegt-pdf [data-managed-section] :is(p,li,strong,span){line-height:var(--gepflegt-line-height)}`,
   `.gepflegt-page .managed-item-text,.gepflegt-pdf .managed-item-text{margin-top:0;font-size:var(--gepflegt-body-size);line-height:var(--gepflegt-line-height)}`,

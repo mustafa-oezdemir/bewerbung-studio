@@ -25,11 +25,18 @@ const clamp = (key: keyof typeof cvDesignLimits, value: number) =>
 /** Kompakt/Groß scale the template's own values, with the shared Lebenslauf layer on top (never the legacy sliders). */
 const presetBase = (templateId: string, global?: ResumeDesignLayer) => resolveCvDesign(templateId, global?.cvOverrides);
 
+/**
+ * Zweispaltig's Seitenränder per preset (left and right): Kompakt 10 mm; Groß keeps the 30 mm it had as 1.2 × the former
+ * native 25 mm. Standard is the native 15 mm.
+ */
+const zweispaltigPresetPageMarginMm = { compact: 10, large: 30 } as const;
+
 export const getResumeSpacingPresetValues = (templateId: string, preset: "compact" | "large", base?: CvDesignTokens) => {
   const defaults = base ?? resolveTemplateCvDesign(templateId);
   const factor = preset === "compact" ? 0.8 : 1.2;
   const spacing = Object.fromEntries(resumeSpacingFields.map(({ key }) => [key,
     clamp(key, defaults.spacing[key] * factor)])) as Spacing;
+  if (resolveTemplateId(templateId) === "zweispaltig") spacing.pageMarginMm = zweispaltigPresetPageMarginMm[preset];
   return { spacing, lineHeight: clamp("lineHeight", defaults.typography.lineHeight + (preset === "compact" ? -0.1 : 0.1)) };
 };
 
@@ -209,8 +216,8 @@ export const applyResumeSpacingOutput = (
     scope.style.setProperty(name, variables[name]);
   }
   if (id === "zweispaltig" && (spacing?.pageMarginMm !== undefined || zweispaltigLegacyMargin)) {
-    // Header, columns and footer share the same physical page box. A changed margin is symmetric;
-    // the native 25/20 mm asymmetry stays intact when no margin was chosen.
+    // Header, columns and footer share the same physical page box. A chosen margin is symmetric (left = right);
+    // top and bottom stay native.
     const margin = spacing?.pageMarginMm ?? marginLevelToMm[settings.marginLevel];
     scope.style.setProperty("--zweispaltig-margin-left", `${margin}mm`);
     scope.style.setProperty("--zweispaltig-margin-right", `${margin}mm`);
