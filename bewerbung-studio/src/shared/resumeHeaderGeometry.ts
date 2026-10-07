@@ -10,7 +10,8 @@ import { formatPhoneForDisplay } from "./contactPresentation";
 import { getResumePhotoScale } from "./resumePhoto";
 import { kreativDefaults } from "./cvTemplateDefaults/kreativ.defaults";
 import { stilvollDefaults, stilvollDesign } from "./cvTemplateDefaults/stilvoll.defaults";
-import { gepflegtWideContactChars } from "./gepflegtDesign";
+import { gepflegtWideContactChars, isWideGepflegtContact } from "./gepflegtDesign";
+import { wrappedLines } from "./textMetrics";
 
 /**
  * How far down a Lebenslauf header pushes the page content, from the data it shows.
@@ -299,6 +300,43 @@ export const estimateKreativHeaderTop = (
   const contentHeight = 18 + nameHeight + titleHeight + contactHeight;
   const photoMinimum = kreativDefaults.layout.headerHeightMm + 28 * (photoScale - 1);
   return Math.max(photoMinimum, contentHeight) + kreativDefaults.layout.headerToContentGapMm + 1.5;
+};
+
+/**
+ * Gepflegt's header exactly as its stylesheet builds it (gepflegtResolvedCss), with the text wrapped by the measured font
+ * advances: 14 mm top, the name in capitals (line height 1.08, letter-spacing .02 em), 2 mm and the Berufsbezeichnung (line
+ * height 1.25), 4.5 mm and the contacts in two columns of the main width (a long one takes the whole row; icon 3.4 mm +
+ * 1.6 mm gap, 1.6 mm between rows), then the header gap. The result is where the first section starts (checked against
+ * the real PDF to ±0.1 mm). Without contacts it is the header that every continuation page repeats.
+ */
+export const estimateGepflegtHeaderTop = (
+  profile: ApplicantProfile,
+  options: { contacts: boolean; widthMm: number; namePt: number; titlePt: number; bodyPt: number; lineHeight: number; nameWeight?: number; titleWeight?: number },
+): number => {
+  const pt = 25.4 / 72;
+  const { widthMm, lineHeight } = options;
+  const nameMm = options.namePt * pt;
+  const titleMm = options.titlePt * pt;
+  const smallMm = Math.max(9, options.bodyPt * 0.88) * pt;
+  const nameLines = Math.max(1, wrappedLines(getResumeFullName(profile).toLocaleUpperCase("de-DE"), widthMm, nameMm, options.nameWeight ?? 750, 0.02));
+  let height = 14 + nameLines * nameMm * 1.08;
+  const title = profile.title.trim();
+  if (title) height += 2 + wrappedLines(title, widthMm, titleMm, options.titleWeight ?? 500) * titleMm * 1.25;
+  const texts = options.contacts ? getResumeHeaderContactTexts(profile) : [];
+  if (texts.length) {
+    const cell = (widthMm - 6) / 2;
+    const rows: number[] = [];
+    let open: number[] = [];
+    const close = () => { if (open.length) rows.push(Math.max(...open)); open = []; };
+    for (const text of texts) {
+      if (isWideGepflegtContact(text)) { close(); rows.push(Math.max(1, wrappedLines(text, widthMm - 5, smallMm))); continue; }
+      open.push(Math.max(1, wrappedLines(text, cell - 5, smallMm)));
+      if (open.length === 2) close();
+    }
+    close();
+    height += 4.5 + rows.reduce((total, lines) => total + lines * smallMm * lineHeight, 0) + 1.6 * (rows.length - 1);
+  }
+  return height + 9;
 };
 
 /** Stilvoll's flexible contact row and rounded photo share one growing header. */

@@ -23,7 +23,7 @@ const nativeValues: Record<string, Record<string, number>> = {
   kompakt: { body: 10.3, line: 1.2, name: 21, section: 11, entry: 11.3, sectionGap: 3.5, entryGap: 3.2, titleGap: 3, margin: 25 },
   einspaltig: { body: 9.6, line: 1.1, name: 24, section: 13.5, entry: 11.5, sectionGap: 5, entryGap: 4.5, titleGap: 2, margin: 15 },
   klassisch: { body: 8.4, line: 1.05, name: 26, section: 10.4, entry: 12.2, sectionGap: 3.8, entryGap: 3.2, titleGap: 2.2, margin: 15 },
-  gepflegt: { body: 11, line: 1.3, name: 24, section: 14, entry: 12, sectionGap: 6.5, entryGap: 4, titleGap: 3.6, margin: 20 },
+  gepflegt: { body: 11, line: 1.3, name: 24, section: 14, entry: 12, sectionGap: 6.5, entryGap: 4, titleGap: 3.6, margin: 10 },
   elegant: { body: 10.5, line: 1.35, name: 22, section: 12, entry: 11, sectionGap: 4.5, entryGap: 4, titleGap: 3.2, margin: 25 },
   modern: { body: 9.2, line: 1.2, name: 24, section: 9.2, entry: 11, sectionGap: 7, entryGap: 4.5, titleGap: 3.2, margin: 15 },
   tabellarisch: { body: 9.2, line: 1.1, name: 25, section: 15, entry: 12, sectionGap: 6.3, entryGap: 4.4, titleGap: 3.5, margin: 15 },

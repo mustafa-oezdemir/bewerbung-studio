@@ -129,6 +129,7 @@ export const resolveCvDocument = ({
       headingSizePt: ["stilvoll", "gepflegt"].includes(templateId) ? design.typography.headingSizePt : undefined,
       subheadingSizePt: ["stilvoll", "gepflegt"].includes(templateId) ? design.typography.subheadingSizePt : undefined,
       fontId: templateId === "gepflegt" ? design.typography.fontId : undefined,
+      sectionHeadingPt: templateId === "gepflegt" ? design.typography.sectionHeadingSizePt : undefined,
       lineHeight: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt"].includes(templateId) ? design.typography.lineHeight : overrides?.typography?.lineHeight,
       pageMarginMm: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt"].includes(templateId) ? design.spacing.pageMarginMm : overrides?.spacing?.pageMarginMm,
       innerPaddingMm: templateId === "elegant" ? design.spacing.innerPaddingMm : overrides?.spacing?.innerPaddingMm,

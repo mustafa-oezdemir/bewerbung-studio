@@ -13,7 +13,7 @@ import { getGepflegtDesignVariables, gepflegtResolvedCss, isWideGepflegtContact,
 import { getColorContrastRatio } from "../../../../shared/documentDesign";
 import { resolveCvDesign } from "../../../../shared/cvDesign";
 import { resolveResumeAppearance } from "../../../../shared/resumeDesignSystem";
-import { estimateResumeHeaderTop } from "../../../../shared/resumeHeaderGeometry";
+import { estimateGepflegtHeaderTop, estimateResumeHeaderTop } from "../../../../shared/resumeHeaderGeometry";
 import { resolveCvDocument } from "../../../../shared/resolveCvDocument";
 import { resumeSectionPresentationCss } from "../../../../shared/resumeSectionPresentation";
 import { applicationSchema, profileSchema, type ApplicantProfile } from "../../../../shared/schema";
@@ -97,7 +97,8 @@ describe("Gepflegt layout and central design", () => {
     for (const margin of [10, 20, 30]) {
       const changed = surfaces(withOverrides({ spacing: { pageMarginMm: margin } }));
       for (const surface of [changed.preview, changed.pdf]) {
-        expect(variable(surface, "--gepflegt-sidebar-padding-left")).toBe(`${25 + margin - 20}mm`);
+        // Both outer text edges follow the chosen value: the sidebar text on the left, the main column on the right.
+        expect(variable(surface, "--gepflegt-sidebar-padding-left")).toBe(`${margin}mm`);
         expect(variable(surface, "--gepflegt-main-padding-right")).toBe(`${margin}mm`);
         for (const fixed of ["--gepflegt-sidebar-padding-top", "--gepflegt-sidebar-padding-bottom", "--gepflegt-sidebar-padding-right",
           "--gepflegt-main-padding-top", "--gepflegt-main-padding-bottom", "--gepflegt-main-padding-left", "--gepflegt-footer-bottom",
@@ -108,8 +109,8 @@ describe("Gepflegt layout and central design", () => {
         expect(surface.hasAttribute("data-resume-spacing-text")).toBe(false);
       }
     }
-    expect(variable(native.preview, "--gepflegt-sidebar-padding-left")).toBe("25mm");
-    expect(variable(native.preview, "--gepflegt-main-padding-right")).toBe("20mm");
+    expect(variable(native.preview, "--gepflegt-sidebar-padding-left")).toBe("10mm");
+    expect(variable(native.preview, "--gepflegt-main-padding-right")).toBe("10mm");
     expect(variable(native.preview, "--gepflegt-main-padding-top")).toBe("14mm");
     expect(variable(native.preview, "--gepflegt-main-padding-bottom")).toBe("24mm");
   });
@@ -236,17 +237,17 @@ describe("Gepflegt default design and page flow", () => {
       ...base.experiences[0], id: crypto.randomUUID(), role: `Station ${number}`,
       achievements: Array.from({ length: 6 }, (_, bullet) => `Aufgabe ${number}.${bullet + 1} erledigt`),
     });
-    const short = profileSchema.parse({ ...base, experiences: Array.from({ length: 12 }, (_, index) => station(index + 1)) });
+    // (no long LinkedIn address: in a 92 mm column it wraps, and a taller header rightly moves the plan)
+    const short = profileSchema.parse({ ...base, linkedin: "", experiences: Array.from({ length: 12 }, (_, index) => station(index + 1)) });
     const plan = (pageMarginMm: number) => resolveCvDocument({ profile: short, templateId: "gepflegt", settings: withOverrides({ spacing: { pageMarginMm } }) }).pagePlan;
     const shape = (pages: ReturnType<typeof plan>) => pages.map((page) => page.items.map((item) => `${item.id}:${item.bullets?.from ?? 0}-${item.bullets?.to ?? "all"}`).join(","));
     expect(plan(20).length).toBeGreaterThan(1);
     expect(shape(plan(10))).toEqual(shape(plan(20)));
     expect(shape(plan(30))).toEqual(shape(plan(20)));
-    // Word-like flow: a page that continues on the next one is planned full. Page one may keep less than the smallest part
-    // of the next entry (its header and two bullet lines, ~29 mm) free; the continuation pages are filled to the bottom.
+    // Word-like flow: a page that continues on the next one is planned full. It keeps free at most less than the smallest
+    // part of the next entry (its header and two bullet lines with the gap, ~26 mm of a ~230 mm column).
     const pages = plan(20);
-    for (const page of pages.slice(0, -1)) expect(page.fill?.main ?? 0).toBeGreaterThan(0.8);
-    for (const page of pages.slice(1, -1)) expect(page.fill?.main ?? 0).toBeGreaterThan(0.95);
+    for (const page of pages.slice(0, -1)) expect(page.fill?.main ?? 0).toBeGreaterThan(1 - 26 / 230);
   });
 
   it("prints every period as MM/JJJJ - MM/JJJJ in both outputs", () => {
@@ -256,5 +257,52 @@ describe("Gepflegt default design and page flow", () => {
     expect(previewPeriods.length).toBeGreaterThan(0);
     for (const period of previewPeriods) expect(period).toMatch(/^\d{2}\/\d{4} – (\d{2}\/\d{4}|heute)$/);
     expect(periods(pdf, ".gepflegt-pdf-entry-heading > span")).toEqual(previewPeriods);
+  });
+});
+
+describe("Gepflegt fills its pages like a word processor", () => {
+  // Fictional data with the proportions of a real one-and-a-half-page CV (long Kurzprofil, three stations, two degrees).
+  const typical = () => profileSchema.parse({
+    ...makeProfile(), firstName: "Mustafa", lastName: "Beispiel", title: "Softwareentwickler | Fachinformatiker für Anwendungsentwicklung",
+    phone: "+49 176 12345678", email: "mustafa.beispiel1408@example.com", linkedin: "https://www.linkedin.com/in/mustafa-beispiel",
+    github: "https://github.com/mustafa-beispiel", portfolio: "https://beispiel.com", street: "Am Musterweg 20", postalCode: "35039", city: "Marburg",
+    experiences: [
+      { id: crypto.randomUUID(), from: "11/2024", to: "06/2025", role: "Praktikum als Anwendungsentwickler", company: "Universitätsstadt Marburg", city: "Marburg",
+        achievements: ["Entwicklung eines Grafana-Datasource-Plugins für PRTG zur Integration von Monitoring-Daten in bestehende Observability-Prozesse",
+          "Konzeption und Implementierung zentraler Funktionen wie Authentifizierung, Logging und Monitoring, um eine stabile und sichere Nutzung der Schnittstelle zu gewährleisten",
+          "Dokumentation und Open-Source-Veröffentlichung auf GitHub", "Technologien: Golang/Backend;TypeScript/Frontend"] },
+      { id: crypto.randomUUID(), from: "12/2018", to: "03/2019", role: "Prozessplaner", company: "Beispiel Tekstil A.Ş", city: "Türkei",
+        achievements: ["Koordination von Produktionsprozessen und Mitarbeitenden", "Auswertung von Produktionsdaten sowie Terminüberwachung"] },
+      { id: crypto.randomUUID(), from: "12/2014", to: "11/2018", role: "Transportpilot", company: "Luftfahrtbereich", city: "Türkei",
+        achievements: ["Einsatzplanung, Briefings und Koordination operativer Abläufe", "Hohe Verantwortung, Stressresistenz und präzise Entscheidungsfindung", "Teamführung und sicherheitskritische Prozesssteuerung"] },
+    ],
+    education: [
+      { id: crypto.randomUUID(), from: "07/2023", to: "11/2025", degree: "Fachinformatiker für Anwendungsentwicklung", institution: "Beispiel Akademie GmbH", city: "Marburg",
+        grade: "1,8", description: "Umschulung mit Schwerpunkt Backend-Entwicklung, Datenbanken und agilen Methoden. Abschlussprojekt: Monitoring-Plattform mit Grafana und PRTG." },
+      { id: crypto.randomUUID(), from: "09/2008", to: "06/2012", degree: "Bachelor of Science Luftfahrt", institution: "Beispiel Universität", city: "Türkei" },
+    ],
+  });
+
+  it("computes the header to the millimetre the PDF draws (84.73 mm measured in Chromium)", () => {
+    const top = estimateGepflegtHeaderTop(typical(), { contacts: true, widthMm: 112, namePt: 24, titlePt: 13, bodyPt: 11, lineHeight: 1.3 });
+    expect(top).toBeCloseTo(84.73, 0);
+    // Continuation pages repeat name and the two-line title only (measured: page two starts at 45.6 mm).
+    expect(estimateGepflegtHeaderTop(typical(), { contacts: false, widthMm: 112, namePt: 24, titlePt: 13, bodyPt: 11, lineHeight: 1.3 })).toBeCloseTo(45.6, 0);
+  });
+
+  it("starts the Bildungsweg in the free space of page one and continues it where it stopped", () => {
+    const profile = typical();
+    const plan = resolveCvDocument({ profile, templateId: "gepflegt", settings: defaults }).pagePlan;
+    const degree = profile.education[0].id;
+    const first = plan[0].items.find((item) => item.id === degree);
+    const next = plan[1].items.find((item) => item.id === degree);
+    // Page one ends with the degree's header and its first detail (measured: last line at 270.5 of 273 mm) ...
+    expect(first?.kind).toBe("education");
+    expect(first && "bullets" in first ? first.bullets?.from : undefined).toBe(0);
+    // ... and page two opens with the rest of the same entry.
+    expect(plan[1].items[0].id).toBe(degree);
+    expect(next && "bullets" in next ? next.bullets?.from : undefined).toBe(first && "bullets" in first ? first.bullets?.to : -1);
+    expect(plan[0].fill?.main ?? 0).toBeGreaterThan(0.97);
+    expect(plan[0].fill?.main ?? 2).toBeLessThanOrEqual(1);
   });
 });

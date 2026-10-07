@@ -278,8 +278,8 @@ describe("A4 document pagination", () => {
     expect(filled(plan, 0)).toBeGreaterThanOrEqual(0.72);
   });
 
-  it("continues Gepflegt's five-bullet entries without losing or repeating a bullet", () => {
-    const profile = makeProfile(6, 5, 2);
+  it("continues Gepflegt's long entries without losing or repeating a bullet", () => {
+    const profile = makeProfile(6, 6, 2);
     const plan = resolve(profile, "gepflegt").pagePlan;
     const fragments = profile.experiences.map(experience => ({
       count: experience.achievements.length,

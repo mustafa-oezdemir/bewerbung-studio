@@ -52,8 +52,10 @@ describe("Gepflegt resolved design", () => {
   it("uses an A4 visual lane with DIN text edges and one planner geometry", () => {
     const pagination = getPaginationGeometry("gepflegt");
     expect([gepflegtGeometry.pageWidthMm, gepflegtGeometry.pageHeightMm]).toEqual([210, 297]);
-    expect(gepflegtGeometry.sidebar.paddingLeftMm).toBe(25);
-    expect(gepflegtGeometry.sidebarWidthMm - gepflegtGeometry.sidebar.paddingLeftMm - gepflegtGeometry.sidebar.paddingRightMm).toBe(50);
+    // Seitenränder default 10 mm on both outer edges (the sidebar text and the main column's right edge).
+    expect(gepflegtGeometry.sidebar.paddingLeftMm).toBe(10);
+    expect(gepflegtGeometry.main.paddingRightMm).toBe(10);
+    expect(gepflegtGeometry.sidebarWidthMm - gepflegtGeometry.sidebar.paddingLeftMm - gepflegtGeometry.sidebar.paddingRightMm).toBe(65);
     expect(pagination.mainLeft).toBe(gepflegtGeometry.sidebarWidthMm + gepflegtGeometry.main.paddingLeftMm);
     expect(pagination.mainRight).toBe(gepflegtGeometry.pageWidthMm - gepflegtGeometry.main.paddingRightMm);
     expect(pagination.limit).toBe(gepflegtGeometry.pageHeightMm - gepflegtGeometry.main.paddingBottomMm);

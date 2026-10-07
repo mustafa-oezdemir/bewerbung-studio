@@ -26,6 +26,8 @@ export type ItemBlockModel = {
   gap: number;
   /** Line pitch (mm) of the description under an item, when it is not 0.92 × `pitch`. */
   descPitch?: number;
+  /** CSS weight of the item title where the template wraps measured text (`text.wrap`). */
+  titleWeight?: number;
 };
 
 /** Certificates are a plain list whose page and column depend on the template. */
@@ -367,7 +369,7 @@ const geometry: Record<string, PaginationGeometry> = {
   // Re-measured 2026-10-06 on the real PDF at the 11 pt / 1.3 defaults (340 career entries, sidebar and language probes).
   "gepflegt": {
     columns: 2,
-    safety: 0.93,
+    safety: 1,
     sidebarLeft: true,
     zones: {summary: "sidebar", strengths: "sidebar", knowledge: "sidebar", languages: "sidebar"},
     // The smallest header (no contacts, no title); estimateResumeHeaderTop raises it with the real header.
@@ -391,11 +393,12 @@ const geometry: Record<string, PaginationGeometry> = {
     exp: {base: 12.07, list: 1.96, perBullet: 0.434, linePitch: 5.05, extraLine: 5.42, gap: 4, head: 12.42},
     edu: {base: 12.07, extraLine: 5.42, gap: 4, head: 12.42, detailLine: 5.05, detailItem: 0.434, detailList: 1.96, detailCw: 0.55},
     blocks: {summary: [11.86, 5.04], strengths: [11.86, 14.5], knowledge: [11.86, 5.04], languages: [9.86, 7.04], sectionGap: 6.5, sideGap: 6.5},
-    items: {strengths: {w: 59.5, font: 3.88, pitch: 5.04, pad: 1, cw: 0.68, cols: 1, head: 11.86, gap: 3, descPitch: 4.64}, knowledge: {w: 59.5, font: 3.88, pitch: 5.04, pad: 0, cw: 0.58, cols: 1, head: 24.37, gap: 2}},
+    items: {strengths: {w: 59.5, font: 3.88, pitch: 5.04, pad: 1, cw: 0.68, cols: 1, head: 11.86, gap: 3, descPitch: 4.64, titleWeight: 700}, knowledge: {w: 59.5, font: 3.88, pitch: 5.04, pad: 0, cw: 0.58, cols: 1, head: 24.37, gap: 2}},
     certs: {home: "first", zone: "sidebar", base: 11.86, perItem: 6.34, w: 61, font: 3.881, pitch: 5.04},
     derivedStrengths: {visual: "first", ats: "single"},
     ats: {exp: 1.0, edu: 1.0, knowledge: {head: 8.44, title: 6.96, gap: 3, pitch: 3.6, font: 3, w: 84, tail: 3}, languages: [8.9, 3.6], certs: {base: 8.4, perItem: 3.6}, density: {compact: 0.94, dense: 0.88}},
-    density: {compact: 0.96, dense: 0.91},
+    // Compact/dense only shrink the gaps (× .85 / × .7), not the entries: a page saves about 2 % / 4 % of its height.
+    density: {compact: 0.985, dense: 0.965},
   },
   "kompakt": {
     columns: 2,
