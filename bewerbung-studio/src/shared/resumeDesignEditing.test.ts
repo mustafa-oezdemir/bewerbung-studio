@@ -359,8 +359,11 @@ describe("Seitenränder and Innenabstand", () => {
 
   it("preserves each template's native inner padding as a distinct spacing value", () => {
     for (const { id } of templates) expect(resolveTemplateCvDesign(id).spacing.innerPaddingMm, id).toBeGreaterThanOrEqual(0);
+    // Gepflegt's column paddings belong to its margin; Innenabstand is an extra inset (native 0), so the compact preset
+    // narrows the margin and leaves the inset at its native value.
+    expect(resolveTemplateCvDesign("gepflegt").spacing.innerPaddingMm).toBe(0);
     const compact = applyResumeSpacingPreset(start("gepflegt").draft, "compact");
-    expect(compact.settings.cvOverrides?.spacing?.innerPaddingMm).toBe(8);
+    expect(compact.settings.cvOverrides?.spacing?.innerPaddingMm).toBeUndefined();
     expect(compact.settings.cvOverrides?.spacing?.pageMarginMm).toBe(8);
   });
 });

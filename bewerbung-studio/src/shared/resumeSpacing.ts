@@ -289,5 +289,7 @@ export const applyResumeSpacingOutput = (
     }
   }
   const host = getResumeLayoutHost(scope, id, surface) as HTMLElement | null;
-  if (spacing?.columnGapMm !== undefined && host) host.style.columnGap = variables["--doc-column-gap"];
+  // Gepflegt draws its Spaltenabstand itself (resolveGepflegtGeometry: the main column's left inset); a grid gap
+  // would add it a second time.
+  if (spacing?.columnGapMm !== undefined && host && id !== "gepflegt") host.style.columnGap = variables["--doc-column-gap"];
 };

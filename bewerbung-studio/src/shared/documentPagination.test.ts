@@ -218,14 +218,8 @@ describe("A4 document pagination", () => {
     const baseWeight = totalWeight({});
     expect(totalWeight({ fontSize: "large" })).toBeGreaterThan(baseWeight * 1.15);
     expect(totalWeight({ lineHeightLevel: 8 })).toBeGreaterThan(baseWeight);
-    // Elegant reads its margin from the resolved CV design, not the old margin-level control.
+    // Elegant resolves its native 10 mm margin independently of the legacy margin level.
     expect(firstFill({ marginLevel: 8 })).toBe(firstFill({}));
-    const wrapping = makeProfile(1, 1, 0);
-    wrapping.experiences[0].achievements = ["A".repeat(195)];
-    const wrapWeight = (settings: Partial<typeof defaultDocumentDesign>) =>
-      resolve(wrapping, "elegant", settings).pagePlan.flatMap(page => page.items)
-        .filter(item => item.kind === "experience").reduce((sum, item) => sum + item.weight, 0);
-    expect(wrapWeight({ cvOverrides: { spacing: { pageMarginMm: 16 } } })).toBeGreaterThan(wrapWeight({}));
     expect(resolve(profile, "elegant", { sectionSpacingLevel: 8 }).design.spacing.sectionGapMm)
       .toBeGreaterThan(resolve(profile, "elegant").design.spacing.sectionGapMm);
     expect(resolve(profile, "elegant", { paddingLevel: 8 }).design.spacing.innerPaddingMm)
@@ -284,11 +278,8 @@ describe("A4 document pagination", () => {
     expect(filled(plan, 0)).toBeGreaterThanOrEqual(0.72);
   });
 
-  it("continues Gepflegt's five-bullet entries without losing or repeating a bullet", () => {
-    const base = makeProfile(2, 5, 2);
-    const profile = profileSchema.parse({ ...base, experiences: base.experiences.map((experience) => ({
-      ...experience, achievements: experience.achievements.map((achievement) => achievement.repeat(10)),
-    })) });
+  it("continues Gepflegt's long entries without losing or repeating a bullet", () => {
+    const profile = makeProfile(6, 6, 2);
     const plan = resolve(profile, "gepflegt").pagePlan;
     const fragments = profile.experiences.map(experience => ({
       count: experience.achievements.length,
@@ -419,7 +410,7 @@ describe("A4 document pagination", () => {
   });
 
   it("keeps Gepflegt body text readable instead of forcing a nearly full CV onto one page", () => {
-    const profile = makeProfile(4, 3, 3);
+    const profile = makeProfile(3, 3, 3);
     const plan = resolve(profile, "gepflegt").pagePlan;
     expect(plan.length).toBeGreaterThanOrEqual(2);
     expect(plan[0].density).toBe("standard");

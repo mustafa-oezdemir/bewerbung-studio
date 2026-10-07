@@ -9,7 +9,8 @@ import { zeitgenoessischLetterCss } from "../src/shared/zeitgenoessischDesign";
 import { getElegantDesignVariables, elegantLetterCss, elegantManagedCss, isElegantWideContact } from "../src/shared/elegantDesign";
 import { kreativLetterCss, kreativResolvedCss } from "../src/shared/kreativDesign";
 import { stilvollLetterCss, stilvollResolvedCss } from "../src/shared/stilvollDesign";
-import { gepflegtLetterCss, gepflegtResolvedCss, isGepflegtWideContact } from "../src/shared/gepflegtDesign";
+import { gepflegtLetterCss, gepflegtResolvedCss, isWideGepflegtContact } from "../src/shared/gepflegtDesign";
+
 import { kompaktLetterCss, kompaktResolvedCss } from "../src/shared/kompaktDesign";
 import { renderContactIcon } from "../src/shared/contactIcons";
 import { applyManagedResumeOutput, managedResumeCss } from "../src/shared/resumeManagedOutput";
@@ -3312,10 +3313,11 @@ export const buildDocumentHtml = (
           .map((contact) => {
             const value = `<span>${escapeHtml(contact.value)}</span>`;
             const content = `${ats ? "" : renderContactIcon(contact)}${value}`;
-            const wide = isGepflegtWideContact(contact.value, contact.kind)
-              ? ' data-contact-wide="true"' : "";
+            // A long contact takes the whole row of the two-column grid (the same rule as the preview).
+            const wide = isWideGepflegtContact(contact.value) ? " data-wide" : "";
             return contact.href
-              ? `<a class="gepflegt-pdf-contact"${wide} href="${escapeHtml(contact.href)}">${content}</a>`
+              ? `<a class="gepflegt-pdf-contact" href="${escapeHtml(contact.href)}"${wide}>${content}</a>`
+
               : `<span class="gepflegt-pdf-contact"${wide}>${content}</span>`;
           })
           .join("")}</address>`
@@ -3471,7 +3473,7 @@ export const buildDocumentHtml = (
       : `<aside class="gepflegt-pdf-sidebar">${photoSource ? `<img class="gepflegt-pdf-photo" src="${escapeHtml(photoSource)}" alt="">` : ""}${sections.profile && resumeSummary ? `<section><h3>${escapeHtml(summaryTitle)}</h3><p class="gepflegt-pdf-summary">${escapeHtml(gepflegtSummary)}</p></section>` : ""}${gepflegtStrengthMarkup()}${gepflegtLanguageMarkup()}${gepflegtKnowledgeMarkup()}${gepflegtCertificationMarkup()}</aside>`;
     const footer =
       gepflegtPortfolio || resumePlan.length > 1
-        ? `<footer class="gepflegt-pdf-footer">${resumePlan.length > 1 ? `<span>Seite ${plan.pageNumber} von ${resumePlan.length}</span>` : ""}${gepflegtPortfolio ? `<a href="${escapeHtml(externalHref(gepflegtPortfolio))}">${escapeHtml(gepflegtPortfolio)}</a>` : ""}</footer>`
+        ? `<footer class="gepflegt-pdf-footer">${gepflegtPortfolio ? `<a href="${escapeHtml(externalHref(gepflegtPortfolio))}">${escapeHtml(gepflegtPortfolio)}</a>` : "<span></span>"}${resumePlan.length > 1 ? `<span>Seite ${plan.pageNumber} von ${resumePlan.length}</span>` : ""}</footer>`
         : "";
     return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="gepflegt" data-no-fit="true"><div class="page-content gepflegt-pdf" data-density="${plan.density}">${sidebar}<div class="gepflegt-pdf-content">${renderGepflegtHeader(isContinuation)}${main}${footer}</div></div></section>`;
   };

@@ -2,7 +2,7 @@
 // tmp/pagination-flow-qa, plus the page plan of each document. Scenarios: `dense` (a fixed résumé like a real, full one:
 // six strengths, three languages, ten knowledge items, three stations, four education entries) and RANDOM=<n> seeded
 // random ones (SEED=<n>). Every text carries a unique token, so the checker can see lost and doubled content.
-//   node scripts/pagination-flow-qa.mjs [templateId…]   (env: KNOWLEDGE, STRENGTHS, STATIONS, LANGUAGES, LANG_DISPLAY=dots,level,description, SURFACES=1, RANDOM, SEED)
+//   node scripts/pagination-flow-qa.mjs [templateId…]   (env: KNOWLEDGE, STRENGTHS, STATIONS, LANGUAGES, LANG_DISPLAY=dots,level,description, SURFACES=1, PAGE_MARGIN, COLUMN_GAP, RANDOM, SEED)
 // Check the result with check-pagination-flow-qa.cjs (real Chromium).
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -143,7 +143,12 @@ try {
       }
       const profile = setResumePhotoVisible(profileSchema.parse({ ...built.input, photoPath: photo, resumeManagerLayouts: { [id]: arranged } }), true);
       // SURFACES=1: the user colours both columns (Hintergrundfarbe der Haupt- und der Seitenspalte).
-      const settings = { ...getTemplateDocumentDesignDefaults(id), resumeOutputMode: 'visual', ...(process.env.PAGE_MARGIN ? { cvOverrides: { spacing: { pageMarginMm: Number(process.env.PAGE_MARGIN) } } } : {}), ...(process.env.SURFACES ? { resumeAppearance: { sidebarBackgroundColor: '#cfe8d5', mainBackgroundColor: '#f1f6f2' } } : {}) };
+      const qaSpacing = {
+        ...(process.env.PAGE_MARGIN !== undefined ? { pageMarginMm: Number(process.env.PAGE_MARGIN) } : {}),
+        ...(process.env.COLUMN_GAP !== undefined ? { columnGapMm: Number(process.env.COLUMN_GAP) } : {}),
+      };
+      const settings = { ...getTemplateDocumentDesignDefaults(id), resumeOutputMode: 'visual', ...(Object.keys(qaSpacing).length ? { cvOverrides: { spacing: qaSpacing } } : {}), ...(process.env.SURFACES ? { resumeAppearance: { sidebarBackgroundColor: '#cfe8d5', mainBackgroundColor: '#f1f6f2' } } : {}) };
+
       const application = applicationSchema.parse({
         schemaVersion: 1, id: crypto.randomUUID(), folderName: 'QA', company: { name: 'QA', city: 'Berlin' }, contact: {}, job: { title: 'Entwicklung' },
         status: 'Entwurf', templateId: id, accentColor: template.accent, secondaryColor: template.secondary, designSettings: settings, documents: {}, statusHistory: [], createdAt: now, updatedAt: now,

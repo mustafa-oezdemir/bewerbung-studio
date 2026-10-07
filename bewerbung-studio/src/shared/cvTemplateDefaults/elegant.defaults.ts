@@ -1,5 +1,7 @@
 import type { NativeResumeDesign } from "../cvDesignSchema";
 
+const DEFAULT_COLUMN_GAP_MM = 8;
+
 export const elegantDefaults = {
   page: {
     widthMm: 210,
@@ -9,13 +11,14 @@ export const elegantDefaults = {
     mainWidthMm: 140,
     sidebarWidthMm: 70,
     mainTopMm: 16,
-    mainRightMm: 10,
+    mainRightMm: 4,
     mainBottomMm: 11,
     mainLeftMm: 10,
     sidebarTopMm: 16,
     sidebarRightMm: 10,
     sidebarBottomMm: 15,
-    sidebarLeftMm: 12,
+    sidebarLeftMm: 4,
+    columnGapMm: DEFAULT_COLUMN_GAP_MM,
     headerMinHeightMm: 38,
     sectionGapMm: 4.5,
     entryGapMm: 2,
@@ -92,7 +95,7 @@ export const elegantDesign: NativeResumeDesign = {
       entryGapMm: elegantDefaults.layout.entryGapMm,
       sectionTitleGapMm: 3.2,
       entryContentGapMm: 0.8,
-      columnGapMm: 0,
+      columnGapMm: DEFAULT_COLUMN_GAP_MM,
     },
   },
   appearance: {

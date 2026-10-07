@@ -11,10 +11,10 @@ import { formatPhoneForDisplay } from "./contactPresentation";
 import { getResumePhotoScale } from "./resumePhoto";
 import { kreativDefaults } from "./cvTemplateDefaults/kreativ.defaults";
 import { stilvollDefaults, stilvollDesign } from "./cvTemplateDefaults/stilvoll.defaults";
-import { gepflegtDefaults } from "./cvTemplateDefaults/gepflegt.defaults";
-import { isGepflegtWideContact } from "./gepflegtDesign";
 import { elegantDefaults } from "./cvTemplateDefaults/elegant.defaults";
 import { isElegantWideContact } from "./elegantDesign";
+import { gepflegtWideContactChars, isWideGepflegtContact } from "./gepflegtDesign";
+import { wrappedLines } from "./textMetrics";
 
 /**
  * How far down a Lebenslauf header pushes the page content, from the data it shows.
@@ -26,12 +26,14 @@ import { isElegantWideContact } from "./elegantDesign";
  * wrapped line, plus `margin` = the largest under-estimate seen. Re-fit them when a header's CSS changes.
  * `main` is the top of the first section in the main column, `side` the first block of the sidebar (only where the
  * header or the contacts sit above it). A template draws contacts as a grid (`a` columns of `b` characters) or as a
- * flowing line (`a` characters per line, `b` characters of icon and gap per item).
+ * flowing line (`a` characters per line, `b` characters of icon and gap per item). In a grid with `wide`, a contact longer
+ * than `wide` characters takes a row of its own over all columns (Gepflegt).
  */
 type HeaderModel = {
   layout: "grid" | "flow";
   a: number;
   b: number;
+  wide?: number;
   titleChars: number;
   nameChars: number;
   base: number;
@@ -51,6 +53,11 @@ const headerModels: Record<string, Partial<Record<"main" | "side" | "mainPhoto" 
   "elegant": {
     main: { layout: "grid", a: 2, b: 33, titleChars: 60, nameChars: 18, base: 38, row: 4.5, line: 0, title: 5.7, hasTitle: 7.7, name: 10.5, margin: 1 },
     mainPhoto: { layout: "grid", a: 2, b: 33, titleChars: 60, nameChars: 18, base: 38, row: 4.5, line: 0, title: 5.7, hasTitle: 7.7, name: 10.5, margin: 1 },
+  },
+  // Two contact columns; a contact longer than a cell takes the whole row (gepflegtWideContactChars). Re-fit 2026-10-06 at the 11 pt defaults.
+  "gepflegt": {
+    main: { layout: "grid", a: 2, b: 24, wide: gepflegtWideContactChars, titleChars: 36, nameChars: 18, base: 34.53, row: 4.13, line: 2.23, title: 4.02, hasTitle: 8.04, name: 9.24, margin: 5.7 },
+    mainPhoto: { layout: "grid", a: 2, b: 24, wide: gepflegtWideContactChars, titleChars: 36, nameChars: 18, base: 34.53, row: 4.13, line: 2.23, title: 4.02, hasTitle: 8.04, name: 9.24, margin: 5.7 },
   },
   "ivy-league": {
     main: { layout: "flow", a: 120, b: 2, titleChars: 95, nameChars: 26, base: 28.31, row: 4.11, line: 0.0, title: 3.44, hasTitle: 4.23, name: 4.57, margin: 3.6 },
@@ -214,50 +221,6 @@ export const estimateTabellarischTop = (
   return { top: 15 + headerHeight + 6.3, margin: 1 };
 };
 
-/** Gepflegt's visual header uses the same two-column contact placement on both renderers. */
-export const estimateGepflegtHeaderTop = (
-  profile: ApplicantProfile,
-  showContacts: boolean,
-  lineHeight: number,
-  pageMarginMm: number,
-  headingSizePt = gepflegtDefaults.typography.nameSizePt,
-  titleSizePt = gepflegtDefaults.typography.jobTitleSizePt,
-): number => {
-  const width = gepflegtDefaults.page.widthMm - gepflegtDefaults.layout.sidebarWidthMm
-    - gepflegtDefaults.main.paddingLeftMm - pageMarginMm;
-  const name = getResumeFullName(profile);
-  const nameLines = Math.max(1, Math.ceil(name.length * headingSizePt * 25.4 / 72 * .54 / width));
-  const title = profile.title.trim();
-  const titleLines = title ? Math.max(1, Math.ceil(title.length * titleSizePt * 25.4 / 72 * .49 / width)) : 0;
-  const contacts = showContacts ? [
-    { kind: "phone", text: formatPhoneForDisplay(profile.phone) },
-    { kind: "email", text: profile.email },
-    ...getResumeLinkContacts(profile).map((link) => ({ kind: link.kind, text: link.value })),
-    { kind: "location", text: formatResumeAddress(profile) },
-    { kind: "birth", text: formatResumeBirth(profile) },
-    ...getResumePersonalDetails(profile).map((detail) => ({ kind: detail.kind, text: detail.text })),
-  ].filter((contact) => contact.text.trim()) : [];
-  let rows = 0;
-  let occupied = false;
-  for (const contact of contacts) {
-    const wide = isGepflegtWideContact(contact.text, contact.kind);
-    if (wide) {
-      if (occupied) { rows += 1; occupied = false; }
-      rows += 1;
-    } else if (occupied) {
-      rows += 1;
-      occupied = false;
-    } else occupied = true;
-  }
-  if (occupied) rows += 1;
-  const ptToMm = 25.4 / 72;
-  return gepflegtDefaults.main.paddingTopMm
-    + nameLines * headingSizePt * ptToMm * lineHeight
-    + (titleLines ? 2.4 + titleLines * titleSizePt * ptToMm * lineHeight : 0)
-    + (rows ? 4 + rows * gepflegtDefaults.typography.contactSizePt * ptToMm * lineHeight + (rows - 1) * 2.1 : 0)
-    + gepflegtDefaults.main.headerGapMm;
-};
-
 /** Elegant's main header is a two-column grid; its first section follows the rendered rows. */
 export const estimateElegantHeaderTop = (
   profile: ApplicantProfile,
@@ -300,10 +263,24 @@ const contactBlock = (lengths: readonly number[], model: HeaderModel) => {
   if (model.layout === "grid") {
     let rows = 0;
     let lines = 0;
-    for (let index = 0; index < lengths.length; index += model.a) {
+    let row: number[] = [];
+    const close = () => {
+      if (!row.length) return;
       rows += 1;
-      lines += Math.max(...lengths.slice(index, index + model.a).map((length) => Math.max(1, Math.ceil(length / model.b))));
+      lines += Math.max(...row.map((length) => Math.max(1, Math.ceil(length / model.b))));
+      row = [];
+    };
+    for (const length of lengths) {
+      if (model.wide !== undefined && length > model.wide) {
+        close();
+        rows += 1;
+        lines += Math.max(1, Math.ceil(length / (model.b * model.a)));
+        continue;
+      }
+      row.push(length);
+      if (row.length === model.a) close();
     }
+    close();
     return { rows, lines };
   }
   let lines = 0;
@@ -366,6 +343,43 @@ export const estimateKreativHeaderTop = (
   return Math.max(photoMinimum, contentHeight) + kreativDefaults.layout.headerToContentGapMm + 1.5;
 };
 
+/**
+ * Gepflegt's header exactly as its stylesheet builds it (gepflegtResolvedCss), with the text wrapped by the measured font
+ * advances: 14 mm top, the name in capitals (line height 1.08, letter-spacing .02 em), 2 mm and the Berufsbezeichnung (line
+ * height 1.25), 4.5 mm and the contacts in two columns of the main width (a long one takes the whole row; icon 3.4 mm +
+ * 1.6 mm gap, 1.6 mm between rows), then the header gap. The result is where the first section starts (checked against
+ * the real PDF to ±0.1 mm). Without contacts it is the header that every continuation page repeats.
+ */
+export const estimateGepflegtHeaderTop = (
+  profile: ApplicantProfile,
+  options: { contacts: boolean; widthMm: number; namePt: number; titlePt: number; bodyPt: number; lineHeight: number; nameWeight?: number; titleWeight?: number },
+): number => {
+  const pt = 25.4 / 72;
+  const { widthMm, lineHeight } = options;
+  const nameMm = options.namePt * pt;
+  const titleMm = options.titlePt * pt;
+  const smallMm = Math.max(9, options.bodyPt * 0.88) * pt;
+  const nameLines = Math.max(1, wrappedLines(getResumeFullName(profile).toLocaleUpperCase("de-DE"), widthMm, nameMm, options.nameWeight ?? 750, 0.02));
+  let height = 14 + nameLines * nameMm * 1.08;
+  const title = profile.title.trim();
+  if (title) height += 2 + wrappedLines(title, widthMm, titleMm, options.titleWeight ?? 500) * titleMm * 1.25;
+  const texts = options.contacts ? getResumeHeaderContactTexts(profile) : [];
+  if (texts.length) {
+    const cell = (widthMm - 6) / 2;
+    const rows: number[] = [];
+    let open: number[] = [];
+    const close = () => { if (open.length) rows.push(Math.max(...open)); open = []; };
+    for (const text of texts) {
+      if (isWideGepflegtContact(text)) { close(); rows.push(Math.max(1, wrappedLines(text, widthMm - 5, smallMm))); continue; }
+      open.push(Math.max(1, wrappedLines(text, cell - 5, smallMm)));
+      if (open.length === 2) close();
+    }
+    close();
+    height += 4.5 + rows.reduce((total, lines) => total + lines * smallMm * lineHeight, 0) + 1.6 * (rows.length - 1);
+  }
+  return height + 9;
+};
+
 /** Stilvoll's flexible contact row and rounded photo share one growing header. */
 export const estimateStilvollHeaderTop = (
   profile: ApplicantProfile,
@@ -418,6 +432,8 @@ export const estimateResumeHeaderTop = (
   showContacts = true,
   /** A photo beside the name narrows the text: its own model. */
   withPhoto = false,
+  /** Header text width relative to the measured one (a template whose Seitenränder narrow its header). */
+  widthRatio = 1,
 ): number | undefined => {
   if (templateId === "tabellarisch") {
     if (zone !== "main" || !profile) return undefined;
@@ -426,8 +442,16 @@ export const estimateResumeHeaderTop = (
     return top + margin * Math.min(1, (top - measuredTop) / 10);
   }
   const models = templateId ? headerModels[templateId] : undefined;
-  const model = withPhoto ? models?.[`${zone}Photo`] ?? models?.[zone] : models?.[zone];
-  if (!model || !profile) return undefined;
+  const measured = withPhoto ? models?.[`${zone}Photo`] ?? models?.[zone] : models?.[zone];
+  if (!measured || !profile) return undefined;
+  // Fewer characters fit on a narrower line: the contact cells (or the flowing line), the title and the name.
+  const model = widthRatio === 1 ? measured : {
+    ...measured,
+    a: measured.layout === "flow" ? measured.a * widthRatio : measured.a,
+    b: measured.layout === "grid" ? measured.b * widthRatio : measured.b,
+    titleChars: measured.titleChars * widthRatio,
+    nameChars: measured.nameChars * widthRatio,
+  };
   const texts = showContacts ? getResumeHeaderContactTexts(profile) : [];
   const contacts = contactBlock(texts.map((text) => text.length), model);
   const title = profile.title.trim().length;

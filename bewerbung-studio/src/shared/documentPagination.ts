@@ -19,6 +19,8 @@ import { kompaktDefaults } from "./cvTemplateDefaults/kompakt.defaults";
 import { gepflegtDefaults } from "./cvTemplateDefaults/gepflegt.defaults";
 import { elegantDefaults } from "./cvTemplateDefaults/elegant.defaults";
 import { resolveKompaktGeometry } from "./kompaktDesign";
+import { resolveGepflegtGeometry } from "./gepflegtDesign";
+import { textWidthMm, wrappedLines } from "./textMetrics";
 import { resolveSectionColumns } from "./resumeSectionLayout";
 import { hasSidebarHero, isZoneFlowTemplate, sectionListMetrics, supportsEducationSplit, supportsSidebarContinuation } from "./resumeSectionPresentation";
 import { normalizeCustomSection } from "./resumeCustomSections";
@@ -32,7 +34,8 @@ import {
 } from "./resumePaginationGeometry";
 import { getResumePersonalDetails } from "./resumePersonalData";
 import { getResumePhotoGrowth, resumePhotoShown } from "./resumePhoto";
-import { resolveExperience } from "./resumeCareer";
+import { formatCareerPeriod, resolveExperience } from "./resumeCareer";
+import { getResumeSectionTitle } from "../features/resume-sections/resume-sections";
 import { estimateElegantHeaderTop, estimateGepflegtHeaderTop, estimateKreativHeaderTop, estimateResumeHeaderTop, estimateStilvollHeaderTop } from "./resumeHeaderGeometry";
 import { resolveLanguagePresentation } from "../features/languages/language-levels";
 import { languageBlockHeight } from "./languageBlockHeight";
@@ -99,6 +102,8 @@ export type ResumePlanContext = {
   /** Explicit user design overrides that change text or spacing metrics. */
   overrides?: {
     bodySizePt?: number; headingSizePt?: number; subheadingSizePt?: number;
+    /** The CV font (Typografie → Schriftart) and section title size where a template wraps text with measured advances (`text.wrap`). */
+    fontId?: string; sectionHeadingPt?: number;
     lineHeight?: number; pageMarginMm?: number; innerPaddingMm?: number;
     sectionGapMm?: number; entryGapMm?: number;
     /** Lebenslauf-Design → Erweiterte Abstände: "Abstand nach Abschnittstitel", "Abstand nach Eintragstitel", "Spaltenabstand". */
@@ -135,6 +140,8 @@ export const klassischPaginationOptions: ResumePaginationOptions = { preserveIte
 const PT_TO_MM = 0.3528;
 /** The page planner never trusts an estimate up to the last millimetre. */
 const SAFETY = 0.97;
+/** What Gepflegt's computed header keeps in reserve (sub-pixel rounding of the line boxes). */
+const GEPFLEGT_HEADER_RESERVE_MM = 0.5;
 /** Sidebar blocks must fit with this share of the column to be hosted on page one. */
 const SIDEBAR_HOST_SHARE = 0.94;
 /** Zone-flow templates size the sidebar blocks from their tokens, so they may fill the whole column. */
@@ -219,6 +226,10 @@ const nativeSectionGapOf = (geometry: PaginationGeometry, atsMode?: boolean) =>
 const strip = ({ kind, id, ...item }: MeasuredItem, page: "first" | "cont"): ResumePageItem => ({ kind, id, weight: Math.round(item[page] * 10) / 10 });
 
 type Scale = {
+  /** Wrap real text with the measured font advances (`geometry.text.wrap`, the template's own font, not ATS). */
+  wrapText?: boolean;
+  /** `text.fullW` relative to its measured width: a template whose sidebar lane narrows every page with the margin. */
+  fullRatio?: number;
   font: number;
   textHeight: number;
   line: number;
@@ -256,6 +267,29 @@ type MeasuredItem = ResumePageItem & {
   parts?: { first: EntryMetrics; cont: EntryMetrics };
 };
 
+/**
+ * Lines of an entry wrapped with the measured font (`geometry.text.wrap`): the title beside its date, the organisation
+ * beside its place, the place itself (it wraps beyond `metaMaxWidth`) and every detail line in the bullet column.
+ */
+const measuredEntryLines = (
+  geometry: PaginationGeometry, scale: Scale, widthScale: number,
+  title: string, organization: string, location: string, period: string, details: readonly string[],
+) => {
+  const wrap = geometry.text.wrap;
+  if (!wrap || !scale.wrapText) return undefined;
+  const bulletWidth = geometry.text.bulletW * widthScale;
+  const column = bulletWidth + wrap.listInset;
+  const bodyMm = geometry.text.bulletFont * scale.font;
+  const metaMm = Math.max(wrap.metaMinPt * PT_TO_MM, bodyMm * wrap.metaRatio);
+  const meta = (value: string) => (value ? Math.min(wrap.metaMaxWidth, textWidthMm(value, metaMm)) + wrap.metaGap : 0);
+  return {
+    title: Math.max(1, wrappedLines(title, column - meta(period), geometry.text.titleFont * scale.font, wrap.titleWeight)),
+    org: organization ? Math.max(1, wrappedLines(organization, column - meta(location), geometry.text.orgFont * scale.font, wrap.orgWeight)) : 1,
+    location: location ? Math.max(1, wrappedLines(location, wrap.metaMaxWidth, metaMm)) : 1,
+    details: details.map((detail) => wrappedLines(detail, bulletWidth, bodyMm, wrap.bodyWeight)),
+  };
+};
+
 const experienceMetrics = (
   experience: ApplicantProfile["experiences"][number],
   geometry: PaginationGeometry,
@@ -270,10 +304,11 @@ const experienceMetrics = (
   const bulletCw = first
     ? (text.bulletCw ?? text.cw) * (1 + Math.max(0, 1 - widthScale) * (text.bulletNarrowSlack ?? 0))
     : text.cw;
-  const lines = bullets.map((bullet) => linesFor(bullet.length, text.bulletW * widthScale, text.bulletFont * scale.font, bulletCw));
-  const titleLines = linesFor(resolved.role.length, text.titleW * widthScale, text.titleFont * scale.font, text.cw * 1.08);
-  const orgLines = linesFor(resolved.organization.length, text.orgW * widthScale, text.orgFont * scale.font, text.cw * 1.06);
-  const extra = Math.max(0, titleLines - 1) + Math.max(0, orgLines - 1);
+  const measured = measuredEntryLines(geometry, scale, widthScale, resolved.role, resolved.organization, resolved.location, resolved.period, bullets);
+  const lines = measured?.details ?? bullets.map((bullet) => linesFor(bullet.length, text.bulletW * widthScale, text.bulletFont * scale.font, bulletCw));
+  const titleLines = measured?.title ?? linesFor(resolved.role.length, text.titleW * widthScale, text.titleFont * scale.font, text.cw * 1.08);
+  const orgLines = measured?.org ?? linesFor(resolved.organization.length, text.orgW * widthScale, text.orgFont * scale.font, text.cw * 1.06);
+  const extra = Math.max(0, titleLines - 1) + Math.max(0, orgLines - 1) + Math.max(0, (measured?.location ?? 1) - 1);
   // Every part of an entry repeats the header (dates, role, company); only the bullets are shared out.
   const height = (from: number, to: number) => {
     const shown = lines.slice(from, to);
@@ -307,23 +342,28 @@ const educationMetrics = (
   const { text, edu } = geometry;
   const detailCw = first ? edu.detailCw ?? text.cw : text.cw;
   const view = resolveEducationPresentation(education, visibility);
-  const titleLines = linesFor(view.title.length, text.titleW * widthScale, text.titleFont * scale.font, text.cw * 1.08);
-  const orgLines = linesFor(view.institution.length, text.orgW * widthScale, text.orgFont * scale.font, text.cw * 1.06);
-  const locationLines = view.location ? linesFor(view.location.length, text.orgW * widthScale, text.orgFont * scale.font, text.cw) : 0;
+  const measured = measuredEntryLines(geometry, scale, widthScale, view.title, view.institution, view.location, formatCareerPeriod(view.from, view.to), []);
+  const titleLines = measured?.title ?? linesFor(view.title.length, text.titleW * widthScale, text.titleFont * scale.font, text.cw * 1.08);
+  const orgLines = measured?.org ?? linesFor(view.institution.length, text.orgW * widthScale, text.orgFont * scale.font, text.cw * 1.06);
+  const locationLines = measured ? measured.location : view.location ? linesFor(view.location.length, text.orgW * widthScale, text.orgFont * scale.font, text.cw) : 0;
   const units = educationDetailUnits(view.details, view.descriptionIndex);
   const detailWidth = text.bulletW * widthScale;
   const detailFont = text.bulletFont * scale.font;
-  const lines = units.map((unit) => linesFor(unit.text.length, detailWidth, detailFont, detailCw));
+  /** Lines of a detail text: wrapped with the measured font where the template has one. */
+  const detailLinesOf = (value: string) => measured
+    ? wrappedLines(value, detailWidth, detailFont, geometry.text.wrap!.bodyWeight)
+    : linesFor(value.length, detailWidth, detailFont, detailCw);
+  const lines = units.map((unit) => detailLinesOf(unit.text));
   const header = edu.extraLine * (Math.max(0, titleLines - 1) + Math.max(0, orgLines - 1) + Math.max(0, locationLines - 1));
   const height = (from: number, to: number) => {
     const shown = units.slice(from, to);
     // the units of one detail are one paragraph: its lines are counted on the joined text
-    const details = shown.reduce<number[]>((total, unit, index) => {
-      if (index > 0 && shown[index - 1].detail === unit.detail) total[total.length - 1] += unit.text.length + 1;
-      else total.push(unit.text.length);
+    const details = shown.reduce<string[]>((total, unit, index) => {
+      if (index > 0 && shown[index - 1].detail === unit.detail) total[total.length - 1] += ` ${unit.text}`;
+      else total.push(unit.text);
       return total;
     }, []);
-    const detailLines = details.reduce((sum, length) => sum + linesFor(length, detailWidth, detailFont, detailCw), 0);
+    const detailLines = details.reduce((sum, value) => sum + detailLinesOf(value), 0);
     const list = details.length ? edu.detailList ?? 0 : 0;
     return (edu.base + (details.length ? edu.detailBase ?? 0 : 0) + scale.contentGapDelta + list + header
       + (edu.detailLine ?? edu.extraLine) * detailLines + (edu.detailItem ?? 0) * details.length) * scale.edu * scale.textHeight;
@@ -336,10 +376,14 @@ type ListEntry = { title: string; description?: string };
 /** Height of one grid row: the tallest of its items (a wrapped title costs another line). */
 const rowHeight = (model: ItemBlockModel, scale: Scale, row: ReadonlyArray<ListEntry>) => {
   let tallest = 0;
+  // With measured text (`text.wrap`) the item and its description wrap like the browser sets them.
+  const lines = (text: string, fontMm: number, weight: number) => scale.wrapText
+    ? Math.max(1, wrappedLines(text, model.w, fontMm, weight))
+    : linesFor(text.length, model.w, fontMm, model.cw);
   for (const entry of row) {
-    const titleLines = linesFor(entry.title.length, model.w, model.font * scale.font, model.cw);
+    const titleLines = lines(entry.title, model.font * scale.font, model.titleWeight ?? 400);
     const description = entry.description
-      ? linesFor(entry.description.length, model.w, model.font * scale.font * 0.92, model.cw) * (model.descPitch ?? model.pitch * 0.92) + 1
+      ? lines(entry.description, model.font * scale.font * 0.92, 400) * (model.descPitch ?? model.pitch * 0.92) + 1
       : 0;
     tallest = Math.max(tallest, model.pad + model.pitch * scale.line * titleLines + description);
   }
@@ -383,7 +427,7 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
   // A larger font raises every line's box, even when an entry stays at the
   // same predicted line count. The nonlinear reserve covers word-wrap
   // thresholds observed in the rendered templates (notably Kreativ/Kompakt).
-  const textHeight = templateId === "kreativ" || templateId === "kompakt" || templateId === "gepflegt" || templateId === "elegant"
+  const textHeight = templateId === "kreativ" || templateId === "kompakt" || templateId === "elegant"
     ? font : Math.max(1, Math.pow(font, 1.3));
   const line = overrides.lineHeight
     ? bounded(overrides.lineHeight, geometry.text.lineRatio) / geometry.text.lineRatio
@@ -393,7 +437,8 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
     ? marginLevelToMm[settings.marginLevel] - defaultMargin : 0;
   // A chosen margin moves the template's own margin (typed in its native design) on every side alike.
   const nativeMargin = templateId ? resolveTemplateCvDesign(templateId).spacing.pageMarginMm : defaultMargin;
-  const marginInset = overrides.pageMarginMm !== undefined
+  // Gepflegt places its margin itself (resolveGepflegtGeometry, horizontal only; the plain layout keeps its own box).
+  const marginInset = templateId === "gepflegt" ? 0 : overrides.pageMarginMm !== undefined
     ? overrides.pageMarginMm - nativeMargin : legacyMargin;
   const nativePadding = templateId ? resolveTemplateCvDesign(templateId).spacing.innerPaddingMm : 0;
   const textInset = marginInset + (overrides.innerPaddingMm !== undefined ? overrides.innerPaddingMm - nativePadding : 0);
@@ -459,27 +504,28 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
       marginInset: 0, ...factors, ...spacing };
   }
   if (templateId === "gepflegt" && !single) {
-    // Gepflegt's Seitenränder move the outer text edges, not the vertical page limit.
-    // Keep the planner's two columns in step with the shared CSS variables.
-    const margin = overrides.pageMarginMm ?? nativeMargin;
+    // The geometry the preview and the PDF draw: Seitenränder moves the left edge of the sidebar text and the right edge
+    // of the main text, Spaltenabstand the main text's distance to the sidebar. Top and bottom never move.
+    const gepflegt = resolveGepflegtGeometry(
+      overrides.pageMarginMm ?? gepflegtDefaults.main.paddingRightMm,
+      overrides.columnGapMm ?? gepflegtDefaults.main.paddingLeftMm,
+      context.layout?.overridden ? (context.layout.sidebarWidthPercent ?? 38) * gepflegtDefaults.page.widthMm / 100 : undefined,
+    );
+    const native = resolveGepflegtGeometry();
     const padding = overrides.innerPaddingMm !== undefined ? overrides.innerPaddingMm - nativePadding : 0;
-    const mainWidth = Math.max(12, gepflegtDefaults.page.widthMm - gepflegtDefaults.layout.sidebarWidthMm
-      - gepflegtDefaults.main.paddingLeftMm - margin - 2 * padding);
-    const sidebarWidth = Math.max(12, gepflegtDefaults.layout.sidebarWidthMm - margin
-      - gepflegtDefaults.sidebar.paddingRightMm - 2 * padding);
-    const nativeSidebarWidth = gepflegtDefaults.layout.sidebarWidthMm
-      - gepflegtDefaults.sidebar.paddingLeftMm - gepflegtDefaults.sidebar.paddingRightMm;
+    const mainWidth = Math.max(24, gepflegt.mainContentWidth - 2 * padding);
+    const sideWidth = Math.max(12, gepflegt.sideContentWidth - 2 * padding);
     return { font, textHeight, line,
-      width: Math.max(0.5, (mainWidth - 4.8) / geometry.text.bulletW),
-      contWidth: Math.max(0.5, (mainWidth - 4.8) / geometry.text.bulletW),
-      mainRatio: mainWidth / geometry.text.mainW,
-      sideDelta: sidebarWidth - nativeSidebarWidth,
-      marginInset: 0, ...factors, ...spacing };
+      width: Math.max(0.5, (mainWidth - (native.mainContentWidth - geometry.text.bulletW)) / geometry.text.bulletW),
+      contWidth: Math.max(0.5, (mainWidth - (native.mainContentWidth - geometry.text.contW)) / geometry.text.bulletW),
+      mainRatio: mainWidth / native.mainContentWidth,
+      sideDelta: sideWidth - native.sideContentWidth,
+      marginInset: 0, fullRatio: mainWidth / native.mainContentWidth, ...factors, ...spacing, columnGapDelta: 0 };
   }
   if (templateId === "elegant" && !single) {
     const margin = overrides.pageMarginMm ?? nativeMargin;
     const padding = overrides.innerPaddingMm ?? nativePadding;
-    const gap = overrides.columnGapMm ?? 0;
+    const gap = overrides.columnGapMm ?? elegantDefaults.layout.columnGapMm;
     const mainWidth = Math.max(12, elegantDefaults.layout.mainWidthMm
       - margin - elegantDefaults.layout.mainRightMm - gap / 2 - 2 * padding);
     const sideWidth = Math.max(12, elegantDefaults.layout.sidebarWidthMm
@@ -563,7 +609,11 @@ export const createResumePagePlan = (
   context: ResumePlanContext = {},
 ): ResumePagePlan[] => {
   const geometry = getPaginationGeometry(templateId);
-  const scale = buildScale(geometry, context, templateId);
+  const wrap = geometry.text.wrap;
+  const scale: Scale = {
+    ...buildScale(geometry, context, templateId),
+    wrapText: Boolean(wrap && !context.atsMode && (context.overrides?.fontId ?? wrap.fontId) === wrap.fontId),
+  };
   const flat = Boolean(context.atsMode) || context.layout?.mode === "single" || geometry.columns === 1;
 
   const find = (id: string) => context.sections?.find((section) => section.id === id);
@@ -645,17 +695,31 @@ export const createResumePagePlan = (
     items.sort((left, right) => rank(left.kind) - rank(right.kind));
   }
 
-  const sectionHead = (kind: ResumePageItem["kind"]) =>
-    ((context.atsMode ? geometry.ats.head : undefined) ?? (kind === "experience" ? geometry.exp.head : geometry.edu.head)) + scale.titleGapDelta;
+  /**
+   * The heading of a career section. With measured text (`text.wrap`) a title that wraps costs its extra lines, and on a
+   * page the section continues onto its title reads "… · Fortsetzung" (14 pt capitals often take two lines there).
+   */
+  const sectionHeadingPt = context.overrides?.sectionHeadingPt ?? gepflegtDefaults.typography.sectionTitleSizePt;
+  const headingLines = (kind: ResumePageItem["kind"], continued: boolean) => {
+    const wrapping = geometry.text.wrap;
+    if (!wrapping || !scale.wrapText) return 1;
+    const title = `${getResumeSectionTitle(profile, kind === "experience" ? "experience" : "education")}${continued ? " · Fortsetzung" : ""}`;
+    return Math.max(1, wrappedLines(title.toLocaleUpperCase("de-DE"), geometry.text.bulletW * scale.width + wrapping.listInset,
+      sectionHeadingPt * PT_TO_MM, 600, 0.04));
+  };
+  const sectionHead = (kind: ResumePageItem["kind"], continued = false) =>
+    ((context.atsMode ? geometry.ats.head : undefined) ?? (kind === "experience" ? geometry.exp.head : geometry.edu.head)) + scale.titleGapDelta
+      + (headingLines(kind, continued) - 1) * sectionHeadingPt * PT_TO_MM * geometry.text.lineRatio * scale.line;
   /** A career entry as drawn on one page: all of it, or the part of an entry that breaks across pages. */
   type Shown = { kind: ResumePageItem["kind"]; height: number; gapAfter: number };
   /** Height of a run of career entries on one page, including one heading per section. */
-  const runHeight = (list: readonly Shown[]) => {
+  /** `continued`: the run opens a page the first section goes on onto (its heading says "· Fortsetzung"). */
+  const runHeight = (list: readonly Shown[], continued = false) => {
     let total = 0;
     let previousKind: string | undefined;
     list.forEach((entry, index) => {
       if (entry.kind !== previousKind) {
-        total += (index > 0 ? sectionGap : 0) + sectionHead(entry.kind);
+        total += (index > 0 ? sectionGap : 0) + sectionHead(entry.kind, continued && index === 0);
       } else {
         total += list[index - 1].gapAfter;
       }
@@ -701,10 +765,11 @@ export const createResumePagePlan = (
   const gridModel = (kind: "strengths" | "knowledge", entries: ListEntry[], zone: PaginationZone, page: "first" | "last"): ItemBlockModel => {
     const model = geometry.items[kind];
     if (zone === "sidebar" && !flat && page === "first") return { ...model, w: model.w + scale.sideDelta };
-    const beside = !flat && page === "first" && geometry.columns === 2;
+    // Gepflegt keeps its sidebar lane on every page: its main column is never the page width.
+    const beside = !flat && (page === "first" || templateId === "gepflegt") && geometry.columns === 2;
     const mode = kind === "strengths" ? settings.strengthsColumns : settings.knowledgeColumns;
     const cols = resolveSectionColumns(mode, templateId ?? "", "main", entries, settings, beside);
-    const width = beside ? geometry.text.mainW * scale.mainRatio : geometry.text.fullW;
+    const width = beside ? geometry.text.mainW * scale.mainRatio : geometry.text.fullW * (scale.fullRatio ?? 1);
     return {
       ...model,
       cols,
@@ -721,7 +786,7 @@ export const createResumePagePlan = (
     const metrics = zoneFlow && templateId ? sectionListMetrics(templateId, zone) : undefined;
     if (!metrics || !texts.length) return 0;
     const column = zone === "sidebar" ? geometry.text.sideW + scale.sideDelta
-      : fullWidth ? geometry.text.fullW : geometry.text.mainW * scale.mainRatio;
+      : fullWidth ? geometry.text.fullW * (scale.fullRatio ?? 1) : geometry.text.mainW * scale.mainRatio;
     // The lists of Pehlione have fixed sizes: neither the design font size nor the line height reaches them.
     // A list that takes the body size of the page follows the design settings like the rest of the text.
     const fontMm = metrics.inheritBody ? geometry.text.bulletFont * scale.font : metrics.fontMm;
@@ -746,7 +811,7 @@ export const createResumePagePlan = (
     const normalized = normalizeCustomSection(section);
     const listed = normalized.contentType === "list" || normalized.contentType === "skills" || normalized.contentType === "timeline";
     const column = zone === "sidebar" ? geometry.text.sideW + scale.sideDelta
-      : fullWidth ? geometry.text.fullW : geometry.text.mainW * scale.mainRatio;
+      : fullWidth ? geometry.text.fullW * (scale.fullRatio ?? 1) : geometry.text.mainW * scale.mainRatio;
     const font = geometry.text.bulletFont * scale.font;
     const pitch = font * geometry.text.lineRatio * scale.line;
     const lines = (text: string, indent = 0) => (text.trim() ? linesFor(text.trim().length, column - indent, font, SPECIAL_CW) : 0);
@@ -847,12 +912,12 @@ export const createResumePagePlan = (
       resolveLanguagePresentation(entry, profile?.resumeLanguageDisplay, { dots: true, ats: context.atsMode }));
     /** The block's height when it stands in `at`: from the printed rows, measured per template (languageBlockHeight). */
     const languageHeightIn = (at: PaginationZone, fullWidth = false, rows = languageRows) => {
-      const beside = !flat && !fullWidth && geometry.columns === 2;
+      const beside = !flat && (!fullWidth || templateId === "gepflegt") && geometry.columns === 2;
       const columns = resolveSectionColumns(settings.languagesColumns, templateId ?? "", at === "sidebar" ? "sidebar" : "main",
         rows.map((language) => ({ title: language.primaryText, description: language.secondaryText })), settings, beside);
       return templateId && !context.atsMode
         ? languageBlockHeight(templateId, rows, {
-          column: at === "sidebar" ? geometry.text.sideW + scale.sideDelta : fullWidth ? geometry.text.fullW : geometry.text.mainW * scale.mainRatio,
+          column: at === "sidebar" ? geometry.text.sideW + scale.sideDelta : fullWidth ? geometry.text.fullW * (scale.fullRatio ?? 1) : geometry.text.mainW * scale.mainRatio,
           font: scale.font,
           textHeight: scale.textHeight,
           columns,
@@ -990,7 +1055,7 @@ export const createResumePagePlan = (
     const shown = plain || templateId === "kompakt"
       ? certifications
       : certifications.slice(0, certificates.limit ?? certifications.length);
-    const width = flat ? geometry.text.fullW : certificates.zone === "main" ? certificates.w * scale.mainRatio : certificates.w + scale.sideDelta;
+    const width = flat ? geometry.text.fullW * (scale.fullRatio ?? 1) : certificates.zone === "main" ? certificates.w * scale.mainRatio : certificates.w + scale.sideDelta;
     const wrapped = shown.reduce(
       (total, entry) => total + Math.max(0, linesFor(entry.length, width, certificates.font * scale.font, geometry.text.cw) - 1),
       0,
@@ -1125,8 +1190,20 @@ export const createResumePagePlan = (
   const grownTop = (top: number, continuation: boolean) =>
     context.atsMode || (continuation && templateId?.startsWith("pehlione_"))
       ? top
-      : estimateResumeHeaderTop(templateId, profile, "main", top, showContacts, withPhoto) ?? top;
-  const top1 = templateId === "kreativ" && profile && !context.atsMode
+      : estimateResumeHeaderTop(templateId, profile, "main", top, showContacts, withPhoto,
+        templateId === "gepflegt" ? scale.mainRatio : 1) ?? top;
+  // Gepflegt computes its header from the stylesheet and the measured font (page one with, later pages without contacts).
+  const gepflegtHeaderTop = (contacts: boolean) => templateId === "gepflegt" && profile && !context.atsMode && scale.wrapText
+    ? estimateGepflegtHeaderTop(profile, {
+      contacts,
+      widthMm: geometry.text.bulletW * scale.width + (geometry.text.wrap?.listInset ?? 0),
+      namePt: context.overrides?.headingSizePt ?? gepflegtDefaults.typography.nameSizePt,
+      titlePt: context.overrides?.subheadingSizePt ?? gepflegtDefaults.typography.jobTitleSizePt,
+      bodyPt: geometry.text.bulletFont * scale.font / PT_TO_MM,
+      lineHeight: geometry.text.lineRatio * scale.line,
+    }) + GEPFLEGT_HEADER_RESERVE_MM
+    : undefined;
+  const top1 = gepflegtHeaderTop(showContacts) ?? (templateId === "kreativ" && profile && !context.atsMode
     ? estimateKreativHeaderTop(profile, showContacts, withPhoto,
         geometry.text.bulletFont * scale.font * 72 / 25.4, geometry.text.lineRatio * scale.line, scale.marginInset)
     : templateId === "stilvoll" && profile && !context.atsMode
@@ -1136,32 +1213,31 @@ export const createResumePagePlan = (
     : templateId === "elegant" && profile && !context.atsMode
     ? estimateElegantHeaderTop(profile, showContacts, scale.marginInset, sectionGap,
         context.overrides?.pageMarginMm ?? elegantDefaults.layout.mainLeftMm,
-        context.overrides?.columnGapMm ?? 0,
+        context.overrides?.columnGapMm ?? elegantDefaults.layout.columnGapMm,
         geometry.text.lineRatio * scale.line, context.overrides?.headingSizePt,
         context.overrides?.subheadingSizePt, context.overrides?.bodySizePt)
-    : templateId === "gepflegt" && profile && !context.atsMode
-    ? estimateGepflegtHeaderTop(profile, showContacts, geometry.text.lineRatio * scale.line,
-        context.overrides?.pageMarginMm ?? gepflegtDefaults.main.paddingRightMm,
-        context.overrides?.headingSizePt, context.overrides?.subheadingSizePt)
     : templateId === "kompakt" && !context.atsMode
       ? geometry.top1 + photoGrowth.main
-      : grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop1 : geometry.top1) + kompaktContactHeight + photoGrowth.main, false);
+      : grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop1 : geometry.top1) + kompaktContactHeight + photoGrowth.main, false));
   const gepflegtName = `${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`.trim();
+  // Gepflegt repeats name and Berufsbezeichnung on every page: top2 holds one line of each (measured 38.5-39.9 mm), every
+  // further line adds its line box (name 24 pt × 1.08, title 13 pt × 1.25; characters per line of the main column).
   const gepflegtMainContinuationGrowth = templateId === "gepflegt" && !context.atsMode
-    ? Math.max(0, Math.ceil(gepflegtName.length / 15) - 1) * 9
-      + Math.max(0, Math.ceil((profile?.title ?? "").length / 36) - 2) * 5
+    ? Math.max(0, Math.ceil(gepflegtName.length / (17 * scale.mainRatio)) - 1) * 9.14
+      + Math.max(0, Math.ceil((profile?.title ?? "").length / (38 * scale.mainRatio)) - 1) * 5.73
     : 0;
-  const top2 = (templateId === "kreativ" || templateId === "stilvoll" || templateId === "gepflegt") && !context.atsMode
+  const top2 = gepflegtHeaderTop(false) ?? ((templateId === "kreativ" || templateId === "stilvoll" || templateId === "gepflegt") && !context.atsMode
     ? geometry.top2 + gepflegtMainContinuationGrowth
     : templateId === "elegant" && !context.atsMode
     ? elegantDefaults.layout.mainTopMm + scale.marginInset + 18.2 + sectionGap
     : templateId === "kompakt" && !context.atsMode
       ? geometry.top2 + (contactOnContinuation ? 5.5 : 0)
-      : grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop2 : geometry.top1) + kompaktContactHeight + photoGrowth.main, true);
+      : grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop2 : geometry.top1) + kompaktContactHeight + photoGrowth.main, true));
   const verticalInset = templateId === "elegant" && !context.atsMode
     ? scale.marginInset
     : templateId === "stilvoll" && !context.atsMode
       ? Math.max(0, scale.marginInset) : 2 * scale.marginInset;
+
   const mainCap1 = (geometry.limit - top1 - verticalInset) * (geometry.safety ?? SAFETY);
   const mainCap2 = (geometry.limit - top2 - verticalInset) * (geometry.safety ?? SAFETY);
   // Where the first sidebar block starts depends on how many contact entries (and wrapped values) precede it.
@@ -1515,7 +1591,7 @@ export const createResumePagePlan = (
   const loadFirst = (cut: Cut) =>
     stack(load1Fixed, stack(runHeight(shownFirst(cut)), sumHeights(tailFirst(cut), sectionGap)));
   const loadLast = (cut: Cut) =>
-    stack(stack(runHeight(shownLast(cut)), sumHeights(tailLast(cut), sectionGap)), pinnedLoad) + closingHeight;
+    stack(stack(runHeight(shownLast(cut), true), sumHeights(tailLast(cut), sectionGap)), pinnedLoad) + closingHeight;
 
   const cuts: Cut[] = [];
   for (let count = 0; count <= items.length; count += 1) {
@@ -1584,12 +1660,12 @@ export const createResumePagePlan = (
   };
 
   /** Continue an overflowing second page through as many A4 sheets as its content needs. */
-  const continueAfterSecond = (plan: ResumePagePlan[]): ResumePagePlan[] => {
+  const packContinuations = (plan: ResumePagePlan[], reserveClosing: boolean): ResumePagePlan[] => {
     const second = plan[1];
     if (!second || (second.fill?.main ?? 0) * densityFactor[second.density] <= 1) return plan;
-    // The closing is appended only after the continuation pages are packed. Zweispaltig
-    // reserves its height while packing, so the last page cannot silently overflow.
-    const continuationCap = templateId === "zweispaltig" ? mainCap2 - closingHeight : mainCap2;
+    // The closing is appended only after the continuation pages are packed; `reserveClosing` keeps its height free on
+    // every continuation page, so the last page cannot silently overflow.
+    const continuationCap = reserveClosing ? mainCap2 - closingHeight : mainCap2;
     const itemById = new Map(items.map((item) => [item.id, item]));
     const blockById = new Map(flow.map((block) => [block.id, block]));
     type PendingItem = { source: MeasuredItem; from: number; to: number };
@@ -1636,7 +1712,7 @@ export const createResumePagePlan = (
         const next = pendingItems[0];
         const item = projectItem(next);
         const heading = previous?.kind === item.kind ? next.source.gapAfter :
-          (selectedItems.length ? sectionGap : 0) + sectionHead(item.kind);
+          (selectedItems.length ? sectionGap : 0) + sectionHead(item.kind, !selectedItems.length);
         const needed = heading + item.weight;
         if (used + needed <= continuationCap) {
           selectedItems.push(item); used += needed; previous = item; pendingItems.shift();
@@ -1702,6 +1778,15 @@ export const createResumePagePlan = (
     }
     if (continuations.length) continuations[continuations.length - 1].fill!.main += closingHeight / mainCap2;
     return [plan[0], ...continuations];
+  };
+  /**
+   * Zweispaltig always reserves the closing. Gepflegt fills its continuation pages to the bottom and reserves the closing
+   * only when the last page has no room left for it.
+   */
+  const continueAfterSecond = (plan: ResumePagePlan[]): ResumePagePlan[] => {
+    if (templateId !== "gepflegt") return packContinuations(plan, templateId === "zweispaltig");
+    const full = packContinuations(plan, false);
+    return full.length > 1 && (full[full.length - 1].fill?.main ?? 0) > 1 ? packContinuations(plan, true) : full;
   };
 
   /**

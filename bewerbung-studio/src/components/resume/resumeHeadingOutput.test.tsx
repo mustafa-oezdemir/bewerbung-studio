@@ -77,15 +77,16 @@ describe.each(variants)("continuation heading of the %s mode", (_mode, profile, 
     expect(resolveResumeHeading(profile).continuationKicker).toBe(`${kicker} · Fortsetzung`);
   });
 
-  it("is drawn by the Elegant and Gepflegt continuation sidebars", () => {
+  it("keeps Elegant's continuation sidebar free of the repeated identity", () => {
     const sidebar = { profile, name: "Mustafa Özdemir", summary: "", sections: profile.resumeSections, photoSource: null, atsMode: false, isContinuation: true, pageNumber: 2, totalPages: 2 };
-    for (const Sidebar of [ElegantSidebar, GepflegtSidebar] as unknown as AnyComponent[]) {
-      const intro = markup(renderToStaticMarkup(createElement(Sidebar, sidebar))).querySelector('[class$="sidebar__continuation"]')!;
-      // The heading sits right above the name, so Lebenslauf + Name reads "Lebenslauf / Mustafa Özdemir".
-      expect(intro.querySelector("p")?.textContent).toBe(kicker);
-      expect(intro.querySelector("h2")?.textContent).toBe("Mustafa Özdemir");
-      expect(textOf(intro.outerHTML)).toContain("Fortsetzung · Seite 2 von 2");
-    }
+    const elegant = markup(renderToStaticMarkup(createElement(ElegantSidebar as unknown as AnyComponent, sidebar)))
+      .querySelector(".elegant-sidebar__continuation")!;
+    expect(elegant.querySelector("p,h2,span")).toBeNull();
+    expect(textOf(elegant.outerHTML)).toContain("Fortsetzung · Seite 2 von 2");
+    const gepflegt = markup(renderToStaticMarkup(createElement(GepflegtSidebar as unknown as AnyComponent, sidebar)))
+      .querySelector(".gepflegt-sidebar__continuation")!;
+    expect(gepflegt.querySelector("p")?.textContent).toBe(kicker);
+    expect(gepflegt.querySelector("h2")?.textContent).toBe("Mustafa Özdemir");
   });
 
   it("is drawn by the Pehlione continuation sidebar", () => {

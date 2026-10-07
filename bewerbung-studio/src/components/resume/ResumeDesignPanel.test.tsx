@@ -41,6 +41,11 @@ const valueOf = (document: Document, label: string) => {
 const frameOf = (document: Document, label: string) => field(document, label).closest(".rds-field")!;
 
 describe("Lebenslauf design panel", () => {
+  it("shows Elegant's 8 mm native Spaltenabstand when the settings are opened", () => {
+    const document = panel(stateFor("elegant"));
+    expect(valueOf(document, "Spaltenabstand (mm)")).toBe("8");
+    expect(frameOf(document, "Spaltenabstand (mm)").textContent).toContain("Vorlage: 8 mm");
+  });
   it("offers the same controls for every template; only the values change", () => {
     const reference = controls(panel(stateFor(templates[0].id)));
     expect(reference.length).toBeGreaterThan(40);

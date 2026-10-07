@@ -4,7 +4,10 @@ import type { GepflegtHeaderProps } from "./gepflegt.types";
 import { resolveResumeHeading } from "../../../../shared/resumeHeading";
 import { formatResumeAddress, formatResumeBirth, getResumePersonalDetails, getResumeLinkContacts } from "../../../../shared/resumePersonalData";
 import { formatPhoneForDisplay, phoneHref } from "../../../../shared/contactPresentation";
-import { isGepflegtWideContact } from "../../../../shared/gepflegtDesign";
+import { isWideGepflegtContact } from "../../../../shared/gepflegtDesign";
+
+/** A long contact takes the whole row of the two-column contact grid (the same rule as the PDF). */
+const wide = (text: string | undefined) => (isWideGepflegtContact(text ?? "") ? "" : undefined);
 
 export function GepflegtHeader({
   name,
@@ -41,25 +44,25 @@ export function GepflegtHeader({
         extras.length) ? (
         <address className="gepflegt-header__contacts">
           {profile?.phone ? (
-            <a href={phoneHref(profile.phone)} data-contact-wide={isGepflegtWideContact(formatPhoneForDisplay(profile.phone)) ? "true" : undefined}>
+            <a href={phoneHref(profile.phone)} data-wide={wide(formatPhoneForDisplay(profile.phone))}>
               {!atsMode ? <ContactIcon kind="phone" /> : null}
               <span>{formatPhoneForDisplay(profile.phone)}</span>
             </a>
           ) : null}
           {profile?.email ? (
-            <a href={`mailto:${profile.email}`} data-contact-wide={isGepflegtWideContact(profile.email) ? "true" : undefined}>
+            <a href={`mailto:${profile.email}`} data-wide={wide(profile.email)}>
               {!atsMode ? <ContactIcon kind="email" /> : null}
               <span>{profile.email}</span>
             </a>
           ) : null}
           {links.map((link) => (
-            <a href={link.href} key={link.kind} data-contact-wide={isGepflegtWideContact(link.value, link.kind) ? "true" : undefined}>
+            <a href={link.href} key={link.kind} data-wide={wide(link.value)}>
               {!atsMode ? <ContactIcon href={link.href} /> : null}
               <span>{link.value}</span>
             </a>
           ))}
           {location ? (
-            <span data-contact-wide={isGepflegtWideContact(location, "location") ? "true" : undefined}>
+            <span data-wide={wide(location)}>
               {!atsMode ? <ContactIcon kind="location" /> : null}
               <span>{location}</span>
             </span>
@@ -72,8 +75,8 @@ export function GepflegtHeader({
               </>
             );
             return item.href
-              ? <a href={item.href} key={`${item.kind}-${index}`} data-contact-wide={isGepflegtWideContact(item.text) ? "true" : undefined}>{content}</a>
-              : <span key={`${item.kind}-${index}`} data-contact-wide={isGepflegtWideContact(item.text) ? "true" : undefined}>{content}</span>;
+              ? <a href={item.href} key={`${item.kind}-${index}`} data-wide={wide(item.text)}>{content}</a>
+              : <span key={`${item.kind}-${index}`} data-wide={wide(item.text)}>{content}</span>;
           })}
         </address>
       ) : null}

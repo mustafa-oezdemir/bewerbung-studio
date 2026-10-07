@@ -434,7 +434,7 @@ const allTemplates: TemplateDefinition[] = [
     name: "Gepflegt",
     description:
       "Eine raffinierte Lebenslaufvorlage, perfekt für Business Development Manager, Vertriebsleiter und andere kundenorientierte Positionen.",
-    accent: "#00B8B5",
+    accent: "#087875",
     secondary: "#087875",
     font: "Source Sans 3",
     layout: "sidebar-left",

@@ -25,11 +25,26 @@ describe("Elegant with own Seitenränder / Innenabstand", () => {
     expect(styleValue(preview, "--elegant-sidebar-right")).toBe("10mm");
     expect(styleValue(pdf, "--elegant-main-left")).toBe("10mm");
     expect(styleValue(pdf, "--elegant-sidebar-right")).toBe("10mm");
+    expect(resolveTemplateCvDesign("elegant").spacing.columnGapMm).toBe(8);
+    expect(styleValue(preview, "--elegant-main-right")).toBe("8mm");
+    expect(styleValue(preview, "--elegant-sidebar-left")).toBe("8mm");
+    expect(styleValue(pdf, "--elegant-main-right")).toBe("8mm");
+    expect(styleValue(pdf, "--elegant-sidebar-left")).toBe("8mm");
     expect(preview.querySelectorAll(".elegant-header__contacts > *").length).toBeGreaterThan(2);
     expect(preview.querySelectorAll(".elegant-header__contact--wide").length).toBeGreaterThan(0);
     expect(pdf.querySelectorAll(".elegant-pdf-contact-wide").length).toBeGreaterThan(0);
     const previewCss = readFileSync(resolve(__dirname, "elegant.css"), "utf8");
     expect(previewCss).toMatch(/\.elegant-header__contacts \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  });
+
+  it("brings both columns close to the color boundary at zero Spaltenabstand without touching it", () => {
+    const result = renderCv("elegant", maximalProfile(), withSpacing({ spacing: { columnGapMm: 0 } }));
+    for (const list of Object.values(scopes(result))) {
+      expect(styleValue(list[0], "--elegant-main-right")).toBe("4mm");
+      expect(styleValue(list[0], "--elegant-sidebar-left")).toBe("4mm");
+      expect(styleValue(list[0], "--elegant-main-left")).toBe("10mm");
+      expect(styleValue(list[0], "--elegant-sidebar-right")).toBe("10mm");
+    }
   });
 
   it("adds the chosen inner inset to the resolved physical column padding", () => {

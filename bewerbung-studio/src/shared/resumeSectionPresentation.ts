@@ -458,8 +458,8 @@ const gepflegt: TemplateTokens = {
     icons: false,
     heading: {
       iconBox: 0, iconGap: 0, iconRadius: 0, glyphSize: 0, glyphStroke: 0,
-      fontSizePt: { standard: 14.5, compact: 14.5 }, fontWeight: 500, lineHeight: 1,
-      letterSpacing: ".015em", textTransform: "uppercase", fontFamily: "var(--heading-font,var(--gepflegt-font,Arial,sans-serif))",
+      fontSizePt: { standard: 14, compact: 14 }, fontWeight: 600, lineHeight: 1,
+      letterSpacing: ".04em", textTransform: "uppercase", fontFamily: "var(--heading-font,var(--gepflegt-font,Arial,sans-serif))",
       marginBottom: { standard: 3.6, compact: 3.6 }, labelPadding: { standard: 2.2, compact: 2.2 },
       color: "var(--gepflegt-heading,#354147)", dividerColor: "var(--gepflegt-divider,#c7ced1)", dividerWidth: ".35mm",
       iconColor: "currentColor", iconBackground: "transparent",
@@ -476,17 +476,20 @@ const gepflegt: TemplateTokens = {
     icons: false,
     heading: {
       iconBox: 0, iconGap: 0, iconRadius: 0, glyphSize: 0, glyphStroke: 0,
-      fontSizePt: { standard: 12.5, compact: 12.5 }, fontWeight: 500, lineHeight: 1.05,
-      letterSpacing: ".01em", textTransform: "uppercase", fontFamily: "var(--gepflegt-font,var(--body-font,Arial,sans-serif))",
+      fontSizePt: { standard: 13, compact: 13 }, fontWeight: 600, lineHeight: 1.05,
+      letterSpacing: ".06em", textTransform: "uppercase", fontFamily: "var(--gepflegt-font,var(--body-font,Arial,sans-serif))",
       marginBottom: { standard: 3.5, compact: 3.5 }, labelPadding: { standard: 2.2, compact: 2.2 },
-      color: "var(--gepflegt-sidebar-text,#fff)", dividerColor: "rgba(255,255,255,.78)", dividerWidth: ".35mm",
+      color: "var(--gepflegt-sidebar-text,#fff)", dividerColor: "color-mix(in srgb,var(--gepflegt-sidebar-text,#fff) 55%,transparent)", dividerWidth: ".35mm",
       iconColor: "currentColor", iconBackground: "transparent",
-      sectionGap: { standard: 8.5, compact: 6.5 }, height: 7.5,
+      // The central Abschnittsabstand (with the page density), on every page and in both outputs.
+      sectionGap: { standard: 6.5, compact: 6.5, side: "bottom", expr: "var(--gepflegt-section-gap,6.5mm)" }, height: 7.5,
     },
     list: {
-      fontSizePt: { standard: 8.5, compact: 8.5 }, lineHeight: { standard: 1.25, compact: 1.25 },
-      itemGap: { standard: 1.3, compact: 1.3 }, indent: 4, layout: "grid",
-      markerColor: "var(--gepflegt-sidebar-text,#fff)",
+      // The sidebar lists (Zertifikate) follow the central body size and line height like every other sidebar text.
+      fontSizePt: { standard: 11, compact: 11 }, lineHeight: { standard: 1.3, compact: 1.3 },
+      itemGap: { standard: 1.3, compact: 1.3 }, indent: 4, layout: "grid", inheritBody: true,
+      fontExpr: "var(--gepflegt-body-size,11pt)", lineHeightExpr: "var(--gepflegt-line-height,1.3)",
+      markerColor: "var(--gepflegt-sidebar-muted,#d8f0ef)",
     },
   },
 };

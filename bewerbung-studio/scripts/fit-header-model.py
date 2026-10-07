@@ -45,6 +45,22 @@ def grid(r, cols, L):
     rows = [items[i:i + cols] for i in range(0, len(items), cols)]
     return len(rows), sum(max(row) for row in rows)
 
+def gridwide(r, cols, L, W=30):
+    # A contact longer than W characters takes a row of its own over all columns (Gepflegt).
+    rows, lines, row = 0, 0, []
+    for c in r['contacts']:
+        if c > W:
+            if row:
+                rows += 1; lines += max(math.ceil(x / L) for x in row); row = []
+            rows += 1; lines += max(1, math.ceil(c / (L * cols)))
+            continue
+        row.append(c)
+        if len(row) == cols:
+            rows += 1; lines += max(math.ceil(x / L) for x in row); row = []
+    if row:
+        rows += 1; lines += max(math.ceil(x / L) for x in row)
+    return rows, lines
+
 def flow(r, C, over):
     lines, used = 0, 0
     for c in r['contacts']:
@@ -60,7 +76,7 @@ def flow(r, C, over):
     return lines, lines
 
 def features(r, kind, a, b, Lt, Ln):
-    nrows, nlines = grid(r, a, b) if kind == 'grid' else flow(r, a, b)
+    nrows, nlines = grid(r, a, b) if kind == 'grid' else gridwide(r, a, b) if kind == 'gridwide' else flow(r, a, b)
     t = title_lines(r, Lt)
     name = math.ceil(r['name'] / Ln)
     return [1.0, nrows, nlines, max(0, t - 1), 1.0 if r['title'] else 0.0, max(0, name - 1)]
@@ -78,7 +94,7 @@ for tid in ids:
             result.setdefault(tid, {})[key] = {'constant': float(y.max())}
             continue
         best = None
-        options = [('grid', c, L) for c in [1, 2, 3] for L in [16, 20, 24, 28, 32, 36, 42, 50, 60, 75, 95]] + [('flow', C, o) for C in [60, 80, 100, 120, 140, 170, 200, 240] for o in [2, 4, 6, 9]]
+        options = [('grid', c, L) for c in [1, 2, 3] for L in [16, 20, 24, 28, 32, 36, 42, 50, 60, 75, 95]] + [('flow', C, o) for C in [60, 80, 100, 120, 140, 170, 200, 240] for o in [2, 4, 6, 9]] + [('gridwide', 2, L) for L in [20, 24, 28, 32, 36]]
         for (kind, a, b), Lt, Ln in itertools.product(options, [28, 36, 44, 52, 60, 70, 80, 95], [14, 18, 22, 26, 32, 40]):
             X = np.array([features(r, kind, a, b, Lt, Ln) for r in data])
             coef, _ = nnls(X, y)

@@ -13,9 +13,10 @@ export const gepflegtDefaults = {
     paddingTopMm: 14,
     paddingRightMm: 5,
     paddingBottomMm: 16,
+    // The left text edge of the sidebar = Seitenränder (default 10 mm, like the right edge of the main column).
     paddingLeftMm: 10,
     photoSizeMm: 26,
-    photoGapMm: 12,
+    photoGapMm: 9,
   },
   main: {
     paddingTopMm: 14,
@@ -34,7 +35,8 @@ export const gepflegtDefaults = {
     sidebarTopBar: "#005B59",
     sidebarText: "#FFFFFF",
     sidebarMutedText: "#D8F0EF",
-    accent: "#00B8B5",
+    // One calm accent: the teal of the sidebar (text contrast on white 5.4:1), not a second, brighter cyan.
+    accent: "#087875",
     heading: "#354147",
     text: "#3F494E",
     mutedText: "#657075",
@@ -45,14 +47,14 @@ export const gepflegtDefaults = {
     fontFamily: '"Source Sans 3", "Segoe UI", Arial, sans-serif',
     nameSizePt: 24,
     nameWeight: 750,
-    jobTitleSizePt: 13.5,
-    sectionTitleSizePt: 14.5,
-    sidebarTitleSizePt: 12.5,
-    entryTitleSizePt: 11.5,
+    // Readable German CV defaults: 11 pt body, 13-14 pt headings, line height 1.3, one font family.
+    jobTitleSizePt: 13,
+    sectionTitleSizePt: 14,
+    sidebarTitleSizePt: 13,
+    entryTitleSizePt: 12,
     bodySizePt: 11,
-    smallSizePt: 9,
-    contactSizePt: 8.2,
-    bodyLineHeight: 1.16,
+    smallSizePt: 9.5,
+    bodyLineHeight: 1.3,
   },
   output: {
     supportsAtsMode: true,
@@ -93,17 +95,20 @@ export const gepflegtDesign: NativeResumeDesign = {
       lineHeight: gepflegtDefaults.typography.bodyLineHeight,
       headingWeight: gepflegtDefaults.typography.nameWeight,
       subheadingWeight: 500,
-      sectionHeadingWeight: 500,
+      sectionHeadingWeight: 600,
       sectionHeadingUppercase: true,
     },
     spacing: {
       pageMarginMm: gepflegtDefaults.main.paddingRightMm,
-      innerPaddingMm: 10,
+      // Innenabstand is an extra inset on top of the page margin (native 0 like every template); the columns' own
+      // paddings belong to the margin (resolveGepflegtGeometry). 10 pulled a chosen 4 mm six millimetres to the left.
+      innerPaddingMm: 0,
       sectionGapMm: gepflegtDefaults.spacing.sectionGapMm,
       entryGapMm: gepflegtDefaults.spacing.entryGapMm,
       sectionTitleGapMm: 3.6,
       entryContentGapMm: 0,
-      columnGapMm: 0,
+      // The distance between the coloured sidebar and the main text (resolveGepflegtGeometry).
+      columnGapMm: gepflegtDefaults.main.paddingLeftMm,
     },
   },
   appearance: {

@@ -128,6 +128,8 @@ export const resolveCvDocument = ({
       bodySizePt: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt"].includes(templateId) ? design.typography.bodySizePt : overrides?.typography?.bodySizePt,
       headingSizePt: ["elegant", "stilvoll", "gepflegt"].includes(templateId) ? design.typography.headingSizePt : undefined,
       subheadingSizePt: ["elegant", "stilvoll", "gepflegt"].includes(templateId) ? design.typography.subheadingSizePt : undefined,
+      fontId: templateId === "gepflegt" ? design.typography.fontId : undefined,
+      sectionHeadingPt: templateId === "gepflegt" ? design.typography.sectionHeadingSizePt : undefined,
       lineHeight: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt"].includes(templateId) ? design.typography.lineHeight : overrides?.typography?.lineHeight,
       pageMarginMm: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt"].includes(templateId) ? design.spacing.pageMarginMm : overrides?.spacing?.pageMarginMm,
       innerPaddingMm: templateId === "elegant" ? design.spacing.innerPaddingMm : overrides?.spacing?.innerPaddingMm,
@@ -135,7 +137,7 @@ export const resolveCvDocument = ({
       entryGapMm: ["elegant", "kompakt"].includes(templateId) ? design.spacing.entryGapMm : overrides?.spacing?.entryGapMm,
       sectionTitleGapMm: ["elegant", "kompakt"].includes(templateId) ? design.spacing.sectionTitleGapMm : overrides?.spacing?.sectionTitleGapMm,
       entryContentGapMm: ["elegant", "kompakt"].includes(templateId) ? design.spacing.entryContentGapMm : overrides?.spacing?.entryContentGapMm,
-      columnGapMm: ["elegant", "kompakt"].includes(templateId) ? design.spacing.columnGapMm : overrides?.spacing?.columnGapMm,
+      columnGapMm: ["elegant", "kompakt", "gepflegt"].includes(templateId) ? design.spacing.columnGapMm : overrides?.spacing?.columnGapMm,
     },
     settings,
   };

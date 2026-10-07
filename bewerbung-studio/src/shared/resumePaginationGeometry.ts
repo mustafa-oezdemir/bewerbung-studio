@@ -26,6 +26,8 @@ export type ItemBlockModel = {
   gap: number;
   /** Line pitch (mm) of the description under an item, when it is not 0.92 × `pitch`. */
   descPitch?: number;
+  /** CSS weight of the item title where the template wraps measured text (`text.wrap`). */
+  titleWeight?: number;
 };
 
 /** Certificates are a plain list whose page and column depend on the template. */
@@ -99,6 +101,13 @@ export type PaginationGeometry = {
     bulletCw?: number;
     /** Additional word-wrap allowance as the first-page main column narrows. */
     bulletNarrowSlack?: number;
+    /**
+     * Wrap the real text with the measured advances of the template's font (src/shared/textMetrics.ts) instead of
+     * counting characters: CSS weights of the bullets, entry titles and organisations, what the bullet list takes off the
+     * column (indent + item padding), the gap beside the date / place, and their font as a share of the body size
+     * (`max(minPt, body × ratio)`). Used while the template's own font is chosen.
+     */
+    wrap?: { fontId: string; bodyWeight: number; titleWeight: number; orgWeight: number; listInset: number; metaGap: number; metaRatio: number; metaMinPt: number; metaMaxWidth: number };
   };
   /** Padding and divider an entry draws below itself except the last one (not part of the entry gap the user sets), mm. */
   entryChrome?: number;
@@ -260,8 +269,8 @@ const geometry: Record<string, PaginationGeometry> = {
     mainLeft: 0,
     mainRight: 140,
     contentLeft: 10,
-    contentRight: 130,
-    text: {contW: 175, cw: 0.465, bulletW: 115.5, bulletFont: 3.705, titleW: 90, titleFont: 3.88, orgW: 90, orgFont: 3.705, sumFont: 3.705, mainW: 120, sideW: 48, atsW: 160, lineRatio: 1.2, fullW: 175},
+    contentRight: 132,
+    text: {contW: 175, cw: 0.465, bulletW: 117.5, bulletFont: 3.705, titleW: 92, titleFont: 3.88, orgW: 92, orgFont: 3.705, sumFont: 3.705, mainW: 122, sideW: 52, atsW: 160, lineRatio: 1.2, fullW: 175},
     exp: {base: 12, list: 1.8, perBullet: 0.6, linePitch: 4.45, extraLine: 4.45, gap: 2, head: 12},
     edu: {base: 12, detailBase: 2.4, extraLine: 4.3, gap: 2, head: 12},
     blocks: {summary: [10, 5], strengths: [-2.3, 13.44], knowledge: [13.4, 10.48], languages: [5.5, 7.94], sectionGap: 4.5, sideGap: 4.5},
@@ -358,13 +367,15 @@ const geometry: Record<string, PaginationGeometry> = {
     ats: {exp: 1.0, edu: 1.0, knowledge: {head: 10.8, title: 7.2, gap: 3, pitch: 4.67, font: 3.704, w: 165, tail: 0}, languages: [10.5, 4.67], certs: {base: 10.5, perItem: 4.67}, density: {compact: 1, dense: 1}},
     density: {compact: 1, dense: 0.99},
   },
+  // Re-measured 2026-10-06 on the real PDF at the 11 pt / 1.3 defaults (340 career entries, sidebar and language probes).
   "gepflegt": {
     columns: 2,
     safety: 1,
     sidebarLeft: true,
     zones: {summary: "sidebar", strengths: "sidebar", knowledge: "sidebar", languages: "sidebar"},
-    top1: 64,
-    top2: 39,
+    // The smallest header (no contacts, no title); estimateResumeHeaderTop raises it with the real header.
+    top1: 41,
+    top2: 40.5,
     limit: gepflegtGeometry.pageHeightMm - gepflegtGeometry.main.paddingBottomMm,
     sideTop1: gepflegtGeometry.sidebar.paddingTopMm + gepflegtGeometry.sidebar.photoSizeMm + gepflegtGeometry.sidebar.photoGapMm,
     sideLimit: gepflegtGeometry.pageHeightMm - gepflegtGeometry.sidebar.paddingBottomMm,
@@ -374,15 +385,22 @@ const geometry: Record<string, PaginationGeometry> = {
     mainRight: gepflegtGeometry.pageWidthMm - gepflegtGeometry.main.paddingRightMm,
     contentLeft: gepflegtGeometry.sidebarWidthMm + gepflegtGeometry.main.paddingLeftMm,
     contentRight: gepflegtGeometry.pageWidthMm - gepflegtGeometry.main.paddingRightMm,
-    text: {contW: 107.2, cw: 0.49, bulletW: 107.2, bulletFont: 3.88, titleW: 82, titleFont: 4.06, orgW: 95, orgFont: 3.88, sumFont: 3.88, mainW: 112, sideW: 57, atsW: 172.6, lineRatio: 1.16, fullW: 112},
-    exp: {base: 12, list: 2.2, perBullet: 0.8, linePitch: 4.5, extraLine: 4.5, gap: 4, head: 11.5},
-    edu: {base: 10.5, extraLine: 4.5, gap: 4, head: 11.5, detailBase: 8, detailLine: 4.5, detailItem: 0.6, detailList: 1.8},
-    blocks: {summary: [11.4, 4.5], strengths: [11.4, 13.6], knowledge: [11.4, 4.5], languages: [11.4, 7.8], sectionGap: 6.5, sideGap: 6.5},
-    items: {strengths: {w: 57.5, font: 3.88, pitch: 4.5, pad: 1, cw: 0.53, cols: 1, head: 11.4, gap: 4}, knowledge: {w: 54, font: 3.88, pitch: 4.5, pad: 0.4, cw: 0.55, cols: 1, head: 11.4, gap: 2}},
-    certs: {home: "first", zone: "sidebar", base: 11.4, perItem: 5.5, w: 61, font: 3.88, pitch: 4.5},
+    // Wrapping (cw) fitted on the measured lines: unbiased for a page of bullets (one line wraps differently, a page of them
+    // evens out), wider where the column narrows; `safety` covers the rest.
+    // Main column 112 mm at the default 10 mm Seitenränder (bullets 112 − 5.4 mm list inset), sidebar text 65 mm. Career
+    // entries are wrapped with the measured font advances (`wrap`); the character model is the fallback for other fonts.
+    text: {contW: 106.6, cw: 0.5, bulletCw: 0.47, bulletNarrowSlack: 0.6, bulletW: 106.6, bulletFont: 3.881, titleW: 72, titleFont: 4.234, orgW: 95, orgFont: 3.881, sumFont: 3.881, mainW: 112, sideW: 57, atsW: 172.6, lineRatio: 1.3, fullW: 112,
+      wrap: {fontId: "source-sans", bodyWeight: 400, titleWeight: 500, orgWeight: 500, listInset: 5.4, metaGap: 5, metaRatio: 0.88, metaMinPt: 9, metaMaxWidth: 46}},
+    exp: {base: 12.07, list: 1.96, perBullet: 0.434, linePitch: 5.05, extraLine: 5.42, gap: 4, head: 12.42},
+    edu: {base: 12.07, extraLine: 5.42, gap: 4, head: 12.42, detailLine: 5.05, detailItem: 0.434, detailList: 1.96, detailCw: 0.55},
+    blocks: {summary: [11.86, 5.04], strengths: [11.86, 14.5], knowledge: [11.86, 5.04], languages: [9.86, 7.04], sectionGap: 6.5, sideGap: 6.5},
+    items: {strengths: {w: 59.5, font: 3.88, pitch: 5.04, pad: 1, cw: 0.68, cols: 1, head: 11.86, gap: 3, descPitch: 4.64, titleWeight: 700}, knowledge: {w: 59.5, font: 3.88, pitch: 5.04, pad: 0, cw: 0.58, cols: 1, head: 24.37, gap: 2}},
+    certs: {home: "first", zone: "sidebar", base: 11.86, perItem: 6.34, w: 61, font: 3.881, pitch: 5.04},
+
     derivedStrengths: {visual: "first", ats: "single"},
     ats: {exp: 1.0, edu: 1.0, knowledge: {head: 8.44, title: 6.96, gap: 3, pitch: 3.6, font: 3, w: 84, tail: 3}, languages: [8.9, 3.6], certs: {base: 8.4, perItem: 3.6}, density: {compact: 0.94, dense: 0.88}},
-    density: {compact: 0.96, dense: 0.91},
+    // Compact/dense only shrink the gaps (× .85 / × .7), not the entries: a page saves about 2 % / 4 % of its height.
+    density: {compact: 0.985, dense: 0.965},
   },
   "kompakt": {
     columns: 2,
