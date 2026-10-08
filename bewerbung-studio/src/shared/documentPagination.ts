@@ -27,7 +27,7 @@ import { einspaltigSectionTitleMm, estimateEinspaltigHeaderTop, resolveEinspalti
 import { textWidthMm, wrappedLines } from "./textMetrics";
 import { resolveSectionColumns } from "./resumeSectionLayout";
 import { hasSidebarHero, isZoneFlowTemplate, sectionListMetrics, supportsEducationSplit, supportsSidebarContinuation } from "./resumeSectionPresentation";
-import { normalizeCustomSection } from "./resumeCustomSections";
+import { normalizeCustomSection, spacesEntriesLikeCareer } from "./resumeCustomSections";
 import { getPehlioneContacts } from "./pehlioneContacts";
 import { resolveKnowledgeGroups } from "../features/resume-sections/resume-section-system";
 import {
@@ -891,6 +891,16 @@ const planResumePages = (
     return metrics.headingMm + body + metrics.gapMm * (texts.length - 1);
   };
   /**
+   * Projekte and Hobbys & Interessen space their entries like the career entries (resumeManagedOutput): the Eintragsabstand
+   * plus the padding and divider the template's entry rule draws below every entry but the last, and the Abstand nach
+   * Eintragstitel below an entry title.
+   */
+  const nativeEntryGap = templateId ? resolveTemplateCvDesign(templateId).spacing.entryGapMm : geometry.exp.gap;
+  /** How far the chosen Eintragsabstand moves the native one. */
+  const careerLikeEntryGapDelta = (scale.entryGap ?? nativeEntryGap) - nativeEntryGap;
+  const careerLikeEntryGap = (scale.entryGap ?? nativeEntryGap) + (geometry.customEntryChrome ?? geometry.entryChrome ?? 0);
+  const careerLikeContentGap = context.overrides?.entryContentGapMm ?? (templateId ? resolveTemplateCvDesign(templateId).spacing.entryContentGapMm : 0);
+  /**
    * A special section: its entries are drawn like career entries (the template's entry spacing between them)
    * with paragraphs in the body font, in whichever column the section stands.
    */
@@ -904,7 +914,7 @@ const planResumePages = (
     const metrics = zoneFlow && templateId ? sectionListMetrics(templateId, zone) : undefined;
     if (!metrics) return 0;
     const normalized = normalizeCustomSection(section);
-    const compact = section.kind === "projects" || section.kind === "interests";
+    const careerLike = spacesEntriesLikeCareer(section.kind);
     const listed = normalized.contentType === "list" || normalized.contentType === "skills" || normalized.contentType === "timeline";
     const column = zone === "sidebar" ? geometry.text.sideW + scale.sideDelta
       : fullWidth ? geometry.text.fullW * (scale.fullRatio ?? 1) : geometry.text.mainW * scale.mainRatio;
@@ -915,22 +925,27 @@ const planResumePages = (
     const entries = normalized.entries.slice(range?.[0] ?? 0, range?.[1]).map((entry) => {
       const indent = listed ? metrics.indentMm : 0;
       if (section.kind === "projects") return lines(entry.title, indent) * pitch * 1.13
+        + (entry.title.trim() && (entry.technologies.some((value) => value.trim()) || entry.description.trim()) ? careerLikeContentGap : 0)
         + lines(entry.technologies.join(" · "), indent) * pitch * .88
         + lines(entry.description, indent) * pitch;
       const meta = [entry.location, entry.date.trim() || [entry.from, entry.to].filter((value) => value.trim()).join(" – ")].filter((value) => value.trim()).join(" · ");
       const head = headed
         ? lines(entry.title, indent) * pitch * 1.13 + (entry.subtitle.trim() ? 6.7 : 0) + (meta ? 4.1 : 0)
         : lines(entry.title, indent) * pitch + lines(entry.subtitle, indent) * pitch + lines(meta, indent) * pitch;
-      return head
+      const titleGap = careerLike && headed && entry.title.trim()
+        && [entry.subtitle, meta, entry.description, entry.url, ...entry.bullets].some((value) => value.trim()) ? careerLikeContentGap : 0;
+      return head + titleGap
         + lines(entry.description, indent) * pitch
         + entry.bullets.reduce((total, value) => total + lines(value, indent + metrics.indentMm) * pitch, 0)
         + lines(entry.url, indent) * pitch;
     });
     // The entries of a sidebar section may be styled like the template's own entries (margins, a divider's padding).
     const side = zone === "sidebar" && listed ? geometry.specialSide : undefined;
-    const between = compact ? 0 : side?.between ?? (templateId === "modern" && listed
-      ? metrics.gapMm : geometry.exp.gap + (zone === "sidebar" && listed ? metrics.gapMm : 3));
-    return (metrics.headingMm + (compact ? 0 : side?.edge ?? 0) + entries.reduce((total, value) => total + value, 0) + between * Math.max(0, entries.length - 1)) * scale.textHeight;
+    const between = careerLike
+      ? side ? side.between + careerLikeEntryGapDelta : careerLikeEntryGap
+      : side?.between ?? (templateId === "modern" && listed
+        ? metrics.gapMm : geometry.exp.gap + (zone === "sidebar" && listed ? metrics.gapMm : 3));
+    return (metrics.headingMm + (side?.edge ?? 0) + entries.reduce((total, value) => total + value, 0) + between * Math.max(0, entries.length - 1)) * scale.textHeight;
   };
   /**
    * The project highlight in the sidebar: the title, the company line and the bullets keep their body sizes,
@@ -1196,7 +1211,7 @@ const planResumePages = (
   for (const special of profile?.specialSections ?? []) {
     const entry = find(`special:${special.id}`);
     const normalized = normalizeCustomSection(special);
-    const compact = special.kind === "projects" || special.kind === "interests";
+    const careerLike = spacesEntriesLikeCareer(special.kind);
     if (!special.isVisible || entry?.visible === false || !normalized.entries.length) continue;
     const zone = flat ? "main" : entry?.zone ?? "main";
     const availableWidth = zone === "sidebar" ? geometry.text.sideW + scale.sideDelta : geometry.text.mainW * scale.mainRatio;
@@ -1206,11 +1221,16 @@ const planResumePages = (
     const visibleTexts = (item: typeof normalized.entries[number]) => special.kind === "projects"
       ? [item.title, item.technologies.join(" · "), item.description]
       : [item.title, item.subtitle, item.location, item.date, item.description, item.url, ...item.bullets];
-    const height = 9 + normalized.entries.reduce((total, item) => total + (compact ? 0 : 4) +
-      visibleTexts(item).reduce((lines, value) => lines + lineCount(value) * pitch, 0), 0);
+    const legacyPartHeight = (from: number, to: number) => {
+      const shown = normalized.entries.slice(from, to);
+      return 9 + shown.reduce((total, item) => {
+        const [title, ...rest] = visibleTexts(item);
+        const titleGap = careerLike && normalized.contentType === "entries" && title.trim() && rest.some((value) => value.trim()) ? careerLikeContentGap : 0;
+        return total + (careerLike ? titleGap : 4) + visibleTexts(item).reduce((lines, value) => lines + lineCount(value) * pitch, 0);
+      }, 0) + (careerLike ? careerLikeEntryGap * Math.max(0, shown.length - 1) : 0);
+    };
+    const height = legacyPartHeight(0, normalized.entries.length);
     const inSidebar = (zoneFlow || templateId === "elegant") && zone === "sidebar";
-    const legacyPartHeight = (from: number, to: number) => 9 + normalized.entries.slice(from, to).reduce((total, item) => total + (compact ? 0 : 4) +
-      visibleTexts(item).reduce((lines, value) => lines + lineCount(value) * pitch, 0), 0);
     flow.push({
       id: `special:${special.id}`,
       zone,
@@ -1219,11 +1239,13 @@ const planResumePages = (
       home: "last",
       rank: managerRank(`special:${special.id}`),
       hostable: inSidebar,
-      split: templateId === "modern" && zone === "main" && normalized.entries.length > 1
+      // Projekte and Hobbys & Interessen break between two entries like the career entries do.
+      split: (templateId === "modern" || careerLike) && zone === "main" && normalized.entries.length > 1
         ? {
           ends: normalized.entries.map((_, index) => index + 1),
-          height: (from, to) => specialHeight("main", special, true, [from, to]),
-          firstHeight: (to) => specialHeight("main", special, false, [0, to]),
+          height: (from, to) => zoneFlow ? specialHeight("main", special, true, [from, to]) : legacyPartHeight(from, to),
+          firstHeight: (to) => zoneFlow ? specialHeight("main", special, false, [0, to]) : legacyPartHeight(0, to),
+          narrowHeight: (from, to) => zoneFlow ? specialHeight("main", special, false, [from, to]) : legacyPartHeight(from, to),
           minRows: 1,
         }
         : undefined,

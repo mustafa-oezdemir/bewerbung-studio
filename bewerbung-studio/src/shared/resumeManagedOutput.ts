@@ -1,4 +1,4 @@
-import { renderCustomSectionContent } from "./resumeCustomSections";
+import { renderCustomSectionContent, spacesEntriesLikeCareer } from "./resumeCustomSections";
 import { applyResumeColumnSurfaces, applyResumePageLayout, getResumeLayoutHost, resumeColumnSurfaceCss } from "./resumeLayoutEngine";
 import { applyResumeSpacingOutput, resumeSpacingCss } from "./resumeSpacing";
 import { applyResumeMetadataLayout, resumeMetadataCss } from "./resumeMetadataLayout";
@@ -149,10 +149,14 @@ export const managedResumeCss = `
 :where([data-custom-template]) [data-custom-role="entry"]{display:block;min-width:0;break-inside:auto;overflow-wrap:anywhere}
 :where([data-custom-template]) :is(p,h3,h4,h5){margin:0}
 :where([data-custom-template]) .resume-special-output__meta{opacity:1}
-:is([data-custom-kind="projects"],[data-custom-kind="interests"]) [data-custom-role="entries"]{row-gap:0!important;margin-block:0!important}
-:is([data-custom-kind="projects"],[data-custom-kind="interests"]) [data-custom-role="entry"]{margin-block:0!important;padding:0!important;line-height:var(--doc-line-height,1.25)!important}
+/* Projekte and Hobbys & Interessen space their entries like the career entries: the entry rule and the list gap the template's
+   career entries have (inherited aliases, which follow this rule) instead of the generic 3 mm. Inside an entry the lines stand
+   close; only a title keeps the Abstand nach Eintragstitel below it (--resume-entry-content-gap, set on the section). */
+:where([data-custom-kind="projects"],[data-custom-kind="interests"]) [data-custom-role="entries"]{gap:0}
+:is([data-custom-kind="projects"],[data-custom-kind="interests"]) [data-custom-role="entry"]{line-height:var(--doc-line-height,1.25)!important}
 :is([data-custom-kind="projects"],[data-custom-kind="interests"]) .resume-special-output__entry{gap:0!important}
 :is([data-custom-kind="projects"],[data-custom-kind="interests"]) [data-custom-role="entry"] :is(h3,h4,h5,p,li){margin-block:0!important;line-height:var(--doc-line-height,1.25)!important}
+:is([data-custom-kind="projects"],[data-custom-kind="interests"]) [data-custom-role="entry"] [data-custom-role="entry-title"]:not(:last-child){margin-block-end:var(--resume-entry-content-gap,0mm)!important}
 :where([data-custom-template="kreativ"]) [data-content-type="list"]>[data-custom-role="entry"]{display:list-item}
 :where([data-custom-template="kreativ"]) [data-content-type="list"]>[data-custom-role="entry"]::marker{color:var(--kreativ-primary,var(--accent,currentColor))}
 [data-managed-section]{break-inside:auto}
@@ -775,8 +779,11 @@ export const applyManagedResumeOutput = (
         if (id.startsWith("special:")) {
           const kind = profile.specialSections.find((section) => section.id === id.slice(8))?.kind;
           if (kind) node.setAttribute("data-custom-kind", kind);
-          if (kind === "projects" || kind === "interests")
+          if (spacesEntriesLikeCareer(kind)) {
             (node as HTMLElement).style.setProperty("--doc-line-height", String(resolved.design.typography.lineHeight));
+            // Below an entry title: the Abstand nach Eintragstitel, as below the title of a career entry.
+            (node as HTMLElement).style.setProperty("--resume-entry-content-gap", `${resolved.design.spacing.entryContentGapMm}mm`);
+          }
         }
         // Legacy fallback selectors must not override the native style contract.
         node.classList.remove("managed-extra");

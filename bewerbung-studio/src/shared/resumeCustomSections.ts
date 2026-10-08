@@ -7,6 +7,12 @@ type Entry = Section["entries"][number];
 /** Compact native interests list text, shared by Pehlione preview and PDF. */
 export const interestEntryText = (entry: Entry): string =>
   [entry.title.trim(), entry.description.trim()].filter(Boolean).join(" – ");
+/**
+ * Projekte and Hobbys & Interessen space their entries like the career entries: the template's entry rule, its list gap, the
+ * central Eintragsabstand and the Abstand nach Eintragstitel below a title (resumeManagedOutput, resumeSpacing, the planner).
+ */
+export const spacesEntriesLikeCareer = (kind: Section["kind"] | undefined): boolean => kind === "projects" || kind === "interests";
+export const careerLikeEntryListSelector = ':is([data-custom-kind="projects"],[data-custom-kind="interests"]) [data-custom-role="entries"]';
 const hasMetadata = (entry: Entry) => Boolean(entry.subtitle.trim() || entry.location.trim() || entry.date.trim() || entry.from.trim() || entry.to.trim());
 const hasContent = (entry: Entry) => Boolean(entry.title.trim() || entry.description.trim() || entry.url.trim() || hasMetadata(entry) || entry.bullets.some(value => value.trim()));
 

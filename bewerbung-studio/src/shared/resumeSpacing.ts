@@ -6,6 +6,7 @@ import { foldsDocumentSizeSliders, resolveEffectiveDesignTokens, resolveResumeDe
 import { resumeSectionStyleSources } from "./resumeSectionStyleInheritance";
 import { resolveTemplateId } from "./templates";
 import { getResumeColumnsHost, getResumeLayoutHost } from "./resumeLayoutEngine";
+import { careerLikeEntryListSelector } from "./resumeCustomSections";
 
 type Spacing = CvDesignTokens["spacing"];
 export type ResumeSpacingPreset = "compact" | "standard" | "large" | "custom";
@@ -92,6 +93,8 @@ export const resumeSpacingCss = `
 [data-resume-spacing-entry-gap] [data-resume-spacing-list]{row-gap:0!important}
 [data-resume-spacing-entry-gap] [data-resume-spacing-entry]{margin-block-end:0!important}
 [data-resume-spacing-entry-gap] [data-resume-spacing-entry-following]{margin-block-start:var(--doc-entry-gap)!important}
+/* Pehlione's PDF spaces its entries by a padding above the next one (its preview by the list gap): the chosen gap replaces it. */
+.pehlione-pdf[data-resume-spacing-entry-gap] [data-resume-spacing-entry-following]{padding-block-start:0!important}
 [data-resume-spacing-title-gap] [data-resume-spacing-title]{margin-block-end:var(--doc-section-title-gap)!important}
 [data-resume-spacing-content-gap] [data-resume-spacing-entry-title]{margin-block-end:var(--doc-entry-content-gap)!important}
 [data-resume-spacing-line-height] :is(p,li){line-height:var(--doc-line-height)!important}
@@ -164,6 +167,25 @@ const getSectionStack = (section: Element): Element | null => {
  * footer share the left and right edge).
  */
 const ownPageMarginTemplates = new Set(["zeitgenoessisch", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch", "einspaltig"]);
+
+/**
+ * Templates whose entries are spaced by a padding that reads the template's gap variable (Tabellarisch: the timeline padding
+ * below every entry, which also carries the timeline's line). The chosen Eintragsabstand replaces that variable on the
+ * template root: a margin on top would count the gap twice. Projekte and Hobbys & Interessen inherit the same entry rule,
+ * so they follow it as well.
+ */
+const entryGapVariables: Record<string, { root: string; names: string[] }> = {
+  tabellarisch: { root: ".tabellarisch-template,.tabellarisch-pdf", names: ["--tabellarisch-entry-gap", "--tab-entry-gap"] },
+};
+
+const markEntryGap = (items: Element[]) => {
+  for (const item of items) {
+    item.setAttribute("data-resume-spacing-entry", "");
+    if (item.previousElementSibling && items.includes(item.previousElementSibling))
+      item.setAttribute("data-resume-spacing-entry-following", "");
+    item.parentElement?.setAttribute("data-resume-spacing-list", "");
+  }
+};
 
 export const applyResumeSpacingOutput = (
   page: Element,
@@ -283,18 +305,23 @@ export const applyResumeSpacingOutput = (
     }
     if (spacing?.entryContentGapMm !== undefined)
       scope.querySelectorAll(sources[2]).forEach(node => node.setAttribute("data-resume-spacing-entry-title", ""));
-    if (spacing?.entryGapMm !== undefined) {
+    if (spacing?.entryGapMm !== undefined && !entryGapVariables[id]) {
       const entries = Array.from(scope.querySelectorAll(sources[6]));
       const wrappers = sources[5] ? Array.from(scope.querySelectorAll(sources[5]))
         .filter(node => entries.some(entry => node.contains(entry))) : [];
-      const items = wrappers.some(node => node.previousElementSibling && wrappers.includes(node.previousElementSibling))
-        ? wrappers : entries;
-      for (const item of items) {
-        item.setAttribute("data-resume-spacing-entry", "");
-        if (item.previousElementSibling && items.includes(item.previousElementSibling))
-          item.setAttribute("data-resume-spacing-entry-following", "");
-        item.parentElement?.setAttribute("data-resume-spacing-list", "");
-      }
+      markEntryGap(wrappers.some(node => node.previousElementSibling && wrappers.includes(node.previousElementSibling))
+        ? wrappers : entries);
+    }
+  }
+  if (spacing?.entryGapMm !== undefined) {
+    const own = entryGapVariables[id];
+    if (own) {
+      const roots = scope.matches(own.root) ? [scope] : Array.from(scope.querySelectorAll(own.root));
+      for (const root of roots) for (const name of own.names) (root as HTMLElement).style.setProperty(name, `${spacing.entryGapMm}mm`);
+    } else {
+      // Projekte and Hobbys & Interessen: the chosen gap between their entries, like between the career entries.
+      for (const list of Array.from(scope.querySelectorAll(careerLikeEntryListSelector)))
+        markEntryGap(Array.from(list.children).filter(child => child.matches('[data-custom-role="entry"]')));
     }
   }
   const host = getResumeLayoutHost(scope, id, surface) as HTMLElement | null;

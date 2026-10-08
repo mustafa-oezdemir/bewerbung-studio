@@ -1,4 +1,5 @@
 import { zweispaltigDefaults } from "./cvTemplateDefaults/zweispaltig.defaults";
+import { kreativDefaults } from "./cvTemplateDefaults/kreativ.defaults";
 import { stilvollDefaults, stilvollDesign } from "./cvTemplateDefaults/stilvoll.defaults";
 import { gepflegtGeometry } from "./gepflegtDesign";
 import { klassischDefaults } from "./cvTemplateDefaults/klassisch.defaults";
@@ -162,6 +163,11 @@ export type PaginationGeometry = {
   };
   /** Padding and divider an entry draws below itself except the last one (not part of the entry gap the user sets), mm. */
   entryChrome?: number;
+  /**
+   * The same padding and divider below a project / interest entry (it inherits the template's entry rule) where the career
+   * model holds them elsewhere: Kreativ in `exp.base`, Pehlione in `exp.gap`. Defaults to `entryChrome`.
+   */
+  customEntryChrome?: number;
   /** Share of the measured page height the planner fills (default 0.97): the reserve for the estimate's error. A template whose entries are measured closely may use more. */
   safety?: number;
   /** `gap` is the space between two entries of a section (margin or padding that belongs to no single entry). */
@@ -232,6 +238,8 @@ export type PaginationGeometry = {
 const geometry: Record<string, PaginationGeometry> = {
   "pehlione_white_blue": {
     columns: 2,
+    // The career entry rule: 4 mm padding and a 0.25 mm divider below every entry but the last.
+    customEntryChrome: 4.25,
     sidebarLeft: true,
     zones: {summary: "main", strengths: "sidebar", knowledge: "sidebar", languages: "sidebar"},
     top1: 44.6,
@@ -257,6 +265,8 @@ const geometry: Record<string, PaginationGeometry> = {
   },
   "pehlione_white": {
     columns: 2,
+    // The career entry rule: 4 mm padding and a 0.25 mm divider below every entry but the last.
+    customEntryChrome: 4.25,
     sidebarLeft: true,
     zones: {summary: "main", strengths: "sidebar", knowledge: "sidebar", languages: "sidebar"},
     top1: 44.6,
@@ -396,6 +406,7 @@ const geometry: Record<string, PaginationGeometry> = {
   },
   "kreativ": {
     columns: 2,
+    customEntryChrome: kreativDefaults.layout.entryDividerGapMm + 0.25,
     sidebarLeft: false,
     zones: {summary: "sidebar", strengths: "sidebar", knowledge: "sidebar", languages: "sidebar"},
     top1: 53,

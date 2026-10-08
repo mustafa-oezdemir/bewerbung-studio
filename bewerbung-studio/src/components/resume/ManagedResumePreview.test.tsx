@@ -272,6 +272,13 @@ describe("managed template previews", () => {
       expect(scope!.getAttribute("style"), templateId).toContain("--doc-section-gap:7mm");
       expect(scope!.getAttribute("style"), templateId).toContain("--doc-line-height:1.3");
       expect(scope!.querySelectorAll("[data-resume-spacing-section]" ).length, templateId).toBeGreaterThan(1);
+      if (templateId === "tabellarisch") {
+        // The timeline padding below an entry is Tabellarisch's gap: its variable takes the value instead of a margin on top.
+        const root = document.querySelector(".tabellarisch-template,.tabellarisch-pdf");
+        expect(root!.getAttribute("style"), templateId).toMatch(/--(tabellarisch|tab)-entry-gap:3mm/);
+        expect(document.querySelector("[data-resume-spacing-entry-following]"), templateId).toBeNull();
+        continue;
+      }
       expect(scope!.querySelectorAll("[data-resume-spacing-entry]" ).length, templateId).toBeGreaterThan(1);
       expect(html, templateId).toContain("data-resume-spacing-entry-following");
     }
