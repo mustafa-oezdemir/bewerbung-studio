@@ -48,8 +48,8 @@ const createScenario = `(async () => {
     templateId: 'classic-professional', accentColor: '#155e58', profileId,
     notes: 'synthetic E2E data',
   });
-  if (created.applications.length !== 1) throw new Error('application was not created');
-  await api.settings.save({ ...created.settings, theme: 'dark' });
+  if (created.workspace.applications.length !== 1) throw new Error('application was not created');
+  await api.settings.save({ ...created.workspace.settings, theme: 'dark' });
   const now = new Date().toISOString();
   await api.todos.save({ id: crypto.randomUUID(), title: 'E2E Nachverfolgung',
     priority: 'high', completed: false, createdAt: now, updatedAt: now });

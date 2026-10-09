@@ -36,6 +36,7 @@ import type {
 } from "../src/features/templates/template.types";
 import { resolveApplicationPaths } from "../src/config/application-paths";
 import { DataStore } from "./storage";
+import { ApplicationGitSync } from "./application-git-queue";
 import { ApplicationFolderLockedError } from "./file-management";
 import { mergePdfDocuments } from "./pdf";
 import { TemplateService } from "./templates/template.service";
@@ -48,13 +49,15 @@ import { WorkspaceSecurity } from "./security/workspace-security";
 import { clearActiveEncryption, isManagedPath, setActiveEncryption } from "./security/secure-fs";
 import { readEncryptionEnvelope, readMigrationJournal, rollbackUncommittedMigration } from "./security/workspace-encryption";
 import { safeExternalUrl } from "./security/external-url";
-import type { WorkspaceStatus, WorkspaceChangeMode } from "../src/shared/ipc";
+import type { ApplicationChangeResult, WorkspaceStatus, WorkspaceChangeMode } from "../src/shared/ipc";
+import type { Workspace } from "../src/shared/schema";
 import { AppError } from "../src/shared/app-error";
 import { initializeDiagnostics, logDiagnostic } from "./diagnostics";
 import { normalizeError, runIpcOperation } from "./ipc-boundary";
 
 let mainWindow: BrowserWindow | null = null;
 let store: DataStore;
+let applicationGitSync: ApplicationGitSync;
 let templateService: TemplateService;
 let shutdownInProgress = false;
 let shutdownComplete = false;
@@ -274,6 +277,14 @@ const createMissingExistingDeckblatts = async () => {
   }
 };
 
+/** Create, save and status changes: the Git commit waits for the persist and the regenerated Word documents. */
+const runApplicationChange = async (
+  operation: () => Promise<Workspace>,
+): Promise<ApplicationChangeResult> => {
+  const { result, gitSync } = await applicationGitSync.runOperation(operation);
+  return { workspace: result, gitSync };
+};
+
 const registerIpc = () => {
   const handle: typeof ipcMain.handle = (channel, listener) => registerHandler(channel, async (event, ...args) => {
     if (workspaceStatus.state !== "ready" || securityBusy)
@@ -291,25 +302,28 @@ const registerIpc = () => {
   handle("application-draft:clear", () =>
     store.clearApplicationDraft(),
   );
-  handle("applications:create", async (_event, value: unknown) => {
-    const workspace = await store.createApplication(
-      applicationInputSchema.parse(value),
-    );
-    await Promise.all([
-      synchronizeApplicationCoverLetter(workspace.applications[0].id),
-      synchronizeApplicationDeckblatt(workspace.applications[0].id),
-    ]);
-    return workspace;
-  });
-  handle("applications:save", async (_event, value: unknown) => {
-    try {
-      const next = applicationSchema.parse(value);
-      const workspace = await store.saveApplication(next);
+  handle("applications:create", (_event, value: unknown) =>
+    runApplicationChange(async () => {
+      const workspace = await store.createApplication(
+        applicationInputSchema.parse(value),
+      );
       await Promise.all([
-        synchronizeApplicationDeckblatt(next.id),
-        synchronizeApplicationCoverLetter(next.id),
+        synchronizeApplicationCoverLetter(workspace.applications[0].id),
+        synchronizeApplicationDeckblatt(workspace.applications[0].id),
       ]);
       return workspace;
+    }));
+  handle("applications:save", async (_event, value: unknown) => {
+    try {
+      return await runApplicationChange(async () => {
+        const next = applicationSchema.parse(value);
+        const workspace = await store.saveApplication(next);
+        await Promise.all([
+          synchronizeApplicationDeckblatt(next.id),
+          synchronizeApplicationCoverLetter(next.id),
+        ]);
+        return workspace;
+      });
     } catch (error) {
       if (error instanceof ApplicationFolderLockedError && mainWindow) {
         await dialog.showMessageBox(mainWindow, {
@@ -341,7 +355,7 @@ const registerIpc = () => {
       const validStatus = applicationStatuses.find((item) => item === status);
       const validReason = rejectionReasons.find((item) => item === reason);
       if (!validStatus) throw new Error("Ungültiger Bewerbungsstatus.");
-      return store.changeStatus(String(id), validStatus, validReason);
+      return runApplicationChange(() => store.changeStatus(String(id), validStatus, validReason));
     },
   );
   handle("applications:open-folder", async (_event, id: unknown, rawDocument: unknown) => {
@@ -810,7 +824,12 @@ const initializeRuntime = async (root: string) => {
   if (encrypted) setActiveEncryption(root, workspaceSecurity!.service!);
   else clearActiveEncryption();
   applicationPaths = resolveApplicationPaths(root, bundledTemplatesRoot);
-  store = new DataStore(applicationPaths, undefined, workspaceManager.lockToken(root));
+  applicationGitSync = new ApplicationGitSync({
+    paths: applicationPaths,
+    // Development builds only: lets the Electron check push to a local bare repository instead of GitHub.
+    remoteUrl: app.isPackaged ? undefined : process.env.BEWERBUNG_GIT_SYNC_TEST_REMOTE?.trim() || undefined,
+  });
+  store = new DataStore(applicationPaths, applicationGitSync, workspaceManager.lockToken(root));
   await store.initialize();
   templateService = new TemplateService(applicationPaths);
   await templateService.initialize();

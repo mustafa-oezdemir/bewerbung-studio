@@ -22,6 +22,20 @@ import type {
 } from "../features/templates/template.types";
 export type DocumentFolderTarget = "deckblatt" | "anschreiben" | "lebenslauf" | "email";
 
+/**
+ * GitHub synchronisation after a Bewerbung was created, saved or changed its status. The local save has always
+ * succeeded when this is returned; `reason` is a fixed German text without paths, URLs or credentials.
+ */
+export type ApplicationGitSyncOutcome =
+  | { state: "skipped" }
+  | { state: "synced"; committed: boolean; pushed: boolean }
+  | { state: "failed"; code: string; reason: string };
+
+export type ApplicationChangeResult = {
+  workspace: Workspace;
+  gitSync: ApplicationGitSyncOutcome;
+};
+
 export type WorkspaceStatus =
   | { state: "ready"; root: string }
   | { state: "locked"; root: string; migration?: "enable" | "disable" }
@@ -77,15 +91,15 @@ export interface BewerbungsManagerApi {
     clear: () => Promise<void>;
   };
   applications: {
-    create: (input: ApplicationInput) => Promise<Workspace>;
-    save: (application: Application) => Promise<Workspace>;
+    create: (input: ApplicationInput) => Promise<ApplicationChangeResult>;
+    save: (application: Application) => Promise<ApplicationChangeResult>;
     remove: (id: string) => Promise<Workspace>;
     duplicate: (id: string) => Promise<Workspace>;
     changeStatus: (
       id: string,
       status: ApplicationStatus,
       reason?: RejectionReason,
-    ) => Promise<Workspace>;
+    ) => Promise<ApplicationChangeResult>;
     /** Opens the Bewerbung's folder; with a document, that document's folder (where its PDF was saved). */
     openFolder: (id: string, document?: DocumentFolderTarget) => Promise<void>;
   };

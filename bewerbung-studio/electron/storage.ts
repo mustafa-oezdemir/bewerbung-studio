@@ -145,7 +145,7 @@ const gitActionForStatus = (
   if (status === "Absage") return "absage";
   if (status === "Vorstellungsgespräch") return "vorstellungsgespraech";
   if (status === "Beworben" || status === "Gesendet") return "bewerbung";
-  return "update";
+  return "status";
 };
 
 const templateContactLine = (

@@ -113,15 +113,24 @@ BewerbungsManager verarbeitet persönliche Daten wie Adresse, Telefonnummer, E-M
 Bewerbungsunterlagen.
 
 - Die Daten liegen lokal im gewählten Bewerbungsordner. Sie können ihn jederzeit wechseln.
-- Es gibt kein Benutzerkonto und keine Cloud-Synchronisierung.
-- Der geprüfte Anwendungscode enthält keine Telemetrie, keinen automatischen Update-Abruf und keinen automatischen
-  Upload des Bewerbungsordners. Externe HTTP/HTTPS-Links werden nur auf Ihre Aktion hin im Systembrowser geöffnet;
-  Browser und Zielwebsite haben eigene Datenschutzregeln.
+- Es gibt kein Benutzerkonto und keinen eigenen Cloud-Dienst.
+- Der geprüfte Anwendungscode enthält keine Telemetrie und keinen automatischen Update-Abruf. Der Bewerbungsordner
+  wird nur über die unten beschriebene Git-Synchronisierung übertragen. Externe HTTP/HTTPS-Links werden nur auf Ihre
+  Aktion hin im Systembrowser geöffnet; Browser und Zielwebsite haben eigene Datenschutzregeln.
 - Automatische und manuelle Sicherungen sind eingebaut, die Verschlüsselung ist optional (siehe unten).
 
-Die Anwendung überträgt den Bewerbungsordner nicht automatisch an ein Git-Remote.
-Ein früher eingerichtetes Git-Repository oder frühere Commits bleiben auf dem Datenträger;
-entfernen Sie diese bei Bedarf separat und prüfen Sie bereits veröffentlichte Remotes.
+**Git-Synchronisierung:** Ist der Bewerbungsordner selbst ein Git-Repository, dessen Remote `origin` auf
+`https://github.com/mustafa-oezdemir/bewerbung.git` zeigt, überträgt die Anwendung Änderungen aus dem Bereich
+**Bewerbungen** automatisch dorthin: nach **Bewerbung anlegen**, nach jedem **Bereich speichern**, das tatsächlich
+etwas geändert hat, und nach einer Statusänderung. Sobald Daten und Word-Dokumente lokal gespeichert sind, erstellt
+sie einen Commit und führt einen normalen `git push` des aktuellen Branches aus. Vorgemerkt wird nur der Ordner `data`
+(ohne Protokolle, Absturzberichte, Electron-Sitzung und Caches); andere Dateien im Repository bleiben unberührt.
+Änderungen aus anderen Bereichen werden mit der nächsten solchen Synchronisierung übertragen. Die Anwendung ändert
+kein Remote, führt keinen Force-Push und kein Rebase aus und speichert keine Zugangsdaten; die Anmeldung übernimmt
+die vorhandene Git-Anmeldung von Windows (Git Credential Manager). Fehlt Git, zeigt `origin` auf ein anderes
+Repository oder schlägt der Push fehl, bleibt die Änderung lokal gespeichert und die Anwendung meldet
+„Änderungen wurden lokal gespeichert, konnten aber nicht zu GitHub übertragen werden.“ Frühere Commits bleiben auf
+dem Datenträger und im Remote; entfernen Sie diese bei Bedarf separat.
 
 Die vollständige [Datenschutzerklärung](PRIVACY.md) beschreibt auch Exporte, Sicherungen und lokale Aufbewahrung.
 
@@ -197,7 +206,8 @@ Die Verschlüsselung schützt die Inhalte des verwalteten `data`-Ordners. Sie is
 - Frühere unverschlüsselte Dateiversionen, Kopien und Git-Commits werden nicht rückwirkend entfernt.
 - Bei entsperrter Anwendung oder einem kompromittierten Betriebssystem bietet die Verschlüsselung keinen
   vollständigen Schutz.
-- Die Anwendung führt keine automatische Git-Synchronisierung des Bewerbungsordners aus.
+- Die Git-Synchronisierung überträgt die Dateien so, wie sie im Bewerbungsordner liegen: bei aktiver Verschlüsselung
+  verschlüsselt. Frühere unverschlüsselte Commits bleiben im Remote erhalten.
 
 Legen Sie vor der ersten Aktivierung zusätzlich eine eigene externe Sicherung an.
 

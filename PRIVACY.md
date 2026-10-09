@@ -14,8 +14,13 @@ synchronization. Optional workspace encryption and backup/export controls are de
 
 ## Network behavior
 
-The reviewed application code has no telemetry, analytics, automatic update request or automatic upload of the
-workspace. It does not automatically push the workspace to a Git remote. When you explicitly open a job posting,
+The reviewed application code has no telemetry, analytics or automatic update request. It uploads the workspace
+only through its Git synchronization: if the workspace folder is a Git repository whose `origin` is
+`https://github.com/mustafa-oezdemir/bewerbung.git`, creating an application, saving a changed section in the
+Bewerbungen view or changing an application status commits the managed `data` folder and pushes the current branch
+to that repository with a normal `git push`, using the Git credentials already configured on your computer. The
+application never changes the remote, never force-pushes and stores no credentials; in any other setup nothing is
+pushed and the change stays local. When you explicitly open a job posting,
 repository or other HTTP/HTTPS link, the application hands it to your system's external browser; that browser and
 website may exchange data under their own privacy policies. You may also choose to export, copy or share application
 documents yourself. Development tools and GitHub Actions have separate network behavior and do not run as part of

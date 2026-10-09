@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { ResumeDesignLayer } from "../shared/cvDesignSchema";
-import type { DocumentFolderTarget } from "../shared/ipc";
+import type { ApplicationChangeResult, DocumentFolderTarget } from "../shared/ipc";
 import {
   defaultSettings,
   type ApplicantProfile,
@@ -83,12 +83,39 @@ type StoreState = {
 
 const apiAvailable = () => typeof window.bewerbungsManager !== "undefined";
 
+export const gitSyncFailedMessage =
+  "Änderungen wurden lokal gespeichert, konnten aber nicht zu GitHub übertragen werden.";
+
 export const useAppStore = create<StoreState>((set, get) => {
   const perform = async (action: () => Promise<Workspace>, notice: string) => {
     set({ loading: true, error: undefined });
     try {
       const workspace = await action();
       set({ workspace, loading: false, notice });
+    } catch (error) {
+      set({
+        loading: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Ein Fehler ist aufgetreten.",
+      });
+      throw error;
+    }
+  };
+
+  /** A result means the local save succeeded; a failed GitHub push is shown as an error but not thrown. */
+  const performApplicationChange = async (
+    action: () => Promise<ApplicationChangeResult>,
+    notice: string,
+    syncedNotice: string,
+  ) => {
+    set({ loading: true, error: undefined });
+    try {
+      const { workspace, gitSync } = await action();
+      set(gitSync.state === "failed"
+        ? { workspace, loading: false, notice: undefined, error: `${gitSyncFailedMessage} ${gitSync.reason}` }
+        : { workspace, loading: false, notice: gitSync.state === "synced" ? syncedNotice : notice });
     } catch (error) {
       set({
         loading: false,
@@ -131,9 +158,10 @@ export const useAppStore = create<StoreState>((set, get) => {
     selectProfile: (id) => set({ selectedProfileId: id }),
     async createApplication(input) {
       if (!apiAvailable()) return;
-      await perform(
+      await performApplicationChange(
         () => window.bewerbungsManager.applications.create(input),
         "Bewerbung wurde angelegt.",
+        "Bewerbung wurde angelegt und mit GitHub synchronisiert.",
       );
       set({
         selectedApplicationId: get().workspace.applications[0]?.id,
@@ -141,9 +169,10 @@ export const useAppStore = create<StoreState>((set, get) => {
     },
     async saveApplication(application) {
       if (!apiAvailable()) return;
-      await perform(
+      await performApplicationChange(
         () => window.bewerbungsManager.applications.save(application),
         "Änderungen wurden gespeichert.",
+        "Änderungen wurden gespeichert und mit GitHub synchronisiert.",
       );
     },
     async syncCoverLetter(applicationId) {
@@ -190,7 +219,7 @@ export const useAppStore = create<StoreState>((set, get) => {
     },
     async changeStatus(id, status, reason) {
       if (!apiAvailable()) return;
-      await perform(
+      await performApplicationChange(
         () =>
           window.bewerbungsManager.applications.changeStatus(
             id,
@@ -198,6 +227,7 @@ export const useAppStore = create<StoreState>((set, get) => {
             reason,
           ),
         `Status wurde auf „${status}“ gesetzt.`,
+        `Status wurde auf „${status}“ gesetzt und mit GitHub synchronisiert.`,
       );
     },
     async saveProfile(profile) {
