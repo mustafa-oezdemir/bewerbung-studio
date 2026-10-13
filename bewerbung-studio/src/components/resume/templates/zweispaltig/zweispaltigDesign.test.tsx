@@ -121,4 +121,33 @@ describe("Zweispaltig resolved colours", () => {
     expect(resolveCvDocument({ profile, templateId: "modern", settings: getTemplateDocumentDesignDefaults("modern") })
       .zweispaltigVariables).toBeUndefined();
   });
+
+  it("isolates employer ink from subtitle, legacy highlights and card surfaces", () => {
+    const selected = application("#EE7B24", "#9D4616", {
+      colors: { subheading: "#112233", accent: "#445566", employer: "#12E203", surface: "#51BD6C" },
+    });
+    const reopened = applicationSchema.parse(JSON.parse(JSON.stringify(selected)));
+    const resolved = resolveCvDocument({ profile, templateId: "zweispaltig", settings: reopened.designSettings, application: reopened });
+    expect(resolved.zweispaltigVariables).toMatchObject({
+      "--zweispaltig-primary": "#EE7B24", "--zweispaltig-subheading": "#112233",
+      "--zweispaltig-accent": "#112233", "--zweispaltig-employer": "#12E203", "--zweispaltig-soft": "#51BD6C",
+    });
+    const previous = { ...selected, designSettings: { ...selected.designSettings,
+      cvOverrides: { colors: { subheading: "#112233", accent: "#445566", surface: "#51BD6C" } } } };
+    const letterStyle = (value: typeof selected) => parseHTML(buildDocumentHtml(value, profile, "anschreiben"))
+      .document.querySelector(".zweispaltig-letter")?.getAttribute("style");
+    expect(letterStyle(selected)).toBe(letterStyle(previous));
+    expect(selected.secondaryColor).toBe("#9D4616");
+  });
+
+  it("preserves old subtitle-only colour choices until an employer colour is explicitly chosen", () => {
+    const old = application("#EE7B24", "#9D4616", { colors: { subheading: "#334455" } });
+    const resolved = resolveCvDocument({ profile, templateId: "zweispaltig", settings: old.designSettings, application: old });
+    expect(resolved.zweispaltigVariables).toMatchObject({
+      "--zweispaltig-subheading": "#334455", "--zweispaltig-employer": "#334455", "--zweispaltig-accent": "#334455",
+    });
+    const edited = application("#EE7B24", "#9D4616", { colors: { subheading: "#334455", employer: "#12E203" } });
+    expect(resolveCvDocument({ profile, templateId: "zweispaltig", settings: edited.designSettings, application: edited })
+      .zweispaltigVariables).toMatchObject({ "--zweispaltig-subheading": "#334455", "--zweispaltig-employer": "#12E203" });
+  });
 });

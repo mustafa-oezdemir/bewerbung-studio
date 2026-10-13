@@ -83,8 +83,18 @@ describe("Zweispaltig Lebenslauf preview and PDF", () => {
         const application = { ...base, accentColor: primary, secondaryColor: secondary };
         testStore.state = { workspace: { schemaVersion: 1, applications: [application], profiles: [profile],
           events: [], attachments: [], todos: [], customCvDesigns: [], settings: defaultSettings, updatedAt: now } };
-        const preview = parseHTML(renderToStaticMarkup(createElement(DocumentsView, { initialTab: "lebenslauf" })))
-          .document.querySelector<HTMLElement>(".zweispaltig-template");
+        const previewDocument = parseHTML(renderToStaticMarkup(createElement(DocumentsView, { initialTab: "lebenslauf" }))).document;
+        const preview = previewDocument.querySelector<HTMLElement>(".zweispaltig-template");
+        expect(previewDocument.querySelector('.design-panel-trigger')?.getAttribute('aria-expanded')).toBe('false');
+        expect(previewDocument.querySelector('details[open]')).toBeNull();
+        expect(previewDocument.querySelector('input[aria-label="Primärfarbe"]')?.getAttribute('value')).toBe(primary);
+        expect(previewDocument.querySelector('input[aria-label="Arbeitgebernamen"]')?.getAttribute('value')).toBe(secondary);
+        expect(previewDocument.querySelector('input[aria-label="Fläche"]')).toBeNull();
+        const save = previewDocument.querySelector<HTMLButtonElement>('.resume-editor-actions button[type="submit"]')!;
+        expect(save.textContent).toContain('Änderungen speichern');
+        expect(save.getAttribute('form')).toBe(previewDocument.querySelector('.document-editor form')?.id);
+        expect(previewDocument.querySelector('button[aria-label="Nach oben"]')?.getAttribute('type')).toBe('button');
+        expect(previewDocument.querySelector('button[aria-label="Nach unten"]')?.getAttribute('type')).toBe('button');
         const pdf = parseHTML(buildDocumentHtml(application, profile, "lebenslauf"))
           .document.querySelector<HTMLElement>(".zweispaltig-pdf");
         expect(preview).not.toBeNull();

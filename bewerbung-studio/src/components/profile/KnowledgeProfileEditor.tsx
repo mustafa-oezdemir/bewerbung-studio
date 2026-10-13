@@ -19,10 +19,11 @@ const newEntry = (): SpecialEntry => ({
 });
 
 /** One profile experience for the existing knowledge, language, certificate and qualification sources. */
-export function KnowledgeProfileEditor({ profile, onChange, onCopyCategory }: {
+export function KnowledgeProfileEditor({ profile, onChange, onCopyCategory, initiallyCollapsed = false }: {
   profile: ApplicantProfile;
   onChange: Dispatch<SetStateAction<ApplicantProfile>>;
   onCopyCategory?: (categoryId: string) => void;
+  initiallyCollapsed?: boolean;
 }) {
   const knowledge = ensureKnowledgeSection(profile.knowledgeSection, profile.skills);
   const visibleCount = knowledge.isVisible
@@ -71,7 +72,7 @@ export function KnowledgeProfileEditor({ profile, onChange, onCopyCategory }: {
   };
   return <div className="knowledge-profile-editor">
     <p className="field-hint">Nur Kenntnisse aufnehmen, die für die gewünschte Stelle relevant oder beruflich aussagekräftig sind. Etwa 5–7 besonders relevante Kenntnisse sind ein guter Fokus, keine Grenze.</p>
-    <details className="knowledge-profile-group" open>
+    <details className="knowledge-profile-group" open={initiallyCollapsed ? undefined : true}>
       <summary>Fach- &amp; IT-Kenntnisse <small>{visibleCount} sichtbar</small></summary>
       <KnowledgeSectionEditor value={{ ...knowledge, title: getResumeSectionTitle(profile, "knowledge") }}
         onChange={(knowledgeSection) => onChange((current) => setResumeSectionTitle(

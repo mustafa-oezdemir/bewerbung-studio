@@ -7,6 +7,8 @@
   --zweispaltig-page-height: 297mm;
   --zweispaltig-primary: #0b3d86;
   --zweispaltig-accent: #58b5f7;
+  --zweispaltig-subheading: #58b5f7;
+  --zweispaltig-employer: #58b5f7;
   --zweispaltig-primary-dark: #082f6d;
   --zweispaltig-soft: #eaf5fd;
   --zweispaltig-heading: #0b3d86;
@@ -102,7 +104,7 @@
   flex-wrap: wrap;
   gap: 0 1.8mm;
   margin: 1.5mm 0 0;
-  color: var(--zweispaltig-accent);
+  color: var(--zweispaltig-subheading);
   font-size: var(--zweispaltig-profession-size);
   font-weight: 700;
   letter-spacing: 0;
@@ -111,7 +113,7 @@
 
 .zweispaltig-header h2 span + span::before {
   margin-right: 1.8mm;
-  color: var(--zweispaltig-accent);
+  color: var(--zweispaltig-subheading);
   content: "|";
 }
 
@@ -310,6 +312,15 @@
 }
 
 /* Scoped like the page text (.document-paper p) so that its size wins in the preview, as it does in the PDF. */
+.zweispaltig-template .zweispaltig-header h1,
+.zweispaltig-template .zweispaltig-career-entry h3 { color: var(--zweispaltig-primary); }
+.zweispaltig-template .zweispaltig-header h2 { color: var(--zweispaltig-subheading); }
+.zweispaltig-template .zweispaltig-header--compact h2 { color: var(--zweispaltig-muted); }
+
+.zweispaltig-template .zweispaltig-career-entry__organization[data-cv-employer] {
+  color: var(--zweispaltig-employer);
+}
+
 .zweispaltig-template .zweispaltig-career-entry__organization {
   margin: 0.7mm 0 0;
   color: var(--zweispaltig-accent);

@@ -11,6 +11,7 @@ import { kompaktLetterCss } from "../shared/kompaktDesign";
 import { getResumeSectionTitle } from "../features/resume-sections/resume-sections";
 import type { CvDesignTokens, ResumeDesignLayer } from "../shared/cvDesignSchema";
 import type { ResumeAppearance } from "../shared/resumeAppearance";
+import { resolveResumeAppearance } from "../shared/resumeDesignSystem";
 import { applyCustomCvDesign, createCustomCvDesign, duplicateCustomCvDesign, updateCustomCvDesign } from "../shared/customCvDesign";
 import type { ResumePresentation } from "../shared/resumePresentationSchema";
 import { ContactIcon } from "../components/resume/templates/ContactIcon";
@@ -32,8 +33,11 @@ import { normalizeApplicantProfileForSave, rebaseApplicantProfileDraft, validate
 import { ManagedResumePreview } from "../components/resume/ManagedResumePreview";
 import { ResumeDesignPanel } from "../components/resume/ResumeDesignPanel";
 import { ColorCard } from "../components/document/ColorCard";
+import { scrollDocumentEditor } from "../components/document/documentEditorNavigation";
 import {
   ArrowLeft,
+  ArrowUp,
+  ArrowDown,
   ChevronRight,
   ChevronUp,
   Download,
@@ -59,6 +63,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useId,
   type CSSProperties,
 } from "react";
 import { TemplateThumbnail } from "../components/TemplateThumbnail";
@@ -447,7 +452,9 @@ export function DocumentsView({
   const saveCustomCvDesign = useAppStore((state) => state.saveCustomCvDesign);
   const removeCustomCvDesign = useAppStore((state) => state.removeCustomCvDesign);
   const [tab, setTab] = useState<Tab>(initialTab);
-  const [designPanelOpen, setDesignPanelOpen] = useState(true);
+  const [designPanelOpen, setDesignPanelOpen] = useState(false);
+  const [documentSaveStatus, setDocumentSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [documentSaveError, setDocumentSaveError] = useState("");
   const [customDesignId, setCustomDesignId] = useState<string>();
   const [customDesignName, setCustomDesignName] = useState("");
   const [resumeContentDraft, setResumeContentDraft] = useState<ApplicantProfile | null>(null);
@@ -491,9 +498,23 @@ export function DocumentsView({
     && JSON.stringify(resumeDesignDraft.layer ?? null) !== JSON.stringify(savedResumeDesign ?? null);
   const persistedDocuments = JSON.stringify(application?.documents);
   const formRef = useRef<HTMLFormElement>(null);
+  const editorRef = useRef<HTMLElement>(null);
+  const formId = useId();
   const paperStageRef = useRef<HTMLElement>(null);
   const letterPaperRef = useRef<HTMLDivElement>(null);
   const [previewScale, setPreviewScale] = useState(1);
+
+  useLayoutEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || tab !== "lebenslauf") return;
+    const measure = () => editor.style.setProperty("--document-editor-top", `${Math.max(0, editor.getBoundingClientRect().top)}px`);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(editor);
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, { passive: true });
+    return () => { observer.disconnect(); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure); };
+  }, [tab, application?.id]);
 
   useLayoutEffect(() => {
     const stage = paperStageRef.current;
@@ -566,6 +587,11 @@ export function DocumentsView({
   ]);
 
   useEffect(() => setTab(initialTab), [initialTab]);
+  useEffect(() => {
+    setDocumentSaveStatus("idle");
+    setDocumentSaveError("");
+    setDesignPanelOpen(false);
+  }, [application?.id]);
   useEffect(() => {
     if (!application || application.id === designDraft.applicationId) return;
     setDesign(createDocumentDesignDraft(application));
@@ -717,6 +743,14 @@ export function DocumentsView({
       : "no-print-background"
   }`;
   const legacyTextContrastReadable = hasReadableColorContrast(design.settings.textColor, design.settings.backgroundColor);
+  const documentDesignUnsaved = JSON.stringify(design) !== JSON.stringify(createDocumentDesignDraft(application));
+  const documentTextUnsaved = JSON.stringify(docs) !== JSON.stringify(application.documents);
+  const editorUnsaved = documentDesignUnsaved || documentTextUnsaved || resumeDesignUnsaved || Boolean(resumeContentDraft);
+  const editorSaving = documentSaveStatus === "saving" || profileSaveStatus === "saving";
+  const editorSaveLabel = editorSaving ? "Speichert …"
+    : documentSaveStatus === "error" || profileSaveStatus === "error" ? "Fehler beim Speichern"
+    : editorUnsaved ? "Ungespeicherte Änderungen"
+    : documentSaveStatus === "saved" || profileSaveStatus === "saved" ? "Gespeichert" : "Keine ungespeicherten Änderungen";
 
   const updateDesignSetting = <Key extends keyof DocumentDesignSettings>(
     key: Key,
@@ -752,7 +786,7 @@ export function DocumentsView({
   const persistResumeDesignDraft = async () => {
     if (!resumeDesignDraft) return;
     if (resumeDesignUnsaved) await saveResumeDesign(resumeDesignDraft.layer);
-    setResumeDesignDraft(null);
+    setResumeDesignDraft((current) => current === resumeDesignDraft ? null : current);
   };
   const updateResumeLayout = <Key extends "layoutMode" | "sidebarSide" | "sidebarWidthPercent">(
     key: Key,
@@ -898,16 +932,20 @@ export function DocumentsView({
 
   const saveResumeSections = async (changedProfile: ApplicantProfile) => {
     if (!profile) return;
+    const submittedDraft = resumeContentDraft;
     const latest = useAppStore.getState().workspace.profiles.find((item) => item.id === profile.id) ?? profile;
     const savedProfile = normalizeApplicantProfileForSave(rebaseApplicantProfileDraft(resumeBaselineRef.current ?? profile, changedProfile, latest));
     const issue = validateApplicantProfile(savedProfile)[0];
-    if (issue) { window.alert(issue.startsWith("personal:") ? "Bitte Pflichtangaben im Profil prüfen." : issue); return; }
+    if (issue) {
+      setProfileSaveStatus("error");
+      throw new Error(issue.startsWith("personal:") ? "Bitte Pflichtangaben im Profil prüfen." : issue);
+    }
     const snapshot = applicationSnapshot(formRef.current);
     setProfileSaveStatus("saving");
     try {
       await persistDocumentDraft(snapshot, savedProfile, saveProfile, saveApplication);
       resumeBaselineRef.current = savedProfile;
-      setResumeContentDraft(null);
+      setResumeContentDraft((current) => current === submittedDraft ? null : current);
       setProfileSaveStatus("saved");
     } catch (error) { setProfileSaveStatus("error"); throw error; }
   };
@@ -1031,12 +1069,19 @@ export function DocumentsView({
 
   const save = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const snapshot = applicationSnapshot(event.currentTarget);
-    await persistResumeDesignDraft();
-    if (currentProfileDraft()) await saveResumeSections(currentProfileDraft()!);
-    else await persistDocumentDraft(snapshot, undefined, saveProfile, saveApplication);
-    if (tab === "anschreiben") {
-      await syncCoverLetter(snapshot.id);
+    if (editorSaving) return;
+    setDocumentSaveStatus("saving");
+    setDocumentSaveError("");
+    try {
+      const snapshot = applicationSnapshot(event.currentTarget);
+      await persistResumeDesignDraft();
+      if (currentProfileDraft()) await saveResumeSections(currentProfileDraft()!);
+      else await persistDocumentDraft(snapshot, undefined, saveProfile, saveApplication);
+      if (tab === "anschreiben") await syncCoverLetter(snapshot.id);
+      setDocumentSaveStatus("saved");
+    } catch (error) {
+      setDocumentSaveStatus("error");
+      setDocumentSaveError(error instanceof Error ? error.message : "Änderungen konnten nicht gespeichert werden.");
     }
   };
 
@@ -1107,7 +1152,7 @@ export function DocumentsView({
         minSecondary={450}
         persistKey="resume-editor-layout"
         primary={
-          <aside className="document-editor surface">
+          <aside ref={editorRef} className={`document-editor surface${tab === "lebenslauf" ? " document-editor--resume" : ""}`}>
             <div className="document-tabs">
               <button
                 className={tab === "deckblatt" ? "active" : ""}
@@ -1131,6 +1176,7 @@ export function DocumentsView({
               </button>
             </div>
             <form
+              id={formId}
               key={application.id}
               ref={formRef}
               onInput={previewDocumentInput}
@@ -1727,17 +1773,37 @@ export function DocumentsView({
                         ))}
                     </div>
                     <div className="color-card-grid">
-                      <ColorCard label="Akzent" value={design.accentColor} contextKey={`${application.id}:${template.id}`}
-                        onChange={(color) => setDesign((current) => ({ ...current, accentColor: color }))} />
-                      <ColorCard label="Fläche" value={design.secondaryColor} contextKey={`${application.id}:${template.id}`}
-                        onChange={(color) => setDesign((current) => ({ ...current, secondaryColor: color }))} />
+                      <ColorCard label={template.id === "zweispaltig" ? "Primärfarbe" : "Akzent"}
+                        value={resolvedCv.zweispaltigVariables?.["--zweispaltig-primary"] ?? design.accentColor} contextKey={`${application.id}:${template.id}`}
+                        onChange={(color) => template.id === "zweispaltig" ? editResumeDesignToken("document", "colors", "heading", color)
+                          : setDesign((current) => ({ ...current, accentColor: color }))}>
+                        {template.id === "zweispaltig" ? <small className="rds-field__note">Name und Grundfarbe dieser Bewerbung. Abschnitts- und Eintragstitel haben eigene Einstellungen.
+                          {!design.settings.cvOverrides?.colors?.heading && resumeDesignLayer?.cvOverrides?.colors?.heading ? " Globaler Namenswert übernommen." : null}
+                          {design.settings.cvOverrides?.colors?.heading ? <button type="button" className="rds-link" onClick={() => editResumeDesignToken("document", "colors", "heading", undefined)}>Eigene Primärfarbe entfernen</button> : null}
+                        </small> : null}
+                      </ColorCard>
+                      <ColorCard label={template.id === "zweispaltig" ? "Arbeitgebernamen" : "Fläche"}
+                        value={resolvedCv.zweispaltigVariables?.["--zweispaltig-employer"] ?? design.secondaryColor} contextKey={`${application.id}:${template.id}`}
+                        onChange={(color) => template.id === "zweispaltig" ? editResumeDesignToken("document", "colors", "employer", color)
+                          : setDesign((current) => ({ ...current, secondaryColor: color }))}>
+                        {template.id === "zweispaltig" ? <small className="rds-field__note">Nur die Unternehmen im beruflichen Werdegang. Berufsbezeichnung und Kartenhintergründe werden separat eingestellt.
+                          {!design.settings.cvOverrides?.colors?.employer ? (resumeDesignLayer?.cvOverrides?.colors?.employer
+                            ? " Globaler Arbeitgeberwert übernommen." : " Bisherige Hervorhebungsfarbe übernommen.") : " Eigener Wert dieser Bewerbung."}
+                          {design.settings.cvOverrides?.colors?.employer ? <button type="button" className="rds-link" onClick={() => editResumeDesignToken("document", "colors", "employer", undefined)}>Eigene Arbeitgeberfarbe entfernen</button> : null}
+                        </small> : null}
+                      </ColorCard>
                     </div>
+                    {resolvedCv.zweispaltigVariables && !hasReadableColorContrast(resolvedCv.zweispaltigVariables["--zweispaltig-primary"], resolveResumeAppearance(template.id, resolvedCv.settings.resumeAppearance).mainBackgroundColor) ?
+                      <p className="resume-sections-warning" role="status">Die Primärfarbe erreicht für kleinere Eintragstitel weniger als 4,5:1 Kontrast. Bitte eine dunklere oder hellere Primärfarbe wählen. Ihre Auswahl bleibt erhalten.</p> : null}
+                    {resolvedCv.zweispaltigVariables && !hasReadableColorContrast(resolvedCv.zweispaltigVariables["--zweispaltig-employer"], resolveResumeAppearance(template.id, resolvedCv.settings.resumeAppearance).mainBackgroundColor) ?
+                      <p className="resume-sections-warning" role="status">Die Arbeitgeberfarbe erreicht auf dem Seitenhintergrund weniger als 4,5:1 Kontrast. Bitte eine dunklere oder hellere Arbeitgeberfarbe wählen. Ihre Auswahl bleibt erhalten.</p> : null}
                     <ResumeDesignPanel
                       documentId={application.id}
                       templateId={template.id}
                       templateName={template.name}
                       settings={design.settings}
                       global={resumeDesignLayer}
+                      zweispaltigVariables={resolvedCv.zweispaltigVariables}
                       unsaved={resumeDesignUnsaved}
                       hasSidebar={resumeLayout.mode === "two-column" && !isAtsMode}
                       onEditToken={editResumeDesignToken}
@@ -2172,7 +2238,7 @@ export function DocumentsView({
                     <small>{selectedProjectEntryIds === undefined
                       ? "Bisherige Standardeinstellung: alle Projekte. Mit „Auswahl leeren“ eine eigene Auswahl starten."
                       : `${selectedProjectEntryIds.length} Projekt${selectedProjectEntryIds.length === 1 ? "" : "e"} ausgewählt.`}
-                      {" "}Die Auswahl gilt nur für diese Bewerbung. Mit „Texte speichern“ sichern.</small>
+                      {" "}Die Auswahl gilt nur für diese Bewerbung. Mit „Änderungen speichern“ sichern.</small>
                   </section>}
                   <section className="match-analysis">
                     <header>
@@ -2225,13 +2291,26 @@ export function DocumentsView({
                   automatisch erfunden.
                 </p>
               </div>
-              <button className="button primary full-button" type="submit" formNoValidate>
+              {tab !== "lebenslauf" ? <button className="button primary full-button" type="submit" formNoValidate>
                 <Save size={17} />{" "}
                 {tab === "anschreiben"
                   ? "Texte speichern & Word aktualisieren"
                   : "Texte speichern"}
-              </button>
+              </button> : null}
             </form>
+            {tab === "lebenslauf" ? <div className="sticky-save resume-editor-actions" aria-label="Lebenslauf speichern und navigieren">
+              <div className="resume-editor-actions__status" role="status" aria-live="polite">
+                <strong>{editorSaveLabel}</strong>
+                {documentSaveError ? <small role="alert">{documentSaveError}</small> : null}
+              </div>
+              <div className="resume-editor-actions__buttons">
+                <button type="button" className="button secondary" aria-label="Nach oben" onClick={() => scrollDocumentEditor(editorRef.current, "top")}><ArrowUp size={17} aria-hidden="true" /><span>Nach oben</span></button>
+                <button type="button" className="button secondary" aria-label="Nach unten" onClick={() => scrollDocumentEditor(editorRef.current, "bottom")}><ArrowDown size={17} aria-hidden="true" /><span>Nach unten</span></button>
+                <button className="button primary" type="submit" form={formId} formNoValidate disabled={editorSaving}>
+                  <Save size={17} aria-hidden="true" />{editorSaving ? "Speichert …" : "Änderungen speichern"}
+                </button>
+              </div>
+            </div> : null}
           </aside>
         }
         secondary={

@@ -419,9 +419,9 @@ const zweispaltigDocumentCss = `
   .zweispaltig-pdf{--zweispaltig-primary:${zweispaltigDefaults.colors.primary};--zweispaltig-accent:${zweispaltigDefaults.colors.accent};--zweispaltig-heading:${zweispaltigDefaults.colors.heading};--zweispaltig-soft:${zweispaltigDefaults.colors.primarySoft};--zweispaltig-text:${zweispaltigDefaults.colors.text};--zweispaltig-muted:${zweispaltigDefaults.colors.mutedText};--zweispaltig-divider:${zweispaltigDefaults.colors.divider};--zweispaltig-section-gap-base:6.5mm;--zweispaltig-section-gap:var(--zweispaltig-section-gap-base);--zweispaltig-entry-gap:var(--doc-entry-gap,3.5mm);--body-size:var(--doc-body-size,10pt);--body-line:var(--doc-line-height,1.32);position:relative;width:100%;height:100%;padding:var(--zweispaltig-margin-top) var(--zweispaltig-margin-right) var(--zweispaltig-margin-bottom) var(--zweispaltig-margin-left);overflow:hidden;color:var(--zweispaltig-text);background:#fff;font-family:var(--body-font);font-size:var(--body-size);line-height:var(--body-line);print-color-adjust:exact;-webkit-print-color-adjust:exact}
   .zweispaltig-pdf *{box-sizing:border-box}
   .zweispaltig-pdf-header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8mm;min-width:0}
-  .zweispaltig-pdf-header h1{margin:0;color:var(--zweispaltig-heading);font-size:24pt;font-weight:750;letter-spacing:.025em;line-height:1;text-transform:uppercase;overflow-wrap:anywhere}
-  .zweispaltig-pdf-header h2{display:flex;flex-wrap:wrap;gap:0 1.8mm;margin:1.5mm 0 0;color:var(--zweispaltig-accent);font-size:11.5pt;font-weight:700;letter-spacing:0;line-height:1.2;overflow-wrap:anywhere}
-  .zweispaltig-pdf-header h2 span+span:before{margin-right:1.8mm;color:var(--zweispaltig-accent);content:"|"}
+  .zweispaltig-pdf-header h1{margin:0;color:var(--zweispaltig-primary);font-size:24pt;font-weight:750;letter-spacing:.025em;line-height:1;text-transform:uppercase;overflow-wrap:anywhere}
+  .zweispaltig-pdf-header h2{display:flex;flex-wrap:wrap;gap:0 1.8mm;margin:1.5mm 0 0;color:var(--zweispaltig-subheading,var(--zweispaltig-accent));font-size:11.5pt;font-weight:700;letter-spacing:0;line-height:1.2;overflow-wrap:anywhere}
+  .zweispaltig-pdf-header h2 span+span:before{margin-right:1.8mm;color:var(--zweispaltig-subheading,var(--zweispaltig-accent));content:"|"}
   .zweispaltig-pdf-contacts{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:1.1mm 8mm;width:100%;max-width:132mm;margin:2.2mm 0 0;color:var(--zweispaltig-text);font-size:7.8pt;font-style:normal;line-height:1.2}
   .zweispaltig-pdf-contacts a,.zweispaltig-pdf-contacts>span{display:grid;grid-template-columns:3.2mm minmax(0,1fr);align-items:center;gap:1.1mm;min-width:0;color:inherit;text-decoration:none}
   .zweispaltig-pdf-contacts svg{width:3mm;height:3mm;color:var(--zweispaltig-accent);fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:2.4}
@@ -441,8 +441,9 @@ const zweispaltigDocumentCss = `
   .zweispaltig-pdf-list{display:flex;flex-direction:column;gap:var(--zweispaltig-entry-gap)}
   .zweispaltig-pdf-entry{min-width:0;padding-bottom:3mm;border-bottom:.25mm dashed var(--zweispaltig-divider);break-inside:auto;page-break-inside:auto}
   .zweispaltig-pdf-entry:last-child{padding-bottom:0;border-bottom:0}
-  .zweispaltig-pdf-entry h4{margin:0;color:var(--zweispaltig-heading);font-size:11.5pt;font-weight:600;line-height:1.18;overflow-wrap:anywhere}
+  .zweispaltig-pdf-entry h4{margin:0;color:var(--zweispaltig-primary);font-size:11.5pt;font-weight:600;line-height:1.18;overflow-wrap:anywhere}
   .zweispaltig-pdf-entry-organization{margin:.7mm 0 0;color:var(--zweispaltig-accent);font-size:9.5pt;font-weight:750;line-height:1.18;overflow-wrap:anywhere}
+  .zweispaltig-pdf-entry-organization[data-cv-employer]{color:var(--zweispaltig-employer,var(--zweispaltig-accent))}
   .zweispaltig-pdf-entry-meta{display:flex;flex-wrap:wrap;gap:1mm 4mm;margin:1mm 0 0;color:var(--zweispaltig-muted);font-size:7.8pt;line-height:1.2}
   .zweispaltig-pdf-entry-meta span{display:inline-flex;align-items:center;gap:1mm}
   .zweispaltig-pdf-entry-meta svg{width:2.8mm;height:2.8mm;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:2.3}
@@ -1274,7 +1275,7 @@ export const buildDocumentHtml = (
     return `
       <article class="zweispaltig-pdf-entry">
         <h4>${escapeHtml(item.title)}</h4>
-        <p class="zweispaltig-pdf-entry-organization">${escapeHtml(item.organization)}</p>
+        <p class="zweispaltig-pdf-entry-organization"${kind === "experience" ? ' data-cv-employer="true"' : ""}>${escapeHtml(item.organization)}</p>
         <p class="zweispaltig-pdf-entry-meta">
           <span>${zweispaltigIconMarkup("calendar")}${escapeHtml(formatDateRange(item.from, item.to))}</span>
           ${item.city ? `<span>${zweispaltigIconMarkup("location")}${escapeHtml(item.city)}</span>` : ""}

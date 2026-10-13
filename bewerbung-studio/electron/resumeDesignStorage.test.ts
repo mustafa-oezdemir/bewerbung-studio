@@ -74,12 +74,17 @@ describe("global and document Lebenslauf design storage", () => {
         page.style.getPropertyValue("--zweispaltig-accent")];
     };
     expect(coloursInPdf(store)).toEqual(["#0B3D86", "#58B5F7"]);
-    await store.saveApplication({ ...original, accentColor: "#EE7B24", secondaryColor: "#9D4616" });
+    await store.saveApplication({ ...original, accentColor: "#EE7B24", secondaryColor: "#9D4616",
+      designSettings: { ...original.designSettings, cvOverrides: { colors: { employer: "#12E203", surface: "#51BD6C" } } } });
     const reopened = new DataStore(root);
     await reopened.initialize();
     const saved = reopened.getWorkspace().applications.find((item) => item.id === original.id)!;
     expect([saved.accentColor, saved.secondaryColor]).toEqual(["#EE7B24", "#9D4616"]);
     expect(coloursInPdf(reopened)).toEqual(["#EE7B24", "#9D4616"]);
+    expect(saved.designSettings.cvOverrides?.colors).toEqual({ employer: "#12E203", surface: "#51BD6C" });
+    const page = parseHTML(reopened.getExportHtml(original.id, "lebenslauf")).document.querySelector<HTMLElement>(".zweispaltig-pdf")!;
+    expect(page.style.getPropertyValue("--zweispaltig-employer")).toBe("#12E203");
+    expect(page.style.getPropertyValue("--zweispaltig-soft")).toBe("#51BD6C");
   });
 
   const designOf = (id: string, current = store) => current.getWorkspace().applications.find((application) => application.id === id)!.designSettings;

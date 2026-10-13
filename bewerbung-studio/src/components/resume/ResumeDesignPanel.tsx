@@ -10,6 +10,7 @@ import {
   resolveResumeDesignView, type ResumeDesignSource, type ResumeDesignView,
 } from "../../shared/resumeDesignSystem";
 import { getResumeSpacingPreset, resumeSpacingFields, type ResumeSpacingPreset } from "../../shared/resumeSpacing";
+import { getResumeSurfaceContrastWarnings } from "../../shared/resumeColorSurfaces";
 
 type TokenGroup = keyof CvDesignTokens;
 type Value = string | number | boolean;
@@ -21,6 +22,7 @@ export type ResumeDesignPanelProps = {
   /** The settings of this Bewerbung; the template values are resolved from them. */
   settings: DocumentDesignSettings;
   global?: ResumeDesignLayer;
+  zweispaltigVariables?: Record<string, string>;
   unsaved?: boolean;
   /** False for a one-column layout and for the plain ATS output: the side-column colours have nothing to colour. */
   hasSidebar: boolean;
@@ -229,16 +231,16 @@ function Sub({ title, children }: { title: string; children: ReactNode }) {
 }
 
 const colorGroups = [
-  ["Text", [["text", "Lesetext"], ["paragraph", "Absatztext"], ["muted", "Sekundärtext"]]],
-  ["Überschriften", [["heading", "Überschrift"], ["subheading", "Unterüberschrift"], ["sectionHeading", "Hauptabschnitt"], ["entryHeading", "Unterabschnitt"]]],
-  ["Design", [["accent", "Akzent"], ["divider", "Linien"], ["background", "Hintergrund"], ["surface", "Fläche"], ["icon", "Icon-Farbe"]]],
+  ["Textfarben", [["text", "Fließtext"], ["paragraph", "Absatztext"], ["muted", "Sekundärtext"]]],
+  ["Überschriftenfarben", [["heading", "Name"], ["subheading", "Berufsbezeichnung"], ["sectionHeading", "Abschnittsüberschriften"], ["entryHeading", "Eintragstitel"]]],
+  ["Design", [["accent", "Hervorhebungsfarbe"], ["divider", "Trennlinien"], ["background", "Seitenhintergrund"], ["surface", "Karten- und Flächenhintergrund"], ["icon", "Symbole"]]],
 ] as const;
 
 const columnColors = [
-  ["sidebarBackgroundColor", "Seitenspalte"], ["sidebarTextColor", "Seitenspalte Text"],
-  ["sidebarSectionHeadingColor", "Seitenspalte Abschnittstitel"], ["mainBackgroundColor", "Hauptspalte"],
+  ["sidebarBackgroundColor", "Seitenspaltenhintergrund"], ["sidebarTextColor", "Text in der Seitenspalte"],
+  ["sidebarSectionHeadingColor", "Abschnittstitel in der Seitenspalte"], ["mainBackgroundColor", "Hauptspaltenhintergrund"],
 ] as const;
-const decorationColors = [["photoDecorationColor", "Fotolinien-Farbe"], ["contactDividerColor", "Kontaktlinie"]] as const;
+const decorationColors = [["photoDecorationColor", "Fotodekoration"], ["contactDividerColor", "Kontakttrennlinie"]] as const;
 
 const sizeFields = [
   ["bodySizePt", "Lesetext"], ["headingSizePt", "Hauptüberschrift"], ["subheadingSizePt", "Unterüberschrift"],
@@ -266,7 +268,7 @@ const spacingNotes: Record<string, string> = {
  * The Lebenslauf design in one panel for every template: the same controls, the same resolver. Each control shows the
  * effective value; the template's own value and the origin of the effective one are named beneath it.
  */
-export function ResumeDesignPanel({ documentId = "", templateId, templateName, settings, global, hasSidebar, unsaved, onEditToken, onEditAppearance, onPreset, onReset }: ResumeDesignPanelProps) {
+export function ResumeDesignPanel({ documentId = "", templateId, templateName, settings, global, zweispaltigVariables, hasSidebar, unsaved, onEditToken, onEditAppearance, onPreset, onReset }: ResumeDesignPanelProps) {
   const [scope, setScope] = useState<DesignScope>("document");
   const view: ResumeDesignView = useMemo(() => resolveResumeDesignView(templateId, settings, global), [templateId, settings, global]);
   const { native, editableGlobal, effective } = view;
@@ -275,6 +277,10 @@ export function ResumeDesignPanel({ documentId = "", templateId, templateName, s
   const ownCount = countOverrides({ cvOverrides: settings.cvOverrides, resumeAppearance: settings.resumeAppearance });
   const sharedCount = countOverrides(global);
   const preset: ResumeSpacingPreset = getResumeSpacingPreset(templateId, settings, global);
+  const explicitColors = scope === "global" ? global?.cvOverrides?.colors
+    : { ...global?.cvOverrides?.colors, ...settings.cvOverrides?.colors };
+  const surfaceWarnings = explicitColors?.surface
+    ? getResumeSurfaceContrastWarnings(displayed.tokens.colors, explicitColors) : [];
 
   const asText = (value: Value) => typeof value === "number" ? german(value) : typeof value === "boolean" ? (value ? "Ja" : "Nein") : value;
   const fieldInfo = (documentSource: ResumeDesignSource, hasShared: boolean, hasOwn: boolean, sharedValue: Value, currentValue: Value) => ({
@@ -345,17 +351,28 @@ export function ResumeDesignPanel({ documentId = "", templateId, templateName, s
       </p>
     </header>
 
-    <Group title="Farben und Dekoration" summary="Farben, Abschnittstitel, Linien, Foto und Kopfbereich" defaultOpen>
+    <Group title="Farben und Dekoration" summary="Farben, Abschnittstitel, Linien, Foto und Kopfbereich">
       {colorGroups.map(([title, colors]) => <section className="rds-sub" key={title} aria-label={title}>
         <h4>{title}</h4>
         <div className="rds-grid rds-grid--colors">
           {colors.map(([key, label]) => {
-            return <ColorCard key={key} label={label} value={displayed.tokens.colors[key]} contextKey={contextKey} onChange={(color) => onEditToken(scope, "colors", key, color)}>
+            // These two document controls live above this panel for Zweispaltig.
+            if (templateId === "zweispaltig" && scope === "document" && (key === "heading" || key === "accent")) return null;
+            const value = scope === "document" && key === "subheading" && zweispaltigVariables
+              ? zweispaltigVariables["--zweispaltig-subheading"] : displayed.tokens.colors[key];
+            return <ColorCard key={key} label={label} value={value} contextKey={contextKey} onChange={(color) => onEditToken(scope, "colors", key, color)}>
               <ColorHint {...token("colors", key)} templateText={native.tokens.colors[key].toUpperCase()} />
+              {explicitColors?.[key] !== undefined && ["text", "paragraph", "muted", "heading", "subheading", "sectionHeading", "entryHeading", "accent"].includes(key)
+                && !hasReadableColorContrast(value, displayed.tokens.colors.background)
+                ? <small className="resume-sections-warning" role="status">Diese Textfarbe erreicht zum Seitenhintergrund weniger als 4,5:1 Kontrast. Ihre Auswahl bleibt erhalten.</small> : null}
+              {key === "surface" ? <small className="rds-field__note">Färbt einzelne Projektkarten und Inhaltskarten, nicht die Arbeitgebernamen. Ohne eigene Textfarbe wird die Schrift für mindestens 4,5:1 Kontrast angepasst.</small> : null}
             </ColorCard>;
           })}
         </div>
       </section>)}
+      {surfaceWarnings.length ? <p className="resume-sections-warning" role="status">
+        Eine eigene Textfarbe auf Karten erreicht weniger als 4,5:1 Kontrast. Bitte Textfarbe oder Karten- und Flächenhintergrund ändern. Ihre Auswahl bleibt erhalten.
+      </p> : null}
       {!hasReadableColorContrast(displayed.tokens.colors.paragraph, displayed.tokens.colors.background) ? (
         <p className="resume-sections-warning" role="status">
           Der Kontrast zwischen Lesetext und Hintergrund ist zu niedrig. Für gute Lesbarkeit bitte eine hellere oder dunklere Textfarbe wählen.

@@ -38,6 +38,7 @@ import { getPaginationGeometry } from "./resumePaginationGeometry";
 import { resolveSectionColumns } from "./resumeSectionLayout";
 import { getCvDesignVariables } from "./cvDesign";
 import type { CvDesignTokens } from "./cvDesignSchema";
+import { resumeColorSurfaceSelector, resolveResumeSurfaceText } from "./resumeColorSurfaces";
 import { ensureKnowledgeSection } from "../features/knowledge/knowledge.service";
 import { visibleKnowledgeItems, formatKnowledgeItem } from "../features/knowledge/knowledge.utils";
 import { knowledgeLevelScores } from "../features/knowledge/knowledge.constants";
@@ -295,8 +296,17 @@ export const applyResumeDesignOverrides = (
   if (colors?.entryHeading) for (const node of entryHeadings) set(node, "color", design.colors.entryHeading);
   if (colors?.divider) for (const node of sectionHeadings) set(node, "border-color", design.colors.divider);
   if (colors?.accent) for (const node of supporting) set(node, "color", design.colors.accent);
-  if (colors?.surface) for (const node of scope.querySelectorAll("[class*='project'],[class*='card'],[class*='tag'],[class*='chip']"))
+  if (resolveTemplateId(templateId) === "zweispaltig" && colors?.employer)
+    for (const node of scope.querySelectorAll("[data-cv-employer]")) set(node, "color", colors.employer);
+  if (colors?.surface) for (const node of scope.querySelectorAll(resumeColorSurfaceSelector)) {
     set(node, "background-color", design.colors.surface);
+    set(node, "color", resolveResumeSurfaceText(design.colors, colors, "text"));
+    for (const text of node.querySelectorAll("h3,h4,h5,strong,b,p,li,span,a,small,time")) {
+      const key = text.matches("small,time,.resume-special-output__technologies,[data-custom-role='supporting']") ? "muted"
+        : text.matches("h3,h4,h5,strong,b,[data-custom-role='entry-title']") ? "entryHeading" : "paragraph";
+      set(text, "color", resolveResumeSurfaceText(design.colors, colors, key));
+    }
+  }
 
   const typography = overrides.typography;
   if (!typography) return;
@@ -1008,7 +1018,7 @@ export const applyManagedResumeOutput = (
     }
     // Klassisch and Einspaltig: the resolved geometry, type scale, spacing (and Einspaltig's palette) replace the native
     // values on both surfaces.
-    for (const variables of [resolved.einspaltigVariables].filter(Boolean) as Record<string, string>[]) {
+    for (const variables of [resolved.einspaltigVariables, resolved.zweispaltigVariables].filter(Boolean) as Record<string, string>[]) {
       const scope = (surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild) as HTMLElement | null;
       for (const [property, value] of Object.entries(variables)) {
         (root as HTMLElement).style.setProperty(property, value);

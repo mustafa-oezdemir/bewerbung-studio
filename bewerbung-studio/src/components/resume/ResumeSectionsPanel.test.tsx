@@ -20,6 +20,13 @@ const render = (profile: ApplicantProfile, templateId: string, layoutMode?: "sin
 const listed = (html: string) => Array.from(html.matchAll(/aria-label="([^"]+) nach oben"/g), (match) => match[1]);
 
 describe("ResumeSectionsPanel flexible blocks", () => {
+  it("starts nested knowledge settings closed when a content card is opened", () => {
+    const profile = blank();
+    const document = parseHTML(renderToStaticMarkup(<ResumeSectionsPanel profile={profile} templateId="zweispaltig"
+      initialExpanded="knowledge" singlePageExceeded={false} onSave={vi.fn()} onPreview={vi.fn()} />)).document;
+    expect(document.querySelector("details[open]")).toBeNull();
+    expect(document.querySelector(".knowledge-profile-group")).not.toBeNull();
+  });
   it("renders editable Pehlione blocks, placement, renderer and item controls", () => {
     const profile = profileSchema.parse({
       id: crypto.randomUUID(),

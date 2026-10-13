@@ -67,6 +67,38 @@ const previewHtml = (templateId: string, settings: ReturnType<typeof getTemplate
   }));
 };
 
+describe("independent Zweispaltig employer and card colours", () => {
+  it("colours individual project entries, preserves containers and supplies readable default text on both surfaces", () => {
+    const source = profileSchema.parse({ ...profile, specialSections: [{
+      id: "d1000000-0000-4000-8000-000000000001", kind: "projects", title: "Projektbeispiele", isVisible: true,
+      entries: [{ id: "d1000000-0000-4000-8000-000000000002", title: "Fiktives Projekt", description: "Fiktive Dokumentation.", technologies: ["React"] }],
+    }] });
+    const settings = { ...getTemplateDocumentDesignDefaults("zweispaltig"), cvOverrides: {
+      colors: { employer: "#12E203", surface: "#51BD6C" },
+    } };
+    const application = { ...applicationFor("zweispaltig", settings), accentColor: "#EE7B24", secondaryColor: "#9D4616" };
+    const resolved = resolveCvDocument({ profile: source, templateId: "zweispaltig", settings, application });
+    const preview = renderToStaticMarkup(<ManagedResumePreview profile={resolved.profile} templateId="zweispaltig"
+      pageNumber={1} totalPages={resolved.pagePlan.length} designSettings={settings} resolvedCv={resolved}>
+      <ZweispaltigResume profile={resolved.profile} name="Mina Kaya" atsMode={false} plan={resolved.pagePlan[0]}
+        totalPages={resolved.pagePlan.length} accentColor={application.accentColor} secondaryColor={application.secondaryColor}
+        designVariables={resolved.zweispaltigVariables} photoSource={null} resumeProfile={resolved.summary} sections={resolved.sections} />
+    </ManagedResumePreview>);
+    for (const html of [preview, buildDocumentHtml(application, source, "lebenslauf")]) {
+      const document = parseHTML(html).document;
+      const employer = document.querySelector<HTMLElement>("[data-cv-employer]");
+      expect(employer?.style.getPropertyValue("color")).toBe("#12E203");
+      const card = document.querySelector<HTMLElement>(".resume-special-output__project")!;
+      expect(card).not.toBeNull();
+      expect(card.style.getPropertyValue("background-color")).toBe("#51BD6C");
+      expect(card.parentElement?.style.getPropertyValue("background-color")).toBe("");
+      const paragraph = card.querySelector<HTMLElement>("p:not(.resume-special-output__technologies)")!;
+      expect(getColorContrastRatio(paragraph.style.getPropertyValue("color"), "#51BD6C")).toBeGreaterThanOrEqual(4.5);
+      expect(document.querySelector("header")?.getAttribute("style") ?? "").not.toContain("#51BD6C");
+    }
+  });
+});
+
 describe("the Lebenslauf design of one Bewerbung in the outputs", () => {
   it("uses two readable Elegant type settings and the same resolved tokens in preview, PDF and letter", () => {
     const settingsOf = (bodySizePt: number, lineHeight: number) => ({
