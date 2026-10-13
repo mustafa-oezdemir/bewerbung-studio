@@ -23,7 +23,7 @@ export function ZweispaltigCareerSection({
         {items.map((item) => (
           <article className="zweispaltig-career-entry" key={item.id}>
             <h3>{item.title}</h3>
-            <p className="zweispaltig-career-entry__organization">
+            <p className="zweispaltig-career-entry__organization" data-cv-employer={kind === "experience" ? "true" : undefined}>
               {item.organization}
             </p>
             <p className="zweispaltig-career-entry__meta">

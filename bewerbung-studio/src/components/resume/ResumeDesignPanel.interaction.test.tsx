@@ -42,6 +42,10 @@ describe("real React design input events", () => {
       </>;
     }
     await act(async () => { root.render(<Harness />); });
+    const colors = window.document.querySelector<HTMLElement>(".rds-group")!;
+    expect(colors.hasAttribute("open")).toBe(false);
+    Object.defineProperty(colors, "open", { configurable: true, value: true });
+    await act(async () => { colors.dispatchEvent(new window.Event("toggle")); });
     const input = (label: string) => window.document.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
     const send = async (label: string, value: string) => {
       const element = input(label);
@@ -57,10 +61,11 @@ describe("real React design input events", () => {
     expect(window.document.getElementById("body-size")?.textContent).toBe("12.8");
     await send("Zeilenhöhe", "1,35");
     expect(window.document.getElementById("line-height")?.textContent).toBe("1.35");
-    await send("Lesetext HEX", "#12");
+    await send("Fließtext HEX", "#12");
     expect(window.document.getElementById("text-color")?.textContent).not.toBe("#12");
-    await send("Lesetext HEX", "#123ABC");
+    await send("Fließtext HEX", "#123ABC");
     expect(window.document.getElementById("text-color")?.textContent).toBe("#123ABC");
+    expect(colors.hasAttribute("open")).toBe(true);
     await act(async () => { root.unmount(); });
   });
 });

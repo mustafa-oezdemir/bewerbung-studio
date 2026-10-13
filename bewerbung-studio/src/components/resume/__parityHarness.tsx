@@ -70,6 +70,7 @@ export const renderCv = (
           totalPages: resolved.pagePlan.length, accentColor: template.accent, secondaryColor: template.secondary, photoSource: null,
           resumeProfile: resolved.summary, sections: resolved.sections, backgroundId: "white", closingDate: resolved.closingDate,
           design: resolved.design, designSettings: resolved.settings,
+          designVariables: resolved.zweispaltigVariables,
         })}
       </ManagedResumePreview>,
     )}</body></html>`).document.body as unknown as Element);

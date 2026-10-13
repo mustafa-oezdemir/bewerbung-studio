@@ -13,6 +13,15 @@ const profile = profileSchema.parse({
 const page = '<section class="cv-sheet"><main><section><h2>Stärken</h2><p>Old content</p></section></main></section>';
 
 describe("shared strengths output", () => {
+  it("applies surface colour only to content cards and keeps explicitly chosen text colours", () => {
+    const document = parseHTML('<section><main><div class="project-grid"><article class="project-card"><h3>Projekt</h3><p>Text</p></article></div><div class="editor-card">Unrelated</div></main></section>').document;
+    const root = document.querySelector("section")!;
+    const settings = { ...defaultDocumentDesign, cvOverrides: { colors: { surface: "#51BD6C", paragraph: "#51BD6C" } } };
+    applyResumeDesignOverrides(root, "zweispaltig", "preview", settings, resolveCvDesign("zweispaltig", settings.cvOverrides));
+    expect(root.querySelector<HTMLElement>(".project-card")?.style.getPropertyValue("background-color")).toBe("#51BD6C");
+    expect(root.querySelector<HTMLElement>(".project-card p")?.style.getPropertyValue("color")).toBe("#51BD6C");
+    for (const selector of [".project-grid", ".editor-card"]) expect(root.querySelector(selector)?.getAttribute("style")).toBeNull();
+  });
   it.each(["pehlione_white", "pehlione_white_blue"] as const)("shows %s contacts on later pages only when selected", (templateId) => {
     const applicant = profileSchema.parse({ ...profile, email: "mina@example.com", phone: "+49 30 123456" });
     // Like the real pages: the sidebar with the contacts stands on page one only.

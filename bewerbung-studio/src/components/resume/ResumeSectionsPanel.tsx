@@ -234,7 +234,7 @@ export function ResumeSectionsPanel({
           </p>
         )}
         {draft.specialSections.some((section) => `special:${section.id}` === entry.id && section.kind === "projects") ? projectSelection : null}
-        {entry.id === "knowledge" && <KnowledgeProfileEditor profile={draft} onChange={setDraft} />}
+        {entry.id === "knowledge" && <KnowledgeProfileEditor profile={draft} onChange={setDraft} initiallyCollapsed />}
         {draft.specialSections.some((section) => `special:${section.id}` === entry.id && section.kind === "interests") &&
           <InterestsEditor profile={draft} onChange={setDraft} />}
         {!entry.id.startsWith("group:") &&
@@ -255,8 +255,7 @@ export function ResumeSectionsPanel({
           )}
         {group && (
           <details
-            className="manager-block-details"
-            open={entry.id.startsWith("group:") || undefined}>
+            className="manager-block-details">
             <summary>
               Eigene Inhalte für diesen Bereich
               {group.items.length ? ` (${group.items.length})` : ""}

@@ -104,7 +104,7 @@ describe("ResumeDataEditor", () => {
     // The personal data (name, address, phone, ...) is edited in the profile only: no second editor here.
     expect(markup).not.toContain('value="Mina"');
     expect(markup).not.toContain("Staatsangehörigkeit");
-    expect(markup.match(/<details[^>]*open=""/g)?.length).toBeGreaterThanOrEqual(6);
+    expect(markup).not.toMatch(/<details[^>]*open=""/);
   });
 
   it("shows strengths and every profile-defined resume section independently", () => {

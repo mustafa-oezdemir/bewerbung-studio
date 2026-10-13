@@ -46,10 +46,11 @@ describe("Lebenslauf design panel", () => {
     expect(valueOf(document, "Spaltenabstand (mm)")).toBe("8");
     expect(frameOf(document, "Spaltenabstand (mm)").textContent).toContain("Vorlage: 8 mm");
   });
-  it("offers the same controls for every template; only the values change", () => {
+  it("offers shared controls and avoids duplicate Zweispaltig identity colours", () => {
     const reference = controls(panel(stateFor(templates[0].id)));
     expect(reference.length).toBeGreaterThan(40);
-    for (const { id } of templates) expect(controls(panel(stateFor(id))), id).toEqual(reference);
+    for (const { id } of templates) expect(controls(panel(stateFor(id))), id).toEqual(id === "zweispaltig"
+      ? reference.filter((label) => !["Name", "Name HEX", "Hervorhebungsfarbe", "Hervorhebungsfarbe HEX"].includes(label)) : reference);
   });
 
   it("shows each setting once and keeps the three sections complete", () => {
@@ -129,22 +130,38 @@ describe("Lebenslauf design panel", () => {
     state = editCvDesignField(state, "document", "colors", "sectionHeading", "#aa0000");
     const changed = panel(state);
     expect(valueOf(changed, "Ausrichtung Abschnittstitel")).toBe("Rechts");
-    expect(field(changed, "Hauptabschnitt").getAttribute("value")).toBe("#aa0000");
-    expect(changed.querySelector("input[aria-label='Hauptabschnitt HEX']")?.getAttribute("value")).toBe("#AA0000");
+    expect(field(changed, "Abschnittsüberschriften").getAttribute("value")).toBe("#aa0000");
+    expect(changed.querySelector("input[aria-label='Abschnittsüberschriften HEX']")?.getAttribute("value")).toBe("#AA0000");
 
     expect(changed.querySelector(".rds-status")?.textContent).toContain("2 eigene Anpassungen");
     const native = panel(resetResumeDesign(state, "document"));
     expect(valueOf(native, "Ausrichtung Abschnittstitel")).toBe("Links (Vorlage)");
-    expect(field(native, "Hauptabschnitt").getAttribute("value")).toBe(resolveTemplateCvDesign("kompakt").colors.sectionHeading);
+    expect(field(native, "Abschnittsüberschriften").getAttribute("value")).toBe(resolveTemplateCvDesign("kompakt").colors.sectionHeading);
   });
 
   it("disables the side-column colours of a one-column layout", () => {
     const withSidebar = panel(stateFor("kreativ"), true);
     const single = panel(stateFor("kreativ"), false);
-    expect(field(withSidebar, "Seitenspalte").hasAttribute("disabled")).toBe(false);
-    expect(field(single, "Seitenspalte").hasAttribute("disabled")).toBe(true);
+    expect(field(withSidebar, "Seitenspaltenhintergrund").hasAttribute("disabled")).toBe(false);
+    expect(field(single, "Seitenspaltenhintergrund").hasAttribute("disabled")).toBe(true);
     expect(single.querySelector(".rds-note")?.textContent).toContain("zweispaltigen Layout");
     expect(controls(single)).toEqual(controls(withSidebar));
+  });
+
+  it("starts every group collapsed and distinguishes card colour from employer ink", () => {
+    const document = panel(stateFor("zweispaltig"));
+    expect(document.querySelector("details[open]")).toBeNull();
+    expect(controls(document)).toContain("Karten- und Flächenhintergrund");
+    expect(controls(document)).toContain("Berufsbezeichnung");
+    expect(document.querySelector(".rds")?.textContent).toContain("nicht die Arbeitgebernamen");
+  });
+
+  it("warns about an explicit unreadable card text colour without replacing it", () => {
+    const state = editCvDesignField(editCvDesignField(stateFor("zweispaltig"), "document", "colors", "surface", "#51BD6C"),
+      "document", "colors", "paragraph", "#51BD6C");
+    const document = panel(state);
+    expect(valueOf(document, "Absatztext")).toBe("#51BD6C");
+    expect(document.querySelector(".resume-sections-warning")?.textContent).toContain("4,5:1");
   });
 });
 

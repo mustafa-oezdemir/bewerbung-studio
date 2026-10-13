@@ -76,7 +76,8 @@ export const cvDesignTokensSchema = z.object({
 
 // No .default() here: absence means inheritance, never a persisted copy of defaults.
 export const cvDesignOverridesSchema = z.object({
-  colors: cvColorsSchema.partial().optional(),
+  // Zweispaltig's employer override is optional: old records keep their original accent inheritance.
+  colors: cvColorsSchema.partial().extend({ employer: color.optional() }).optional(),
   typography: cvTypographySchema.partial().optional(),
   spacing: cvSpacingSchema.partial().optional(),
 });

@@ -2,8 +2,8 @@ import { inheritResumeSectionStyles } from "../src/shared/resumeSectionStyleInhe
 import { kreativDefaults } from "../src/shared/cvTemplateDefaults/kreativ.defaults";
 import { kompaktDefaults } from "../src/shared/cvTemplateDefaults/kompakt.defaults";
 import { stilvollDefaults } from "../src/shared/cvTemplateDefaults/stilvoll.defaults";
-import { zweispaltigPageStyle } from "../src/shared/cvTemplateDefaults/zweispaltig.defaults";
-import { resolveZweispaltigApplicationColors, zweispaltigLetterCss } from "../src/shared/zweispaltigLetterIdentity";
+import { zweispaltigDefaults, zweispaltigPageStyle } from "../src/shared/cvTemplateDefaults/zweispaltig.defaults";
+import { zweispaltigLetterCss } from "../src/shared/zweispaltigLetterIdentity";
 import { zeitgenoessischLetterCss } from "../src/shared/zeitgenoessischDesign";
 import { getElegantDesignVariables, elegantLetterCss, elegantManagedCss, isElegantWideContact } from "../src/shared/elegantDesign";
 import { kreativLetterCss, kreativResolvedCss } from "../src/shared/kreativDesign";
@@ -402,20 +402,20 @@ const elegantDocumentCss = `
 `;
 
 const zweispaltigDocumentCss = `
-  .zweispaltig-pdf{--zweispaltig-primary:var(--accent);--zweispaltig-accent:var(--secondary);--zweispaltig-heading:var(--zweispaltig-heading-color,var(--accent));--zweispaltig-text:#4a555c;--zweispaltig-muted:#667178;--zweispaltig-divider:#d6dce0;--zweispaltig-section-gap-base:6.5mm;--zweispaltig-section-gap:var(--zweispaltig-section-gap-base);--zweispaltig-entry-gap:var(--doc-entry-gap,3.5mm);--body-size:var(--doc-body-size,10pt);--body-line:var(--doc-line-height,1.32);position:relative;width:100%;height:100%;padding:var(--zweispaltig-margin-top) var(--zweispaltig-margin-right) var(--zweispaltig-margin-bottom) var(--zweispaltig-margin-left);overflow:hidden;color:var(--zweispaltig-text);background:#fff;font-family:var(--body-font);font-size:var(--body-size);line-height:var(--body-line)}
+  .zweispaltig-pdf{--zweispaltig-primary:${zweispaltigDefaults.colors.primary};--zweispaltig-accent:${zweispaltigDefaults.colors.accent};--zweispaltig-heading:${zweispaltigDefaults.colors.heading};--zweispaltig-soft:${zweispaltigDefaults.colors.primarySoft};--zweispaltig-text:${zweispaltigDefaults.colors.text};--zweispaltig-muted:${zweispaltigDefaults.colors.mutedText};--zweispaltig-divider:${zweispaltigDefaults.colors.divider};--zweispaltig-section-gap-base:6.5mm;--zweispaltig-section-gap:var(--zweispaltig-section-gap-base);--zweispaltig-entry-gap:var(--doc-entry-gap,3.5mm);--body-size:var(--doc-body-size,10pt);--body-line:var(--doc-line-height,1.32);position:relative;width:100%;height:100%;padding:var(--zweispaltig-margin-top) var(--zweispaltig-margin-right) var(--zweispaltig-margin-bottom) var(--zweispaltig-margin-left);overflow:hidden;color:var(--zweispaltig-text);background:#fff;font-family:var(--body-font);font-size:var(--body-size);line-height:var(--body-line);print-color-adjust:exact;-webkit-print-color-adjust:exact}
   .zweispaltig-pdf *{box-sizing:border-box}
   .zweispaltig-pdf-header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8mm;min-width:0}
-  .zweispaltig-pdf-header h1{margin:0;color:var(--zweispaltig-heading);font-size:24pt;font-weight:750;letter-spacing:.025em;line-height:1;text-transform:uppercase;overflow-wrap:anywhere}
-  .zweispaltig-pdf-header h2{display:flex;flex-wrap:wrap;gap:0 1.8mm;margin:1.5mm 0 0;color:var(--zweispaltig-accent);font-size:11.5pt;font-weight:700;letter-spacing:0;line-height:1.2;overflow-wrap:anywhere}
-  .zweispaltig-pdf-header h2 span+span:before{margin-right:1.8mm;color:var(--zweispaltig-accent);content:"|"}
+  .zweispaltig-pdf-header h1{margin:0;color:var(--zweispaltig-primary);font-size:24pt;font-weight:750;letter-spacing:.025em;line-height:1;text-transform:uppercase;overflow-wrap:anywhere}
+  .zweispaltig-pdf-header h2{display:flex;flex-wrap:wrap;gap:0 1.8mm;margin:1.5mm 0 0;color:var(--zweispaltig-subheading,var(--zweispaltig-accent));font-size:11.5pt;font-weight:700;letter-spacing:0;line-height:1.2;overflow-wrap:anywhere}
+  .zweispaltig-pdf-header h2 span+span:before{margin-right:1.8mm;color:var(--zweispaltig-subheading,var(--zweispaltig-accent));content:"|"}
   .zweispaltig-pdf-contacts{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:1.1mm 8mm;width:100%;max-width:132mm;margin:2.2mm 0 0;color:var(--zweispaltig-text);font-size:7.8pt;font-style:normal;line-height:1.2}
   .zweispaltig-pdf-contacts a,.zweispaltig-pdf-contacts>span{display:grid;grid-template-columns:3.2mm minmax(0,1fr);align-items:center;gap:1.1mm;min-width:0;color:inherit;text-decoration:none}
   .zweispaltig-pdf-contacts svg{width:3mm;height:3mm;color:var(--zweispaltig-accent);fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:2.4}
   .zweispaltig-pdf-contacts a>span,.zweispaltig-pdf-contacts>span>span{min-width:0;overflow-wrap:anywhere}
   .zweispaltig-pdf-contacts [data-contact-kind="linkedin"]>span,.zweispaltig-pdf-contacts [data-contact-kind="github"]>span{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere}
-  .zweispaltig-pdf-photo{display:block;width:calc(30mm * var(--resume-photo-scale,1));height:calc(30mm * var(--resume-photo-scale,1));overflow:hidden;border:.35mm solid color-mix(in srgb,var(--zweispaltig-primary),white 25%);border-radius:50%;background:#eaf5fd;object-fit:cover}
+  .zweispaltig-pdf-photo{display:block;width:calc(30mm * var(--resume-photo-scale,1));height:calc(30mm * var(--resume-photo-scale,1));overflow:hidden;border:.35mm solid color-mix(in srgb,var(--zweispaltig-primary),white 25%);border-radius:50%;background:var(--zweispaltig-soft);object-fit:cover}
   .zweispaltig-pdf-header.compact{display:flex;flex-wrap:wrap;align-items:baseline;gap:1.5mm 4mm;padding-bottom:3.5mm}
-  .zweispaltig-pdf-header.compact .kicker{flex-basis:100%;margin:0;color:var(--accent);font-size:7.3pt;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
+  .zweispaltig-pdf-header.compact .kicker{flex-basis:100%;margin:0;color:var(--zweispaltig-primary);font-size:7.3pt;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
   .zweispaltig-pdf-header.compact h1{font-size:15pt}
   .zweispaltig-pdf-header.compact h2{margin:0;color:var(--zweispaltig-muted);font-size:8.6pt}
   .zweispaltig-pdf-columns{display:grid;grid-template-columns:minmax(0,62fr) minmax(0,38fr);column-gap:11mm;min-width:0}
@@ -427,8 +427,9 @@ const zweispaltigDocumentCss = `
   .zweispaltig-pdf-list{display:flex;flex-direction:column;gap:var(--zweispaltig-entry-gap)}
   .zweispaltig-pdf-entry{min-width:0;padding-bottom:3mm;border-bottom:.25mm dashed var(--zweispaltig-divider);break-inside:auto;page-break-inside:auto}
   .zweispaltig-pdf-entry:last-child{padding-bottom:0;border-bottom:0}
-  .zweispaltig-pdf-entry h4{margin:0;color:var(--zweispaltig-heading);font-size:11.5pt;font-weight:600;line-height:1.18;overflow-wrap:anywhere}
+  .zweispaltig-pdf-entry h4{margin:0;color:var(--zweispaltig-primary);font-size:11.5pt;font-weight:600;line-height:1.18;overflow-wrap:anywhere}
   .zweispaltig-pdf-entry-organization{margin:.7mm 0 0;color:var(--zweispaltig-accent);font-size:9.5pt;font-weight:750;line-height:1.18;overflow-wrap:anywhere}
+  .zweispaltig-pdf-entry-organization[data-cv-employer]{color:var(--zweispaltig-employer,var(--zweispaltig-accent))}
   .zweispaltig-pdf-entry-meta{display:flex;flex-wrap:wrap;gap:1mm 4mm;margin:1mm 0 0;color:var(--zweispaltig-muted);font-size:7.8pt;line-height:1.2}
   .zweispaltig-pdf-entry-meta span{display:inline-flex;align-items:center;gap:1mm}
   .zweispaltig-pdf-entry-meta svg{width:2.8mm;height:2.8mm;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:2.3}
@@ -788,10 +789,8 @@ export const buildDocumentHtml = (
   const template = getTemplate(application.templateId);
   const accent = application.accentColor || template.accent;
   const secondary = application.secondaryColor || template.secondary;
-  const zweispaltigColors = template.id === "zweispaltig" ? resolveZweispaltigApplicationColors(accent, secondary) : undefined;
-  const zweispaltigCvStyle = zweispaltigColors
-    ? `${zweispaltigPageStyle};--accent:${escapeHtml(zweispaltigColors.primary)};--secondary:${escapeHtml(zweispaltigColors.accent)};--zweispaltig-heading-color:${escapeHtml(resolvedCv.settings.cvOverrides?.colors?.heading ?? zweispaltigColors.primary)}`
-    : zweispaltigPageStyle;
+  const zweispaltigCvStyle = `${zweispaltigPageStyle};${Object.entries(resolvedCv.zweispaltigVariables ?? {})
+    .map(([key, value]) => `${key}:${escapeHtml(value)}`).join(";")}`;
   const onSecondary = getReadableTextColor(secondary);
   const designSettings = resolvedCv.settings;
   const atsMode =
@@ -1272,7 +1271,7 @@ export const buildDocumentHtml = (
     return `
       <article class="zweispaltig-pdf-entry">
         <h4>${escapeHtml(item.title)}</h4>
-        <p class="zweispaltig-pdf-entry-organization">${escapeHtml(item.organization)}</p>
+        <p class="zweispaltig-pdf-entry-organization"${kind === "experience" ? ' data-cv-employer="true"' : ""}>${escapeHtml(item.organization)}</p>
         <p class="zweispaltig-pdf-entry-meta">
           <span>${zweispaltigIconMarkup("calendar")}${escapeHtml(formatDateRange(item.from, item.to))}</span>
           ${item.city ? `<span>${zweispaltigIconMarkup("location")}${escapeHtml(item.city)}</span>` : ""}

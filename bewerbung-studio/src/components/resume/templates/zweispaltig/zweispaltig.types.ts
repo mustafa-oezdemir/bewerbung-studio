@@ -27,6 +27,7 @@ export type ZweispaltigResumeProps = {
   totalPages: number;
   accentColor: string;
   secondaryColor: string;
+  designVariables?: Record<string, string>;
   photoSource: string | null;
   resumeProfile: string;
   sections: ApplicantProfile["resumeSections"];
@@ -34,7 +35,7 @@ export type ZweispaltigResumeProps = {
 
 export type ZweispaltigPageProps = Omit<
   ZweispaltigResumeProps,
-  "accentColor" | "secondaryColor"
+  "accentColor" | "secondaryColor" | "designVariables"
 >;
 
 export type ZweispaltigHeaderProps = {

@@ -140,7 +140,6 @@ export function ResumeDataEditor({
 
           <details
             className="resume-data-group"
-            open
             hidden={Boolean(section && section !== "strengths")}>
             <summary>{draft.resumeSectionTitles.strengths}</summary>
             <p>3 Spalten in allen Vorlagen · 9 Einträge ergeben 3 Zeilen.</p>
@@ -263,7 +262,6 @@ export function ResumeDataEditor({
 
           <details
             className="resume-data-group"
-            open
             hidden={Boolean(section && section !== "experience")}>
             <summary>
               <span>
@@ -275,7 +273,6 @@ export function ResumeDataEditor({
           </details>
           <details
             className="resume-data-group"
-            open
             hidden={Boolean(section && section !== "education")}>
             <summary>{getResumeSectionTitle(draft, "education")} ({draft.education.length})</summary>
             <EducationEditor profile={draft} onChange={setDraft} showTitle={false} />
@@ -284,7 +281,6 @@ export function ResumeDataEditor({
 
           <details
             className="resume-data-group"
-            open
             hidden={Boolean(section && section !== "knowledge")}>
             <summary>{draft.knowledgeSection.title || "Kenntnisse"}</summary>
             <KnowledgeSectionEditor
@@ -307,7 +303,6 @@ export function ResumeDataEditor({
 
           <details
             className="resume-data-group"
-            open
             hidden={Boolean(section && section !== "languages")}>
             <summary>{draft.resumeSectionTitles.languages}</summary>
             <ResumeSectionTitleEditor
@@ -335,7 +330,6 @@ export function ResumeDataEditor({
 
           <details
             className="resume-data-group"
-            open
             hidden={Boolean(section && section !== "certifications")}>
             <summary>{draft.resumeSectionTitles.certifications}</summary>
             <ResumeSectionTitleEditor
@@ -472,7 +466,7 @@ export function ResumeSpecialSectionsEditor({
       {value
         .filter((item) => !selectedId || item.id === selectedId)
         .map((section) => (
-          <details className="resume-data-group" key={section.id} open>
+          <details className="resume-data-group" key={section.id}>
             <summary>
               {section.title || resumeSpecialSectionLabel(section.kind)}
             </summary>
