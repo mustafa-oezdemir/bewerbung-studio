@@ -48,6 +48,10 @@ const knownMessages = new Map<string, { code: AppError["code"]; expected: boolea
   ["Die verschlüsselte Vorlage kann über ‚Öffnen‘ in einem externen Programm angezeigt werden.", { code: "VALIDATION_FAILED", expected: true }],
   ["Kopieren Sie den verschlüsselten Datenbestand und öffnen Sie anschließend die Kopie über ‚Vorhandenen Datenbestand öffnen‘.", { code: "VALIDATION_FAILED", expected: true }],
   ["Der beschädigte Datenbestand wurde nicht geöffnet.", { code: "VALIDATION_FAILED", expected: true }],
+  // DataStore refuses to save over a workspace.json changed outside the app (e.g. a git pull or merge in the
+  // Bewerbungsordner) or after another instance took the lock: the user must see why, not an unexpected error.
+  ["Der Datenbestand wurde seit dem Öffnen extern geändert. Bitte laden Sie ihn neu oder erstellen Sie zuerst eine Sicherung.", { code: "WORKSPACE_LOCKED", expected: true }],
+  ["Der Datenbestand ist durch eine andere Instanz gesperrt. Schließen Sie alle BewerbungsManager-Instanzen und starten Sie die Anwendung neu.", { code: "WORKSPACE_LOCKED", expected: true }],
 ]);
 
 export const normalizeError = (error: unknown): AppError => {

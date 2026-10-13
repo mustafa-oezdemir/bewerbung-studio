@@ -1,5 +1,5 @@
 import type { ApplicantProfile } from "../../../../shared/schema";
-import { toIvyLeagueExternalHref } from "./ivy-league.model";
+import { resolveResumeFooterWebsite } from "../../../../shared/resumeFooter";
 
 export function IvyLeagueFooter({
   profile,
@@ -10,17 +10,14 @@ export function IvyLeagueFooter({
   pageNumber: number;
   totalPages: number;
 }) {
-  const portfolio = profile?.portfolio || profile?.github || profile?.linkedin;
-  const portfolioHref = portfolio
-    ? toIvyLeagueExternalHref(portfolio)
-    : "";
+  const footerWebsite = resolveResumeFooterWebsite(profile);
   return (
     <footer
       className="ivy-league-footer"
       data-element-id="ivy-league.footer"
     >
-      {portfolio ? (
-        <a href={portfolioHref}>{portfolioHref}</a>
+      {footerWebsite ? (
+        <a href={footerWebsite.href}>{footerWebsite.text}</a>
       ) : (
         <span />
       )}

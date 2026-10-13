@@ -1,6 +1,6 @@
 import { resumeCustomContentLabels, type ResumeCustomContentType } from "../../shared/resumeCustomSectionTypes";
 import { ChevronDown, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { addTechnologyStrengths } from "../../shared/strengthPresets";
 import { moveListItem } from "../../shared/listOrder";
 import { OrderControls } from "../profile/OrderControls";
@@ -47,6 +47,8 @@ type Props = {
   onDraftChange?: Dispatch<SetStateAction<ApplicantProfile>>;
   languagesColumns?: SectionColumnMode;
   onLanguagesColumnsChange?: (value: SectionColumnMode) => void;
+  /** The Bewerbung's choice of certificates, shown above the certificate list (Lebenslauf only). */
+  certificateSelection?: ReactNode;
 };
 
 const cloneProfile = (profile: ApplicantProfile): ApplicantProfile => ({
@@ -69,6 +71,7 @@ export function ResumeDataEditor({
   onDraftChange,
   languagesColumns = "auto",
   onLanguagesColumnsChange,
+  certificateSelection,
 }: Props) {
   const [localDraft, setLocalDraft] = useState<ApplicantProfile>(() =>
     cloneProfile(profile),
@@ -340,10 +343,11 @@ export function ResumeDataEditor({
               section="certifications"
               onChange={setDraft}
             />
+            {certificateSelection}
             <CertificateListEditor
-              values={draft.certifications}
-              onChange={(certifications) =>
-                setDraft((current) => ({ ...current, certifications }))
+              profile={draft}
+              onChange={(fields) =>
+                setDraft((current) => ({ ...current, ...fields }))
               }
             />
             <SectionUpdateButton onClick={updateSection} />

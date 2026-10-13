@@ -3,6 +3,11 @@
   margin: 0;
 }
 
+/*
+ * The native values of the template. The resolved Lebenslauf design (getTabellarischDesignVariables in
+ * src/shared/tabellarischDesign.ts) sets every one of them on the template root of the preview and of the PDF
+ * (tabellarischDocumentCss reads the same names), and the page planner measures with the same geometry.
+ */
 .tabellarisch-template {
   --tabellarisch-page-height: 297mm;
   --tabellarisch-primary: #17263d;
@@ -10,25 +15,28 @@
   --tabellarisch-text: #3f4850;
   --tabellarisch-muted: #6d747a;
   --tabellarisch-line: #c8cdd1;
-  --tabellarisch-margin-top: max(15mm, var(--doc-margin, 17mm));
-  --tabellarisch-margin-right: max(15mm, var(--doc-margin, 17mm));
-  --tabellarisch-margin-bottom: max(14mm, var(--doc-margin, 17mm));
-  --tabellarisch-margin-left: max(15mm, var(--doc-margin, 17mm));
-  --tabellarisch-section-gap: max(6.3mm, var(--doc-section-gap, 7mm));
+  --tabellarisch-margin-top: 15mm;
+  --tabellarisch-margin-right: 15mm;
+  --tabellarisch-margin-bottom: 14mm;
+  --tabellarisch-margin-left: 15mm;
+  --tabellarisch-footer-clearance: 5mm;
+  --tabellarisch-footer-bottom: 6mm;
+  --tabellarisch-section-gap: 6.3mm;
   --tabellarisch-entry-gap: 4.4mm;
-  --tabellarisch-body-size: max(8.7pt, var(--doc-body-size, 9.2pt));
-  --tabellarisch-line-height: max(1.28, var(--doc-line-height, 1.35));
-  --tabellarisch-font: var(
-    --doc-font,
-    "Source Sans 3",
-    "Segoe UI",
-    Arial,
-    sans-serif
-  );
-  --tabellarisch-heading-font: var(
-    --doc-heading-font,
-    var(--tabellarisch-font)
-  );
+  --tabellarisch-section-title-gap: 3.5mm;
+  --tabellarisch-entry-content-gap: 1mm;
+  --tabellarisch-body-size: 9.2pt;
+  --tabellarisch-line-height: 1.1;
+  --tabellarisch-name-size: 25pt;
+  --tabellarisch-name-weight: 750;
+  --tabellarisch-title-size: 13.5pt;
+  --tabellarisch-title-weight: 650;
+  --tabellarisch-section-title-size: 15pt;
+  --tabellarisch-section-title-weight: 750;
+  --tabellarisch-heading-case: uppercase;
+  --tabellarisch-entry-title-size: 12pt;
+  --tabellarisch-font: "Source Sans 3", "Segoe UI", Arial, sans-serif;
+  --tabellarisch-heading-font: var(--tabellarisch-font);
   position: relative;
   box-sizing: border-box;
   width: 100%;
@@ -39,9 +47,21 @@
   background: #fff;
   font-family: var(--tabellarisch-font);
   font-size: var(--tabellarisch-body-size);
-  line-height: var(--tabellarisch-line-height);
+  /* Labels and small print set their own line height; the reading text follows the design (below). */
+  line-height: 1.28;
   print-color-adjust: exact;
   -webkit-print-color-adjust: exact;
+}
+
+/* Reading text (paragraphs, bullets, list rows): the design's body size and line height. Element rules below refine it. */
+.tabellarisch-template :where(p, li) {
+  font-size: var(--tabellarisch-body-size);
+  line-height: var(--tabellarisch-line-height);
+}
+
+/* Headings keep the template's own tracking (the app's global heading rule never reaches the PDF). */
+.tabellarisch-template :where(h1, h2, h3, h4, h5) {
+  letter-spacing: normal;
 }
 
 .tabellarisch-template *,
@@ -61,10 +81,11 @@
   position: relative;
   z-index: 2;
   height: 100%;
+  /* The flowing text ends at the bottom margin plus the footer clearance: the planner's one bottom boundary. */
   padding:
     var(--tabellarisch-margin-top)
     var(--tabellarisch-margin-right)
-    calc(var(--tabellarisch-margin-bottom) + 5mm)
+    calc(var(--tabellarisch-margin-bottom) + var(--tabellarisch-footer-clearance))
     var(--tabellarisch-margin-left);
 }
 
@@ -106,8 +127,8 @@
   margin: 0;
   color: var(--tabellarisch-primary);
   font-family: var(--tabellarisch-heading-font);
-  font-size: 25pt;
-  font-weight: 750;
+  font-size: var(--tabellarisch-name-size);
+  font-weight: var(--tabellarisch-name-weight);
   letter-spacing: 0.015em;
   line-height: 1;
   text-transform: uppercase;
@@ -118,8 +139,8 @@
   margin: 2.3mm 0 0;
   color: var(--tabellarisch-accent);
   font-family: var(--tabellarisch-heading-font);
-  font-size: 13.5pt;
-  font-weight: 650;
+  font-size: var(--tabellarisch-title-size);
+  font-weight: var(--tabellarisch-title-weight);
   line-height: 1.15;
   overflow-wrap: anywhere;
 }
@@ -209,14 +230,14 @@
   display: flex;
   align-items: baseline;
   gap: 2.5mm;
-  margin: 0 0 3.5mm;
+  margin: 0 0 var(--tabellarisch-section-title-gap);
   color: var(--tabellarisch-primary);
   font-family: var(--tabellarisch-heading-font);
-  font-size: 15pt;
-  font-weight: 750;
+  font-size: var(--tabellarisch-section-title-size);
+  font-weight: var(--tabellarisch-section-title-weight);
   letter-spacing: 0.01em;
   line-height: 1.05;
-  text-transform: uppercase;
+  text-transform: var(--tabellarisch-heading-case);
   break-after: avoid;
   page-break-after: avoid;
 }
@@ -371,14 +392,14 @@
   margin: 0;
   color: var(--tabellarisch-primary);
   font-family: var(--tabellarisch-heading-font);
-  font-size: 12pt;
+  font-size: var(--tabellarisch-entry-title-size);
   font-weight: 500;
   line-height: 1.15;
   overflow-wrap: anywhere;
 }
 
 .tabellarisch-timeline-entry__organization {
-  margin: 1mm 0 1.5mm;
+  margin: var(--tabellarisch-entry-content-gap) 0 1.5mm;
   color: var(--tabellarisch-accent);
   font-size: 10.2pt;
   font-weight: 700;
@@ -473,7 +494,9 @@
 }
 
 .tabellarisch-list-section li {
-  margin: 0.55mm 0;
+  /* As in the PDF (.tabellarisch-pdf-list li) and the planner's certificate model. */
+  margin: 0.45mm 0;
+  padding-left: 0.5mm;
   hyphens: auto;
   overflow-wrap: break-word;
 }
@@ -525,41 +548,14 @@
   background: var(--tabellarisch-accent);
 }
 
-.tabellarisch-continuation-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8mm;
-  margin: 0 0 6mm;
-  padding-bottom: 2.5mm;
-  border-bottom: 0.35mm solid var(--tabellarisch-line);
-}
-
-.tabellarisch-continuation-header__name,
-.tabellarisch-continuation-header__title {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.tabellarisch-continuation-header__name {
-  color: var(--tabellarisch-primary);
-  font-family: var(--tabellarisch-heading-font);
-  font-size: 13pt;
-  font-weight: 750;
-}
-
-.tabellarisch-continuation-header__title {
-  color: var(--tabellarisch-accent);
-  font-size: 9pt;
-  font-weight: 600;
-  text-align: right;
-}
+/* The compact head of a later page: tabellarischContinuationCss (src/shared/tabellarischDesign.ts), shared with the PDF. */
 
 .tabellarisch-footer {
   position: absolute;
-  right: var(--tabellarisch-margin-right);
-  bottom: 6mm;
-  left: var(--tabellarisch-margin-left);
+  /* Seitenränder moves the text by --resume-page-text-shift; the footer moves along. */
+  right: calc(var(--tabellarisch-margin-right) + var(--resume-page-text-shift, 0mm));
+  bottom: var(--tabellarisch-footer-bottom);
+  left: calc(var(--tabellarisch-margin-left) + var(--resume-page-text-shift, 0mm));
   z-index: 2;
   display: flex;
   align-items: center;
@@ -590,41 +586,10 @@
   flex: none;
 }
 
-.tabellarisch-template[data-density="compact"] {
-  --tabellarisch-section-gap: 5.2mm;
-  --tabellarisch-entry-gap: 3.4mm;
-  --tabellarisch-body-size: max(8.3pt, var(--doc-body-size, 8.7pt));
-  --tabellarisch-line-height: max(1.24, var(--doc-line-height, 1.3));
-}
-
-.tabellarisch-template[data-density="dense"] {
-  --tabellarisch-section-gap: 4.1mm;
-  --tabellarisch-entry-gap: 2.6mm;
-  --tabellarisch-body-size: 8pt;
-  --tabellarisch-line-height: 1.22;
-  --tabellarisch-margin-top: 13mm;
-}
-
-.tabellarisch-template[data-density="dense"] .tabellarisch-header {
-  min-height: 29mm;
-}
-
-.tabellarisch-template[data-density="dense"] .tabellarisch-header__name {
-  font-size: 22pt;
-}
-
-.tabellarisch-template[data-density="dense"] .tabellarisch-header__title {
-  font-size: 12pt;
-}
-
-.tabellarisch-template[data-density="dense"] .tabellarisch-section__title {
-  margin-bottom: 2.4mm;
-  font-size: 13.5pt;
-}
-
-.tabellarisch-template[data-density="dense"] .tabellarisch-strength p {
-  font-size: 8pt;
-}
+/*
+ * No density variants: the page planner fills Tabellarisch pages at the chosen typography and spacing (a page break
+ * instead of smaller text), so preview, PDF and plan never differ by a hidden font or margin change.
+ */
 
 .tabellarisch-template[data-ats-mode="true"] {
   --tabellarisch-primary: #222b30;

@@ -74,7 +74,7 @@ describe("Stilvoll spacing and section output", () => {
       const project = main.querySelector(`[data-managed-section="special:${projectId}"]`)!;
       const interests = sidebar.querySelector(`[data-managed-section="special:${interestsId}"]`)!;
       expect(root.textContent).toContain("Mina Kaya");
-      expect(sidebar.textContent).toContain(baseProfile.summary);
+      expect(sidebar.textContent?.replaceAll("\u00ad", "")).toContain(baseProfile.summary);
       expect(experience.querySelectorAll("article")).toHaveLength(2);
       expect(education.querySelectorAll("article")).toHaveLength(2);
       expect(project.getAttribute("data-custom-template")).toBe("stilvoll");

@@ -115,7 +115,8 @@ const zoneHasOwnContent = (zone: Element, section: Element, side: "before" | "af
   const at = nodes.indexOf(section);
   return (side === "before" ? nodes.slice(0, at) : nodes.slice(at + 1)).some((node) =>
     !node.contains(section) && !section.contains(node)
-    && !node.closest("[data-managed-section],style,script,[data-resume-background-layer]")
+    // An absolutely placed page footer (Pehlione's website) is not in the column's flow.
+    && !node.closest("[data-managed-section],style,script,[data-resume-background-layer],[data-resume-page-footer]")
     && (node.matches("img,svg,figure") || Array.from(node.childNodes).some((child) => child.nodeType === 3 && (child.textContent ?? "").trim() !== "")));
 };
 
@@ -163,10 +164,10 @@ const getSectionStack = (section: Element): Element | null => {
 /**
  * Templates whose own geometry already places header, columns and footer at the chosen Seitenränder (their design
  * variables); the generic text shift would move their content a second time. Kompakt: resolveKompaktGeometry;
- * Klassisch: resolveKlassischGeometry, Einspaltig: resolveEinspaltigGeometry (horizontal only: header, sections and
- * footer share the left and right edge).
+ * Klassisch: resolveKlassischGeometry, Einspaltig: resolveEinspaltigGeometry, Tabellarisch: resolveTabellarischGeometry
+ * (horizontal only: header, sections and footer share the left and right edge).
  */
-const ownPageMarginTemplates = new Set(["zeitgenoessisch", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch", "einspaltig"]);
+const ownPageMarginTemplates = new Set(["zeitgenoessisch", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch", "einspaltig", "tabellarisch"]);
 
 /**
  * Templates whose entries are spaced by a padding that reads the template's gap variable (Tabellarisch: the timeline padding
@@ -260,13 +261,17 @@ export const applyResumeSpacingOutput = (
   if (lineHeight !== undefined) {
     scope.style.setProperty("--doc-line-height", String(lineHeight));
     scope.style.setProperty("--body-line", String(lineHeight));
-    scope.setAttribute("data-resume-spacing-line-height", "");
+    // Tabellarisch's reading text follows its own variable (getTabellarischDesignVariables); its labels (date, place,
+    // organisation, Berufsbezeichnung) keep their line heights, on both surfaces alike.
+    if (id !== "tabellarisch") scope.setAttribute("data-resume-spacing-line-height", "");
   }
 
   const sections = Array.from(scope.querySelectorAll("[data-managed-section]"));
   if ((id !== "zweispaltig" && !ownPageMarginTemplates.has(id) && spacing?.pageMarginMm !== undefined) || spacing?.innerPaddingMm !== undefined) {
     const zones = new Map<Element, Element[]>();
-    const layoutHost = getResumeLayoutHost(scope, id, surface);
+    // Tabellarisch is one column: its content box holds the sections themselves, so the page is one zone and only its first
+    // and last section touch the inset (the planner counts the Innenabstand once at the top and once at the bottom).
+    const layoutHost = id === "tabellarisch" ? null : getResumeLayoutHost(scope, id, surface);
     for (const section of sections) {
       let zone: Element = scope;
       if (layoutHost?.contains(section)) {

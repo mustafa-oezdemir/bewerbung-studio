@@ -18,7 +18,8 @@ type LanguageRowModel = {
 const languageRowModels: Record<string, LanguageRowModel> = {
   // Einspaltig (11 pt, measured 2026-10-07): ruled title 7.19 + 2.5 mm, rows of name (4.85) + 1.5 mm row gap, description 0.6 + 3.82 mm.
   einspaltig: { cols: 3, head: 8.19, row: 6.35, desc: 4.42, line: 4.85, dots: 20.2, colGap: 8, cw: 2.0 },
-  elegant: { cols: 1, head: 5.86, row: 6.95, desc: 3.51, line: 3.95, dots: 14.8, colGap: 0, cw: 1.37 },
+  // Elegant (10.5 pt, measured 2026-10-13 in its sidebar): title 9.48 mm, rows of name (4.63) 2 mm apart (head = title − one gap).
+  elegant: { cols: 1, head: 7.48, row: 6.63, desc: 3.51, line: 3.95, dots: 14.8, colGap: 0, cw: 1.37 },
   gepflegt: { cols: 1, head: 9.86, row: 7.04, desc: 5.04, line: 5.04, dots: 22.5, colGap: 0, cw: 2.3 },
   "ivy-league": { cols: "ivy", head: 6.21, row: 6.94, desc: 3.51, line: 3.95, dots: 19.6, colGap: 8, cw: 1.43 },
   kompakt: { cols: 2, head: 3.7, row: 5.96, desc: 3.51, line: 2.96, dots: 17.7, colGap: 8, cw: 1.44 },

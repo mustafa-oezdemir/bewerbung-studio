@@ -1,7 +1,6 @@
 import {
   createTemplatePageData,
   resolveTemplateSummary,
-  toTemplateExternalHref,
 } from "../resume-template-data";
 import { KlassischBackground } from "./KlassischBackground";
 import { KlassischHeader } from "./KlassischHeader";
@@ -24,6 +23,7 @@ import {
 import { getResumeSemanticTitle } from "../../../../features/resume-sections/resume-section-system";
 import { formatResumeContactLine } from "../../../../shared/resumePersonalData";
 import { sectionOnPage } from "../../../../shared/documentPagination";
+import { resolveResumeFooterWebsite } from "../../../../shared/resumeFooter";
 
 type Props = Omit<KlassischResumeProps, "accentColor" | "secondaryColor">;
 
@@ -42,7 +42,7 @@ export function KlassischPage({
     createTemplatePageData(profile, plan);
   const summary = resolveTemplateSummary(profile, resumeProfile);
   const isLastPage = plan.pageNumber === totalPages;
-  const portfolio = profile?.portfolio || profile?.github || profile?.linkedin || "";
+  const footerWebsite = resolveResumeFooterWebsite(profile, atsMode);
   const hasCustomLayout = hasSavedTemplateSectionLayout(profile, "klassisch");
   const savedOrder = getProfileResumeSectionLayout(profile, "klassisch").map(
     ({ type }) => type,
@@ -110,8 +110,8 @@ export function KlassischPage({
         {isLastPage ? <ResumeSpecialSections profile={profile} sectionClassName="klassisch-section" headingClassName="klassisch-section__title" /> : null}
       </div>
       <footer className="klassisch-footer" data-element-id="klassisch.footer">
-        {portfolio ? (
-          <a href={toTemplateExternalHref(portfolio)}>{portfolio}</a>
+{footerWebsite ? (
+          <a href={footerWebsite.href}>{footerWebsite.text}</a>
         ) : (
           <span />
         )}

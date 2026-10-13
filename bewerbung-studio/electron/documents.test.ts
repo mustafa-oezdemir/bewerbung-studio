@@ -1,16 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { applicationSchema, profileSchema } from "../src/shared/schema";
 import { resolveResumeSectionInstances } from "../src/features/resume-sections/resume-section-system";
-import { buildDocumentHtml } from "./documents";
+import { buildDocumentHtml as buildDocumentHtmlWithHyphens } from "./documents";
 import { buildDeckblattModel, deckblattCss, deckblattDesignIds, deckblattFitScript, renderDeckblattMarkup } from "../src/shared/deckblattDesigns";
-import { templates } from "../src/shared/templates";
+import { getTemplate, templates } from "../src/shared/templates";
 import { getTemplateDocumentDesignDefaults } from "../src/shared/cvDesign";
 import { createDocumentDesignDraft, resetDocumentDesign } from "../src/shared/documentEditorState";
 import { strengthSymbolOptions } from "../src/shared/strengthSymbols";
 import { parseHTML } from "linkedom";
 import { getZweispaltigLetterVariables, zweispaltigLetterCss } from "../src/shared/zweispaltigLetterIdentity";
 import { resolveCvDocument } from "../src/shared/resolveCvDocument";
+import { getDocumentFont } from "../src/shared/documentDesign";
+import { letterSideMarginCss, resolveDocumentSideMargins } from "../src/shared/documentSideMargins";
+import { anschreibenPrintCss } from "./anschreibenPrintCss";
 import { moveManagerSection, updateManagerSection } from "../src/features/resume-sections/resume-manager";
+
+// Soft hyphens are display-only; markup assertions compare the authored text.
+const buildDocumentHtml = (...args: Parameters<typeof buildDocumentHtmlWithHyphens>) =>
+  buildDocumentHtmlWithHyphens(...args).replaceAll("\u00ad", "");
 
 const now = new Date("2026-07-19T10:00:00.000Z").toISOString();
 
@@ -67,6 +74,38 @@ const profile = profileSchema.parse({
 });
 
 describe("Lebenslauf-Dokumente", () => {
+  it.each(["modern", "elegant"])("%s gives Deckblatt, Anschreiben and Motivation the CV name and reading typography", (templateId) => {
+    for (const typography of [undefined, { fontId: "georgia" as const, headingFontId: "montserrat" as const,
+      bodySizePt: 12.2, headingSizePt: 23 }]) {
+      const base = getTemplateDocumentDesignDefaults(templateId);
+      const selected = applicationSchema.parse({ ...application, templateId,
+        designSettings: typography ? { ...base, cvOverrides: { typography } } : base,
+        documents: { ...application.documents, coverSheetDesign: "pastell", motivationEnabled: true },
+      });
+      const cv = resolveCvDocument({ profile, templateId, settings: selected.designSettings, application: selected });
+      const page = parseHTML(buildDocumentHtml(selected, profile, "mappe")).document;
+      const deckblatt = page.querySelector<HTMLElement>(".deckblatt")!;
+      const letter = page.querySelector<HTMLElement>(".document-anschreiben")!;
+      const motivation = page.querySelector<HTMLElement>(".motivation")!;
+      const expectedNameFont = getDocumentFont(cv.design.typography.headingFontId).family;
+      const expectedBodyFont = getDocumentFont(cv.design.typography.fontId).family;
+      const expectedNameSize = `${cv.design.typography.headingSizePt}pt`;
+      const expectedBodySize = `${cv.design.typography.bodySizePt}pt`;
+      expect(deckblatt.style.getPropertyValue("--heading-font")).toBe(expectedNameFont);
+      expect(deckblatt.style.getPropertyValue("--cv-name-size")).toBe(expectedNameSize);
+      expect(deckblatt.style.getPropertyValue("--body-font")).toBe(expectedBodyFont);
+      expect(deckblatt.style.getPropertyValue("--body-size")).toBe(expectedBodySize);
+      expect(letter.style.getPropertyValue("--cv-name-font")).toBe(expectedNameFont);
+      expect(letter.style.getPropertyValue("--cv-name-size")).toBe(expectedNameSize);
+      expect(letter.style.getPropertyValue("--cv-body-font")).toBe(expectedBodyFont);
+      expect(letter.style.getPropertyValue("--cv-body-size")).toBe(expectedBodySize);
+      expect(motivation.style.getPropertyValue("--mv-heading-font")).toBe(expectedNameFont);
+      expect(motivation.style.getPropertyValue("--mv-name-size")).toBe(expectedNameSize);
+      expect(motivation.style.getPropertyValue("--mv-font")).toBe(expectedBodyFont);
+      expect(motivation.style.getPropertyValue("--mv-body-size")).toBe(expectedBodySize);
+    }
+  });
+
   it("uses Zweispaltig CV identity and profile data in the letter without changing stored values", () => {
     const source = profileSchema.parse({ ...profile, firstName: "Mustafa", lastName: "Özdemir", title: "Prozessplaner" });
     const selected = applicationSchema.parse({
@@ -286,9 +325,12 @@ describe("Lebenslauf-Dokumente", () => {
     for (const designId of deckblattDesignIds) {
       const chosen = applicationSchema.parse({ ...application, documents: { ...application.documents, coverSheetDesign: designId } });
       const html = buildDocumentHtml(chosen, designProfile, "deckblatt", attachments);
+      const cv = resolveCvDocument({ profile: designProfile, templateId: chosen.templateId, settings: chosen.designSettings });
       const model = buildDeckblattModel({
         application: chosen, profile: designProfile, documents: chosen.documents, attachments,
         accentColor: chosen.accentColor, secondaryColor: chosen.secondaryColor, settings: chosen.designSettings,
+        cvTypography: cv.design.typography,
+        sideMargins: resolveDocumentSideMargins(chosen.templateId, cv.design.spacing),
       });
       expect(html, designId).toContain(renderDeckblattMarkup(model));
       expect(html, designId).toContain(deckblattCss);
@@ -341,6 +383,176 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body.indexOf("letter-page")).toBeLessThan(body.indexOf("cv-sheet"));
   });
 
+  it("exports Motivation with escaped text, profile Briefkopf, automatic Anrede and CV design", () => {
+    const selected = applicationSchema.parse({
+      ...application,
+      templateId: "modern",
+      contact: { salutation: "Frau", firstName: "Anna", lastName: "Schulz" },
+      designSettings: {
+        ...getTemplateDocumentDesignDefaults("modern"),
+        cvOverrides: {
+          colors: { divider: "#167081", sectionHeading: "#234567", paragraph: "#394856" },
+          typography: { bodySizePt: 12, lineHeight: 1.4 },
+          spacing: { pageMarginMm: 22, innerPaddingMm: 2, entryGapMm: 5 },
+        },
+      },
+      documents: {
+        ...application.documents,
+        motivationEnabled: true,
+        motivationHeading: "Meine <Motivation>",
+        motivationIntroduction: "Antrieb & Werte",
+        motivationMainBody: "Passung",
+        motivationEvidence: "Beleg <Projekt>",
+        motivationGoals: "Beitrag",
+        motivationClosing: "Schluss",
+      },
+    });
+    const selectedProfile = profileSchema.parse({ ...profile, street: "Beispielweg 4", postalCode: "10115", phone: "+49 30 123456", signaturePath: "data:image/png;base64,AA==" });
+    const html = buildDocumentHtml(selected, selectedProfile, "motivation");
+    const page = parseHTML(html).document.querySelector<HTMLElement>(".motivation")!;
+    expect(page.querySelector(".mv-header .mv-name")?.textContent).toBe("Mina Kaya");
+    expect([...page.querySelectorAll(".mv-contacts li")].map((node) => node.textContent))
+      .toEqual(["Beispielweg 4", "10115 Berlin", "+49 30 123456", "mina@example.com"]);
+    expect(page.querySelector(".mv-heading")?.textContent).toBe("Meine <Motivation>");
+    expect(page.querySelector(".mv-salutation")?.textContent).toBe("Sehr geehrte Frau Schulz,");
+    expect([...page.querySelectorAll(".mv-paragraph")].map((node) => node.getAttribute("data-part")))
+      .toEqual(["introduction", "mainBody", "evidence", "goals", "closing"]);
+    expect(page.querySelector(".mv-signature")).not.toBeNull();
+    expect(page.querySelector(".mv-place-date")?.textContent).toBe("Berlin, 19. Juli 2026");
+    expect(page.style.getPropertyValue("--mv-body-size")).toBe("12pt");
+    expect(page.style.getPropertyValue("--mv-line-height")).toBe("1.4");
+    expect(page.style.getPropertyValue("--mv-line")).toBe("#167081");
+    // Left and right are the Lebenslauf's Seitenränder (Modern: the same on both sides), never the Innenabstand.
+    expect(page.style.getPropertyValue("--mv-margin-left")).toBe("22mm");
+    expect(page.style.getPropertyValue("--mv-margin-right")).toBe("22mm");
+    expect(html).toContain("Meine &lt;Motivation&gt;");
+    expect(html).toContain("Beleg &lt;Projekt&gt;");
+    expect(html).not.toContain("<Motivation>");
+    // No position/company line, no recipient block, no photo.
+    expect(page.textContent).not.toMatch(/Senior Softwareentwickler|Beispiel GmbH|Motivation für/);
+    expect(page.querySelector(".mv-photo, .recipient, address")).toBeNull();
+  });
+
+  it.each(templates.map((template) => template.id))("%s: Motivation is its own plain page, never the Anschreiben's frame or decoration", (templateId) => {
+    const selected = applicationSchema.parse({
+      ...application,
+      templateId,
+      accentColor: getTemplate(templateId).accent,
+      secondaryColor: getTemplate(templateId).secondary,
+      designSettings: getTemplateDocumentDesignDefaults(templateId),
+      documents: { ...application.documents, motivationEnabled: true },
+    });
+    const html = buildDocumentHtml(selected, profile, "motivation");
+    const section = parseHTML(html).document.querySelector<HTMLElement>("section.motivation-sheet")!;
+    expect([...section.classList]).toEqual(["page", "motivation-sheet"]);
+    expect(section.getAttribute("data-no-fit")).toBe("true");
+    expect(section.querySelector(".letter-header, .letter-rule, .page-content, .document-background-layer")).toBeNull();
+    expect(section.firstElementChild?.classList.contains("motivation")).toBe(true);
+    const resolvedCv = resolveCvDocument({ profile, templateId, settings: selected.designSettings, application: selected });
+    expect(section.getAttribute("style")).toBe(`background:${resolvedCv.design.colors.background}`);
+  });
+
+  it.each(templates.flatMap((template) => [[template.id, undefined], [template.id, 18]] as const))(
+    "%s (Seitenränder %s): Deckblatt, Anschreiben and Motivation take the Lebenslauf's left and right margin",
+    (templateId, margin) => {
+      const base = getTemplateDocumentDesignDefaults(templateId);
+      const selected = applicationSchema.parse({
+        ...application, templateId, accentColor: getTemplate(templateId).accent, secondaryColor: getTemplate(templateId).secondary,
+        designSettings: margin === undefined ? base : { ...base, cvOverrides: { spacing: { pageMarginMm: margin } } },
+        documents: { ...application.documents, motivationEnabled: true },
+      });
+      const sides = resolveDocumentSideMargins(templateId,
+        resolveCvDocument({ profile, templateId, settings: selected.designSettings }).design.spacing);
+      const html = buildDocumentHtml(selected, profile, "mappe");
+      const document = parseHTML(html).document;
+      const deckblatt = document.querySelector<HTMLElement>(".cover-page .deckblatt")!;
+      const letter = document.querySelector<HTMLElement>("section.letter-page .document-anschreiben")!;
+      const motivation = document.querySelector<HTMLElement>(".motivation-sheet .motivation")!;
+      for (const element of [deckblatt, letter]) {
+        expect(element.style.getPropertyValue("--side-left")).toBe(`${sides.leftMm}mm`);
+        expect(element.style.getPropertyValue("--side-right")).toBe(`${sides.rightMm}mm`);
+      }
+      expect(motivation.style.getPropertyValue("--mv-margin-left")).toBe(`${sides.leftMm}mm`);
+      expect(motivation.style.getPropertyValue("--mv-margin-right")).toBe(`${sides.rightMm}mm`);
+      expect(letter.querySelector(":scope > style")?.textContent).toBe(letterSideMarginCss);
+    },
+  );
+
+  it("resolves the Lebenslauf's left and right margin as each template draws it", () => {
+    const sides = (templateId: string, margin?: number) => {
+      const base = getTemplateDocumentDesignDefaults(templateId);
+      const settings = margin === undefined ? base : { ...base, cvOverrides: { spacing: { pageMarginMm: margin } } };
+      const result = resolveDocumentSideMargins(templateId, resolveCvDocument({ profile, templateId, settings }).design.spacing);
+      return [result.leftMm, result.rightMm];
+    };
+    // DIN-like 25 / 20 natives: Einspaltig and Klassisch become symmetric, the others move both edges alike.
+    expect(sides("einspaltig")).toEqual([25, 20]);
+    expect(sides("einspaltig", 18)).toEqual([18, 18]);
+    expect(sides("klassisch", 12)).toEqual([12, 12]);
+    expect(sides("kreativ")).toEqual([25, 20]);
+    expect(sides("kreativ", 12)).toEqual([17, 12]);
+    expect(sides("stilvoll", 28)).toEqual([33, 28]);
+    expect(sides("zeitgenoessisch", 18)).toEqual([23, 18]);
+    expect(sides("kompakt")).toEqual([25, 20]);
+    expect(sides("kompakt", 12)).toEqual([12, 7]);
+    // Symmetric templates and Pehlione's wider main column.
+    expect(sides("gepflegt")).toEqual([10, 10]);
+    expect(sides("elegant", 18)).toEqual([18, 18]);
+    expect(sides("zweispaltig")).toEqual([15, 15]);
+    expect(sides("modern")).toEqual([15, 15]);
+    expect(sides("ivy-league")).toEqual([11, 11]);
+    expect(sides("pehlione_white_blue")).toEqual([7, 10]);
+    expect(sides("pehlione_white", 12)).toEqual([12, 15]);
+  });
+
+  it("lets the Motivation page grow with its text instead of fitting or clipping it", () => {
+    const html = buildDocumentHtml(applicationSchema.parse({ ...application, documents: { ...application.documents,
+      motivationEnabled: true, motivationMainBody: Array.from({ length: 40 }, () => "Langer Absatz mit Inhalt.").join("\n\n") } }), profile, "motivation");
+    expect(html).toContain(".page.motivation-sheet{height:auto;min-height:297mm;max-height:none;overflow:visible}");
+    expect(html).toContain("box-decoration-break:clone");
+    expect(parseHTML(html).document.querySelectorAll(".mv-paragraph")).toHaveLength(40);
+  });
+
+  it("places enabled Motivation after the CV and respects its document-list visibility", () => {
+    const enabled = applicationSchema.parse({ ...application, documents: { ...application.documents, motivationEnabled: true } });
+    const body = buildDocumentHtml(enabled, profile, "mappe").split("<body>")[1];
+    expect(body.indexOf("cover-page")).toBeLessThan(body.indexOf("letter-page"));
+    expect(body.indexOf("letter-page")).toBeLessThan(body.indexOf("cv-sheet"));
+    expect(body.indexOf("cv-sheet")).toBeLessThan(body.indexOf("motivation-sheet"));
+    const hidden = applicationSchema.parse({ ...enabled, documents: { ...enabled.documents,
+      documentListSettings: [{ key: "motivation", label: "Meine Dritte Seite", isVisible: false }] } });
+    expect(buildDocumentHtml(hidden, profile, "mappe")).not.toContain("motivation-sheet");
+    expect(buildDocumentHtml(hidden, profile, "bewerbungsunterlagen")).not.toContain("motivation-sheet");
+    expect(buildDocumentHtml(hidden, profile, "motivation")).toContain("motivation-sheet");
+  });
+
+  it("prints the Bewerbungsunterlagen like the Mappe, without the Deckblatt", () => {
+    const enabled = applicationSchema.parse({ ...application, documents: { ...application.documents, motivationEnabled: true } });
+    const order = (html: string) => {
+      const body = html.split("<body>")[1];
+      return (["cover-page", "letter-page", "cv-sheet", "motivation-sheet"] as const)
+        .map((marker) => [marker, body.indexOf(`class="page ${marker}`) >= 0 ? body.indexOf(`class="page ${marker}`) : body.indexOf(marker)] as const)
+        .filter(([, index]) => index >= 0).sort((left, right) => left[1] - right[1]).map(([marker]) => marker);
+    };
+    const digital = buildDocumentHtml(enabled, profile, "bewerbungsunterlagen");
+    const mappe = buildDocumentHtml(enabled, profile, "mappe");
+    expect(order(digital)).toEqual(["letter-page", "cv-sheet", "motivation-sheet"]);
+    expect(order(mappe)).toEqual(["cover-page", "letter-page", "cv-sheet", "motivation-sheet"]);
+    // No Deckblatt page and no Deckblatt markup.
+    expect(digital).not.toContain('class="page cover-page');
+    expect(digital.split("<body>")[1]).not.toMatch(/class="deckblatt[ "]/);
+    expect(mappe.split("<body>")[1]).toMatch(/class="deckblatt[ "]/);
+    // The same pages as the Mappe after its Deckblatt (the Mappe adds only the Deckblatt's fit script): one source for both.
+    const pagesFromLetter = (html: string) => {
+      const body = html.split("<body>")[1];
+      return body.slice(body.indexOf('<section class="page letter-page"'), body.indexOf("<script"));
+    };
+    expect(pagesFromLetter(digital)).toBe(pagesFromLetter(mappe));
+    // Only the Mappe checks the Deckblatt's mandatory data.
+    expect(() => buildDocumentHtml(application, undefined, "mappe")).toThrow("Name der Bewerberin oder des Bewerbers");
+    expect(() => buildDocumentHtml(application, undefined, "bewerbungsunterlagen")).not.toThrow();
+  });
+
   it("validates mandatory applicant data before Deckblatt export", () => {
     expect(() => buildDocumentHtml(application, undefined, "deckblatt")).toThrow(
       "Name der Bewerberin oder des Bewerbers",
@@ -350,15 +562,15 @@ describe("Lebenslauf-Dokumente", () => {
   it("keeps the signature directly below the final cover-letter paragraph", () => {
     const html = buildDocumentHtml(application, profile, "anschreiben");
 
-    expect(html).toContain(
-      ".signature{display:flex;flex-direction:column;align-items:flex-start;margin-top:3.2mm}",
-    );
-    expect(html).toContain(".letter-content>.letter-closing{margin-bottom:0}");
+    // The PDF prints the preview's page with the preview's rules.
+    expect(html).toContain(anschreibenPrintCss());
+    expect(html).toContain(".letter-preview > .letter-closing{margin-top:2pt;margin-bottom:0}");
+    expect(html).toContain(".letter-preview .letter-signature{margin:12pt 0 0;");
     expect(html).toContain('class="letter-body letter-closing"');
     expect(html.indexOf('class="letter-body letter-closing"')).toBeLessThan(
-      html.indexOf('<div class="signature">'),
+      html.indexOf('<p class="letter-signature">'),
     );
-    expect(html).toContain('class="attachments-note"');
+    expect(html).toContain('class="letter-attachments"');
   });
 
   it("can hide the complete attachments section in the cover letter", () => {
@@ -530,8 +742,10 @@ describe("Lebenslauf-Dokumente", () => {
     const html = buildDocumentHtml(longApplication, profile, "anschreiben");
 
     expect(html.match(/class="page /g)).toHaveLength(1);
-    expect(html).toContain("letter-page letter-dense");
+    expect(html).toContain("document-anschreiben letter-dense");
     expect(html).toContain("@page{size:A4;margin:0}");
+    // Fitted like the preview (fitLetterContent): the letter area is scaled into the page, never cut.
+    expect(html).toContain('page.querySelector(".page-content, .letter-preview")');
     expect(html).toContain("content.dataset.fitScale");
   });
 
@@ -573,7 +787,9 @@ describe("Lebenslauf-Dokumente", () => {
       "anschreiben",
     );
 
-    expect(html).toContain("Frau Anna Müller<br>Herrn Mehmet Yılmaz");
+    const recipient = [...parseHTML(html).document.querySelectorAll(".letter-preview address > span")].map((line) => line.textContent);
+    expect(recipient).toContain("Frau Anna Müller");
+    expect(recipient).toContain("Herrn Mehmet Yılmaz");
     expect(html).toContain(
       '<p class="letter-salutation">Sehr geehrte Frau Müller, sehr geehrter Herr Yılmaz,</p>',
     );
@@ -598,8 +814,8 @@ describe("Lebenslauf-Dokumente", () => {
     });
     const html = buildDocumentHtml(withSize, profile, "anschreiben");
     expect(html).toContain(`--letter-body-size:${points}pt`);
-    expect(html).toContain(".subject{margin:0 0 6mm;color:var(--accent);font-size:var(--letter-body-size)");
-    expect(html).toContain(".letter-content>p:not(.subject,.date){margin:0 0 3.2mm;font-size:var(--letter-body-size)");
+    expect(html).toContain(".document-anschreiben .letter-preview{font-size:var(--letter-body-size, 11pt);line-height:1.28}");
+    expect(html).toContain(".letter-preview .letter-salutation{margin:10pt 0 10pt;font-size:var(--letter-body-size, 11pt)");
   });
 
   it("places compact applicant details in the DIN letterhead", () => {
@@ -617,21 +833,10 @@ describe("Lebenslauf-Dokumente", () => {
       '<span class="sender-contact">Berlin | mina@example.com</span>',
     );
     expect(html).not.toContain("pehlione.com");
-    expect(html).toContain(
-      ".sender-name{color:#000;font-size:16pt;font-weight:800;line-height:1.12}",
-    );
-    expect(html).toContain(
-      ".sender-contact{margin-top:.5mm;color:#000;font-size:10pt;line-height:1.2}",
-    );
-    expect(html).toContain(
-      ".letter-header{display:flex;min-height:24mm;align-items:flex-start;justify-content:center}",
-    );
-    expect(html).toContain(".letter-rule{height:4px;margin:0;background:var(--accent)}");
-    expect(html).toContain('<div class="rule letter-rule"></div>');
-    expect(html).toContain(".letter-header{min-height:0;padding-bottom:1mm}");
-    expect(html.indexOf('<div class="sender">')).toBeLessThan(
-      html.indexOf('<div class="recipient">'),
-    );
+    expect(html).toContain(".letter-preview .sender-name{color:#000;font-size:16pt;font-weight:800;line-height:1.12}");
+    expect(html).toContain(".letter-preview .letter-header{display:flex;align-items:flex-start;justify-content:center;padding-bottom:1mm}");
+    expect(html).toContain('<i class="paper-rule letter-rule"></i>');
+    expect(html.indexOf('<p class="sender-line">')).toBeLessThan(html.indexOf("<address>"));
   });
 
   it("uses a stable DIN A4 composition independent of the resume design", () => {
@@ -643,22 +848,14 @@ describe("Lebenslauf-Dokumente", () => {
     );
 
     expect(html).toContain(
-      'class="page letter-page letter-standard letter-gap-0 layout-sidebar-right',
+      'class="document-paper document-anschreiben letter-standard letter-gap-0 layout-sidebar-right',
     );
     expect(html).toContain('data-resume-template="modern-sidebar"');
-    expect(html).toContain(
-      ".letter-content{padding:var(--doc-margin);border-top:0}",
-    );
-    expect(html).toContain(
-      ".subject{margin:0 0 6mm;color:var(--accent);font-size:var(--letter-body-size);font-weight:800;line-height:1.2}",
-    );
-    expect(html).toContain(
-      ".letter-content>p:not(.subject,.date){margin:0 0 3.2mm;font-size:var(--letter-body-size);line-height:1.28}",
-    );
+    // The DIN letter area of the preview: page margin all round, no decorative column borders.
+    expect(html).toMatch(/\.document-anschreiben \.letter-preview,[^{]*\{padding:var\(--doc-margin\);border-top:0;border-right:0;border-left:0/);
+    expect(html).toContain(letterSideMarginCss);
     expect(splitCleanHtml).toContain("layout-split-clean");
-    expect(splitCleanHtml).toContain(
-      ".letter-content{padding:var(--doc-margin);border-top:0}",
-    );
+    expect(splitCleanHtml).toContain(anschreibenPrintCss());
   });
 
   it("renders Pehlione White Blue with a technical sidebar in PDF output", () => {
@@ -785,8 +982,9 @@ describe("Lebenslauf-Dokumente", () => {
     });
     const html = buildDocumentHtml(compactGapApplication, profile, "anschreiben");
 
-    expect(html).toContain("letter-gap-2");
-    expect(html).toContain(".letter-gap-2 .date{margin-bottom:12mm}");
+    expect(html).toContain("document-anschreiben letter-standard letter-gap-2");
+    // The preview's rule, more specific than any template letter style (which set 20 mm themselves).
+    expect(html).toContain(".document-anschreiben.letter-gap-2 .letter-preview .paper-date{margin-bottom:12mm}");
   });
 
   it("uses manually adjusted letterhead, recipient and salutation in the PDF", () => {
@@ -805,7 +1003,8 @@ describe("Lebenslauf-Dokumente", () => {
 
     expect(html).toContain("Mina Beispiel");
     expect(html).toContain("Frontend Developer");
-    expect(html).toContain("Personalabteilung<br>10115 Berlin");
+    expect([...parseHTML(html).document.querySelectorAll(".letter-preview address > span")].map((line) => line.textContent))
+      .toEqual(["Beispiel AG", "Personalabteilung", "10115 Berlin"]);
     expect(html).toContain("Guten Tag liebes Recruiting-Team,");
   });
 
@@ -968,12 +1167,8 @@ describe("Lebenslauf-Dokumente", () => {
       '<span class="signature-name">Mina Kaya</span>',
     );
     expect(letterHtml).not.toContain("<strong>Mina Kaya</strong>");
-    expect(letterHtml).toContain(
-      ".signature p{margin:0;font-size:var(--letter-body-size);line-height:1.28}.signature-image",
-    );
-    expect(letterHtml).toContain(
-      ".signature-name{font-size:11pt;font-weight:400;line-height:1.2}",
-    );
+    expect(letterHtml).toContain(".signature-image{display:block;width:auto;max-width:48mm;height:auto;max-height:14mm;");
+    expect(letterHtml).toContain(".signature-name{font-size:11pt;font-weight:400;line-height:1.2}");
   });
 
   it("renders the Elegant PDF with a full-height right sidebar and no empty photo placeholder", () => {

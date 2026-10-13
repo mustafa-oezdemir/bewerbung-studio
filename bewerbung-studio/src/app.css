@@ -2370,8 +2370,8 @@ body.is-resizing-split-view * {
   font-family: var(--doc-heading-font);
 }
 
-.document-paper:not(.document-lebenslauf):not(.document-deckblatt):not(.document-anschreiben) p,
-.document-paper:not(.document-lebenslauf):not(.document-deckblatt):not(.document-anschreiben) li {
+.document-paper:not(.document-lebenslauf):not(.document-deckblatt):not(.document-anschreiben):not(.document-motivation) p,
+.document-paper:not(.document-lebenslauf):not(.document-deckblatt):not(.document-anschreiben):not(.document-motivation) li {
   font-size: var(--doc-body-size);
   line-height: var(--doc-line-height);
 }
@@ -2432,6 +2432,46 @@ body.is-resizing-split-view * {
 .document-paper.document-deckblatt .deckblatt-host {
   width: 100%;
   height: 100%;
+}
+
+/* The Motivationsschreiben draws its own margins (motivationCss) and grows with its text: never cut, never scaled. */
+.document-paper.document-motivation {
+  height: auto;
+  max-height: none;
+  min-height: 297mm;
+  padding: 0;
+  overflow: visible;
+}
+
+.document-paper.document-motivation .motivation-host {
+  position: relative;
+}
+
+/* Where the PDF starts its second page; only shown while the text is longer than one A4 page. */
+.document-paper.document-motivation .motivation-page-break {
+  position: absolute;
+  top: 297mm;
+  right: 0;
+  left: 0;
+  z-index: 2;
+  display: none;
+  border-top: 1px dashed #b42318;
+  pointer-events: none;
+}
+
+.document-paper.document-motivation .motivation-host[data-pages]:not([data-pages="1"]) .motivation-page-break {
+  display: block;
+}
+
+.motivation-overflow-warning {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #f1b8b0;
+  border-radius: 8px;
+  background: #fff4f2;
+  color: #8a2b1f;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .deckblatt-design-picker {
@@ -3738,12 +3778,12 @@ body.is-resizing-split-view * {
   border-bottom: 1px solid #d8dddc;
 }
 
-.document-paper.column-compact-ats:not(.document-lebenslauf):not(.document-deckblatt) section {
+.document-paper.column-compact-ats:not(.document-lebenslauf):not(.document-deckblatt):not(.document-motivation) section {
   margin-top: 3.5mm;
 }
 
-.document-paper.column-compact-ats:not(.document-lebenslauf):not(.document-deckblatt) p,
-.document-paper.column-compact-ats:not(.document-lebenslauf):not(.document-deckblatt) li {
+.document-paper.column-compact-ats:not(.document-lebenslauf):not(.document-deckblatt):not(.document-motivation) p,
+.document-paper.column-compact-ats:not(.document-lebenslauf):not(.document-deckblatt):not(.document-motivation) li {
   font-size: 8.2pt;
   line-height: 1.28;
 }
@@ -5234,6 +5274,27 @@ body.is-resizing-split-view * {
 .application-projects__item > span { display: grid; min-width: 0; gap: 3px; }
 .application-projects__item strong { font-size: .68rem; overflow-wrap: anywhere; }
 .application-projects__item em { color: var(--brand); font-size: .62rem; font-style: normal; }
+
+/* Zertifikate auswählen: the Bewerbung's choice and order of the profile's certificates (Lebenslauf). */
+.certificate-selection { display: grid; gap: 10px; margin-bottom: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-muted); }
+.certificate-selection > header { display: grid; gap: 3px; }
+.certificate-selection > header strong { font-size: .78rem; }
+.certificate-selection small { color: var(--muted); font-size: .64rem; line-height: 1.4; }
+.certificate-selection__tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.certificate-selection__tools .field { flex: 1 1 180px; margin: 0; }
+.certificate-selection__status { margin: 0; font-size: .68rem; font-weight: 600; }
+.certificate-selection__list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.certificate-selection__list > li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.certificate-selection__list > li.is-selected { border-color: var(--brand); }
+.certificate-selection__item { display: flex; align-items: flex-start; gap: 8px; min-width: 0; cursor: pointer; }
+.certificate-selection__item input { margin-top: 2px; flex: none; }
+.certificate-selection__item > span { display: grid; min-width: 0; gap: 2px; }
+.certificate-selection__item strong { font-size: .68rem; overflow-wrap: anywhere; }
+.certificate-selection__hidden { flex: none; color: var(--muted); font-size: .62rem; }
+.certificate-selection__empty { justify-content: center; color: var(--muted); font-size: .66rem; }
+.certificate-list-editor__paste { margin-top: 10px; }
+.certificate-list-editor__paste > summary { cursor: pointer; font-size: .7rem; font-weight: 600; }
+.certificate-list-editor__paste[open] { display: grid; gap: 8px; }
 
 .match-analysis header {
   display: grid;

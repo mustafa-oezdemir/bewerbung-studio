@@ -1,5 +1,5 @@
-import { toZeitgenoessischExternalHref } from "./zeitgenoessisch.model";
 import type { ZeitgenoessischFooterProps } from "./zeitgenoessisch.types";
+import { resolveResumeFooterWebsite } from "../../../../shared/resumeFooter";
 
 export function ZeitgenoessischFooter({
   profile,
@@ -8,15 +8,15 @@ export function ZeitgenoessischFooter({
   atsMode,
 }: ZeitgenoessischFooterProps) {
   if (atsMode) return null;
-  const link = profile?.portfolio || profile?.github || profile?.linkedin;
+  const footerWebsite = resolveResumeFooterWebsite(profile);
 
   return (
     <footer
       className="zeitgenoessisch-footer"
       data-element-id="zeitgenoessisch.footer"
     >
-      {link ? (
-        <a href={toZeitgenoessischExternalHref(link)}>{link}</a>
+      {footerWebsite ? (
+        <a href={footerWebsite.href}>{footerWebsite.text}</a>
       ) : (
         <span />
       )}

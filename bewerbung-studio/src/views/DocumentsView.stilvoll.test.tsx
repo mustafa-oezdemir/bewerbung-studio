@@ -49,7 +49,7 @@ describe("Stilvoll Anschreiben and Lebenslauf", () => {
       const preview = parseHTML(`<html><body>${renderToStaticMarkup(createElement(DocumentsView))}</body></html>`).document
         .querySelector<HTMLElement>(".document-anschreiben.stilvoll-letter");
       const pdfLetterHtml = buildDocumentHtml(application, profile, "anschreiben");
-      const pdfLetter = parseHTML(pdfLetterHtml).document.querySelector<HTMLElement>(".letter-page.stilvoll-letter");
+      const pdfLetter = parseHTML(pdfLetterHtml).document.querySelector<HTMLElement>(".letter-page .document-anschreiben.stilvoll-letter");
       const pdfCvHtml = buildDocumentHtml(application, profile, "lebenslauf");
       const pdfCv = parseHTML(pdfCvHtml).document.querySelector<HTMLElement>(".stilvoll-pdf");
       expect(preview).not.toBeNull();

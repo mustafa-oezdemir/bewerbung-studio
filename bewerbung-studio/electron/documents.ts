@@ -3,7 +3,7 @@ import { kreativDefaults } from "../src/shared/cvTemplateDefaults/kreativ.defaul
 import { kompaktDefaults } from "../src/shared/cvTemplateDefaults/kompakt.defaults";
 import { stilvollDefaults } from "../src/shared/cvTemplateDefaults/stilvoll.defaults";
 import { zweispaltigPageStyle } from "../src/shared/cvTemplateDefaults/zweispaltig.defaults";
-import { getZweispaltigLetterVariables, resolveZweispaltigApplicationColors, zweispaltigLetterCss } from "../src/shared/zweispaltigLetterIdentity";
+import { resolveZweispaltigApplicationColors, zweispaltigLetterCss } from "../src/shared/zweispaltigLetterIdentity";
 import { zeitgenoessischLetterCss } from "../src/shared/zeitgenoessischDesign";
 import { getElegantDesignVariables, elegantLetterCss, elegantManagedCss, isElegantWideContact } from "../src/shared/elegantDesign";
 import { kreativLetterCss, kreativResolvedCss } from "../src/shared/kreativDesign";
@@ -14,6 +14,14 @@ import { kompaktLetterCss, kompaktResolvedCss } from "../src/shared/kompaktDesig
 import { renderContactIcon } from "../src/shared/contactIcons";
 import { applyManagedResumeOutput, managedResumeCss } from "../src/shared/resumeManagedOutput";
 import { resolveResumeClosingLine } from "../src/shared/resumeClosing";
+import { resolveResumeFooterWebsite } from "../src/shared/resumeFooter";
+import { buildMotivationModel, motivationCss, renderMotivationMarkup } from "../src/shared/motivationDocument";
+import { letterSideMarginCss, resolveDocumentSideMargins } from "../src/shared/documentSideMargins";
+import { anschreibenSubjectClassName, buildAnschreibenFrame, renderAnschreibenMarkup } from "../src/shared/anschreibenDocument";
+import { anschreibenPrintCss } from "./anschreibenPrintCss";
+import { isDocumentPackage, packageDocumentOrder } from "../src/shared/applicationDocuments";
+import type { ExportTarget } from "../src/shared/ipc";
+import { getApplicationDocumentItems } from "../src/shared/applicationDocuments";
 import { resolveCvDocument } from "../src/shared/resolveCvDocument";
 import type { ResumeDesignLayer } from "../src/shared/cvDesignSchema";
 import { resolveEducationPresentation, toTemplateEducationItem, sliceEducationDetails } from "../src/shared/resumeEducation";
@@ -49,7 +57,7 @@ import { getPehlioneContacts, renderPehlioneContacts, pehlioneContactsCss } from
 import { pehlioneBlueprintMarkup } from "../src/shared/pehlioneBlueprint";
 import { validateDeckblattData } from "../src/shared/deckblatt";
 import { getProfessionalTitle } from "../src/shared/profileSelection";
-import { coverSenderFromProfile, resolveCoverSender, stilvollCoverSenderFromProfile, type CoverSender } from "../src/shared/coverSender";
+import { coverSenderFromProfile, resolveCoverSender, stilvollCoverSenderFromProfile } from "../src/shared/coverSender";
 import {
   buildDeckblattModel,
   deckblattCss,
@@ -61,7 +69,7 @@ import { getTechnologyBrandIconMarkup } from "../src/shared/technologyBrand";
 import { getReadableTextColor, getTemplate } from "../src/shared/templates";
 import {
   applicationGreeting,
-  applicationRecipientLines,
+  resolveRecipientLines,
 } from "../src/shared/applicationContacts";
 import {
   createCoverSubject,
@@ -247,28 +255,6 @@ const renderKnowledgeSection = (
 const fullName = (profile?: ApplicantProfile) =>
   profile ? `${profile.firstName} ${profile.lastName}`.trim() : "Vorname Nachname";
 
-const addressBlock = (
-  application: Application,
-  docs: Application["documents"],
-) =>
-  (docs.coverRecipientAddress.trim()
-    ? docs.coverRecipientAddress
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean)
-    : applicationRecipientLines(application))
-    .filter(Boolean)
-    .map(escapeHtml)
-    .join("<br>");
-
-const senderHeader = ({ name, title, contact }: CoverSender) => {
-  return (
-    `<span class="sender-name">${escapeHtml(name)}</span>` +
-    (title ? `<span class="sender-title">${escapeHtml(title)}</span>` : "") +
-    `<span class="sender-contact">${escapeHtml(contact)}</span>`
-  );
-};
-
 const documentCss = (
   accent: string,
   secondary: string,
@@ -296,7 +282,7 @@ const documentCss = (
   h1,h2,h3{font-family:var(--heading-font);font-weight:var(--heading-weight)}h1{font-size:29pt;line-height:1.05;margin:8mm 0 4mm}h2{font-size:14pt;color:var(--accent);margin:8mm 0 3mm}
   h3{font-size:11pt;margin:0 0 1mm}.muted{color:var(--muted)}p,li{font-size:var(--body-size);line-height:var(--body-line)}
   ${deckblattCss}
-  .contact{padding-top:8mm;border-top:1px solid var(--line)}.letter-content{padding:var(--doc-margin);border-top:0}.letter-header{display:flex;min-height:24mm;align-items:flex-start;justify-content:center}.letter-rule{height:4px;margin:0;background:var(--accent)}.sender{width:100%;color:var(--ink);text-align:center}.sender-name,.sender-title,.sender-contact{display:block}.sender-name{color:#000;font-size:16pt;font-weight:800;line-height:1.12}.sender-title{margin-top:.4mm;color:var(--accent);font-size:11pt;font-weight:800;line-height:1.15}.sender-contact{margin-top:.5mm;color:#000;font-size:10pt;line-height:1.2}.recipient{min-height:20mm;margin-top:20mm;font-size:10pt;line-height:1.28}.date{margin:0 0 20mm;text-align:right;font-size:10pt}.letter-gap-1 .date{margin-bottom:16mm}.letter-gap-2 .date{margin-bottom:12mm}.letter-gap-3 .date{margin-bottom:8mm}.letter-gap-4 .date{margin-bottom:4mm}.subject{margin:0 0 6mm;color:var(--accent);font-size:var(--letter-body-size);font-weight:800;line-height:1.2}.letter-content>p:not(.subject,.date){margin:0 0 3.2mm;font-size:var(--letter-body-size);line-height:1.28}.letter-body{text-align:justify;text-justify:inter-word;hyphens:auto;overflow-wrap:break-word}.letter-content>.letter-closing{margin-bottom:0}.signature{display:flex;flex-direction:column;align-items:flex-start;margin-top:3.2mm}.signature p{margin:0;font-size:var(--letter-body-size);line-height:1.28}.signature-image{display:block;width:auto;max-width:48mm;height:auto;max-height:14mm;margin:1mm 0 .5mm;object-fit:contain;object-position:left center}.signature-name{font-size:11pt;font-weight:400;line-height:1.2}.attachments-note{margin-top:4mm!important;color:var(--muted);font-size:9pt!important;font-weight:700}.letter-compact .letter-content>p:not(.subject,.date),.letter-compact .signature{line-height:1.24}.letter-compact .letter-content>p:not(.subject,.date){margin-bottom:2.7mm}.letter-dense .recipient{min-height:18mm;margin-top:17mm}.letter-dense .date{margin-bottom:15mm}.letter-dense.letter-gap-1 .date{margin-bottom:11mm}.letter-dense.letter-gap-2 .date{margin-bottom:7mm}.letter-dense.letter-gap-3 .date{margin-bottom:3mm}.letter-dense.letter-gap-4 .date{margin-bottom:0}.letter-dense .letter-content>p:not(.subject,.date),.letter-dense .signature{font-size:var(--letter-body-size);line-height:1.15}.letter-dense .letter-content>p:not(.subject,.date){margin-bottom:2.2mm}
+  .contact{padding-top:8mm;border-top:1px solid var(--line)}
   .letter-header{min-height:0;padding-bottom:1mm}
   .cv-page{padding:0;display:grid;grid-template:"header header" auto "main side" 1fr/64% 36%;overflow:hidden}
   .cv-header{grid-area:header;display:flex;align-items:center;justify-content:space-between;gap:9mm;padding:var(--doc-margin) var(--doc-margin) calc(var(--doc-margin) * .6)}
@@ -576,7 +562,7 @@ const ivyLeagueDocumentCss = `
   .ivy-pdf-list{display:flex;flex-direction:column;gap:4.5mm}.ivy-pdf-entry{min-width:0;break-inside:auto;page-break-inside:auto}.ivy-pdf-entry-top,.ivy-pdf-entry-role{display:grid;grid-template-columns:minmax(0,1fr) minmax(32mm,auto);gap:8mm;align-items:baseline}.ivy-pdf-entry h3,.ivy-pdf-entry h4{margin:0;overflow-wrap:anywhere}.ivy-pdf-entry-top h3{color:var(--ivy-accent);font-size:10.5pt;font-weight:500;line-height:1.15}.ivy-pdf-entry-top span,.ivy-pdf-entry-role span{color:var(--ivy-text);font-size:var(--body-size);line-height:1.2;text-align:right;overflow-wrap:anywhere}.ivy-pdf-entry-top{margin-top:.7mm}.ivy-pdf-entry-role h4{color:var(--ivy-heading);font-size:9.7pt;font-weight:500;line-height:1.18}.ivy-pdf-entry-role span{white-space:nowrap}
   .ivy-pdf-entry ul,.ivy-pdf-certifications ul,.ivy-pdf-ats ul{margin:1.3mm 0 0;padding-left:4.5mm}.ivy-pdf-entry li,.ivy-pdf-certifications li,.ivy-pdf-ats li{margin:.35mm 0;padding-left:.5mm;hyphens:auto;overflow-wrap:break-word}.ivy-pdf-entry li::marker,.ivy-pdf-certifications li::marker{color:var(--ivy-heading)}.ivy-pdf-education .ivy-pdf-list{gap:3.2mm}.ivy-pdf-knowledge{margin:0;overflow-wrap:anywhere}
   .ivy-pdf-languages{display:grid;gap:3mm 8mm}.ivy-pdf-languages--columns-1{grid-template-columns:minmax(0,1fr)}.ivy-pdf-languages--columns-2{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:20mm}.ivy-pdf-languages--columns-3{grid-template-columns:repeat(3,minmax(0,1fr))}.ivy-pdf-language{display:grid;grid-template-columns:auto auto;justify-content:start;gap:2mm;align-items:center;min-width:0}.ivy-pdf-language strong{color:var(--ivy-heading);font-weight:600}.ivy-pdf-dots{display:flex;gap:1mm}.ivy-pdf-dots i{display:block;width:2.1mm;height:2.1mm;border-radius:50%;background:var(--ivy-inactive)}.ivy-pdf-dots i.filled{background:var(--ivy-heading)}
-  .ivy-pdf-footer{position:absolute;right:var(--ivy-margin);bottom:6mm;left:var(--ivy-margin);z-index:3;display:flex;justify-content:space-between;gap:8mm;color:var(--ivy-muted);font-size:7.1pt}.ivy-pdf-footer a{color:var(--ivy-muted);text-decoration:none}.ivy-pdf-footer span:last-child{margin-left:auto;white-space:nowrap}
+  .ivy-pdf-footer{position:absolute;right:calc(var(--ivy-margin) + var(--resume-page-text-shift,0mm));bottom:6mm;left:calc(var(--ivy-margin) + var(--resume-page-text-shift,0mm));z-index:3;display:flex;justify-content:space-between;gap:8mm;color:var(--ivy-muted);font-size:7.1pt}.ivy-pdf-footer a{color:var(--ivy-muted);text-decoration:none}.ivy-pdf-footer span:last-child{margin-left:auto;white-space:nowrap}
   .ivy-pdf-ats{--ivy-heading:#173b63;--ivy-accent:#173b63;--ivy-text:#303b42;--ivy-divider:#aeb8bf;padding:max(11mm,calc(var(--doc-margin) - 1mm)) var(--doc-margin) 13mm;background:#fff;font-family:Arial,sans-serif}.ivy-pdf-ats .ivy-pdf-header{padding-bottom:3.5mm;border-bottom:.3mm solid var(--ivy-divider)}.ivy-pdf-ats .ivy-pdf-header h1{font-family:Arial,sans-serif;font-size:19pt}.ivy-pdf-ats .ivy-pdf-header h2{color:var(--ivy-heading);font-size:10pt}.ivy-pdf-ats .ivy-pdf-title,.ivy-pdf-ats .knowledge-section>h3{font-family:Arial,sans-serif;font-size:11pt;text-align:left}.ivy-pdf-ats .knowledge-category h4,.ivy-pdf-ats .knowledge-subcategory h5{color:var(--ivy-heading)}
   .ivy-pdf[data-density="compact"]{--section-gap:max(4.5mm,calc(var(--doc-section-gap) - 1mm))}.ivy-pdf[data-density="compact"] .ivy-pdf-list{gap:3.6mm}.ivy-pdf[data-density="dense"]{--section-gap:max(3.8mm,calc(var(--doc-section-gap) - 2mm))}.ivy-pdf[data-density="dense"] .ivy-pdf-list{gap:3mm}.ivy-pdf[data-density="dense"] .ivy-pdf-title{margin-bottom:2mm;font-size:12.5pt}
   @media print{.no-print-background .ivy-pdf-watercolor{display:none!important}}
@@ -683,7 +669,7 @@ const modernDocumentCss = `
   .modern-pdf-contacts.inline{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:1mm 8mm;width:100%;max-width:132mm;margin-top:3mm}.modern-pdf-contacts.inline .modern-pdf-contact{display:grid;grid-template-columns:3.2mm minmax(0,1fr);gap:.8mm;min-width:0}.modern-pdf-contacts.inline .modern-pdf-contact i{display:block;width:3.2mm;height:auto;border-radius:0;color:var(--modern-muted);background:transparent;font-size:6.8pt;line-height:1.2}.modern-pdf-contacts.inline .modern-pdf-contact span,.modern-pdf-contacts.inline .modern-pdf-contact a{display:block;min-width:0;color:var(--modern-muted);font-size:7.4pt;overflow-wrap:anywhere}.modern-pdf-contacts.inline .modern-pdf-contact[data-contact-kind="linkedin"] a{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere}
   .modern-pdf-summary{margin:0;hyphens:auto;overflow-wrap:break-word}.modern-pdf-strengths{display:flex;flex-direction:column;gap:4mm}.modern-pdf-strength{display:grid;grid-template-columns:10mm minmax(0,1fr);gap:3mm;align-items:start}.modern-pdf-strength>i{display:grid;width:9mm;height:9mm;place-items:center;border-radius:50%;color:var(--modern-primary);background:var(--modern-icon-bg);font-size:10pt;font-style:normal;font-weight:700}.modern-pdf-strength h3{margin:0 0 .5mm;color:var(--modern-heading);font-size:9.5pt;font-weight:600}.modern-pdf-strength p{margin:0;hyphens:auto;overflow-wrap:break-word}.modern-pdf-languages{display:flex;flex-direction:column;gap:2.5mm}.modern-pdf-language{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4mm;align-items:center}.modern-pdf-language>div{display:flex;min-width:0;justify-content:space-between;gap:2mm}.modern-pdf-language strong{color:var(--modern-heading);font-weight:600}.modern-pdf-language em{color:var(--modern-muted);font-size:7.9pt;font-style:normal}.modern-pdf-dots{display:flex;gap:1.1mm;color:var(--modern-primary);font-size:6pt;white-space:nowrap}
   .modern-pdf-knowledge{display:flex;flex-wrap:wrap;gap:2.5mm 3mm}.modern-pdf-knowledge span{padding:0 2mm 1mm;border-bottom:.3mm solid var(--modern-divider);color:var(--modern-text);font-size:8.2pt;line-height:1.15}.modern-pdf-achievements{display:flex;flex-direction:column;gap:4mm}.modern-pdf-achievements article{display:grid;grid-template-columns:9mm minmax(0,1fr);gap:3mm;align-items:start}.modern-pdf-achievements i{display:grid;width:9mm;height:9mm;place-items:center;border-radius:50%;color:var(--modern-primary);background:var(--modern-icon-bg);font-size:8pt;font-style:normal}.modern-pdf-achievements p{margin:0;line-height:1.25}
-  .modern-pdf-footer{position:absolute;right:var(--modern-margin);bottom:6mm;left:var(--modern-margin);z-index:3;display:flex;justify-content:space-between;gap:8mm;color:var(--modern-muted);font-size:7.2pt}.modern-pdf-footer span:last-child{margin-left:auto;white-space:nowrap}
+  .modern-pdf-footer{position:absolute;right:calc(var(--modern-margin) + var(--resume-page-text-shift,0mm));bottom:6mm;left:calc(var(--modern-margin) + var(--resume-page-text-shift,0mm));z-index:3;display:flex;justify-content:space-between;gap:8mm;color:var(--modern-muted);font-size:7.2pt}.modern-pdf-footer span:last-child{margin-left:auto;white-space:nowrap}
   .modern-pdf[data-density="compact"]{--modern-section-gap:5mm;--modern-entry-gap:3.7mm;font-size:8.1pt}.modern-pdf[data-density="dense"]{--modern-section-gap:4mm;--modern-entry-gap:3mm;font-size:7.7pt;line-height:1.2}.modern-pdf[data-density="dense"] .modern-pdf-title{margin-bottom:2.5mm}.modern-pdf[data-density="dense"] .modern-pdf-contacts{gap:2.5mm}.modern-pdf[data-density="dense"] .modern-pdf-strengths{gap:3mm}
   .modern-pdf,.modern-pdf[data-density="dense"]{line-height:var(--doc-line-height,1.27)}
   .modern-pdf :is(.modern-pdf-strength h3,.modern-pdf-strength p,.modern-pdf-achievements p){line-height:var(--doc-line-height,1.27)}
@@ -693,6 +679,7 @@ const modernDocumentCss = `
 `;
 
 const pehlioneDocumentCss = `
+  .pehlione-pdf-main{position:relative}.pehlione-pdf-footer{position:absolute;right:var(--resume-page-text-shift,0mm);bottom:4mm;left:var(--resume-page-text-shift,0mm);z-index:3;padding-inline:inherit;color:var(--pehlione-native-subtitle,#475569);font-size:7.2pt;line-height:1.2}.pehlione-pdf-footer a{color:var(--pehlione-primary,#0b3d86);text-decoration:none}
   .pehlione-pdf{--pehlione-primary:var(--accent);--pehlione-accent:var(--secondary);display:grid;grid-template-columns:62mm minmax(0,1fr);width:100%;height:100%;overflow:hidden;color:var(--pehlione-native-text);background:var(--pehlione-native-background);font-family:var(--body-font);font-size:8.8pt;line-height:1.3}.pehlione-pdf *{box-sizing:border-box}.pehlione-pdf-sidebar{padding:0 7mm 11mm;color:#fff;background:linear-gradient(155deg,#062e64,#0b3d86 58%,#041f45)}.pehlione-pdf-hero{position:relative;height:calc(46mm * var(--resume-photo-scale,1));margin:0 -7mm 8mm;overflow:hidden;background-color:#062b5a;background-image:radial-gradient(circle at 50% 50%,transparent 24%,#d7eaff 25% 27%,transparent 28% 43%,#d7eaff 44% 45%,transparent 46%),linear-gradient(#fff2 1px,transparent 1px),linear-gradient(90deg,#fff2 1px,transparent 1px);background-size:auto,4mm 4mm,4mm 4mm}.pehlione-pdf-sidebar section{margin:0 0 var(--pehlione-native-sidebar-section-gap)}.pehlione-pdf-sidebar h3{margin:0 0 var(--pehlione-native-title-gap);padding-bottom:2mm;border-bottom:var(--pehlione-native-divider-width) solid #b8d2f4;color:#fff;font-size:var(--pehlione-native-sidebar-heading-size);line-height:1.1;text-transform:uppercase}.pehlione-pdf-sidebar ul{display:grid;gap:2mm;margin:0;padding-left:4mm}.pehlione-pdf-sidebar li{line-height:1.25}.pehlione-pdf-main{min-width:0;padding:10mm 10mm 12mm}.pehlione-pdf-header{margin:0 0 7mm;padding-bottom:4mm;border-bottom:.7mm solid var(--pehlione-primary)}.pehlione-pdf-header h1{margin:0;color:var(--pehlione-primary);font-size:var(--pehlione-native-heading-size);font-weight:800;letter-spacing:-.035em;line-height:1}.pehlione-pdf-header h2{margin:2mm 0 0;color:var(--pehlione-native-subtitle);font-size:var(--pehlione-native-subheading-size);line-height:1.18}.pehlione-pdf-header p{margin:0 0 1mm;color:var(--pehlione-primary);font-size:8pt;font-weight:700;text-transform:uppercase}.pehlione-pdf-section{margin:0 0 var(--pehlione-native-section-gap)}.pehlione-pdf-section h3{display:grid;grid-template-columns:9mm minmax(0,1fr);gap:3mm;align-items:center;margin:0 0 var(--pehlione-native-title-gap);color:var(--pehlione-primary);font-size:var(--pehlione-native-section-heading-size);line-height:1.1;text-transform:uppercase}.pehlione-pdf-section h3:before{display:grid;width:9mm;height:9mm;place-items:center;border-radius:1mm;color:#fff;background:var(--pehlione-primary);content:"◆";font-size:5pt}.pehlione-pdf-section h3 span{padding-bottom:1.2mm;border-bottom:var(--pehlione-native-divider-width) solid var(--pehlione-primary)}.pehlione-pdf-summary{margin:0;text-align:justify;hyphens:auto}.pehlione-pdf-entry{display:grid;grid-template-columns:29mm minmax(0,1fr);gap:4mm;padding-bottom:4mm;border-bottom:.25mm solid var(--pehlione-native-divider)}.pehlione-pdf-entry+.pehlione-pdf-entry{padding-top:var(--pehlione-native-entry-gap)}.pehlione-pdf-entry:last-child{padding-bottom:0;border-bottom:0}.pehlione-pdf-entry>p{margin:0;color:#1e3150;font-weight:700;line-height:1.25}.pehlione-pdf-entry h4{margin:0;color:var(--pehlione-primary);font-size:var(--pehlione-native-entry-heading-size);line-height:1.2}.pehlione-pdf-entry strong{display:block;margin:1mm 0 1.5mm;color:#173f82;font-size:9.2pt}.pehlione-pdf-entry ul,.pehlione-pdf-project ul,.pehlione-pdf-training ul{margin:0;padding-left:4mm}.pehlione-pdf-entry li,.pehlione-pdf-project li,.pehlione-pdf-training li{margin:.5mm 0;hyphens:auto}.pehlione-pdf-project{padding:3mm 3.5mm;border-left:1.2mm solid var(--pehlione-primary);background:#f1f6fc}.pehlione-pdf-project h4{margin:0;color:var(--pehlione-primary);font-size:10.4pt}.pehlione-pdf-project p{margin:1mm 0 1.5mm;color:#173f82;font-weight:700}.pehlione-pdf[data-density="compact"] .pehlione-pdf-section{margin-bottom:4mm}.pehlione-pdf[data-density="dense"] .pehlione-pdf-main{padding-top:7mm;padding-bottom:8mm}.pehlione-pdf[data-density="dense"] .pehlione-pdf-header{margin-bottom:4mm}.pehlione-pdf[data-density="dense"] .pehlione-pdf-header h1{font-size:24pt}.pehlione-pdf[data-density="dense"] .pehlione-pdf-section{margin-bottom:3.5mm}.pehlione-pdf[data-density="dense"] .pehlione-pdf-entry{padding-bottom:2.5mm}.pehlione-pdf-ats{display:block;padding:14mm 16mm;background:#fff;font-family:Arial,sans-serif}.pehlione-pdf-ats .pehlione-pdf-main{padding:0}.pehlione-pdf-ats .pehlione-pdf-header h1{font-size:20pt}.pehlione-pdf-ats .pehlione-pdf-section h3:before{display:none}.pehlione-pdf-ats .pehlione-pdf-section h3{display:block;font-size:10.5pt}.pehlione-pdf-ats .pehlione-pdf-section h3 span{display:block}.pehlione-pdf-ats-contact{margin:0 0 5mm}.pehlione-pdf-continuation{display:block;padding:14mm 16mm;background:#fff;font-family:Arial,sans-serif}
 `;
 
@@ -723,18 +710,18 @@ const gepflegtDocumentCss = `
 
 const tabellarischDocumentCss = `
   .tabellarisch-pdf-contact[data-contact-kind="github"]{grid-column:1}.tabellarisch-pdf-contact[data-contact-kind="website"]{grid-column:2}
-  .tabellarisch-pdf{--tab-primary:var(--secondary);--tab-accent:var(--accent);--tab-text:#3f4850;--tab-muted:#6d747a;--tab-line:#c8cdd1;--tab-margin:max(15mm,var(--doc-margin));--tab-section-gap:max(6.3mm,var(--section-gap));--tab-entry-gap:4.4mm;position:relative;width:100%;height:100%;overflow:hidden;color:var(--tab-text);background:#fff;font-family:var(--body-font);font-size:max(8.7pt,var(--body-size));line-height:max(1.28,var(--body-line))}
-  .tabellarisch-pdf *{box-sizing:border-box}.tabellarisch-pdf a{color:inherit;text-decoration:none}.tabellarisch-pdf-content{position:relative;z-index:2;height:100%;padding:max(15mm,var(--doc-margin)) var(--tab-margin) max(19mm,calc(var(--doc-margin) + 5mm))}
-  .tabellarisch-pdf-background{position:absolute;top:0;right:0;z-index:0;width:100%;height:58mm;fill:none;stroke:var(--tab-line);stroke-width:1.15;opacity:.62;pointer-events:none}
-  .tabellarisch-pdf-header{display:grid;grid-template-columns:minmax(0,1fr) calc(32mm * var(--resume-photo-scale,1));gap:10mm;align-items:start;min-height:30mm}.tabellarisch-pdf-header.no-photo{grid-template-columns:1fr}.tabellarisch-pdf-identity{min-width:0;padding-top:1mm}.tabellarisch-pdf-header h1{margin:0;color:var(--tab-primary);font-family:var(--heading-font);font-size:25pt;font-weight:750;letter-spacing:.015em;line-height:1;text-transform:uppercase;overflow-wrap:anywhere}.tabellarisch-pdf-header h2{margin:2.3mm 0 0;color:var(--tab-accent);font-family:var(--heading-font);font-size:13.5pt;font-weight:650;line-height:1.15;overflow-wrap:anywhere}.tabellarisch-pdf-photo{display:block;width:calc(30mm * var(--resume-photo-scale,1));height:calc(30mm * var(--resume-photo-scale,1));justify-self:end;border-radius:50%;background:#e8ebed;object-fit:cover}
-  .tabellarisch-pdf-contacts{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:1.15mm 7mm;width:100%;max-width:132mm;margin:2.5mm 0 0;color:var(--tab-text);font-size:8.4pt;font-style:normal;font-weight:600;line-height:1.2}.tabellarisch-pdf-contact{display:grid;grid-template-columns:3.2mm minmax(0,1fr);gap:1.2mm;align-items:center;min-width:0}.tabellarisch-pdf-contact svg{width:3mm;height:3mm;fill:none;stroke:var(--tab-accent);stroke-linecap:round;stroke-linejoin:round;stroke-width:2.4}.tabellarisch-pdf-contact span,.tabellarisch-pdf-contact a{min-width:0;overflow-wrap:anywhere}.tabellarisch-pdf-contact[data-contact-kind="linkedin"] a{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere}
-  .tabellarisch-pdf-section{min-width:0;margin-top:var(--tab-section-gap);break-inside:auto}.tabellarisch-pdf-title{display:flex;align-items:baseline;gap:2.5mm;margin:0 0 3.5mm;color:var(--tab-primary);font-family:var(--heading-font);font-size:15pt;font-weight:750;letter-spacing:.01em;line-height:1.05;text-transform:uppercase;break-after:avoid}.tabellarisch-pdf-title small{color:var(--tab-muted);font-size:7.5pt;font-weight:600;text-transform:none}.tabellarisch-pdf-summary{margin:0;text-align:justify;text-justify:inter-word;hyphens:auto;overflow-wrap:break-word}
-  .tabellarisch-pdf-strengths{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5mm 12mm}.tabellarisch-pdf-strength{display:grid;grid-template-columns:8mm minmax(0,1fr);gap:2.5mm;align-items:start;break-inside:avoid}.tabellarisch-pdf-strength svg{width:6mm;height:6mm;fill:none;stroke:var(--tab-accent);stroke-linecap:round;stroke-linejoin:round;stroke-width:2.1}.tabellarisch-pdf-strength h3{margin:0 0 1.5mm;color:var(--tab-primary);font-size:10.3pt;font-weight:700;line-height:1.2}.tabellarisch-pdf-strength p{margin:0;hyphens:auto;overflow-wrap:break-word}
-  .tabellarisch-pdf-timeline{display:flex;flex-direction:column}.tabellarisch-pdf-entry{display:grid;grid-template-columns:minmax(30mm,35mm) 7mm minmax(0,1fr);gap:4mm;min-width:0;padding-bottom:var(--tab-entry-gap);break-inside:auto}.tabellarisch-pdf-entry:last-child{padding-bottom:0}.tabellarisch-pdf-meta{padding-top:.45mm}.tabellarisch-pdf-date,.tabellarisch-pdf-location{margin:0}.tabellarisch-pdf-date{color:var(--tab-primary);font-size:10pt;font-weight:750;line-height:1.15}.tabellarisch-pdf-location{margin-top:2mm;color:var(--tab-text);font-size:8.4pt;line-height:1.3}.tabellarisch-pdf-rail{position:relative;display:block;min-height:100%}.tabellarisch-pdf-rail:before{position:absolute;top:2.5mm;bottom:-1mm;left:50%;width:.35mm;background:var(--tab-line);content:"";transform:translateX(-50%)}.tabellarisch-pdf-rail:after{position:absolute;top:.6mm;left:50%;width:2.3mm;height:2.3mm;border-radius:50%;background:var(--tab-primary);content:"";transform:translateX(-50%)}.tabellarisch-pdf-entry-content{min-width:0}.tabellarisch-pdf-entry h3{margin:0;color:var(--tab-primary);font-family:var(--heading-font);font-size:12pt;font-weight:500;line-height:1.15;overflow-wrap:anywhere}.tabellarisch-pdf-organization{margin:1mm 0 1.5mm;color:var(--tab-accent);font-size:10.2pt;font-weight:700;line-height:1.2;overflow-wrap:anywhere}.tabellarisch-pdf-entry ul,.tabellarisch-pdf-list ul,.tabellarisch-pdf-ats ul{margin:0;padding-left:4.5mm}.tabellarisch-pdf-entry li,.tabellarisch-pdf-list li,.tabellarisch-pdf-ats li{margin:.45mm 0;padding-left:.5mm;hyphens:auto;overflow-wrap:break-word}.tabellarisch-pdf-entry li::marker{color:var(--tab-muted)}
-  .tabellarisch-pdf-additional{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12mm}.tabellarisch-pdf-list ul.inline{display:flex;flex-wrap:wrap;gap:1mm 6mm;padding:0;list-style:none}.tabellarisch-pdf-list ul.inline li:before{margin-right:1.5mm;color:var(--tab-accent);content:"•"}.tabellarisch-pdf-list ul.inline li.tabellarisch-pdf-language--dotted{display:grid;grid-template-columns:auto auto auto;align-items:center;column-gap:2mm;row-gap:.6mm}.tabellarisch-pdf-list ul.inline li.tabellarisch-pdf-language--dotted:before{margin-right:0}.tabellarisch-pdf-language--dotted .resume-language-description{grid-column:2/-1}.tabellarisch-pdf-dots{display:flex;gap:.8mm}.tabellarisch-pdf-dots i{display:block;width:2.2mm;height:2.2mm;border-radius:50%;background:var(--tab-line)}.tabellarisch-pdf-dots i.filled{background:var(--tab-accent)}.klassisch-pdf-dots{display:flex;gap:.8mm}.klassisch-pdf-dots i{display:block;width:2.2mm;height:2.2mm;border-radius:50%;background:var(--klassisch-border)}.klassisch-pdf-dots i.filled{background:var(--klassisch-accent)}
-  .tabellarisch-pdf-continuation{display:flex;align-items:baseline;justify-content:space-between;gap:8mm;margin-bottom:6mm;padding-bottom:2.5mm;border-bottom:.35mm solid var(--tab-line)}.tabellarisch-pdf-continuation strong{color:var(--tab-primary);font-family:var(--heading-font);font-size:13pt}.tabellarisch-pdf-continuation span{color:var(--tab-accent);font-size:9pt;font-weight:600;text-align:right}.tabellarisch-pdf-footer{position:absolute;right:var(--tab-margin);bottom:6mm;left:var(--tab-margin);z-index:3;display:flex;justify-content:space-between;gap:8mm;color:var(--tab-muted);font-size:7.5pt}.tabellarisch-pdf-footer span:last-child{margin-left:auto;white-space:nowrap}
-  .tabellarisch-pdf[data-density="compact"]{--tab-section-gap:5.2mm;--tab-entry-gap:3.4mm;font-size:max(8.3pt,var(--body-size));line-height:max(1.24,var(--body-line))}.tabellarisch-pdf[data-density="dense"]{--tab-section-gap:4.1mm;--tab-entry-gap:2.6mm;--tab-margin:max(13mm,var(--doc-margin));font-size:8pt;line-height:1.22}.tabellarisch-pdf[data-density="dense"] .tabellarisch-pdf-content{padding-top:13mm}.tabellarisch-pdf[data-density="dense"] .tabellarisch-pdf-header{min-height:29mm}.tabellarisch-pdf[data-density="dense"] .tabellarisch-pdf-header h1{font-size:22pt}.tabellarisch-pdf[data-density="dense"] .tabellarisch-pdf-header h2{font-size:12pt}.tabellarisch-pdf[data-density="dense"] .tabellarisch-pdf-title{margin-bottom:2.4mm;font-size:13.5pt}
-  .tabellarisch-pdf-ats{--tab-primary:#222b30;--tab-accent:#222b30;--tab-line:#cfd4d7;padding:14mm var(--tab-margin) 16mm;background:#fff;font-family:Arial,sans-serif}.tabellarisch-pdf-ats .tabellarisch-pdf-header{display:block;min-height:0;padding-bottom:4mm;border-bottom:.35mm solid var(--tab-line)}.tabellarisch-pdf-ats .tabellarisch-pdf-contacts{display:flex;flex-wrap:wrap;gap:1mm 5mm}.tabellarisch-pdf-ats .tabellarisch-pdf-contact{display:block}.tabellarisch-pdf-ats .tabellarisch-pdf-contact svg{display:none}.tabellarisch-pdf-ats .tabellarisch-pdf-title{font-size:11pt}.tabellarisch-pdf-ats .tabellarisch-pdf-entry{display:block}.tabellarisch-pdf-ats .tabellarisch-pdf-entry h3{font-size:11pt}.tabellarisch-pdf-ats .tabellarisch-pdf-organization{margin-bottom:1mm}.tabellarisch-pdf-ats-meta{margin:0 0 1.5mm;color:var(--tab-muted);font-size:8.3pt}
+  .tabellarisch-pdf{--tabellarisch-primary:var(--secondary);--tabellarisch-accent:var(--accent);--tabellarisch-text:#3f4850;--tabellarisch-muted:#6d747a;--tabellarisch-line:#c8cdd1;--tabellarisch-margin-top:15mm;--tabellarisch-margin-right:15mm;--tabellarisch-margin-bottom:14mm;--tabellarisch-margin-left:15mm;--tabellarisch-footer-clearance:5mm;--tabellarisch-footer-bottom:6mm;--tabellarisch-section-gap:6.3mm;--tabellarisch-entry-gap:4.4mm;--tabellarisch-section-title-gap:3.5mm;--tabellarisch-entry-content-gap:1mm;--tabellarisch-body-size:9.2pt;--tabellarisch-line-height:1.1;--tabellarisch-name-size:25pt;--tabellarisch-name-weight:750;--tabellarisch-title-size:13.5pt;--tabellarisch-title-weight:650;--tabellarisch-section-title-size:15pt;--tabellarisch-section-title-weight:750;--tabellarisch-heading-case:uppercase;--tabellarisch-entry-title-size:12pt;--tabellarisch-font:"Source Sans 3","Segoe UI",Arial,sans-serif;--tabellarisch-heading-font:var(--tabellarisch-font);position:relative;width:100%;height:100%;overflow:hidden;color:var(--tabellarisch-text);background:#fff;font-family:var(--tabellarisch-font);font-size:var(--tabellarisch-body-size);line-height:1.28}
+  .tabellarisch-pdf :where(p,li){font-size:var(--tabellarisch-body-size);line-height:var(--tabellarisch-line-height)}
+  .tabellarisch-pdf *{box-sizing:border-box}.tabellarisch-pdf a{color:inherit;text-decoration:none}.tabellarisch-pdf-content{position:relative;z-index:2;height:100%;padding:var(--tabellarisch-margin-top) var(--tabellarisch-margin-right) calc(var(--tabellarisch-margin-bottom) + var(--tabellarisch-footer-clearance)) var(--tabellarisch-margin-left)}
+  .tabellarisch-pdf-background{position:absolute;top:0;right:0;z-index:0;width:100%;height:58mm;fill:none;stroke:var(--tabellarisch-line);stroke-width:1.15;opacity:.62;pointer-events:none}
+  .tabellarisch-pdf-header{display:grid;grid-template-columns:minmax(0,1fr) calc(32mm * var(--resume-photo-scale,1));gap:10mm;align-items:start;min-height:30mm}.tabellarisch-pdf-header.no-photo{grid-template-columns:1fr}.tabellarisch-pdf-identity{min-width:0;padding-top:1mm}.tabellarisch-pdf-header h1{margin:0;color:var(--tabellarisch-primary);font-family:var(--tabellarisch-heading-font);font-size:var(--tabellarisch-name-size);font-weight:var(--tabellarisch-name-weight);letter-spacing:.015em;line-height:1;text-transform:uppercase;overflow-wrap:anywhere}.tabellarisch-pdf-header h2{margin:2.3mm 0 0;color:var(--tabellarisch-accent);font-family:var(--tabellarisch-heading-font);font-size:var(--tabellarisch-title-size);font-weight:var(--tabellarisch-title-weight);line-height:1.15;overflow-wrap:anywhere}.tabellarisch-pdf-photo{display:block;width:calc(30mm * var(--resume-photo-scale,1));height:calc(30mm * var(--resume-photo-scale,1));justify-self:end;border-radius:50%;background:#e8ebed;object-fit:cover}
+  .tabellarisch-pdf-contacts{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:1.15mm 7mm;width:100%;max-width:132mm;margin:2.5mm 0 0;color:var(--tabellarisch-text);font-size:8.4pt;font-style:normal;font-weight:600;line-height:1.2}.tabellarisch-pdf-contact{display:grid;grid-template-columns:3.2mm minmax(0,1fr);gap:1.2mm;align-items:center;min-width:0}.tabellarisch-pdf-contact svg{width:3mm;height:3mm;fill:none;stroke:var(--tabellarisch-accent);stroke-linecap:round;stroke-linejoin:round;stroke-width:2.4}.tabellarisch-pdf-contact span,.tabellarisch-pdf-contact a{min-width:0;overflow-wrap:anywhere}.tabellarisch-pdf-contact[data-contact-kind="linkedin"] a{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere}
+  .tabellarisch-pdf-section{min-width:0;margin-top:var(--tabellarisch-section-gap);break-inside:auto}.tabellarisch-pdf-title{display:flex;align-items:baseline;gap:2.5mm;margin:0 0 var(--tabellarisch-section-title-gap);color:var(--tabellarisch-primary);font-family:var(--tabellarisch-heading-font);font-size:var(--tabellarisch-section-title-size);font-weight:var(--tabellarisch-section-title-weight);letter-spacing:.01em;line-height:1.05;text-transform:var(--tabellarisch-heading-case);break-after:avoid}.tabellarisch-pdf-title small{color:var(--tabellarisch-muted);font-size:7.5pt;font-weight:600;text-transform:none}.tabellarisch-pdf-summary{margin:0;text-align:justify;text-justify:inter-word;hyphens:auto;overflow-wrap:break-word}
+  .tabellarisch-pdf-strengths{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5mm 12mm}.tabellarisch-pdf-strength{display:grid;grid-template-columns:8mm minmax(0,1fr);gap:2.5mm;align-items:start;break-inside:avoid}.tabellarisch-pdf-strength svg{width:6mm;height:6mm;fill:none;stroke:var(--tabellarisch-accent);stroke-linecap:round;stroke-linejoin:round;stroke-width:2.1}.tabellarisch-pdf-strength h3{margin:0 0 1.5mm;color:var(--tabellarisch-primary);font-size:10.3pt;font-weight:700;line-height:1.2}.tabellarisch-pdf-strength p{margin:0;hyphens:auto;overflow-wrap:break-word}
+  .tabellarisch-pdf-timeline{display:flex;flex-direction:column}.tabellarisch-pdf-entry{display:grid;grid-template-columns:minmax(30mm,35mm) 7mm minmax(0,1fr);gap:4mm;min-width:0;padding-bottom:var(--tabellarisch-entry-gap);break-inside:auto}.tabellarisch-pdf-entry:last-child{padding-bottom:0}.tabellarisch-pdf-meta{padding-top:.45mm}.tabellarisch-pdf-date,.tabellarisch-pdf-location{margin:0}.tabellarisch-pdf-date{color:var(--tabellarisch-primary);font-size:10pt;font-weight:750;line-height:1.15}.tabellarisch-pdf-location{margin-top:2mm;color:var(--tabellarisch-text);font-size:8.4pt;line-height:1.3}.tabellarisch-pdf-rail{position:relative;display:block;min-height:100%}.tabellarisch-pdf-rail:before{position:absolute;top:2.5mm;bottom:-1mm;left:50%;width:.35mm;background:var(--tabellarisch-line);content:"";transform:translateX(-50%)}.tabellarisch-pdf-rail:after{position:absolute;top:.6mm;left:50%;width:2.3mm;height:2.3mm;border-radius:50%;background:var(--tabellarisch-primary);content:"";transform:translateX(-50%)}.tabellarisch-pdf-entry-content{min-width:0}.tabellarisch-pdf-entry h3{margin:0;color:var(--tabellarisch-primary);font-family:var(--tabellarisch-heading-font);font-size:var(--tabellarisch-entry-title-size);font-weight:500;line-height:1.15;overflow-wrap:anywhere}.tabellarisch-pdf-organization{margin:var(--tabellarisch-entry-content-gap) 0 1.5mm;color:var(--tabellarisch-accent);font-size:10.2pt;font-weight:700;line-height:1.2;overflow-wrap:anywhere}.tabellarisch-pdf-entry ul,.tabellarisch-pdf-list ul,.tabellarisch-pdf-ats ul{margin:0;padding-left:4.5mm}.tabellarisch-pdf-entry li,.tabellarisch-pdf-list li,.tabellarisch-pdf-ats li{margin:.45mm 0;padding-left:.5mm;hyphens:auto;overflow-wrap:break-word}.tabellarisch-pdf-entry li::marker{color:var(--tabellarisch-muted)}
+  .tabellarisch-pdf-additional{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12mm}.tabellarisch-pdf-list ul.inline{display:flex;flex-wrap:wrap;gap:1mm 6mm;padding:0;list-style:none}.tabellarisch-pdf-list ul.inline li:before{margin-right:1.5mm;color:var(--tabellarisch-accent);content:"•"}.tabellarisch-pdf-list ul.inline li.tabellarisch-pdf-language--dotted{display:grid;grid-template-columns:auto auto auto;align-items:center;column-gap:2mm;row-gap:.6mm}.tabellarisch-pdf-list ul.inline li.tabellarisch-pdf-language--dotted:before{margin-right:0}.tabellarisch-pdf-language--dotted .resume-language-description{grid-column:2/-1}.tabellarisch-pdf-dots{display:flex;gap:.8mm}.tabellarisch-pdf-dots i{display:block;width:2.2mm;height:2.2mm;border-radius:50%;background:var(--tabellarisch-line)}.tabellarisch-pdf-dots i.filled{background:var(--tabellarisch-accent)}.klassisch-pdf-dots{display:flex;gap:.8mm}.klassisch-pdf-dots i{display:block;width:2.2mm;height:2.2mm;border-radius:50%;background:var(--klassisch-border)}.klassisch-pdf-dots i.filled{background:var(--klassisch-accent)}
+  .tabellarisch-pdf-footer{position:absolute;right:calc(var(--tabellarisch-margin-right) + var(--resume-page-text-shift,0mm));bottom:var(--tabellarisch-footer-bottom);left:calc(var(--tabellarisch-margin-left) + var(--resume-page-text-shift,0mm));z-index:3;display:flex;justify-content:space-between;gap:8mm;color:var(--tabellarisch-muted);font-size:7.5pt}.tabellarisch-pdf-footer span:last-child{margin-left:auto;white-space:nowrap}
+    .tabellarisch-pdf-ats{--tabellarisch-primary:#222b30;--tabellarisch-accent:#222b30;--tabellarisch-line:#cfd4d7;padding:14mm var(--tabellarisch-margin-right) 16mm var(--tabellarisch-margin-left);background:#fff;font-family:Arial,sans-serif}.tabellarisch-pdf-ats .tabellarisch-pdf-header{display:block;min-height:0;padding-bottom:4mm;border-bottom:.35mm solid var(--tabellarisch-line)}.tabellarisch-pdf-ats .tabellarisch-pdf-contacts{display:flex;flex-wrap:wrap;gap:1mm 5mm}.tabellarisch-pdf-ats .tabellarisch-pdf-contact{display:block}.tabellarisch-pdf-ats .tabellarisch-pdf-contact svg{display:none}.tabellarisch-pdf-ats .tabellarisch-pdf-title{font-size:11pt}.tabellarisch-pdf-ats .tabellarisch-pdf-entry{display:block}.tabellarisch-pdf-ats .tabellarisch-pdf-entry h3{font-size:11pt}.tabellarisch-pdf-ats .tabellarisch-pdf-organization{margin-bottom:1mm}.tabellarisch-pdf-ats-meta{margin:0 0 1.5mm;color:var(--tabellarisch-muted);font-size:8.3pt}
   @media print{.no-print-background .tabellarisch-pdf-background{display:none!important}}
 `;
 
@@ -742,7 +729,7 @@ const pageFitScript = `
   <script>
     (() => {
       const fit = (page) => {
-        const content = page.querySelector(".page-content");
+        const content = page.querySelector(".page-content, .letter-preview");
         if (!content) return;
         if (page.dataset.noFit === "true") {
           content.dataset.fitScale = "1.000";
@@ -782,7 +769,7 @@ const getInheritedPdfSectionStyles = (templateId: string) => {
 export const buildDocumentHtml = (
   application: Application,
   profile: ApplicantProfile | undefined,
-  target: "deckblatt" | "anschreiben" | "lebenslauf" | "mappe",
+  target: ExportTarget,
   attachments: readonly Attachment[] = [],
   resumeDesign?: ResumeDesignLayer,
 ): string => {
@@ -851,17 +838,8 @@ export const buildDocumentHtml = (
   const applicationPlace = profile?.city || application.company.city;
   const longApplicationDate = `${applicationPlace ? `${applicationPlace}, ` : ""}den ${formatApplicationDateLong(application)}`;
   const letterStatus = getLetterPageStatus(docs);
-  const letterTemplateClass = `layout-${template.layout}`;
-  const letterIdentityVariables = template.id === "zweispaltig"
-    ? getZweispaltigLetterVariables(resolvedCv.design, designSettings, accent, secondary)
-    : template.id === "elegant"
-      ? getElegantDesignVariables(resolvedCv.design, designSettings, accent, secondary)
-    : template.id === "zeitgenoessisch" ? resolvedCv.zeitgenoessischVariables
-      : template.id === "stilvoll" ? resolvedCv.stilvollVariables
-      : template.id === "gepflegt" ? resolvedCv.gepflegtVariables
-      : template.id === "kompakt" ? resolvedCv.kompaktVariables : resolvedCv.kreativVariables;
-  const letterIdentityStyle = letterIdentityVariables
-    ? Object.entries(letterIdentityVariables).map(([key, value]) => `${key}:${escapeHtml(value)}`).join(";") : "";
+  // Deckblatt, Anschreiben and Motivationsschreiben share the Lebenslauf's left and right page margin.
+  const sideMargins = resolveDocumentSideMargins(resolvedCv.templateId, resolvedCv.design.spacing);
   const letterSender = template.id === "stilvoll"
     ? stilvollCoverSenderFromProfile(resolvedCv.profile)
     : ["zweispaltig", "zeitgenoessisch", "elegant", "kreativ", "gepflegt", "kompakt"].includes(template.id)
@@ -872,6 +850,7 @@ export const buildDocumentHtml = (
     attachments,
     application.id,
     docs.documentListSettings,
+    docs.motivationEnabled,
   );
   const deckblattModel = buildDeckblattModel({
     application,
@@ -881,31 +860,47 @@ export const buildDocumentHtml = (
     accentColor: accent,
     secondaryColor: secondary,
     settings: designSettings,
+    cvTypography: resolvedCv.design.typography,
+    sideMargins,
   });
   const cover = `
     <section class="page cover-page ${designClasses}">
       ${getDeckblattDesign(deckblattModel.designId).usesDocumentBackground ? backgroundLayer : ""}
       ${renderDeckblattMarkup(deckblattModel)}
     </section>`;
+  // The Anschreiben prints the preview's page: its markup (renderAnschreibenMarkup) and its stylesheet
+  // (anschreibenPrintCss), so the PDF looks exactly like the preview. Only empty texts keep their printable defaults.
   const letter = `
-    <section class="page letter-page letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} ${letterTemplateClass} ${designClasses}${template.id === "zweispaltig" ? " zweispaltig-letter" : template.id === "zeitgenoessisch" ? " zeitgenoessisch-letter" : template.id === "elegant" ? " elegant-letter" : template.id === "kreativ" ? " kreativ-letter" : template.id === "stilvoll" ? " stilvoll-letter" : template.id === "gepflegt" ? " gepflegt-letter" : template.id === "kompakt" ? " kompakt-letter" : ""}" data-resume-template="${escapeHtml(template.id)}"${letterIdentityVariables ? ` style="${letterIdentityStyle}"` : ""}>
-      ${backgroundLayer}
-      <div class="page-content letter-content">
-        <div class="letter-header"><div class="sender">${senderHeader(letterSender)}</div></div>
-        <div class="rule letter-rule"></div>
-        <div class="recipient">${addressBlock(application, docs)}</div>
-        <p class="date">${escapeHtml(longApplicationDate)}</p>
-        <p class="subject">${escapeHtml(`${createCoverSubject(role, docs.coverSubject)}${application.job.reference && !createCoverSubject(role, docs.coverSubject).includes(application.job.reference) ? ` - Referenz ${application.job.reference}` : ""}`)}</p>
-        <p class="letter-salutation">${escapeHtml(docs.coverGreeting || applicationGreeting(application))}</p>
-        <p class="letter-body">${escapeHtml(sharedLetterParagraphs?.introduction ?? (docs.coverIntroduction || `die ausgeschriebene Position als ${role} bei ${company} spricht mich besonders an, weil sie fachliche Verantwortung mit konkretem Gestaltungsspielraum verbindet.`))}</p>
-        <p class="letter-body">${escapeHtml(sharedLetterParagraphs?.mainBody ?? (getCoverLetterMainBody(docs) || "Hauptteil im Dokumenteditor ergänzen."))}</p>
-        ${docs.coverExtraParagraph ? `<p class="letter-body">${escapeHtml(docs.coverExtraParagraph)}</p>` : ""}
-        <p class="letter-body">${escapeHtml(sharedLetterParagraphs?.companyFit ?? (docs.coverCompanyFit || `An ${company} überzeugt mich besonders die Verbindung aus professionellem Anspruch und zukunftsorientierter Arbeitsweise.`))}</p>
-        <p class="letter-body letter-closing">${escapeHtml(sharedLetterParagraphs?.closing ?? (docs.coverClosing || "Gerne überzeuge ich Sie in einem persönlichen Gespräch davon, welchen konkreten Beitrag ich in Ihrem Team leisten kann. Auf Ihren Terminvorschlag freue ich mich."))}</p>
-        <div class="signature"><p>Mit freundlichen Grüßen</p>${signatureSource ? `<img class="signature-image" src="${escapeHtml(signatureSource)}" alt="">` : ""}<span class="signature-name">${escapeHtml(name)}</span></div>
-        ${docs.showCoverLetterAttachments ? `<p class="attachments-note">Anlagen:<br>${coverLetterAttachments.map(escapeHtml).join("<br>")}</p>` : ""}
-      </div>
-    </section>`;
+    <section class="page letter-page" data-resume-template="${escapeHtml(template.id)}">${renderAnschreibenMarkup({
+      templateId: template.id,
+      ...buildAnschreibenFrame({
+        templateId: template.id,
+        layout: template.layout,
+        density: letterStatus.density,
+        gapReduction: docs.coverSubjectGapReduction,
+        settings: designSettings,
+        resolvedCv,
+        accentColor: accent,
+        secondaryColor: secondary,
+        sideMargins,
+      }),
+      sender: letterSender,
+      recipientLines: resolveRecipientLines(application, docs.coverRecipientAddress),
+      placeDate: `${profile?.city ? `${profile.city}, ` : ""}den ${formatApplicationDateLong(application)}`,
+      subject: `${createCoverSubject(role, docs.coverSubject)}${application.job.reference
+        && !(docs.coverSubject || "").includes(application.job.reference) ? ` - Referenz ${application.job.reference}` : ""}`,
+      subjectClassName: anschreibenSubjectClassName(template.id),
+      greeting: docs.coverGreeting || applicationGreeting(application),
+      paragraphs: [
+        { text: sharedLetterParagraphs?.introduction ?? (docs.coverIntroduction || `die ausgeschriebene Position als ${role} bei ${company} spricht mich besonders an, weil sie fachliche Verantwortung mit konkretem Gestaltungsspielraum verbindet.`), closing: false },
+        { text: sharedLetterParagraphs?.mainBody ?? (getCoverLetterMainBody(docs) || "Hauptteil im Dokumenteditor ergänzen."), closing: false },
+        ...(docs.coverExtraParagraph ? [{ text: docs.coverExtraParagraph, closing: false }] : []),
+        { text: sharedLetterParagraphs?.companyFit ?? (docs.coverCompanyFit || `An ${company} überzeugt mich besonders die Verbindung aus professionellem Anspruch und zukunftsorientierter Arbeitsweise.`), closing: false },
+        { text: sharedLetterParagraphs?.closing ?? (docs.coverClosing || "Gerne überzeuge ich Sie in einem persönlichen Gespräch davon, welchen konkreten Beitrag ich in Ihrem Team leisten kann. Auf Ihren Terminvorschlag freue ich mich."), closing: true },
+      ],
+      signature: { greeting: "Mit freundlichen Grüßen", source: signatureSource, name },
+      attachments: docs.showCoverLetterAttachments ? coverLetterAttachments : null,
+    }, backgroundLayer)}</section>`;
   const experienceById = new Map(
     (profile?.experiences ?? []).map((item) => [item.id, item]),
   );
@@ -1085,8 +1080,11 @@ export const buildDocumentHtml = (
           )
           .join("")}</div></section>`
       : "";
-  const elegantPortfolio =
-    profile?.portfolio || profile?.github || profile?.linkedin || "";
+  // The footer website of every template (and none in the ATS output): switched on under "Ort, Datum und Unterschrift".
+  const footerWebsite = resolveResumeFooterWebsite(profile, atsMode);
+  const footerWebsiteLink = footerWebsite
+    ? `<a href="${escapeHtml(footerWebsite.href)}">${escapeHtml(footerWebsite.text)}</a>`
+    : "<span></span>";
 
   const renderElegantResumePage = (plan: ResumePagePlan) => {
     const experienceItems = plan.items
@@ -1144,9 +1142,7 @@ export const buildDocumentHtml = (
           ${elegantVisualLanguages}
           ${certificationSection}
         </aside>`;
-    const footerLink = elegantPortfolio
-      ? `<a href="${escapeHtml(externalHref(elegantPortfolio))}">${escapeHtml(externalHref(elegantPortfolio))}</a>`
-      : "<span></span>";
+    const footerLink = footerWebsiteLink;
 
     return `
       <section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="elegant" data-no-fit="true" style="${elegantStyle}">
@@ -1327,8 +1323,6 @@ export const buildDocumentHtml = (
           )
           .join("")}</div></section>`
       : "";
-  const zweispaltigPortfolio =
-    profile?.portfolio || profile?.github || profile?.linkedin || "";
 
   const renderZweispaltigResumePage = (plan: ResumePagePlan) => {
     const experienceItems = plan.items
@@ -1414,9 +1408,7 @@ export const buildDocumentHtml = (
       : `<aside class="zweispaltig-pdf-sidebar">
           ${sidebarContent}
         </aside>`;
-    const footerLink = zweispaltigPortfolio
-      ? `<a href="${escapeHtml(externalHref(zweispaltigPortfolio))}">${escapeHtml(zweispaltigPortfolio)}</a>`
-      : "<span></span>";
+    const footerLink = footerWebsiteLink;
 
     return `
       <section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="zweispaltig" data-no-fit="true">
@@ -1679,8 +1671,6 @@ export const buildDocumentHtml = (
       </article>`;
   };
 
-  const zeitPortfolio =
-    profile?.portfolio || profile?.github || profile?.linkedin || "";
 
   const renderZeitgenoessischResumePage = (plan: ResumePagePlan) => {
     const experienceItems = plan.items
@@ -1738,9 +1728,7 @@ export const buildDocumentHtml = (
           ${skillSection}
           ${sections.certifications ? zeitVisualCertifications : ""}
         </aside>`;
-    const footerLink = zeitPortfolio
-      ? `<a href="${escapeHtml(externalHref(zeitPortfolio))}">${escapeHtml(zeitPortfolio)}</a>`
-      : "<span></span>";
+    const footerLink = footerWebsiteLink;
 
     return `
       <section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="zeitgenoessisch" data-no-fit="true">
@@ -2029,8 +2017,6 @@ export const buildDocumentHtml = (
       </article>`;
   };
 
-  const kreativPortfolio =
-    profile?.portfolio || profile?.github || profile?.linkedin || "";
 
   const renderKreativResumePage = (plan: ResumePagePlan) => {
     const experienceItems = plan.items
@@ -2088,9 +2074,7 @@ export const buildDocumentHtml = (
           ${sections.skills ? kreativVisualSkills : ""}
           ${sections.certifications ? kreativVisualCertifications : ""}
         </aside>`;
-    const footerLink = kreativPortfolio
-      ? `<a href="${escapeHtml(externalHref(kreativPortfolio))}">${escapeHtml(kreativPortfolio)}</a>`
-      : "<span></span>";
+    const footerLink = footerWebsiteLink;
 
     return `
       <section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="kreativ" data-no-fit="true">
@@ -2258,8 +2242,6 @@ export const buildDocumentHtml = (
       ${item.achievements.length ? `<ul>${item.achievements.map((achievement) => `<li>${escapeHtml(achievement)}</li>`).join("")}</ul>` : ""}
     </article>`;
   };
-  const ivyPortfolio =
-    profile?.portfolio || profile?.github || profile?.linkedin || "";
   const ivySectionLayout = getProfileResumeSectionLayout(profile, "ivy-league");
   const ivyHasCustomLayout = hasSavedTemplateSectionLayout(profile, "ivy-league");
   const renderIvyLeagueResumePage = (plan: ResumePagePlan) => {
@@ -2319,9 +2301,7 @@ export const buildDocumentHtml = (
         return "";
       })
       .join("");
-    const footerLink = ivyPortfolio
-      ? `<a href="${escapeHtml(externalHref(ivyPortfolio))}">${escapeHtml(externalHref(ivyPortfolio))}</a>`
-      : "<span></span>";
+    const footerLink = footerWebsiteLink;
     return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="ivy-league" data-no-fit="true">
       <div class="page-content ivy-pdf${atsMode ? " ivy-pdf-ats" : ""}" data-density="${plan.density}">
         ${!atsMode && designSettings.backgroundId === "pastel-gradient" ? ivyWatercolor : ""}
@@ -2336,8 +2316,6 @@ export const buildDocumentHtml = (
   };
 
   const managedSummary = resumeSummary;
-  const managedPortfolio =
-    profile?.portfolio || profile?.github || profile?.linkedin || "";
   const managedExplicitStrengths = (profile?.strengths ?? [])
     .map(({ title, description }) => ({
       title: title.trim(),
@@ -2389,9 +2367,7 @@ export const buildDocumentHtml = (
     hideSinglePageNumber = false,
   ) =>
     `<footer class="managed-pdf-footer">${
-      managedPortfolio
-        ? `<a href="${escapeHtml(externalHref(managedPortfolio))}">${escapeHtml(externalHref(managedPortfolio))}</a>`
-        : "<span></span>"
+      footerWebsiteLink
     }${!hideSinglePageNumber || resumePlan.length > 1 ? `<span>Seite ${plan.pageNumber} / ${resumePlan.length}</span>` : ""}</footer>`;
   const managedDots = (score: number) =>
     `<span class="managed-pdf-dots">${Array.from(
@@ -2722,7 +2698,7 @@ export const buildDocumentHtml = (
     return `<header class="klassisch-pdf-header${isContinuation ? " compact" : ""}${!photo ? " no-photo" : ""}"><div>${isContinuation ? `<p class="kicker">${escapeHtml(resumeHeading.continuationKicker)}</p>` : ""}<h1>${escapeHtml(name)}</h1>${showProfession && klassischProfession ? `<h2>${escapeHtml(klassischProfession)}</h2>` : ""}${includePhoto && !isContinuation && klassischContacts ? `<address class="klassisch-pdf-contacts">${klassischContacts}</address>` : ""}</div>${photo}</header>`;
   };
   const klassischFooter = (plan: ResumePagePlan) =>
-    `<footer class="klassisch-pdf-footer">${managedPortfolio ? `<a href="${escapeHtml(externalHref(managedPortfolio))}">${escapeHtml(managedPortfolio)}</a>` : "<span></span>"}${resumePlan.length > 1 ? `<span>Seite ${plan.pageNumber} / ${resumePlan.length}</span>` : ""}</footer>`;
+    `<footer class="klassisch-pdf-footer">${footerWebsiteLink}${resumePlan.length > 1 ? `<span>Seite ${plan.pageNumber} / ${resumePlan.length}</span>` : ""}</footer>`;
   const renderKlassischResumePage = (
     plan: ResumePagePlan,
     showProfession = true,
@@ -2882,7 +2858,7 @@ export const buildDocumentHtml = (
     ? `<ul class="modern-pdf-certifications">${kreativCertifications.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
     : "";
   const modernFooter = (plan: ResumePagePlan) =>
-    `<footer class="modern-pdf-footer">${managedPortfolio ? `<a href="${escapeHtml(externalHref(managedPortfolio))}">${escapeHtml(managedPortfolio)}</a>` : "<span></span>"}<span>Seite ${plan.pageNumber} / ${resumePlan.length}</span></footer>`;
+    `<footer class="modern-pdf-footer">${footerWebsiteLink}<span>Seite ${plan.pageNumber} / ${resumePlan.length}</span></footer>`;
   const renderModernResumePage = (plan: ResumePagePlan) => {
     const isContinuation = plan.pageNumber > 1;
     const isLastPage = plan.pageNumber === resumePlan.length;
@@ -3078,6 +3054,10 @@ export const buildDocumentHtml = (
     const header = `<header class="pehlione-pdf-header${continuation ? " continuation" : ""}"><h1>${escapeHtml(name)}</h1>${profile?.title || template.id === "pehlione_white" ? `<h2>${escapeHtml(professionalTitle)}</h2>` : ""}</header>`;
     const closing = profile?.resumeClosing ?? { showPlace: true, showDate: true, showSignature: true };
     const closingLine = profile ? resolveResumeClosingLine(profile, resolvedCv.closingDate, (value) => value).text : "";
+    // Pehlione has no page footer of its own: the website stands at the bottom of the main column (see pehlioneDocumentCss).
+    // It opens the column: the last page's certificate markup leaves its section open, and whatever follows it would be
+    // removed with that section.
+    const pehlioneFooter = footerWebsite ? `<footer class="pehlione-pdf-footer" data-resume-page-footer>${footerWebsiteLink}</footer>` : "";
     const closingMarkup = lastPage && closingSection.visible && (closingLine || (!atsMode && closing.showSignature && signatureSource))
       ? `<footer class="pehlione-pdf-closing">${closingLine ? `<p>${escapeHtml(closingLine)}</p>` : ""}${!atsMode && closing.showSignature && signatureSource ? `<div class="pehlione-pdf-signer"><img src="${escapeHtml(signatureSource)}" alt="Unterschrift"><strong>${escapeHtml(name)}</strong></div>` : ""}</footer>`
       : "";
@@ -3098,14 +3078,14 @@ export const buildDocumentHtml = (
         ? `${focus ? `<section class="pehlione-pdf-continuation-knowledge">${sidebarHeading(focusGroup?.title || "Technische Schwerpunkte", "training")}<ul>${focus}</ul></section>` : ""}${sidebarKnowledge}`
         : "";
       const continuationSidebar = `<aside class="pehlione-pdf-sidebar pehlione-pdf-sidebar-continuation"><div class="pehlione-pdf-continuation-intro"><p>${escapeHtml(resumeHeading.kicker)}</p><h2>${escapeHtml(name)}</h2>${profile?.title ? `<span>${escapeHtml(profile.title)}</span>` : ""}<i aria-hidden="true"></i><small>Fortsetzung · Seite ${plan.pageNumber} von ${resumePlan.length}</small></div>${continuationKnowledge}</aside>`;
-      return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="${escapeHtml(template.id)}" data-no-fit="true"><div class="page-content pehlione-pdf${template.id === "pehlione_white" ? " pehlione-pdf-white" : ""} pehlione-pdf-continuation" data-density="${density}" style="grid-template-columns:${sidebarWidth}mm minmax(0,1fr)">${continuationSidebar}<main class="pehlione-pdf-main">${header}${main}</main></div></section>`;
+      return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="${escapeHtml(template.id)}" data-no-fit="true"><div class="page-content pehlione-pdf${template.id === "pehlione_white" ? " pehlione-pdf-white" : ""} pehlione-pdf-continuation" data-density="${density}" style="grid-template-columns:${sidebarWidth}mm minmax(0,1fr)">${continuationSidebar}<main class="pehlione-pdf-main">${pehlioneFooter}${header}${main}</main></div></section>`;
     }
     const languageHeading = template.id === "pehlione_white_blue"
       ? `<h3 class="pehlione-pdf-sidebar-heading pehlione-pdf-language-heading">${sectionIcon("languages")}<span>Sprachen</span></h3>`
       : "<h3>Sprachen</h3>";
     const sidebar = `<aside class="pehlione-pdf-sidebar"><div class="pehlione-pdf-hero${pehlionePhoto ? " with-photo" : ""}">${template.id === "pehlione_white" ? `<span class="pehlione-pdf-blueprint">${pehlioneBlueprintMarkup}</span>` : `<i></i><i></i><i></i>${pehlionePhoto ? "" : "<b>◉</b>"}`}${pehlionePhoto}</div>${contacts}${knowledgeSection.visible && profile?.resumeKnowledgeContainer?.showTitle && knowledgeGroups.some((group) => group.slot === "sidebar") ? `<h3 class="pehlione-pdf-container-title">${escapeHtml(getResumeSemanticTitle(semanticSections, "knowledge"))}</h3>` : ""}${knowledgeSection.visible && sections.strengths && competenceMarkup ? `<section>${sidebarHeading(coreGroup?.title || "Kernkompetenzen", "project")}<ul>${competenceMarkup}</ul></section>` : ""}${resumePlan.length === 1 && knowledgeSection.visible && focus ? `<section>${sidebarHeading(focusGroup?.title || "Technische Schwerpunkte", "training")}<ul>${focus}</ul></section>` : ""}${resumePlan.length === 1 && knowledgeSection.visible ? sidebarKnowledge : ""}${languages ? `<section class="pehlione-pdf-section pehlione-pdf-language-section">${languageHeading}<ul>${languages}</ul></section>` : ""}</aside>`;
     const sidebarWidth = (profile?.resumeColumnRatio ?? 30) * 2.1;
-    return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="${escapeHtml(template.id)}" data-no-fit="true"><div class="page-content pehlione-pdf${template.id === "pehlione_white" ? " pehlione-pdf-white" : ""}" data-density="${density}" style="grid-template-columns:${sidebarWidth}mm minmax(0,1fr)">${sidebar}<main class="pehlione-pdf-main">${header}${main}</main></div></section>`;
+    return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="${escapeHtml(template.id)}" data-no-fit="true"><div class="page-content pehlione-pdf${template.id === "pehlione_white" ? " pehlione-pdf-white" : ""}" data-density="${density}" style="grid-template-columns:${sidebarWidth}mm minmax(0,1fr)">${sidebar}<main class="pehlione-pdf-main">${pehlioneFooter}${header}${main}</main></div></section>`;
   };
 
   const tabellarischExtraIcon = (kind: "profile" | "flag" | "trophy") => {
@@ -3239,7 +3219,7 @@ export const buildDocumentHtml = (
     return `<article class="tabellarisch-pdf-entry"><div class="tabellarisch-pdf-meta"><p class="tabellarisch-pdf-date">${escapeHtml(formatTabellarischDateRange(item.from, item.to))}</p>${item.city ? `<p class="tabellarisch-pdf-location">${escapeHtml(item.city)}</p>` : ""}</div><span class="tabellarisch-pdf-rail" aria-hidden="true"></span><div class="tabellarisch-pdf-entry-content"><h3>${escapeHtml(item.title)}</h3><p class="tabellarisch-pdf-organization">${escapeHtml(item.organization)}</p>${achievements}</div></article>`;
   };
   const tabellarischFooter = (plan: ResumePagePlan) =>
-    `<footer class="tabellarisch-pdf-footer">${managedPortfolio ? `<a href="${escapeHtml(externalHref(managedPortfolio))}">${escapeHtml(managedPortfolio)}</a>` : "<span></span>"}<span>Seite ${plan.pageNumber} / ${resumePlan.length}</span></footer>`;
+    `<footer class="tabellarisch-pdf-footer">${footerWebsiteLink}<span>Seite ${plan.pageNumber} / ${resumePlan.length}</span></footer>`;
   const renderTabellarischResumePage = (plan: ResumePagePlan) => {
     const isContinuation = plan.pageNumber > 1;
     const isLastPage = plan.pageNumber === resumePlan.length;
@@ -3459,8 +3439,6 @@ export const buildDocumentHtml = (
     if (!item) return "";
     return `<article class="gepflegt-pdf-entry"><div class="gepflegt-pdf-entry-heading"><h4>${escapeHtml(item.title)}</h4><span>${escapeHtml(formatGepflegtDateRange(item.from, item.to))}</span></div><div class="gepflegt-pdf-entry-subheading"><strong>${escapeHtml(item.organization)}</strong>${item.city ? `<span>${escapeHtml(item.city)}</span>` : ""}</div>${item.achievements.length ? `<ul>${item.achievements.map((achievement) => `<li>${escapeHtml(achievement)}</li>`).join("")}</ul>` : ""}</article>`;
   };
-  const gepflegtPortfolio =
-    profile?.portfolio || profile?.github || profile?.linkedin || "";
   const renderGepflegtResumePage = (plan: ResumePagePlan) => {
     const isContinuation = plan.pageNumber > 1;
     const isLastPage = plan.pageNumber === resumePlan.length;
@@ -3503,8 +3481,8 @@ export const buildDocumentHtml = (
       ? `<aside class="gepflegt-pdf-sidebar gepflegt-pdf-sidebar-continuation"><div><small>Fortsetzung · Seite ${plan.pageNumber} von ${resumePlan.length}</small>${gepflegtContinuationContacts.map((value) => `<span>${escapeHtml(value)}</span>`).join("")}</div></aside>`
       : `<aside class="gepflegt-pdf-sidebar">${photoSource ? `<img class="gepflegt-pdf-photo" src="${escapeHtml(photoSource)}" alt="">` : ""}${sections.profile && resumeSummary ? `<section><h3>${escapeHtml(summaryTitle)}</h3><p class="gepflegt-pdf-summary">${escapeHtml(gepflegtSummary)}</p></section>` : ""}${gepflegtStrengthMarkup()}${gepflegtLanguageMarkup()}${gepflegtKnowledgeMarkup()}${gepflegtCertificationMarkup()}</aside>`;
     const footer =
-      gepflegtPortfolio || resumePlan.length > 1
-        ? `<footer class="gepflegt-pdf-footer">${gepflegtPortfolio ? `<a href="${escapeHtml(externalHref(gepflegtPortfolio))}">${escapeHtml(gepflegtPortfolio)}</a>` : "<span></span>"}${resumePlan.length > 1 ? `<span>Seite ${plan.pageNumber} von ${resumePlan.length}</span>` : ""}</footer>`
+      footerWebsite || resumePlan.length > 1
+        ? `<footer class="gepflegt-pdf-footer">${footerWebsiteLink}${resumePlan.length > 1 ? `<span>Seite ${plan.pageNumber} von ${resumePlan.length}</span>` : ""}</footer>`
         : "";
     return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="gepflegt" data-no-fit="true"><div class="page-content gepflegt-pdf" data-density="${plan.density}">${sidebar}<div class="gepflegt-pdf-content">${renderGepflegtHeader(isContinuation)}${main}${footer}</div></div></section>`;
   };
@@ -3587,15 +3565,30 @@ export const buildDocumentHtml = (
                             : renderResumePage,
     )
     .join("");
-  const cvHtml = target === "mappe" ? buildDocumentHtml(application, profile, "lebenslauf", attachments, resumeDesign) : "";
+  const cvHtml = isDocumentPackage(target) ? buildDocumentHtml(application, profile, "lebenslauf", attachments, resumeDesign) : "";
   const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings, resolvedCv);
-  const selected = target === "mappe" ? [cover, letter, managedResume] : target === "deckblatt" ? [cover] : target === "anschreiben" ? [letter] : [managedResume];
+  // The Motivationsschreiben ("Dritte Seite"): its own plain Briefkopf, the automatic Anrede and the user's text in the
+  // selected Lebenslauf's effective design (one model and stylesheet with the preview). Its page grows with the text
+  // (no fitting, no clipping); in the Mappe it follows the Anschreiben.
+  const motivationListed = getApplicationDocumentItems(attachments, application.id, docs.documentListSettings, docs.motivationEnabled)
+    .some((item) => item.key === "motivation" && item.isVisible);
+  const withMotivation = target === "motivation" || (isDocumentPackage(target) && motivationListed);
+  const motivationModel = withMotivation
+    ? buildMotivationModel({ application, profile, documents: docs, resolvedCv, themeColors: { accentColor: accent, secondaryColor: secondary } })
+    : undefined;
+  const motivation = motivationModel
+    ? `<section class="page motivation-sheet" data-no-fit="true" style="background:${escapeHtml(motivationModel.style["--mv-background"])}">${renderMotivationMarkup(motivationModel)}</section>`
+    : "";
+  // Bewerbungsunterlagen and Bewerbungsmappe: one shared order (packageDocumentOrder); only the Mappe has the Deckblatt.
+  const pages = { deckblatt: cover, anschreiben: letter, lebenslauf: managedResume, motivation };
+  const selected = isDocumentPackage(target) ? packageDocumentOrder(target, withMotivation).map((key) => pages[key]).filter(Boolean)
+    : target === "deckblatt" ? [cover] : target === "anschreiben" ? [letter] : target === "motivation" ? [motivation] : [managedResume];
   const templateSpecificCss = template.id === "elegant" ? elegantManagedCss
     : template.id === "kreativ" ? kreativResolvedCss + kreativLetterCss
     : template.id === "stilvoll" ? stilvollResolvedCss + stilvollLetterCss
     : template.id === "gepflegt" ? gepflegtResolvedCss + gepflegtLetterCss
     : template.id === "kompakt" ? kompaktResolvedCss + kompaktLetterCss : "";
-  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${template.id === "elegant" ? elegantLetterCss : ""}${zweispaltigDocumentCss}${template.id === "zweispaltig" ? zweispaltigLetterCss : ""}${zeitgenoessischDocumentCss}${template.id === "zeitgenoessisch" ? zeitgenoessischLetterCss : ""}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}${templateSpecificCss}</style></head><body>${selected.join("")}${pageFitScript}${target === "deckblatt" || target === "mappe" ? deckblattFitScript : ""}</body></html>`;
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${template.id === "elegant" ? elegantLetterCss : ""}${zweispaltigDocumentCss}${template.id === "zweispaltig" ? zweispaltigLetterCss : ""}${zeitgenoessischDocumentCss}${template.id === "zeitgenoessisch" ? zeitgenoessischLetterCss : ""}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}${templateSpecificCss}${withMotivation ? `${motivationCss}.page.motivation-sheet{height:auto;min-height:297mm;max-height:none;overflow:visible}` : ""}${letterSideMarginCss}${target === "anschreiben" || isDocumentPackage(target) ? anschreibenPrintCss() : ""}</style></head><body>${selected.join("")}${pageFitScript}${target === "deckblatt" || target === "mappe" ? deckblattFitScript : ""}</body></html>`;
 };
 
 export const buildCoverLetterMarkdown = (

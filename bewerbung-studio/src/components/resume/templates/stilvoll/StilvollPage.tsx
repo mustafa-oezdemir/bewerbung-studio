@@ -1,7 +1,6 @@
 import {
   createTemplatePageData,
   resolveTemplateSummary,
-  toTemplateExternalHref,
 } from "../resume-template-data";
 import type { StilvollResumeProps } from "./stilvoll.types";
 import { StilvollBackground } from "./StilvollBackground";
@@ -16,6 +15,7 @@ import {
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
 import { getResumeSemanticTitle } from "../../../../features/resume-sections/resume-section-system";
 import { formatResumeContactLine } from "../../../../shared/resumePersonalData";
+import { resolveResumeFooterWebsite } from "../../../../shared/resumeFooter";
 
 type Props = Omit<StilvollResumeProps, "accentColor" | "secondaryColor">;
 
@@ -34,11 +34,7 @@ export function StilvollPage({
     createTemplatePageData(profile, plan);
   const summary = resolveTemplateSummary(profile, resumeProfile);
   const isLastPage = plan.pageNumber === totalPages;
-  const portfolio =
-    profile?.portfolio || profile?.github || profile?.linkedin || "";
-  const portfolioHref = portfolio
-    ? toTemplateExternalHref(portfolio)
-    : "";
+  const footerWebsite = resolveResumeFooterWebsite(profile, atsMode);
   if (atsMode) {
     return (
       <main className="stilvoll-ats" data-renderer="ats">
@@ -114,8 +110,8 @@ export function StilvollPage({
         </main>
       </div>
       <footer className="stilvoll-footer" data-element-id="stilvoll.footer">
-        {portfolio ? (
-          <a href={portfolioHref}>{portfolioHref}</a>
+{footerWebsite ? (
+          <a href={footerWebsite.href}>{footerWebsite.text}</a>
         ) : (
           <span />
         )}

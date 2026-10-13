@@ -18,8 +18,10 @@ import { getZeitgenoessischDesignVariables } from "./zeitgenoessischDesign";
 import { getKreativDesignVariables } from "./kreativDesign";
 import { getStilvollDesignVariables } from "./stilvollDesign";
 import { getGepflegtDesignVariables } from "./gepflegtDesign";
+import { certificateEntries, certificateFields, selectCertificateEntries } from "./certificates";
 import { getKompaktDesignVariables } from "./kompaktDesign";
 import { getKlassischDesignVariables } from "./klassischDesign";
+import { getTabellarischDesignVariables } from "./tabellarischDesign";
 import { getEinspaltigDesignVariables } from "./einspaltigDesign";
 
 type CvDocumentInput = {
@@ -59,7 +61,14 @@ export const resolveCvDocument = ({
       return { ...section, entries, isVisible: section.isVisible && entries.length > 0 };
     }),
   };
-  let profile = getResumeDisplayProfile(selectedProjects);
+  // The Bewerbung's certificates: the chosen ones in the chosen order (every one without a selection). The preview,
+  // the PDF and the page planner all read this one list.
+  const selectedCertificateIds = settings.resumePresentation?.selectedCertificateIds;
+  const selectedCertificates = selectedCertificateIds === undefined || !selectedProjects ? selectedProjects : {
+    ...selectedProjects,
+    ...certificateFields(selectCertificateEntries(certificateEntries(selectedProjects), selectedCertificateIds)),
+  };
+  let profile = getResumeDisplayProfile(selectedCertificates);
   const sections = {
     ...(profile?.resumeSections ?? {
       profile: true,
@@ -115,6 +124,8 @@ export const resolveCvDocument = ({
     : undefined;
   // Klassisch: one geometry and type scale for the preview, the PDF and the planner (resolveKlassischGeometry).
   const klassischVariables = templateId === "klassisch" ? getKlassischDesignVariables(design) : undefined;
+  // Tabellarisch: the same for its page, type scale, spacing and neutral palette (resolveTabellarischGeometry).
+  const tabellarischVariables = templateId === "tabellarisch" ? getTabellarischDesignVariables(design) : undefined;
   // Einspaltig: the same for its page, type scale, spacing and its one accent colour (resolveEinspaltigGeometry).
   const einspaltigVariables = templateId === "einspaltig"
     ? getEinspaltigDesignVariables(design, settings.cvOverrides?.colors, application?.accentColor)
@@ -144,20 +155,22 @@ export const resolveCvDocument = ({
         closingSection?.visible !== false &&
         Boolean(closingLine || (!atsMode && profile.resumeClosing.showSignature && getProfileMediaSource(profile.signaturePath))),
       signature: !atsMode && profile.resumeClosing.showSignature && Boolean(getProfileMediaSource(profile.signaturePath)),
+      placement: settings.resumePresentation?.closing?.placement ?? "footer",
     },
     overrides: {
-      bodySizePt: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch", "einspaltig"].includes(templateId) ? design.typography.bodySizePt : overrides?.typography?.bodySizePt,
-      headingSizePt: ["elegant", "stilvoll", "gepflegt", "klassisch", "einspaltig"].includes(templateId) ? design.typography.headingSizePt : undefined,
-      subheadingSizePt: ["elegant", "stilvoll", "gepflegt", "klassisch", "einspaltig"].includes(templateId) ? design.typography.subheadingSizePt : undefined,
-      fontId: templateId === "gepflegt" || templateId === "klassisch" || templateId === "einspaltig" ? design.typography.fontId : undefined,
-      sectionHeadingPt: templateId === "gepflegt" || templateId === "klassisch" || templateId === "einspaltig" ? design.typography.sectionHeadingSizePt : undefined,
-      lineHeight: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch", "einspaltig"].includes(templateId) ? design.typography.lineHeight : overrides?.typography?.lineHeight,
-      pageMarginMm: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch", "einspaltig"].includes(templateId) ? design.spacing.pageMarginMm : overrides?.spacing?.pageMarginMm,
+      bodySizePt: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch", "einspaltig", "tabellarisch"].includes(templateId) ? design.typography.bodySizePt : overrides?.typography?.bodySizePt,
+      headingSizePt: ["elegant", "stilvoll", "gepflegt", "klassisch", "einspaltig", "tabellarisch"].includes(templateId) ? design.typography.headingSizePt : undefined,
+      subheadingSizePt: ["elegant", "stilvoll", "gepflegt", "klassisch", "einspaltig", "tabellarisch"].includes(templateId) ? design.typography.subheadingSizePt : undefined,
+      entryHeadingPt: templateId === "tabellarisch" ? design.typography.entryHeadingSizePt : undefined,
+      fontId: ["gepflegt", "klassisch", "einspaltig", "tabellarisch", "elegant"].includes(templateId) ? design.typography.fontId : undefined,
+      sectionHeadingPt: ["gepflegt", "klassisch", "einspaltig", "tabellarisch", "elegant"].includes(templateId) ? design.typography.sectionHeadingSizePt : undefined,
+      lineHeight: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch", "einspaltig", "tabellarisch"].includes(templateId) ? design.typography.lineHeight : overrides?.typography?.lineHeight,
+      pageMarginMm: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch", "einspaltig", "tabellarisch"].includes(templateId) ? design.spacing.pageMarginMm : overrides?.spacing?.pageMarginMm,
       innerPaddingMm: templateId === "elegant" ? design.spacing.innerPaddingMm : overrides?.spacing?.innerPaddingMm,
-      sectionGapMm: ["elegant", "kompakt", "klassisch", "einspaltig"].includes(templateId) ? design.spacing.sectionGapMm : overrides?.spacing?.sectionGapMm,
-      entryGapMm: ["elegant", "kompakt", "klassisch", "einspaltig"].includes(templateId) ? design.spacing.entryGapMm : overrides?.spacing?.entryGapMm,
-      sectionTitleGapMm: ["elegant", "kompakt", "klassisch", "einspaltig"].includes(templateId) ? design.spacing.sectionTitleGapMm : overrides?.spacing?.sectionTitleGapMm,
-      entryContentGapMm: ["elegant", "kompakt", "klassisch", "einspaltig"].includes(templateId) ? design.spacing.entryContentGapMm : overrides?.spacing?.entryContentGapMm,
+      sectionGapMm: ["elegant", "kompakt", "klassisch", "einspaltig", "tabellarisch"].includes(templateId) ? design.spacing.sectionGapMm : overrides?.spacing?.sectionGapMm,
+      entryGapMm: ["elegant", "kompakt", "klassisch", "einspaltig", "tabellarisch"].includes(templateId) ? design.spacing.entryGapMm : overrides?.spacing?.entryGapMm,
+      sectionTitleGapMm: ["elegant", "kompakt", "klassisch", "einspaltig", "tabellarisch"].includes(templateId) ? design.spacing.sectionTitleGapMm : overrides?.spacing?.sectionTitleGapMm,
+      entryContentGapMm: ["elegant", "kompakt", "klassisch", "einspaltig", "tabellarisch"].includes(templateId) ? design.spacing.entryContentGapMm : overrides?.spacing?.entryContentGapMm,
       columnGapMm: ["elegant", "kompakt", "gepflegt"].includes(templateId) ? design.spacing.columnGapMm : overrides?.spacing?.columnGapMm,
     },
     settings,
@@ -189,6 +202,7 @@ export const resolveCvDocument = ({
     kompaktVariables,
     klassischVariables,
     einspaltigVariables,
+    tabellarischVariables,
     summary,
     pagePlan,
   };

@@ -20,10 +20,12 @@ import type {
   TemplateScanResult,
   UseTemplateInput,
 } from "../features/templates/template.types";
-export type DocumentFolderTarget = "deckblatt" | "anschreiben" | "lebenslauf" | "email";
+/** The folders "Ordner" may open: one per document of a Bewerbung. IPC accepts nothing else. */
+export const documentFolderTargets = ["deckblatt", "anschreiben", "motivation", "lebenslauf", "email"] as const;
+export type DocumentFolderTarget = (typeof documentFolderTargets)[number];
 
 /**
- * GitHub synchronisation after a Bewerbung was created, saved or changed its status. The local save has always
+ * GitHub synchronisation after a managed Bewerbung or document was saved. The local save has always
  * succeeded when this is returned; `reason` is a fixed German text without paths, URLs or credentials.
  */
 export type ApplicationGitSyncOutcome =
@@ -35,6 +37,8 @@ export type ApplicationChangeResult = {
   workspace: Workspace;
   gitSync: ApplicationGitSyncOutcome;
 };
+export type DocumentChangeResult = { document: CreatedDocumentResult; gitSync: ApplicationGitSyncOutcome };
+export type PdfChangeResult = { path: string | null; gitSync: ApplicationGitSyncOutcome };
 
 export type WorkspaceStatus =
   | { state: "ready"; root: string }
@@ -52,7 +56,13 @@ export type SecurityStatus = {
   pendingSwitch: boolean;
 };
 
-export type ExportTarget = "deckblatt" | "anschreiben" | "lebenslauf" | "mappe";
+/** The PDF exports of a Bewerbung. The IPC handler accepts exactly these (an allow-list, never a path or a name). */
+export const exportTargets = ["deckblatt", "anschreiben", "motivation", "lebenslauf", "bewerbungsunterlagen", "mappe"] as const;
+export type ExportTarget = (typeof exportTargets)[number];
+export const parseExportTarget = (value: unknown): ExportTarget | undefined =>
+  exportTargets.find((target) => target === value);
+export const parseDocumentFolderTarget = (value: unknown): DocumentFolderTarget | undefined =>
+  documentFolderTargets.find((target) => target === value);
 export type ProfileMediaKind = "photo" | "signature";
 export type LegacyMigrationPreview = {
   sourcePath: string;
@@ -93,8 +103,8 @@ export interface BewerbungsManagerApi {
   applications: {
     create: (input: ApplicationInput) => Promise<ApplicationChangeResult>;
     save: (application: Application) => Promise<ApplicationChangeResult>;
-    remove: (id: string) => Promise<Workspace>;
-    duplicate: (id: string) => Promise<Workspace>;
+    remove: (id: string) => Promise<ApplicationChangeResult>;
+    duplicate: (id: string) => Promise<ApplicationChangeResult>;
     changeStatus: (
       id: string,
       status: ApplicationStatus,
@@ -104,14 +114,14 @@ export interface BewerbungsManagerApi {
     openFolder: (id: string, document?: DocumentFolderTarget) => Promise<void>;
   };
   profiles: {
-    save: (profile: ApplicantProfile) => Promise<Workspace>;
-    remove: (id: string) => Promise<Workspace>;
+    save: (profile: ApplicantProfile) => Promise<ApplicationChangeResult>;
+    remove: (id: string) => Promise<ApplicationChangeResult>;
   };
   templates: {
     scan: () => Promise<TemplateScanResult>;
     add: (input: AddTemplateInput) => Promise<DocumentTemplate | null>;
-    use: (input: UseTemplateInput) => Promise<CreatedDocumentResult>;
-    syncAnschreiben: (applicationId: string) => Promise<CreatedDocumentResult>;
+    use: (input: UseTemplateInput) => Promise<DocumentChangeResult>;
+    syncAnschreiben: (applicationId: string) => Promise<DocumentChangeResult>;
     duplicate: (templateId: string) => Promise<DocumentTemplate | null>;
     copyToMuster: (templateId: string) => Promise<DocumentTemplate>;
     toggleFavorite: (templateId: string) => Promise<TemplateScanResult>;
@@ -125,14 +135,14 @@ export interface BewerbungsManagerApi {
     ) => Promise<PickedProfileMedia | null>;
   };
   settings: {
-    save: (settings: AppSettings) => Promise<Workspace>;
+    save: (settings: AppSettings) => Promise<ApplicationChangeResult>;
   };
   events: {
-    save: (event: CalendarEvent) => Promise<Workspace>;
+    save: (event: CalendarEvent) => Promise<ApplicationChangeResult>;
   };
   todos: {
-    save: (todo: Todo) => Promise<Workspace>;
-    remove: (id: string) => Promise<Workspace>;
+    save: (todo: Todo) => Promise<ApplicationChangeResult>;
+    remove: (id: string) => Promise<ApplicationChangeResult>;
   };
   customCvDesigns: {
     save: (design: CustomCvDesign) => Promise<Workspace>;
@@ -142,10 +152,10 @@ export interface BewerbungsManagerApi {
     add: (
       applicationId: string,
       category: AttachmentCategory,
-    ) => Promise<Workspace>;
-    save: (attachment: Attachment) => Promise<Workspace>;
-    move: (id: string, direction: -1 | 1) => Promise<Workspace>;
-    remove: (id: string) => Promise<Workspace>;
+    ) => Promise<ApplicationChangeResult>;
+    save: (attachment: Attachment) => Promise<ApplicationChangeResult>;
+    move: (id: string, direction: -1 | 1) => Promise<ApplicationChangeResult>;
+    remove: (id: string) => Promise<ApplicationChangeResult>;
     open: (id: string) => Promise<void>;
   };
   export: {
@@ -153,7 +163,7 @@ export interface BewerbungsManagerApi {
       applicationId: string,
       target: ExportTarget,
       application?: Application,
-    ) => Promise<string | null>;
+    ) => Promise<PdfChangeResult>;
     backup: () => Promise<string | null>;
     importBackup: () => Promise<Workspace | null>;
     settings: () => Promise<string | null>;

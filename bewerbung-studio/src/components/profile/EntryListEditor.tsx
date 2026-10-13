@@ -1,6 +1,12 @@
 import { Plus, Trash2 } from "lucide-react";
 import { OrderControls } from "./OrderControls";
 import { moveListItem } from "../../shared/listOrder";
+import { useState } from "react";
+import type { ApplicantProfile } from "../../shared/schema";
+import {
+  certificateEntries, certificateFields, createCertificateId, formatCertificate, parseCertificate, parseCertificateLines,
+  type CertificateEntry, type CertificateParts,
+} from "../../shared/certificates";
 
 type EntryListEditorProps = {
   values: string[];
@@ -69,51 +75,26 @@ export function EntryListEditor({
   );
 }
 
-type CertificateParts = {
-  date: string;
-  title: string;
-  provider: string;
-};
 
-const parseCertificate = (value: string): CertificateParts => {
-  const parts = value.split(/\s+·\s+/).map((part) => part.trim());
-  if (parts.length >= 3) {
-    return {
-      date: parts[0],
-      title: parts.slice(1, -1).join(" · "),
-      provider: parts.at(-1) ?? "",
-    };
-  }
-  const looksLikeDate = (part: string) =>
-    /^(?:\d{2}[./-]\d{4}|\d{4}|seit\b|bis\b)/i.test(part);
-  if (parts.length === 2) {
-    return looksLikeDate(parts[0])
-      ? { date: parts[0], title: parts[1], provider: "" }
-      : { date: "", title: parts[0], provider: parts[1] };
-  }
-  return looksLikeDate(parts[0] ?? "")
-    ? { date: parts[0], title: "", provider: "" }
-    : { date: "", title: value.trim(), provider: "" };
-};
-
-const formatCertificate = ({ date, title, provider }: CertificateParts) =>
-  [date.trim(), title.trim(), provider.trim()].filter(Boolean).join(" · ");
-
+/**
+ * The certificates of a profile. Every change keeps each certificate's id (`certificationIds`, see certificates.ts), so
+ * a Bewerbung that chose a certificate keeps it when its text is edited or the list is reordered.
+ */
 export function CertificateListEditor({
-  values,
+  profile,
   onChange,
 }: {
-  values: string[];
-  onChange: (values: string[]) => void;
+  profile: Pick<ApplicantProfile, "certifications" | "certificationIds">;
+  onChange: (fields: Pick<ApplicantProfile, "certifications" | "certificationIds">) => void;
 }) {
+  const entries = certificateEntries(profile);
+  const values = entries.map((entry) => entry.text);
+  const commit = (next: CertificateEntry[]) => onChange(certificateFields(next));
   const update = (index: number, change: Partial<CertificateParts>) =>
-    onChange(
-      values.map((value, current) =>
-        current === index
-          ? formatCertificate({ ...parseCertificate(value), ...change })
-          : value,
-      ),
-    );
+    commit(entries.map((entry, current) =>
+      current === index ? { ...entry, text: formatCertificate({ ...parseCertificate(entry.text), ...change }) } : entry));
+  const [pasted, setPasted] = useState("");
+  const pastedLines = parseCertificateLines(pasted, values);
 
   return (
     <div className="certificate-list-editor">
@@ -122,7 +103,7 @@ export function CertificateListEditor({
           const certificate = parseCertificate(value);
           return (
             <article className="certificate-list-editor__card" key={index}>
-              <OrderControls index={index} length={values.length} label={`Zertifikat ${index + 1}`} onMove={(target) => onChange(moveListItem(values, index, target))} />
+              <OrderControls index={index} length={values.length} label={`Zertifikat ${index + 1}`} onMove={(target) => commit(moveListItem(entries, index, target))} />
               <div className="certificate-list-editor__fields">
                 <label className="field">
                   <span>Zertifikat / Weiterbildung</span>
@@ -154,7 +135,7 @@ export function CertificateListEditor({
                 className="icon-button danger"
                 aria-label={`Zertifikat ${index + 1} löschen`}
                 title="Zertifikat löschen"
-                onClick={() => onChange(values.filter((_, current) => current !== index))}
+                onClick={() => commit(entries.filter((_, current) => current !== index))}
               >
                 <Trash2 size={15} />
               </button>
@@ -168,10 +149,32 @@ export function CertificateListEditor({
       <button
         type="button"
         className="button secondary small-button align-start"
-        onClick={() => onChange([...values, ""])}
+        onClick={() => commit([...entries, { id: createCertificateId(), text: "" }])}
       >
         <Plus size={15} /> Zertifikat hinzufügen
       </button>
+      <details className="certificate-list-editor__paste">
+        <summary>Liste einfügen</summary>
+        <p className="field-hint">
+          Ein Zertifikat pro Zeile: „Datum · Titel · Anbieter“ oder „Titel | Anbieter | Datum“.
+          Bereits vorhandene Einträge werden übersprungen.
+        </p>
+        <label className="field">
+          <span>Zertifikate (eine Zeile je Zertifikat)</span>
+          <textarea rows={6} value={pasted} onChange={(event) => setPasted(event.target.value)}
+            placeholder={"05/2026 · Professional Scrum Master I · Scrum.org"} />
+        </label>
+        <button
+          type="button"
+          className="button secondary small-button align-start"
+          disabled={!pastedLines.length}
+          onClick={() => {
+            commit([...entries, ...pastedLines.map((text) => ({ id: createCertificateId(), text }))]);
+            setPasted("");
+          }}>
+          <Plus size={15} /> {pastedLines.length === 1 ? "1 Zertifikat hinzufügen" : `${pastedLines.length} Zertifikate hinzufügen`}
+        </button>
+      </details>
     </div>
   );
 }

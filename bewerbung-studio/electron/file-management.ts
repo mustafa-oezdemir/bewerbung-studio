@@ -91,6 +91,7 @@ export const isApplicationFolderLockError = (error: unknown) => {
 
 type DocumentDirectories = {
   anschreiben: string;
+  motivation: string;
   lebenslauf: string;
   deckblatt: string;
   email: string;
@@ -375,6 +376,7 @@ export class FileManagementService {
     const applicationData = this.applicationDataPath(application.folderName);
     return {
       anschreiben: path.join(applicationData, "Anschreiben"),
+      motivation: path.join(applicationData, "Motivation"),
       lebenslauf: path.join(applicationData, "Lebenslauf"),
       deckblatt: path.join(applicationData, "Deckblatt"),
       email: path.join(applicationData, "Email"),

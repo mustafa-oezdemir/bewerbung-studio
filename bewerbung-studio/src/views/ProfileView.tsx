@@ -127,7 +127,7 @@ const newProfile = (): ApplicantProfile => ({
   resumeLanguageDisplay: { ...defaultLanguageLevelDisplay },
   resumeColumnRatio: 30,
   resumePhotoSize: "medium",
-  resumeClosing: { showPlace: true, showDate: true, showSignature: true, dateMode: "application" },
+  resumeClosing: { showPlace: true, showDate: true, showSignature: true, showWebsite: false, dateMode: "application" },
   updatedAt: new Date().toISOString(),
 });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getApplicationDocumentItems } from "./applicationDocuments";
+import { getApplicationDocumentItems, isDocumentPackage, packageDocumentOrder } from "./applicationDocuments";
 import type { Attachment } from "./schema";
 
 describe("application document selection", () => {
@@ -59,5 +59,40 @@ describe("application document selection", () => {
         isVisible: true,
       },
     ]);
+  });
+});
+
+describe("Motivationsschreiben in the document lists", () => {
+  const applicationId = "00000000-0000-4000-8000-000000000009";
+  const zeugnis: Attachment = {
+    id: "00000000-0000-4000-8000-000000000010", applicationId, category: "Zeugnisse", fileName: "Zeugnis.pdf",
+    description: "", documentDate: "", order: 0, includedInPackage: true, createdAt: "2026-10-09T09:00:00.000Z",
+  };
+  it("follows the Lebenslauf and precedes the Zeugnisse only when it is part of the Bewerbung", () => {
+    expect(getApplicationDocumentItems([zeugnis], applicationId, [], true).map((item) => item.label))
+      .toEqual(["Anschreiben", "Lebenslauf", "Motivationsschreiben", "Zeugnis.pdf"]);
+    expect(getApplicationDocumentItems([zeugnis], applicationId, [], false).map((item) => item.label))
+      .toEqual(["Anschreiben", "Lebenslauf", "Zeugnis.pdf"]);
+    expect(getApplicationDocumentItems([zeugnis], applicationId).map((item) => item.label))
+      .toEqual(["Anschreiben", "Lebenslauf", "Zeugnis.pdf"]);
+  });
+
+  it("defaults missing legacy settings to visible and applies a later rename or hide choice", () => {
+    expect(getApplicationDocumentItems([], applicationId, [{ key: "anschreiben", label: "Anschreiben", isVisible: true, isDeleted: false }], true)
+      .find((item) => item.key === "motivation")).toEqual({ key: "motivation", label: "Motivationsschreiben", isVisible: true });
+    expect(getApplicationDocumentItems([], applicationId, [{ key: "motivation", label: "Dritte Seite", isVisible: false, isDeleted: false }], true)
+      .find((item) => item.key === "motivation")).toEqual({ key: "motivation", label: "Dritte Seite", isVisible: false });
+  });
+});
+
+describe("Bewerbungsunterlagen and Bewerbungsmappe", () => {
+  it("share one order of the generated pages; only the Mappe starts with the Deckblatt", () => {
+    expect(packageDocumentOrder("bewerbungsunterlagen", false)).toEqual(["anschreiben", "lebenslauf"]);
+    expect(packageDocumentOrder("bewerbungsunterlagen", true)).toEqual(["anschreiben", "lebenslauf", "motivation"]);
+    expect(packageDocumentOrder("mappe", false)).toEqual(["deckblatt", "anschreiben", "lebenslauf"]);
+    expect(packageDocumentOrder("mappe", true)).toEqual(["deckblatt", "anschreiben", "lebenslauf", "motivation"]);
+    expect(isDocumentPackage("bewerbungsunterlagen")).toBe(true);
+    expect(isDocumentPackage("mappe")).toBe(true);
+    expect(["deckblatt", "anschreiben", "motivation", "lebenslauf"].some(isDocumentPackage)).toBe(false);
   });
 });

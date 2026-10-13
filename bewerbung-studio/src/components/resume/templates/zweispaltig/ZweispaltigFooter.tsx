@@ -1,5 +1,5 @@
-import { toZweispaltigExternalHref } from "./zweispaltig.model";
 import type { ZweispaltigFooterProps } from "./zweispaltig.types";
+import { resolveResumeFooterWebsite } from "../../../../shared/resumeFooter";
 
 export function ZweispaltigFooter({
   profile,
@@ -8,15 +8,15 @@ export function ZweispaltigFooter({
   atsMode,
 }: ZweispaltigFooterProps) {
   if (atsMode) return null;
-  const link = profile?.portfolio || profile?.github || profile?.linkedin;
+  const footerWebsite = resolveResumeFooterWebsite(profile);
 
   return (
     <footer
       className="zweispaltig-footer"
       data-element-id="zweispaltig.footer"
     >
-      {link ? (
-        <a href={toZweispaltigExternalHref(link)}>{link}</a>
+      {footerWebsite ? (
+        <a href={footerWebsite.href}>{footerWebsite.text}</a>
       ) : (
         <span />
       )}

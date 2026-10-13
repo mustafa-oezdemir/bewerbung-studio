@@ -99,6 +99,11 @@ describe("coverLetterApplicantFileName", () => {
     ]);
   });
 
+  it("names the Motivationsschreiben with the same convention", () => {
+    expect(applicantDocumentFileName("Motivation", application("Temmler/Pharma: GmbH"), "Mustafa Özdemir"))
+      .toBe("Motivation_Mustafa_Özdemir_Temmler_Pharma_GmbH");
+  });
+
   it("falls back to the company when no applicant name is available", () => {
     expect(coverLetterApplicantFileName(application("Muster GmbH"), "")).toBe(
       "Anschreiben_Muster_GmbH",

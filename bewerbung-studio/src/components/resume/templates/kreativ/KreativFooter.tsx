@@ -1,5 +1,5 @@
-import { toKreativExternalHref } from "./kreativ.model";
 import type { KreativFooterProps } from "./kreativ.types";
+import { resolveResumeFooterWebsite } from "../../../../shared/resumeFooter";
 
 export function KreativFooter({
   profile,
@@ -8,15 +8,15 @@ export function KreativFooter({
   atsMode,
 }: KreativFooterProps) {
   if (atsMode) return null;
-  const link = profile?.portfolio || profile?.github || profile?.linkedin;
+  const footerWebsite = resolveResumeFooterWebsite(profile);
 
   return (
     <footer
       className="kreativ-footer"
       data-element-id="kreativ.footer"
     >
-      {link ? (
-        <a href={toKreativExternalHref(link)}>{link}</a>
+      {footerWebsite ? (
+        <a href={footerWebsite.href}>{footerWebsite.text}</a>
       ) : (
         <span />
       )}

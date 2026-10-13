@@ -43,7 +43,7 @@ describe("Zeitgenössisch Anschreiben and Lebenslauf", () => {
       const preview = parseHTML(`<html><body>${renderToStaticMarkup(createElement(DocumentsView))}</body></html>`).document
         .querySelector<HTMLElement>(".document-anschreiben.zeitgenoessisch-letter");
       const pdfLetterHtml = buildDocumentHtml(application, profile, "anschreiben");
-      const pdfLetter = parseHTML(pdfLetterHtml).document.querySelector<HTMLElement>(".letter-page.zeitgenoessisch-letter");
+      const pdfLetter = parseHTML(pdfLetterHtml).document.querySelector<HTMLElement>(".letter-page .document-anschreiben.zeitgenoessisch-letter");
       const pdfCv = parseHTML(buildDocumentHtml(application, profile, "lebenslauf")).document
         .querySelector<HTMLElement>(".zeit-pdf");
       expect(preview).not.toBeNull();

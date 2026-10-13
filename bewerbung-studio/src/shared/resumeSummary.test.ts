@@ -4,9 +4,11 @@ import { describe, expect, it } from "vitest";
 import { getManagerSections } from "../features/resume-sections/resume-manager";
 import { getResumeSectionTitle, setResumeSectionTitle } from "../features/resume-sections/resume-sections";
 import { getTemplateDocumentDesignDefaults } from "./cvDesign";
+import { managedResumeCss } from "./resumeManagedOutput";
 import { resolveCvDocument } from "./resolveCvDocument";
 import { separateResumeDraft } from "./resumePresentation";
 import {
+  resumeSummaryTextCss,
   countSummarySentences,
   countSummaryWords,
   getResumeSummarySource,
@@ -243,5 +245,28 @@ describe("M. pagination measures the effective text", () => {
   it("measures the profile text when the Bewerbung has none, and nothing when both are empty", () => {
     const empty = profile({ summary: "", experiences });
     expect(JSON.stringify(plan(profile({ summary: longText, experiences }), ""))).not.toBe(JSON.stringify(plan(empty, "")));
+  });
+});
+
+describe("Kurzprofil text flow", () => {
+  it("uses one justified rule in both managed outputs without an app-wide override", () => {
+    expect(resumeSummaryTextCss).toBe('[data-managed-section="summary"] p,:is(.managed-resume-preview,.cv-sheet) section[data-cv-zone="sidebar"][data-managed-section="summary"] p{text-align:justify;text-justify:inter-word;text-align-last:left;hyphens:auto;white-space:normal;word-break:normal;overflow-wrap:break-word;min-width:0;max-width:100%}');
+    expect(managedResumeCss).toContain(resumeSummaryTextCss);
+    expect(readFileSync(resolve(__dirname, "../app.css"), "utf8")).not.toContain('[data-managed-section="summary"] p{');
+  });
+
+  it.each(["zweispaltig", "tabellarisch"])("continues a long synthetic paragraph without losing characters in %s", (templateId) => {
+    const source = Array.from({ length: 65 }, () => "Erfahrung in Produktionssteuerung und zuverlässiger Zusammenarbeit.").join(" ");
+    const synthetic = profile({ firstName: "Mina", lastName: "Kaya", summary: source, strengths: [], languages: [] });
+    const defaults = getTemplateDocumentDesignDefaults(templateId);
+    const settings = { ...defaults, resumePresentation: { layoutMode: templateId === "zweispaltig" ? "two-column" as const : "single" as const,
+      sidebarWidthPercent: 25 }, cvOverrides: { typography: { bodySizePt: 11 } } };
+    const pages = resolveCvDocument({ profile: synthetic, templateId, settings }).pagePlan;
+    const fragments = pages.flatMap((page) => page.blockRanges?.summary ? [page.blockRanges.summary] : []);
+    expect(fragments.length).toBeGreaterThan(1);
+    expect(fragments[0].from).toBe(0);
+    expect(fragments.at(-1)?.to).toBe(source.length);
+    expect(fragments.map((range) => source.slice(range.from, range.to)).join("")).toBe(source);
+    expect(synthetic.summary).toBe(source);
   });
 });

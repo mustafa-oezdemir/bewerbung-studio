@@ -86,7 +86,7 @@ export function KnowledgeProfileEditor({ profile, onChange, onCopyCategory }: {
     <details className="knowledge-profile-group">
       <summary>Zertifikate &amp; Weiterbildungen <small>{profile.certifications.filter(Boolean).length}</small></summary>
       <ResumeSectionTitleEditor profile={profile} section="certifications" onChange={onChange} />
-      <CertificateListEditor values={profile.certifications} onChange={(certifications) => onChange((current) => ({ ...current, certifications }))} />
+      <CertificateListEditor profile={profile} onChange={(fields) => onChange((current) => ({ ...current, ...fields }))} />
     </details>
     <details className="knowledge-profile-group">
       <summary>Weitere Zusatzqualifikationen</summary>

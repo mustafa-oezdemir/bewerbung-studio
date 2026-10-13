@@ -67,7 +67,7 @@ describe("Klassisch spacing and section output", () => {
       const project = document.querySelector(`[data-managed-section="special:${projectId}"]`)!;
       const interests = document.querySelector(`[data-managed-section="special:${interestsId}"]`)!;
       expect(root.textContent).toContain("Mina Kaya");
-      expect(root.textContent).toContain(profile.summary);
+      expect(root.textContent?.replaceAll("\u00ad", "")).toContain(profile.summary);
       expect(experience.querySelectorAll("article")).toHaveLength(2);
       expect(education.querySelectorAll("article")).toHaveLength(2);
       // Custom sections flow in the same content host as the career sections, on whichever page the plan puts them.

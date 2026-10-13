@@ -23,6 +23,8 @@ const klassischHeaderClose = klassischDefaults.layout.headerPaddingBottomMm + 25
 const klassischHeaderTop = klassischGeometry.top + klassischLine(klassischDefaults.typography.nameSizePt, klassischDefaults.typography.nameLineHeight)
   + klassischDefaults.layout.titleGapMm + klassischLine(klassischDefaults.typography.titleSizePt) + klassischHeaderClose;
 import { einspaltigDefaults } from "./cvTemplateDefaults/einfach.defaults";
+import { tabellarischDefaults } from "./cvTemplateDefaults/tabellarisch.defaults";
+import { resolveTabellarischGeometry, tabellarischLines } from "./tabellarischDesign";
 import { einspaltigSectionTitleMm, resolveEinspaltigGeometry } from "./einspaltigDesign";
 
 const einspaltigGeometry = resolveEinspaltigGeometry();
@@ -38,6 +40,9 @@ const einspaltigEntryHead = einspaltigTitleLine + einspaltigDefaults.layout.orga
 const einspaltigHeaderClose = einspaltigDefaults.layout.headerPaddingBottomMm + 25.4 / 96 + einspaltigDefaults.layout.headerGapMm;
 const einspaltigHeaderTop = einspaltigGeometry.top + einspaltigLine(einspaltigDefaults.typography.nameSizePt, einspaltigDefaults.typography.nameLineHeight)
   + einspaltigDefaults.layout.titleGapMm + einspaltigLine(einspaltigDefaults.typography.titleSizePt) + einspaltigHeaderClose;
+
+const tabellarischGeometry = resolveTabellarischGeometry();
+const tabellarischBodyMm = tabellarischDefaults.typography.bodySizePt * PT_MM;
 
 export type PaginationZone = "main" | "sidebar";
 
@@ -170,6 +175,19 @@ export type PaginationGeometry = {
   customEntryChrome?: number;
   /** Share of the measured page height the planner fills (default 0.97): the reserve for the estimate's error. A template whose entries are measured closely may use more. */
   safety?: number;
+  /** A fixed reserve (mm) at the bottom of every page, for a template whose heights are computed from its stylesheet. */
+  reserveMm?: number;
+  /**
+   * A timeline entry (Tabellarisch), computed from its stylesheet instead of `exp`/`edu`: the text column (role, the
+   * Abstand nach Eintragstitel, organisation, `orgGapAfter`, the bullets `bulletGap` apart) beside the date column (date,
+   * place); the entry is as tall as the taller column. Line heights are multiples of the font size; the role and the
+   * organisation keep their size when the body size changes.
+   */
+  timeline?: {
+    roleLineHeight: number; orgLineHeight: number; orgGapAfter: number; bulletGap: number;
+    metaPad: number; metaWidth: number; dateFont: number; dateWeight: number; dateLineHeight: number;
+    locationGap: number; locationFont: number; locationLineHeight: number;
+  };
   /** `gap` is the space between two entries of a section (margin or padding that belongs to no single entry). */
   exp: { base: number; list: number; perBullet: number; linePitch: number; extraLine: number; gap: number; head: number };
   /**
@@ -324,7 +342,8 @@ const geometry: Record<string, PaginationGeometry> = {
     top2: 41,
     limit: 286,
     safety: 1,
-    sideTop1: 55,
+    // The first sidebar section's top under the photo (measured 55.5 mm at standard density).
+    sideTop1: 55.5,
     sideLimit: 282,
     atsTop1: 95,
     atsTop2: 70,
@@ -629,26 +648,66 @@ const geometry: Record<string, PaginationGeometry> = {
     columns: 1,
     sidebarLeft: false,
     zones: {summary: "main", strengths: "main", knowledge: "main", languages: "main"},
+    // Page one: the measured standard header (estimateTabellarischTop raises it); later pages: the compact head
+    // (estimateTabellarischContinuationTop in the planner).
     top1: 59.8,
-    top2: 30.0,
-    limit: 285.1,
+    top2: 36.3,
+    // The one bottom boundary of the flowing text (resolveTabellarischGeometry: bottom margin + footer clearance).
+    limit: tabellarischGeometry.contentBottom,
     sideTop1: null,
-    sideLimit: 285.1,
+    sideLimit: tabellarischGeometry.contentBottom,
     atsTop1: 63.3,
     atsTop2: 63.3,
     mainLeft: 0,
     mainRight: 210,
-    contentLeft: 15,
-    contentRight: 195,
-    text: {contW: 127.0, cw: 0.52, bulletW: 125, bulletFont: 3.246, titleW: 130, titleFont: 4.23, orgW: 130, orgFont: 3.6, sumFont: 3.246, mainW: 180, sideW: 0, atsW: 175, lineRatio: 1.1, fullW: 180},
-    exp: {base: 15.3, list: 0.6, perBullet: 0.64, linePitch: 3.49, extraLine: 2.4, gap: 0, head: 9.1},
-    edu: {base: 15, extraLine: 5.5, gap: 0, head: 9.1},
-    blocks: {summary: [9.1, 3.57], strengths: [5.8, 4.66], knowledge: [9.8, 3.29], languages: [9.8, 1.83], sectionGap: 6.3, sideGap: 4.5},
+    contentLeft: tabellarischGeometry.left,
+    contentRight: tabellarischDefaults.page.widthMm - tabellarischGeometry.right,
+    // Bullets, titles and organisations are wrapped with the measured font (the timeline column beside the date
+    // column and the rail; the list takes its indent and item padding off it).
+    text: {contW: tabellarischGeometry.bulletWidth, cw: 0.52, bulletW: tabellarischGeometry.bulletWidth, bulletFont: tabellarischBodyMm,
+      titleW: tabellarischGeometry.timelineWidth, titleFont: tabellarischDefaults.typography.entryTitleSizePt * PT_MM,
+      orgW: tabellarischGeometry.timelineWidth, orgFont: tabellarischDefaults.typography.organizationSizePt * PT_MM, sumFont: tabellarischBodyMm,
+      mainW: tabellarischGeometry.contentWidth, sideW: 0, atsW: 175, lineRatio: tabellarischDefaults.typography.bodyLineHeight, fullW: tabellarischGeometry.contentWidth,
+      wrap: {fontId: "source-sans", bodyWeight: tabellarischDefaults.typography.bodyWeight, titleWeight: tabellarischDefaults.typography.entryTitleRenderedWeight,
+        orgWeight: tabellarischDefaults.typography.organizationWeight, listInset: tabellarischDefaults.layout.listIndentMm + tabellarischDefaults.layout.listItemPaddingMm,
+        metaGap: 0, metaRatio: tabellarischDefaults.typography.locationSizePt / tabellarischDefaults.typography.bodySizePt,
+        metaMinPt: tabellarischDefaults.typography.locationSizePt, metaMaxWidth: tabellarischDefaults.layout.metaColumnMm, metaColumn: 0,
+        paragraphs: true, marker: true}},
+    // Entry: role, Abstand nach Eintragstitel, organisation and 1.5 mm, then the bullets (0.45 mm apart, the first one's
+    // margin hides in the 1.5 mm). The Eintragsabstand is the padding below every entry but the last.
+    exp: {base: tabellarischLines.entryHead, list: 0, perBullet: tabellarischDefaults.layout.bulletGapMm, linePitch: tabellarischLines.body,
+      extraLine: tabellarischLines.role, gap: tabellarischDefaults.spacing.entryGapMm, head: tabellarischLines.sectionHead},
+    edu: {base: tabellarischLines.entryHead, extraLine: tabellarischLines.role, gap: tabellarischDefaults.spacing.entryGapMm, head: tabellarischLines.sectionHead,
+      detailBase: 0, detailLine: tabellarischLines.body, detailItem: tabellarischDefaults.layout.bulletGapMm, detailList: 0},
+    blocks: {summary: [tabellarischLines.sectionHead, tabellarischLines.body], strengths: [5.8, 4.66], knowledge: [9.8, 3.29], languages: [9.8, 1.83],
+      sectionGap: tabellarischDefaults.spacing.sectionGapMm, sideGap: 4.5},
     items: {strengths: {w: 83, font: 3.246, pitch: 4.22, pad: 1, cw: 0.53, cols: 2, head: 9, gap: 3}, knowledge: {w: 52.5, font: 3.246, pitch: 4.15, pad: 0, cw: 0.45, cols: 3, head: 14.7, gap: 0}},
-    certs: {home: "last", zone: "main", base: 9.0, perItem: 4.02, w: 79.5, font: 3.25, pitch: 3.57},
+    // A list across the content width: the first bullet's margin hides in the title gap, 0.45 mm between two.
+    certs: {home: "last", zone: "main", base: tabellarischLines.sectionHead - tabellarischDefaults.layout.bulletGapMm,
+      perItem: tabellarischLines.body + tabellarischDefaults.layout.bulletGapMm,
+      w: tabellarischGeometry.contentWidth - tabellarischDefaults.layout.listIndentMm - tabellarischDefaults.layout.listItemPaddingMm,
+      font: tabellarischBodyMm, pitch: tabellarischLines.body},
     derivedStrengths: {visual: "first", ats: "first"},
     ats: {exp: 1.0, edu: 1.33, head: 7.6, knowledge: {head: 7.57, title: 7.4, gap: 3.24, pitch: 3.57, font: 3.25, w: 84, tail: 3.25}, languages: [9.8, 1.83], certs: {base: 7.5, perItem: 4.02}, density: {compact: 0.99, dense: 0.95}},
     density: {compact: 0.99, dense: 0.92},
+    // The heights above are computed from the stylesheet (measured: within 0.15 mm, the measured font advances err on the
+    // safe side); this keeps the reserve for the rounding of the line boxes.
+    safety: 1,
+    reserveMm: 0.8,
+    timeline: {
+      roleLineHeight: tabellarischDefaults.typography.entryTitleLineHeight,
+      orgLineHeight: tabellarischDefaults.typography.organizationLineHeight,
+      orgGapAfter: tabellarischDefaults.layout.organizationGapAfterMm,
+      bulletGap: tabellarischDefaults.layout.bulletGapMm,
+      metaPad: tabellarischDefaults.layout.metaPaddingTopMm,
+      metaWidth: tabellarischDefaults.layout.metaColumnMm,
+      dateFont: tabellarischDefaults.typography.dateSizePt * PT_MM,
+      dateWeight: tabellarischDefaults.typography.dateWeight,
+      dateLineHeight: tabellarischDefaults.typography.dateLineHeight,
+      locationGap: tabellarischDefaults.layout.locationGapMm,
+      locationFont: tabellarischDefaults.typography.locationSizePt * PT_MM,
+      locationLineHeight: tabellarischDefaults.typography.locationLineHeight,
+    },
   },
   "ivy-league": {
     columns: 1,
@@ -675,6 +734,26 @@ const geometry: Record<string, PaginationGeometry> = {
     ats: {exp: 1.0, edu: 1.0, head: 8.3, knowledge: {head: 8.27, title: 7.9, gap: 3, pitch: 3.11, font: 2.96, w: 166, tail: 0}, languages: [7.9, 3.5], certs: {base: 8, perItem: 3.47}, density: {compact: 0.95, dense: 0.94}},
     density: {compact: 0.95, dense: 0.93},
   },
+};
+
+/**
+ * Tabellarisch's plain (ATS) layout keeps its measured model: its entries are blocks without the date column, and its
+ * page has no footer clearance of its own.
+ */
+export const tabellarischAtsPaginationGeometry: PaginationGeometry = {
+  ...geometry.tabellarisch,
+  limit: 285.1,
+  sideLimit: 285.1,
+  contentLeft: 15,
+  contentRight: 195,
+  text: {contW: 127.0, cw: 0.52, bulletW: 125, bulletFont: 3.246, titleW: 130, titleFont: 4.23, orgW: 130, orgFont: 3.6, sumFont: 3.246, mainW: 180, sideW: 0, atsW: 175, lineRatio: 1.1, fullW: 180},
+  exp: {base: 15.3, list: 0.6, perBullet: 0.64, linePitch: 3.49, extraLine: 2.4, gap: 0, head: 9.1},
+  edu: {base: 15, extraLine: 5.5, gap: 0, head: 9.1},
+  blocks: {summary: [9.1, 3.57], strengths: [5.8, 4.66], knowledge: [9.8, 3.29], languages: [9.8, 1.83], sectionGap: 6.3, sideGap: 4.5},
+  certs: {home: "last", zone: "main", base: 9.0, perItem: 4.02, w: 79.5, font: 3.25, pitch: 3.57},
+  safety: undefined,
+  reserveMm: undefined,
+  timeline: undefined,
 };
 
 /** Single-column fallback for unknown templates: the widest measured layout. */

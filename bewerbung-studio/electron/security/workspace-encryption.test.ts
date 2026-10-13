@@ -38,7 +38,8 @@ const fixture = async () => {
   return { root, workspace, workspaceFile, applicationFile, documentFile };
 };
 
-describe("workspace encryption migration", () => {
+// Every test derives Argon2 keys: ~2 s alone, past the 5 s default when the whole suite runs in parallel.
+describe("workspace encryption migration", { timeout: 20_000 }, () => {
   it("rolls back an uncommitted preparation without changing plaintext originals", async () => {
     const item = await fixture();
     const { service } = await EncryptionService.create("Kaffee Zug Marburg Wolke 2026!", item.workspace);

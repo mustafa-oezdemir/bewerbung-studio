@@ -43,7 +43,7 @@ export const harnessApplication = (templateId: string, overrides: Partial<Applic
 
 const clean = (node: Element | null) => {
   node?.querySelectorAll("style,script").forEach((child) => child.remove());
-  return (node?.textContent ?? "").replace(/\s+/g, " ").trim();
+  return (node?.textContent ?? "").replaceAll("\u00ad", "").replace(/\s+/g, " ").trim();
 };
 
 const semantic = (page: Element) => ({

@@ -19,11 +19,16 @@ export const createDocumentDesignDraft = (application: Application) => ({
 
 export type DocumentDesignDraft = ReturnType<typeof createDocumentDesignDraft>;
 
-/** Project selection belongs to the Bewerbung, so a template change or design reset keeps it. */
+/** Project and certificate selection belong to the Bewerbung, so a template change or design reset keeps them. */
 const carryProjectSelection = (current: DocumentDesignDraft, next: DocumentDesignDraft["settings"]): DocumentDesignDraft["settings"] => {
   const selectedProjectEntryIds = current.settings.resumePresentation?.selectedProjectEntryIds;
-  const { selectedProjectEntryIds: _old, ...presentation } = next.resumePresentation ?? {};
-  const merged = { ...presentation, ...(selectedProjectEntryIds !== undefined ? { selectedProjectEntryIds } : {}) };
+  const selectedCertificateIds = current.settings.resumePresentation?.selectedCertificateIds;
+  const { selectedProjectEntryIds: _old, selectedCertificateIds: _oldCertificates, ...presentation } = next.resumePresentation ?? {};
+  const merged = {
+    ...presentation,
+    ...(selectedProjectEntryIds !== undefined ? { selectedProjectEntryIds } : {}),
+    ...(selectedCertificateIds !== undefined ? { selectedCertificateIds } : {}),
+  };
   const { resumePresentation: _nextPresentation, ...otherSettings } = next;
   return { ...otherSettings, ...(Object.keys(merged).length ? { resumePresentation: merged } : {}) };
 };

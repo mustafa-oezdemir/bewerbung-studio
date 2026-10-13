@@ -1,6 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { ApplicantProfile } from "../../shared/schema";
 import { getProfileMediaSource } from "../../shared/profileMedia";
+import { resumeFooterWebsiteSource } from "../../shared/resumeFooter";
+import { getResumeDisplayProfile } from "../../shared/resumeDisplayProfile";
 import { FlexibleDateField } from "./FlexibleDateField";
 import { ProfileMediaCard } from "./ProfileMediaCard";
 
@@ -11,13 +13,18 @@ export function ClosingEditor({ profile, onChange, onPickSignature, onRemoveSign
   onRemoveSignature: () => void;
 }) {
   const closing = profile.resumeClosing;
+  // The link the footer prints: a contact hidden under Persönliche Daten is not offered.
+  const footerWebsite = resumeFooterWebsiteSource(getResumeDisplayProfile(profile));
   return <>
     <div className="section-toggle-grid">
-      {([ ["showPlace", "Ort anzeigen"], ["showDate", "Datum anzeigen"], ["showSignature", "Unterschrift anzeigen"] ] as const).map(([key, label]) =>
-        <label className="checkbox-field" key={key}><input type="checkbox" checked={closing[key]}
+      {([ ["showPlace", "Ort anzeigen"], ["showDate", "Datum anzeigen"], ["showSignature", "Unterschrift anzeigen"], ["showWebsite", "Website im Footer anzeigen"] ] as const).map(([key, label]) =>
+        <label className="checkbox-field" key={key}><input type="checkbox" checked={Boolean(closing[key])}
           onChange={event => onChange(current => ({ ...current, resumeClosing: { ...current.resumeClosing, [key]: event.target.checked } }))} />
           <span>{label}</span></label>)}
     </div>
+    {closing.showWebsite && <p className="field-hint">{footerWebsite
+      ? `Steht auf jeder Seite links im Footer: ${footerWebsite}. Der Abstand zum Blattrand folgt den Seitenrändern im Lebenslauf-Design.`
+      : "Im Profil ist keine Website hinterlegt (ersatzweise GitHub oder LinkedIn); der Footer bleibt leer."}</p>}
     {closing.showPlace && <label className="field"><span>Ort</span><input value={profile.applicationPlace}
       onChange={event => onChange(current => ({ ...current, applicationPlace: event.target.value }))} />
       <small className="field-hint">Leer lassen, um den Wohnort aus den Profildaten zu verwenden{profile.city ? `: ${profile.city}` : "."}</small></label>}

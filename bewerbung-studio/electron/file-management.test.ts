@@ -51,6 +51,14 @@ describe("FileManagementService", () => {
     );
   });
 
+  it("creates the canonical Motivation folder inside a Bewerbung", async () => {
+    const application = { folderName: "Fiktiv_GmbH_2026-10-09/Entwicklung", status: "Entwurf" } as Application;
+    const directories = service.documentDirectories(application);
+    expect(directories.motivation).toBe(path.join(service.applicationDataPath(application.folderName), "Motivation"));
+    await service.ensureApplicationDataDirectories(application);
+    await expect(access(directories.motivation)).resolves.toBeUndefined();
+  });
+
   it("migrates legacy system and archive folders safely and idempotently", async () => {
     const legacySettings = path.join(service.paths.dataRoot, "Settings");
     const legacyProfiles = path.join(service.paths.dataRoot, "Profile");

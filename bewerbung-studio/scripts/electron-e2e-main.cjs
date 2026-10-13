@@ -41,7 +41,7 @@ const createScenario = `(async () => {
     throw new Error('invalid IPC input was not rejected without side effects');
   const profileId = crypto.randomUUID();
   await api.profiles.save({ id: profileId, isDefault: true, firstName: 'Erika',
-    lastName: 'Beispiel', email: 'erika@example.test', updatedAt: new Date().toISOString() });
+    lastName: 'Bäcker', email: 'erika@example.test', updatedAt: new Date().toISOString() });
   const created = await api.applications.create({
     company: { name: 'E2E Beispiel GmbH', city: 'Berlin' },
     contact: {}, job: { title: 'Softwareentwickler' },
@@ -49,6 +49,25 @@ const createScenario = `(async () => {
     notes: 'synthetic E2E data',
   });
   if (created.workspace.applications.length !== 1) throw new Error('application was not created');
+  if (created.gitSync.state !== 'synced' || !created.gitSync.pushed)
+    throw new Error('application creation was not pushed from Electron');
+  const documentChange = structuredClone(created.workspace.applications[0]);
+  documentChange.documents.coverMainBody = 'Fiktiver Anschreibentext';
+  documentChange.documents.resumeProfile = 'Fiktives Kurzprofil';
+  documentChange.documents.deckblattStatement = 'Fiktives Deckblatt';
+  documentChange.documents.motivationIntroduction = 'Fiktive Motivation';
+  documentChange.interviewAt = '2026-10-20T09:00:00.000Z';
+  const updated = await api.applications.save(documentChange);
+  if (updated.gitSync.state !== 'synced' || !updated.gitSync.pushed)
+    throw new Error('document and appointment changes were not pushed from Electron');
+  const interview = structuredClone(updated.workspace.events.find((event) =>
+    event.applicationId === documentChange.id && event.type === 'interview'));
+  interview.startAt = '2026-10-21T10:30:00.000Z';
+  const moved = await api.events.save(interview);
+  if (moved.gitSync.state !== 'synced' || !moved.gitSync.pushed)
+    throw new Error('the moved interview appointment was not pushed from Electron');
+  // The unsaved wizard draft lives in the data tree but must never be pushed.
+  await api.applicationDraft.save({ company: { name: 'E2E Entwurf GmbH' } });
   await api.settings.save({ ...created.workspace.settings, theme: 'dark' });
   const now = new Date().toISOString();
   await api.todos.save({ id: crypto.randomUUID(), title: 'E2E Nachverfolgung',
@@ -82,7 +101,9 @@ const verifyScenario = `(async () => {
   await new Promise((resolve) => setTimeout(resolve, 200));
   if (!document.body.innerText.includes('E2E Nachverfolgung'))
     throw new Error('todo did not render after navigation');
-  await api.applications.changeStatus(workspace.applications[0].id, 'Beworben');
+  const statusChange = await api.applications.changeStatus(workspace.applications[0].id, 'Beworben');
+  if (statusChange.gitSync.state !== 'synced' || !statusChange.gitSync.pushed)
+    throw new Error('status change was not pushed from Electron');
   return workspace.applications[0].id;
 })()`;
 

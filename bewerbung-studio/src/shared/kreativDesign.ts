@@ -8,6 +8,12 @@ const mix = (first: string, second: string, firstShare: number) => {
     .toString(16).padStart(2, "0")).join("")}`.toUpperCase();
 };
 
+/** The page's left and right margin: Seitenränder moves the native 25 / 20 mm on both sides alike. */
+export const resolveKreativSideMargins = (pageMarginMm: number) => {
+  const shift = pageMarginMm - kreativDefaults.page.marginRightMm;
+  return { left: kreativDefaults.page.marginLeftMm + shift, right: kreativDefaults.page.marginRightMm + shift };
+};
+
 /** The same resolved profile/application design feeds the CV and the letter. */
 export const getKreativDesignVariables = (
   design: CvDesignTokens,
@@ -40,8 +46,8 @@ export const getKreativDesignVariables = (
     "--kreativ-light": paletteChanged ? mix(primary, "#FFFFFF", 0.2) : kreativDefaults.colors.lightDivider,
     "--kreativ-inactive": paletteChanged ? mix(surface, "#FFFFFF", 0.35) : kreativDefaults.colors.inactiveLevel,
     "--kreativ-header-text": design.colors.heading,
-    "--kreativ-margin-left": `${kreativDefaults.page.marginLeftMm + marginShift}mm`,
-    "--kreativ-margin-right": `${kreativDefaults.page.marginRightMm + marginShift}mm`,
+    "--kreativ-margin-left": `${resolveKreativSideMargins(design.spacing.pageMarginMm).left}mm`,
+    "--kreativ-margin-right": `${resolveKreativSideMargins(design.spacing.pageMarginMm).right}mm`,
     "--kreativ-margin-bottom": `${Math.max(kreativDefaults.page.marginBottomMm, kreativDefaults.page.marginBottomMm + marginShift)}mm`,
     "--kreativ-margin": `${design.spacing.pageMarginMm}mm`,
     "--kreativ-column-gap": `${design.spacing.columnGapMm}mm`,

@@ -79,7 +79,7 @@ describe("Kompakt spacing and section output", () => {
       const project = main.querySelector(`[data-managed-section="special:${projectId}"]`)!;
       const interests = sidebar.querySelector(`[data-managed-section="special:${interestsId}"]`)!;
       expect(root.textContent).toContain("Mina Kaya");
-      expect(main.textContent).toContain(baseProfile.summary);
+      expect(main.textContent?.replaceAll("\u00ad", "")).toContain(baseProfile.summary);
       expect(sidebar.textContent).toContain("Kontaktdaten");
       expect(main.firstElementChild?.getAttribute("data-managed-section")).toBe("summary");
       expect(sidebar.querySelector(".kompakt-contacts,.kompakt-pdf-contacts")).not.toBeNull();

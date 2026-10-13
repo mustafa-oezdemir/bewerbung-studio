@@ -1,5 +1,5 @@
-import { toTemplateExternalHref } from "../resume-template-data";
 import type { GepflegtFooterProps } from "./gepflegt.types";
+import { resolveResumeFooterWebsite } from "../../../../shared/resumeFooter";
 
 export function GepflegtFooter({
   profile,
@@ -7,17 +7,16 @@ export function GepflegtFooter({
   totalPages,
   atsMode,
 }: GepflegtFooterProps) {
-  const portfolio =
-    profile?.portfolio || profile?.github || profile?.linkedin || "";
+  const footerWebsite = resolveResumeFooterWebsite(profile, atsMode);
 
-  if (atsMode || (!portfolio && totalPages === 1)) {
+  if (atsMode || (!footerWebsite && totalPages === 1)) {
     return null;
   }
 
   return (
     <footer className="gepflegt-footer" data-element-id="gepflegt.footer">
-      {portfolio ? (
-        <a href={toTemplateExternalHref(portfolio)}>{portfolio}</a>
+      {footerWebsite ? (
+        <a href={footerWebsite.href}>{footerWebsite.text}</a>
       ) : (
         <span />
       )}

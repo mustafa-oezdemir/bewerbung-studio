@@ -45,6 +45,9 @@ import type { KnowledgeItem, KnowledgeCategory, KnowledgeDisplayMode } from "../
 import { applyResumePhotoOutput } from "./resumePhoto";
 import { resolveLanguagePresentation } from "../features/languages/language-levels";
 import { applyResumeLanguageOutput } from "./resumeLanguageOutput";
+import { resumeSummaryTextCss } from "./resumeSummary";
+import { hyphenateResumeSummary } from "./resumeSummaryHyphenation";
+import { tabellarischContinuationCss, tabellarischSectionTitleCss } from "./tabellarischDesign";
 
 const escape = (value: string) =>
   value
@@ -101,6 +104,9 @@ const setHeadingText = (heading: Element, title: string) => {
 };
 
 export const managedResumeCss = `
+${resumeSummaryTextCss}
+${tabellarischContinuationCss(":is(.tabellarisch-template .tabellarisch-continuation-header,.tabellarisch-pdf .tabellarisch-pdf-continuation)")}
+${tabellarischSectionTitleCss}
 :is(footer,[class*="footer"]) a[href^="http"]{display:inline-block;max-width:62%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
 .resume-special-output__entry :is(ul,ol){margin:.8mm 0 0;padding-left:4.5mm;list-style:disc}.resume-special-output__entry li{margin:0}
 .resume-special-output__project{break-inside:avoid}.resume-special-output__project h3{margin:0 0 .6mm}.resume-special-output__project p{margin:0 0 .5mm}.resume-special-output__project .resume-special-output__technologies{font-size:.88em;opacity:.82}.resume-special-output__project a{color:inherit;text-decoration:underline;text-underline-offset:1px}
@@ -412,7 +418,7 @@ export const applyManagedResumeOutput = (
     const headingTag = surface === "pdf" ? "h3" : "h2";
     const hosts = (id: string) => {
       const movable = id === "knowledge" || id.startsWith("group:") || id.startsWith("special:") || (zoneFlow && id === "certifications")
-        || (resolved.templateId === "elegant" && (id === "languages" || id === "certifications"))
+        || (resolved.templateId === "elegant" && (id === "languages" || id === "certifications" || id === "strengths"))
         || resolved.templateId === "tabellarisch"
         || orderedSingle
         || (resolved.templateId === "kreativ" && ["summary", "strengths", "languages"].includes(id));
@@ -543,8 +549,34 @@ export const applyManagedResumeOutput = (
       });
       destination.insertBefore(node, later ?? closing ?? null);
     };
+    const splitSummary = planned.some((page) => Boolean(page.blockRanges?.summary));
     for (const entry of entries.filter((item) => !item.fixed)) {
       const existing = nodes.get(entry.id) ?? [];
+      if (entry.id === "summary" && splitSummary) {
+        const onPage = Boolean(planned[number - 1]?.blocks?.includes("summary"));
+        if (!onPage || !entry.visible) {
+          existing.forEach((node) => node.remove());
+          nodes.delete("summary");
+          continue;
+        }
+        const range = planned[number - 1]?.blockRanges?.summary;
+        const fragment = resolved.summary.slice(range?.from ?? 0, range?.to ?? resolved.summary.length).trim();
+        const source = existing[0] ?? roots[0].querySelector('[data-managed-section="summary"]')
+          ?? firstPageDocument?.querySelector('[data-managed-section="summary"]');
+        const node = source?.cloneNode(true) as Element | undefined ?? document.createElement("section");
+        if (!source) node.innerHTML = `<h3>${escape(entry.title)}</h3><p></p>`;
+        node.setAttribute("data-managed-section", "summary");
+        const paragraph = node.querySelector("p") ?? node.appendChild(document.createElement("p"));
+        paragraph.textContent = fragment;
+        if (number > 1 && entry.zone !== "sidebar") {
+          const heading = node.querySelector("h2,h3");
+          if (heading) setHeadingText(heading, `${entry.title} · Fortsetzung`);
+        }
+        existing.forEach((old) => old.remove());
+        appendSection(entry, node);
+        nodes.set("summary", [node]);
+        continue;
+      }
       const group = groups.find((group) => group.id === entry.groupId);
       const items =
         group?.items
@@ -615,7 +647,7 @@ export const applyManagedResumeOutput = (
       // on their planned pages and are never copied across page boundaries.
       let content = "";
       if (entry.id === "strengths") {
-        if (orderedSingle || resolved.templateId === "kreativ" || resolved.templateId === "tabellarisch" ? !hosts(entry.id)
+        if (orderedSingle || resolved.templateId === "kreativ" || resolved.templateId === "tabellarisch" || resolved.templateId === "elegant" ? !hosts(entry.id)
           : orderedOneColumnTemplates.has(resolved.templateId) ? !sectionOnPage(planned[number - 1] ?? {}, "strengths", number === 1)
           : number !== 1) {
           existing.forEach((node) => node.remove());
@@ -658,6 +690,9 @@ export const applyManagedResumeOutput = (
                   iconId: "",
                 };
               });
+        // Elegant's sidebar lane may break the strengths between two cards: this page draws its part of them.
+        const strengthRange = resolved.templateId === "elegant" ? planned[number - 1]?.blockRanges?.strengths : undefined;
+        if (strengthRange) strengths.splice(0, strengths.length, ...strengths.slice(strengthRange.from, strengthRange.to));
         if (strengths.length) {
           const node = existing[0] ?? document.createElement("section");
           const heading =
@@ -925,6 +960,17 @@ export const applyManagedResumeOutput = (
       applyEntryBreaks(nodes.get("experience") ?? [], entrySources?.[6] ?? "", entrySources?.[2] ?? "", pagePlan.items);
       applyEducationBreaks(nodes.get("education") ?? [], profile.education, profile.resumeEducationFieldVisibility, pagePlan.items);
     }
+    // Tabellarisch draws its certificate list itself (one item per certificate on both surfaces): a list that breaks
+    // between two pages keeps the items `from`..`to` of the plan here, and its second part is titled as continued.
+    const certificateRange = resolved.templateId === "tabellarisch" ? planned[number - 1]?.blockRanges?.certifications : undefined;
+    if (certificateRange) for (const node of nodes.get("certifications") ?? []) {
+      Array.from(node.querySelectorAll("li")).forEach((item, index) => {
+        if (index < certificateRange.from || index >= certificateRange.to) item.remove();
+      });
+      const heading = node.querySelector("h2,h3");
+      const title = entries.find((entry) => entry.id === "certifications")?.title;
+      if (heading && title && certificateRange.from > 0) setHeadingText(heading, `${title} · Fortsetzung`);
+    }
     const pehlioneContinuation = (resolved.templateId === "pehlione_white_blue" || resolved.templateId === "pehlione_white") && (pages.length > 1 || totalPages > 1);
     const continuationContacts = enabled("personalData") ? {
       email: profile.resumeContinuationContactVisibility.email ? profile.email : undefined,
@@ -935,7 +981,8 @@ export const applyManagedResumeOutput = (
     else if (firstPageHeader) {
       // Later pages repeat the identity of the first page's header (name, title, photo) and the contacts the user chose
       // for them (e-mail, phone): never its address, links or other personal details.
-      if (number > 1 && (resolved.templateId === "zeitgenoessisch" || resolved.templateId === "kreativ" || resolved.templateId === "stilvoll" || resolved.templateId === "elegant" || resolved.templateId === "klassisch" || resolved.templateId === "einspaltig")) {
+      if (number > 1 && (resolved.templateId === "zeitgenoessisch" || resolved.templateId === "kreativ" || resolved.templateId === "stilvoll" || resolved.templateId === "elegant" || resolved.templateId === "klassisch" || resolved.templateId === "einspaltig"
+        || (resolved.templateId === "tabellarisch" && !isAts))) {
         // Both native renderers already draw the compact identity. Replacing it with page one's header
         // would repeat the large photo composition and waste the continuation page's upper area
         // (Klassisch: a running head, so the text of a later page fills it like a Word document).
@@ -1005,9 +1052,9 @@ export const applyManagedResumeOutput = (
         kompaktScope?.style.setProperty(property, value);
       }
     }
-    // Klassisch and Einspaltig: the resolved geometry, type scale, spacing (and Einspaltig's palette) replace the native
-    // values on both surfaces.
-    for (const variables of [resolved.einspaltigVariables].filter(Boolean) as Record<string, string>[]) {
+    // Klassisch, Einspaltig and Tabellarisch: the resolved geometry, type scale, spacing (and Einspaltig's palette) replace
+    // the native values on both surfaces.
+    for (const variables of [resolved.einspaltigVariables, resolved.tabellarischVariables].filter(Boolean) as Record<string, string>[]) {
       const scope = (surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild) as HTMLElement | null;
       for (const [property, value] of Object.entries(variables)) {
         (root as HTMLElement).style.setProperty(property, value);
@@ -1044,6 +1091,15 @@ export const applyManagedResumeOutput = (
       applyResumeLanguageOutput(section, profile, templateId, designSettings, zone, sidebar !== main && !isAts, isAts,
         resolved.templateId === "elegant" ? planned[number - 1]?.blockRanges?.languages : undefined);
     }
+    // Apply optional break points only to the rendered Kurzprofil, after section moves on both surfaces.
+    root.querySelectorAll('[data-managed-section="summary"] p').forEach((paragraph) => {
+      paragraph.setAttribute("lang", "de-DE");
+      const hyphenateText = (node: Node) => {
+        if (node.nodeType === 3) node.textContent = hyphenateResumeSummary(node.textContent ?? "");
+        else Array.from(node.childNodes).forEach(hyphenateText);
+      };
+      Array.from(paragraph.childNodes).forEach(hyphenateText);
+    });
     if (number === 1) firstPageHeader = root.querySelector("header")?.cloneNode(true) as Element | null;
   });
   return document.body.innerHTML;

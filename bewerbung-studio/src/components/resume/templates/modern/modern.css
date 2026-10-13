@@ -751,9 +751,10 @@
 
 .modern-resume-footer {
   position: absolute;
-  right: 15mm;
+  /* Seitenränder moves the text by --resume-page-text-shift; the footer moves along. */
+  right: calc(15mm + var(--resume-page-text-shift, 0mm));
   bottom: 6mm;
-  left: 15mm;
+  left: calc(15mm + var(--resume-page-text-shift, 0mm));
   z-index: 3;
   display: flex;
   justify-content: space-between;

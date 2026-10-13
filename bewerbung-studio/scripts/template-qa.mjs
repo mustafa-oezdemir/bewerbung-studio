@@ -79,7 +79,11 @@ try {
   }
   const manifest = [];
   for (const [name, make] of Object.entries(scenarios)) {
-    const parsed = profileSchema.parse(make(maximalProfileInput()));
+    const made = profileSchema.parse(make(maximalProfileInput()));
+    // The footer website is opt-in (Ort, Datum und Unterschrift → Website im Footer anzeigen); the QA draws it, so the
+    // footer stays covered, unless FOOTER_WEBSITE=off. Real profiles keep their own choice.
+    const parsed = name.startsWith('real') || process.env.FOOTER_WEBSITE === 'off' ? made
+      : { ...made, resumeClosing: { ...made.resumeClosing, showWebsite: true } };
     const profile = parsed.photoPath && !name.startsWith('real') ? setResumePhotoVisible(parsed, true) : parsed;
     for (const template of templates.filter((candidate) => !process.env.ONLY || process.env.ONLY.split(',').includes(candidate.id))) for (const atsMode of [false, true]) {
       if (name !== 'max' && !name.startsWith('rand') && !name.startsWith('real') && atsMode) continue;

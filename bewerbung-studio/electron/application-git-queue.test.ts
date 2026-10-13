@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -139,10 +139,10 @@ describe("remote and commit message rules", () => {
       { companyName: "X", action: "update" },
     ])).toEqual({
       subject: "Bewerbung aktualisiert: X (+1 weitere)",
-      body: "- Bewerbung aktualisiert: X\n- Status aktualisiert: X",
+      body: "- Bewerbung aktualisiert: X\n- Status geändert: X",
     });
-    expect(buildApplicationCommitMessage([{ companyName: "Y", action: "bewerbung" }]).subject)
-      .toBe("Bewerbung gesendet: Y");
+    expect(buildApplicationCommitMessage([{ companyName: "Y", action: "status", details: ["Bewerbung gesendet"] }]).subject)
+      .toBe("Status geändert: Y – Bewerbung gesendet");
   });
 
   it("classifies push failures without using the output itself", () => {
@@ -218,7 +218,7 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
     const { result, gitSync } = await create("Müller & Söhne GmbH");
 
     expect(gitSync).toEqual({ state: "synced", committed: true, pushed: true });
-    expect(remoteSubjects()[0]).toBe("Bewerbung angelegt: Müller & Söhne GmbH");
+    expect(remoteSubjects()[0]).toBe("Bewerbung angelegt: Müller & Söhne GmbH – Softwareentwickler");
     const files = remoteFiles();
     const folder = result.applications[0].folderName;
     expect(files).toContain("data/Setting/Settings/workspace.json");
@@ -235,7 +235,7 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
     const { gitSync } = await create("Zweite GmbH");
 
     expect(gitSync.state).toBe("synced");
-    expect(remoteSubjects().slice(0, 2)).toEqual(["Bewerbung angelegt: Zweite GmbH", "Bewerbung angelegt: Erste GmbH"]);
+    expect(remoteSubjects().slice(0, 2)).toEqual(["Bewerbung angelegt: Zweite GmbH – Softwareentwickler", "Bewerbung angelegt: Erste GmbH – Softwareentwickler"]);
   });
 
   it("commits a real Bereich-speichern change and skips an unchanged save", async () => {
@@ -250,10 +250,59 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
 
     const changed = await save((application) => { application.notes = "Telefonat am Montag"; });
     expect(changed.gitSync).toEqual({ state: "synced", committed: true, pushed: true });
-    expect(remoteSubjects()[0]).toBe("Bewerbung aktualisiert: Speicher GmbH");
+    expect(remoteSubjects()[0]).toBe("Bewerbung aktualisiert: Speicher GmbH – Softwareentwickler – Notizen");
     expect(remoteSubjects()).toHaveLength(commits + 1);
     const folder = store.getWorkspace().applications[0].folderName;
     expect(git(remote, "show", `main:data/Bewerbungen/${folder}/bewerbung.json`)).toContain("Telefonat am Montag");
+  });
+
+  it("lists every changed document section without placing authored text in the commit message", async () => {
+    await openStore();
+    await create("Dokumente GmbH");
+    const secretText = "Nur im lokalen Bewerbungsdokument sichtbarer Text";
+    const { gitSync } = await save((application) => {
+      application.notes = secretText;
+      application.documents.coverMainBody = secretText;
+      application.documents.resumeProfile = secretText;
+      application.documents.deckblattStatement = secretText;
+      application.documents.motivationIntroduction = secretText;
+      application.interviewAt = "2026-10-20T09:00:00.000Z";
+    });
+    expect(gitSync).toEqual({ state: "synced", committed: true, pushed: true });
+    const message = git(remote, "log", "-1", "--format=%B", "main");
+    for (const section of ["Bewerbung aktualisiert", "Anschreiben aktualisiert", "Lebenslauf aktualisiert",
+      "Deckblatt aktualisiert", "Motivationsschreiben aktualisiert", "Termin aktualisiert"])
+      expect(message).toContain(section);
+    expect(message).toContain("Softwareentwickler");
+    expect(message).not.toContain(secretText);
+    expect(message.split("\n").filter((line) => line.startsWith("- "))).toHaveLength(6);
+  });
+
+  it("commits an application appointment, attachment changes and rejection with their actual labels", async () => {
+    await openStore();
+    const id = (await create("Termine GmbH")).result.applications[0].id;
+    await save((application) => { application.interviewAt = "2026-10-20T09:00:00.000Z"; });
+    const event = structuredClone(store.getWorkspace().events.find((item) => item.applicationId === id && item.type === "interview")!);
+    event.startAt = "2026-10-21T10:00:00.000Z";
+    expect((await sync.runOperation(() => store.saveEvent(event))).gitSync.state).toBe("synced");
+    expect(remoteSubjects()[0]).toContain("Termin aktualisiert: Termine GmbH – Softwareentwickler – Vorstellungsgespräch");
+
+    const source = path.join(base, "fiktives-zeugnis.pdf");
+    await writeFile(source, "%PDF-1.4\n%%EOF\n");
+    expect((await sync.runOperation(() => store.addAttachment(id, "Zeugnisse", source))).gitSync.state).toBe("synced");
+    expect(remoteSubjects()[0]).toContain("Anlagen aktualisiert: Termine GmbH – Softwareentwickler – Zeugnisse hinzugefügt");
+    const attachment = structuredClone(store.getWorkspace().attachments[0]);
+    attachment.description = "Fiktive Bescheinigung";
+    expect((await sync.runOperation(() => store.saveAttachment(attachment))).gitSync.state).toBe("synced");
+    expect(remoteSubjects()[0]).toContain("Zeugnisse geändert");
+    expect((await sync.runOperation(() => store.removeAttachment(attachment.id))).gitSync.state).toBe("synced");
+    expect(remoteSubjects()[0]).toContain("Zeugnisse entfernt");
+
+    expect((await sync.runOperation(() => store.changeStatus(id, "Absage"))).gitSync.state).toBe("synced");
+    expect(remoteSubjects()[0]).toContain("Status geändert: Termine GmbH – Softwareentwickler – Absage");
+    const stored = JSON.parse(git(remote, "show", "main:data/Setting/Settings/workspace.json"));
+    expect(stored.applications[0].status).toBe("Absage");
+    expect(stored.attachments).toHaveLength(0);
   });
 
   it("synchronises a status change so the remote holds the final state", async () => {
@@ -266,8 +315,8 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
 
     expect(unchanged.gitSync.state).toBe("skipped");
     expect(status.gitSync).toEqual({ state: "synced", committed: true, pushed: true });
-    expect(remoteSubjects()[0]).toBe("Status aktualisiert: Status GmbH");
-    expect(remoteSubjects()[1]).toBe("Bewerbung angelegt: Status GmbH");
+    expect(remoteSubjects()[0]).toBe("Status geändert: Status GmbH – Softwareentwickler – Zusage");
+    expect(remoteSubjects()[1]).toBe("Bewerbung angelegt: Status GmbH – Softwareentwickler");
     const workspace = JSON.parse(git(remote, "show", "main:data/Setting/Settings/workspace.json"));
     expect(workspace.applications[0].status).toBe("Zusage");
   });
@@ -284,13 +333,13 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
     const reopened = new DataStore(paths);
     await reopened.initialize();
     expect(reopened.getWorkspace().applications.map((item) => item.company.name)).toContain("Offline GmbH");
-    expect(localSubjects()[0]).toBe("Bewerbung angelegt: Offline GmbH");
+    expect(localSubjects()[0]).toBe("Bewerbung angelegt: Offline GmbH – Softwareentwickler");
 
     await rename(offline, remote);
     await openStore();
     const recovered = await save((application) => { application.notes = "wieder online"; }, 0);
     expect(recovered.gitSync).toEqual({ state: "synced", committed: true, pushed: true });
-    expect(remoteSubjects().slice(0, 2)).toEqual(["Bewerbung aktualisiert: Offline GmbH", "Bewerbung angelegt: Offline GmbH"]);
+    expect(remoteSubjects().slice(0, 2)).toEqual(["Bewerbung aktualisiert: Offline GmbH – Softwareentwickler – Notizen", "Bewerbung angelegt: Offline GmbH – Softwareentwickler"]);
   });
 
   it("refuses to push to another remote and never rewrites origin", async () => {
@@ -351,7 +400,7 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
 
     expect(gitSync).toMatchObject({ state: "failed", code: "non-fast-forward" });
     expect(git(remote, "rev-parse", "main")).toBe(remoteHead);
-    expect(localSubjects()).toEqual(["Bewerbung angelegt: Konflikt GmbH", "Initial"]);
+    expect(localSubjects()).toEqual(["Bewerbung angelegt: Konflikt GmbH – Softwareentwickler", "Initial"]);
     const flat = sync.commands.flat();
     expect(flat.some((arg) => /^--force|^-f$|^\+/.test(arg))).toBe(false);
     expect(sync.commands.some((args) => ["rebase", "reset", "pull", "merge", "fetch"].includes(args[0]))).toBe(false);
@@ -388,7 +437,7 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
     expect(sync.maxRunning).toBe(1);
     const files = remoteFiles();
     for (const name of ["Beta", "Gamma", "Delta"]) expect(files).toContain(`data/Bewerbungen/${name}.txt`);
-    expect(remoteSubjects()[remoteSubjects().length - 2]).toBe("Bewerbung angelegt: Parallel GmbH");
+    expect(remoteSubjects()[remoteSubjects().length - 2]).toBe("Bewerbung angelegt: Parallel GmbH – Softwareentwickler");
     expect(remoteSubjects().length).toBeLessThanOrEqual(5);
     expect(git(root, "status", "--porcelain", "--", "data")).toBe("");
     git(root, "fsck", "--no-progress");
@@ -409,6 +458,175 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
 
     expect(gitSync).toEqual({ state: "synced", committed: true, pushed: true });
     expect(remoteFiles()).toContain(path.relative(root, file).split(path.sep).join("/"));
+  });
+
+  it("keeps repository copies inside the data tree out of the sync (full backup with .git, unborn repository)", async () => {
+    await openStore();
+    await create("Vorher GmbH");
+    // WorkspaceManager.fullBackup copies the whole Bewerbungsordner, its .git included, into data/Setting/Backups.
+    const backup = path.join(paths.backupsRoot, "Migration_2026-10-09_08-00-00_abcdef12");
+    await cp(path.join(root, ".git"), path.join(backup, ".git"), { recursive: true });
+    await writeFile(path.join(backup, "workspace.json"), "{}");
+    // A repository without a commit makes a plain `git add` fail ("does not have a commit checked out").
+    const unborn = path.join(paths.applicationsData, "Neu_GmbH_2026-10-09", "Kopie");
+    await mkdir(unborn, { recursive: true });
+    git(unborn, "init", "--quiet");
+    await writeFile(path.join(unborn, "notiz.txt"), "x");
+
+    const { gitSync } = await save((application) => { application.notes = "nach der Sicherung"; });
+
+    expect(gitSync).toEqual({ state: "synced", committed: true, pushed: true });
+    expect(remoteSubjects()[0]).toBe("Bewerbung aktualisiert: Vorher GmbH – Softwareentwickler – Notizen");
+    expect(remoteFiles()).not.toMatch(/Migration_2026-10-09|Neu_GmbH_2026-10-09/);
+    expect(git(root, "ls-files", "-s").split("\n").filter((line) => line.startsWith("160000"))).toEqual([]);
+  });
+
+  it("leaves a tracked gitlink alone instead of moving it", async () => {
+    const nested = path.join(paths.backupsRoot, "Migration_2026-09-26_11-21-51_72477534");
+    await mkdir(nested, { recursive: true });
+    git(nested, "init", "--quiet", "--initial-branch=main");
+    git(nested, "config", "user.name", "Test Nutzer");
+    git(nested, "config", "user.email", "test@example.invalid");
+    await writeFile(path.join(nested, "a.txt"), "1");
+    git(nested, "add", "a.txt");
+    git(nested, "commit", "--quiet", "-m", "eins");
+    const relative = path.relative(root, nested).split(path.sep).join("/");
+    git(root, "add", relative);
+    git(root, "commit", "--quiet", "-m", "Gitlink");
+    git(root, "push", "--quiet", "origin", "main");
+    const pinned = git(remote, "ls-tree", "main", relative);
+    await writeFile(path.join(nested, "a.txt"), "2");
+    git(nested, "commit", "--quiet", "-am", "zwei");
+    await openStore();
+
+    expect((await create("Gitlink GmbH")).gitSync).toEqual({ state: "synced", committed: true, pushed: true });
+    expect(git(remote, "ls-tree", "main", relative)).toBe(pinned);
+    expect(git(root, "diff", "--name-only")).toContain(relative);
+  });
+
+  it("reports another running Git process (index.lock) and keeps the change for the next sync", async () => {
+    await openStore();
+    await writeFile(path.join(root, ".git", "index.lock"), "");
+
+    const busy = await create("Lock GmbH");
+    expect(busy.gitSync).toMatchObject({ state: "failed", code: "repository-busy" });
+    expect(busy.gitSync.state === "failed" && busy.gitSync.reason).toContain("anderer Git-Vorgang");
+    expect(busy.result.applications[0].company.name).toBe("Lock GmbH");
+
+    await rm(path.join(root, ".git", "index.lock"));
+    expect((await save((application) => { application.notes = "danach"; })).gitSync.state).toBe("synced");
+    expect(git(remote, "show", "main:data/Setting/Settings/workspace.json")).toContain("Lock GmbH");
+    // The commit that finally carries the new Bewerbung also names it; nothing is described as a mere note change.
+    expect(remoteSubjects()).toEqual([
+      "Bewerbung angelegt: Lock GmbH – Softwareentwickler (+1 weitere)",
+      "Initial",
+    ]);
+    expect(git(remote, "log", "-1", "--format=%b", "main")).toBe([
+      "- Bewerbung angelegt: Lock GmbH – Softwareentwickler",
+      "- Bewerbung aktualisiert: Lock GmbH – Softwareentwickler – Notizen",
+    ].join("\n"));
+  });
+
+  it("keeps the unsaved wizard draft and half-written temporary files out of every commit", async () => {
+    await openStore();
+    await store.saveApplicationDraft({ company: { name: "Entwurf GmbH" } });
+    await writeFile(path.join(paths.settingsRoot, "workspace.json.1234.tmp"), "{\"halb");
+
+    expect((await create("Gespeichert GmbH")).gitSync.state).toBe("synced");
+
+    const files = remoteFiles();
+    expect(files).toContain("data/Setting/Settings/workspace.json");
+    expect(files).not.toMatch(/new-application-draft|\.tmp$/m);
+    expect(git(remote, "log", "-p", "main")).not.toContain("Entwurf GmbH");
+    expect(git(root, "status", "--porcelain", "--", "data")).toMatch(/new-application-draft\.json/);
+  });
+
+  it("leaves no difference behind when the app is opened again (no rewritten event timestamps)", async () => {
+    await openStore();
+    const id = (await create("Neustart GmbH")).result.applications[0].id;
+    await save((application) => {
+      application.interviewAt = "2099-10-20T09:00:00.000Z";
+      application.deadlineAt = "2099-10-10T09:00:00.000Z";
+    });
+    await sync.runOperation(() => store.changeStatus(id, "Absage"));
+    expect(git(root, "status", "--porcelain", "--", "data")).toBe("");
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const reopened = new DataStore(paths, sync);
+    await reopened.initialize();
+
+    expect(git(root, "status", "--porcelain", "--", "data")).toBe("");
+  });
+
+  it("commits the Bewerbungsfrist todo of a Bewerbung and the appointment labels of the calendar", async () => {
+    await openStore();
+    const id = (await create("Aufgaben GmbH")).result.applications[0].id;
+    await save((application) => { application.deadlineAt = "2099-11-01T09:00:00.000Z"; });
+    expect(remoteSubjects()[0]).toBe("Bewerbung aktualisiert: Aufgaben GmbH – Softwareentwickler – Bewerbungsfrist");
+
+    const todo = structuredClone(store.getWorkspace().todos.find((item) => item.applicationId === id)!);
+    todo.completed = true;
+    const done = await sync.runOperation(() => store.saveTodo(todo));
+    expect(done.gitSync).toEqual({ state: "synced", committed: true, pushed: true });
+    expect(remoteSubjects()[0]).toBe("Termin aktualisiert: Aufgaben GmbH – Softwareentwickler – Aufgabe Bewerbungsfrist");
+
+    const followUp = structuredClone(store.getWorkspace().events.find((item) =>
+      item.applicationId === id && item.type === "application-deadline")!);
+    followUp.startAt = "2099-11-02T09:00:00.000Z";
+    await sync.runOperation(() => store.saveEvent(followUp));
+    expect(remoteSubjects()[0]).toBe("Termin aktualisiert: Aufgaben GmbH – Softwareentwickler – Bewerbungsfrist");
+
+    const manual = await sync.runOperation(() => store.saveTodo({
+      id: "00000000-0000-4000-8000-0000000000aa", title: "Privat", description: "", priority: "low",
+      completed: false, createdAt: "2026-10-12T10:00:00.000Z", updatedAt: "2026-10-12T10:00:00.000Z",
+    }));
+    expect(manual.gitSync).toEqual({ state: "skipped" });
+  });
+
+  it("describes Bewerbungsdatum, Vorstellungsgespräch and Lebenslauf layout in one commit per save", async () => {
+    await openStore();
+    await create("Daten GmbH");
+    await save((application) => {
+      application.sentAt = "2026-10-12T09:00:00.000Z";
+      application.interviewAt = "2026-10-20T09:00:00.000Z";
+      application.designSettings.resumePresentation = { sections: { experience: { order: 1 } } };
+    });
+    const message = git(remote, "log", "-1", "--format=%B", "main");
+    expect(message).toContain("- Bewerbung aktualisiert: Daten GmbH – Softwareentwickler – Bewerbungsdatum");
+    expect(message).toContain("- Termin aktualisiert: Daten GmbH – Softwareentwickler – Vorstellungsgespräch");
+    expect(message).toContain("- Lebenslauf aktualisiert: Daten GmbH – Softwareentwickler – Abschnitte");
+  });
+
+  it("merges rapid concurrent saves of one Bewerbung without losing a field or a description", async () => {
+    await openStore();
+    await create("Schnell GmbH");
+    const results = await Promise.all([
+      save((application) => { application.notes = "erste Notiz"; }),
+      save((application) => { application.contact.phone = "+49 30 000000"; }),
+      save((application) => { application.documents.coverSubject = "Bewerbung"; }),
+    ]);
+    expect(results.every((result) => result.gitSync.state === "synced")).toBe(true);
+    const saved = store.getWorkspace().applications[0];
+    expect(saved.notes).toBe("erste Notiz");
+    expect(saved.contact.phone).toBe("+49 30 000000");
+    expect(saved.documents.coverSubject).toBe("Bewerbung");
+    const history = git(remote, "log", "--format=%B", "main");
+    for (const line of ["Notizen", "Kontakt", "Anschreiben aktualisiert: Schnell GmbH – Softwareentwickler – Betreff"])
+      expect(history).toContain(line);
+    expect(git(root, "status", "--porcelain", "--", "data")).toBe("");
+    expect(git(root, "rev-parse", "HEAD")).toBe(git(remote, "rev-parse", "main"));
+  });
+
+  it("does not commit into an unfinished merge", async () => {
+    await openStore();
+    await writeFile(path.join(root, ".git", "MERGE_HEAD"), `${git(root, "rev-parse", "HEAD")}\n`);
+    const before = git(root, "rev-parse", "HEAD");
+
+    const { gitSync } = await create("Merge GmbH");
+
+    expect(gitSync).toMatchObject({ state: "failed", code: "merge-in-progress" });
+    expect(git(root, "rev-parse", "HEAD")).toBe(before);
+    expect(remoteSubjects()).toEqual(["Initial"]);
   });
 
   it("commits only the managed data tree", async () => {

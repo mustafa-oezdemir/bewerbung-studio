@@ -1,5 +1,5 @@
-import { toElegantExternalHref } from "./elegant.model";
 import type { ElegantFooterProps } from "./elegant.types";
+import { resolveResumeFooterWebsite } from "../../../../shared/resumeFooter";
 
 export function ElegantFooter({
   profile,
@@ -9,15 +9,12 @@ export function ElegantFooter({
 }: ElegantFooterProps) {
   if (atsMode) return null;
 
-  const portfolio = profile?.portfolio || profile?.github || profile?.linkedin;
-  const portfolioHref = portfolio
-    ? toElegantExternalHref(portfolio)
-    : "";
+  const footerWebsite = resolveResumeFooterWebsite(profile);
 
   return (
     <footer className="elegant-footer" data-element-id="elegant.footer">
-      {portfolio ? (
-        <a href={portfolioHref}>{portfolioHref}</a>
+      {footerWebsite ? (
+        <a href={footerWebsite.href}>{footerWebsite.text}</a>
       ) : (
         <span />
       )}

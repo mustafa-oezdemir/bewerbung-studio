@@ -24,6 +24,7 @@ import { ModernStrengthsSection } from "./ModernStrengthsSection";
 import { ModernSummarySection } from "./ModernSummarySection";
 import { ResumeSpecialSections } from "../../ResumeSpecialSections";
 import "./modern.css";
+import { resolveResumeFooterWebsite } from "../../../../shared/resumeFooter";
 
 export function ModernResume({
   profile,
@@ -73,8 +74,6 @@ export function ModernResume({
     "--modern-primary": accentColor,
     "--modern-primary-soft": secondaryColor,
   } as CSSProperties;
-  const portfolio =
-    profile?.portfolio || profile?.github || profile?.linkedin || "";
   const hasCustomLayout = hasSavedTemplateSectionLayout(profile, "modern");
   const savedLayout = getProfileResumeSectionLayout(profile, "modern");
   const mainOrder = savedLayout
@@ -221,7 +220,7 @@ export function ModernResume({
           <ModernFooter
             pageNumber={plan.pageNumber}
             totalPages={totalPages}
-            portfolio={portfolio}
+            portfolio={resolveResumeFooterWebsite(profile, true)?.text}
             atsMode
           />
         </div>
@@ -290,7 +289,7 @@ export function ModernResume({
         <ModernFooter
           pageNumber={plan.pageNumber}
           totalPages={totalPages}
-          portfolio={portfolio}
+          portfolio={resolveResumeFooterWebsite(profile)?.text}
           atsMode={false}
         />
       </div>

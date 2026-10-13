@@ -1,3 +1,4 @@
+import { parseHTML } from "linkedom";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -106,7 +107,9 @@ describe("one Bewerbung, one profile, in every document", () => {
       expect(resume, templateId).not.toContain("Professional");
       expect(resume, templateId).not.toContain("Fachkraft");
     }
-    expect(body(buildDocumentHtml(application(), untitled, "anschreiben"))).not.toContain('class="sender-title"');
+    // The Anschreiben keeps the preview's (empty) title line; the job title never fills it.
+    const letterTitle = parseHTML(buildDocumentHtml(application(), untitled, "anschreiben")).document.querySelector(".letter-header .sender-title");
+    expect(letterTitle?.textContent ?? "").toBe("");
   });
 
   it("the Mappe prints the very pages of the single documents", () => {

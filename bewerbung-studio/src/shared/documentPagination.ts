@@ -17,14 +17,17 @@ import { getTemplateDocumentDesignDefaults, resolveTemplateCvDesign } from "./cv
 import { zweispaltigDefaults } from "./cvTemplateDefaults/zweispaltig.defaults";
 import { kompaktDefaults } from "./cvTemplateDefaults/kompakt.defaults";
 import { gepflegtDefaults } from "./cvTemplateDefaults/gepflegt.defaults";
-import { elegantDefaults } from "./cvTemplateDefaults/elegant.defaults";
+import { elegantDefaults, elegantDesign } from "./cvTemplateDefaults/elegant.defaults";
 import { klassischDefaults } from "./cvTemplateDefaults/klassisch.defaults";
 import { einspaltigDefaults } from "./cvTemplateDefaults/einfach.defaults";
 import { resolveKompaktGeometry } from "./kompaktDesign";
 import { resolveGepflegtGeometry } from "./gepflegtDesign";
 import { estimateKlassischHeaderTop, resolveKlassischGeometry } from "./klassischDesign";
 import { einspaltigSectionTitleMm, estimateEinspaltigHeaderTop, resolveEinspaltigGeometry } from "./einspaltigDesign";
+import { estimateTabellarischContinuationTop, resolveTabellarischGeometry } from "./tabellarischDesign";
+import { tabellarischDefaults } from "./cvTemplateDefaults/tabellarisch.defaults";
 import { textWidthMm, wrappedLines } from "./textMetrics";
+import { hyphenatedSummaryLines, summaryWordEnds, summaryWrappedLines } from "./resumeSummaryHyphenation";
 import { resolveSectionColumns } from "./resumeSectionLayout";
 import { hasSidebarHero, isZoneFlowTemplate, sectionListMetrics, supportsEducationSplit, supportsSidebarContinuation } from "./resumeSectionPresentation";
 import { normalizeCustomSection, spacesEntriesLikeCareer } from "./resumeCustomSections";
@@ -32,6 +35,7 @@ import { getPehlioneContacts } from "./pehlioneContacts";
 import { resolveKnowledgeGroups } from "../features/resume-sections/resume-section-system";
 import {
   getPaginationGeometry,
+  tabellarischAtsPaginationGeometry,
   type ItemBlockModel,
   type PaginationGeometry,
   type PaginationZone,
@@ -40,7 +44,7 @@ import { formatPhoneForDisplay, getResumePersonalDetails } from "./resumePersona
 import { getResumePhotoGrowth, getResumePhotoScale, resumePhotoShown } from "./resumePhoto";
 import { formatCareerPeriod, resolveExperience } from "./resumeCareer";
 import { getResumeSectionTitle } from "../features/resume-sections/resume-sections";
-import { estimateElegantHeaderTop, estimateGepflegtHeaderTop, estimateKreativHeaderTop, estimateResumeHeaderTop, estimateStilvollHeaderTop } from "./resumeHeaderGeometry";
+import { estimateElegantHeaderTop, estimateGepflegtHeaderTop, estimateKreativHeaderTop, estimateResumeHeaderTop, estimateStilvollHeaderTop, estimateTabellarischTop } from "./resumeHeaderGeometry";
 import { resolveLanguagePresentation } from "../features/languages/language-levels";
 import { languageBlockHeight } from "./languageBlockHeight";
 
@@ -107,10 +111,12 @@ export type ResumePlanContext = {
   sections?: ReadonlyArray<{ id: string; visible: boolean; zone: PaginationZone }>;
   atsMode?: boolean;
   layout?: { mode: "single" | "two-column"; sidebarWidthPercent: number; overridden?: boolean; nativeSidebarWidthPercent?: number };
-  closing?: { visible: boolean; signature: boolean };
+  closing?: { visible: boolean; signature: boolean; placement?: "footer" | "main" };
   /** Explicit user design overrides that change text or spacing metrics. */
   overrides?: {
     bodySizePt?: number; headingSizePt?: number; subheadingSizePt?: number;
+    /** Size of an entry title where the template sets it from the design (Tabellarisch). */
+    entryHeadingPt?: number;
     /** The CV font (Typografie → Schriftart) and section title size where a template wraps text with measured advances (`text.wrap`). */
     fontId?: string; sectionHeadingPt?: number;
     lineHeight?: number; pageMarginMm?: number; innerPaddingMm?: number;
@@ -210,8 +216,30 @@ const minLinesBefore = (kind: string) => (kind === "education" ? 1 : MIN_SPLIT_L
 const LANE_MIN_ROWS_BEFORE = 1;
 const LANE_MIN_ROWS_AFTER = 2;
 const CLOSING_MM = { signature: 22, plain: 10 };
-/** Long summaries wrap a little more than the average glyph advance predicts. */
-const SUMMARY_WRAP_SLACK = 1.05;
+/** Elegant's sidebar title: 1.6 mm padding, the rule (one CSS pixel) and 2.4 mm gap below its text line (elegantManagedCss). */
+const ELEGANT_SIDE_HEADING_CHROME_MM = 1.6 + 25.4 / 96 + 2.4;
+/** Elegant's sidebar keeps this much free at its bottom for the rounding of line boxes (its blocks are computed exactly). */
+const ELEGANT_SIDE_RESERVE_MM = 0.8;
+/** Elegant's sidebar languages: free at the right edge, the dots beside the name, the description gap, the row gap. */
+const ELEGANT_LANGUAGE_EDGE_MM = 5.3;
+const ELEGANT_LANGUAGE_DOTS_MM = 6.55 + 1.5;
+const ELEGANT_LANGUAGE_DESCRIPTION_GAP_MM = 0.6;
+const ELEGANT_LANGUAGE_ROW_GAP_MM = 2;
+/** Elegant's sidebar knowledge: below a category title, between two items, between two categories. */
+const ELEGANT_KNOWLEDGE_TITLE_GAP_MM = 1.5;
+const ELEGANT_KNOWLEDGE_ITEM_GAP_MM = 2;
+const ELEGANT_KNOWLEDGE_CATEGORY_GAP_MM = 3;
+/** A Kurzprofil part in Elegant's sidebar lane holds at least this many words (about two lines). */
+const ELEGANT_SUMMARY_MIN_WORDS = 10;
+/** What Elegant's sidebar list takes off the column. */
+const ELEGANT_SIDE_LIST_INDENT_MM = 4;
+/** What Tabellarisch's page-one header estimate keeps in reserve (its model never fell short on real headers). */
+const TABELLARISCH_HEADER_RESERVE_MM = 0.3;
+/**
+ * The shared closing block (resumeClosingCss): 2 mm padding above a 9 pt line (line height 1.25) or the signature (an image
+ * of at most 14 mm and the 8 pt name); in the footer 12 mm above the sheet edge, in the main column 5 mm below the text.
+ */
+const CLOSING_BOX = { bottomMm: 12, paddingMm: 2, lineMm: 9 * (25.4 / 72) * 1.25, signatureMm: 14 + 8 * (25.4 / 72) * 1.25, mainGapMm: 5, clearanceMm: 2 };
 /** Comma-separated lists break at every comma: they wrap a little less than running text. */
 const ATS_LIST_WRAP = 0.92;
 /** The managed item grids: 3 mm between columns and a 4 mm icon plus 1.5 mm gap in front of each text. */
@@ -242,6 +270,8 @@ const strip = ({ kind, id, ...item }: MeasuredItem, page: "first" | "cont"): Res
 type Scale = {
   /** Wrap real text with the measured font advances (`geometry.text.wrap`, the template's own font, not ATS). */
   wrapText?: boolean;
+  /** Font (mm) of an entry title where it keeps its own size whatever the body size is (Tabellarisch). */
+  titleFont?: number;
   /** `text.fullW` relative to its measured width: a template whose sidebar lane narrows every page with the margin. */
   fullRatio?: number;
   font: number;
@@ -311,6 +341,47 @@ const measuredEntryLines = (
   };
 };
 
+/**
+ * A timeline entry (`geometry.timeline`, Tabellarisch) from its stylesheet, every text wrapped with the measured font: the
+ * text column (role at the entry title size, the Abstand nach Eintragstitel, organisation, the gap below it, then the
+ * details `bulletGap` apart: the first one's margin hides in that gap, the last one's stays) beside the date column (date,
+ * place). The entry is as tall as the taller column; every part of a split entry repeats the head.
+ */
+const timelineMetrics = (
+  geometry: PaginationGeometry, scale: Scale, widthScale: number,
+  head: { title: string; organization: string; location: string; period: string },
+  /** The detail paragraphs (bullets) and the text of a range of them (an education detail joins its units). */
+  details: readonly string[], shownTexts: (from: number, to: number) => string[],
+): EntryMetrics => {
+  const timeline = geometry.timeline!;
+  const wrap = geometry.text.wrap!;
+  const column = geometry.text.bulletW * widthScale + wrap.listInset;
+  const bodyMm = geometry.text.bulletFont * scale.font;
+  const bodyLine = bodyMm * geometry.text.lineRatio * scale.line;
+  const titleMm = scale.titleFont ?? geometry.text.titleFont;
+  const orgMm = geometry.text.orgFont;
+  const marker = wrap.marker ? 0.45 * titleMm + textWidthMm("· Fortsetzung", 0.72 * titleMm, 500, 0.02) : 0;
+  const titleHeight = (continued: boolean) => Math.max(1, wrappedLines(head.title, column, titleMm, wrap.titleWeight, 0, continued ? marker : 0))
+    * titleMm * timeline.roleLineHeight;
+  const contentGap = Math.max(0, (resolveTemplateCvDesign("tabellarisch").spacing.entryContentGapMm) + scale.contentGapDelta);
+  // An empty organisation still draws its margins: they collapse into the larger one.
+  const organization = head.organization.trim()
+    ? contentGap + Math.max(1, wrappedLines(head.organization, column, orgMm, wrap.orgWeight)) * orgMm * timeline.orgLineHeight + timeline.orgGapAfter
+    : Math.max(contentGap, timeline.orgGapAfter);
+  const meta = timeline.metaPad
+    + (head.period.trim() ? Math.max(1, wrappedLines(head.period, timeline.metaWidth, timeline.dateFont, timeline.dateWeight)) * timeline.dateFont * timeline.dateLineHeight : 0)
+    + (head.location.trim() ? timeline.locationGap + Math.max(1, wrappedLines(head.location, timeline.metaWidth, timeline.locationFont)) * timeline.locationFont * timeline.locationLineHeight : 0);
+  const bulletWidth = geometry.text.bulletW * widthScale;
+  const lines = details.map((detail) => wrappedLines(detail, bulletWidth, bodyMm, wrap.bodyWeight));
+  const height = (from: number, to: number) => {
+    const shown = shownTexts(from, to);
+    const text = titleHeight(from > 0) + organization
+      + shown.reduce((total, value) => total + wrappedLines(value, bulletWidth, bodyMm, wrap.bodyWeight) * bodyLine + timeline.bulletGap, 0);
+    return Math.max(text, meta);
+  };
+  return { lines, height };
+};
+
 const experienceMetrics = (
   experience: ApplicantProfile["experiences"][number],
   geometry: PaginationGeometry,
@@ -322,6 +393,9 @@ const experienceMetrics = (
   const { text, exp } = geometry;
   const resolved = resolveExperience(experience);
   const bullets = resolved.bullets;
+  if (geometry.timeline && scale.wrapText)
+    return timelineMetrics(geometry, scale, widthScale, { title: resolved.role, organization: resolved.organization, location: resolved.location, period: resolved.period },
+      bullets, (from, to) => bullets.slice(from, to));
   const bulletCw = first
     ? (text.bulletCw ?? text.cw) * (1 + Math.max(0, 1 - widthScale) * (text.bulletNarrowSlack ?? 0))
     : text.cw;
@@ -373,6 +447,17 @@ const educationMetrics = (
   const orgLines = measured?.org ?? linesFor(view.institution.length, text.orgW * widthScale, text.orgFont * scale.font, text.cw * 1.06);
   const locationLines = measured ? measured.location : view.location ? linesFor(view.location.length, text.orgW * widthScale, text.orgFont * scale.font, text.cw) : 0;
   const units = educationDetailUnits(view.details, view.descriptionIndex);
+  /** The units `from`..`to` as the paragraphs they print: the units of one detail are one paragraph. */
+  const paragraphs = (from: number, to: number) => units.slice(from, to).reduce<string[]>((total, unit, index, shown) => {
+    if (index > 0 && shown[index - 1].detail === unit.detail) total[total.length - 1] += ` ${unit.text}`;
+    else total.push(unit.text);
+    return total;
+  }, []);
+  if (geometry.timeline && scale.wrapText) {
+    const metrics = timelineMetrics(geometry, scale, widthScale, { title: view.title, organization: view.institution, location: view.location,
+      period: formatCareerPeriod(view.from, view.to) }, units.map((unit) => unit.text), paragraphs);
+    return metrics;
+  }
   const detailWidth = text.bulletW * widthScale;
   const detailFont = text.bulletFont * scale.font;
   /** Lines of a detail text: wrapped with the measured font where the template has one. */
@@ -509,6 +594,17 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
       marginInset: padding, fullRatio: ratio, ...factors, ...spacing, titleGapDelta: spacing.titleGapDelta + headingDelta,
       contentGapDelta: spacing.contentGapDelta + organizationDelta };
   }
+  if (templateId === "tabellarisch" && !context.atsMode) {
+    // The geometry the preview and the PDF draw (resolveTabellarischGeometry): Seitenränder moves the left and right edge,
+    // so the timeline column narrows or widens; top and bottom stay (no vertical inset). The Innenabstand insets the text.
+    const box = resolveTabellarischGeometry(overrides.pageMarginMm);
+    const padding = overrides.innerPaddingMm !== undefined ? overrides.innerPaddingMm - nativePadding : 0;
+    const bullets = Math.max(0.2, (box.bulletWidth - 2 * padding) / geometry.text.bulletW);
+    const ratio = Math.max(0.2, (box.contentWidth - 2 * padding) / geometry.text.mainW);
+    return { font, textHeight, line, width: bullets, contWidth: bullets, mainRatio: ratio, sideDelta: 0,
+      marginInset: padding, fullRatio: ratio, ...factors, ...spacing,
+      titleFont: (overrides.entryHeadingPt ?? tabellarischDefaults.typography.entryTitleSizePt) * PT_TO_MM };
+  }
   if (templateId === "zweispaltig") {
     const native = zweispaltigDefaults.layout;
     const chosenMargin = overrides.pageMarginMm ?? (settings && settings.marginLevel !== defaults.marginLevel
@@ -578,9 +674,13 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
     const margin = overrides.pageMarginMm ?? nativeMargin;
     const padding = overrides.innerPaddingMm ?? nativePadding;
     const gap = overrides.columnGapMm ?? elegantDefaults.layout.columnGapMm;
-    const mainWidth = Math.max(12, elegantDefaults.layout.mainWidthMm
+    // The two columns: native 140 / 70 mm, or the sidebar share the user chose (resumeLayoutEngine sets them as fr tracks of
+    // the page), so a wider sidebar narrows the main column by the same millimetres.
+    const sidebarBox = context.layout?.overridden && context.layout.mode === "two-column"
+      ? elegantDefaults.page.widthMm * context.layout.sidebarWidthPercent / 100 : elegantDefaults.layout.sidebarWidthMm;
+    const mainWidth = Math.max(12, elegantDefaults.layout.mainWidthMm - (sidebarBox - elegantDefaults.layout.sidebarWidthMm)
       - margin - elegantDefaults.layout.mainRightMm - gap / 2 - 2 * padding);
-    const sideWidth = Math.max(12, elegantDefaults.layout.sidebarWidthMm
+    const sideWidth = Math.max(12, sidebarBox
       - elegantDefaults.layout.sidebarLeftMm - gap / 2 - margin - 2 * padding);
     return { font, textHeight, line,
       width: mainWidth / geometry.text.mainW,
@@ -687,7 +787,8 @@ const planResumePages = (
   templateId?: string,
   context: ResumePlanContext = {},
 ): ResumePagePlan[] => {
-  const geometry = getPaginationGeometry(templateId);
+  // Tabellarisch's plain layout keeps its measured model; the visual one is computed from the stylesheet.
+  const geometry = context.atsMode && templateId === "tabellarisch" ? tabellarischAtsPaginationGeometry : getPaginationGeometry(templateId);
   const wrap = geometry.text.wrap;
   const scale: Scale = {
     ...buildScale(geometry, context, templateId),
@@ -739,6 +840,18 @@ const planResumePages = (
       ? CLOSING_MM.signature
       : CLOSING_MM.plain
     : 0;
+  /**
+   * Tabellarisch: the room the closing needs below the content of the last page, from its box (resumeClosingCss). Placed
+   * in the footer it stands 12 mm above the sheet edge, so only the part above the content's bottom boundary (and 2 mm
+   * clear of it) is taken; placed in the main column it follows the text.
+   */
+  const tabellarischClosingRoom = (() => {
+    if (!closingVisible) return 0;
+    const signature = context.closing?.signature ?? Boolean(profile?.signaturePath && profile.resumeClosing?.showSignature);
+    const box = CLOSING_BOX.paddingMm + (signature ? CLOSING_BOX.signatureMm : CLOSING_BOX.lineMm);
+    if (context.closing?.placement === "main") return CLOSING_BOX.mainGapMm + box;
+    return Math.max(0, geometry.limit - (tabellarischDefaults.page.heightMm - CLOSING_BOX.bottomMm - box - CLOSING_BOX.clearanceMm));
+  })();
 
   // --- career items ---------------------------------------------------------
   const educationSplit = !context.atsMode && supportsEducationSplit(templateId);
@@ -991,36 +1104,105 @@ const planResumePages = (
   };
 
   const flow: FlowBlock[] = [];
+  /**
+   * Elegant's sidebar as its stylesheet draws it (elegantManagedCss): a section title (the section title size − 0.5 pt at the
+   * design's line height) with its 1.6 mm padding, rule and 2.4 mm gap, then lines of the body size at the design's line
+   * height across the sidebar's text width, wrapped with the measured advances of its font (Source Sans 3 stack).
+   */
+  const elegantSidebar = templateId === "elegant" && !context.atsMode && !flat
+    && (context.overrides?.fontId ?? elegantDesign.tokens.typography.fontId) === "source-sans";
+  const elegantSideWidth = geometry.text.sideW + scale.sideDelta;
+  const elegantBodyMm = geometry.text.bulletFont * scale.font;
+  const elegantLine = elegantBodyMm * geometry.text.lineRatio * scale.line;
+  const elegantSideTitleMm = ((context.overrides?.sectionHeadingPt ?? elegantDefaults.typography.sectionTitleSizePt) - 0.5) * PT_TO_MM;
+  /** A sidebar title: its lines (capitals, 0.075 em tracking) at the line height, then padding, rule and gap. */
+  const elegantSideHeadFor = (title: string) => Math.max(1, wrappedLines(title.toLocaleUpperCase("de-DE"), elegantSideWidth,
+    elegantSideTitleMm, elegantDesign.tokens.typography.sectionHeadingWeight, 0.075))
+    * elegantSideTitleMm * geometry.text.lineRatio * scale.line + ELEGANT_SIDE_HEADING_CHROME_MM;
+  const elegantSideHead = elegantSideTitleMm * geometry.text.lineRatio * scale.line + ELEGANT_SIDE_HEADING_CHROME_MM;
+  const elegantSideLines = (text: string, indent = 0) =>
+    text.trim() ? Math.max(1, wrappedLines(text.trim(), elegantSideWidth - indent, elegantBodyMm, 400)) : 0;
   if (visible("summary") && summaryText) {
     const zone = zoneOf("summary");
-    const lines = scale.wrapText && geometry.text.wrap?.paragraphs
-      ? Math.max(1, wrappedLines(summaryText, textWidth(zone), geometry.text.sumFont * scale.font, geometry.text.wrap.bodyWeight))
-      : linesFor(summaryText.length, textWidth(zone), geometry.text.sumFont * scale.font, geometry.text.cw * SUMMARY_WRAP_SLACK);
+    // Tabellarisch sets the Kurzprofil across the whole content width: its lines are wrapped there with the measured font
+    // (the browser's justified, hyphenated lines never take more).
+    const tabellarischSummary = templateId === "tabellarisch" && !context.atsMode && scale.wrapText;
+    const summaryLines = (value: string) => Math.max(1, tabellarischSummary
+      ? wrappedLines(value, geometry.text.mainW * scale.mainRatio, geometry.text.sumFont * scale.font, geometry.text.wrap!.bodyWeight)
+      : value.length < 180 || zoneFlow && !supportsSidebarContinuation(templateId)
+        ? scale.wrapText && geometry.text.wrap?.paragraphs
+          ? wrappedLines(value, textWidth(zone), geometry.text.sumFont * scale.font, geometry.text.wrap.bodyWeight)
+          : linesFor(value.length, textWidth(zone), geometry.text.sumFont * scale.font, geometry.text.cw * 1.05)
+        : summaryWrappedLines(value, textWidth(zone), geometry.text.sumFont * scale.font,
+          geometry.text.wrap?.bodyWeight ?? 400));
     // Every plain section starts with the same heading block as the career sections.
     const summaryHead = context.atsMode ? geometry.ats.head ?? geometry.exp.head : blocks.summary[0];
     // The lines of a summary follow the body font exactly; only enlarged text keeps its reserve.
     const summaryScale = zoneFlow && scale.font < 1 ? scale.font : scale.textHeight;
+    const height = (value: string) => elegantSidebar && zone === "sidebar"
+      // Justified, broken at the same soft hyphens the renderer inserts.
+      ? elegantSideHeadFor(getResumeSectionTitle(profile, "summary")) + Math.max(1, hyphenatedSummaryLines(value, elegantSideWidth, elegantBodyMm, 400)) * elegantLine
+      : zoneFlow
+      ? summaryHead * scale.textHeight + blocks.summary[1] * scale.line * summaryLines(value) * summaryScale
+      : (summaryHead + blocks.summary[1] * scale.line * summaryLines(value)) * scale.textHeight;
+    const ends = summaryWordEnds(summaryText);
+    const partHeight = (from: number, to: number) => height(summaryText.slice(from ? ends[from - 1] : 0, ends[to - 1]).trim());
     flow.push({
       id: "summary",
       zone,
-      height: zoneFlow
-        ? summaryHead * scale.textHeight + blocks.summary[1] * scale.line * lines * summaryScale
-        : (summaryHead + blocks.summary[1] * scale.line * lines) * scale.textHeight,
+      height: height(summaryText),
       home: leadHome("summary"),
       rank: managerRank("summary"),
+      ...(summaryText.length >= 180 && ends.length > 1
+        ? { split: { ends, height: partHeight, minRows: 2 }, sideSplit: { ends, height: partHeight } } : {}),
+      // Elegant's sidebar is one lane: the Kurzprofil fills page one and goes on in the next page's sidebar when it must.
+      ...(elegantSidebar && zone === "sidebar"
+        ? { home: "last" as const, hostable: true, ...(ends.length > 1 ? { sideSplit: { ends, height: partHeight } } : {}) } : {}),
     });
   }
   // Skills shown as strengths are only drawn by some templates, and some only on a one-page résumé.
   const derivedStrengths = explicitStrengths.length ? "first" : geometry.derivedStrengths[context.atsMode ? "ats" : "visual"];
+  /**
+   * Tabellarisch's strengths are the shared strength cards (managedResumeCss) across the content width: per card the title
+   * (bold) at the body size (line height 1.3), the 1 mm row gap and the description (0.92 em, line height 1.4) beside a 4 mm icon;
+   * a row is as tall as its tallest card, rows 3 mm apart.
+   */
+  const tabellarischStrengthsHeight = (entries: ListEntry[]) => {
+    const cols = Math.max(1, gridModel("strengths", entries, "main", "first").cols);
+    const width = (geometry.text.fullW * (scale.fullRatio ?? 1) - GRID_COLUMN_GAP_MM * (cols - 1)) / cols - GRID_ICON_MM;
+    const bodyMm = geometry.text.bulletFont * scale.font;
+    let rows = 0;
+    for (let start = 0; start < entries.length; start += cols) {
+      rows += Math.max(...entries.slice(start, start + cols).map((entry) => Math.max(4,
+        Math.max(1, wrappedLines(entry.title, width, bodyMm, 700)) * bodyMm * 1.3 + 1
+          + (entry.description ? wrappedLines(entry.description, width, bodyMm * 0.92) * bodyMm * 0.92 * 1.4 : 0))));
+    }
+    return blocks.summary[0] + rows + 3 * (Math.ceil(entries.length / cols) - 1);
+  };
+  /**
+   * Elegant's sidebar strengths: the shared strength cards one per row beside a 5.5 mm icon, the bold title, 1 mm, the
+   * description (both at the body size and the design's line height), cards 3 mm apart.
+   */
+  const elegantStrengthsHeight = (entries: ListEntry[]) => elegantSideHeadFor(getResumeSectionTitle(profile, "strengths"))
+    + entries.reduce((total, entry) => total + Math.max(1, wrappedLines(entry.title, elegantSideWidth - GRID_ICON_MM, elegantBodyMm, 700)) * elegantLine
+      + 1 + (entry.description ? Math.max(1, wrappedLines(entry.description, elegantSideWidth - GRID_ICON_MM, elegantBodyMm, 400)) * elegantLine : 0), 0)
+    + 3 * Math.max(0, entries.length - 1);
   if (visible("strengths") && strengthEntries.length && derivedStrengths !== "never") {
     const zone = zoneOf("strengths");
     flow.push({
       id: "strengths",
       zone,
-      height: listBlockHeight(gridModel("strengths", strengthEntries, zone, "first"), scale, strengthEntries),
+      height: templateId === "tabellarisch" && !context.atsMode && scale.wrapText
+        ? tabellarischStrengthsHeight(strengthEntries)
+        : elegantSidebar && zone === "sidebar" ? elegantStrengthsHeight(strengthEntries)
+        : listBlockHeight(gridModel("strengths", strengthEntries, zone, "first"), scale, strengthEntries),
       home: derivedStrengths === "single" ? "first" : leadHome("strengths"),
       rank: managerRank("strengths"),
       singleOnly: derivedStrengths === "single",
+      // Elegant's sidebar lane: the strengths break between two cards.
+      ...(elegantSidebar && zone === "sidebar" && derivedStrengths !== "single"
+        ? { home: "last" as const, hostable: true, sideSplit: { ends: strengthEntries.map((_, index) => index + 1),
+          height: (from: number, to: number) => elegantStrengthsHeight(strengthEntries.slice(from, to)) } } : {}),
     });
   }
   if (visible("languages") && languages.length) {
@@ -1045,7 +1227,27 @@ const planResumePages = (
         })
         : undefined;
     };
-    const languageHeight = context.atsMode
+    /**
+     * Elegant's sidebar languages (both surfaces): per language a row of the bold name and – beside it, wrapping in the line
+     * boxes of that row (body × 1.25) – the level text at the small size; with Punkte the 6.55 mm dots beside it and the
+     * Beschreibung in lines of its own (small size at the design's line height, 0.6 mm below); rows 2 mm apart. The list
+     * keeps 5.3 mm free at its right edge.
+     */
+    const elegantLanguagesHeight = (rows: typeof languageRows) => {
+      const small = Math.max(9 * PT_TO_MM, elegantBodyMm * 0.9);
+      const rowLine = elegantBodyMm * 1.25 * Math.max(1, scale.line);
+      const smallLine = small * geometry.text.lineRatio * scale.line;
+      const room = elegantSideWidth - ELEGANT_LANGUAGE_EDGE_MM;
+      return elegantSideHeadFor(getResumeSectionTitle(profile, "languages")) + rows.reduce((total, row) => {
+        const name = textWidthMm(row.name, elegantBodyMm, 700);
+        const detail = row.detail ? ` – ${row.detail}` : "";
+        const levelRoom = Math.max(8, room - name - (row.showDots ? ELEGANT_LANGUAGE_DOTS_MM : 0));
+        const lines = detail ? Math.max(1, wrappedLines(detail, levelRoom, small, 400)) : 1;
+        const description = row.secondaryText ? ELEGANT_LANGUAGE_DESCRIPTION_GAP_MM + Math.max(1, wrappedLines(row.secondaryText, room, small, 400)) * smallLine : 0;
+        return total + lines * rowLine + description;
+      }, 0) + ELEGANT_LANGUAGE_ROW_GAP_MM * Math.max(0, rows.length - 1);
+    };
+    const languageHeight = elegantSidebar && zone === "sidebar" ? elegantLanguagesHeight(languageRows) : context.atsMode
       ? line(geometry.ats.languages, languages.length) * scale.textHeight
       : languageHeightIn(zone) ?? (zoneFlow
         ? plainListHeight(zone, languageRows.map((row) => row.primaryText))
@@ -1061,8 +1263,9 @@ const planResumePages = (
       hostable: (templateId === "kompakt" && zoneFlow || templateId === "elegant") && zone === "sidebar" && !flat,
       contHeight: templateId === "kompakt" && zoneFlow ? (languageHeightIn("main", true) ?? plainListHeight("main", languageRows.map((row) => row.primaryText), true)) : undefined,
       sideSplit: templateId === "elegant" && zone === "sidebar" && !flat
-        ? { ends: languageRows.map((_, index) => index + 1), height: (from, to) =>
-          languageHeightIn("sidebar", false, languageRows.slice(from, to)) ?? 0 }
+        ? { ends: languageRows.map((_, index) => index + 1), height: (from, to) => elegantSidebar
+          ? elegantLanguagesHeight(languageRows.slice(from, to))
+          : languageHeightIn("sidebar", false, languageRows.slice(from, to)) ?? 0 }
         : undefined,
     });
   }
@@ -1109,6 +1312,36 @@ const planResumePages = (
         }
       });
       return rows;
+    };
+    /**
+     * Elegant's sidebar knowledge (one item per row): the title, then per category its title (body size at the line height,
+     * 1.5 mm below; the first one's top margin hides in the title gap, a further one stands 3 mm below the list before) and
+     * its items beside a 5.5 mm icon, 2 mm apart.
+     */
+    const elegantKnowledge = elegantSidebar && knowledgeZone === "sidebar"
+      && knowledgeGroups.every((group) => gridModel("knowledge", group.items.map((item) => ({ title: item.name })), knowledgeZone, "first").cols === 1);
+    const elegantKnowledgeHeight = (rows: ReturnType<typeof knowledgeRows>, from: number, to: number) => {
+      const part = rows.slice(from, to);
+      if (!part.length) return 0;
+      const titles = knowledgeGroups.flatMap((group) => group.items.map((item) =>
+        formatKnowledgeItem(item, group.category.showLevels, group.category.showYearsOfExperience, "comma-separated")));
+      const firstItem = from > 0 ? rows[from - 1].end : 0;
+      let height = elegantSideHeadFor(knowledgeSection?.title || getResumeSectionTitle(profile, "knowledge"));
+      let list = -1;
+      part.forEach((row, index) => {
+        const item = index === 0 ? firstItem : part[index - 1].end;
+        if (row.list !== list) {
+          const group = knowledgeGroups[row.list];
+          // A category that goes on from the page before carries the "· Fortsetzung" marker.
+          const continued = list < 0 && from > 0 && rows[from - 1].list === row.list;
+          const title = `${group.subcategory?.title ?? group.category.title}${continued ? " · Fortsetzung" : ""}`;
+          height += (list >= 0 ? ELEGANT_KNOWLEDGE_CATEGORY_GAP_MM : 0) + elegantSideLines(title) * elegantLine + ELEGANT_KNOWLEDGE_TITLE_GAP_MM;
+          list = row.list;
+        } else height += ELEGANT_KNOWLEDGE_ITEM_GAP_MM;
+        height += Math.max(1, wrappedLines(titles[item] ?? "", elegantSideWidth - GRID_ICON_MM, elegantBodyMm, 400)) * elegantLine;
+      });
+      // The last category keeps its 3 mm bottom margin inside the section (a flex item of page one's sidebar).
+      return height + ELEGANT_KNOWLEDGE_CATEGORY_GAP_MM;
     };
     const rowsHeight = (rows: ReturnType<typeof knowledgeRows>, from: number, to: number) => {
       const part = rows.slice(from, to);
@@ -1160,7 +1393,8 @@ const planResumePages = (
         },
         // In the sidebar the rows are those of the narrow column; a sidebar lane may break the list at any row.
         sideSplit: knowledgeZone === "sidebar" && !flat
-          ? { ends: firstRows.map((row) => row.end), height: (from, to) => rowsHeight(firstRows, from, to) }
+          ? { ends: firstRows.map((row) => row.end), height: (from, to) => elegantKnowledge
+            ? elegantKnowledgeHeight(firstRows, from, to) : rowsHeight(firstRows, from, to) }
           : undefined,
       });
     }
@@ -1190,10 +1424,26 @@ const planResumePages = (
         linesFor(entry.length, width, certificates.font * scale.font, geometry.text.cw) - 1), 0);
       return (model.base + model.perItem * values.length + certificates.pitch * scale.line * extraLines) * scale.textHeight;
     };
+    /**
+     * Tabellarisch draws its certificates as one list across the content width (each once, as the templates list them):
+     * the heading, every certificate wrapped with the measured font at the design's line height, 0.45 mm between two.
+     * The list breaks between two certificates like a Word list.
+     */
+    const tabellarischList = templateId === "tabellarisch" && !context.atsMode && scale.wrapText
+      ? [...new Set(shown.map((entry) => entry.trim()))] : undefined;
+    const tabellarischListHeight = (from: number, to: number) => {
+      const bodyMm = certificates.font * scale.font;
+      const values = tabellarischList!.slice(from, to);
+      return blocks.summary[0] + values.reduce((total, value) => total
+        + wrappedLines(value, certificates.w * scale.mainRatio, bodyMm, geometry.text.wrap!.bodyWeight) * bodyMm * geometry.text.lineRatio * scale.line, 0)
+        + tabellarischDefaults.layout.bulletGapMm * Math.max(0, values.length - 1);
+    };
     flow.push({
       id: "certifications",
       zone,
-      height: zoneFlow ? plainListHeight(zone, shown) : legacyHeight,
+      height: zoneFlow ? plainListHeight(zone, shown) : tabellarischList ? tabellarischListHeight(0, tabellarischList.length) : legacyHeight,
+      ...(tabellarischList && tabellarischList.length > 1
+        ? { split: { ends: tabellarischList.map((_, index) => index + 1), height: tabellarischListHeight, minRows: 1 } } : {}),
       // A sidebar block that does not fit beside page one goes to the full-width main column of the last page.
       contHeight: zoneFlow ? plainListHeight("main", shown, true) : undefined,
       // A zone-flow template hosts the certificates on page one when their column has room, whatever home the
@@ -1202,8 +1452,10 @@ const planResumePages = (
       rank: managerRank("certifications"),
       hostable: inSidebar,
       sideSplit: inSidebar
-        ? { ends: shown.map((_, index) => index + 1), height: (from, to) => templateId === "elegant"
-          ? certificateHeight(shown.slice(from, to)) * 1.2 : plainListHeight("sidebar", shown.slice(from, to)) }
+        ? { ends: shown.map((_, index) => index + 1), height: (from, to) => elegantSidebar
+          // One line box per wrapped line (the list takes 4 mm indent off the column), no gap between two certificates.
+          ? elegantSideHeadFor(getResumeSectionTitle(profile, "certifications")) + shown.slice(from, to).reduce((total, value) => total + elegantSideLines(value, ELEGANT_SIDE_LIST_INDENT_MM) * elegantLine, 0)
+          : templateId === "elegant" ? certificateHeight(shown.slice(from, to)) * 1.2 : plainListHeight("sidebar", shown.slice(from, to)) }
         : undefined,
     });
   }
@@ -1229,7 +1481,34 @@ const planResumePages = (
         return total + (careerLike ? titleGap : 4) + visibleTexts(item).reduce((lines, value) => lines + lineCount(value) * pitch, 0);
       }, 0) + (careerLike ? careerLikeEntryGap * Math.max(0, shown.length - 1) : 0);
     };
-    const height = legacyPartHeight(0, normalized.entries.length);
+    /**
+     * Tabellarisch: Projekte and Hobbys & Interessen as the shared markup draws them (renderCustomSectionContent) across the
+     * content width, every text wrapped with the measured font: the entry title (entry title size), the Abstand nach
+     * Eintragstitel, the technologies (0.88 of the body size), the other texts in the body size, all at the design's line
+     * height; the Eintragsabstand between two entries.
+     */
+    const tabellarischPartHeight = (from: number, to: number) => {
+      const width = geometry.text.mainW * scale.mainRatio;
+      const lineHeight = geometry.text.lineRatio * scale.line;
+      const bodyMm = geometry.text.bulletFont * scale.font;
+      const text = (value: string, fontMm = bodyMm, weight = 400, indent = 0) =>
+        value.trim() ? wrappedLines(value, width - indent, fontMm, weight) * fontMm * lineHeight : 0;
+      const shown = normalized.entries.slice(from, to);
+      return blocks.summary[0] + shown.reduce((total, item) => {
+        const headed = item.sectionType === "subsection";
+        // The entry title keeps the entry title size of the design, whatever the body size is.
+        const title = headed ? text(item.title, scale.titleFont ?? geometry.text.titleFont, 600) : text(item.title);
+        const period = item.date.trim() || [item.from, item.to].filter((value) => value.trim()).join(" – ");
+        const rest = special.kind === "projects"
+          ? text(item.technologies.filter((value) => value.trim()).join(" · "), bodyMm * 0.88) + text(item.description)
+          : text(item.subtitle) + text([item.location, period].filter((value) => value.trim()).join(" · ")) + text(item.description)
+            + item.bullets.reduce((sum, value) => sum + text(value, bodyMm, 400, tabellarischDefaults.layout.listIndentMm), 0) + text(item.url);
+        return total + title + (headed && item.title.trim() && rest > 0 ? careerLikeContentGap : 0) + rest;
+      }, 0) + careerLikeEntryGap * Math.max(0, shown.length - 1);
+    };
+    const tabellarischSpecial = templateId === "tabellarisch" && !context.atsMode && careerLike && scale.wrapText;
+    const partHeight = tabellarischSpecial ? tabellarischPartHeight : legacyPartHeight;
+    const height = partHeight(0, normalized.entries.length);
     const inSidebar = (zoneFlow || templateId === "elegant") && zone === "sidebar";
     flow.push({
       id: `special:${special.id}`,
@@ -1243,16 +1522,20 @@ const planResumePages = (
       split: (templateId === "modern" || careerLike) && zone === "main" && normalized.entries.length > 1
         ? {
           ends: normalized.entries.map((_, index) => index + 1),
-          height: (from, to) => zoneFlow ? specialHeight("main", special, true, [from, to]) : legacyPartHeight(from, to),
-          firstHeight: (to) => zoneFlow ? specialHeight("main", special, false, [0, to]) : legacyPartHeight(0, to),
-          narrowHeight: (from, to) => zoneFlow ? specialHeight("main", special, false, [from, to]) : legacyPartHeight(from, to),
+          height: (from, to) => zoneFlow ? specialHeight("main", special, true, [from, to]) : partHeight(from, to),
+          firstHeight: (to) => zoneFlow ? specialHeight("main", special, false, [0, to]) : partHeight(0, to),
+          narrowHeight: (from, to) => zoneFlow ? specialHeight("main", special, false, [from, to]) : partHeight(from, to),
           minRows: 1,
         }
         : undefined,
       // The entries of a special section are its safe break points in the sidebar.
       sideSplit: inSidebar
-        ? { ends: normalized.entries.map((_, index) => index + 1), height: (from, to) => templateId === "elegant"
-          ? legacyPartHeight(from, to) * 1.2 : specialHeight("sidebar", special, false, [from, to]) }
+        ? { ends: normalized.entries.map((_, index) => index + 1), height: (from, to) => elegantSidebar && normalized.contentType === "list" && !careerLike
+          // A plain list in Elegant's sidebar: every text of an entry in lines of its own across the list (4 mm indent), entries 2 mm apart.
+          ? elegantSideHeadFor(special.title) + normalized.entries.slice(from, to).reduce((total, item) => total
+            + visibleTexts(item).reduce((lines, value) => lines + elegantSideLines(value, ELEGANT_SIDE_LIST_INDENT_MM), 0) * elegantLine, 0)
+            + 2 * Math.max(0, Math.min(to, normalized.entries.length) - from - 1)
+          : templateId === "elegant" ? legacyPartHeight(from, to) * 1.2 : specialHeight("sidebar", special, false, [from, to]) }
         : undefined,
     });
     hostedIds.push(`special:${special.id}`);
@@ -1359,6 +1642,28 @@ const planResumePages = (
       ats: context.atsMode,
     })
     : undefined;
+  // Tabellarisch: page one under its header (calibrated model); later pages under the compact head (name, Berufsbezeichnung, the contacts chosen for later pages), computed from the stylesheet.
+  const tabellarischHeaderTop = (continuation: boolean) => {
+    if (templateId !== "tabellarisch" || !profile || context.atsMode) return undefined;
+    if (continuation) return estimateTabellarischContinuationTop({
+      name: `${profile.firstName ?? ""} ${profile.lastName ?? ""}`.trim(),
+      title: profile.title ?? "",
+      contacts: showContacts ? [
+        profile.resumeContinuationContactVisibility.email ? profile.email : "",
+        profile.resumeContinuationContactVisibility.phone ? formatPhoneForDisplay(profile.phone) : "",
+      ] : [],
+      pageMarginMm: context.overrides?.pageMarginMm,
+      sectionGapMm: sectionGap,
+    });
+    const box = resolveTabellarischGeometry(context.overrides?.pageMarginMm);
+    // The model (calibrated on real headers: name and Berufsbezeichnung wraps, the contact grid rows, photo and minimum
+    // height; it never fell short) and a small reserve; the section gap of the first section is the chosen one.
+    const { top } = estimateTabellarischTop(profile, showContacts, withPhoto, {
+      contentWidthMm: box.contentWidth, sectionGapMm: sectionGap,
+      namePt: context.overrides?.headingSizePt, titlePt: context.overrides?.subheadingSizePt,
+    });
+    return top + TABELLARISCH_HEADER_RESERVE_MM;
+  };
   // Einspaltig: the same from its own stylesheet (capital name, ruled section titles).
   const einspaltigHeaderTop = (continuation: boolean) => templateId === "einspaltig" && profile
     ? estimateEinspaltigHeaderTop(profile, {
@@ -1380,7 +1685,7 @@ const planResumePages = (
       ats: context.atsMode,
     })
     : undefined;
-  const top1 = gepflegtHeaderTop(showContacts) ?? klassischHeaderTop(false) ?? einspaltigHeaderTop(false) ?? (templateId === "kreativ" && profile && !context.atsMode
+  const top1 = gepflegtHeaderTop(showContacts) ?? tabellarischHeaderTop(false) ?? klassischHeaderTop(false) ?? einspaltigHeaderTop(false) ?? (templateId === "kreativ" && profile && !context.atsMode
     ? estimateKreativHeaderTop(profile, showContacts, withPhoto,
         geometry.text.bulletFont * scale.font * 72 / 25.4, geometry.text.lineRatio * scale.line, scale.marginInset)
     : templateId === "stilvoll" && profile && !context.atsMode
@@ -1403,7 +1708,7 @@ const planResumePages = (
     ? Math.max(0, Math.ceil(gepflegtName.length / (17 * scale.mainRatio)) - 1) * 9.14
       + Math.max(0, Math.ceil((profile?.title ?? "").length / (38 * scale.mainRatio)) - 1) * 5.73
     : 0;
-  const top2 = gepflegtHeaderTop(false) ?? klassischHeaderTop(true) ?? einspaltigHeaderTop(true) ?? ((templateId === "kreativ" || templateId === "stilvoll" || templateId === "gepflegt") && !context.atsMode
+  const top2 = gepflegtHeaderTop(false) ?? tabellarischHeaderTop(true) ?? klassischHeaderTop(true) ?? einspaltigHeaderTop(true) ?? ((templateId === "kreativ" || templateId === "stilvoll" || templateId === "gepflegt") && !context.atsMode
     ? geometry.top2 + gepflegtMainContinuationGrowth
     : templateId === "elegant" && !context.atsMode
     ? elegantDefaults.layout.mainTopMm + scale.marginInset + 18.2 + sectionGap
@@ -1415,8 +1720,8 @@ const planResumePages = (
     : templateId === "stilvoll" && !context.atsMode
       ? Math.max(0, scale.marginInset) : 2 * scale.marginInset;
 
-  const mainCap1 = (geometry.limit - top1 - verticalInset) * (geometry.safety ?? SAFETY);
-  const mainCap2 = (geometry.limit - top2 - verticalInset) * (geometry.safety ?? SAFETY);
+  const mainCap1 = (geometry.limit - top1 - verticalInset - (geometry.reserveMm ?? 0)) * (geometry.safety ?? SAFETY);
+  const mainCap2 = (geometry.limit - top2 - verticalInset - (geometry.reserveMm ?? 0)) * (geometry.safety ?? SAFETY);
   // Where the first sidebar block starts depends on how many contact entries (and wrapped values) precede it.
   const sidebarHero = zoneFlow && hasSidebarHero(templateId);
   const contactItems = sidebarHero && find("personalData")?.visible !== false ? getPehlioneContacts(profile) : [];
@@ -1436,107 +1741,136 @@ const planResumePages = (
         : estimateResumeHeaderTop(templateId, profile, "side", geometry.sideTop1 + photoGrowth.side, showContacts, withPhoto) ?? geometry.sideTop1 + photoGrowth.side;
   const sideCap1 = sideTop1 === null || flat
     ? 0
+    // Elegant's sidebar blocks are computed from its stylesheet: a fixed reserve for rounding instead of 3 % of the column.
+    : elegantSidebar ? geometry.sideLimit - sideTop1 - verticalInset - ELEGANT_SIDE_RESERVE_MM
     : (geometry.sideLimit - sideTop1 - verticalInset) * (zoneFlow ? ZONE_FLOW_SIDEBAR_SAFETY : SAFETY);
   const dense = context.atsMode ? geometry.ats.density : geometry.density;
+
+  // A paragraph that makes the first sidebar overflow becomes a lane block. Its word ranges can
+  // continue on the next page while the other native sidebar sections keep their usual pages.
+  const summaryBlock = flow.find((block) => block.id === "summary");
+  const firstSidebarLoad = sumHeights(flow.filter((block) => block.home === "first" && block.zone === "sidebar")
+    .map((block) => block.height), sideGap);
+  if (summaryText.length >= 180 && summaryBlock?.zone === "sidebar" && zoneFlow && supportsSidebarContinuation(templateId)
+    && firstSidebarLoad > sideCap1 && summaryBlock.sideSplit) {
+    summaryBlock.home = "last";
+    summaryBlock.hostable = true;
+  }
 
   // A hand-arranged single-column document is one stream, including blocks
   // between the two career sections. Their saved sidebar zones remain metadata.
   if (flat && (templateId === "tabellarisch" || (customLayout && !context.atsMode))) {
     type OrderedPage = { plan: ResumePagePlan; used: number; lastKind?: ResumePageItem["kind"]; lastGap: number };
-    const pages: OrderedPage[] = [];
-    const capacity = (number: number) => Math.max(1, (number === 1 ? mainCap1 : mainCap2) - closingHeight);
-    const nextPage = () => {
-      const plan: ResumePagePlan = { pageNumber: pages.length + 1, items: [], blocks: [], density: "standard", sidebar: false,
-        fill: { main: 0, sidebar: 0 } };
-      const page: OrderedPage = { plan, used: 0, lastGap: 0 };
-      pages.push(page);
-      return page;
-    };
-    let page = nextPage();
-    const addBlock = (block: FlowBlock, from = 0, to = block.split?.ends.length ?? 0) => {
-      const height = block.split ? block.split.height(from, to) : block.height;
-      const gap = page.used > 0 ? sectionGap : 0;
-      page.used += gap + height;
-      page.plan.blocks!.push(block.id);
-      if (block.split && (from > 0 || to < block.split.ends.length)) {
-        const ends = block.split.ends;
-        (page.plan.blockRanges ??= {})[block.id] = { from: from ? ends[from - 1] : 0,
-          to: ends[to - 1], total: ends[ends.length - 1] };
-      }
-      page.lastKind = undefined;
-    };
-    const addItem = (item: MeasuredItem, from: number, to: number) => {
-      const mode = page.plan.pageNumber === 1 ? "first" : "cont";
-      const shown = item.parts && (from > 0 || to < item.parts[mode].lines.length)
-        ? { kind: item.kind, id: item.id, weight: Math.round(item.parts[mode].height(from, to) * 10) / 10,
-          bullets: { from, to, total: item.parts[mode].lines.length } }
-        : strip(item, mode);
-      const gap = page.lastKind === item.kind ? page.lastGap : (page.used > 0 ? sectionGap : 0) + sectionHead(item.kind);
-      page.used += gap + (item.parts ? item.parts[mode].height(from, to) : item[mode]);
-      page.plan.items.push(shown);
-      page.lastKind = item.kind;
-      page.lastGap = item.gapAfter;
-    };
-    const ordered = context.sections?.filter((entry) => entry.visible && !["heading", "personalData", "photo", "closing"].includes(entry.id))
-      .map((entry) => entry.id) ?? ["summary", "strengths", "experience", "education", ...flow.map((block) => block.id)];
-    const seen = new Set<string>();
-    for (const id of ordered) {
-      if (seen.has(id)) continue;
-      seen.add(id);
-      if (id === "experience" || id === "education") {
-        for (const item of items.filter((entry) => entry.kind === id)) {
-          const total = item.parts?.first.lines.length ?? 0;
-          let from = 0;
-          while (true) {
-            const mode = page.plan.pageNumber === 1 ? "first" : "cont";
-            const heading = page.lastKind === item.kind ? page.lastGap : (page.used > 0 ? sectionGap : 0) + sectionHead(item.kind);
-            const fullHeight = item.parts ? item.parts[mode].height(from, total) : item[mode];
-            if (page.used + heading + fullHeight <= capacity(page.plan.pageNumber) || (!page.used && !item.parts)) {
-              addItem(item, from, total);
-              break;
-            }
-            let end = from;
-            if (item.parts) for (let candidate = from + 1; candidate < total; candidate += 1) {
-              const before = item.parts[mode].lines.slice(from, candidate).reduce((sum, lines) => sum + lines, 0);
-              const after = item.parts.cont.lines.slice(candidate).reduce((sum, lines) => sum + lines, 0);
-              if (before < minLinesBefore(item.kind) || after < MIN_SPLIT_LINES) continue;
-              if (page.used + heading + item.parts[mode].height(from, candidate) <= capacity(page.plan.pageNumber)) end = candidate;
-            }
-            if (end > from) {
-              addItem(item, from, end);
-              from = end;
-              page = nextPage();
-            } else if (page.used > 0) page = nextPage();
-            else {
-              addItem(item, from, total);
-              break;
+    // Tabellarisch keeps the closing's room on the last page only (where it is drawn); the other one-column layouts keep
+    // it on every page.
+    const lastPageClosing = templateId === "tabellarisch" && !context.atsMode;
+    const closingRoom = lastPageClosing ? tabellarischClosingRoom : closingHeight;
+    const pageCap = (number: number) => (number === 1 ? mainCap1 : mainCap2);
+    /** Lays the stream out; pages from `reserveFrom` on keep the closing's room (every page outside Tabellarisch). */
+    const layoutOrdered = (reserveFrom: number) => {
+      const pages: OrderedPage[] = [];
+      const capacity = (number: number) => Math.max(1, pageCap(number) - (!lastPageClosing || number >= reserveFrom ? closingRoom : 0));
+      const nextPage = () => {
+        const plan: ResumePagePlan = { pageNumber: pages.length + 1, items: [], blocks: [], density: "standard", sidebar: false,
+          fill: { main: 0, sidebar: 0 } };
+        const page: OrderedPage = { plan, used: 0, lastGap: 0 };
+        pages.push(page);
+        return page;
+      };
+      let page = nextPage();
+      const addBlock = (block: FlowBlock, from = 0, to = block.split?.ends.length ?? 0) => {
+        const height = block.split ? block.split.height(from, to) : block.height;
+        const gap = page.used > 0 ? sectionGap : 0;
+        page.used += gap + height;
+        page.plan.blocks!.push(block.id);
+        if (block.split && (from > 0 || to < block.split.ends.length)) {
+          const ends = block.split.ends;
+          (page.plan.blockRanges ??= {})[block.id] = { from: from ? ends[from - 1] : 0,
+            to: ends[to - 1], total: ends[ends.length - 1] };
+        }
+        page.lastKind = undefined;
+      };
+      const addItem = (item: MeasuredItem, from: number, to: number) => {
+        const mode = page.plan.pageNumber === 1 ? "first" : "cont";
+        const shown = item.parts && (from > 0 || to < item.parts[mode].lines.length)
+          ? { kind: item.kind, id: item.id, weight: Math.round(item.parts[mode].height(from, to) * 10) / 10,
+            bullets: { from, to, total: item.parts[mode].lines.length } }
+          : strip(item, mode);
+        const gap = page.lastKind === item.kind ? page.lastGap : (page.used > 0 ? sectionGap : 0) + sectionHead(item.kind);
+        page.used += gap + (item.parts ? item.parts[mode].height(from, to) : item[mode]);
+        page.plan.items.push(shown);
+        page.lastKind = item.kind;
+        page.lastGap = item.gapAfter;
+      };
+      const ordered = context.sections?.filter((entry) => entry.visible && !["heading", "personalData", "photo", "closing"].includes(entry.id))
+        .map((entry) => entry.id) ?? ["summary", "strengths", "experience", "education", ...flow.map((block) => block.id)];
+      const seen = new Set<string>();
+      for (const id of ordered) {
+        if (seen.has(id)) continue;
+        seen.add(id);
+        if (id === "experience" || id === "education") {
+          for (const item of items.filter((entry) => entry.kind === id)) {
+            const total = item.parts?.first.lines.length ?? 0;
+            let from = 0;
+            while (true) {
+              const mode = page.plan.pageNumber === 1 ? "first" : "cont";
+              const heading = page.lastKind === item.kind ? page.lastGap : (page.used > 0 ? sectionGap : 0) + sectionHead(item.kind);
+              const fullHeight = item.parts ? item.parts[mode].height(from, total) : item[mode];
+              if (page.used + heading + fullHeight <= capacity(page.plan.pageNumber) || (!page.used && !item.parts)) {
+                addItem(item, from, total);
+                break;
+              }
+              let end = from;
+              if (item.parts) for (let candidate = from + 1; candidate < total; candidate += 1) {
+                const before = item.parts[mode].lines.slice(from, candidate).reduce((sum, lines) => sum + lines, 0);
+                const after = item.parts.cont.lines.slice(candidate).reduce((sum, lines) => sum + lines, 0);
+                if (before < minLinesBefore(item.kind) || after < MIN_SPLIT_LINES) continue;
+                if (page.used + heading + item.parts[mode].height(from, candidate) <= capacity(page.plan.pageNumber)) end = candidate;
+              }
+              if (end > from) {
+                addItem(item, from, end);
+                from = end;
+                page = nextPage();
+              } else if (page.used > 0) page = nextPage();
+              else {
+                addItem(item, from, total);
+                break;
+              }
             }
           }
+          continue;
         }
-        continue;
+        const block = flow.find((entry) => entry.id === id);
+        if (!block) continue;
+        if (!block.split) {
+          if (page.used && page.used + sectionGap + block.height > capacity(page.plan.pageNumber)) page = nextPage();
+          addBlock(block);
+          continue;
+        }
+        let from = 0;
+        while (from < block.split.ends.length) {
+          const gap = page.used > 0 ? sectionGap : 0;
+          let end = from;
+          for (let candidate = from + 1; candidate <= block.split.ends.length; candidate += 1)
+            if (page.used + gap + block.split.height(from, candidate) <= capacity(page.plan.pageNumber)) end = candidate;
+          if (end === from && page.used > 0) { page = nextPage(); continue; }
+          if (end === from) end = from + 1;
+          addBlock(block, from, end);
+          from = end;
+          if (from < block.split.ends.length) page = nextPage();
+        }
       }
-      const block = flow.find((entry) => entry.id === id);
-      if (!block) continue;
-      if (!block.split) {
-        if (page.used && page.used + sectionGap + block.height > capacity(page.plan.pageNumber)) page = nextPage();
-        addBlock(block);
-        continue;
-      }
-      let from = 0;
-      while (from < block.split.ends.length) {
-        const gap = page.used > 0 ? sectionGap : 0;
-        let end = from;
-        for (let candidate = from + 1; candidate <= block.split.ends.length; candidate += 1)
-          if (page.used + gap + block.split.height(from, candidate) <= capacity(page.plan.pageNumber)) end = candidate;
-        if (end === from && page.used > 0) { page = nextPage(); continue; }
-        if (end === from) end = from + 1;
-        addBlock(block, from, end);
-        from = end;
-        if (from < block.split.ends.length) page = nextPage();
-      }
+      return pages;
+    };
+    let pages = layoutOrdered(lastPageClosing ? Number.POSITIVE_INFINITY : 1);
+    // The closing goes below the last page's content: when it has no room there, that page and the following ones keep it.
+    for (let attempt = 0; lastPageClosing && closingRoom > 0 && attempt < 3; attempt += 1) {
+      const last = pages[pages.length - 1];
+      if (last.used + closingRoom <= pageCap(last.plan.pageNumber)) break;
+      pages = layoutOrdered(last.plan.pageNumber);
     }
     pages.forEach((entry, index) => {
-      entry.plan.fill = { main: (entry.used + (index === pages.length - 1 ? closingHeight : 0)) /
+      entry.plan.fill = { main: (entry.used + (index === pages.length - 1 ? closingRoom : 0)) /
         (index === 0 ? mainCap1 : mainCap2), sidebar: 0 };
     });
     return pages.map((entry) => entry.plan);
@@ -1556,6 +1890,8 @@ const planResumePages = (
   const hostable = lastBlocks.filter((block) => block.hostable);
   // The sidebar fills in the order of the user's layout.
   if (zoneFlow && customLayout) hostable.sort((left, right) => (left.rank ?? 0) - (right.rank ?? 0));
+  // Elegant draws its sidebar in the order of the section list (Kenntnisse, Sprachen, Zertifikate, …): its lane fills in that order.
+  if (templateId === "elegant" && !context.atsMode) hostable.sort((left, right) => managerRank(left.id) - managerRank(right.id));
 
   const stack = (fixed: number, run: number) => fixed + run + (fixed > 0 && run > 0 ? sectionGap : 0);
   const wholeMain = () =>
@@ -1596,7 +1932,7 @@ const planResumePages = (
   const lanePages: LaneSegment[][] = [[]];
   const segmentHeight = ({ block, from, to }: LaneSegment) => {
     const height = block.sideSplit ? block.sideSplit.height(from, to) : block.height;
-    return templateId === "elegant" && block.id === "knowledge" ? height * 1.35 : height;
+    return templateId === "elegant" && block.id === "knowledge" && !elegantSidebar ? height * 1.35 : height;
   };
   // Elegant and Gepflegt repeat only the page cue and optional contacts in the continuation sidebar (name and
   // Berufsbezeichnung stand in the header of the main column).
@@ -1631,7 +1967,9 @@ const planResumePages = (
         // The part that fits: the heading and at least one row here, and a widow-free rest on the next page.
         let best = from;
         if (block.sideSplit) {
-          for (let end = from + LANE_MIN_ROWS_BEFORE; end <= rows - LANE_MIN_ROWS_AFTER; end += 1) {
+          // A Kurzprofil keeps a few words together on either side (its rows are words).
+          const words = block.id === "summary" ? ELEGANT_SUMMARY_MIN_WORDS : 0;
+          for (let end = from + Math.max(LANE_MIN_ROWS_BEFORE, words); end <= rows - Math.max(LANE_MIN_ROWS_AFTER, words); end += 1) {
             if (used + gap + segmentHeight({ block, from, to: end }) <= capacity(page)) best = end;
           }
         }

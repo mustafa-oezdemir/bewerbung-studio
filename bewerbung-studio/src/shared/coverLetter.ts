@@ -40,8 +40,9 @@ export const getCoverLetterAttachments = (
   attachments: readonly Attachment[],
   applicationId: string,
   settings: DocumentDraft["documentListSettings"] = [],
+  includeMotivation = false,
 ) =>
-  getApplicationDocumentItems(attachments, applicationId, settings)
+  getApplicationDocumentItems(attachments, applicationId, settings, includeMotivation)
     .filter((item) => item.key !== "anschreiben" && item.isVisible)
     .map((item) => item.label);
 
@@ -65,7 +66,9 @@ export const coverLetterApplicantFileName = (
 export type ApplicationDocumentKind =
   | "Anschreiben"
   | "Deckblatt"
+  | "Motivation"
   | "Lebenslauf"
+  | "Bewerbungsunterlagen"
   | "Mappe";
 
 export const applicantDocumentFileName = (

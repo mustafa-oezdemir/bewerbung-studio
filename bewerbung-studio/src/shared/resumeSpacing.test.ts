@@ -84,8 +84,9 @@ describe("semantic resume spacing", () => {
 
 /** The page and column boxes keep their native geometry; only text children receive the inset. */
 describe("the spacing adapter keeps Seitenränder and Innenabstand apart", () => {
-  // A one-column template without a margin geometry of its own (Tabellarisch, native 15 mm): the generic text shift.
-  const oneColumn = `<div class="page-content"><div class="tabellarisch-pdf-content" style="padding:0 15mm"><header class="tabellarisch-pdf-header"></header><section data-managed-section="summary"><p>Text</p></section></div></div>`;
+  // A one-column template without a margin geometry of its own (Ivy League, native 11 mm): the generic text shift.
+  const oneColumn = `<div class="page-content"><div class="one-column-content" style="padding:0 11mm"><header class="one-column-header"></header><section data-managed-section="summary"><p>Text</p></section></div></div>`;
+  const tabellarischPage = `<div class="page-content tabellarisch-pdf"><div class="tabellarisch-pdf-content"><header class="tabellarisch-pdf-header"></header><section data-managed-section="summary"><p>Text</p></section></div></div>`;
   const klassischPage = `<div class="page-content klassisch-pdf"><div class="klassisch-pdf-content"><header class="klassisch-pdf-header"></header><section data-managed-section="summary"><p>Text</p></section></div></div>`;
   const twoColumns = `<div class="page-content gepflegt-pdf"><aside class="gepflegt-pdf-sidebar" style="padding:0 10mm"><section data-managed-section="languages"><p>Text</p></section></aside><div class="gepflegt-pdf-content" style="padding:0 10mm"><header></header><main><section data-managed-section="experience"><p>Text</p></section></main></div></div>`;
   const styleOf = (element: Element | null) => Object.fromEntries((element?.getAttribute("style") ?? "").split(";").filter(Boolean).map((part) => {
@@ -107,12 +108,12 @@ describe("the spacing adapter keeps Seitenränder and Innenabstand apart", () =>
   });
 
   it("keeps the one-column host unchanged for both independent text insets", () => {
-    const margin = render(oneColumn, "tabellarisch", { pageMarginMm: 16 });
-    const padding = render(oneColumn, "tabellarisch", { innerPaddingMm: 2.5 });
-    const both = render(oneColumn, "tabellarisch", { pageMarginMm: 16, innerPaddingMm: 2.5 });
-    const host = (page: Element) => page.querySelector(".tabellarisch-pdf-content")!;
-    for (const page of [margin, padding, both]) expect(host(page).getAttribute("style")).toBe("padding:0 15mm");
-    expect(scopeStyle(margin)).toEqual({ "--doc-page-margin": "16mm", "--resume-page-text-shift": "1mm" });
+    const margin = render(oneColumn, "ivy-league", { pageMarginMm: 16 });
+    const padding = render(oneColumn, "ivy-league", { innerPaddingMm: 2.5 });
+    const both = render(oneColumn, "ivy-league", { pageMarginMm: 16, innerPaddingMm: 2.5 });
+    const host = (page: Element) => page.querySelector(".one-column-content")!;
+    for (const page of [margin, padding, both]) expect(host(page).getAttribute("style")).toBe("padding:0 11mm");
+    expect(scopeStyle(margin)).toEqual({ "--doc-page-margin": "16mm", "--resume-page-text-shift": "5mm" });
     expect(scopeStyle(padding)).toEqual(paddingVariables);
     expect(scopeStyle(both)).toEqual({ ...scopeStyle(margin), ...scopeStyle(padding) });
     for (const page of [margin, padding, both]) expect(page.querySelector(".page-content")?.hasAttribute("data-resume-spacing-text")).toBe(true);
@@ -137,20 +138,36 @@ describe("the spacing adapter keeps Seitenränder and Innenabstand apart", () =>
   });
 
   it("uses a negative text shift for a smaller margin without widening the page", () => {
-    const margin = render(oneColumn, "tabellarisch", { pageMarginMm: 10 });
-    const both = render(oneColumn, "tabellarisch", { pageMarginMm: 10, innerPaddingMm: 2.5 });
-    expect(scopeStyle(margin)).toEqual({ "--doc-page-margin": "10mm", "--resume-page-text-shift": "-5mm" });
+    const margin = render(oneColumn, "ivy-league", { pageMarginMm: 6 });
+    const both = render(oneColumn, "ivy-league", { pageMarginMm: 6, innerPaddingMm: 2.5 });
+    expect(scopeStyle(margin)).toEqual({ "--doc-page-margin": "6mm", "--resume-page-text-shift": "-5mm" });
     expect(scopeStyle(both)).toEqual({ ...scopeStyle(margin), ...paddingVariables });
   });
 
   it("does not introduce an inner text inset when only page margin is chosen", () => {
-    for (const [markup, id] of [[oneColumn, "tabellarisch"], [twoColumns, "gepflegt"]] as const) {
+    for (const [markup, id] of [[oneColumn, "ivy-league"], [twoColumns, "gepflegt"]] as const) {
       const page = render(markup, id, { sectionGapMm: 7, pageMarginMm: 17 });
       if (id === "gepflegt") expect(page.querySelector("[data-resume-spacing-text]")).toBeNull();
       else expect(page.querySelector("[data-resume-spacing-text]"), id).not.toBeNull();
       expect(scopeStyle(page)).not.toHaveProperty("--doc-inner-padding");
       expect(scopeStyle(page)).not.toHaveProperty("--resume-inner-text-inset");
     }
+  });
+
+  it("leaves Tabellarisch's Seitenränder to its own horizontal geometry and its line height to its own variable", () => {
+    const margin = render(tabellarischPage, "tabellarisch", { pageMarginMm: 18 });
+    const padding = render(tabellarischPage, "tabellarisch", { innerPaddingMm: 2.5 });
+    // resolveTabellarischGeometry draws header, sections and footer at the chosen edges: no second, section-only shift.
+    expect(scopeStyle(margin)).toEqual({ "--doc-page-margin": "18mm" });
+    expect(margin.querySelector("[data-resume-spacing-text]")).toBeNull();
+    expect(scopeStyle(padding)).toEqual(paddingVariables);
+    expect(padding.querySelector(".page-content")?.hasAttribute("data-resume-spacing-text")).toBe(true);
+    // The reading text follows --tabellarisch-line-height (getTabellarischDesignVariables); the generic !important rule,
+    // which would also reach labels such as the date or the organisation, is not switched on.
+    const { document } = parseHTML(`<body><div id="page">${tabellarischPage}</div></body>`);
+    const page = document.getElementById("page")!;
+    applyResumeSpacingOutput(page, "tabellarisch", "pdf", { ...getTemplateDocumentDesignDefaults("tabellarisch"), cvOverrides: { typography: { lineHeight: 1.3 } } });
+    expect(page.querySelector("[data-resume-spacing-line-height]")).toBeNull();
   });
 
   it("leaves Klassisch's Seitenränder to its own horizontal geometry; Innenabstand stays the shared inset", () => {

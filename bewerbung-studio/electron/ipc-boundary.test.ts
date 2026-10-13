@@ -56,6 +56,13 @@ describe("IPC error boundary", () => {
     expect(error.message).toBe("Die eingegebenen Daten sind ungültig.");
   });
 
+  it("tells why a save was refused after the workspace changed outside the app or lost its lock", () => {
+    for (const message of [
+      "Der Datenbestand wurde seit dem Öffnen extern geändert. Bitte laden Sie ihn neu oder erstellen Sie zuerst eine Sicherung.",
+      "Der Datenbestand ist durch eine andere Instanz gesperrt. Schließen Sie alle BewerbungsManager-Instanzen und starten Sie die Anwendung neu.",
+    ]) expect(normalizeError(new Error(message))).toMatchObject({ code: "WORKSPACE_LOCKED", message, expected: true });
+  });
+
   it("does not expose operating system paths in filesystem errors", () => {
     const error = Object.assign(new Error("ENOENT: C:\\private\\cv.pdf"), { code: "ENOENT" });
     expect(normalizeError(error).message).toBe("Die benötigte Datei wurde nicht gefunden.");

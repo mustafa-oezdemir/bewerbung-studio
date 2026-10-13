@@ -7,6 +7,7 @@ import { normalizeExperience } from "./resumeCareer";
 import { getBlockingPersonalFields } from "./resumePersonalData";
 import { syncLegacySkills } from "../features/knowledge/knowledge.service";
 import { validateKnowledgeSection } from "../features/knowledge/knowledge.validation";
+import { certificateEntries, certificateFields } from "./certificates";
 
 /** One save pipeline for Profil and the Lebenslauf editor. A preview never changes updatedAt. */
 export function normalizeApplicantProfileForSave(profile: ApplicantProfile): ApplicantProfile {
@@ -33,7 +34,10 @@ export function normalizeApplicantProfileForSave(profile: ApplicantProfile): App
       iconId: strength.iconId.trim(),
     })).filter((strength) => strength.title),
     languages: profile.languages.map((language) => language.trim()).filter(Boolean),
-    certifications: profile.certifications.map((certificate) => certificate.trim()).filter(Boolean),
+    // Each certificate keeps its id (saved from now on, also for older records), so a Bewerbung's choice survives edits.
+    ...certificateFields(certificateEntries(profile)
+      .map((entry) => ({ ...entry, text: entry.text.trim() }))
+      .filter((entry) => entry.text)),
     specialSections: profile.specialSections.map((section) => ({
       ...section,
       title: section.title.trim(),

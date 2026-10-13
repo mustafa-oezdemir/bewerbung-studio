@@ -65,4 +65,50 @@ describe("application changes with GitHub synchronisation", () => {
       error: `${gitSyncFailedMessage} Die Anmeldung bei GitHub ist fehlgeschlagen.`,
     });
   });
+
+  it("reports failed document and attachment pushes without claiming success", async () => {
+    const gitSync = { state: "failed" as const, code: "network", reason: "GitHub ist nicht erreichbar." };
+    vi.stubGlobal("window", { bewerbungsManager: {
+      templates: { syncAnschreiben: vi.fn(async () => ({ document: { fileName: "Fiktiv.docx" }, gitSync })) },
+      attachments: { save: vi.fn(async () => ({ workspace, gitSync })) },
+      export: { pdf: vi.fn(async () => ({ path: "C:/Test/Fiktiv.pdf", gitSync })) },
+    } as unknown as BewerbungsManagerApi });
+    await useAppStore.getState().syncCoverLetter("bewerbung-1");
+    expect(useAppStore.getState()).toMatchObject({ notice: undefined,
+      error: `${gitSyncFailedMessage} GitHub ist nicht erreichbar.` });
+    await useAppStore.getState().saveAttachment({} as never);
+    expect(useAppStore.getState()).toMatchObject({ workspace, notice: undefined,
+      error: `${gitSyncFailedMessage} GitHub ist nicht erreichbar.` });
+    await useAppStore.getState().exportPdf("bewerbung-1", "lebenslauf");
+    expect(useAppStore.getState()).toMatchObject({ notice: undefined,
+      error: `${gitSyncFailedMessage} GitHub ist nicht erreichbar.` });
+  });
+
+  it("reports the synchronisation of appointments and the Bewerbungsfrist todo", async () => {
+    const outcome = { current: { state: "synced", committed: true, pushed: true } as ApplicationGitSyncOutcome };
+    const result = async () => ({ workspace, gitSync: outcome.current });
+    vi.stubGlobal("window", { bewerbungsManager: {
+      events: { save: vi.fn(result) },
+      todos: { save: vi.fn(result), remove: vi.fn(result) },
+    } as unknown as BewerbungsManagerApi });
+    await useAppStore.getState().saveEvent({} as never);
+    expect(useAppStore.getState().notice).toBe("Kalendereintrag wurde aktualisiert und mit GitHub synchronisiert.");
+    await useAppStore.getState().saveTodo({} as never);
+    expect(useAppStore.getState().notice).toBe("Aufgabe wurde gespeichert und mit GitHub synchronisiert.");
+
+    outcome.current = { state: "skipped" };
+    await useAppStore.getState().removeTodo("aufgabe-1");
+    expect(useAppStore.getState()).toMatchObject({ notice: "Aufgabe wurde gelöscht.", error: undefined });
+
+    outcome.current = { state: "failed", code: "network", reason: "GitHub ist nicht erreichbar." };
+    await useAppStore.getState().saveTodo({} as never);
+    expect(useAppStore.getState()).toMatchObject({ workspace, notice: undefined,
+      error: `${gitSyncFailedMessage} GitHub ist nicht erreichbar.` });
+  });
+
+  it("does not call a local save synced when no commit or push happened", async () => {
+    installApi({ state: "synced", committed: false, pushed: false });
+    await useAppStore.getState().saveApplication(workspace.applications[0]);
+    expect(useAppStore.getState().notice).toBe("Änderungen wurden gespeichert.");
+  });
 });

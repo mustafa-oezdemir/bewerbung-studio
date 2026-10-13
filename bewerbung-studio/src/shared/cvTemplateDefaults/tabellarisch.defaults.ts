@@ -10,18 +10,24 @@ export const tabellarischDefaults = {
     widthMm: 210,
     heightMm: 297,
   },
+  /**
+   * The margins the page is drawn with (measured on preview and PDF). Left and right follow "Seitenränder"
+   * (`spacing.pageMarginMm`, native 15 mm); top and bottom stay. Below the bottom margin the content keeps
+   * `layout.footerClearanceMm` clear for the page footer: the flowing text ends 19 mm above the sheet edge.
+   */
   margins: {
-    topMm: 16,
-    rightMm: 17,
+    topMm: 15,
+    rightMm: 15,
     bottomMm: 14,
-    leftMm: 17,
+    leftMm: 15,
   },
   header: {
     heightMm: 30,
     photoSizeMm: 30,
     photoCircular: true,
     gridGapMm: 10,
-    marginBottomMm: 6,
+    /** The first section's distance to the header is its section gap (`spacing.sectionGapMm`). */
+    marginBottomMm: 6.3,
   },
   background: {
     heightMm: 58,
@@ -48,6 +54,8 @@ export const tabellarischDefaults = {
     muted: "#6d747a",
     line: "#c8cdd1",
     background: "#ffffff",
+    /** The section titles (both surfaces have drawn them in this blue). */
+    sectionTitle: "#0B3D86",
   },
   typography: {
     fontFamily: '"Source Sans 3", "Segoe UI", Arial, sans-serif',
@@ -62,9 +70,51 @@ export const tabellarischDefaults = {
     entryTitleWeight: 600,
     bodySizePt: 9.2,
     bodyWeight: 400,
-    bodyLineHeight: 1.4,
+    /** Line height of the reading text (paragraphs, bullets, lists): the semantic `typography.lineHeight`. */
+    bodyLineHeight: 1.1,
     smallSizePt: 8.2,
     smallLineHeight: 1.3,
+    nameLineHeight: 1,
+    jobTitleLineHeight: 1.15,
+    sectionTitleLineHeight: 1.05,
+    sectionTitleTrackingEm: 0.01,
+    entryTitleLineHeight: 1.15,
+    entryTitleRenderedWeight: 500,
+    organizationSizePt: 10.2,
+    organizationWeight: 700,
+    organizationLineHeight: 1.2,
+    dateSizePt: 10,
+    dateWeight: 750,
+    dateLineHeight: 1.15,
+    locationSizePt: 8.4,
+    locationLineHeight: 1.3,
+    continuationNameSizePt: 13,
+    continuationTitleSizePt: 9,
+    footerSizePt: 7.5,
+    footerLineHeight: 1.2,
+  },
+  /** The stylesheet's layout measures (preview `tabellarisch.css` and the PDF's `tabellarischDocumentCss`). */
+  layout: {
+    /** Kept clear between the flowing text and the bottom margin: the page footer stands there. */
+    footerClearanceMm: 5,
+    footerBottomMm: 6,
+    sectionTitleGapMm: 3.5,
+    /** Date column (grows from 30 to 35 mm), the rail and the two column gaps of a timeline entry. */
+    metaColumnMm: 35,
+    railColumnMm: 7,
+    timelineGapMm: 4,
+    metaPaddingTopMm: 0.45,
+    locationGapMm: 2,
+    /** Above the organisation: the Abstand nach Eintragstitel (`spacing.entryContentGapMm`); below it 1.5 mm. */
+    organizationGapAfterMm: 1.5,
+    listIndentMm: 4.5,
+    listItemPaddingMm: 0.5,
+    /** Margin above and below every bullet (adjacent ones collapse to one). */
+    bulletGapMm: 0.45,
+    continuationHeaderPaddingMm: 2.5,
+    continuationHeaderRuleMm: 0.35,
+    continuationHeaderGapMm: 6,
+    continuationHeaderColumnGapMm: 8,
   },
   strengths: {
     columnsCount: 2,
@@ -87,7 +137,7 @@ const tabellarischDesignColors = {
   paragraph: tabellarischDefaults.colors.text,
   heading: tabellarischDefaults.colors.primary,
   subheading: tabellarischDefaults.colors.accent,
-  sectionHeading: "#0B3D86",
+  sectionHeading: tabellarischDefaults.colors.sectionTitle,
   entryHeading: tabellarischDefaults.colors.primary,
   divider: tabellarischDefaults.colors.line,
   background: tabellarischDefaults.colors.background,
@@ -108,18 +158,18 @@ export const tabellarischDesign: NativeResumeDesign = {
       subheadingSizePt: tabellarischDefaults.typography.jobTitleSizePt,
       sectionHeadingSizePt: tabellarischDefaults.typography.sectionTitleSizePt,
       entryHeadingSizePt: tabellarischDefaults.typography.entryTitleSizePt,
-      lineHeight: 1.1,
+      lineHeight: tabellarischDefaults.typography.bodyLineHeight,
       headingWeight: 750,
       subheadingWeight: 650,
       sectionHeadingWeight: 750,
       sectionHeadingUppercase: true,
     },
     spacing: {
-      pageMarginMm: 15,
+      pageMarginMm: tabellarischDefaults.margins.leftMm,
       innerPaddingMm: 0,
       sectionGapMm: tabellarischDefaults.spacing.sectionGapMm,
       entryGapMm: tabellarischDefaults.spacing.entryGapMm,
-      sectionTitleGapMm: 3.5,
+      sectionTitleGapMm: tabellarischDefaults.layout.sectionTitleGapMm,
       entryContentGapMm: 1,
       columnGapMm: 0,
     },

@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { realpath } from "node:fs/promises";
+import { readdir, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ApplicationPaths } from "../src/config/application-paths";
@@ -11,44 +11,55 @@ export const APPLICATION_DATA_REMOTE = "https://github.com/mustafa-oezdemir/bewe
 
 export type ApplicationGitAction =
   | "create"
-  | "bewerbung"
   | "update"
   | "status"
   | "delete"
-  | "absage"
-  | "vorstellungsgespraech"
-  | "anschreiben";
+  | "anschreiben"
+  | "lebenslauf"
+  | "deckblatt"
+  | "motivation"
+  | "termin"
+  | "anlagen";
+
+export type ApplicationGitDescription = { position?: string; details?: readonly string[] };
 
 /** DataStore records what changed; the change is committed when the IPC operation finished all its files. */
 export interface ApplicationGitCommitQueue {
-  queueCommit(companyName: string, action: ApplicationGitAction): void;
+  queueCommit(companyName: string, action: ApplicationGitAction, description?: ApplicationGitDescription): void;
 }
 
-type ApplicationGitIntent = { companyName: string; action: ApplicationGitAction };
+type ApplicationGitIntent = { companyName: string; action: ApplicationGitAction } & ApplicationGitDescription;
 
 const commitTitles: Record<ApplicationGitAction, string> = {
   create: "Bewerbung angelegt",
-  bewerbung: "Bewerbung gesendet",
   update: "Bewerbung aktualisiert",
-  status: "Status aktualisiert",
+  status: "Status geändert",
   delete: "Bewerbung gelöscht",
-  absage: "Status aktualisiert (Absage)",
-  vorstellungsgespraech: "Status aktualisiert (Vorstellungsgespräch)",
   anschreiben: "Anschreiben aktualisiert",
+  lebenslauf: "Lebenslauf aktualisiert",
+  deckblatt: "Deckblatt aktualisiert",
+  motivation: "Motivationsschreiben aktualisiert",
+  termin: "Termin aktualisiert",
+  anlagen: "Anlagen aktualisiert",
 };
 
-export const applicationCommitLine = (companyName: string, action: ApplicationGitAction) => {
-  const company = companyName
+const commitPart = (value: string, maximum = 80) => value
     .replace(/[\u0000-\u001f\u007f]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, 120);
-  return `${commitTitles[action]}: ${company || "ohne Firmenname"}`;
+    .slice(0, maximum);
+
+export const applicationCommitLine = (companyName: string, action: ApplicationGitAction,
+  description: ApplicationGitDescription = {}) => {
+  const company = commitPart(companyName);
+  const position = description.position ? commitPart(description.position, 60) : "";
+  const details = [...new Set((description.details ?? []).map((item) => commitPart(item, 60)).filter(Boolean))];
+  return `${commitTitles[action]}: ${company || "ohne Firmenname"}${position ? ` – ${position}` : ""}${details.length ? ` – ${details.join(", ")}` : ""}`;
 };
 
 /** One commit per flush: the first change is the subject, every distinct change is listed in the body. */
 export const buildApplicationCommitMessage = (intents: readonly ApplicationGitIntent[]) => {
-  const lines = [...new Set(intents.map((intent) => applicationCommitLine(intent.companyName, intent.action)))];
+  const lines = [...new Set(intents.map((intent) => applicationCommitLine(intent.companyName, intent.action, intent)))];
   if (lines.length <= 1) return { subject: lines[0] ?? "Bewerbungsdaten aktualisiert", body: "" };
   return {
     subject: `${lines[0]} (+${lines.length - 1} weitere)`,
@@ -101,6 +112,8 @@ const failureReasons = {
   "remote-mismatch": "Das Remote „origin“ zeigt nicht auf das Repository mustafa-oezdemir/bewerbung.",
   "remote-credentials": "Die Remote-URL von „origin“ enthält Zugangsdaten. Bitte die Git-Anmeldung von Windows verwenden.",
   "stage-failed": "Die Änderungen konnten nicht für Git vorgemerkt werden.",
+  "repository-busy": "Im Bewerbungsordner läuft gerade ein anderer Git-Vorgang (index.lock). Bitte später erneut speichern.",
+  "merge-in-progress": "Im Bewerbungsordner ist ein Git-Merge nicht abgeschlossen. Bitte den Merge zuerst abschließen.",
   "commit-failed": "Der Git-Commit konnte nicht erstellt werden.",
   "non-fast-forward": "GitHub enthält neuere Commits. Bitte das Repository manuell zusammenführen; es wurde kein Force-Push ausgeführt.",
   "auth-failed": "Die Anmeldung bei GitHub ist fehlgeschlagen.",
@@ -118,6 +131,10 @@ class GitSyncFailure extends Error {
     super(code);
   }
 }
+
+/** Output of a local Git step (add, commit): another Git process holding the index is a reason of its own. */
+const localFailure = (output: string, fallback: ApplicationGitFailureCode): ApplicationGitFailureCode =>
+  /index\.lock/i.test(output) ? "repository-busy" : fallback;
 
 /** Push output is only classified here; it may contain URLs and is never shown or logged. */
 export const classifyPushFailure = (output: string): ApplicationGitFailureCode => {
@@ -158,7 +175,8 @@ const samePath = async (left: string, right: string) => {
 export type GitCommandResult = { code: number; stdout: string; stderr: string };
 
 export type ApplicationGitSyncOptions = {
-  paths: Pick<ApplicationPaths, "root" | "dataRoot" | "logsRoot" | "crashDumpsRoot" | "electronSessionRoot" | "previewCache">;
+  paths: Pick<ApplicationPaths, "root" | "dataRoot" | "applicationDraftPath" | "logsRoot" | "crashDumpsRoot" |
+    "electronSessionRoot" | "previewCache">;
   /** Defaults to {@link APPLICATION_DATA_REMOTE}; tests pass a local bare repository. */
   remoteUrl?: string;
   gitExecutable?: string;
@@ -182,6 +200,7 @@ export class ApplicationGitSync implements ApplicationGitCommitQueue {
   private activeOperations = 0;
   private waiting: Array<(outcome: ApplicationGitSyncOutcome) => void> = [];
   private queue: Promise<unknown> = Promise.resolve();
+  private operationQueue: Promise<void> = Promise.resolve();
 
   constructor(options: ApplicationGitSyncOptions) {
     this.root = path.resolve(options.paths.root);
@@ -198,12 +217,17 @@ export class ApplicationGitSync implements ApplicationGitCommitQueue {
         options.paths.crashDumpsRoot,
         options.paths.electronSessionRoot,
         path.dirname(options.paths.previewCache),
+        // The wizard draft is an unsaved editor state; only a created Bewerbung belongs to the history.
+        options.paths.applicationDraftPath,
+        `${options.paths.applicationDraftPath}.bak`,
       ].map((excluded) => `:(exclude,literal)${toPathspec(this.root, excluded)}`),
+      // A temporary file of an atomic write that is still being written is never staged.
+      `:(exclude,glob)${dataRoot.replace(/[*?[\]\\]/g, "\\$&")}/**/*.tmp`,
     ];
   }
 
-  queueCommit(companyName: string, action: ApplicationGitAction) {
-    this.intents.push({ companyName, action });
+  queueCommit(companyName: string, action: ApplicationGitAction, description: ApplicationGitDescription = {}) {
+    this.intents.push({ companyName, action, ...description });
   }
 
   /**
@@ -213,13 +237,21 @@ export class ApplicationGitSync implements ApplicationGitCommitQueue {
    */
   async runOperation<T>(operation: () => Promise<T>): Promise<{ result: T; gitSync: ApplicationGitSyncOutcome }> {
     this.activeOperations += 1;
+    const previous = this.operationQueue;
+    let release!: () => void;
+    this.operationQueue = new Promise<void>((resolve) => { release = resolve; });
+    await previous;
+    // Never write a new application file while the preceding batch is staging or committing data.
+    await this.queue;
     let result: T;
     try {
       result = await operation();
     } catch (error) {
+      release();
       this.finishOperation();
       throw error;
     }
+    release();
     const gitSync = await new Promise<ApplicationGitSyncOutcome>((resolve) => {
       this.waiting.push(resolve);
       this.finishOperation();
@@ -240,22 +272,31 @@ export class ApplicationGitSync implements ApplicationGitCommitQueue {
 
   private async synchronize(intents: readonly ApplicationGitIntent[]): Promise<ApplicationGitSyncOutcome> {
     const startedAt = performance.now();
+    let recorded = false;
     try {
       const branch = await this.verifyRepository();
-      await this.expect(["add", "--all", "--", ...this.pathspecs], "stage-failed");
-      const staged = await this.run(["diff", "--cached", "--quiet", "--", ...this.pathspecs]);
+      if ((await this.run(["rev-parse", "-q", "--verify", "MERGE_HEAD"])).code === 0) throw new GitSyncFailure("merge-in-progress");
+      // A copy of a repository inside the data tree (a full backup copies the Bewerbungsordner with its .git) is never
+      // staged: it would become a gitlink, and one without a commit makes `git add` fail.
+      const pathspecs = [...this.pathspecs, ...(await this.embeddedRepositories()).map((relative) => `:(exclude,literal)${relative}`)];
+      const add = await this.run(["add", "--all", "--", ...pathspecs]);
+      if (add.code !== 0) throw new GitSyncFailure(localFailure(add.stderr, "stage-failed"));
+      const staged = await this.run(["diff", "--cached", "--quiet", "--", ...pathspecs]);
       if (staged.code !== 0 && staged.code !== 1) throw new GitSyncFailure("stage-failed");
       const committed = staged.code === 1;
       if (committed) {
         const message = buildApplicationCommitMessage(intents);
         // --only keeps changes the user staged outside the managed data tree out of this commit.
-        await this.expect([
+        const commit = await this.run([
           "commit", "--quiet", "--only", "-m", message.subject,
           ...(message.body ? ["-m", message.body] : []),
-          "--", ...this.pathspecs,
-        ], "commit-failed");
+          "--", ...pathspecs,
+        ]);
+        if (commit.code !== 0) throw new GitSyncFailure(localFailure(commit.stderr, "commit-failed"));
       }
+      recorded = true;
       const pushed = await this.pushIfAhead(branch);
+      if (!committed && !pushed) return { state: "skipped" };
       logDiagnostic("info", {
         event: "git_sync_completed", component: "git-sync",
         duration_ms: performance.now() - startedAt,
@@ -263,6 +304,9 @@ export class ApplicationGitSync implements ApplicationGitCommitQueue {
       return { state: "synced", committed, pushed };
     } catch (error) {
       const code = error instanceof GitSyncFailure ? error.code : "git-failed";
+      // Nothing was committed: the changes stay in the working tree, so their description goes with the next commit.
+      // (After a commit only the push failed; the next synchronisation pushes that commit as it is.)
+      if (!recorded) this.intents.unshift(...intents);
       logDiagnostic("warn", {
         event: "git_sync_failed", component: "git-sync", error_code: code,
         duration_ms: performance.now() - startedAt,
@@ -290,6 +334,33 @@ export class ApplicationGitSync implements ApplicationGitCommitQueue {
       if (remote.hasCredentials) throw new GitSyncFailure("remote-credentials");
     }
     return branch.stdout.trim();
+  }
+
+  /**
+   * Repositories nested in the managed tree, relative to the root: tracked gitlinks and untracked directories that hold a
+   * `.git` of their own (also deeper inside a new, untracked folder).
+   */
+  private async embeddedRepositories() {
+    const found = new Set<string>();
+    const tracked = await this.expect(["ls-files", "-s", "-z", "--", ...this.pathspecs], "git-failed");
+    for (const entry of tracked.stdout.split("\0")) {
+      const match = /^160000 [0-9a-f]+ \d+\t(.+)$/.exec(entry);
+      if (match) found.add(match[1]);
+    }
+    const untracked = await this.expect(
+      ["ls-files", "-o", "--directory", "--no-empty-directory", "--exclude-standard", "-z", "--", ...this.pathspecs], "git-failed");
+    const pending = untracked.stdout.split("\0").filter((entry) => entry.endsWith("/")).map((entry) => entry.slice(0, -1));
+    while (pending.length) {
+      const relative = pending.pop()!;
+      const absolute = path.join(this.root, ...relative.split("/"));
+      if (await stat(path.join(absolute, ".git")).then(() => true, () => false)) {
+        found.add(relative);
+        continue;
+      }
+      for (const entry of await readdir(absolute, { withFileTypes: true }).catch(() => []))
+        if (entry.isDirectory() && !entry.isSymbolicLink()) pending.push(`${relative}/${entry.name}`);
+    }
+    return [...found];
   }
 
   /** Pushes when HEAD has commits origin does not know yet, also those of an earlier failed push. Never forces. */

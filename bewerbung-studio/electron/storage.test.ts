@@ -373,6 +373,21 @@ describe("DataStore backups", () => {
     expect(store.getAutomaticExportPath(application.id, "lebenslauf")).toBe(
       path.join(context.targetDirectories.lebenslauf, store.getExportDefaultName(application.id, "lebenslauf")),
     );
+    expect(application.documents).toMatchObject({ motivationEnabled: false, motivationHeading: "Meine Motivation", motivationEvidence: "" });
+    expect(store.getExportDefaultName(application.id, "motivation")).toBe("Motivation_Muster_GmbH.pdf");
+    // The two combined PDFs: both in Bewerbungsunterlagen, each with its own name.
+    expect(store.getExportDefaultName(application.id, "bewerbungsunterlagen")).toBe("Bewerbungsunterlagen_Muster_GmbH.pdf");
+    expect(store.getExportDefaultName(application.id, "mappe")).toBe("Mappe_Muster_GmbH.pdf");
+    expect(store.getAutomaticExportPath(application.id, "bewerbungsunterlagen")).toBe(
+      path.join(store.files.documentDirectories(application).bewerbungsunterlagen, "Bewerbungsunterlagen_Muster_GmbH.pdf"),
+    );
+    expect(path.dirname(store.getAutomaticExportPath(application.id, "mappe")))
+      .toBe(store.files.documentDirectories(application).bewerbungsunterlagen);
+    // The e-mail's Gesamt-PDF is that Bewerbungsunterlagen file.
+    expect(emailMarkdown).toContain("Bewerbungsunterlagen_Muster_GmbH.pdf");
+    expect(store.getAutomaticExportPath(application.id, "motivation")).toBe(
+      path.join(store.files.documentDirectories(application).motivation, "Motivation_Muster_GmbH.pdf"),
+    );
     expect(context.data.BEWERBUNGSDATUM).toBe("08.09.2026");
     expect(context.data.DESIGN_FONT_SIZE).toBe(application.designSettings.fontSize);
     expect(context.data.DECKBLATT_DOKUMENTE).toBe("Anschreiben\nLebenslauf");
@@ -454,8 +469,8 @@ describe("DataStore backups", () => {
 
     expect(queued).toEqual([
       { company: "Git Firma GmbH", action: "create" },
-      { company: "Git Firma GmbH", action: "vorstellungsgespraech" },
-      { company: "Git Firma GmbH", action: "absage" },
+      { company: "Git Firma GmbH", action: "status" },
+      { company: "Git Firma GmbH", action: "status" },
       { company: "Git Firma GmbH", action: "delete" },
     ]);
   });
@@ -846,6 +861,20 @@ describe("DataStore backups", () => {
     await expect(readFile(certificatePath, "utf8")).resolves.toBe(
       "%PDF-1.7\ncertificate",
     );
+  });
+
+  it("appends only the selected attachments to both combined PDFs: Zeugnisse first, then Zertifikate", async () => {
+    const created = await store.createApplication(applicationInput("Paket GmbH"));
+    const application = created.applications[0];
+    const files = { zertifikat: "Zertifikat_A.pdf", zeugnis: "Zeugnis_B.pdf", ohne: "Nicht_dabei.pdf" };
+    for (const name of Object.values(files)) await writeFile(path.join(root, name), "%PDF-1.7\n" + name);
+    await store.addAttachment(application.id, "Zertifikate", path.join(root, files.zertifikat));
+    await store.addAttachment(application.id, "Zeugnisse", path.join(root, files.zeugnis));
+    const withExcluded = await store.addAttachment(application.id, "Zertifikate", path.join(root, files.ohne));
+    const excluded = withExcluded.attachments.find((attachment) => attachment.fileName === files.ohne)!;
+    await store.saveAttachment({ ...excluded, includedInPackage: false });
+    expect(store.getPackageAttachmentPaths(application.id).map((attachment) => attachment.fileName))
+      .toEqual([files.zeugnis, files.zertifikat]);
   });
 
   it("imports a PDF selected outside the central archive", async () => {

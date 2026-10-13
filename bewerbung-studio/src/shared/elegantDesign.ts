@@ -135,7 +135,11 @@ export const elegantManagedCss = `
 :is(.elegant-template,.elegant-pdf) .resume-special-output-list{gap:0}
 :is(.elegant-sidebar,.elegant-pdf-sidebar) [data-managed-section]>:is(h2,h3){position:relative;margin:0 0 2.4mm!important;padding-bottom:1.6mm;border-bottom:.3mm solid var(--elegant-sidebar-muted);color:var(--elegant-sidebar-title);font-family:var(--elegant-heading-font);font-size:var(--elegant-sidebar-title-size);font-weight:var(--elegant-section-weight);letter-spacing:.075em;line-height:var(--elegant-line-height);text-transform:var(--elegant-section-transform)}
 :is(.elegant-sidebar,.elegant-pdf-sidebar) [data-managed-section="languages"] .resume-language-grid{padding:0!important}
-.elegant-pdf-continuation>[data-managed-section]{margin-top:var(--elegant-section-gap)!important}
+:is(.elegant-sidebar,.elegant-pdf-sidebar) [data-managed-section="certifications"] ul{margin:0;padding-left:4mm;list-style:disc}
+:is(.elegant-sidebar,.elegant-pdf-sidebar) [data-managed-section="certifications"] li{margin:0;padding-left:0}
+:is(.elegant-sidebar,.elegant-pdf-sidebar) [data-managed-section="certifications"] li::marker{color:var(--elegant-sidebar-text)}
+:is(.elegant-pdf-continuation,.elegant-sidebar--continuation)>[data-managed-section]{margin-top:var(--elegant-section-gap)!important}
+:is(.elegant-sidebar,.elegant-pdf-sidebar):not(.elegant-sidebar--continuation,.elegant-pdf-continuation)>[data-managed-section]{margin-top:0}
 :is(.elegant-template,.elegant-pdf) .elegant-sidebar__continuation{display:flex;flex-direction:column;min-width:0;color:var(--elegant-sidebar-muted)}
 :is(.elegant-template,.elegant-pdf) .elegant-sidebar__continuation>small{margin:0;font-size:var(--elegant-small-size);letter-spacing:.03em}
 :is(.elegant-template,.elegant-pdf) .elegant-sidebar__continuation>a{margin-top:1.7mm;color:var(--elegant-sidebar-text);font-size:var(--elegant-small-size);text-decoration:none;overflow-wrap:anywhere}

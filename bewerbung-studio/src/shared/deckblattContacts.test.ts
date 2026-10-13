@@ -50,12 +50,19 @@ describe("Deckblatt contact rows of Pastell and Akzentband", () => {
     expect(breaking.every((line) => line.includes("dk-contacts--wrap"))).toBe(true);
   });
 
-  it("Pastell sets two contact columns next to the Anlagen column, all starting at the top", () => {
+  it("Pastell sets two contact columns over the whole width; the Anlagen stand in the light area under the photo", () => {
     const { markup } = markupOf("pastell", {}, ["Zeugnis.pdf"]);
     const grid = markup.slice(markup.indexOf('class="dk-lower-grid"'));
     expect(grid.indexOf('class="dk-contacts dk-contacts--cols"')).toBeGreaterThan(-1);
-    expect(grid.indexOf("dk-contacts--cols")).toBeLessThan(grid.indexOf('class="dk-docs'));
-    expect(grid).toContain("<h3>Anlagen:</h3>");
+    expect(grid).not.toContain("dk-docs");
+    const docs = markup.slice(markup.indexOf('class="dk-docs'), markup.indexOf('class="dk-bottom"'));
+    expect(docs).toContain("<h3>Anlagen:</h3>");
+    expect(docs).toContain("<li>Zeugnis.pdf</li>");
+    // Where the user pointed (2026-10-10: 12 mm higher than before, at the lower end of the dots); 45 mm wide, its right edge on
+    // the Lebenslauf's right margin (12 mm without one).
+    expect(deckblattCss).toContain(".deckblatt--pastell .dk-docs{position:absolute;z-index:1;top:160mm;left:calc(165mm - var(--side-right,12mm));right:var(--side-right,12mm);min-width:0}");
+    // A long list (more than six) starts higher, under the photo, so it never reaches the subject and contact rows.
+    expect(deckblattCss).toContain(".deckblatt--pastell .dk-docs--many{top:134mm;left:max(121mm,calc(var(--side-left,var(--doc-margin)) + 102mm))}");
     // The rows fill the columns from left to right: Adresse | Telefon, E-Mail | LinkedIn, GitHub | Website.
     expect([...grid.matchAll(/data-contact-kind="([a-z]+)"/g)].map((match) => match[1])).toEqual(["location", "phone", "email", "linkedin", "github", "portfolio"]);
     expect(deckblattCss).toContain(".deckblatt--pastell .dk-lower-grid{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:7mm;align-items:start}");

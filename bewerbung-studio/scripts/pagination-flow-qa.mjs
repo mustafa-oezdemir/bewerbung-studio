@@ -2,7 +2,7 @@
 // tmp/pagination-flow-qa, plus the page plan of each document. Scenarios: `dense` (a fixed résumé like a real, full one:
 // six strengths, three languages, ten knowledge items, three stations, four education entries) and RANDOM=<n> seeded
 // random ones (SEED=<n>). Every text carries a unique token, so the checker can see lost and doubled content.
-//   node scripts/pagination-flow-qa.mjs [templateId…]   (env: KNOWLEDGE, STRENGTHS, STATIONS, LANGUAGES, SPECIALS, SPECIAL_ENTRIES, SPECIAL_ZONE, SPECIAL_LAST_DESCRIPTION, LINE_HEIGHT, LANG_DISPLAY=dots,level,description, SURFACES=1, PAGE_MARGIN, COLUMN_GAP, ORDER=experience,summary,education, LAYOUT_MODE=two-column, RANDOM, SEED)
+//   node scripts/pagination-flow-qa.mjs [templateId…]   (env: KNOWLEDGE, STRENGTHS, STATIONS, LANGUAGES, SPECIALS, SPECIAL_ENTRIES, SPECIAL_ZONE, SPECIAL_LAST_DESCRIPTION, SUMMARY_TEXT, SUMMARY_LENGTH, BODY_SIZE, SIDEBAR_WIDTH, LINE_HEIGHT, LANG_DISPLAY=dots,level,description, SURFACES=1, PAGE_MARGIN, COLUMN_GAP, ORDER=experience,summary,education, LAYOUT_MODE=two-column, RANDOM, SEED)
 // Check the result with check-pagination-flow-qa.cjs (real Chromium).
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -111,7 +111,7 @@ try {
         street: 'Musterstraße 12', postalCode: '12345', city: 'Musterstadt', country: 'Germany',
         phone: '+49 170 12345678', email: 'mina.kaya@example.com',
         linkedin: 'https://www.linkedin.com/in/mina-kaya/', github: 'https://github.com/mina-kaya', portfolio: 'https://example.com/',
-        summary: random ? text(int(80, 420), 'Z').replace(' Z', '') : process.env.SUMMARY_LENGTH ? text(Number(process.env.SUMMARY_LENGTH), 'Z') : 'Industrieingenieurin mit Erfahrung in Prozessanalyse, Produktionssteuerung und der strukturierten Bearbeitung technischer Aufgabenstellungen. Praxis in der Auswertung technischer Daten und der Optimierung von Prozessen im Monitoring-Umfeld.',
+        summary: process.env.SUMMARY_TEXT ?? (random ? text(int(80, 420), 'Z').replace(' Z', '') : process.env.SUMMARY_LENGTH ? text(Number(process.env.SUMMARY_LENGTH), 'Z') : 'Industrieingenieurin mit Erfahrung in Prozessanalyse, Produktionssteuerung und der strukturierten Bearbeitung technischer Aufgabenstellungen. Praxis in der Auswertung technischer Daten und der Optimierung von Prozessen im Monitoring-Umfeld.'),
         strengths, languages, certifications, specialSections, experiences, education,
         // Lebenslauf → Sprachen: Punkte / Niveau / Beschreibung (random in RANDOM runs, LANG_DISPLAY=dots,level,description otherwise)
         resumeLanguageDisplay: random
@@ -157,8 +157,15 @@ try {
         ...(process.env.PAGE_MARGIN !== undefined ? { pageMarginMm: Number(process.env.PAGE_MARGIN) } : {}),
         ...(process.env.COLUMN_GAP !== undefined ? { columnGapMm: Number(process.env.COLUMN_GAP) } : {}),
       };
-      const qaTypography = process.env.LINE_HEIGHT !== undefined ? { lineHeight: Number(process.env.LINE_HEIGHT) } : {};
-      const settings = { ...getTemplateDocumentDesignDefaults(id), resumeOutputMode: 'visual', ...(process.env.LAYOUT_MODE ? { resumePresentation: { layoutMode: process.env.LAYOUT_MODE } } : {}), ...(Object.keys(qaSpacing).length || Object.keys(qaTypography).length ? { cvOverrides: { spacing: qaSpacing, typography: qaTypography } } : {}), ...(process.env.SURFACES ? { resumeAppearance: { sidebarBackgroundColor: '#cfe8d5', mainBackgroundColor: '#f1f6f2' } } : {}) };
+      const qaTypography = {
+        ...(process.env.LINE_HEIGHT !== undefined ? { lineHeight: Number(process.env.LINE_HEIGHT) } : {}),
+        ...(process.env.BODY_SIZE !== undefined ? { bodySizePt: Number(process.env.BODY_SIZE) } : {}),
+      };
+      const qaPresentation = {
+        ...(process.env.LAYOUT_MODE ? { layoutMode: process.env.LAYOUT_MODE } : {}),
+        ...(process.env.SIDEBAR_WIDTH ? { sidebarWidthPercent: Number(process.env.SIDEBAR_WIDTH) } : {}),
+      };
+      const settings = { ...getTemplateDocumentDesignDefaults(id), resumeOutputMode: 'visual', ...(Object.keys(qaPresentation).length ? { resumePresentation: qaPresentation } : {}), ...(Object.keys(qaSpacing).length || Object.keys(qaTypography).length ? { cvOverrides: { spacing: qaSpacing, typography: qaTypography } } : {}), ...(process.env.SURFACES ? { resumeAppearance: { sidebarBackgroundColor: '#cfe8d5', mainBackgroundColor: '#f1f6f2' } } : {}) };
 
       const application = applicationSchema.parse({
         schemaVersion: 1, id: crypto.randomUUID(), folderName: 'QA', company: { name: 'QA', city: 'Berlin' }, contact: {}, job: { title: 'Entwicklung' },

@@ -420,9 +420,10 @@
 
 .ivy-league-footer {
   position: absolute;
-  right: var(--ivy-margin-x);
+  /* Seitenränder moves the text by --resume-page-text-shift; the footer moves along. */
+  right: calc(var(--ivy-margin-x) + var(--resume-page-text-shift, 0mm));
   bottom: 6mm;
-  left: var(--ivy-margin-x);
+  left: calc(var(--ivy-margin-x) + var(--resume-page-text-shift, 0mm));
   z-index: 3;
   display: flex;
   align-items: center;

@@ -1,7 +1,6 @@
 import {
   createTemplatePageData,
   resolveTemplateSummary,
-  toTemplateExternalHref,
 } from "../resume-template-data";
 import type { EinspaltigResumeProps } from "./einfach.types";
 import { EinfachBackground } from "./EinfachBackground";
@@ -23,6 +22,7 @@ import {
 import { getResumeSemanticTitle } from "../../../../features/resume-sections/resume-section-system";
 import { formatResumeContactLine } from "../../../../shared/resumePersonalData";
 import { sectionOnPage } from "../../../../shared/documentPagination";
+import { resolveResumeFooterWebsite } from "../../../../shared/resumeFooter";
 
 type Props = Omit<EinspaltigResumeProps, "accentColor" | "secondaryColor">;
 
@@ -43,8 +43,7 @@ export function EinfachPage({
   );
   const summary = resolveTemplateSummary(profile, resumeProfile);
   const isLastPage = plan.pageNumber === totalPages;
-  const portfolio =
-    profile?.portfolio || profile?.github || profile?.linkedin || "";
+  const footerWebsite = resolveResumeFooterWebsite(profile, atsMode);
   const sectionLayout = getProfileResumeSectionLayout(profile, "einspaltig");
   const hasCustomLayout = hasSavedTemplateSectionLayout(profile, "einspaltig");
   const renderOrderedSections = () => {
@@ -174,8 +173,8 @@ export function EinfachPage({
         {body}
       </div>
       <footer className="einfach-footer" data-element-id="einspaltig.footer">
-        {portfolio ? (
-          <a href={toTemplateExternalHref(portfolio)}>{portfolio}</a>
+{footerWebsite ? (
+          <a href={footerWebsite.href}>{footerWebsite.text}</a>
         ) : (
           <span />
         )}

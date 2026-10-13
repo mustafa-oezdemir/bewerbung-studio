@@ -1,13 +1,8 @@
 import { resolveResumePresentation } from "../shared/resumePresentation";
 import { applyResumeSpacingPreset } from "../shared/resumeSpacing";
 import { resolveCvDocument } from "../shared/resolveCvDocument";
-import { getZweispaltigLetterVariables, zweispaltigLetterCss } from "../shared/zweispaltigLetterIdentity";
-import { zeitgenoessischLetterCss } from "../shared/zeitgenoessischDesign";
-import { getElegantDesignVariables, elegantLetterCss } from "../shared/elegantDesign";
-import { kreativLetterCss } from "../shared/kreativDesign";
-import { stilvollLetterCss } from "../shared/stilvollDesign";
-import { gepflegtLetterCss } from "../shared/gepflegtDesign";
-import { kompaktLetterCss } from "../shared/kompaktDesign";
+import { getZweispaltigLetterVariables } from "../shared/zweispaltigLetterIdentity";
+import { getElegantDesignVariables } from "../shared/elegantDesign";
 import { getResumeSectionTitle } from "../features/resume-sections/resume-sections";
 import type { CvDesignTokens, ResumeDesignLayer } from "../shared/cvDesignSchema";
 import type { ResumeAppearance } from "../shared/resumeAppearance";
@@ -64,6 +59,10 @@ import {
 import { TemplateThumbnail } from "../components/TemplateThumbnail";
 import { KnowledgeSectionRenderer } from "../components/document/KnowledgeSectionRenderer";
 import { DocumentBackgroundLayer } from "../components/document/DocumentBackgroundLayer";
+import { AnschreibenPage } from "../components/document/AnschreibenPage";
+import { CertificateSelection } from "../components/resume/CertificateSelection";
+import { certificateEntries } from "../shared/certificates";
+import { anschreibenSubjectClassName, buildAnschreibenFrame, type AnschreibenModel } from "../shared/anschreibenDocument";
 import { ResizableSplitView } from "../components/layout/ResizableSplitView";
 import { ResumeSectionsPanel } from "../components/resume/ResumeSectionsPanel";
 import { ElegantResume } from "../components/resume/templates/elegant";
@@ -96,6 +95,8 @@ import {
 import {
   getApplicationEmail,
   resolveApplicationEmailAttachments,
+  bewerbungsunterlagenFileName,
+  defaultEmailPackageFileName,
 } from "../shared/applicationEmail";
 import {
   createCoverSubject,
@@ -124,7 +125,10 @@ import {
 } from "../shared/deckblattDesigns";
 import { DeckblattDesignPicker } from "../components/document/DeckblattDesignPicker";
 import { DeckblattPreview } from "../components/document/DeckblattPreview";
-import type { ProfileMediaKind } from "../shared/ipc";
+import type { ExportTarget, ProfileMediaKind } from "../shared/ipc";
+import { MotivationPreview } from "../components/document/MotivationPreview";
+import { buildMotivationModel, motivationParts } from "../shared/motivationDocument";
+import { resolveDocumentSideMargins } from "../shared/documentSideMargins";
 import { getProfileMediaSource } from "../shared/profileMedia";
 import {
   defaultResumePersonalFieldVisibility,
@@ -146,7 +150,7 @@ import {
 import { selectCurrentApplication, useAppStore } from "../store/useAppStore";
 import { resolveExperience } from "../shared/resumeCareer";
 
-type Tab = "deckblatt" | "anschreiben" | "email" | "lebenslauf";
+type Tab = "deckblatt" | "anschreiben" | "motivation" | "email" | "lebenslauf";
 
 function DocumentListEditor({
   items,
@@ -454,6 +458,8 @@ export function DocumentsView({
   const resumeBaselineRef = useRef<ApplicantProfile | null>(null);
   const [profileSaveStatus, setProfileSaveStatus] = useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
   const [resumeEditorRevision, setResumeEditorRevision] = useState(0);
+  /** Pages the Motivationsschreiben needs in the preview (more than one: the editor says so, nothing is cut). */
+  const [motivationPages, setMotivationPages] = useState(1);
   const [documentPreview, setDocumentPreview] = useState<{
     applicationId: string;
     documents: DocumentDraft;
@@ -617,16 +623,19 @@ export function DocumentsView({
     attachments,
     application.id,
     docs.documentListSettings,
+    docs.motivationEnabled,
   );
   const coverLetterAttachments = getCoverLetterAttachments(
     attachments,
     application.id,
     docs.documentListSettings,
+    docs.motivationEnabled,
   );
   const applicationDocumentItems = getApplicationDocumentItems(
     attachments,
     application.id,
     docs.documentListSettings,
+    docs.motivationEnabled,
   );
   const template = getTemplate(design.templateId);
   const contentProfile = resumeContentDraft && profile && resumeContentDraft.id === profile.id ? resumeContentDraft : profile;
@@ -642,10 +651,17 @@ export function DocumentsView({
     globalDesign: resumeDesignLayer,
   });
   const resumeRenderProfile = resolvedCv.profile;
+  // The Motivationsschreiben takes its look from this very Lebenslauf (resolvedCv), its Briefkopf and signature from
+  // the profile and its Anrede from the application's Ansprechpartner.
+  const motivationModel = buildMotivationModel({ application, profile: contentProfile, documents: docs, resolvedCv,
+    themeColors: { accentColor: design.accentColor, secondaryColor: design.secondaryColor } });
   const resumeLayout = resolvedCv.layout;
+  // „Gesamt-PDF“ in the e-mail is the file of „Bewerbungsunterlagen PDF“ (without Deckblatt).
+  const packageFileName = bewerbungsunterlagenFileName(application, profile);
   const emailAttachments = resolveApplicationEmailAttachments(
     docs,
     deckblattDocuments,
+    packageFileName,
   );
   const email = getApplicationEmail(
     { ...application, documents: docs },
@@ -671,6 +687,8 @@ export function DocumentsView({
     ? coverSenderFromProfile(resolvedCv.profile)
     : resolveCoverSender(renderProfile, docs);
   const { name: coverSenderName, title: coverSenderTitle, contact: coverSenderContact } = coverSender;
+  // Deckblatt, Anschreiben and Motivationsschreiben share the Lebenslauf's left and right page margin (as in the PDF).
+  const sideMargins = resolveDocumentSideMargins(resolvedCv.templateId, resolvedCv.design.spacing);
   const deckblattModel = buildDeckblattModel({
     application,
     profile: renderProfile,
@@ -679,6 +697,8 @@ export function DocumentsView({
     accentColor: design.accentColor,
     secondaryColor: design.secondaryColor,
     settings: design.settings,
+    cvTypography: resolvedCv.design.typography,
+    sideMargins,
   });
   const coverGreeting = docs.coverGreeting || applicationGreeting(application);
   const sharedLetterParagraphs = template.id === "kreativ" || template.id === "stilvoll" ? resolveKreativCoverLetterParagraphs(application, docs) : undefined;
@@ -716,6 +736,37 @@ export function DocumentsView({
       ? "print-background"
       : "no-print-background"
   }`;
+  // The Anschreiben page: one element tree and stylesheet with the PDF (renderAnschreibenMarkup), so both look alike.
+  const anschreibenModel: AnschreibenModel = {
+    templateId: template.id,
+    ...buildAnschreibenFrame({
+      templateId: template.id,
+      layout: template.layout,
+      density: letterStatus.density,
+      gapReduction: docs.coverSubjectGapReduction,
+      settings: design.settings,
+      resolvedCv,
+      accentColor: design.accentColor,
+      secondaryColor: design.secondaryColor,
+      sideMargins,
+    }),
+    sender: { name: coverSenderName, title: coverSenderTitle, contact: coverSenderContact },
+    recipientLines,
+    placeDate: `${profile?.city ? `${profile.city}, ` : ""}den ${formatApplicationDateLong(application)}`,
+    subject: `${createCoverSubject(application.job.title, docs.coverSubject)}${application.job.reference
+      && !(docs.coverSubject || "").includes(application.job.reference) ? ` - Referenz ${application.job.reference}` : ""}`,
+    subjectClassName: anschreibenSubjectClassName(template.id),
+    greeting: coverGreeting,
+    paragraphs: [
+      { text: sharedLetterParagraphs?.introduction ?? docs.coverIntroduction, closing: false },
+      { text: sharedLetterParagraphs?.mainBody || getCoverLetterMainBody(docs) || profile?.summary || "Hauptteil ergänzen …", closing: false },
+      ...(docs.coverExtraParagraph ? [{ text: docs.coverExtraParagraph, closing: false }] : []),
+      { text: sharedLetterParagraphs?.companyFit || docs.coverCompanyFit || "Unternehmensbezug ergänzen …", closing: false },
+      { text: sharedLetterParagraphs?.closing ?? docs.coverClosing, closing: true },
+    ],
+    signature: { greeting: "Mit freundlichen Grüßen", source: signatureSource, name },
+    attachments: docs.showCoverLetterAttachments ? coverLetterAttachments : null,
+  };
   const legacyTextContrastReadable = hasReadableColorContrast(design.settings.textColor, design.settings.backgroundColor);
 
   const updateDesignSetting = <Key extends keyof DocumentDesignSettings>(
@@ -787,11 +838,43 @@ export function DocumentsView({
       } } };
     });
   };
+  // The Bewerbung's choice and order of the profile's certificates (Lebenslauf → Zertifikate & Weiterbildungen).
+  const updateCertificateSelection = (selectedCertificateIds: string[]) => setDesign((current) => ({ ...current, settings: {
+    ...current.settings, resumePresentation: { ...current.settings.resumePresentation, selectedCertificateIds },
+  } }));
   const clearProjectSelection = () => setDesign((current) => ({ ...current, settings: {
     ...current.settings, resumePresentation: {
       ...current.settings.resumePresentation, selectedProjectEntryIds: [],
     },
   } }));
+  // The Bewerbung's choice of projects, shown in the Projekte card of the Lebenslauf (like the certificates).
+  const projectSelection = (
+    projectMatches.length > 0 ? <section className="application-projects">
+      <header><strong>Projekte für diese Bewerbung</strong>
+        <small>Wähle nur die Projekte, die im Lebenslauf erscheinen sollen. 2–3 reichen meist.</small>
+      </header>
+      <button className="button secondary small-button" type="button"
+        onClick={clearProjectSelection} disabled={selectedProjectEntryIds?.length === 0}>
+        Auswahl leeren
+      </button>
+      <div className="application-projects__list">
+        {projectMatches.map(({ project, matchedTechnologies }) => (
+          <label className="application-projects__item" key={project.id}>
+            <input type="checkbox" checked={selectedProjectEntryIds === undefined || selectedProjectEntryIds.includes(project.id)}
+              onChange={(event) => updateProjectSelection(project.id, event.target.checked)} />
+            <span><strong>{project.title || "Projekt ohne Namen"}</strong>
+              {project.technologies.length > 0 && <small>{project.technologies.join(" · ")}</small>}
+              {matchedTechnologies.length > 0 && <em>Passend: {matchedTechnologies.join(" · ")}</em>}
+            </span>
+          </label>
+        ))}
+      </div>
+      <small>{selectedProjectEntryIds === undefined
+        ? "Bisherige Standardeinstellung: alle Projekte. Mit „Auswahl leeren“ eine eigene Auswahl starten."
+        : `${selectedProjectEntryIds.length} Projekt${selectedProjectEntryIds.length === 1 ? "" : "e"} ausgewählt.`}
+        {" "}Die Auswahl gilt nur für diese Bewerbung. Mit „Texte speichern“ sichern.</small>
+    </section> : null
+  );
   const storeCustomDesign = () => {
     const name = customDesignName.trim();
     if (!name) return;
@@ -863,6 +946,30 @@ export function DocumentsView({
           nextSetting,
         ],
       },
+    });
+  };
+
+  const setMotivationEnabled = (isEnabled: boolean) => {
+    setDocumentPreview({
+      applicationId: application.id,
+      documents: { ...docs, motivationEnabled: isEnabled },
+    });
+  };
+
+  const reduceMotivationHeadingGap = () => {
+    setDocumentPreview({
+      applicationId: application.id,
+      documents: {
+        ...docs,
+        motivationHeadingGapReduction: Math.min(4, docs.motivationHeadingGapReduction + 1),
+      },
+    });
+  };
+
+  const resetMotivationHeadingGap = () => {
+    setDocumentPreview({
+      applicationId: application.id,
+      documents: { ...docs, motivationHeadingGapReduction: 0 },
     });
   };
 
@@ -997,6 +1104,14 @@ export function DocumentsView({
           docs.emailPackageFileName,
         ),
         showCoverLetterAttachments: docs.showCoverLetterAttachments,
+        motivationEnabled: docs.motivationEnabled,
+        motivationHeading: value("motivationHeading", docs.motivationHeading),
+        motivationHeadingGapReduction: docs.motivationHeadingGapReduction,
+        motivationIntroduction: value("motivationIntroduction", docs.motivationIntroduction),
+        motivationMainBody: value("motivationMainBody", docs.motivationMainBody),
+        motivationEvidence: value("motivationEvidence", docs.motivationEvidence),
+        motivationGoals: value("motivationGoals", docs.motivationGoals),
+        motivationClosing: value("motivationClosing", docs.motivationClosing),
         documentListSettings: docs.documentListSettings,
       },
     };
@@ -1045,9 +1160,7 @@ export function DocumentsView({
       ? resumeContentDraft
       : undefined;
 
-  const exportCurrentPdf = async (
-    target: "deckblatt" | "anschreiben" | "lebenslauf" | "mappe",
-  ) => {
+  const exportCurrentPdf = async (target: ExportTarget) => {
     const snapshot = applicationSnapshot(formRef.current);
     await persistResumeDesignDraft();
     if (currentProfileDraft()) await saveResumeSections(currentProfileDraft()!);
@@ -1090,14 +1203,23 @@ export function DocumentsView({
                 ? "Deckblatt"
                 : tab === "anschreiben"
                   ? "Anschreiben"
-                  : "Lebenslauf"}{" "}
+                  : tab === "motivation"
+                    ? "Motivation"
+                    : "Lebenslauf"}{" "}
               PDF
             </button>
           ) : null}
           <button
+            className="button secondary"
+            title="Eine PDF für E-Mail und Online-Bewerbung: Anschreiben, Lebenslauf, Motivationsschreiben, Zeugnisse, Zertifikate – ohne Deckblatt"
+            onClick={() => void exportCurrentPdf("bewerbungsunterlagen")}>
+            <Download size={17} /> Bewerbungsunterlagen PDF
+          </button>
+          <button
             className="button primary"
+            title="Eine PDF mit Deckblatt: Deckblatt, Anschreiben, Lebenslauf, Motivationsschreiben, Zeugnisse, Zertifikate"
             onClick={() => void exportCurrentPdf("mappe")}>
-            <Download size={17} /> Bewerbungsmappe
+            <Download size={17} /> Bewerbungsmappe PDF
           </button>
         </div>
       </section>
@@ -1118,6 +1240,11 @@ export function DocumentsView({
                 className={tab === "anschreiben" ? "active" : ""}
                 onClick={() => setTab("anschreiben")}>
                 Anschreiben
+              </button>
+              <button
+                className={tab === "motivation" ? "active" : ""}
+                onClick={() => setTab("motivation")}>
+                Motivation
               </button>
               <button
                 className={tab === "email" ? "active" : ""}
@@ -1494,6 +1621,128 @@ export function DocumentsView({
                   </p>
                 </div>
               )}
+              {tab === "motivation" && (
+                <div className="cover-letter-editor-sections motivation-editor">
+                  <section className="cover-letter-editor-section is-generated">
+                    <header>
+                      <b>Motivationsschreiben</b>
+                      <small>
+                        Die „Dritte Seite“ in Ihren eigenen Worten. Farben,
+                        Schriften und Abstände kommen aus dem Lebenslauf.
+                      </small>
+                    </header>
+                    <label className="checkbox-field">
+                      <input
+                        type="checkbox"
+                        checked={docs.motivationEnabled}
+                        onChange={(event) =>
+                          setMotivationEnabled(event.target.checked)
+                        }
+                      />
+                      <span>Motivationsschreiben in Bewerbungsmappe aufnehmen</span>
+                    </label>
+                    <p className="field-hint">
+                      Briefkopf (Name, Adresse, Telefon, E-Mail) und Unterschrift kommen
+                      aus dem Profil dieser Bewerbung, die Anrede aus dem Ansprechpartner.
+                      Position und Unternehmen werden nicht automatisch eingefügt.
+                      DIN-5008-orientiert.
+                      {motivationModel.isEmpty
+                        ? " Noch ohne eigenen Text: Vorschau und PDF zeigen nur automatisch erzeugte Angaben."
+                        : ""}
+                    </p>
+                    {motivationPages > 1 ? (
+                      <p className="motivation-overflow-warning" role="status">
+                        Der Text ist länger als eine A4-Seite: Das Motivationsschreiben
+                        wird {motivationPages} Seiten lang. Es wird nichts gekürzt oder
+                        verkleinert – verringern Sie den Abstand vor der Überschrift
+                        oder kürzen Sie den Text für die übliche eine Seite.
+                      </p>
+                    ) : null}
+                  </section>
+                  <section className="cover-letter-editor-section">
+                    <label className="field">
+                      <span>Überschrift</span>
+                      <input
+                        name="motivationHeading"
+                        defaultValue={docs.motivationHeading || "Meine Motivation"}
+                        placeholder="Meine Motivation"
+                        required
+                      />
+                    </label>
+                    <div className="cover-subject-spacing-control">
+                      <div>
+                        <b>Abstand vor Überschrift</b>
+                        <small>
+                          {docs.motivationHeadingGapReduction
+                            ? `${docs.motivationHeadingGapReduction} Zeile${docs.motivationHeadingGapReduction === 1 ? "" : "n"} nach oben verschoben`
+                            : "Standardabstand"}
+                        </small>
+                      </div>
+                      <div>
+                        <button
+                          type="button"
+                          disabled={docs.motivationHeadingGapReduction === 4}
+                          onClick={reduceMotivationHeadingGap}>
+                          <ChevronUp size={15} />
+                          Überschrift höher
+                        </button>
+                        {docs.motivationHeadingGapReduction ? (
+                          <button type="button" onClick={resetMotivationHeadingGap}>
+                            Standard
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </section>
+                  <section className="cover-letter-editor-section is-generated">
+                    <header>
+                      <b>Anrede</b>
+                      <small>Automatisch aus dem Ansprechpartner der Bewerbung</small>
+                    </header>
+                    <p className="motivation-generated-value">{motivationModel.salutation}</p>
+                  </section>
+                  {motivationParts.map(({ field, label, placeholder }) => (
+                    <section className="cover-letter-editor-section" key={field}>
+                      <label className="field">
+                        <span>{label}</span>
+                        <textarea
+                          name={field}
+                          rows={field === "motivationMainBody" || field === "motivationEvidence" ? 8 : 5}
+                          defaultValue={String(docs[field] ?? "")}
+                          placeholder={placeholder}
+                        />
+                      </label>
+                    </section>
+                  ))}
+                  <section className="cover-letter-editor-section is-generated">
+                    <header>
+                      <b>Grußformel und Unterschrift</b>
+                      <small>Abschluss mit der Unterschrift aus dem Profil</small>
+                    </header>
+                    <p className="motivation-generated-value">{motivationModel.closing.greeting}</p>
+                    <div className="document-media-inline">
+                      <span>Unterschrift</span>
+                      <DocumentMediaCard
+                        kind="signature"
+                        label="Unterschrift"
+                        source={signatureSource}
+                        disabled={!profile}
+                        onPick={() => void pickProfileMedia("signature")}
+                        onRemove={() => void removeProfileMedia("signature")}
+                      />
+                    </div>
+                  </section>
+                  <section className="cover-letter-editor-section is-generated">
+                    <header>
+                      <b>Ort und Datum</b>
+                      <small>Ort aus dem Profil, Datum aus der Bewerbung</small>
+                    </header>
+                    <p className="motivation-generated-value">
+                      {motivationModel.closing.placeDate}
+                    </p>
+                  </section>
+                </div>
+              )}
               {tab === "email" && (
                 <div className="email-editor-sections">
                   <section className="cover-letter-editor-section is-generated">
@@ -1592,6 +1841,10 @@ export function DocumentsView({
                           name="emailPackageFileName"
                           defaultValue={docs.emailPackageFileName}
                         />
+                        <small className="field-hint">
+                          Die Gesamt-PDF ist „Bewerbungsunterlagen PDF“ (ohne Deckblatt). „{defaultEmailPackageFileName}“
+                          steht für ihren Dateinamen: {packageFileName}
+                        </small>
                       </label>
                     ) : (
                       <DocumentListEditor
@@ -2138,6 +2391,14 @@ export function DocumentsView({
                       templateId={template.id}
                       languagesColumns={design.settings.languagesColumns}
                       onLanguagesColumnsChange={(value) => updateDesignSetting("languagesColumns", value)}
+                      projectSelection={projectSelection}
+                      certificateSelection={
+                        <CertificateSelection
+                          entries={certificateEntries(contentProfile ?? profile)}
+                          selectedIds={design.settings.resumePresentation?.selectedCertificateIds}
+                          onChange={updateCertificateSelection}
+                        />
+                      }
                       layoutMode={resumeLayout.mode}
                       closingPlacement={design.settings.resumePresentation?.closing?.placement}
                       closingAlignment={design.settings.resumePresentation?.closing?.alignment ?? (template.id.startsWith("pehlione_") ? "distributed" : "left")}
@@ -2149,31 +2410,6 @@ export function DocumentsView({
                       onPreview={handleResumeSectionPreview}
                     />
                   ) : null}
-                  {projectMatches.length > 0 && <section className="application-projects">
-                    <header><strong>Projekte für diese Bewerbung</strong>
-                      <small>Wähle nur die Projekte, die im Lebenslauf erscheinen sollen. 2–3 reichen meist.</small>
-                    </header>
-                    <button className="button secondary small-button" type="button"
-                      onClick={clearProjectSelection} disabled={selectedProjectEntryIds?.length === 0}>
-                      Auswahl leeren
-                    </button>
-                    <div className="application-projects__list">
-                      {projectMatches.map(({ project, matchedTechnologies }) => (
-                        <label className="application-projects__item" key={project.id}>
-                          <input type="checkbox" checked={selectedProjectEntryIds === undefined || selectedProjectEntryIds.includes(project.id)}
-                            onChange={(event) => updateProjectSelection(project.id, event.target.checked)} />
-                          <span><strong>{project.title || "Projekt ohne Namen"}</strong>
-                            {project.technologies.length > 0 && <small>{project.technologies.join(" · ")}</small>}
-                            {matchedTechnologies.length > 0 && <em>Passend: {matchedTechnologies.join(" · ")}</em>}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                    <small>{selectedProjectEntryIds === undefined
-                      ? "Bisherige Standardeinstellung: alle Projekte. Mit „Auswahl leeren“ eine eigene Auswahl starten."
-                      : `${selectedProjectEntryIds.length} Projekt${selectedProjectEntryIds.length === 1 ? "" : "e"} ausgewählt.`}
-                      {" "}Die Auswahl gilt nur für diese Bewerbung. Mit „Texte speichern“ sichern.</small>
-                  </section>}
                   <section className="match-analysis">
                     <header>
                       <div>
@@ -2257,93 +2493,18 @@ export function DocumentsView({
               </div>
             )}
             {tab === "anschreiben" && (
-              <div
-                className={`document-paper document-anschreiben letter-${letterStatus.density} letter-gap-${docs.coverSubjectGapReduction} layout-${template.layout} ${designClassName}${template.id === "zweispaltig" ? " zweispaltig-letter" : template.id === "zeitgenoessisch" ? " zeitgenoessisch-letter" : template.id === "elegant" ? " elegant-letter" : template.id === "kreativ" ? " kreativ-letter" : template.id === "stilvoll" ? " stilvoll-letter" : template.id === "gepflegt" ? " gepflegt-letter" : template.id === "kompakt" ? " kompakt-letter" : ""}`}
-                data-resume-template={template.id}
+              <AnschreibenPage
                 ref={letterPaperRef}
-                style={letterPaperStyle}>
-                {template.id === "zweispaltig" ? <style>{zweispaltigLetterCss}</style> : null}
-                {template.id === "zeitgenoessisch" ? <style>{zeitgenoessischLetterCss}</style> : null}
-                {template.id === "elegant" ? <style>{elegantLetterCss}</style> : null}
-                {template.id === "kreativ" ? <style>{kreativLetterCss}</style> : null}
-                {template.id === "stilvoll" ? <style>{stilvollLetterCss}</style> : null}
-                {template.id === "gepflegt" ? <style>{gepflegtLetterCss}</style> : null}
-                {template.id === "kompakt" ? <style>{kompaktLetterCss}</style> : null}
-                <DocumentBackgroundLayer
-                  backgroundId={design.settings.backgroundId}
-                  atsMode={isAtsMode}
-                />
-                <div className="letter-preview">
-                  <div className="letter-header">
-                    <p className="sender-line">
-                      <span className="sender-name">{coverSenderName}</span>
-                      <span className="sender-title">{coverSenderTitle}</span>
-                      <span className="sender-contact">
-                        {coverSenderContact}
-                      </span>
-                    </p>
-                  </div>
-                  <i className="paper-rule letter-rule" />
-                  <address>
-                    {recipientLines.map((line, index) => (
-                      <span key={`${index}-${line}`}>
-                        {line}
-                        {index < recipientLines.length - 1 ? <br /> : null}
-                      </span>
-                    ))}
-                  </address>
-                  <p className="paper-date">
-                    {profile?.city ? `${profile.city}, ` : ""}
-                    den {formatApplicationDateLong(application)}
-                  </p>
-                  <h3 className={["zweispaltig", "zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt"].includes(template.id) ? "letter-subject" : undefined}>
-                    {createCoverSubject(
-                      application.job.title,
-                      docs.coverSubject,
-                    )}
-                    {application.job.reference &&
-                    !(docs.coverSubject || "").includes(
-                      application.job.reference,
-                    )
-                      ? ` - Referenz ${application.job.reference}`
-                      : ""}
-                  </h3>
-                  <p className="letter-salutation">{coverGreeting}</p>
-                  <p className="letter-body">{sharedLetterParagraphs?.introduction ?? docs.coverIntroduction}</p>
-                  <p className="letter-body">
-                    {sharedLetterParagraphs?.mainBody || getCoverLetterMainBody(docs) ||
-                      profile?.summary ||
-                      "Hauptteil ergänzen …"}
-                  </p>
-                  {docs.coverExtraParagraph ? (
-                    <p className="letter-body">{docs.coverExtraParagraph}</p>
-                  ) : null}
-                  <p className="letter-body">
-                    {sharedLetterParagraphs?.companyFit || docs.coverCompanyFit || "Unternehmensbezug ergänzen …"}
-                  </p>
-                  <p className="letter-body letter-closing">
-                    {sharedLetterParagraphs?.closing ?? docs.coverClosing}
-                  </p>
-                  <p className="letter-signature">
-                    <span>Mit freundlichen Grüßen</span>
-                    {signatureSource ? (
-                      <img
-                        className="signature-image"
-                        src={signatureSource}
-                        alt={`Unterschrift von ${name}`}
-                      />
-                    ) : null}
-                    <span className="signature-name">{name}</span>
-                  </p>
-                  {docs.showCoverLetterAttachments ? (
-                    <div className="letter-attachments">
-                      <strong>Anlagen</strong>
-                      {coverLetterAttachments.map((item) => (
-                        <span key={item}>{item}</span>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
+                model={anschreibenModel}
+                background={<DocumentBackgroundLayer backgroundId={design.settings.backgroundId} atsMode={isAtsMode} />}
+              />
+            )}
+            {tab === "motivation" && (
+              <div
+                className="document-paper document-motivation"
+                data-resume-template={template.id}
+                style={{ background: motivationModel.style["--mv-background"] }}>
+                <MotivationPreview model={motivationModel} onPageCount={setMotivationPages} />
               </div>
             )}
             {tab === "email" && (

@@ -128,3 +128,9 @@ export const isResumeSummaryVisible = (
 
 export const setResumeSummaryVisible = (profile: ApplicantProfile, visible: boolean): ApplicantProfile =>
   updateManagerSection(profile, "", "summary", { visible });
+
+/**
+ * The same justified Kurzprofil flow in the preview and the PDF. The shared output inserts optional
+ * German break points; break-word is only a fallback for otherwise unbreakable text such as long URLs.
+ */
+export const resumeSummaryTextCss = '[data-managed-section="summary"] p,:is(.managed-resume-preview,.cv-sheet) section[data-cv-zone="sidebar"][data-managed-section="summary"] p{text-align:justify;text-justify:inter-word;text-align-last:left;hyphens:auto;white-space:normal;word-break:normal;overflow-wrap:break-word;min-width:0;max-width:100%}';

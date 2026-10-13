@@ -14,6 +14,7 @@ import { presentLanguage } from "../LanguageLevelText";
 import type { ApplicantProfile } from "../../../../shared/schema";
 import type { ResumePagePlan } from "../../../../shared/documentPagination";
 import { resolveResumeClosingLine } from "../../../../shared/resumeClosing";
+import { resolveResumeFooterWebsite } from "../../../../shared/resumeFooter";
 import { interestEntryText } from "../../../../shared/resumeCustomSections";
 import { resolveResumeHeading } from "../../../../shared/resumeHeading";
 import { resolveEducationPresentation } from "../../../../shared/resumeEducation";
@@ -110,6 +111,7 @@ export function PehlioneResume({
   const closing = profile?.resumeClosing ?? { showPlace: true, showDate: true, showSignature: true };
   const closingLine = profile ? resolveResumeClosingLine(profile, closingDate, (value) => value).text : "";
   const signatureSource = atsMode ? null : getProfileMediaSource(profile?.signaturePath);
+  const footerWebsite = resolveResumeFooterWebsite(profile, atsMode);
   const style = {
     ...getPehlioneNativeVariables(templateId),
     "--pehlione-primary": accentColor,
@@ -269,6 +271,12 @@ export function PehlioneResume({
           </footer>
         ) : null}
         {!experiences.length && !education.length ? <p className="pehlione-empty">Berufserfahrung und Ausbildung im Profil ergänzen.</p> : null}
+        {/* Pehlione has no page footer of its own: the website stands at the bottom of the main column. */}
+        {footerWebsite ? (
+          <footer className="pehlione-footer" data-resume-page-footer="">
+            <a href={footerWebsite.href}>{footerWebsite.text}</a>
+          </footer>
+        ) : null}
       </main>
     </article>
   );

@@ -159,3 +159,26 @@ describe("Deckblatt designs", () => {
     expect(markup).not.toContain("<script>");
   });
 });
+
+describe("Akzentband: Kernkompetenzen and Anlagen under the name", () => {
+  it("lists every Kernkompetenz on a line of its own, as a bullet item", () => {
+    const { model, markup } = build("akzentband");
+    const page = parseHTML(`<html><body>${markup}</body></html>`).document;
+    expect(Array.from(page.querySelectorAll(".dk-bottom ul.dk-competencies > li")).map((item) => item.textContent))
+      .toEqual(model.competencies);
+    expect(markup).not.toContain(" · DATEV");
+    expect(deckblattCss).toContain(".deckblatt--akzentband .dk-competencies li:before{");
+  });
+
+  it("follows the name block instead of standing at the foot of the page, and gives way when the page is full", () => {
+    const { markup } = build("akzentband");
+    const main = markup.slice(markup.indexOf('class="dk-main"'));
+    expect(main.indexOf("dk-space--bottom")).toBeGreaterThan(main.indexOf('class="dk-name'));
+    expect(main.indexOf("dk-space--bottom")).toBeLessThan(main.indexOf('class="dk-bottom'));
+    const rule = deckblattCss.split("\n").find((line) => line.startsWith(".deckblatt--akzentband .dk-bottom{"));
+    expect(rule).not.toContain("margin-top:auto");
+    // The gaps (around the rule and above this section) are the only parts that shrink when a long subject fills the page.
+    expect(deckblattCss).toContain(".deckblatt--akzentband .dk-space{display:block;flex:0 1 auto;min-height:0}");
+    expect(deckblattCss).toContain(".deckblatt--akzentband .dk-space--bottom{height:12mm}");
+  });
+});

@@ -12,6 +12,8 @@ import { makeTabellarischProfile, transportpilotBullets, type TabellarischFixtur
 const website = "pehlione.com";
 const longWebsite = "https://www.example.com/sehr-langer-pfad/portfolio/projekte/softwareentwicklung";
 const render = (options: TabellarischFixtureOptions) => renderCv("tabellarisch", makeTabellarischProfile(options));
+// Ort, Datum und Unterschrift → "Website im Footer anzeigen": the footer link appears only when it is switched on.
+const footerOn = { resumeClosing: { showPlace: true, showDate: true, showSignature: true, showWebsite: true } };
 const surfaces = (rendered: ReturnType<typeof render>) => ({ preview: rendered.previewPages, pdf: rendered.pdfPages });
 
 const text = (page: Element) => (page.textContent ?? "").replace(/\s+/g, " ");
@@ -20,8 +22,8 @@ const planShape = (rendered: ReturnType<typeof render>) =>
   rendered.resolved.pagePlan.map((page) => page.items.map((item) => `${item.id.slice(-2)}${"bullets" in item && item.bullets ? `[${item.bullets.from}-${item.bullets.to}]` : ""}`).join(","));
 
 describe("Tabellarisch: the Website checkbox", () => {
-  const off = render({ visibility: { website: false } });
-  const on = render({ visibility: { website: true } });
+  const off = render({ visibility: { website: false }, fields: footerOn });
+  const on = render({ visibility: { website: true }, fields: footerOn });
 
   it("shows the Website only when its checkbox is on, in the header and in the footer, on every page", () => {
     for (const rendered of [off, on]) {
@@ -42,6 +44,15 @@ describe("Tabellarisch: the Website checkbox", () => {
     // the footer link is the template's own: Website, else GitHub, else LinkedIn
     for (const pages of Object.values(surfaces(off))) expect(text(pages[0].querySelector("footer")!)).toContain("github.com/mina-beispiel-gh");
     for (const pages of Object.values(surfaces(on))) expect(text(pages[0].querySelector("footer")!)).toContain(website);
+  });
+
+  it("puts no link into the footer while \"Website im Footer anzeigen\" is off; the header keeps the Website", () => {
+    const footerOff = render({ visibility: { website: true } });
+    for (const [surface, pages] of Object.entries(surfaces(footerOff))) {
+      expect(text(pages[0].querySelector("header")!), surface).toContain(website);
+      for (const page of pages) expect(page.querySelector("footer a"), surface).toBeNull();
+      expect(text(pages[pages.length - 1]), surface).toMatch(/Seite \d+ (von|\/) \d+/);
+    }
   });
 
   it("changes nothing else of the header: the other contacts, in the same order, in the preview and the PDF", () => {

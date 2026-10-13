@@ -8,6 +8,8 @@ export interface ApplicationPaths {
   dataRoot: string;
   settingRoot: string;
   settingsRoot: string;
+  /** The unsaved "Neue Bewerbung" wizard state; it lives in the data tree but is never part of the Git history. */
+  applicationDraftPath: string;
   profileRoot: string;
   backupsRoot: string;
   logsRoot: string;
@@ -44,12 +46,14 @@ export const resolveApplicationPaths = (
   const root = path.resolve(rootPath);
   const dataRoot = path.join(root, "data");
   const settingRoot = path.join(dataRoot, "Setting");
+  const settingsRoot = path.join(settingRoot, "Settings");
   const musterRoot = path.join(settingRoot, "Muster");
   return {
     root,
     dataRoot,
     settingRoot,
-    settingsRoot: path.join(settingRoot, "Settings"),
+    settingsRoot,
+    applicationDraftPath: path.join(settingsRoot, "new-application-draft.json"),
     profileRoot: path.join(settingRoot, "Profile"),
     backupsRoot: path.join(settingRoot, "Backups"),
     logsRoot: path.join(settingRoot, "Logs"),

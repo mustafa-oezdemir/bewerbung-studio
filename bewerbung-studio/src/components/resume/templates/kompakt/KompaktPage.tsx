@@ -1,7 +1,6 @@
 import {
   createTemplatePageData,
   resolveTemplateSummary,
-  toTemplateExternalHref,
 } from "../resume-template-data";
 import type { KompaktResumeProps } from "./kompakt.types";
 import { KompaktBackground } from "./KompaktBackground";
@@ -17,6 +16,7 @@ import {
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
 import { getResumeSemanticTitle } from "../../../../features/resume-sections/resume-section-system";
 import { formatResumeContactLine } from "../../../../shared/resumePersonalData";
+import { resolveResumeFooterWebsite } from "../../../../shared/resumeFooter";
 
 type Props = Omit<KompaktResumeProps, "accentColor" | "secondaryColor">;
 
@@ -35,11 +35,7 @@ export function KompaktPage({
     createTemplatePageData(profile, plan);
   const summary = resolveTemplateSummary(profile, resumeProfile);
   const isLastPage = plan.pageNumber === totalPages;
-  const portfolio =
-    profile?.portfolio || profile?.github || profile?.linkedin || "";
-  const portfolioHref = portfolio
-    ? toTemplateExternalHref(portfolio)
-    : "";
+  const footerWebsite = resolveResumeFooterWebsite(profile, atsMode);
 
   if (atsMode) {
     return (
@@ -125,8 +121,8 @@ export function KompaktPage({
         ) : null}
       </div>
       <footer className="kompakt-footer" data-element-id="kompakt.footer">
-        {portfolio ? (
-          <a href={portfolioHref}>{portfolioHref}</a>
+{footerWebsite ? (
+          <a href={footerWebsite.href}>{footerWebsite.text}</a>
         ) : (
           <span />
         )}

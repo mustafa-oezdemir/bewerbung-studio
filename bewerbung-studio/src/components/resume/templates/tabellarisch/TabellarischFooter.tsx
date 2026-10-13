@@ -3,7 +3,7 @@
  */
 
 import type { TabellarischFooterProps } from "./tabellarisch.types";
-import { toExternalHref } from "./tabellarisch.model";
+import { resolveResumeFooterWebsite } from "../../../../shared/resumeFooter";
 
 export function TabellarischFooter({
   profile,
@@ -11,8 +11,7 @@ export function TabellarischFooter({
   totalPages,
   atsMode,
 }: TabellarischFooterProps) {
-  const portfolioUrl =
-    profile?.portfolio || profile?.github || profile?.linkedin;
+  const footerWebsite = resolveResumeFooterWebsite(profile, atsMode);
 
   if (atsMode) return null;
 
@@ -21,9 +20,9 @@ export function TabellarischFooter({
       className="tabellarisch-footer"
       data-element-id="tabellarisch.footer"
     >
-      {portfolioUrl ? (
+      {footerWebsite ? (
         <p className="tabellarisch-footer__portfolio">
-          <a href={toExternalHref(portfolioUrl)}>{portfolioUrl}</a>
+          <a href={footerWebsite.href}>{footerWebsite.text}</a>
         </p>
       ) : (
         <span />

@@ -76,9 +76,9 @@ describe("Deckblatt design Seitenpanel", () => {
     expect(page.querySelector(".dk-photo img")?.getAttribute("src")).toBe(photo);
     expect(text(".dk-person h2")).toEqual(["Zora Quellmalz"]);
     expect(text(".dk-person .dk-title")).toEqual(["Lohnbuchhalterin"]);
-    // The address of one contact value, drawn on two lines.
-    expect(text(".dk-address span")).toEqual(["Gartenweg 7", "34117 Kassel"]);
-    expect(text(".dk-reach li")).toEqual(["Tel.:+49 555 0101", "E-Mail:zora@quellmalz.test", "LinkedIn:linkedin.com/in/zora"]);
+    // The address is one labelled row like the other contacts, on one line.
+    expect(page.querySelector(".dk-address")).toBeNull();
+    expect(text(".dk-reach li")).toEqual(["Adresse:Gartenweg 7, 34117 Kassel", "Tel.:+49 555 0101", "E-Mail:zora@quellmalz.test", "LinkedIn:linkedin.com/in/zora"]);
     expect(page.querySelector('.dk-reach a[href="mailto:zora@quellmalz.test"]')).toBeTruthy();
     expect(text(".dk-panel .dk-panel-docs h3")).toEqual(["Anlagen:"]);
     expect(text(".dk-panel .dk-panel-docs li")).toEqual(expect.arrayContaining(["Anschreiben", "Lebenslauf", "Arbeitszeugnis Nordlicht.pdf", "Zertifikat DATEV.pdf"]));
@@ -117,8 +117,7 @@ describe("Deckblatt design Seitenpanel", () => {
     const { text, markup } = build({ documents: { coverSheetContactVisibility: { address: true, phone: false, email: true, linkedin: false, github: false, website: false } } });
     expect(markup).not.toContain("+49 555 0101");
     expect(markup).not.toContain("linkedin.com/in/zora");
-    expect(text(".dk-address span")).toEqual(["Gartenweg 7", "34117 Kassel"]);
-    expect(text(".dk-reach li")).toEqual(["E-Mail:zora@quellmalz.test"]);
+    expect(text(".dk-reach li")).toEqual(["Adresse:Gartenweg 7, 34117 Kassel", "E-Mail:zora@quellmalz.test"]);
   });
 
   it("lists the Anlagen of the document list, hides hidden ones and turns compact for long lists", () => {

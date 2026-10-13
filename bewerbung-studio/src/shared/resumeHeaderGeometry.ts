@@ -151,15 +151,26 @@ const tabellarischGrid = {
    * values are the largest that never count fewer lines than the browser drew.
    */
   column1: { one: 44, per: 43.5 },
-  column2: { url: { one: 28, per: 25 }, spaced: { one: 31, per: 27 }, plain: { one: 29, per: 28 } },
+  column2: { url: { one: 28, per: 25 }, plain: { one: 29, per: 28 } },
 };
 
-const tabellarischContactLines = (text: string, column: 1 | 2) => {
+/** The contact grid is at most 132 mm wide (and never wider than the identity column beside the photo). */
+const TABELLARISCH_CONTACT_GRID_MM = 132;
+
+/** Text width (mm) of a contact cell: its column of the grid (1.15fr / 0.85fr, 7 mm apart) less the 3.2 mm icon and 1.2 mm gap. */
+const tabellarischContactWidth = (column: 1 | 2, grid: number) => (grid - 7) * (column === 1 ? 1.15 : 0.85) / 2 - 4.4;
+
+const tabellarischContactLines = (text: string, column: 1 | 2, grid = TABELLARISCH_CONTACT_GRID_MM) => {
   const length = text.trim().length;
+  // Text with spaces (an address, a formatted phone number) breaks at its spaces: wrapped with the measured font
+  // (8.4 pt, weight 600). A URL or an e-mail breaks where the browser must: the character model (calibrated on the
+  // 132 mm grid, scaled down for a narrower one).
+  if (/\s/.test(text.trim())) return Math.max(1, wrappedLines(text.trim(), tabellarischContactWidth(column, grid), 8.4 * 25.4 / 72, 600));
   const fit = column === 1
     ? tabellarischGrid.column1
-    : text.includes("/") ? tabellarischGrid.column2.url : /\s/.test(text.trim()) ? tabellarischGrid.column2.spaced : tabellarischGrid.column2.plain;
-  return length <= fit.one ? 1 : Math.ceil(length / fit.per);
+    : text.includes("/") ? tabellarischGrid.column2.url : tabellarischGrid.column2.plain;
+  const ratio = Math.min(1, tabellarischContactWidth(column, grid) / tabellarischContactWidth(column, TABELLARISCH_CONTACT_GRID_MM));
+  return length <= Math.floor(fit.one * ratio) ? 1 : Math.ceil(length / (fit.per * ratio));
 };
 
 /**
@@ -167,7 +178,7 @@ const tabellarischContactLines = (text: string, column: 1 | 2) => {
  * free cell, except GitHub (column 1) and the Website (column 2), which look for a free cell in their column from the
  * cursor on and start a new row when their column lies before the cursor's. Returns the text lines of every row.
  */
-export const tabellarischContactRows = (contacts: readonly HeaderContact[]): number[] => {
+export const tabellarischContactRows = (contacts: readonly HeaderContact[], grid = TABELLARISCH_CONTACT_GRID_MM): number[] => {
   const rows: number[] = [];
   const taken = new Set<string>();
   let row = 1;
@@ -188,7 +199,7 @@ export const tabellarischContactRows = (contacts: readonly HeaderContact[]): num
       }
     }
     taken.add(`${row},${column}`);
-    rows[row - 1] = Math.max(rows[row - 1] ?? 0, tabellarischContactLines(contact.text, column as 1 | 2));
+    rows[row - 1] = Math.max(rows[row - 1] ?? 0, tabellarischContactLines(contact.text, column as 1 | 2, grid));
   }
   return Array.from(rows, (lines) => lines ?? 1);
 };
@@ -205,20 +216,34 @@ export const estimateTabellarischTop = (
   profile: ApplicantProfile,
   showContacts: boolean,
   withPhoto: boolean,
+  /**
+   * The resolved page (resolveTabellarischGeometry: the header spans the content width), the section gap of the first
+   * section, and the name / Berufsbezeichnung sizes (Typografie); the calibration holds for 180 mm, 6.3 mm, 25 / 13.5 pt.
+   */
+  options: { contentWidthMm?: number; sectionGapMm?: number; namePt?: number; titlePt?: number } = {},
 ): { top: number; margin: number } => {
   const photoScale = withPhoto ? getResumePhotoScale(profile) : 1;
+  const nameScale = (options.namePt ?? 25) / 25;
+  const titleScale = (options.titlePt ?? 13.5) / 13.5;
+  const width = options.contentWidthMm ?? 180;
   // The photo takes a column of its own beside the identity (32 mm × scale and the 10 mm gap).
-  const identityWidth = withPhoto ? 180 - 32 * photoScale - 10 : 180;
-  const nameLines = Math.max(1, Math.ceil(getResumeFullName(profile).length / (identityWidth * tabellarischText.nameCharsPerMm)));
-  const title = profile.title.trim().length;
-  const titleLines = !title ? 0 : title <= identityWidth * tabellarischText.titleOneLinePerMm ? 1 : Math.ceil(title / (identityWidth * tabellarischText.titleCharsPerMm));
-  const rows = showContacts ? tabellarischContactRows(getTabellarischHeaderContacts(profile)) : [];
+  const identityWidth = withPhoto ? width - 32 * photoScale - 10 : width;
+  // Name (25 pt capitals, weight 750, 0.015 em tracking) and Berufsbezeichnung (13.5 pt, weight 650, set bold) wrapped with the
+  // measured font advances; the character models above stay the floor they were calibrated as.
+  const PT = 25.4 / 72;
+  const nameText = getResumeFullName(profile).toLocaleUpperCase("de-DE");
+  const nameLines = Math.max(1, Math.ceil(getResumeFullName(profile).length * nameScale / (identityWidth * tabellarischText.nameCharsPerMm)),
+    wrappedLines(nameText, identityWidth, 25 * nameScale * PT, 750, 0.015));
+  const title = profile.title.trim().length * titleScale;
+  const titleLines = !title ? 0 : Math.max(title <= identityWidth * tabellarischText.titleOneLinePerMm ? 1 : Math.ceil(title / (identityWidth * tabellarischText.titleCharsPerMm)),
+    wrappedLines(profile.title.trim(), identityWidth, 13.5 * titleScale * PT, 700));
+  const rows = showContacts ? tabellarischContactRows(getTabellarischHeaderContacts(profile), Math.min(TABELLARISCH_CONTACT_GRID_MM, identityWidth)) : [];
   const contacts = rows.length
     ? 2.5 + rows.reduce((total, lines) => total + lines * tabellarischGrid.line, 0) + (rows.length - 1) * tabellarischGrid.rowGap
     : 0;
-  const identity = 1 + nameLines * tabellarischText.nameLine + (title ? 2.3 + titleLines * tabellarischText.titleLine : 0) + contacts;
+  const identity = 1 + nameLines * tabellarischText.nameLine * nameScale + (title ? 2.3 + titleLines * tabellarischText.titleLine * titleScale : 0) + contacts;
   const headerHeight = Math.max(identity, 30, withPhoto ? 30 * photoScale : 0);
-  return { top: 15 + headerHeight + 6.3, margin: 1 };
+  return { top: 15 + headerHeight + (options.sectionGapMm ?? 6.3), margin: 1 };
 };
 
 /** Elegant's main header is a two-column grid; its first section follows the rendered rows. */

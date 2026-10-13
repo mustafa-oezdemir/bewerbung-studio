@@ -110,7 +110,8 @@ describe("Gepflegt resolved design", () => {
     expect(doc.querySelector(".sender-title")?.textContent).toBe("Prozessplanerin");
     expect(doc.querySelector(".sender-contact")?.textContent).toContain("mina.kaya@example.org");
     expect(doc.querySelector(".sender-contact")?.textContent).toContain("+49 30 123456");
-    expect(doc.querySelector(".recipient")?.textContent).toContain("Beispiel GmbH");
+    // The PDF prints the preview's letter page: the recipient is its <address>.
+    expect(doc.querySelector(".letter-preview address")?.textContent).toContain("Beispiel GmbH");
     expect(gepflegtLetterCss).toContain('font-size:var(--letter-subject-size)!important');
     expect(gepflegtLetterCss).toContain('font-size:var(--letter-body-size)!important');
     expect(letter).toContain("--letter-subject-size:13pt");

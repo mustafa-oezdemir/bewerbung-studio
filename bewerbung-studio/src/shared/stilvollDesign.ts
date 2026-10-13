@@ -8,6 +8,12 @@ const mix = (first: string, second: string, share: number) => {
     .toString(16).padStart(2, "0")).join("")}`.toUpperCase();
 };
 
+/** The page's left and right margin: Seitenränder is the right margin and moves the native left one alike. */
+export const resolveStilvollSideMargins = (pageMarginMm: number) => ({
+  left: stilvollDefaults.page.marginLeftMm + pageMarginMm - stilvollDefaults.page.marginRightMm,
+  right: pageMarginMm,
+});
+
 /** Resolved once for the CV, its planner and the independent cover letter. */
 export const getStilvollDesignVariables = (
   design: CvDesignTokens,
@@ -42,8 +48,8 @@ export const getStilvollDesignVariables = (
     "--stilvoll-inactive": derived("surface", stilvollDefaults.colors.primarySoft, mix(primary, "#FFFFFF", .15)),
     "--stilvoll-icon-surface": derived("surface", stilvollDefaults.colors.primarySoft, mix(primary, "#FFFFFF", .1)),
     "--stilvoll-background": design.colors.background,
-    "--stilvoll-margin-left": `${stilvollDefaults.page.marginLeftMm + shift}mm`,
-    "--stilvoll-margin-right": `${design.spacing.pageMarginMm}mm`,
+    "--stilvoll-margin-left": `${resolveStilvollSideMargins(design.spacing.pageMarginMm).left}mm`,
+    "--stilvoll-margin-right": `${resolveStilvollSideMargins(design.spacing.pageMarginMm).right}mm`,
     "--stilvoll-margin-top": `${Math.max(10, stilvollDefaults.page.marginTopMm + shift)}mm`,
     "--stilvoll-margin-bottom": `${Math.max(stilvollDefaults.page.marginBottomMm, stilvollDefaults.page.marginBottomMm + shift)}mm`,
     "--stilvoll-column-gap": `${design.spacing.columnGapMm}mm`,

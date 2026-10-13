@@ -3,6 +3,8 @@ import {
   buildApplicationEmailMarkdown,
   getApplicationEmail,
   resolveApplicationEmailAttachments,
+  bewerbungsunterlagenFileName,
+  defaultEmailPackageFileName,
   validateEmailClosingDuplication,
 } from "./applicationEmail";
 import { applicationSchema } from "./schema";
@@ -175,6 +177,16 @@ describe("application email", () => {
     const markdown = buildApplicationEmailMarkdown(withoutContact);
     expect(markdown).toContain("- Empfänger: Nicht angegeben");
     expect(markdown).toContain("- E-Mail-Adresse: Nicht angegeben");
+  });
+
+  it("names the Bewerbungsunterlagen PDF (no Deckblatt) as the Gesamt-PDF unless the user named it", () => {
+    const application = { company: { name: "Muster GmbH", city: "Berlin" }, createdAt: "2026-09-08T09:00:00.000Z" } as never;
+    const fileName = bewerbungsunterlagenFileName(application, { firstName: "Mina", lastName: "Kaya" });
+    expect(fileName).toBe("Bewerbungsunterlagen_Mina_Kaya_Muster_GmbH.pdf");
+    expect(resolveApplicationEmailAttachments({ emailAttachmentMode: "package", emailPackageFileName: defaultEmailPackageFileName },
+      ["Anschreiben"], fileName)).toEqual([fileName]);
+    expect(resolveApplicationEmailAttachments({ emailAttachmentMode: "package", emailPackageFileName: "Eigene_Unterlagen.pdf" },
+      ["Anschreiben"], fileName)).toEqual(["Eigene_Unterlagen.pdf"]);
   });
 
   it("switches between one package PDF and individual visible PDFs", () => {

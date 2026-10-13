@@ -10,7 +10,7 @@ import {
   Plus,
   RotateCcw,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import type { ApplicantProfile, ResumeSpecialSectionKind } from "../../shared/schema";
 import {
   canAddResumeSpecialSection,
@@ -66,6 +66,10 @@ type Props = {
   initialExpanded?: string;
   languagesColumns?: SectionColumnMode;
   onLanguagesColumnsChange?: (value: SectionColumnMode) => void;
+  /** The Bewerbung's choice of certificates (Zertifikate & Weiterbildungen card). */
+  certificateSelection?: ReactNode;
+  /** The Bewerbung's choice of projects (Projekte card). */
+  projectSelection?: ReactNode;
 };
 
 export function ResumeSectionsPanel({
@@ -86,6 +90,8 @@ export function ResumeSectionsPanel({
   initialExpanded,
   languagesColumns,
   onLanguagesColumnsChange,
+  certificateSelection,
+  projectSelection,
 }: Props) {
   const [localDraft, setLocalDraft] = useState(profile);
   const draft = controlledDraft ?? localDraft;
@@ -227,6 +233,7 @@ export function ResumeSectionsPanel({
             übernommen. Bearbeiten Sie diese unter Berufserfahrung.
           </p>
         )}
+        {draft.specialSections.some((section) => `special:${section.id}` === entry.id && section.kind === "projects") ? projectSelection : null}
         {entry.id === "knowledge" && <KnowledgeProfileEditor profile={draft} onChange={setDraft} />}
         {draft.specialSections.some((section) => `special:${section.id}` === entry.id && section.kind === "interests") &&
           <InterestsEditor profile={draft} onChange={setDraft} />}
@@ -241,6 +248,7 @@ export function ResumeSectionsPanel({
               section={entry.id}
               languagesColumns={languagesColumns}
               onLanguagesColumnsChange={entry.id === "languages" ? onLanguagesColumnsChange : undefined}
+              certificateSelection={entry.id === "certifications" ? certificateSelection : undefined}
               onPreview={noop}
               onSave={onSave}
             />

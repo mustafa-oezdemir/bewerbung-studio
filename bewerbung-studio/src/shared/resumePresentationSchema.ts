@@ -5,6 +5,8 @@ import { resumeBlockRendererTypes, resumeKnowledgeSlots } from "../features/resu
 export const resumePresentationSchema = z.object({
   /** Absent keeps the profile catalogue; [] explicitly hides projects for this application. */
   selectedProjectEntryIds: z.array(z.string()).optional(),
+  /** Absent shows every certificate of the profile; otherwise the chosen ones in this order, [] none. */
+  selectedCertificateIds: z.array(z.string()).optional(),
   sections: z.record(z.string(), z.object({
     title: z.string().trim().min(1).optional(),
     visible: z.boolean().optional(),

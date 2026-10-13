@@ -274,6 +274,18 @@ export const documentDraftSchema = z.object({
     .min(1)
     .default("Bewerbungsunterlagen.pdf"),
   showCoverLetterAttachments: z.boolean().default(true),
+  /**
+   * The standalone Motivationsschreiben ("Dritte Seite"): texts of its own, never the cover letter's
+   * `coverMotivation`. Off by default, so an existing Bewerbungsmappe keeps its pages.
+   */
+  motivationEnabled: z.boolean().default(false),
+  motivationHeading: z.string().trim().optional().default("Meine Motivation"),
+  motivationHeadingGapReduction: z.number().int().min(0).max(4).default(0),
+  motivationIntroduction: optionalText,
+  motivationMainBody: optionalText,
+  motivationEvidence: optionalText,
+  motivationGoals: optionalText,
+  motivationClosing: optionalText,
   documentListSettings: z
     .array(
       z.object({
@@ -546,6 +558,8 @@ export const profileSchema = z.object({
     .default([]),
   languages: z.array(z.string()).default([]),
   certifications: z.array(z.string()).default([]),
+  /** Stable ids of `certifications`, same order (see certificates.ts); absent in older workspaces. */
+  certificationIds: z.array(z.string()).optional(),
   specialSections: z.array(resumeSpecialSectionSchema).default([]),
   applicationPlace: optionalText,
   applicationDate: optionalText,
@@ -720,6 +734,8 @@ export const profileSchema = z.object({
       showPlace: z.boolean().default(true),
       showDate: z.boolean().default(true),
       showSignature: z.boolean().default(true),
+      // The website in the footer of every Lebenslauf page; absent (older profiles) = not shown, like `false`.
+      showWebsite: z.boolean().optional(),
       // Older profiles omit this; their applicationDate remains a fallback when no application date is available.
       dateMode: z.enum(["application", "manual"]).optional(),
     })

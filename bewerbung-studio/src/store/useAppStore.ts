@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { ResumeDesignLayer } from "../shared/cvDesignSchema";
-import type { ApplicationChangeResult, DocumentFolderTarget } from "../shared/ipc";
+import type { ApplicationChangeResult, DocumentFolderTarget, ExportTarget } from "../shared/ipc";
 import {
   defaultSettings,
   type ApplicantProfile,
@@ -69,7 +69,7 @@ type StoreState = {
   openAttachment: (id: string) => Promise<void>;
   exportPdf: (
     applicationId: string,
-    target: "deckblatt" | "anschreiben" | "lebenslauf" | "mappe",
+    target: ExportTarget,
     application?: Application,
   ) => Promise<void>;
   exportBackup: () => Promise<void>;
@@ -115,7 +115,7 @@ export const useAppStore = create<StoreState>((set, get) => {
       const { workspace, gitSync } = await action();
       set(gitSync.state === "failed"
         ? { workspace, loading: false, notice: undefined, error: `${gitSyncFailedMessage} ${gitSync.reason}` }
-        : { workspace, loading: false, notice: gitSync.state === "synced" ? syncedNotice : notice });
+        : { workspace, loading: false, notice: gitSync.state === "synced" && gitSync.pushed ? syncedNotice : notice });
     } catch (error) {
       set({
         loading: false,
@@ -179,14 +179,13 @@ export const useAppStore = create<StoreState>((set, get) => {
       if (!apiAvailable()) return;
       set({ loading: true, error: undefined });
       try {
-        const result =
+        const { document, gitSync } =
           await window.bewerbungsManager.templates.syncAnschreiben(
             applicationId,
           );
-        set({
-          loading: false,
-          notice: `Word-Datei wurde aktualisiert: ${result.fileName}`,
-        });
+        set(gitSync.state === "failed"
+          ? { loading: false, notice: undefined, error: `${gitSyncFailedMessage} ${gitSync.reason}` }
+          : { loading: false, notice: `Word-Datei wurde aktualisiert: ${document.fileName}` });
       } catch (error) {
         set({
           loading: false,
@@ -199,9 +198,10 @@ export const useAppStore = create<StoreState>((set, get) => {
     },
     async removeApplication(id) {
       if (!apiAvailable()) return;
-      await perform(
+      await performApplicationChange(
         () => window.bewerbungsManager.applications.remove(id),
         "Bewerbung wurde gelöscht und unter „Silinenler“ archiviert.",
+        "Bewerbung wurde gelöscht, archiviert und mit GitHub synchronisiert.",
       );
       set({
         selectedApplicationId: get().workspace.applications[0]?.id,
@@ -209,9 +209,10 @@ export const useAppStore = create<StoreState>((set, get) => {
     },
     async duplicateApplication(id) {
       if (!apiAvailable()) return;
-      await perform(
+      await performApplicationChange(
         () => window.bewerbungsManager.applications.duplicate(id),
         "Bewerbung wurde als Entwurf dupliziert.",
+        "Bewerbung wurde dupliziert und mit GitHub synchronisiert.",
       );
       set({
         selectedApplicationId: get().workspace.applications[0]?.id,
@@ -232,16 +233,18 @@ export const useAppStore = create<StoreState>((set, get) => {
     },
     async saveProfile(profile) {
       if (!apiAvailable()) return;
-      await perform(
+      await performApplicationChange(
         () => window.bewerbungsManager.profiles.save(profile),
         "Profil wurde gespeichert.",
+        "Profil wurde gespeichert und mit GitHub synchronisiert.",
       );
     },
     async removeProfile(id) {
       if (!apiAvailable()) return;
-      await perform(
+      await performApplicationChange(
         () => window.bewerbungsManager.profiles.remove(id),
         "Profil wurde gelöscht.",
+        "Profil wurde gelöscht und mit GitHub synchronisiert.",
       );
       if (get().selectedProfileId === id) {
         set({ selectedProfileId: undefined });
@@ -249,9 +252,10 @@ export const useAppStore = create<StoreState>((set, get) => {
     },
     async saveSettings(settings) {
       if (!apiAvailable()) return;
-      await perform(
+      await performApplicationChange(
         () => window.bewerbungsManager.settings.save(settings),
         "Einstellungen wurden gespeichert.",
+        "Einstellungen wurden gespeichert und mit GitHub synchronisiert.",
       );
     },
     async saveResumeDesign(layer) {
@@ -261,16 +265,18 @@ export const useAppStore = create<StoreState>((set, get) => {
         set((state) => ({ workspace: { ...state.workspace, settings: next } }));
         return;
       }
-      await perform(
+      await performApplicationChange(
         () => window.bewerbungsManager.settings.save(next),
         "Lebenslauf-Design wurde gespeichert.",
+        "Lebenslauf-Design wurde gespeichert und mit GitHub synchronisiert.",
       );
     },
     async saveEvent(event) {
       if (!apiAvailable()) return;
-      await perform(
+      await performApplicationChange(
         () => window.bewerbungsManager.events.save(event),
         "Kalendereintrag wurde aktualisiert.",
+        "Kalendereintrag wurde aktualisiert und mit GitHub synchronisiert.",
       );
     },
     async saveTodo(todo) {
@@ -278,14 +284,22 @@ export const useAppStore = create<StoreState>((set, get) => {
         set((state) => ({ workspace: { ...state.workspace, todos: [todo, ...state.workspace.todos.filter((item) => item.id !== todo.id)] } }));
         return;
       }
-      await perform(() => window.bewerbungsManager.todos.save(todo), "Aufgabe wurde gespeichert.");
+      await performApplicationChange(
+        () => window.bewerbungsManager.todos.save(todo),
+        "Aufgabe wurde gespeichert.",
+        "Aufgabe wurde gespeichert und mit GitHub synchronisiert.",
+      );
     },
     async removeTodo(id) {
       if (!apiAvailable()) {
         set((state) => ({ workspace: { ...state.workspace, todos: state.workspace.todos.filter((item) => item.id !== id) } }));
         return;
       }
-      await perform(() => window.bewerbungsManager.todos.remove(id), "Aufgabe wurde gelöscht.");
+      await performApplicationChange(
+        () => window.bewerbungsManager.todos.remove(id),
+        "Aufgabe wurde gelöscht.",
+        "Aufgabe wurde gelöscht und mit GitHub synchronisiert.",
+      );
     },
     async saveCustomCvDesign(design) {
       if (!apiAvailable()) {
@@ -303,30 +317,34 @@ export const useAppStore = create<StoreState>((set, get) => {
     },
     async addAttachment(applicationId, category) {
       if (!apiAvailable()) return;
-      await perform(
+      await performApplicationChange(
         () => window.bewerbungsManager.attachments.add(applicationId, category),
         "Dokument wurde zur Bewerbungsmappe hinzugefügt.",
+        "Dokument wurde hinzugefügt und mit GitHub synchronisiert.",
       );
     },
     async saveAttachment(attachment) {
       if (!apiAvailable()) return;
-      await perform(
+      await performApplicationChange(
         () => window.bewerbungsManager.attachments.save(attachment),
         "Dokumentdaten wurden gespeichert.",
+        "Dokumentdaten wurden gespeichert und mit GitHub synchronisiert.",
       );
     },
     async moveAttachment(id, direction) {
       if (!apiAvailable()) return;
-      await perform(
+      await performApplicationChange(
         () => window.bewerbungsManager.attachments.move(id, direction),
         "Reihenfolge wurde aktualisiert.",
+        "Reihenfolge wurde aktualisiert und mit GitHub synchronisiert.",
       );
     },
     async removeAttachment(id) {
       if (!apiAvailable()) return;
-      await perform(
+      await performApplicationChange(
         () => window.bewerbungsManager.attachments.remove(id),
         "Dokumentverknüpfung wurde entfernt.",
+        "Dokumentverknüpfung wurde entfernt und mit GitHub synchronisiert.",
       );
     },
     async openAttachment(id) {
@@ -346,16 +364,16 @@ export const useAppStore = create<StoreState>((set, get) => {
       if (!apiAvailable()) return;
       set({ loading: true, error: undefined });
       try {
-        const result = await window.bewerbungsManager.export.pdf(
+        const { path: result, gitSync } = await window.bewerbungsManager.export.pdf(
           applicationId,
           target,
           application,
         );
-        set({
-          loading: false,
-          // The user chose the place in the save dialog; the notice says where it went (cancelled: no notice).
-          notice: result ? `PDF gespeichert: ${result}` : undefined,
-        });
+        set(gitSync.state === "failed"
+          ? { loading: false, notice: undefined, error: `${gitSyncFailedMessage} ${gitSync.reason}` }
+          : { loading: false,
+            // The user chose the place in the save dialog; the notice says where it went (cancelled: no notice).
+            notice: result ? `PDF gespeichert: ${result}` : undefined });
       } catch (error) {
         set({
           loading: false,

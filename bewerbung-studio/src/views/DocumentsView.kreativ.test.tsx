@@ -43,7 +43,7 @@ describe("Kreativ Anschreiben and Lebenslauf", () => {
       const preview = parseHTML(`<html><body>${renderToStaticMarkup(createElement(DocumentsView))}</body></html>`).document
         .querySelector<HTMLElement>(".document-anschreiben.kreativ-letter");
       const pdfLetterHtml = buildDocumentHtml(application, profile, "anschreiben");
-      const pdfLetter = parseHTML(pdfLetterHtml).document.querySelector<HTMLElement>(".letter-page.kreativ-letter");
+      const pdfLetter = parseHTML(pdfLetterHtml).document.querySelector<HTMLElement>(".letter-page .document-anschreiben.kreativ-letter");
       const pdfCv = parseHTML(buildDocumentHtml(application, profile, "lebenslauf")).document
         .querySelector<HTMLElement>(".kreativ-pdf");
       expect(preview).not.toBeNull();

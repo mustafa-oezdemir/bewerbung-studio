@@ -1,6 +1,6 @@
 import { formatApplicationDate } from "./applicationDate";
 import { applicationGreeting } from "./applicationContacts";
-import { createCoverSubject } from "./coverLetter";
+import { applicantDocumentFileName, createCoverSubject } from "./coverLetter";
 import type { ApplicantProfile, Application, DocumentDraft } from "./schema";
 
 const contactName = (contact: Application["contact"]) =>
@@ -21,18 +21,37 @@ export const defaultApplicationEmail = (
   emailGreeting: "Mit freundlichen Grüßen",
 });
 
+/** The stored default of the Gesamt-PDF's name: it stands for the file of „Bewerbungsunterlagen PDF“. */
+export const defaultEmailPackageFileName = "Bewerbungsunterlagen.pdf";
+
+/**
+ * The file „Bewerbungsunterlagen PDF“ (no Deckblatt) is saved as: `Bewerbungsunterlagen_<Name>_<Firma>.pdf`, the
+ * default name of that export (storage.getExportDefaultName).
+ */
+export const bewerbungsunterlagenFileName = (
+  application: Pick<Application, "company" | "createdAt" | "sentAt">,
+  profile?: Pick<ApplicantProfile, "firstName" | "lastName">,
+) => `${applicantDocumentFileName("Bewerbungsunterlagen", application, [profile?.firstName, profile?.lastName].filter(Boolean).join(" "))}.pdf`;
+
+/**
+ * The attachments the e-mail names. „Gesamt-PDF“ is the digital Bewerbungsunterlagen PDF (Anschreiben, Lebenslauf,
+ * Motivationsschreiben, Zeugnisse, Zertifikate, no Deckblatt) under its export name, unless the user named it.
+ */
 export const resolveApplicationEmailAttachments = (
   documents: Pick<
     DocumentDraft,
     "emailAttachmentMode" | "emailPackageFileName"
   >,
   visibleDocuments: readonly string[],
-) =>
-  documents.emailAttachmentMode === "package"
-    ? [documents.emailPackageFileName.trim() || "Bewerbungsunterlagen.pdf"]
+  packageFileName = defaultEmailPackageFileName,
+) => {
+  const chosen = documents.emailPackageFileName.trim();
+  return documents.emailAttachmentMode === "package"
+    ? [chosen && chosen !== defaultEmailPackageFileName ? chosen : packageFileName]
     : visibleDocuments.map((item) =>
         /\.pdf$/i.test(item) ? item : `${item}.pdf`,
       );
+};
 
 export const validateEmailClosingDuplication = (
   message: string,

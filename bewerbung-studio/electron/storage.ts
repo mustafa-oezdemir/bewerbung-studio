@@ -67,7 +67,10 @@ import {
   buildApplicationEmailMarkdown,
   getApplicationEmail,
   resolveApplicationEmailAttachments,
+  bewerbungsunterlagenFileName,
 } from "../src/shared/applicationEmail";
+import { isDocumentPackage } from "../src/shared/applicationDocuments";
+import type { ExportTarget } from "../src/shared/ipc";
 import {
   applicationContactDepartmentLines,
   applicationGreeting,
@@ -84,6 +87,7 @@ import {
   createCoverSubject,
   getCoverLetterAttachments,
   getCoverLetterMainBody,
+  type ApplicationDocumentKind,
 } from "../src/shared/coverLetter";
 import {
   compactWordMarginLevelToMm,
@@ -105,7 +109,9 @@ import { LegacyMigrationService } from "./legacy-migration";
 import type {
   ApplicationGitAction,
   ApplicationGitCommitQueue,
+  ApplicationGitDescription,
 } from "./application-git-queue";
+import { calendarEventCommitLabel, describeApplicationChange, statusCommitLabel } from "./application-git-description";
 import { resolveResumeSummary } from "../src/shared/resumeSummary";
 
 const nowIso = () => new Date().toISOString();
@@ -113,6 +119,15 @@ const createId = () => crypto.randomUUID();
 const workspaceLockLostMessage =
   "Der Datenbestand ist durch eine andere Instanz gesperrt. Schließen Sie alle BewerbungsManager-Instanzen und starten Sie die Anwendung neu.";
 const terminalStatuses = new Set<ApplicationStatus>(terminalApplicationStatuses);
+/** Appointments that stay active when a Bewerbung reaches a terminal status; every other future one is cancelled. */
+const eventsKeptAfterClosing = new Set<CalendarEventType>([
+  "application-sent",
+  "application-rejected",
+  "contract-start",
+  "contract-end",
+  "fixed-term-end",
+  "probation-end",
+]);
 
 const isDeadlineTodo = (todo: Todo) => todo.source === "application-deadline";
 
@@ -138,15 +153,6 @@ const applicationContentChanged = (
 ) =>
   JSON.stringify({ ...current, folderName: "", updatedAt: "" }) !==
   JSON.stringify({ ...next, folderName: "", updatedAt: "" });
-
-const gitActionForStatus = (
-  status: ApplicationStatus,
-): ApplicationGitAction => {
-  if (status === "Absage") return "absage";
-  if (status === "Vorstellungsgespräch") return "vorstellungsgespraech";
-  if (status === "Beworben" || status === "Gesendet") return "bewerbung";
-  return "status";
-};
 
 const templateContactLine = (
   label: string,
@@ -313,10 +319,7 @@ export class DataStore {
     this.migration = new LegacyMigrationService(paths);
     this.dataPath = paths.dataRoot;
     this.workspacePath = path.join(paths.settingsRoot, "workspace.json");
-    this.applicationDraftPath = path.join(
-      paths.settingsRoot,
-      "new-application-draft.json",
-    );
+    this.applicationDraftPath = paths.applicationDraftPath;
     this.deletedApplicationsPath = path.join(paths.deletedRoot, "silinenler.json");
   }
 
@@ -569,15 +572,20 @@ export class DataStore {
     if (diskHash !== this.loadedWorkspaceHash) {
       throw new Error("Der Datenbestand wurde seit dem Öffnen extern geändert. Bitte laden Sie ihn neu oder erstellen Sie zuerst eine Sicherung.");
     }
-    this.workspace.updatedAt = nowIso();
     const validated = workspaceSchema.parse(this.workspace);
-    const content = JSON.stringify(validated, null, 2);
-    await this.atomicWrite(
-      this.workspacePath,
-      content,
-      this.loadedWorkspaceHash,
-    );
-    this.loadedWorkspaceHash = createHash("sha256").update(content).digest("hex");
+    let content = JSON.stringify(validated, null, 2);
+    // An unchanged workspace is not rewritten: a new updatedAt alone would be a difference in the Bewerbungsordner
+    // (and its Git history) on every start of the app.
+    if (content !== diskContent) {
+      this.workspace.updatedAt = validated.updatedAt = nowIso();
+      content = JSON.stringify(validated, null, 2);
+      await this.atomicWrite(
+        this.workspacePath,
+        content,
+        this.loadedWorkspaceHash,
+      );
+      this.loadedWorkspaceHash = createHash("sha256").update(content).digest("hex");
+    }
     await Promise.all(
       applicationsToPersist.map((application) =>
         this.persistApplicationFiles(applicationSchema.parse(application)),
@@ -615,16 +623,17 @@ export class DataStore {
     }
   }
 
-  queueGitCommit(id: string, action: ApplicationGitAction) {
+  queueGitCommit(id: string, action: ApplicationGitAction, details: readonly string[] = []) {
     const application = this.getApplication(id);
-    this.gitAutomation?.queueCommit(application.company.name, action);
+    this.gitAutomation?.queueCommit(application.company.name, action, { position: application.job.title, details });
   }
 
   private queueApplicationGitCommit(
     application: Pick<Application, "company">,
     action: ApplicationGitAction,
+    description: ApplicationGitDescription = {},
   ) {
-    this.gitAutomation?.queueCommit(application.company.name, action);
+    this.gitAutomation?.queueCommit(application.company.name, action, description);
   }
 
   private applicationPath(application: Application) {
@@ -632,7 +641,7 @@ export class DataStore {
   }
 
   /** The folder of one document of a Bewerbung (Deckblatt, Anschreiben, Lebenslauf, E-Mail). */
-  getApplicationDocumentDirectory(id: string, document: "deckblatt" | "anschreiben" | "lebenslauf" | "email") {
+  getApplicationDocumentDirectory(id: string, document: "deckblatt" | "anschreiben" | "motivation" | "lebenslauf" | "email") {
     const application = this.workspace.applications.find((item) => item.id === id);
     if (!application) throw new Error("Bewerbung wurde nicht gefunden.");
     return this.files.documentDirectories(application)[document];
@@ -658,10 +667,12 @@ export class DataStore {
       this.workspace.attachments,
       application.id,
       application.documents.documentListSettings,
+      application.documents.motivationEnabled,
     );
     const emailAttachments = resolveApplicationEmailAttachments(
       application.documents,
       visibleEmailDocuments,
+      bewerbungsunterlagenFileName(application, profile),
     );
     const email = getApplicationEmail(application, profile, emailAttachments);
     await Promise.all([
@@ -719,30 +730,38 @@ export class DataStore {
     startAt?: string,
     allDay = false,
   ) {
+    // A Bewerbung in a terminal status keeps its future appointments cancelled (see syncEvents).
+    const cancelled = Boolean(startAt) && terminalStatuses.has(application.status) &&
+      !eventsKeptAfterClosing.has(type) && new Date(startAt!) > new Date();
     const existing = this.workspace.events.find(
       (event) =>
         event.applicationId === application.id && event.type === type,
     );
+    // An event only gets a new updatedAt when it really changes: every startup syncs all events, and an untouched
+    // event must not leave a difference in the Bewerbungsordner (and its Git history).
     if (!startAt) {
-      if (existing) {
+      if (existing && !existing.cancelled) {
         existing.cancelled = true;
         existing.updatedAt = nowIso();
       }
       return;
     }
     if (existing) {
-      Object.assign(existing, {
-        title,
-        startAt,
-        allDay,
-        cancelled: false,
-        updatedAt: nowIso(),
-      });
+      if (existing.title !== title || existing.startAt !== startAt || existing.allDay !== allDay ||
+          existing.cancelled !== cancelled)
+        Object.assign(existing, {
+          title,
+          startAt,
+          allDay,
+          cancelled,
+          updatedAt: nowIso(),
+        });
       return;
     }
-    this.workspace.events.push(
-      this.createEvent(application.id, type, title, startAt, allDay),
-    );
+    this.workspace.events.push({
+      ...this.createEvent(application.id, type, title, startAt, allDay),
+      cancelled,
+    });
   }
 
   private syncEvents(application: Application) {
@@ -821,18 +840,11 @@ export class DataStore {
       followUp,
     );
     if (terminalStatuses.has(application.status)) {
-      const preserved = new Set<CalendarEventType>([
-        "application-sent",
-        "application-rejected",
-        "contract-start",
-        "contract-end",
-        "fixed-term-end",
-        "probation-end",
-      ]);
       this.workspace.events.forEach((event) => {
         if (
           event.applicationId === application.id &&
-          !preserved.has(event.type) &&
+          !eventsKeptAfterClosing.has(event.type) &&
+          !event.cancelled &&
           new Date(event.startAt) > new Date()
         ) {
           event.cancelled = true;
@@ -981,6 +993,14 @@ export class DataStore {
         emailAttachmentMode: "package",
         emailPackageFileName: "Bewerbungsunterlagen.pdf",
         showCoverLetterAttachments: true,
+        motivationEnabled: false,
+        motivationHeading: "Meine Motivation",
+        motivationHeadingGapReduction: 0,
+        motivationIntroduction: "",
+        motivationMainBody: "",
+        motivationEvidence: "",
+        motivationGoals: "",
+        motivationClosing: "",
         documentListSettings: [],
       },
       attachmentIds: [],
@@ -998,10 +1018,7 @@ export class DataStore {
     this.syncEvents(application);
     this.syncApplicationTodo(application);
     await this.persist([application]);
-    this.queueApplicationGitCommit(
-      application,
-      input.sentAt ? "bewerbung" : "create",
-    );
+    this.queueGitCommit(application.id, "create", input.sentAt ? ["Versanddatum"] : []);
     return this.getWorkspace();
   }
 
@@ -1054,7 +1071,9 @@ export class DataStore {
     this.syncApplicationTodo(application);
     await this.persist([application]);
     if (shouldCommitUpdate) {
-      this.queueApplicationGitCommit(application, "update");
+      const changes = describeApplicationChange(current, application);
+      if (!changes.length) this.queueGitCommit(application.id, "update", ["Weitere Angaben"]);
+      else for (const change of changes) this.queueGitCommit(application.id, change.action, change.details);
     }
     return this.getWorkspace();
   }
@@ -1087,7 +1106,7 @@ export class DataStore {
       this.syncEvents(application);
       this.syncApplicationTodo(application);
       await this.persist([application]);
-      this.queueApplicationGitCommit(application, gitActionForStatus(status));
+      this.queueGitCommit(application.id, "status", [statusCommitLabel(status)]);
     }
     return this.getWorkspace();
   }
@@ -1113,7 +1132,7 @@ export class DataStore {
       (todo) => !(isApplicationTodo(todo) && todo.applicationId === id),
     );
     await this.persist();
-    this.queueApplicationGitCommit(application, "delete");
+    this.queueApplicationGitCommit(application, "delete", { position: application.job.title });
     return this.getWorkspace();
   }
 
@@ -1144,12 +1163,14 @@ export class DataStore {
     this.syncEvents(duplicate);
     this.syncApplicationTodo(duplicate);
     await this.persist([duplicate]);
-    this.queueApplicationGitCommit(duplicate, "create");
+    this.queueGitCommit(duplicate.id, "create", ["Duplikat"]);
     return this.getWorkspace();
   }
 
   async saveProfile(rawProfile: ApplicantProfile) {
     const profile = profileSchema.parse(rawProfile);
+    const previous = this.workspace.profiles.find((item) => item.id === profile.id);
+    const changed = !previous || JSON.stringify(previous) !== JSON.stringify(profile);
     if (profile.isDefault) {
       this.workspace.profiles.forEach((item) => {
         item.isDefault = false;
@@ -1161,6 +1182,9 @@ export class DataStore {
     if (index >= 0) this.workspace.profiles[index] = profile;
     else this.workspace.profiles.push(profile);
     await this.persist();
+    if (changed) for (const application of this.workspace.applications)
+      if (this.getProfileForApplication(application)?.id === profile.id)
+        this.queueGitCommit(application.id, "lebenslauf", ["Profil"]);
     return this.getWorkspace();
   }
 
@@ -1191,25 +1215,32 @@ export class DataStore {
     });
 
     await this.persist(reassignedApplications);
+    for (const application of reassignedApplications)
+      this.queueGitCommit(application.id, "lebenslauf", ["Profil"]);
     return this.getWorkspace();
   }
 
   async saveSettings(settings: AppSettings) {
+    const previousResumeDesign = JSON.stringify(this.workspace.settings.resumeDesign);
     this.workspace.settings = appSettingsSchema.parse(settings);
     this.workspace.applications.forEach((application) =>
       this.syncEvents(application),
     );
     await this.persist();
+    if (previousResumeDesign !== JSON.stringify(this.workspace.settings.resumeDesign))
+      for (const application of this.workspace.applications)
+        this.queueGitCommit(application.id, "lebenslauf", ["Design"]);
     return this.getWorkspace();
   }
 
   async saveEvent(event: CalendarEvent) {
     const index = this.workspace.events.findIndex((item) => item.id === event.id);
     if (index < 0) throw new Error("Termin wurde nicht gefunden.");
+    const changed = JSON.stringify(this.workspace.events[index]) !== JSON.stringify(event);
     this.workspace.events[index] = event;
     await this.persist();
-    if (event.applicationId) {
-      this.queueGitCommit(event.applicationId, "update");
+    if (changed && event.applicationId) {
+      this.queueGitCommit(event.applicationId, "termin", [calendarEventCommitLabel(event.type)]);
     }
     return this.getWorkspace();
   }
@@ -1273,7 +1304,7 @@ export class DataStore {
     this.workspace.attachments.push(attachment);
     application.attachmentIds.push(attachment.id);
     await this.persist([application]);
-    this.queueApplicationGitCommit(application, "update");
+    this.queueGitCommit(application.id, "anlagen", [`${category} hinzugefügt`]);
     return this.getWorkspace();
   }
 
@@ -1328,7 +1359,8 @@ export class DataStore {
     }
     this.workspace.attachments[index] = attachment;
     await this.persist();
-    this.queueGitCommit(attachment.applicationId, "update");
+    if (JSON.stringify(existing) !== JSON.stringify(attachment))
+      this.queueGitCommit(attachment.applicationId, "anlagen", [`${attachment.category} geändert`]);
     return this.getWorkspace();
   }
 
@@ -1351,7 +1383,7 @@ export class DataStore {
     attachment.order = other.order;
     other.order = currentOrder;
     await this.persist();
-    this.queueGitCommit(attachment.applicationId, "update");
+    this.queueGitCommit(attachment.applicationId, "anlagen", [`${attachment.category} sortiert`]);
     return this.getWorkspace();
   }
 
@@ -1369,7 +1401,7 @@ export class DataStore {
       (attachmentId) => attachmentId !== id,
     );
     await this.persist([application]);
-    this.queueApplicationGitCommit(application, "update");
+    this.queueGitCommit(application.id, "anlagen", [`${attachment.category} entfernt`]);
     return this.getWorkspace();
   }
 
@@ -1464,6 +1496,7 @@ export class DataStore {
       this.workspace.attachments,
       application.id,
       application.documents.documentListSettings,
+      application.documents.motivationEnabled,
     );
     const strengthItems = profile?.strengths.length
       ? profile.strengths
@@ -1888,7 +1921,7 @@ export class DataStore {
 
   getExportHtml(
     id: string,
-    target: "deckblatt" | "anschreiben" | "lebenslauf" | "mappe",
+    target: ExportTarget,
     applicationSnapshot?: Application,
   ) {
     const application = applicationSnapshot
@@ -1914,12 +1947,14 @@ export class DataStore {
     const applicantName = [profile?.firstName, profile?.lastName]
       .filter(Boolean)
       .join(" ");
-    const kind = {
+    const kind = ({
       anschreiben: "Anschreiben",
       deckblatt: "Deckblatt",
+      motivation: "Motivation",
       lebenslauf: "Lebenslauf",
+      bewerbungsunterlagen: "Bewerbungsunterlagen",
       mappe: "Mappe",
-    }[target] as "Anschreiben" | "Deckblatt" | "Lebenslauf" | "Mappe" | undefined;
+    } as Record<string, ApplicationDocumentKind>)[target];
     if (!kind) throw new Error("Ungültiges Exportziel.");
     return `${applicantDocumentFileName(kind, application, applicantName)}.pdf`;
   }
@@ -1945,13 +1980,23 @@ export class DataStore {
     if (index < 0) this.workspace.todos.unshift(validated);
     else this.workspace.todos[index] = validated;
     await this.persist();
+    if (current && JSON.stringify(current) !== JSON.stringify(validated)) this.queueTodoGitCommit(validated);
     return this.getWorkspace();
   }
 
   async removeTodo(id: string) {
+    const removed = this.workspace.todos.find((item) => item.id === id);
     this.workspace.todos = this.workspace.todos.filter((item) => item.id !== id);
     await this.persist();
+    if (removed) this.queueTodoGitCommit(removed);
     return this.getWorkspace();
+  }
+
+  /** The deadline todo of a Bewerbung (done, note, priority) is part of its history; manual todos are not. */
+  private queueTodoGitCommit(todo: Todo) {
+    if (!isApplicationTodo(todo) || !todo.applicationId) return;
+    if (!this.workspace.applications.some((application) => application.id === todo.applicationId)) return;
+    this.queueGitCommit(todo.applicationId, "termin", ["Aufgabe Bewerbungsfrist"]);
   }
 
   async saveCustomCvDesign(design: CustomCvDesign) {
@@ -1969,11 +2014,11 @@ export class DataStore {
     return this.getWorkspace();
   }
 
-  getAutomaticExportPath(id: string, target: "deckblatt" | "anschreiben" | "lebenslauf" | "mappe") {
+  getAutomaticExportPath(id: string, target: ExportTarget) {
     const application = this.getApplication(id);
     const directories = this.files.documentDirectories(application);
     const directory =
-      target === "mappe" ? directories.bewerbungsunterlagen : directories[target];
+      isDocumentPackage(target) ? directories.bewerbungsunterlagen : directories[target];
     return path.join(directory, this.getExportDefaultName(id, target));
   }
 

@@ -3,6 +3,7 @@ import type {
   DocumentTemplate,
   TemplateDocumentType,
 } from "./template.types";
+import { gitSyncFailedMessage } from "../../store/useAppStore";
 
 type TemplateStore = {
   templates: DocumentTemplate[];
@@ -67,15 +68,14 @@ export const useTemplateStore = create<TemplateStore>((set, get) => ({
   async use(templateId, applicationId, atsMode = false) {
     set({ loading: true, error: undefined });
     try {
-      const result = await window.bewerbungsManager.templates.use({
+      const { document, gitSync } = await window.bewerbungsManager.templates.use({
         templateId,
         applicationId,
         atsMode,
       });
-      set({
-        loading: false,
-        notice: result.warning || "Dokument wurde erstellt und geöffnet.",
-      });
+      set(gitSync.state === "failed"
+        ? { loading: false, notice: undefined, error: `${gitSyncFailedMessage} ${gitSync.reason}` }
+        : { loading: false, notice: document.warning || "Dokument wurde erstellt und geöffnet." });
     } catch (error) {
       set({ loading: false, error: messageFrom(error) });
     }

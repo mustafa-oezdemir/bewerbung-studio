@@ -6,7 +6,7 @@ import { buildDocumentHtml } from "../../../electron/documents";
 import { setResumeSectionTitle } from "../../features/resume-sections/resume-sections";
 import { getTemplateDocumentDesignDefaults } from "../../shared/cvDesign";
 import { resolveCvDocument } from "../../shared/resolveCvDocument";
-import { setResumeSummaryVisible } from "../../shared/resumeSummary";
+import { resumeSummaryTextCss, setResumeSummaryVisible } from "../../shared/resumeSummary";
 import { applicationSchema, profileSchema, type Application } from "../../shared/schema";
 import { getTemplate } from "../../shared/templates";
 import { ManagedResumePreview } from "./ManagedResumePreview";
@@ -57,7 +57,7 @@ const render = (templateId: string, profile: ReturnType<typeof make>, documents:
   const component = components[templateId] as ComponentType<Record<string, unknown>>;
   const text = (node: Element | null) => {
     node?.querySelectorAll("style,script").forEach((child) => child.remove());
-    return (node?.textContent ?? "").replace(/\s+/g, " ");
+    return (node?.textContent ?? "").replaceAll("\u00ad", "").replace(/\s+/g, " ");
   };
   const preview = text(parseHTML(`<html><body>${renderToStaticMarkup(
     <ManagedResumePreview designSettings={settings} resolvedCv={resolved} profile={resolved.profile} templateId={templateId} pageNumber={1} totalPages={resolved.pagePlan.length}>
@@ -172,5 +172,33 @@ describe("the Kurzprofil stays apart from the Deckblatt and the Anschreiben", ()
     const before = html("deckblatt", { deckblattStatement: "Nur für das Deckblatt." });
     const changed = buildDocumentHtml(applicationFor("klassisch", { deckblattStatement: "Nur für das Deckblatt." }), make({ summary: "Ganz anderes Kurzprofil.", street: "Musterstraße 1", postalCode: "70173" }), "deckblatt");
     expect(changed).toBe(before);
+  });
+});
+
+describe.each(ids)("Kurzprofil text flow: %s", (templateId) => {
+  it("keeps the German Kurzprofil paragraph in the same managed section in preview and PDF", () => {
+    const profile = make();
+    const application = applicationFor(templateId);
+    const settings = application.designSettings;
+    const template = getTemplate(templateId);
+    const resolved = resolveCvDocument({ profile, templateId, settings, application });
+    const component = components[templateId] as ComponentType<Record<string, unknown>>;
+    const preview = renderToStaticMarkup(
+      <ManagedResumePreview designSettings={settings} resolvedCv={resolved} profile={resolved.profile} templateId={templateId} pageNumber={1} totalPages={resolved.pagePlan.length}>
+        {createElement(component, {
+          profile: resolved.profile, templateId, name: "Mustafa Özdemir", atsMode: false, plan: resolved.pagePlan[0], totalPages: resolved.pagePlan.length,
+          accentColor: template.accent, secondaryColor: template.secondary, photoSource: null, resumeProfile: resolved.summary,
+          sections: resolved.sections, backgroundId: "white",
+        })}
+      </ManagedResumePreview>,
+    );
+    const pdf = buildDocumentHtml(application, profile, "lebenslauf");
+    expect(pdf).toContain(resumeSummaryTextCss);
+    expect(preview).toContain(resumeSummaryTextCss);
+    for (const html of [preview, pdf.slice(pdf.indexOf("<body>"))]) {
+      const document = parseHTML(`<html><body>${html}</body></html>`).document;
+      const paragraphs = [...document.querySelectorAll('[data-managed-section="summary"] p')];
+      expect(paragraphs.some((node) => node.textContent?.replaceAll("\u00ad", "").trim() === profileText && node.getAttribute("lang") === "de-DE")).toBe(true);
+    }
   });
 });

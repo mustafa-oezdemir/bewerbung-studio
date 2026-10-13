@@ -8,6 +8,12 @@ const mix = (first: string, second: string, firstShare: number) => {
     .toString(16).padStart(2, "0")).join("")}`.toUpperCase();
 };
 
+/** The page's left and right margin: Seitenränder moves the native 25 / 20 mm on both sides alike. */
+export const resolveZeitgenoessischSideMargins = (pageMarginMm: number) => {
+  const shift = pageMarginMm - zeitgenoessischDefaults.page.marginRightMm;
+  return { left: zeitgenoessischDefaults.page.marginLeftMm + shift, right: zeitgenoessischDefaults.page.marginRightMm + shift };
+};
+
 /** One presentation adapter for the CV and letter; all semantic values come from the resolved CV design. */
 export const getZeitgenoessischDesignVariables = (
   design: CvDesignTokens,
@@ -35,8 +41,8 @@ export const getZeitgenoessischDesignVariables = (
     "--zeit-text": design.colors.text,
     "--zeit-muted": design.colors.muted,
     "--zeit-divider": divider,
-    "--zeit-margin-left": `${zeitgenoessischDefaults.page.marginLeftMm + marginShift}mm`,
-    "--zeit-margin-right": `${zeitgenoessischDefaults.page.marginRightMm + marginShift}mm`,
+    "--zeit-margin-left": `${resolveZeitgenoessischSideMargins(design.spacing.pageMarginMm).left}mm`,
+    "--zeit-margin-right": `${resolveZeitgenoessischSideMargins(design.spacing.pageMarginMm).right}mm`,
     "--zeit-margin-top": `${Math.max(zeitgenoessischDefaults.page.marginTopMm, zeitgenoessischDefaults.page.marginTopMm + marginShift)}mm`,
     "--zeit-margin-bottom": `${Math.max(zeitgenoessischDefaults.page.marginBottomMm, zeitgenoessischDefaults.page.marginBottomMm + marginShift)}mm`,
     "--zeit-section-gap-base": `${design.spacing.sectionGapMm}mm`,

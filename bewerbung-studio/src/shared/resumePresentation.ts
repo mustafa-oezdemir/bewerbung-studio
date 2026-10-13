@@ -13,6 +13,8 @@ export const keepResumeLayoutOverrides = (
   ...Object.fromEntries(Object.entries(next).filter(([key]) => key !== "sidebarWidthPercent")),
   ...(previous?.selectedProjectEntryIds !== undefined && next.selectedProjectEntryIds === undefined
     ? { selectedProjectEntryIds: previous.selectedProjectEntryIds } : {}),
+  ...(previous?.selectedCertificateIds !== undefined && next.selectedCertificateIds === undefined
+    ? { selectedCertificateIds: previous.selectedCertificateIds } : {}),
   ...((next.closing || previous?.closing?.placement || previous?.closing?.alignment) ? { closing: {
     ...next.closing,
     ...(previous?.closing?.placement ? { placement: previous.closing.placement } : {}),

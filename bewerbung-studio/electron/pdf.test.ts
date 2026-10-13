@@ -23,6 +23,20 @@ describe("Bewerbungsmappe PDF merge", () => {
     expect(merged.getPageCount()).toBe(6);
   });
 
+  it("keeps the order: generated pages, then each attachment in the given order", async () => {
+    const sized = async (width: number, pages = 1) => {
+      const document = await PDFDocument.create();
+      for (let index = 0; index < pages; index += 1) document.addPage([width, 842]);
+      return document.save();
+    };
+    const result = await mergePdfDocuments(await sized(500, 2), [
+      { fileName: "Zeugnis.pdf", bytes: await sized(510) },
+      { fileName: "Zertifikat.pdf", bytes: await sized(520) },
+    ]);
+    const merged = await PDFDocument.load(result);
+    expect(merged.getPages().map((page) => Math.round(page.getWidth()))).toEqual([500, 500, 510, 520]);
+  });
+
   it("reports a readable error for invalid attachments", async () => {
     const generated = await createPdf(1);
     await expect(

@@ -129,4 +129,5 @@ export const getDeckblattDocuments = (
   attachments: readonly Attachment[],
   applicationId: string,
   settings: DocumentDraft["documentListSettings"] = [],
-) => getVisibleApplicationDocumentLabels(attachments, applicationId, settings);
+  includeMotivation = false,
+) => getVisibleApplicationDocumentLabels(attachments, applicationId, settings, includeMotivation);

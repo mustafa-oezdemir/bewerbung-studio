@@ -39,7 +39,7 @@ describe("Zweispaltig Anschreiben preview and PDF", () => {
       const previewDocument = parseHTML(`<html><body>${previewHtml}</body></html>`).document;
       const preview = previewDocument.querySelector<HTMLElement>(".document-anschreiben.zweispaltig-letter");
       const pdf = parseHTML(buildDocumentHtml(application, profile, "anschreiben")).document
-        .querySelector<HTMLElement>(".letter-page.zweispaltig-letter");
+        .querySelector<HTMLElement>(".letter-page .document-anschreiben.zweispaltig-letter");
       expect(preview).not.toBeNull();
       expect(pdf).not.toBeNull();
       for (const variable of [
@@ -54,7 +54,7 @@ describe("Zweispaltig Anschreiben preview and PDF", () => {
       expect(preview?.textContent).not.toContain("Alter Name");
       expect(pdf?.textContent).not.toContain("Alter Name");
       expect(preview?.querySelector(".letter-subject")?.textContent).toContain("Mitarbeiter Produktion");
-      expect(pdf?.querySelector(".subject")?.textContent).toContain("Mitarbeiter Produktion");
+      expect(pdf?.querySelector(".letter-subject")?.textContent).toContain("Mitarbeiter Produktion");
     } finally {
       testStore.state = previous;
     }

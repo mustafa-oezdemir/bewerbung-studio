@@ -29,7 +29,8 @@ import {
   rejectionReasons,
   todoSchema,
 } from "../src/shared/schema";
-import type { ExportTarget } from "../src/shared/ipc";
+import { parseDocumentFolderTarget, parseExportTarget, type ExportTarget } from "../src/shared/ipc";
+import { isDocumentPackage } from "../src/shared/applicationDocuments";
 import type {
   AddTemplateInput,
   UseTemplateInput,
@@ -42,7 +43,7 @@ import { mergePdfDocuments } from "./pdf";
 import { TemplateService } from "./templates/template.service";
 import { createDefaultCoverLetterDocument } from "./templates/default-cover-letter";
 import { createDefaultDeckblattDocument } from "./templates/default-deckblatt";
-import { sanitizeTemplateFileName } from "./templates/template-filename.service";
+import { sanitizeSynchronizedDocumentFileName } from "./templates/template-filename.service";
 import { wordMusterTemplateConfig } from "../src/features/templates/template.constants";
 import { WorkspaceManager, sameWorkspaceRoot } from "./workspace-management";
 import { WorkspaceSecurity } from "./security/workspace-security";
@@ -50,7 +51,7 @@ import { clearActiveEncryption, isManagedPath, setActiveEncryption } from "./sec
 import { readEncryptionEnvelope, readMigrationJournal, rollbackUncommittedMigration } from "./security/workspace-encryption";
 import { safeExternalUrl } from "./security/external-url";
 import type { ApplicationChangeResult, WorkspaceStatus, WorkspaceChangeMode } from "../src/shared/ipc";
-import type { Workspace } from "../src/shared/schema";
+import type { Application, Workspace } from "../src/shared/schema";
 import { AppError } from "../src/shared/app-error";
 import { initializeDiagnostics, logDiagnostic } from "./diagnostics";
 import { normalizeError, runIpcOperation } from "./ipc-boundary";
@@ -127,7 +128,9 @@ const loadExportHtml = async (window: BrowserWindow, html: string) => {
 const exportTitles: Record<ExportTarget, string> = {
   deckblatt: "Deckblatt",
   anschreiben: "Anschreiben",
+  motivation: "Motivationsschreiben",
   lebenslauf: "Lebenslauf",
+  bewerbungsunterlagen: "Bewerbungsunterlagen",
   mappe: "Bewerbungsmappe",
 };
 const notifiedEvents = new Set<string>();
@@ -263,9 +266,11 @@ const synchronizeApplicationDeckblatt = async (applicationId: string) => {
 const createMissingExistingDeckblatts = async () => {
   for (const application of store.getWorkspace().applications) {
     const context = store.getTemplateDocumentContext(application.id);
+    // The same name createDefaultDeckblattDocument writes: another spelling ("Oe" for "Ö") never finds the file and
+    // rewrote every Deckblatt on each start, a change without content that went into the next Git commit.
     const targetPath = path.join(
       context.targetDirectories.deckblatt,
-      `${sanitizeTemplateFileName(context.requestedBaseNames.deckblatt)}.docx`,
+      `${sanitizeSynchronizedDocumentFileName(context.requestedBaseNames.deckblatt)}.docx`,
     );
     try {
       await access(targetPath);
@@ -339,15 +344,17 @@ const registerIpc = () => {
     }
   });
   handle("applications:remove", (_event, id: unknown) =>
-    store.removeApplication(String(id)),
+    runApplicationChange(() => store.removeApplication(String(id))),
   );
   handle("applications:duplicate", async (_event, id: unknown) => {
-    const workspace = await store.duplicateApplication(String(id));
-    await Promise.all([
-      synchronizeApplicationCoverLetter(workspace.applications[0].id),
-      synchronizeApplicationDeckblatt(workspace.applications[0].id),
-    ]);
-    return workspace;
+    return runApplicationChange(async () => {
+      const workspace = await store.duplicateApplication(String(id));
+      await Promise.all([
+        synchronizeApplicationCoverLetter(workspace.applications[0].id),
+        synchronizeApplicationDeckblatt(workspace.applications[0].id),
+      ]);
+      return workspace;
+    });
   });
   handle(
     "applications:change-status",
@@ -359,8 +366,7 @@ const registerIpc = () => {
     },
   );
   handle("applications:open-folder", async (_event, id: unknown, rawDocument: unknown) => {
-    const documents = ["deckblatt", "anschreiben", "lebenslauf", "email"] as const;
-    const document = documents.find((item) => item === rawDocument);
+    const document = parseDocumentFolderTarget(rawDocument);
     if (document) {
       // The document's own folder: where its PDF was last saved (that file selected), else its folder in the Bewerbung.
       const candidates = [
@@ -386,31 +392,24 @@ const registerIpc = () => {
   });
   handle("profiles:save", async (_event, value: unknown) => {
     const profile = profileSchema.parse(value);
-    const workspace = await store.saveProfile(profile);
-    await Promise.all(
-      workspace.applications
-        .filter(
-          (application) =>
-            store.getProfileForApplication(application)?.id === profile.id,
-        )
-        .flatMap((application) => [
-          synchronizeApplicationDeckblatt(application.id),
-          synchronizeApplicationCoverLetter(application.id),
-        ]),
-    );
-    return workspace;
+    return runApplicationChange(async () => {
+      const workspace = await store.saveProfile(profile);
+      await Promise.all(workspace.applications
+        .filter((application) => store.getProfileForApplication(application)?.id === profile.id)
+        .flatMap((application) => [synchronizeApplicationDeckblatt(application.id),
+          synchronizeApplicationCoverLetter(application.id)]));
+      return workspace;
+    });
   });
   handle("profiles:remove", async (_event, id: unknown) => {
-    const workspace = await store.removeProfile(String(id));
-    await Promise.all(
-      workspace.applications
+    return runApplicationChange(async () => {
+      const workspace = await store.removeProfile(String(id));
+      await Promise.all(workspace.applications
         .filter((application) => store.getProfileForApplication(application))
-        .flatMap((application) => [
-          synchronizeApplicationDeckblatt(application.id),
-          synchronizeApplicationCoverLetter(application.id),
-        ]),
-    );
-    return workspace;
+        .flatMap((application) => [synchronizeApplicationDeckblatt(application.id),
+          synchronizeApplicationCoverLetter(application.id)]));
+      return workspace;
+    });
   });
   handle("templates:scan", () =>
     templateService.scanAllTemplates(),
@@ -449,9 +448,10 @@ const registerIpc = () => {
     if (!value.templateId || !value.applicationId) {
       throw new Error("Vorlage und Bewerbung sind erforderlich.");
     }
+    const applicationId = value.applicationId;
     const template = await templateService.getTemplateById(value.templateId);
     if (!template) throw new Error("Vorlage wurde nicht gefunden.");
-    const context = store.getTemplateDocumentContext(value.applicationId);
+    const context = store.getTemplateDocumentContext(applicationId);
     if (template.supportsPhoto && context.data["PROFILFOTO"]) {
       const photo = nativeImage.createFromDataURL(
         context.data["PROFILFOTO"],
@@ -460,28 +460,31 @@ const registerIpc = () => {
         ? ""
         : `data:image/png;base64,${photo.toPNG().toString("base64")}`;
     }
-    const result = await templateService.createDocumentFromTemplate(
-      template.id,
-      context.targetDirectories[template.documentType],
-      context.requestedBaseNames[template.documentType],
-      context.data,
-      { atsMode: value.atsMode === true },
-    );
-    store.queueGitCommit(
-      value.applicationId,
-      template.documentType === "anschreiben" ? "anschreiben" : "update",
-    );
+    const { result, gitSync } = await applicationGitSync.runOperation(async () => {
+      const created = await templateService.createDocumentFromTemplate(
+        template.id,
+        context.targetDirectories[template.documentType],
+        context.requestedBaseNames[template.documentType],
+        context.data,
+        { atsMode: value.atsMode === true },
+      );
+      store.queueGitCommit(applicationId, template.documentType, ["Vorlage"]);
+      return created;
+    });
     const openError = await shell.openPath(await externalReadablePath(result.filePath));
     if (openError) throw new Error(openError);
-    return result;
+    return { document: result, gitSync };
   });
   handle(
     "templates:sync-anschreiben",
     async (_event, applicationId: unknown) => {
       const id = String(applicationId);
-      const result = await synchronizeApplicationCoverLetter(id);
-      store.queueGitCommit(id, "anschreiben");
-      return result;
+      const { result, gitSync } = await applicationGitSync.runOperation(async () => {
+        const created = await synchronizeApplicationCoverLetter(id);
+        store.queueGitCommit(id, "anschreiben", ["Word-Dokument"]);
+        return created;
+      });
+      return { document: result, gitSync };
     },
   );
   handle(
@@ -558,17 +561,19 @@ const registerIpc = () => {
     },
   );
   handle("settings:save", (_event, value: unknown) =>
-    store.saveSettings(appSettingsSchema.parse(value)),
+    runApplicationChange(() => store.saveSettings(appSettingsSchema.parse(value))),
   );
   handle("events:save", (_event, value: unknown) =>
-    store.saveEvent(calendarEventSchema.parse(value)),
+    runApplicationChange(() => store.saveEvent(calendarEventSchema.parse(value))),
   );
-  handle("todos:save", (_event, value: unknown) =>
-    store.saveTodo(todoSchema.parse(value)),
-  );
-  handle("todos:remove", (_event, id: unknown) =>
-    store.removeTodo(z.string().uuid().parse(id)),
-  );
+  handle("todos:save", (_event, value: unknown) => {
+    const todo = todoSchema.parse(value);
+    return runApplicationChange(() => store.saveTodo(todo));
+  });
+  handle("todos:remove", (_event, id: unknown) => {
+    const todoId = z.string().uuid().parse(id);
+    return runApplicationChange(() => store.removeTodo(todoId));
+  });
   handle("custom-cv-designs:save", (_event, value: unknown) =>
     store.saveCustomCvDesign(customCvDesignSchema.parse(value)),
   );
@@ -589,21 +594,21 @@ const registerIpc = () => {
         filters: [{ name: "PDF-Dokumente", extensions: ["pdf"] }],
       });
       if (selection.canceled || !selection.filePaths[0])
-        return store.getWorkspace();
-      const workspace = await store.addAttachment(
-        String(applicationId),
-        category,
-        selection.filePaths[0],
-      );
-      await synchronizeApplicationDeckblatt(String(applicationId));
-      return workspace;
+        return { workspace: store.getWorkspace(), gitSync: { state: "skipped" as const } };
+      return runApplicationChange(async () => {
+        const workspace = await store.addAttachment(String(applicationId), category, selection.filePaths[0]);
+        await synchronizeApplicationDeckblatt(String(applicationId));
+        return workspace;
+      });
     },
   );
   handle("attachments:save", async (_event, value: unknown) => {
     const attachment = attachmentSchema.parse(value);
-    const workspace = await store.saveAttachment(attachment);
-    await synchronizeApplicationDeckblatt(attachment.applicationId);
-    return workspace;
+    return runApplicationChange(async () => {
+      const workspace = await store.saveAttachment(attachment);
+      await synchronizeApplicationDeckblatt(attachment.applicationId);
+      return workspace;
+    });
   });
   handle(
     "attachments:move",
@@ -614,22 +619,22 @@ const registerIpc = () => {
       const attachment = store
         .getWorkspace()
         .attachments.find((item) => item.id === String(id));
-      const workspace = await store.moveAttachment(String(id), direction);
-      if (attachment) {
-        await synchronizeApplicationDeckblatt(attachment.applicationId);
-      }
-      return workspace;
+      return runApplicationChange(async () => {
+        const workspace = await store.moveAttachment(String(id), direction);
+        if (attachment) await synchronizeApplicationDeckblatt(attachment.applicationId);
+        return workspace;
+      });
     },
   );
   handle("attachments:remove", async (_event, id: unknown) => {
     const attachment = store
       .getWorkspace()
       .attachments.find((item) => item.id === String(id));
-    const workspace = await store.removeAttachment(String(id));
-    if (attachment) {
-      await synchronizeApplicationDeckblatt(attachment.applicationId);
-    }
-    return workspace;
+    return runApplicationChange(async () => {
+      const workspace = await store.removeAttachment(String(id));
+      if (attachment) await synchronizeApplicationDeckblatt(attachment.applicationId);
+      return workspace;
+    });
   });
   handle("attachments:open", async (_event, id: unknown) => {
     const error = await shell.openPath(await externalReadablePath(store.getAttachmentPathById(String(id))));
@@ -643,13 +648,7 @@ const registerIpc = () => {
       rawTarget: unknown,
       rawApplicationSnapshot: unknown,
     ) => {
-      const targets: ExportTarget[] = [
-        "deckblatt",
-        "anschreiben",
-        "lebenslauf",
-        "mappe",
-      ];
-      const target = targets.find((item) => item === rawTarget);
+      const target = parseExportTarget(rawTarget);
       if (!target) throw new Error("Ungültiges Exportziel.");
       const normalizedApplicationId = String(applicationId);
       const applicationSnapshot =
@@ -672,7 +671,7 @@ const registerIpc = () => {
           defaultPath: path.join(app.getPath("documents"), path.basename(exportPath)),
           filters: [{ name: "PDF", extensions: ["pdf"] }],
         });
-        if (selected.canceled || !selected.filePath) return null;
+        if (selected.canceled || !selected.filePath) return { path: null, gitSync: { state: "skipped" as const } };
         if (workspaceStatus.state === "ready") await requireExternalDestination(selected.filePath, workspaceStatus.root);
         exportPath = selected.filePath;
       } else {
@@ -687,9 +686,13 @@ const registerIpc = () => {
           filters: [{ name: "PDF", extensions: ["pdf"] }],
           properties: ["showOverwriteConfirmation", "createDirectory"],
         });
-        if (selected.canceled || !selected.filePath) return null;
+        if (selected.canceled || !selected.filePath) return { path: null, gitSync: { state: "skipped" as const } };
         exportPath = /\.pdf$/i.test(selected.filePath) ? selected.filePath : `${selected.filePath}.pdf`;
       }
+      const savedSnapshot = store.getApplication(normalizedApplicationId);
+      const comparable = (application: Application) => JSON.stringify({ ...application, updatedAt: "", folderName: "" });
+      const snapshotIsSaved = !applicationSnapshot || comparable(applicationSnapshot) === comparable(savedSnapshot);
+      const { result, gitSync } = await applicationGitSync.runOperation(async () => {
       const exporter = new BrowserWindow({
         show: false,
         webPreferences: {
@@ -711,8 +714,9 @@ const registerIpc = () => {
           printBackground: true,
           margins: { top: 0, right: 0, bottom: 0, left: 0 },
         });
+        // Both combined PDFs end with the selected Zeugnisse and Zertifikate.
         const pdf =
-          target === "mappe"
+          isDocumentPackage(target)
             ? await mergePdfDocuments(
                 generatedPdf,
                 await Promise.all(
@@ -729,15 +733,16 @@ const registerIpc = () => {
         await writeFile(exportPath, pdf);
         lastExportPaths.set(`${normalizedApplicationId}:${target}`, exportPath);
         // Only a PDF inside the Bewerbungsordner belongs to its history; one saved elsewhere is the user's copy.
-        if (workspaceStatus.state === "ready" && isInsideWorkspace(exportPath, workspaceStatus.root))
-          store.queueGitCommit(
-            normalizedApplicationId,
-            target === "anschreiben" ? "anschreiben" : "update",
-          );
+        if (snapshotIsSaved && isInsideWorkspace(exportPath, applicationPaths.dataRoot)) {
+          if (isDocumentPackage(target)) store.queueGitCommit(normalizedApplicationId, "update", [`${exportTitles[target]} (PDF)`]);
+          else store.queueGitCommit(normalizedApplicationId, target, ["PDF"]);
+        }
         return exportPath;
       } finally {
         exporter.destroy();
       }
+      });
+      return { path: result, gitSync };
     },
   );
   handle("export:backup", async () => {
