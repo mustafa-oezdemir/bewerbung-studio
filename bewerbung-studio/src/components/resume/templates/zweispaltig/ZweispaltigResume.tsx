@@ -1,7 +1,8 @@
 import type { CSSProperties } from "react";
 import { zweispaltigDefaults } from "./zweispaltig.defaults";
 import { zweispaltigPageVariables } from "../../../../shared/cvTemplateDefaults/zweispaltig.defaults";
-import { resolveZweispaltigApplicationColors } from "../../../../shared/zweispaltigLetterIdentity";
+import { resolveTemplateCvDesign } from "../../../../shared/cvDesign";
+import { getZweispaltigDesignVariables } from "../../../../shared/zweispaltigDesign";
 import type { ZweispaltigResumeProps } from "./zweispaltig.types";
 import { ZweispaltigPage } from "./ZweispaltigPage";
 import "./zweispaltig.css";
@@ -14,18 +15,19 @@ export function ZweispaltigResume({
   totalPages,
   accentColor,
   secondaryColor,
+  designVariables,
   photoSource,
   resumeProfile,
   sections,
 }: ZweispaltigResumeProps) {
-  const { primary, accent: highlight } = resolveZweispaltigApplicationColors(accentColor, secondaryColor);
+  const colors = designVariables ?? getZweispaltigDesignVariables(
+    resolveTemplateCvDesign("zweispaltig"), undefined, accentColor, secondaryColor);
   const variables = {
     ...zweispaltigPageVariables,
+    ...colors,
     "--zweispaltig-primary": atsMode
       ? zweispaltigDefaults.colors.primaryDark
-      : primary,
-    "--zweispaltig-accent": highlight,
-    "--zweispaltig-heading": primary,
+      : colors["--zweispaltig-primary"],
     "--zweispaltig-section-gap-base": `${zweispaltigDefaults.layout.sectionGapMm}mm`,
     "--zweispaltig-left-ratio": `${zweispaltigDefaults.layout.leftColumnRatio}fr`,
     "--zweispaltig-right-ratio": `${zweispaltigDefaults.layout.rightColumnRatio}fr`,

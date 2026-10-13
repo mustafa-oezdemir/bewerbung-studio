@@ -252,7 +252,8 @@ export const applyResumeDesignOverrides = (
     zeitgenoessisch: "zeit", zweispaltig: "zweispaltig", einspaltig: "einfach",
     pehlione_white: "pehlione", pehlione_white_blue: "pehlione",
   } as Record<string, string>)[resolveTemplateId(templateId)];
-  const nativeNames: Partial<Record<keyof CvDesignTokens["colors"], string[]>> = prefix ? {
+  // Zweispaltig's complete colour palette is already resolved by resolveCvDocument.
+  const nativeNames: Partial<Record<keyof CvDesignTokens["colors"], string[]>> = prefix && resolveTemplateId(templateId) !== "zweispaltig" ? {
     text: [`--${prefix}-text`], muted: [`--${prefix}-muted`],
     divider: [`--${prefix}-divider`, `--${prefix}-line`],
     background: [`--${prefix}-paper`, `--${prefix}-page-bg`, `--${prefix}-page-background`],

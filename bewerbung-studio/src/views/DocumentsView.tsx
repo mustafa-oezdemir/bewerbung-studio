@@ -2544,6 +2544,7 @@ export function DocumentsView({
                           totalPages={resumePlan.length}
                           accentColor={design.accentColor}
                           secondaryColor={design.secondaryColor}
+                          designVariables={resolvedCv.zweispaltigVariables}
                           photoSource={getProfileMediaSource(
                             renderProfile?.photoPath,
                           )}

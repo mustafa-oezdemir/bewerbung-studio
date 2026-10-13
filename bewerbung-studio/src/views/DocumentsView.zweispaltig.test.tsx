@@ -60,3 +60,43 @@ describe("Zweispaltig Anschreiben preview and PDF", () => {
     }
   });
 });
+
+describe("Zweispaltig Lebenslauf preview and PDF", () => {
+  it("reflects changed application colours in the document view and PDF", () => {
+    const now = "2026-10-13T09:00:00.000Z";
+    const profile = profileSchema.parse({
+      id: "a2000000-0000-4000-8000-000000000001", isDefault: true,
+      firstName: "Mina", lastName: "Kaya", title: "Entwicklerin", city: "Berlin",
+      email: "mina@example.test", updatedAt: now,
+    });
+    const base = applicationSchema.parse({
+      schemaVersion: 1, id: "a2000000-0000-4000-8000-000000000002", profileId: profile.id,
+      folderName: "Fiktiv", company: { name: "Beispiel GmbH", city: "Berlin" }, contact: {},
+      job: { title: "Entwicklung" }, status: "Entwurf", templateId: "zweispaltig",
+      accentColor: "#0B3D86", secondaryColor: "#58B5F7",
+      designSettings: getTemplateDocumentDesignDefaults("zweispaltig"), documents: {},
+      statusHistory: [], createdAt: now, updatedAt: now,
+    });
+    const previous = testStore.state;
+    try {
+      for (const [primary, secondary] of [["#0B3D86", "#58B5F7"], ["#EE7B24", "#9D4616"]]) {
+        const application = { ...base, accentColor: primary, secondaryColor: secondary };
+        testStore.state = { workspace: { schemaVersion: 1, applications: [application], profiles: [profile],
+          events: [], attachments: [], todos: [], customCvDesigns: [], settings: defaultSettings, updatedAt: now } };
+        const preview = parseHTML(renderToStaticMarkup(createElement(DocumentsView, { initialTab: "lebenslauf" })))
+          .document.querySelector<HTMLElement>(".zweispaltig-template");
+        const pdf = parseHTML(buildDocumentHtml(application, profile, "lebenslauf"))
+          .document.querySelector<HTMLElement>(".zweispaltig-pdf");
+        expect(preview).not.toBeNull();
+        expect(pdf).not.toBeNull();
+        for (const page of [preview, pdf]) {
+          expect(page?.style.getPropertyValue("--zweispaltig-primary")).toBe(primary);
+          expect(page?.style.getPropertyValue("--zweispaltig-accent")).toBe(secondary);
+          expect(page?.style.getPropertyValue("--zweispaltig-heading")).toBe(primary);
+        }
+      }
+    } finally {
+      testStore.state = previous;
+    }
+  });
+});

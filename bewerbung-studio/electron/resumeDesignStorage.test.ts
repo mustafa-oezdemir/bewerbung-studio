@@ -1,6 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { parseHTML } from "linkedom";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { profileSchema, type ApplicationInput } from "../src/shared/schema";
 import { getTemplateDocumentDesignDefaults } from "../src/shared/cvDesign";
@@ -60,6 +61,25 @@ describe("global and document Lebenslauf design storage", () => {
     await reopened.initialize();
     expect(reopened.getWorkspace().settings.resumeDesign).toEqual(layer);
     expect(reopened.getExportHtml(id, "lebenslauf")).toContain("--doc-section-gap:7mm");
+  });
+
+  it("keeps selected Zweispaltig colours after the workspace is reopened", async () => {
+    await store.createApplication({ ...applicationInput("zweispaltig"),
+      accentColor: "#0B3D86", secondaryColor: "#58B5F7" });
+    const original = store.getWorkspace().applications[0];
+    const coloursInPdf = (current: DataStore) => {
+      const page = parseHTML(current.getExportHtml(original.id, "lebenslauf"))
+        .document.querySelector<HTMLElement>(".zweispaltig-pdf")!;
+      return [page.style.getPropertyValue("--zweispaltig-primary"),
+        page.style.getPropertyValue("--zweispaltig-accent")];
+    };
+    expect(coloursInPdf(store)).toEqual(["#0B3D86", "#58B5F7"]);
+    await store.saveApplication({ ...original, accentColor: "#EE7B24", secondaryColor: "#9D4616" });
+    const reopened = new DataStore(root);
+    await reopened.initialize();
+    const saved = reopened.getWorkspace().applications.find((item) => item.id === original.id)!;
+    expect([saved.accentColor, saved.secondaryColor]).toEqual(["#EE7B24", "#9D4616"]);
+    expect(coloursInPdf(reopened)).toEqual(["#EE7B24", "#9D4616"]);
   });
 
   const designOf = (id: string, current = store) => current.getWorkspace().applications.find((application) => application.id === id)!.designSettings;

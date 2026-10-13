@@ -2,8 +2,8 @@ import { inheritResumeSectionStyles } from "../src/shared/resumeSectionStyleInhe
 import { kreativDefaults } from "../src/shared/cvTemplateDefaults/kreativ.defaults";
 import { kompaktDefaults } from "../src/shared/cvTemplateDefaults/kompakt.defaults";
 import { stilvollDefaults } from "../src/shared/cvTemplateDefaults/stilvoll.defaults";
-import { zweispaltigPageStyle } from "../src/shared/cvTemplateDefaults/zweispaltig.defaults";
-import { getZweispaltigLetterVariables, resolveZweispaltigApplicationColors, zweispaltigLetterCss } from "../src/shared/zweispaltigLetterIdentity";
+import { zweispaltigDefaults, zweispaltigPageStyle } from "../src/shared/cvTemplateDefaults/zweispaltig.defaults";
+import { getZweispaltigLetterVariables, zweispaltigLetterCss } from "../src/shared/zweispaltigLetterIdentity";
 import { zeitgenoessischLetterCss } from "../src/shared/zeitgenoessischDesign";
 import { getElegantDesignVariables, elegantLetterCss, elegantManagedCss, isElegantWideContact } from "../src/shared/elegantDesign";
 import { kreativLetterCss, kreativResolvedCss } from "../src/shared/kreativDesign";
@@ -416,7 +416,7 @@ const elegantDocumentCss = `
 `;
 
 const zweispaltigDocumentCss = `
-  .zweispaltig-pdf{--zweispaltig-primary:var(--accent);--zweispaltig-accent:var(--secondary);--zweispaltig-heading:var(--zweispaltig-heading-color,var(--accent));--zweispaltig-text:#4a555c;--zweispaltig-muted:#667178;--zweispaltig-divider:#d6dce0;--zweispaltig-section-gap-base:6.5mm;--zweispaltig-section-gap:var(--zweispaltig-section-gap-base);--zweispaltig-entry-gap:var(--doc-entry-gap,3.5mm);--body-size:var(--doc-body-size,10pt);--body-line:var(--doc-line-height,1.32);position:relative;width:100%;height:100%;padding:var(--zweispaltig-margin-top) var(--zweispaltig-margin-right) var(--zweispaltig-margin-bottom) var(--zweispaltig-margin-left);overflow:hidden;color:var(--zweispaltig-text);background:#fff;font-family:var(--body-font);font-size:var(--body-size);line-height:var(--body-line)}
+  .zweispaltig-pdf{--zweispaltig-primary:${zweispaltigDefaults.colors.primary};--zweispaltig-accent:${zweispaltigDefaults.colors.accent};--zweispaltig-heading:${zweispaltigDefaults.colors.heading};--zweispaltig-soft:${zweispaltigDefaults.colors.primarySoft};--zweispaltig-text:${zweispaltigDefaults.colors.text};--zweispaltig-muted:${zweispaltigDefaults.colors.mutedText};--zweispaltig-divider:${zweispaltigDefaults.colors.divider};--zweispaltig-section-gap-base:6.5mm;--zweispaltig-section-gap:var(--zweispaltig-section-gap-base);--zweispaltig-entry-gap:var(--doc-entry-gap,3.5mm);--body-size:var(--doc-body-size,10pt);--body-line:var(--doc-line-height,1.32);position:relative;width:100%;height:100%;padding:var(--zweispaltig-margin-top) var(--zweispaltig-margin-right) var(--zweispaltig-margin-bottom) var(--zweispaltig-margin-left);overflow:hidden;color:var(--zweispaltig-text);background:#fff;font-family:var(--body-font);font-size:var(--body-size);line-height:var(--body-line);print-color-adjust:exact;-webkit-print-color-adjust:exact}
   .zweispaltig-pdf *{box-sizing:border-box}
   .zweispaltig-pdf-header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8mm;min-width:0}
   .zweispaltig-pdf-header h1{margin:0;color:var(--zweispaltig-heading);font-size:24pt;font-weight:750;letter-spacing:.025em;line-height:1;text-transform:uppercase;overflow-wrap:anywhere}
@@ -427,9 +427,9 @@ const zweispaltigDocumentCss = `
   .zweispaltig-pdf-contacts svg{width:3mm;height:3mm;color:var(--zweispaltig-accent);fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:2.4}
   .zweispaltig-pdf-contacts a>span,.zweispaltig-pdf-contacts>span>span{min-width:0;overflow-wrap:anywhere}
   .zweispaltig-pdf-contacts [data-contact-kind="linkedin"]>span,.zweispaltig-pdf-contacts [data-contact-kind="github"]>span{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere}
-  .zweispaltig-pdf-photo{display:block;width:calc(30mm * var(--resume-photo-scale,1));height:calc(30mm * var(--resume-photo-scale,1));overflow:hidden;border:.35mm solid color-mix(in srgb,var(--zweispaltig-primary),white 25%);border-radius:50%;background:#eaf5fd;object-fit:cover}
+  .zweispaltig-pdf-photo{display:block;width:calc(30mm * var(--resume-photo-scale,1));height:calc(30mm * var(--resume-photo-scale,1));overflow:hidden;border:.35mm solid color-mix(in srgb,var(--zweispaltig-primary),white 25%);border-radius:50%;background:var(--zweispaltig-soft);object-fit:cover}
   .zweispaltig-pdf-header.compact{display:flex;flex-wrap:wrap;align-items:baseline;gap:1.5mm 4mm;padding-bottom:3.5mm}
-  .zweispaltig-pdf-header.compact .kicker{flex-basis:100%;margin:0;color:var(--accent);font-size:7.3pt;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
+  .zweispaltig-pdf-header.compact .kicker{flex-basis:100%;margin:0;color:var(--zweispaltig-primary);font-size:7.3pt;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
   .zweispaltig-pdf-header.compact h1{font-size:15pt}
   .zweispaltig-pdf-header.compact h2{margin:0;color:var(--zweispaltig-muted);font-size:8.6pt}
   .zweispaltig-pdf-columns{display:grid;grid-template-columns:minmax(0,62fr) minmax(0,38fr);column-gap:11mm;min-width:0}
@@ -801,10 +801,8 @@ export const buildDocumentHtml = (
   const template = getTemplate(application.templateId);
   const accent = application.accentColor || template.accent;
   const secondary = application.secondaryColor || template.secondary;
-  const zweispaltigColors = template.id === "zweispaltig" ? resolveZweispaltigApplicationColors(accent, secondary) : undefined;
-  const zweispaltigCvStyle = zweispaltigColors
-    ? `${zweispaltigPageStyle};--accent:${escapeHtml(zweispaltigColors.primary)};--secondary:${escapeHtml(zweispaltigColors.accent)};--zweispaltig-heading-color:${escapeHtml(resolvedCv.settings.cvOverrides?.colors?.heading ?? zweispaltigColors.primary)}`
-    : zweispaltigPageStyle;
+  const zweispaltigCvStyle = `${zweispaltigPageStyle};${Object.entries(resolvedCv.zweispaltigVariables ?? {})
+    .map(([key, value]) => `${key}:${escapeHtml(value)}`).join(";")}`;
   const onSecondary = getReadableTextColor(secondary);
   const designSettings = resolvedCv.settings;
   const atsMode =

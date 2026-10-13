@@ -93,8 +93,9 @@ describe("Lebenslauf-Dokumente", () => {
     expect(letter?.style.getPropertyValue("--letter-body-size")).toBe("11pt");
     expect(zweispaltigLetterCss).toContain("font-size:var(--letter-subject-size)!important");
     expect(zweispaltigLetterCss).toContain("font-size:11pt!important");
-    expect(cv?.style.getPropertyValue("--accent")).toBe("#123456");
-    expect(cv?.style.getPropertyValue("--secondary")).toBe("#ABCDEF");
+    expect(cv?.style.getPropertyValue("--zweispaltig-primary")).toBe("#123456");
+    expect(cv?.style.getPropertyValue("--zweispaltig-accent")).toBe("#ABCDEF");
+    expect(cv?.style.getPropertyValue("--zweispaltig-soft")).toBe("#EAF5FD");
     expect(source.firstName).toBe("Mustafa");
     expect(selected.documents.coverSenderName).toBe("Alter Name");
   });
@@ -1130,9 +1131,9 @@ describe("Lebenslauf-Dokumente", () => {
     const { document } = parseHTML(html);
     const page = document.querySelector(".zweispaltig-pdf");
 
-    expect(page?.getAttribute("style")).toContain("--zweispaltig-heading-color:#0060F0");
+    expect(page?.getAttribute("style")).toContain("--zweispaltig-heading:#0060F0");
     expect(page?.getAttribute("style")).toContain("--zweispaltig-accent:#1DBF2F");
-    expect(html).toContain("--zweispaltig-heading:var(--zweispaltig-heading-color,var(--accent))");
+    expect(html).toContain("--zweispaltig-heading:#0B3D86");
     expect(page?.querySelector(".zweispaltig-pdf-entry h4")).toBeTruthy();
     expect(page?.querySelector(".zweispaltig-pdf-entry-organization")?.getAttribute("style")).toContain("color:#1DBF2F");
   });
