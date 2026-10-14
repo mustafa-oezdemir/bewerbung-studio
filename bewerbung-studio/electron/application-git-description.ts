@@ -48,6 +48,8 @@ const applicationFields: Array<[keyof Application, ApplicationGitAction, string]
 const jobLabels: Partial<Record<keyof Application["job"], string>> = {
   title: "Position",
   fullText: "Stellenanzeige",
+  tasksText: "Aufgaben",
+  requirementsText: "Anforderungen",
 };
 
 // Saved Lebenslauf layout of the Bewerbung: section order/visibility, personal data, closing and layout are named on

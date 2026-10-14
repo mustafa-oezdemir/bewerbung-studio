@@ -1086,4 +1086,23 @@ describe("DataStore backups", () => {
     await store.clearApplicationDraft();
     await expect(store.getApplicationDraft()).resolves.toBeNull();
   });
+
+  it("persists separate job sections and legacy text through save and reopen", async () => {
+    const input = applicationInput("Beispiel GmbH");
+    input.job.tasksText = "Fiktive Aufgaben mit React";
+    input.job.requirementsText = "TypeScript erforderlich";
+    input.job.fullText = "Alter ungeteilter Text";
+    const created = (await store.createApplication(input)).applications[0];
+    const directory = store.files.documentDirectories(created).stellenanzeige;
+    expect(JSON.parse(await readFile(path.join(directory, "stellenanzeige.json"), "utf8")))
+      .toMatchObject({ tasksText: input.job.tasksText, requirementsText: input.job.requirementsText, fullText: input.job.fullText });
+    expect(await readFile(path.join(directory, "stellenanzeige.txt"), "utf8"))
+      .toBe("Deine Aufgaben\nFiktive Aufgaben mit React\n\nDein Profil / Anforderungen\nTypeScript erforderlich\n\nBisheriger Anzeigentext\nAlter ungeteilter Text");
+    await store.saveApplication({ ...created, job: { ...created.job, tasksText: "Neue Aufgaben" } });
+    const reopened = new DataStore(root);
+    await reopened.initialize();
+    expect(reopened.getWorkspace().applications[0].job).toMatchObject({
+      tasksText: "Neue Aufgaben", requirementsText: "TypeScript erforderlich", fullText: "Alter ungeteilter Text",
+    });
+  });
 });

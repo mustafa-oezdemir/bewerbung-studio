@@ -154,7 +154,9 @@ export function ApplicationsView({
       ...selected,
       job: {
         ...selected.job,
-        fullText: String(data.get("fullText")),
+        fullText: String(data.get("fullText") ?? selected.job.fullText),
+        tasksText: String(data.get("tasksText") ?? ""),
+        requirementsText: String(data.get("requirementsText") ?? ""),
       },
       notes: String(data.get("notes")),
     });
@@ -513,13 +515,24 @@ export function ApplicationsView({
               onSubmit={submitContent}
               saving={saving}>
               <label className="field full">
-                <span>Vollständige Stellenanzeige</span>
+                <span>Deine Aufgaben</span>
                 <textarea
-                  name="fullText"
-                  rows={8}
-                  defaultValue={selected.job.fullText}
+                  name="tasksText"
+                  rows={5}
+                  defaultValue={selected.job.tasksText}
                 />
               </label>
+              <label className="field full">
+                <span>Dein Profil / Anforderungen</span>
+                <textarea name="requirementsText" rows={5} defaultValue={selected.job.requirementsText} />
+              </label>
+              {selected.job.fullText ? (
+                <label className="field full">
+                  <span>Bisheriger Anzeigentext</span>
+                  <small>Dieser Text bleibt erhalten. Übernehmen Sie Inhalte bei Bedarf in die beiden Felder oben.</small>
+                  <textarea name="fullText" rows={5} defaultValue={selected.job.fullText} />
+                </label>
+              ) : null}
               <label className="field full">
                 <span>Persönliche Notizen</span>
                 <textarea name="notes" rows={4} defaultValue={selected.notes} />

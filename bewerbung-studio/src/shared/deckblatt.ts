@@ -1,6 +1,7 @@
 import type { ApplicantProfile, Application, Attachment } from "./schema";
 import type { DocumentDraft } from "./schema";
 import { getVisibleApplicationDocumentLabels } from "./applicationDocuments";
+import { resolveJobAdvertisementText } from "./jobAdvertisement";
 
 export type DeckblattContact = {
   label: string;
@@ -88,7 +89,7 @@ export const getDeckblattCompetencies = (
     ).values(),
   );
   const jobText =
-    `${application?.job.title ?? ""} ${application?.job.fullText ?? ""}`.toLocaleLowerCase(
+    `${application?.job.title ?? ""} ${application ? resolveJobAdvertisementText(application.job) : ""}`.toLocaleLowerCase(
       "de-DE",
     );
   const ranked = unique

@@ -111,7 +111,7 @@ describe("BewerbungsManager schemas", () => {
       folderName: "Beispiel_2026-08-29/Entwickler",
       company: { name: "Beispiel GmbH", city: "Berlin" },
       contact: { salutation: "Herr", lastName: "Mustermann" },
-      job: { title: "Entwickler" },
+      job: { title: "Entwickler", fullText: "Bisherige Anzeige" },
       status: "Beworben",
       templateId: "classic-professional",
       accentColor: "#155e58",
@@ -133,6 +133,7 @@ describe("BewerbungsManager schemas", () => {
     expect(legacyResult.success).toBe(true);
     if (legacyResult.success) {
       expect(legacyResult.data.applications[0].additionalContacts).toEqual([]);
+      expect(legacyResult.data.applications[0].job.fullText).toBe("Bisherige Anzeige");
     }
 
     const secondContactResult = workspaceSchema.safeParse({
@@ -392,5 +393,23 @@ describe("BewerbungsManager schemas", () => {
       accentColor: "#155e58",
     });
     expect(result.success).toBe(true);
+  });
+
+  it("keeps legacy advertisement text and restores both independent draft sections", () => {
+    const old = applicationInputSchema.parse({
+      company: { name: "Beispiel GmbH", city: "Berlin" }, contact: {},
+      job: { title: "Entwickler", fullText: "Unsortierter alter Anzeigentext" },
+      templateId: "classic-professional", accentColor: "#155e58",
+    });
+    expect(old.job.fullText).toBe("Unsortierter alter Anzeigentext");
+    expect(old.job.tasksText).toBeUndefined();
+    expect(old.job.requirementsText).toBeUndefined();
+    const draft = applicationDraftSchema.parse({ job: {
+      ...old.job, tasksText: "Aufgabe A", requirementsText: "SQL erforderlich",
+    } });
+    expect(draft.job).toMatchObject({
+      fullText: "Unsortierter alter Anzeigentext",
+      tasksText: "Aufgabe A", requirementsText: "SQL erforderlich",
+    });
   });
 });

@@ -14,6 +14,7 @@ import { parseEncryptedWorkspace } from "./security/encryption-service";
 import { createHash } from "node:crypto";
 import os from "node:os";
 import { defaultDeckblattDesign } from "../src/shared/deckblattDesignIds";
+import { resolveJobAdvertisementText } from "../src/shared/jobAdvertisement";
 import { resolveEducationPresentation } from "../src/shared/resumeEducation";
 import { resolveResumeClosingLine } from "../src/shared/resumeClosing";
 import { resolveExperience } from "../src/shared/resumeCareer";
@@ -686,7 +687,7 @@ export class DataStore {
       ),
       this.atomicWrite(
         path.join(documents.stellenanzeige, "stellenanzeige.txt"),
-        application.job.fullText,
+        resolveJobAdvertisementText(application.job),
       ),
       this.atomicWrite(
         path.join(documents.email, "Email.md"),
