@@ -2439,11 +2439,11 @@ export function DocumentsView({
                     <div className="resume-profile-context" role="status">
                       <div><strong>Gemeinsames Profil</strong><span>{profile.firstName} {profile.lastName}</span></div>
                       <small>Änderungen an Profildaten gelten für alle Bewerbungen mit diesem Profil.</small>
-                      <span className={`resume-save-status is-${profileSaveStatus}`}>
-                        {profileSaveStatus === "dirty" ? "Ungespeicherte Änderungen" :
-                          profileSaveStatus === "saving" ? "Speichert …" :
-                          profileSaveStatus === "saved" ? "Gespeichert" :
-                          profileSaveStatus === "error" ? "Fehler beim Speichern" : "Profil verbunden"}
+                      <span className={`resume-save-status is-${currentProfileDraft() && profileSaveStatus !== "saving" && profileSaveStatus !== "error" ? "dirty" : profileSaveStatus}`}>
+                        {profileSaveStatus === "saving" ? "Speichert …" :
+                          profileSaveStatus === "error" ? "Fehler beim Speichern" :
+                          currentProfileDraft() || profileSaveStatus === "dirty" ? "Ungespeicherte Änderungen" :
+                          profileSaveStatus === "saved" ? "Gespeichert" : "Profil verbunden"}
                       </span>
                     </div>
                   ) : null}
@@ -2473,6 +2473,7 @@ export function DocumentsView({
                       onPickMedia={(kind) => void pickProfileMedia(kind)}
                       onRemoveMedia={(kind) => void removeProfileMedia(kind)}
                       onSave={saveResumeSections}
+                      onDiscard={() => { setResumeContentDraft(null); setProfileSaveStatus("idle"); }}
                       onPreview={handleResumeSectionPreview}
                     />
                   ) : null}

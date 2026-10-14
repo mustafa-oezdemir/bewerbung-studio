@@ -109,6 +109,22 @@ export function ResumeDataEditor({
   };
 
   const updateSection = () => void save();
+  /**
+   * In a card of the Lebenslauf (`section`) the editor of that one section stands open: no second accordion, no other
+   * section's editor, no title field of its own (the card names the section) and no extra save button (the draft is the
+   * Bewerbung's, saved with „Änderungen speichern“). Standing alone it keeps its groups.
+   */
+  const inCard = Boolean(section);
+  const group = (id: string, summary: ReactNode, body: ReactNode, update = true) => {
+    if (section) return section === id ? <div className="resume-data-section" key={id}>{body}</div> : null;
+    return (
+      <details className="resume-data-group" key={id}>
+        <summary>{summary}</summary>
+        {body}
+        {update ? <SectionUpdateButton onClick={updateSection} /> : null}
+      </details>
+    );
+  };
 
   return (
     <section
@@ -133,15 +149,14 @@ export function ResumeDataEditor({
 
       {open || section ? (
         <div className="resume-data-editor-body">
-          <p className="resume-data-editor-hint" hidden={Boolean(section)}>
-            Diese Daten gehören zum ausgewählten Profil und werden in allen
-            damit verbundenen Bewerbungen verwendet.
-          </p>
+          {!section ? (
+            <p className="resume-data-editor-hint">
+              Diese Daten gehören zum ausgewählten Profil und werden in allen
+              damit verbundenen Bewerbungen verwendet.
+            </p>
+          ) : null}
 
-          <details
-            className="resume-data-group"
-            hidden={Boolean(section && section !== "strengths")}>
-            <summary>{draft.resumeSectionTitles.strengths}</summary>
+          {group("strengths", draft.resumeSectionTitles.strengths, <>
             <p>3 Spalten in allen Vorlagen · 9 Einträge ergeben 3 Zeilen.</p>
             <button
               type="button"
@@ -154,11 +169,13 @@ export function ResumeDataEditor({
               }>
               <Plus size={15} /> Go / React / Spring Boot ergänzen
             </button>
-            <ResumeSectionTitleEditor
-              profile={draft}
-              section="strengths"
-              onChange={setDraft}
-            />
+            {!inCard ? (
+              <ResumeSectionTitleEditor
+                profile={draft}
+                section="strengths"
+                onChange={setDraft}
+              />
+            ) : null}
             <button
               className="button secondary small-button"
               type="button"
@@ -257,32 +274,15 @@ export function ResumeDataEditor({
                 </article>
               ))}
             </div>
-            <SectionUpdateButton onClick={updateSection} />
-          </details>
+          </>)}
 
-          <details
-            className="resume-data-group"
-            hidden={Boolean(section && section !== "experience")}>
-            <summary>
-              <span>
-                {getResumeSectionTitle(draft, "experience")} ({draft.experiences.length})
-              </span>
-            </summary>
-            {/* The same editor as in the profile (Profil → 5.); the title is managed by the panel. */}
-            <CareerEditor profile={draft} onChange={setDraft} showTitle={false} />
-          </details>
-          <details
-            className="resume-data-group"
-            hidden={Boolean(section && section !== "education")}>
-            <summary>{getResumeSectionTitle(draft, "education")} ({draft.education.length})</summary>
-            <EducationEditor profile={draft} onChange={setDraft} showTitle={false} />
-            <SectionUpdateButton onClick={updateSection} />
-          </details>
+          {/* The same editors as in the profile (Profil → 5. and 6.); the title is managed by the panel. */}
+          {group("experience", <span>{getResumeSectionTitle(draft, "experience")} ({draft.experiences.length})</span>,
+            <CareerEditor profile={draft} onChange={setDraft} showTitle={false} />, false)}
+          {group("education", <>{getResumeSectionTitle(draft, "education")} ({draft.education.length})</>,
+            <EducationEditor profile={draft} onChange={setDraft} showTitle={false} />)}
 
-          <details
-            className="resume-data-group"
-            hidden={Boolean(section && section !== "knowledge")}>
-            <summary>{draft.knowledgeSection.title || "Kenntnisse"}</summary>
+          {group("knowledge", draft.knowledgeSection.title || "Kenntnisse",
             <KnowledgeSectionEditor
               value={{
                 ...draft.knowledgeSection,
@@ -297,19 +297,16 @@ export function ResumeDataEditor({
                   ),
                 )
               }
-            />
-            <SectionUpdateButton onClick={updateSection} />
-          </details>
+            />)}
 
-          <details
-            className="resume-data-group"
-            hidden={Boolean(section && section !== "languages")}>
-            <summary>{draft.resumeSectionTitles.languages}</summary>
-            <ResumeSectionTitleEditor
-              profile={draft}
-              section="languages"
-              onChange={setDraft}
-            />
+          {group("languages", draft.resumeSectionTitles.languages, <>
+            {!inCard ? (
+              <ResumeSectionTitleEditor
+                profile={draft}
+                section="languages"
+                onChange={setDraft}
+              />
+            ) : null}
             <LanguageLevelEditor
               values={draft.languages}
               onChange={(languages) =>
@@ -325,18 +322,16 @@ export function ResumeDataEditor({
                 {[1, 2, 3, 4].map((count) => <option key={count} value={count}>{count} {count === 1 ? "Spalte" : "Spalten"}</option>)}
               </select>
             </label> : null}
-            <SectionUpdateButton onClick={updateSection} />
-          </details>
+          </>)}
 
-          <details
-            className="resume-data-group"
-            hidden={Boolean(section && section !== "certifications")}>
-            <summary>{draft.resumeSectionTitles.certifications}</summary>
-            <ResumeSectionTitleEditor
-              profile={draft}
-              section="certifications"
-              onChange={setDraft}
-            />
+          {group("certifications", draft.resumeSectionTitles.certifications, <>
+            {!inCard ? (
+              <ResumeSectionTitleEditor
+                profile={draft}
+                section="certifications"
+                onChange={setDraft}
+              />
+            ) : null}
             {certificateSelection}
             <CertificateListEditor
               profile={draft}
@@ -344,23 +339,18 @@ export function ResumeDataEditor({
                 setDraft((current) => ({ ...current, ...fields }))
               }
             />
-            <SectionUpdateButton onClick={updateSection} />
-          </details>
+          </>)}
 
-          <ResumeSpecialSectionsEditor
-            selectedId={
-              section?.startsWith("special:")
-                ? section.slice(8)
-                : section
-                  ? "__hidden"
-                  : undefined
-            }
-            value={draft.specialSections}
-            onChange={(specialSections) =>
-              setDraft((current) => ({ ...current, specialSections }))
-            }
-            onUpdate={updateSection}
-          />
+          {!section || section.startsWith("special:") ? (
+            <ResumeSpecialSectionsEditor
+              selectedId={section?.slice(8)}
+              value={draft.specialSections}
+              onChange={(specialSections) =>
+                setDraft((current) => ({ ...current, specialSections }))
+              }
+              onUpdate={controlledDraft ? undefined : updateSection}
+            />
+          ) : null}
 
           <div className="resume-data-actions" hidden={Boolean(section)}>
             <button className="button secondary" type="button" onClick={reset}>
@@ -420,7 +410,8 @@ export function ResumeSpecialSectionsEditor({
   selectedId?: string;
   value: ApplicantProfile["specialSections"];
   onChange: (value: ApplicantProfile["specialSections"]) => void;
-  onUpdate: () => void;
+  /** Saves the section where the editor stands alone; a card of the Lebenslauf saves with the Bewerbung. */
+  onUpdate?: () => void;
 }) {
   const updateSection = (
     sectionId: string,
@@ -466,10 +457,9 @@ export function ResumeSpecialSectionsEditor({
       {value
         .filter((item) => !selectedId || item.id === selectedId)
         .map((section) => (
-          <details className="resume-data-group" key={section.id}>
-            <summary>
-              {section.title || resumeSpecialSectionLabel(section.kind)}
-            </summary>
+          // In its card of the Lebenslauf the section stands open; the list of all sections keeps one group each.
+          <SpecialSectionGroup key={section.id} open={Boolean(selectedId)}
+            summary={section.title || resumeSpecialSectionLabel(section.kind)}>
             {!selectedId && (
               <OrderControls
                 index={value.findIndex((item) => item.id === section.id)}
@@ -487,11 +477,12 @@ export function ResumeSpecialSectionsEditor({
               />
             )}
             <div className="resume-data-field-grid">
-              <EditorInput
+              {/* In a card the card's own title field names the section. */}
+              {!selectedId ? <EditorInput
                 label="Abschnittsüberschrift"
                 value={section.title}
                 onChange={(title) => updateSection(section.id, { title })}
-              />
+              /> : null}
               {section.kind !== "projects" && <label className="field">
                 <span>Inhaltstyp</span>
                 <select value={section.contentType ?? ""} onChange={(event) => updateSection(section.id, { contentType: (event.target.value || undefined) as ResumeCustomContentType | undefined })}>
@@ -672,10 +663,16 @@ export function ResumeSpecialSectionsEditor({
                 }>
                 <Trash2 size={15} /> Abschnitt löschen
               </button>
-              <SectionUpdateButton onClick={onUpdate} />
+              {onUpdate ? <SectionUpdateButton onClick={onUpdate} /> : null}
             </div>
-          </details>
+          </SpecialSectionGroup>
         ))}
     </div>
   );
+}
+
+function SpecialSectionGroup({ open, summary, children }: { open: boolean; summary: string; children: ReactNode }) {
+  return open
+    ? <div className="resume-data-section">{children}</div>
+    : <details className="resume-data-group"><summary>{summary}</summary>{children}</details>;
 }

@@ -20,12 +20,16 @@ const render = (profile: ApplicantProfile, templateId: string, layoutMode?: "sin
 const listed = (html: string) => Array.from(html.matchAll(/aria-label="([^"]+) nach oben"/g), (match) => match[1]);
 
 describe("ResumeSectionsPanel flexible blocks", () => {
-  it("starts nested knowledge settings closed when a content card is opened", () => {
+  it("opens the knowledge editor of the card directly, without a second accordion around it", () => {
     const profile = blank();
     const document = parseHTML(renderToStaticMarkup(<ResumeSectionsPanel profile={profile} templateId="zweispaltig"
       initialExpanded="knowledge" singlePageExceeded={false} onSave={vi.fn()} onPreview={vi.fn()} />)).document;
-    expect(document.querySelector("details[open]")).toBeNull();
-    expect(document.querySelector(".knowledge-profile-group")).not.toBeNull();
+    const body = document.querySelector("#manager-card-knowledge")!;
+    expect(body.querySelector(".knowledge-section-editor")).not.toBeNull();
+    expect(body.querySelector(".knowledge-section-editor")!.closest("details")).toBeNull();
+    // Sprachen and Zertifikate have cards of their own; the card's editor carries the one title field.
+    expect(body.querySelector(".knowledge-profile-group")).toBeNull();
+    expect(body.querySelectorAll('input[aria-label$="Überschrift"]')).toHaveLength(0);
   });
   it("renders editable Pehlione blocks, placement, renderer and item controls", () => {
     const profile = profileSchema.parse({
@@ -139,12 +143,14 @@ afterEach(() => {
 const noop = () => {};
 
 /** The panel in a real React tree (linkedom), with the draft it writes. */
-const mount = async (templateId: string, layoutMode: "single" | "two-column", initial: ApplicantProfile) => {
+const mount = async (templateId: string, layoutMode: "single" | "two-column", initial: ApplicantProfile, options: { onDiscard?: () => void } = {}) => {
   const { window } = parseHTML("<html><body><div id='root'></div></body></html>");
   Object.assign(globalThis, { window, document: window.document, IS_REACT_ACT_ENVIRONMENT: true });
   // Cards are 40 px high from the top of the page: a drop at y 10 lands on the upper half of a card.
   Object.defineProperty(window.HTMLElement.prototype, "getBoundingClientRect", { configurable: true,
     value: () => ({ top: 0, height: 40, left: 0, width: 300, bottom: 40, right: 300, x: 0, y: 0 }) });
+  // Like a browser, the document supports input events (React reads typing from them, not from its IE fallback).
+  Object.assign(window.document, { oninput: null });
   const { createRoot } = await import("react-dom/client");
   const root = createRoot(window.document.getElementById("root")!);
   let draft = initial;
@@ -152,7 +158,7 @@ const mount = async (templateId: string, layoutMode: "single" | "two-column", in
     const [current, setCurrent] = useState(initial);
     draft = current;
     return <ResumeSectionsPanel profile={initial} templateId={templateId} layoutMode={layoutMode} singlePageExceeded={false}
-      onSave={async () => {}} onPreview={noop} controlledDraft={current} onDraftChange={setCurrent} />;
+      onSave={async () => {}} onPreview={noop} controlledDraft={current} onDraftChange={setCurrent} onDiscard={options.onDiscard} />;
   }
   await act(async () => { root.render(<Harness />); });
   const find = (label: string) => window.document.querySelector(`[aria-label="${label}"]`)!;
@@ -173,6 +179,15 @@ const mount = async (templateId: string, layoutMode: "single" | "two-column", in
     /** Clicks the button whose text is `text` (the picker cards and add buttons have no aria-label). */
     press: (text: string, scope = "body") => fire(Array.from(window.document.querySelectorAll(`${scope} button`)).find((button) => button.textContent?.trim() === text)!, "click"),
     query: (selector: string) => window.document.querySelector(selector),
+    /** Opens (or closes) the card whose title reads `title`: one click. */
+    open: (title: string) => fire(Array.from(window.document.querySelectorAll(".manager-card-title")).find((node) => node.textContent?.trim() === title)!, "click"),
+    /** Types `value` into a field of the page (React reads the input event). */
+    type: async (element: HTMLInputElement | HTMLTextAreaElement, value: string) => {
+      // Set through the prototype: React's own tracker on the element must still see the old value.
+      const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), "value")?.set;
+      if (setter) setter.call(element, value); else element.value = value;
+      await act(async () => { element.dispatchEvent(new window.Event("input", { bubbles: true })); });
+    },
     key: (title: string, key: string) => fire(find(`${title} verschieben: Pfeil hoch oder runter für Reihenfolge${layoutMode === "single" ? "" : ", Pfeil links oder rechts für Spalte"}`), "keydown", { key }),
     drag: async (sourceTitle: string, targetTitle: string) => {
       const card = (title: string) => find(`${title} ausblenden`).closest("article")!;
@@ -281,7 +296,11 @@ describe("ResumeSectionsPanel: Weiteren Bereich hinzufügen", () => {
     const title = Array.from(panel.query("body")!.querySelectorAll(".manager-card-title")).find((node) => node.textContent?.trim() === "Praktika")!;
     expect(title.getAttribute("aria-expanded")).toBe("true");
     const card = title.closest("article")!;
-    expect(Array.from(card.querySelectorAll(".resume-data-group:not([hidden]) > summary"), (node) => node.textContent)).toEqual(["Praktika"]);
+    // Its editor stands open in the card: no second accordion, and the card's title field names it.
+    expect(card.querySelectorAll(".resume-data-group")).toHaveLength(0);
+    expect(card.querySelector(".resume-data-section")).not.toBeNull();
+    expect(Array.from(card.querySelectorAll("button"), (node) => node.textContent?.trim())).toContain("Eintrag hinzufügen");
+    expect(Array.from(card.querySelectorAll(".field > span"), (node) => node.textContent).filter((text) => text === "Abschnittsüberschrift")).toHaveLength(1);
     // The card edits this one section: no second picker inside it.
     expect(card.querySelector(".special-section-picker")).toBeNull();
     expect(panel.query("body")!.querySelectorAll(".special-section-picker")).toHaveLength(1);
@@ -315,5 +334,115 @@ describe("ResumeSectionsPanel: Weiteren Bereich hinzufügen", () => {
     expect(panel.draft().resumeKnowledgeGroups.at(-1)?.semanticType).toBe(resumeBlockRegistry[0]!.id);
     expect(panel.draft().specialSections).toEqual([]);
     await panel.unmount();
+  });
+});
+
+/** A fictional profile with content in every section the Lebenslauf cards edit. */
+const filled = () => profileSchema.parse({
+  id: "7c000000-0000-4000-8000-000000000001", isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: "2026-10-14T10:00:00.000Z",
+  summary: "Fiktive Fachkraft mit Erfahrung in Planung und Abstimmung.",
+  strengths: [{ id: "7c000000-0000-4000-8000-000000000011", title: "Analytisch", description: "", iconId: "" },
+    { id: "7c000000-0000-4000-8000-000000000012", title: "Strukturiert", description: "", iconId: "" }],
+  languages: ["Deutsch – C1"], certifications: ["Fiktives Zertifikat"],
+  experiences: [{ id: "7c000000-0000-4000-8000-000000000021", from: "2020", to: "2022", role: "Planerin", company: "Muster GmbH",
+    tasks: ["Planung"], projects: ["Fiktives Plattformprojekt"], technologies: ["SQL"], achievements: ["Ablauf verbessert"] }],
+  education: [{ id: "7c000000-0000-4000-8000-000000000031", from: "2014", to: "2018", degree: "Bachelor", institution: "Muster Hochschule" }],
+  specialSections: [
+    { id: "7c000000-0000-4000-8000-000000000041", kind: "projects", title: "Projekte", isVisible: true, entries: [
+      { id: "7c000000-0000-4000-8000-000000000042", title: "Fiktives Projekt", subtitle: "", from: "", to: "", date: "", location: "", url: "",
+        description: "", bullets: [], technologies: ["React"] }] },
+    { id: "7c000000-0000-4000-8000-000000000051", kind: "interests", title: "Interessen und Hobbys", isVisible: true, entries: [
+      { id: "7c000000-0000-4000-8000-000000000052", title: "Fotografie", subtitle: "", from: "", to: "", date: "", location: "", url: "",
+        description: "", bullets: [], technologies: [] }] },
+  ],
+});
+
+describe("ResumeSectionsPanel: the cards edit the profile like Profil", () => {
+  /** The opened card body of `title`, and the buttons in it by their text. */
+  const opened = (panel: Awaited<ReturnType<typeof mount>>, title: string) => {
+    const card = Array.from(panel.query("body")!.querySelectorAll(".manager-card-title")).find((node) => node.textContent?.trim() === title)!.closest("article")!;
+    const body = card.querySelector(".manager-card-body");
+    const button = (text: string) => Array.from(body?.querySelectorAll("button") ?? []).find((node) => node.textContent?.trim() === text);
+    return { card, body, button };
+  };
+
+  it.each([
+    ["Kurzprofil", "textarea"],
+    ["Beruflicher Werdegang", "Station hinzufügen"],
+    ["Bildungsweg", "Bildungsstation hinzufügen"],
+    ["Stärken", "Stärke hinzufügen"],
+    ["Sprachen", "Sprache hinzufügen"],
+    ["Projekte", "Eintrag hinzufügen"],
+    ["Interessen und Hobbys", "Interesse hinzufügen"],
+  ])("opens the editor of %s with one click, directly (no second accordion)", async (title, marker) => {
+    const panel = await mount("zweispaltig", "two-column", filled());
+    expect(opened(panel, title).body).toBeNull();
+    await panel.open(title);
+    const { body, button } = opened(panel, title);
+    expect(body).not.toBeNull();
+    const control = marker === "textarea" ? body!.querySelector("textarea") : button(marker);
+    expect(control, `${title}: ${marker}`).toBeTruthy();
+    // Nothing in between has to be opened first.
+    expect(control!.closest("details"), title).toBeNull();
+    // One title field per card.
+    expect(body!.querySelectorAll('[data-heading-editor="true"]').length, title).toBeLessThanOrEqual(1);
+    await panel.unmount();
+  });
+
+  it("adds, edits, sorts and deletes entries in the shared draft", async () => {
+    const panel = await mount("zweispaltig", "two-column", filled());
+    await panel.open("Kurzprofil");
+    await panel.type(opened(panel, "Kurzprofil").body!.querySelector("textarea")!, "Neuer fiktiver Kurzprofiltext.");
+    expect(panel.draft().summary).toBe("Neuer fiktiver Kurzprofiltext.");
+
+    await panel.open("Beruflicher Werdegang");
+    await act(async () => { opened(panel, "Beruflicher Werdegang").button("Station hinzufügen")!.dispatchEvent(new window.Event("click", { bubbles: true })); });
+    expect(panel.draft().experiences).toHaveLength(2);
+
+    await panel.open("Bildungsweg");
+    await act(async () => { opened(panel, "Bildungsweg").button("Bildungsstation hinzufügen")!.dispatchEvent(new window.Event("click", { bubbles: true })); });
+    expect(panel.draft().education).toHaveLength(2);
+
+    await panel.open("Stärken");
+    await panel.click("Analytisch: Nach unten");
+    expect(panel.draft().strengths.map((item) => item.title)).toEqual(["Strukturiert", "Analytisch"]);
+    await act(async () => { opened(panel, "Stärken").button("Stärke hinzufügen")!.dispatchEvent(new window.Event("click", { bubbles: true })); });
+    expect(panel.draft().strengths).toHaveLength(3);
+    await act(async () => { opened(panel, "Stärken").body!.querySelector('[aria-label="Stärke löschen"]')!.dispatchEvent(new window.Event("click", { bubbles: true })); });
+    expect(panel.draft().strengths.map((item) => item.title)).toEqual(["Analytisch", "Neue Stärke"]);
+    // The template's order, columns and visibility are untouched by content edits.
+    expect(panel.draft().resumeManagerLayouts).toEqual(filled().resumeManagerLayouts);
+    await panel.unmount();
+  });
+
+  it("edits the Projekt-Highlight at its source, the projects of the career, without a second copy", async () => {
+    const profile = profileSchema.parse({ ...filled(), specialSections: [] });
+    const panel = await mount("pehlione_white_blue", "two-column", profile);
+    const title = getManagerSections(profile, "pehlione_white_blue").find((entry) => entry.id === "projects")!.title;
+    await panel.open(title);
+    const { body, button } = opened(panel, title);
+    expect(body!.textContent).toContain("Fiktives Plattformprojekt");
+    expect(button("Station hinzufügen")).toBeTruthy();
+    await act(async () => { button("Station hinzufügen")!.dispatchEvent(new window.Event("click", { bubbles: true })); });
+    expect(panel.draft().experiences).toHaveLength(2);
+    expect(panel.draft().specialSections).toEqual([]);
+    await panel.unmount();
+  });
+
+  it("saves with the Bewerbung: no second save button, and Verwerfen drops only the unsaved draft", async () => {
+    const onDiscard = vi.fn();
+    const panel = await mount("zweispaltig", "two-column", filled(), { onDiscard });
+    const texts = () => Array.from(panel.query("body")!.querySelectorAll("button"), (node) => node.textContent?.trim());
+    expect(texts()).not.toContain("Änderungen übernehmen");
+    expect(texts()).not.toContain("Abschnitt aktualisieren");
+    await panel.open("Stärken");
+    expect(texts()).not.toContain("Abschnitt aktualisieren");
+    await panel.press("Verwerfen", ".resume-section-actions");
+    expect(onDiscard).toHaveBeenCalledTimes(1);
+    await panel.unmount();
+    // Standing alone (no Bewerbung) the panel keeps its own save button.
+    const alone = await mount("zweispaltig", "two-column", filled());
+    expect(Array.from(alone.query("body")!.querySelectorAll("button"), (node) => node.textContent?.trim())).toContain("Änderungen übernehmen");
+    await alone.unmount();
   });
 });

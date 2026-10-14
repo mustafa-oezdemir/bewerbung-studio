@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { setResumeSectionTitle } from "../../features/resume-sections/resume-sections";
 import { maximalProfile, minimalProfile } from "./__parityFixture";
 import { renderCv, resumeTemplateIds } from "./__parityHarness";
+import { normalizeApplicantProfileForSave } from "../../shared/profileEditor";
 
 /** Every token of the profile that has to reach the Lebenslauf, by the field it comes from. */
 export const maximalTokens: Record<string, string[]> = {
@@ -147,4 +148,26 @@ describe.each(resumeTemplateIds)("a Kurzprofil longer than a page in %s", (templ
       });
     });
   }
+});
+
+describe.each(resumeTemplateIds)("content edited in the Lebenslauf in %s", (templateId) => {
+  it("reaches the preview and the PDF alike once it is saved into the profile", () => {
+    // What the cards of the Lebenslauf write into the shared draft, saved through the one profile save pipeline.
+    const base = maximalProfile();
+    const edited = normalizeApplicantProfileForSave({
+      ...base,
+      summary: "Fiktiver neuer Kurzprofiltext aus dem Lebenslauf.",
+      experiences: [{ ...base.experiences[0]!, company: "Fiktive Neu GmbH" }, ...base.experiences.slice(1)],
+      education: [...base.education, { ...base.education[0]!, id: "8f200000-0000-4000-8000-0000000000e9", degree: "Fiktiver Zusatzabschluss" }],
+    });
+    for (const ats of [false, true]) {
+      const result = renderCv(templateId, edited, { ats });
+      for (const surface of ["preview", "pdf"] as const) {
+        expect(result[surface], `${ats ? "ats" : "visual"} / ${surface}`).toContain("Fiktiver neuer Kurzprofiltext aus dem Lebenslauf.");
+        expect(result[surface], `${ats ? "ats" : "visual"} / ${surface}`).toContain("Fiktive Neu GmbH");
+        expect(result[surface], `${ats ? "ats" : "visual"} / ${surface}`).toContain("Fiktiver Zusatzabschluss");
+        expect(result[surface], `${ats ? "ats" : "visual"} / ${surface}`).not.toContain("Muster GmbH ");
+      }
+    }
+  });
 });

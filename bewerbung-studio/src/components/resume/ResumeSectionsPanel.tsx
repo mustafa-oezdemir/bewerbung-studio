@@ -44,6 +44,8 @@ import { ClosingEditor } from "../profile/ClosingEditor";
 import { PhotoSettingsEditor } from "../profile/PhotoSettingsEditor";
 import { KnowledgeProfileEditor } from "../profile/KnowledgeProfileEditor";
 import { InterestsEditor } from "../profile/InterestsEditor";
+import { CareerEditor } from "../profile/CareerEditor";
+import { getPehlioneProjectHighlight } from "../../shared/pehlioneContent";
 
 const noop = () => {};
 type Props = {
@@ -70,6 +72,11 @@ type Props = {
   certificateSelection?: ReactNode;
   /** The Bewerbung's choice of projects (Projekte card). */
   projectSelection?: ReactNode;
+  /**
+   * Drops the changes not saved yet (the draft belongs to the Bewerbung, which saves it with „Änderungen speichern“).
+   * Without it the panel keeps its own draft and saves it with „Änderungen übernehmen“.
+   */
+  onDiscard?: () => void;
 };
 
 export function ResumeSectionsPanel({
@@ -92,6 +99,7 @@ export function ResumeSectionsPanel({
   onLanguagesColumnsChange,
   certificateSelection,
   projectSelection,
+  onDiscard,
 }: Props) {
   const [localDraft, setLocalDraft] = useState(profile);
   const draft = controlledDraft ?? localDraft;
@@ -157,13 +165,17 @@ export function ResumeSectionsPanel({
     }
     await onSave(normalizeResumeDataDraft(draft));
   };
+  const isSpecialOfKind = (entry: ManagerSection, kind: ResumeSpecialSectionKind) =>
+    draft.specialSections.some((section) => `special:${section.id}` === entry.id && section.kind === kind);
   const content = (entry: ManagerSection) => {
     const group = groups.find((item) => item.id === entry.groupId);
+    const interests = isSpecialOfKind(entry, "interests");
+    const highlight = entry.id === "projects" ? getPehlioneProjectHighlight(draft) : undefined;
+    // The profile's own editors of Kurzprofil, Kenntnisse and Interessen carry their title field: no second one here.
+    const ownTitle = ["heading", "photo", "closing", "personalData", "summary", "knowledge"].includes(entry.id) || interests;
     return (
-      <div className="manager-card-body">
-        {!["heading", "photo", "closing", "personalData"].includes(
-          entry.id,
-        ) && (
+      <div className="manager-card-body" id={`manager-card-${entry.id}`}>
+        {!ownTitle && (
           <label className="field">
             <span>Abschnittsüberschrift</span>
             <input
@@ -228,19 +240,23 @@ export function ResumeSectionsPanel({
               </details> : null}</>
         )}
         {entry.id === "projects" && (
-          <p className="manager-hint">
-            Das Projekt-Highlight wird aus den Projekten Ihrer Berufserfahrung
-            übernommen. Bearbeiten Sie diese unter Berufserfahrung.
-          </p>
+          <>
+            {/* The highlight is no copy: it is read from the first station with a project, edited right here. */}
+            <p className="manager-hint">
+              Das Projekt-Highlight stammt aus Ihrer Berufserfahrung
+              {highlight ? ` (${highlight.title}${highlight.company ? ` · ${highlight.company}` : ""})` : ""}: Projekt,
+              Technologien und Erfolge der ersten Station mit einem Projekt. Änderungen gelten auch im Profil.
+            </p>
+            <CareerEditor profile={draft} onChange={setDraft} showTitle={false} />
+          </>
         )}
-        {draft.specialSections.some((section) => `special:${section.id}` === entry.id && section.kind === "projects") ? projectSelection : null}
-        {entry.id === "knowledge" && <KnowledgeProfileEditor profile={draft} onChange={setDraft} initiallyCollapsed />}
-        {draft.specialSections.some((section) => `special:${section.id}` === entry.id && section.kind === "interests") &&
-          <InterestsEditor profile={draft} onChange={setDraft} />}
+        {isSpecialOfKind(entry, "projects") ? projectSelection : null}
+        {entry.id === "knowledge" && <KnowledgeProfileEditor profile={draft} onChange={setDraft} knowledgeOnly />}
+        {interests && <InterestsEditor profile={draft} onChange={setDraft} />}
         {!entry.id.startsWith("group:") &&
           !["heading", "personalData", "photo", "closing", "projects", "summary", "knowledge"].includes(
             entry.id,
-          ) && !draft.specialSections.some((section) => `special:${section.id}` === entry.id && section.kind === "interests") && (
+          ) && !interests && (
             <ResumeDataEditor
               profile={profile}
               controlledDraft={draft}
@@ -253,7 +269,23 @@ export function ResumeSectionsPanel({
               onSave={onSave}
             />
           )}
-        {group && (
+        {group && entry.id.startsWith("group:") && (
+          // A Baustein of its own: its items are the content of the card.
+          <ManagedBlockEditor
+            group={group}
+            onChange={(update) => updateGroup(group.id, update)}
+            onRemove={() =>
+              setDraft((current) => ({
+                ...current,
+                resumeKnowledgeGroups: resolveKnowledgeGroups(
+                  templateId,
+                  current.resumeKnowledgeGroups,
+                ).filter((item) => item.id !== group.id),
+              }))
+            }
+          />
+        )}
+        {group && !entry.id.startsWith("group:") && (
           <details
             className="manager-block-details">
             <summary>
@@ -267,18 +299,6 @@ export function ResumeSectionsPanel({
             <ManagedBlockEditor
               group={group}
               onChange={(update) => updateGroup(group.id, update)}
-              onRemove={
-                entry.id.startsWith("group:")
-                  ? () =>
-                      setDraft((current) => ({
-                        ...current,
-                        resumeKnowledgeGroups: resolveKnowledgeGroups(
-                          templateId,
-                          current.resumeKnowledgeGroups,
-                        ).filter((item) => item.id !== group.id),
-                      }))
-                  : undefined
-              }
             />
           </details>
         )}
@@ -343,6 +363,8 @@ export function ResumeSectionsPanel({
           type="button"
           className="manager-card-title"
           aria-expanded={expanded === entry.id}
+          aria-controls={expanded === entry.id ? `manager-card-${entry.id}` : undefined}
+          title={expanded === entry.id ? "Schließen" : "Bearbeiten"}
           onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}>
           {entry.title}
           <ChevronDown size={14} />
@@ -558,12 +580,15 @@ export function ResumeSectionsPanel({
         <button
           type="button"
           className="button secondary"
-          onClick={() => setDraft(profile)}>
+          onClick={() => (onDiscard ? onDiscard() : setDraft(profile))}>
           Verwerfen
         </button>
-        <button type="button" className="button" onClick={() => void save()}>
-          Änderungen übernehmen
-        </button>
+        {/* With a Bewerbung the one save point is its „Änderungen speichern“. */}
+        {!onDiscard ? (
+          <button type="button" className="button" onClick={() => void save()}>
+            Änderungen übernehmen
+          </button>
+        ) : null}
       </div>
     </section>
   );
