@@ -17,17 +17,22 @@ const surfaces: Surface[] = ["preview", "pdf"];
 const sectionOf = (templateId: string, profile: ReturnType<typeof maximalProfile>, surface: Surface, ats = false) => {
   const result = renderCv(templateId, profile, { ats });
   const pages = surface === "preview" ? result.previewPages : result.pdfPages;
-  const section = pages.map((page) => page.querySelector('[data-managed-section="languages"]')).find(Boolean) as Element;
-  expect(section, `${templateId} ${surface}: Sprachen section`).toBeTruthy();
-  const copy = section.cloneNode(true) as Element;
-  copy.querySelectorAll("h1,h2,h3,h4,style,script").forEach((node) => {
-    if (/^Sprachen$/i.test((node.textContent ?? "").trim())) node.remove();
+  // A Sprachen list the sidebar lane breaks between two pages is read across its parts.
+  const sections = pages.flatMap((page) => Array.from(page.querySelectorAll('[data-managed-section="languages"]')));
+  expect(sections.length, `${templateId} ${surface}: Sprachen section`).toBeGreaterThan(0);
+  const copies = sections.map((section) => {
+    const copy = section.cloneNode(true) as Element;
+    copy.querySelectorAll("h1,h2,h3,h4,style,script").forEach((node) => {
+      if (/^Sprachen$/i.test((node.textContent ?? "").trim())) node.remove();
+    });
+    return copy;
   });
+  const all = (selector: string) => sections.flatMap((section) => Array.from(section.querySelectorAll(selector)));
   return {
-    text: (copy.textContent ?? "").replace(/\s+/g, " ").trim(),
-    dots: section.querySelectorAll('[role="img"][aria-label],[class*="dots"]').length,
-    suffixes: Array.from(section.querySelectorAll(".resume-language-level")).map((node) => (node.textContent ?? "").replace(/\s+/g, " ")),
-    descriptions: Array.from(section.querySelectorAll(".resume-language-description")).map((node) => (node.textContent ?? "").trim()),
+    text: copies.map((copy) => copy.textContent ?? "").join(" ").replace(/\s+/g, " ").trim(),
+    dots: all('[role="img"][aria-label],[class*="dots"]').length,
+    suffixes: all(".resume-language-level").map((node) => (node.textContent ?? "").replace(/\s+/g, " ")),
+    descriptions: all(".resume-language-description").map((node) => (node.textContent ?? "").trim()),
   };
 };
 

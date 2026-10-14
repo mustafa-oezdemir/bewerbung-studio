@@ -690,6 +690,29 @@ export const sectionListMetrics = (templateId: string, zone: SectionZone) => {
 };
 
 /**
+ * The text line of a section heading in `zone` of `templateId`, for the planner to wrap a title (a continued
+ * "… · Fortsetzung" title may need another line): font size, weight, tracking (em), capitals, line box and the room
+ * an icon takes in front of it.
+ */
+export const sectionHeadingLineMetrics = (templateId: string, zone: SectionZone) => {
+  const tokens = tokensByTemplate[templateId]?.[zone];
+  if (!tokens) return undefined;
+  const { heading, icons } = tokens;
+  const fontMm = heading.fontSizePt.standard * PT_TO_MM;
+  const tracking = heading.letterSpacing.trim();
+  const letterSpacingEm = tracking.endsWith("em") ? Number.parseFloat(tracking) || 0
+    : tracking.endsWith("px") ? (Number.parseFloat(tracking) || 0) * 25.4 / 96 / fontMm : 0;
+  return {
+    fontMm,
+    weight: heading.fontWeight,
+    letterSpacingEm,
+    uppercase: heading.textTransform === "uppercase",
+    lineMm: fontMm * heading.lineHeight,
+    iconMm: icons ? heading.iconBox + heading.iconGap : 0,
+  };
+};
+
+/**
  * How `sectionId` looks in `zone` of `templateId`. `groupSemanticType` is the type of the
  * knowledge group behind a `group:*` section.
  */

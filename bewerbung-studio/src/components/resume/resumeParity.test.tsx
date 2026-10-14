@@ -104,3 +104,47 @@ describe.each(resumeTemplateIds)("minimal profile in %s", (templateId) => {
     }
   });
 });
+
+/**
+ * A long, fictional Kurzprofil: 70 sentences, each ending with a unique token (K000 …), so lost, repeated or reordered
+ * words show. It flows over several pages in the sidebar or the main column, depending on the template.
+ */
+const longSummary = Array.from({ length: 70 }, (_, index) =>
+  `Fiktive Erfahrung in Analyse, Planung und Abstimmung K${String(index).padStart(3, "0")}.`).join(" ");
+const summaryTokens = (page: Element) =>
+  Array.from((page.querySelector('[data-managed-section="summary"]')?.textContent ?? "").replaceAll("\u00ad", "").matchAll(/K\d{3}/g), (match) => match[0]);
+const columnOf = (node: Element) =>
+  node.closest('aside,[data-cv-zone="sidebar"],[data-resume-layout-zone="sidebar"],.modern-resume-right-column,.modern-pdf-right,.kompakt-right') ? "sidebar" : "main";
+/** The managed sections of one column of a page, in reading order. */
+const columnSections = (page: Element, column: string, ats = false) =>
+  Array.from(page.querySelectorAll("[data-managed-section]")).filter((node) => (ats ? "main" : columnOf(node)) === column)
+    .map((node) => node.getAttribute("data-managed-section")!);
+
+describe.each(resumeTemplateIds)("a Kurzprofil longer than a page in %s", (templateId) => {
+  for (const ats of [false, true]) {
+    it(`flows like a word processor in the preview and the PDF alike (${ats ? "ats" : "visual"})`, () => {
+      const result = renderCv(templateId, maximalProfile({ summary: longSummary }), { ats });
+      expect(result.previewPages).toHaveLength(result.pdfPages.length);
+      const expected = Array.from({ length: 70 }, (_, index) => `K${String(index).padStart(3, "0")}`);
+      for (const [surface, pages] of [["preview", result.previewPages], ["pdf", result.pdfPages]] as const) {
+        // every word once, in order, across the pages
+        expect(pages.flatMap(summaryTokens), surface).toEqual(expected);
+        // a column never starts a section again once another one began: the Kurzprofil ends before the next section
+        // starts (the plain layout is one column)
+        for (const column of ["sidebar", "main"]) {
+          const runs: string[] = [];
+          for (const page of pages) for (const id of columnSections(page, column, ats)) if (runs.at(-1) !== id) runs.push(id);
+          expect(runs.filter((id, index) => runs.indexOf(id) !== index), `${surface} ${column}: ${runs.join(" > ")}`).toEqual([]);
+        }
+      }
+      // both surfaces break the text on the same pages and draw the same sections in the same columns (the plain
+      // layout: the sections this flow places; Gepflegt's and Kompakt's plain PDF markup order or omit some others)
+      const governed = (ids: string[]) => ats ? ids.filter((id) => ["summary", "strengths", "languages", "experience", "education"].includes(id)) : ids;
+      result.pdfPages.forEach((page, index) => {
+        expect(summaryTokens(result.previewPages[index]), `page ${index + 1}`).toEqual(summaryTokens(page));
+        for (const column of ["sidebar", "main"])
+          expect(governed(columnSections(result.previewPages[index], column, ats)), `page ${index + 1} ${column}`).toEqual(governed(columnSections(page, column, ats)));
+      });
+    });
+  }
+});

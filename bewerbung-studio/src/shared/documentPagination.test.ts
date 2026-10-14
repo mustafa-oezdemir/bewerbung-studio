@@ -293,7 +293,8 @@ describe("A4 document pagination", () => {
   });
 
   it("recalculates Kompakt content width for Seitenränder and Spaltenabstand", () => {
-    const profile = profileSchema.parse({ ...kreativPaginationProfile(), summary: "Klare Planung und verlässliche Abstimmung im Team" });
+    // A Kurzprofil of several lines: its line breaks follow the width of the main column.
+    const profile = profileSchema.parse({ ...kreativPaginationProfile(), summary: Array.from({ length: 14 }, () => "Klare Planung und verlässliche Abstimmung im Team.").join(" ") });
     const base = resolve(profile, "kompakt");
     const margin = resolve(profile, "kompakt", { cvOverrides: { spacing: { pageMarginMm: 27 } } });
     const gap = resolve(profile, "kompakt", { cvOverrides: { spacing: { columnGapMm: 18 } } });
@@ -748,11 +749,14 @@ describe("closing block and output modes", () => {
       const none = makeProfile(1, 2, 0);
       const growth = (id: string, settings: Partial<typeof defaultDocumentDesign> = {}) =>
         filled(resolve(many, id, settings).pagePlan, 0) - filled(resolve(none, id, settings).pagePlan, 0);
-      // Stilvoll can split the certificates across sidebar pages as the larger body consumes room.
-      const ranges = resolve(many, "stilvoll").pagePlan.flatMap(page => page.blockRanges?.certifications ? [page.blockRanges.certifications] : []);
-      expect(ranges[0]?.from).toBe(0);
-      expect(ranges.at(-1)?.to).toBe(8);
-      for (let index = 1; index < ranges.length; index += 1) expect(ranges[index].from).toBe(ranges[index - 1].to);
+      // Stilvoll draws every certificate once: whole on one page, or split across sidebar pages as the body consumes room.
+      const stilvoll = resolve(many, "stilvoll").pagePlan;
+      const ranges = stilvoll.flatMap(page => page.blockRanges?.certifications ? [page.blockRanges.certifications] : []);
+      if (ranges.length) {
+        expect(ranges[0]?.from).toBe(0);
+        expect(ranges.at(-1)?.to).toBe(8);
+        for (let index = 1; index < ranges.length; index += 1) expect(ranges[index].from).toBe(ranges[index - 1].to);
+      } else expect(stilvoll.filter((page) => page.blocks?.includes("certifications"))).toHaveLength(1);
       expect(growth("stilvoll", ats)).toBeGreaterThan(0.08);
       expect(growth("kompakt", ats)).toBeGreaterThan(growth("kompakt") + 0.05);
     });
@@ -811,5 +815,54 @@ describe("letter pagination", () => {
 
     expect(status.density).toBe("dense");
     expect(status.isOverRecommendedLength).toBe(true);
+  });
+});
+
+/**
+ * Word-processor flow of the Kurzprofil in every Lebenslauf template: a short one stays where the template draws it, a
+ * long one fills its column down to the usable bottom and goes on at the top of the next page, and no section behind it
+ * in that column (nor the career entries behind a leading Kurzprofil) starts before it ends.
+ */
+describe("a long Kurzprofil flows like a word processor in every template", () => {
+  const templateIds = ["pehlione_white_blue", "pehlione_white", "zweispaltig", "zeitgenoessisch", "kreativ", "ivy-league", "stilvoll",
+    "kompakt", "einspaltig", "klassisch", "gepflegt", "modern", "elegant", "tabellarisch"];
+  const sentence = (index: number) => `Satz ${index + 1} beschreibt fiktive Erfahrung mit Prozessanalyse, Produktionssteuerung und strukturierter Abstimmung im Team.`;
+  const words = (text: string) => text.split(/\s+/).filter(Boolean);
+  it.each(templateIds)("%s: visual and plain layout, short to several pages", (templateId) => {
+    for (const ats of [false, true]) for (const sentences of [2, 12, 40]) {
+      const label = `${ats ? "ats" : "visual"}, ${sentences} sentences`;
+      const summary = Array.from({ length: sentences }, (_, index) => sentence(index)).join(" ");
+      const resolved = resolve(makeProfile(3, 3, 1, { summary }), templateId, ats ? { resumeOutputMode: "ats" } : {});
+      const pages = resolved.pagePlan;
+      const on = pages.flatMap((page, index) => (page.blocks?.includes("summary") ? [index] : []));
+      const ranges = on.map((index) => pages[index].blockRanges?.summary).filter((range) => range !== undefined);
+      if (ranges.length) {
+        // the parts follow each other on consecutive pages and join to the whole text
+        on.forEach((page, index) => index > 0 && expect(page, label).toBe(on[index - 1] + 1));
+        expect(ranges[0].from, label).toBe(0);
+        expect(ranges.at(-1)!.to, label).toBe(summary.length);
+        ranges.forEach((range, index) => index > 0 && expect(range.from, label).toBe(ranges[index - 1].to));
+        expect(ranges.flatMap((range) => words(summary.slice(range.from, range.to))), label).toEqual(words(summary));
+        const last = on.at(-1)!;
+        // nothing that follows the Kurzprofil in its column starts before it ends
+        const zone = resolved.managerSections.find((entry) => entry.id === "summary")?.zone;
+        const flat = ats || resolved.layout.mode === "single";
+        const rank = (id: string) => resolved.managerSections.findIndex((entry) => entry.id === id);
+        if ((flat || zone === "main") && rank("summary") < rank("experience"))
+          expect(pages.findIndex((page) => page.items.length), label).toBeGreaterThanOrEqual(last);
+        for (const id of ["strengths", "languages"]) {
+          const at = pages.flatMap((page, index) => (page.blocks?.includes(id) ? [index] : []));
+          const sameColumn = flat || resolved.managerSections.find((entry) => entry.id === id)?.zone === zone;
+          if (at.length && sameColumn) expect(Math.min(...at), `${label}: ${id}`).toBeGreaterThanOrEqual(last);
+        }
+      }
+      // a column never runs past its usable bottom by the planner's own estimate (its capacity keeps the template's
+      // safety share free below the text: a fill up to 1 / safety still ends above the bottom)
+      const limit = 1 / (getPaginationGeometry(templateId).safety ?? 0.97) + 0.001;
+      for (const page of pages) if (page.density === "standard") {
+        expect(page.fill!.main, `${label}, page ${page.pageNumber} main`).toBeLessThanOrEqual(limit);
+        expect(page.fill!.sidebar, `${label}, page ${page.pageNumber} sidebar`).toBeLessThanOrEqual(1.001);
+      }
+    }
   });
 });

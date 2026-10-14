@@ -84,9 +84,11 @@ describe("Zweispaltig: sections follow their column", () => {
     for (const profile of [makeProfile(3), move(makeProfile(3), "languages", "main"), move(makeProfile(5), "languages", "main", 1)]) {
       const rendered = render(profile);
       for (const surface of surfaces) {
-        const page = rendered.surfaces[surface][0];
+        // Sprachen between the career sections follow the experience entries, on whatever page they end.
+        const page = rendered.surfaces[surface].find((candidate) => sectionOn(candidate, "languages")) ?? rendered.surfaces[surface][0];
         const node = sectionOn(page, "languages")!;
         expect(node, surface).not.toBeNull();
+        expect(rendered.surfaces[surface].filter((candidate) => sectionOn(candidate, "languages")), surface).toHaveLength(1);
         const heading = node.querySelector(":scope > .cv-heading");
         expect(heading?.querySelector(":scope > .cv-heading__label")?.textContent, surface).toBe("Sprachen");
         expect(heading?.querySelector(".cv-heading__icon"), surface).toBeNull();

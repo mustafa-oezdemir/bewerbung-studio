@@ -357,6 +357,8 @@ export const applyManagedResumeOutput = (
   documentSettings: DocumentDesignSettings = defaultDocumentDesign,
   resolvedCv?: ResolvedCvDocument,
   firstPageHtml?: string,
+  /** Page one as the template drew it, before this projection (the preview renders every page on its own). */
+  rawFirstPageHtml?: string,
 ) => {
   if (!profile) return html;
   const resolved = resolvedCv ?? resolveCvDocument({
@@ -381,6 +383,63 @@ export const applyManagedResumeOutput = (
   }
   const firstPageDocument = firstPageHtml ? parseHTML(`<html><body>${firstPageHtml}</body></html>`).document : null;
   let firstPageHeader: Element | null = firstPageDocument?.querySelector("header") ?? null;
+  /** The sections of a page (React preview or PDF markup) by their managed id, found by element id or heading. */
+  const findSections = (root: Element) => {
+    const found = new Map<string, Element[]>();
+    for (const node of Array.from(root.querySelectorAll("section:not(.page)"))) {
+      const heading = node.querySelector("h2,h3");
+      if (
+        !heading ||
+        heading.closest("section") !== node ||
+        (heading.closest("article") &&
+          node.contains(heading.closest("article")))
+      )
+        continue;
+      const title = normalize(heading.textContent ?? "");
+      const elementId = node.getAttribute("data-element-id") ?? "";
+      const entry =
+        entries.find(
+          (entry) =>
+            entry.id.startsWith("special:") &&
+            elementId === `special.${entry.id.slice(8)}`,
+        ) ??
+        entries.find(
+          (entry) => !entry.fixed && !entry.id.startsWith("special:") && normalize(entry.title) === title,
+        ) ??
+        entries.find((entry) =>
+          (aliases[entry.id] ?? []).some((alias) => normalize(alias) === title),
+        ) ??
+        entries.find(
+          (entry) => !entry.fixed && elementId.endsWith(`.${entry.id}`),
+        ) ??
+        // The shared knowledge renderer carries the profile's own title ("Kenntnisse & Zusatzangaben"), which
+        // need not be the manager's: it is the knowledge section all the same, never a second one.
+        (node.matches(".knowledge-section, .knowledge-section-renderer") ? entries.find((entry) => entry.id === "knowledge") : undefined);
+      if (entry) found.set(entry.id, [...(found.get(entry.id) ?? []), node]);
+    }
+    return found;
+  };
+  /**
+   * Page one before this projection: a section the template draws on page one but the page plan puts on a later page
+   * (a Kurzprofil, Stärken or Sprachen that follow a section going on in the sidebar lane) is copied from there, with
+   * the template's own markup, on both surfaces.
+   */
+  const pristineFirstPage = pages.length > 1 ? pages[0].cloneNode(true) as Element
+    : rawFirstPageHtml ? parseHTML(`<html><body>${rawFirstPageHtml}</body></html>`).document.body as unknown as Element : null;
+  let pristineSections: Map<string, Element[]> | undefined;
+  const pristineSection = (id: string) => {
+    if (!pristineFirstPage) return undefined;
+    pristineSections ??= findSections(pristineFirstPage);
+    const node = pristineSections.get(id)?.[0]?.cloneNode(true) as Element | undefined;
+    node?.setAttribute("data-managed-section", id);
+    return node;
+  };
+  // Templates that draw Kurzprofil, Stärken and Sprachen on page one themselves; the others place them from the plan already.
+  const drawsLeadOnPageOne = !orderedOneColumnTemplates.has(resolved.templateId)
+    && !["tabellarisch", "kreativ", "elegant"].includes(resolved.templateId);
+  const planned = resolved.pagePlan;
+  /** A section the page plan places itself (`placed`): it stands on exactly the pages whose blocks name it. */
+  const followsPlan = (id: string) => drawsLeadOnPageOne && planned.some((page) => page.placed?.includes(id));
   roots.forEach((root, rootIndex) => {
     const enabled = (id: string) =>
       entries.find((entry) => entry.id === id)?.visible !== false;
@@ -418,7 +477,6 @@ export const applyManagedResumeOutput = (
     // The page plan decides where the movable blocks live (a sidebar block moves
     // to page one when that column has room). Blocks unknown to the plan keep
     // their historic home on the last page.
-    const planned = resolved.pagePlan;
     const isAts = designSettings.resumeOutputMode === "ats" || designSettings.columnLayout === "compact-ats" || Boolean(
       root.querySelector('[data-renderer="ats"], [class*="-ats"]'),
     );
@@ -447,44 +505,10 @@ export const applyManagedResumeOutput = (
       );
     }
     if (number > 1) applyContinuationColumns(root, planned[number - 1]);
-    const nodes = new Map<string, Element[]>();
-    const sectionNodes = Array.from(
-      root.querySelectorAll("section:not(.page)"),
-    );
-    for (const node of sectionNodes) {
-      const heading = node.querySelector("h2,h3");
-      if (
-        !heading ||
-        heading.closest("section") !== node ||
-        (heading.closest("article") &&
-          node.contains(heading.closest("article")))
-      )
-        continue;
-      const title = normalize(heading.textContent ?? "");
-      const elementId = node.getAttribute("data-element-id") ?? "";
-      const entry =
-        entries.find(
-          (entry) =>
-            entry.id.startsWith("special:") &&
-            elementId === `special.${entry.id.slice(8)}`,
-        ) ??
-        entries.find(
-          (entry) => !entry.fixed && !entry.id.startsWith("special:") && normalize(entry.title) === title,
-        ) ??
-        entries.find((entry) =>
-          (aliases[entry.id] ?? []).some((alias) => normalize(alias) === title),
-        ) ??
-        entries.find(
-          (entry) => !entry.fixed && elementId.endsWith(`.${entry.id}`),
-        ) ??
-        // The shared knowledge renderer carries the profile's own title ("Kenntnisse & Zusatzangaben"), which
-        // need not be the manager's: it is the knowledge section all the same, never a second one.
-        (node.matches(".knowledge-section, .knowledge-section-renderer") ? entries.find((entry) => entry.id === "knowledge") : undefined);
-      if (entry) {
-        node.setAttribute("data-managed-section", entry.id);
-        if (entry.id.startsWith("special:")) node.setAttribute("data-section-type", "main-section");
-        nodes.set(entry.id, [...(nodes.get(entry.id) ?? []), node]);
-      }
+    const nodes = findSections(root);
+    for (const [id, list] of nodes) for (const node of list) {
+      node.setAttribute("data-managed-section", id);
+      if (id.startsWith("special:")) node.setAttribute("data-section-type", "main-section");
     }
     const main =
       root.querySelector(
@@ -563,7 +587,9 @@ export const applyManagedResumeOutput = (
     const splitSummary = planned.some((page) => Boolean(page.blockRanges?.summary));
     for (const entry of entries.filter((item) => !item.fixed)) {
       const existing = nodes.get(entry.id) ?? [];
-      if (entry.id === "summary" && splitSummary) {
+      // A Kurzprofil the plan breaks between pages (or places itself) stands on the pages that name it, each with its
+      // words: it goes on where the page before stopped, nothing is lost or repeated.
+      if (entry.id === "summary" && (splitSummary || followsPlan("summary"))) {
         const onPage = Boolean(planned[number - 1]?.blocks?.includes("summary"));
         if (!onPage || !entry.visible) {
           existing.forEach((node) => node.remove());
@@ -572,14 +598,15 @@ export const applyManagedResumeOutput = (
         }
         const range = planned[number - 1]?.blockRanges?.summary;
         const fragment = resolved.summary.slice(range?.from ?? 0, range?.to ?? resolved.summary.length).trim();
-        const source = existing[0] ?? roots[0].querySelector('[data-managed-section="summary"]')
+        const source = existing[0] ?? pristineSection("summary") ?? roots[0].querySelector('[data-managed-section="summary"]')
           ?? firstPageDocument?.querySelector('[data-managed-section="summary"]');
         const node = source?.cloneNode(true) as Element | undefined ?? document.createElement("section");
         if (!source) node.innerHTML = `<h3>${escape(entry.title)}</h3><p></p>`;
         node.setAttribute("data-managed-section", "summary");
         const paragraph = node.querySelector("p") ?? node.appendChild(document.createElement("p"));
         paragraph.textContent = fragment;
-        if (number > 1 && entry.zone !== "sidebar") {
+        // The part that goes on from the page before says so in its title, in either column (the plan reserves the line).
+        if ((range?.from ?? 0) > 0) {
           const heading = node.querySelector("h2,h3");
           if (heading) setHeadingText(heading, `${entry.title} · Fortsetzung`);
         }
@@ -587,6 +614,31 @@ export const applyManagedResumeOutput = (
         appendSection(entry, node);
         nodes.set("summary", [node]);
         continue;
+      }
+      // Stärken and Sprachen the plan moves off page one (they follow a section that goes on in the sidebar lane, or the
+      // leading blocks of the main column): page one drops the template's copy, the page the plan names gets one, copied
+      // from the template's own page one.
+      if ((entry.id === "strengths" || entry.id === "languages") && entry.visible && followsPlan(entry.id)) {
+        const onPage = Boolean(planned[number - 1]?.blocks?.includes(entry.id));
+        if (!onPage) {
+          existing.forEach((node) => node.remove());
+          nodes.delete(entry.id);
+          continue;
+        }
+        if (!existing.length) {
+          const copy = pristineSection(entry.id);
+          if (copy) {
+            appendSection(entry, copy);
+            existing.push(copy);
+            nodes.set(entry.id, [copy]);
+          }
+        } else if (number > 1) {
+          // A later page of the template may draw it elsewhere (the plain PDF markup behind the career): it stands where
+          // the plan's order puts it, behind the section that goes on from the page before.
+          existing.slice(1).forEach((duplicate) => duplicate.remove());
+          appendSection(entry, existing[0]);
+          nodes.set(entry.id, [existing[0]]);
+        }
       }
       const group = groups.find((group) => group.id === entry.groupId);
       const items =
@@ -607,8 +659,12 @@ export const applyManagedResumeOutput = (
         continue;
       }
       if (resolved.templateId === "kreativ" && (entry.id === "summary" || entry.id === "languages")) {
+        // A sidebar lane may break the languages between two rows: this page lists its part of them.
+        const languageRange = planned[number - 1]?.blockRanges?.languages;
+        const languages = [...new Set(profile.languages.map((value) => value.trim()).filter(Boolean))]
+          .slice(languageRange?.from ?? 0, languageRange?.to);
         const content = entry.id === "summary" ? (resolved.summary ? `<p>${escape(resolved.summary)}</p>` : "")
-          : profile.languages.length ? `<ul>${profile.languages.map((value) => `<li>${escape(value)}</li>`).join("")}</ul>` : "";
+          : languages.length ? `<ul>${languages.map((value) => `<li>${escape(value)}</li>`).join("")}</ul>` : "";
         existing.forEach((node) => node.remove());
         nodes.delete(entry.id);
         if (hosts(entry.id) && content) {
@@ -635,7 +691,7 @@ export const applyManagedResumeOutput = (
         // The part of a certificate list that stands on this page when the list breaks between two pages.
         const listed = blockRange ? allListed.slice(blockRange.from, blockRange.to) : allListed;
         const drawn = entry.id === "languages" && resolved.templateId !== "elegant" && !orderedSingle
-          ? existing.length > 0 && number === 1 : hosts(entry.id);
+          ? existing.length > 0 && (followsPlan("languages") || number === 1) : hosts(entry.id);
         const certificateRange = entry.id === "certifications" ? blockRange : undefined;
         // The PDF markup of the certificates leaves its section open, so the closing is written inside it.
         for (const node of existing)
@@ -659,8 +715,8 @@ export const applyManagedResumeOutput = (
       let content = "";
       if (entry.id === "strengths") {
         if (orderedSingle || resolved.templateId === "kreativ" || resolved.templateId === "tabellarisch" || resolved.templateId === "elegant" ? !hosts(entry.id)
-          : orderedOneColumnTemplates.has(resolved.templateId) ? !sectionOnPage(planned[number - 1] ?? {}, "strengths", number === 1)
-          : number !== 1) {
+          // The plan names the page where it places them itself (`placed`); the template's own rule is page one.
+          : !sectionOnPage(planned[number - 1] ?? {}, "strengths", number === 1)) {
           existing.forEach((node) => node.remove());
           nodes.delete(entry.id);
           continue;
@@ -701,8 +757,8 @@ export const applyManagedResumeOutput = (
                   iconId: "",
                 };
               });
-        // Elegant's sidebar lane may break the strengths between two cards: this page draws its part of them.
-        const strengthRange = resolved.templateId === "elegant" ? planned[number - 1]?.blockRanges?.strengths : undefined;
+        // A sidebar lane may break the strengths between two cards: this page draws its part of them.
+        const strengthRange = planned[number - 1]?.blockRanges?.strengths;
         if (strengthRange) strengths.splice(0, strengths.length, ...strengths.slice(strengthRange.from, strengthRange.to));
         if (strengths.length) {
           const node = existing[0] ?? document.createElement("section");
@@ -757,9 +813,9 @@ export const applyManagedResumeOutput = (
                 ? itemHtml.map((item) => `<p>${item}</p>`).join("")
                 : `<ul>${itemHtml.map((item) => `<li>${item}</li>`).join("")}</ul>`;
         }
-      } else if ((zoneFlow || resolved.templateId === "elegant" || orderedOneColumnTemplates.has(resolved.templateId))
-        && entry.id.startsWith("special:") && existing.length && !hosts(entry.id)) {
-        // The plan draws this section on another page; a copy the template drew itself must not stay.
+      } else if (entry.id.startsWith("special:") && existing.length && !hosts(entry.id)) {
+        // The plan draws this section on another page; a copy the template drew itself must not stay (also in the
+        // plain layout, where the template draws its special sections on the last page).
         existing.forEach((node) => node.remove());
         nodes.delete(entry.id);
         continue;
@@ -811,6 +867,21 @@ export const applyManagedResumeOutput = (
             setHeadingText(heading, entry.title + continuation);
           }
         }
+      }
+    }
+    // A continued sidebar draws its sections in the order of the plan's lane (the order page one draws them in): a
+    // section that goes on from the page before stands at the top, the ones behind it follow.
+    const lanePlan = planned[number - 1];
+    if (number > 1 && lanePlan?.sidebar && sidebar !== main && !isAts) {
+      const order = lanePlan.blocks ?? [];
+      const rank = (node: Element) => order.indexOf(node.getAttribute("data-managed-section") ?? "");
+      const lane = Array.from(sidebar.children).filter((child) => rank(child) >= 0);
+      const sorted = [...lane].sort((left, right) => rank(left) - rank(right));
+      if (sorted.some((node, index) => node !== lane[index])) {
+        const anchor = document.createComment("lane");
+        sidebar.insertBefore(anchor, lane[0]);
+        for (const node of sorted) sidebar.insertBefore(node, anchor);
+        anchor.remove();
       }
     }
     // Semantic hooks let both outputs inherit native styles without copying data
@@ -1098,8 +1169,9 @@ export const applyManagedResumeOutput = (
     if (resolved.templateId !== "elegant") applyResumeSectionHeadingColors(root, designSettings);
     for (const section of nodes.get("languages") ?? []) {
       const zone = sidebar !== main && sidebar.contains(section) ? "sidebar" : "main";
+      // A sidebar lane may break the languages between two rows: this page draws its part of them.
       applyResumeLanguageOutput(section, profile, templateId, designSettings, zone, sidebar !== main && !isAts, isAts,
-        resolved.templateId === "elegant" ? planned[number - 1]?.blockRanges?.languages : undefined);
+        planned[number - 1]?.blockRanges?.languages);
     }
     // Apply optional break points only to the rendered Kurzprofil, after section moves on both surfaces.
     root.querySelectorAll('[data-managed-section="summary"] p').forEach((paragraph) => {

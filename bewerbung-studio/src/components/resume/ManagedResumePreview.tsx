@@ -43,15 +43,16 @@ export function ManagedResumePreview({
   resolvedCv?: ResolvedCvDocument;
 }) {
   const firstPlan = resolvedCv?.pagePlan[0];
-  const firstPageHtml = pageNumber > 1 && firstPlan
-    ? applyManagedResumeOutput(
-        renderToStaticMarkup(<>{Children.map(children, (child) =>
-          isValidElement(child) && (child.props as { plan?: ResumePagePlan }).plan
-            ? cloneElement(child as ReactElement<{ plan: ResumePagePlan }>, { plan: firstPlan })
-            : child,
-        )}</>),
-        profile, templateId, 1, totalPages, designSettings, resolvedCv,
-      )
+  // Page one as the template draws it: later pages take their header and the sections the plan moves there from it.
+  const rawFirstPageHtml = pageNumber > 1 && firstPlan
+    ? renderToStaticMarkup(<>{Children.map(children, (child) =>
+        isValidElement(child) && (child.props as { plan?: ResumePagePlan }).plan
+          ? cloneElement(child as ReactElement<{ plan: ResumePagePlan }>, { plan: firstPlan })
+          : child,
+      )}</>)
+    : undefined;
+  const firstPageHtml = rawFirstPageHtml !== undefined
+    ? applyManagedResumeOutput(rawFirstPageHtml, profile, templateId, 1, totalPages, designSettings, resolvedCv)
     : undefined;
   const html = applyManagedResumeOutput(
     renderToStaticMarkup(<>{children}</>),
@@ -62,6 +63,7 @@ export function ManagedResumePreview({
     designSettings,
     resolvedCv,
     firstPageHtml,
+    rawFirstPageHtml,
   );
   return (
     <>

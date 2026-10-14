@@ -29,7 +29,7 @@ import { tabellarischDefaults } from "./cvTemplateDefaults/tabellarisch.defaults
 import { textWidthMm, wrappedLines } from "./textMetrics";
 import { hyphenatedSummaryLines, summaryWordEnds, summaryWrappedLines } from "./resumeSummaryHyphenation";
 import { resolveSectionColumns } from "./resumeSectionLayout";
-import { hasSidebarHero, isZoneFlowTemplate, sectionListMetrics, supportsEducationSplit, supportsSidebarContinuation } from "./resumeSectionPresentation";
+import { hasSidebarHero, isZoneFlowTemplate, sectionHeadingLineMetrics, sectionListMetrics, supportsEducationSplit, supportsSidebarContinuation } from "./resumeSectionPresentation";
 import { normalizeCustomSection, spacesEntriesLikeCareer } from "./resumeCustomSections";
 import { getPehlioneContacts } from "./pehlioneContacts";
 import { resolveKnowledgeGroups } from "../features/resume-sections/resume-section-system";
@@ -744,16 +744,36 @@ type FlowBlock = {
     narrowHeight?: (from: number, to: number) => number;
     /** A custom section may break after one entry; grid lists keep two rows on each side. */
     minRows?: number;
+    /** A paragraph (Kurzprofil) whose rows are words: its text lines, so a break leaves no widow or orphan line. */
+    lines?: (from: number, to: number) => number;
   };
   /**
    * The same for a block that stands in the sidebar: rows are the safe break points (a grid row, a list entry, a
    * special-section entry), the heights are those of the narrow sidebar column, and every part repeats the heading.
    */
-  sideSplit?: { ends: number[]; height: (from: number, to: number) => number };
+  sideSplit?: { ends: number[]; height: (from: number, to: number) => number; lines?: (from: number, to: number) => number };
 };
+
+/**
+ * Whether a paragraph block may break after row `end` of the part `from`..`to`: at least `MIN_SPLIT_LINES` text lines
+ * stay on either side (no widow, no orphan). Blocks without lines keep their row rule.
+ */
+const paragraphBreakAllowed = (lines: ((from: number, to: number) => number) | undefined, from: number, end: number, to: number) =>
+  !lines || (lines(from, end) >= MIN_SPLIT_LINES && lines(end, to) >= MIN_SPLIT_LINES);
 
 const sumHeights = (values: number[], gap: number) =>
   values.length ? values.reduce((total, value) => total + value, 0) + gap * (values.length - 1) : 0;
+
+/**
+ * The order in which a template with a sidebar lane draws its Seitenspalte on page one while the user has not arranged
+ * the section list (measured on both outputs). Templates missing here draw it in the order of the section list.
+ */
+const nativeSidebarOrder: Record<string, readonly string[]> = {
+  zweispaltig: ["summary", "strengths", "knowledge", "languages", "certifications"],
+  gepflegt: ["summary", "strengths", "languages", "knowledge", "certifications"],
+  zeitgenoessisch: ["summary", "strengths", "languages", "knowledge", "certifications"],
+  elegant: ["summary", "strengths", "knowledge", "languages", "certifications"],
+};
 
 /**
  * One-column templates whose pages follow the order of the section list, also across page breaks: a Kurzprofil or
@@ -948,7 +968,8 @@ const planResumePages = (
     ? getPehlioneCoreCompetencies(profile).map((title) => ({ title, description: "" }))
     : [];
   const strengthEntries: ListEntry[] = explicitStrengths.length ? explicitStrengths : skillStrengths.length ? skillStrengths : pehlioneCompetencies;
-  const languages = (profile?.languages ?? []).filter((entry) => entry.trim());
+  // Every language once, as the renderers list them (applyResumeLanguageOutput): a row range means the same rows there.
+  const languages = [...new Set((profile?.languages ?? []).map((entry) => entry.trim()).filter(Boolean))];
   const certifications = (profile?.certifications ?? []).filter((entry) => entry.trim());
   const { blocks } = geometry;
   const line = (values: [number, number], count: number) => values[0] + values[1] * count;
@@ -1127,8 +1148,18 @@ const planResumePages = (
     // Tabellarisch sets the Kurzprofil across the whole content width: its lines are wrapped there with the measured font
     // (the browser's justified, hyphenated lines never take more).
     const tabellarischSummary = templateId === "tabellarisch" && !context.atsMode && scale.wrapText;
+    /**
+     * Both outputs set the Kurzprofil justified with German hyphenation (resumeSummaryTextCss) in the template's font.
+     * With the measured advances of that font (the "Source Sans 3" / Segoe UI stack every template uses by default) and
+     * the same soft hyphens, its lines are wrapped like the browser does: measured on all 14 templates in either column
+     * (exact, or one line long). The plain layout and another font keep the conservative estimates below.
+     */
+    const exactSummary = !context.atsMode && (context.overrides?.fontId ?? "source-sans") === "source-sans"
+      && (context.settings?.fontId ?? "source-sans") === "source-sans";
     const summaryLines = (value: string) => Math.max(1, tabellarischSummary
       ? wrappedLines(value, geometry.text.mainW * scale.mainRatio, geometry.text.sumFont * scale.font, geometry.text.wrap!.bodyWeight)
+      : exactSummary
+        ? hyphenatedSummaryLines(value, textWidth(zone), geometry.text.sumFont * scale.font, geometry.text.wrap?.bodyWeight ?? 400)
       : value.length < 180 || zoneFlow && !supportsSidebarContinuation(templateId)
         ? scale.wrapText && geometry.text.wrap?.paragraphs
           ? wrappedLines(value, textWidth(zone), geometry.text.sumFont * scale.font, geometry.text.wrap.bodyWeight)
@@ -1142,11 +1173,29 @@ const planResumePages = (
     const height = (value: string) => elegantSidebar && zone === "sidebar"
       // Justified, broken at the same soft hyphens the renderer inserts.
       ? elegantSideHeadFor(getResumeSectionTitle(profile, "summary")) + Math.max(1, hyphenatedSummaryLines(value, elegantSideWidth, elegantBodyMm, 400)) * elegantLine
+      : exactSummary && !tabellarischSummary
+      // The measured lines at the paragraph's line pitch, below the heading (measured headings of the main column ran up
+      // to 0.5 mm taller than `blocks.summary[0]`: the safety share of its capacity covers that).
+      ? summaryHead * scale.textHeight + (geometry.text.summaryLine ?? blocks.summary[1]) * scale.line * summaryLines(value) * summaryScale
       : zoneFlow
       ? summaryHead * scale.textHeight + blocks.summary[1] * scale.line * summaryLines(value) * summaryScale
       : (summaryHead + blocks.summary[1] * scale.line * summaryLines(value)) * scale.textHeight;
     const ends = summaryWordEnds(summaryText);
-    const partHeight = (from: number, to: number) => height(summaryText.slice(from ? ends[from - 1] : 0, ends[to - 1]).trim());
+    const partText = (from: number, to: number) => summaryText.slice(from ? ends[from - 1] : 0, ends[to - 1]).trim();
+    // A part that goes on from the page before is titled "… · Fortsetzung": the lines that title takes beyond the plain one.
+    const summaryTitle = getResumeSectionTitle(profile, "summary");
+    const continuedTitle = `${summaryTitle} · Fortsetzung`;
+    const headingLine = templateId ? sectionHeadingLineMetrics(templateId, zone === "sidebar" ? "sidebar" : "main") : undefined;
+    const titleLines = (title: string) => headingLine ? Math.max(1, wrappedLines(headingLine.uppercase ? title.toLocaleUpperCase("de-DE") : title,
+      textWidth(zone) - headingLine.iconMm, headingLine.fontMm * scale.font, headingLine.weight, headingLine.letterSpacingEm)) : 1;
+    const continuedHeadExtra = elegantSidebar && zone === "sidebar"
+      ? elegantSideHeadFor(continuedTitle) - elegantSideHeadFor(summaryTitle)
+      : headingLine ? (titleLines(continuedTitle) - titleLines(summaryTitle)) * headingLine.lineMm * scale.font : 0;
+    const partHeight = (from: number, to: number) => height(partText(from, to)) + (from > 0 ? continuedHeadExtra : 0);
+    // The text lines of a part, wrapped like its height: a break never leaves a single line on either page.
+    const partLines = (from: number, to: number) => from >= to ? 0 : elegantSidebar && zone === "sidebar"
+      ? Math.max(1, hyphenatedSummaryLines(partText(from, to), elegantSideWidth, elegantBodyMm, 400))
+      : summaryLines(partText(from, to));
     flow.push({
       id: "summary",
       zone,
@@ -1154,10 +1203,10 @@ const planResumePages = (
       home: leadHome("summary"),
       rank: managerRank("summary"),
       ...(summaryText.length >= 180 && ends.length > 1
-        ? { split: { ends, height: partHeight, minRows: 2 }, sideSplit: { ends, height: partHeight } } : {}),
+        ? { split: { ends, height: partHeight, minRows: 2, lines: partLines }, sideSplit: { ends, height: partHeight, lines: partLines } } : {}),
       // Elegant's sidebar is one lane: the Kurzprofil fills page one and goes on in the next page's sidebar when it must.
       ...(elegantSidebar && zone === "sidebar"
-        ? { home: "last" as const, hostable: true, ...(ends.length > 1 ? { sideSplit: { ends, height: partHeight } } : {}) } : {}),
+        ? { home: "last" as const, hostable: true, ...(ends.length > 1 ? { sideSplit: { ends, height: partHeight, lines: partLines } } : {}) } : {}),
     });
   }
   // Skills shown as strengths are only drawn by some templates, and some only on a one-page résumé.
@@ -1199,10 +1248,13 @@ const planResumePages = (
       home: derivedStrengths === "single" ? "first" : leadHome("strengths"),
       rank: managerRank("strengths"),
       singleOnly: derivedStrengths === "single",
+      // A sidebar lane breaks the strengths between two cards (every part repeats the heading).
+      ...(zone === "sidebar" && !flat && derivedStrengths !== "single"
+        ? { sideSplit: { ends: strengthEntries.map((_, index) => index + 1), height: (from: number, to: number) => elegantSidebar
+          ? elegantStrengthsHeight(strengthEntries.slice(from, to))
+          : listBlockHeight(gridModel("strengths", strengthEntries, zone, "first"), scale, strengthEntries.slice(from, to)) } } : {}),
       // Elegant's sidebar lane: the strengths break between two cards.
-      ...(elegantSidebar && zone === "sidebar" && derivedStrengths !== "single"
-        ? { home: "last" as const, hostable: true, sideSplit: { ends: strengthEntries.map((_, index) => index + 1),
-          height: (from: number, to: number) => elegantStrengthsHeight(strengthEntries.slice(from, to)) } } : {}),
+      ...(elegantSidebar && zone === "sidebar" && derivedStrengths !== "single" ? { home: "last" as const, hostable: true } : {}),
     });
   }
   if (visible("languages") && languages.length) {
@@ -1262,7 +1314,8 @@ const planResumePages = (
       rank: managerRank("languages"),
       hostable: (templateId === "kompakt" && zoneFlow || templateId === "elegant") && zone === "sidebar" && !flat,
       contHeight: templateId === "kompakt" && zoneFlow ? (languageHeightIn("main", true) ?? plainListHeight("main", languageRows.map((row) => row.primaryText), true)) : undefined,
-      sideSplit: templateId === "elegant" && zone === "sidebar" && !flat
+      // A sidebar lane breaks the languages between two rows.
+      sideSplit: (templateId === "elegant" || zoneFlow) && zone === "sidebar" && !flat
         ? { ends: languageRows.map((_, index) => index + 1), height: (from, to) => elegantSidebar
           ? elegantLanguagesHeight(languageRows.slice(from, to))
           : languageHeightIn("sidebar", false, languageRows.slice(from, to)) ?? 0 }
@@ -1746,129 +1799,188 @@ const planResumePages = (
     : (geometry.sideLimit - sideTop1 - verticalInset) * (zoneFlow ? ZONE_FLOW_SIDEBAR_SAFETY : SAFETY);
   const dense = context.atsMode ? geometry.ats.density : geometry.density;
 
-  // A paragraph that makes the first sidebar overflow becomes a lane block. Its word ranges can
-  // continue on the next page while the other native sidebar sections keep their usual pages.
-  const summaryBlock = flow.find((block) => block.id === "summary");
-  const firstSidebarLoad = sumHeights(flow.filter((block) => block.home === "first" && block.zone === "sidebar")
-    .map((block) => block.height), sideGap);
-  if (summaryText.length >= 180 && summaryBlock?.zone === "sidebar" && zoneFlow && supportsSidebarContinuation(templateId)
-    && firstSidebarLoad > sideCap1 && summaryBlock.sideSplit) {
-    summaryBlock.home = "last";
-    summaryBlock.hostable = true;
+  /**
+   * A template with a continuation sidebar lets its sidebar run through the pages as a lane of its own, independent
+   * of the main column: the sections of the Seitenspalte keep their order, fill every page down to its usable
+   * bottom, and a section that does not fit breaks at an item boundary and goes on in the sidebar of the next page.
+   */
+  const sidebarLane = (zoneFlow && supportsSidebarContinuation(templateId) || templateId === "elegant" && !context.atsMode)
+    && sideCap1 > 0 && !flat;
+  /**
+   * The sections the plan places itself although the template draws them on page one (Kurzprofil, Stärken, Sprachen):
+   * the output follows the plan for them (`placed`, `sectionOnPage`).
+   */
+  const selfPlaced = new Set<string>();
+  // Word-processor flow of the Seitenspalte: when its sections do not all fit beside page one, every one of them
+  // (also those the template draws on page one) joins the lane in the order of the section list. A section never
+  // starts while the one before it still goes on: a Kurzprofil that breaks at the page end continues at the top of
+  // the next page's sidebar, and Stärken and Sprachen follow it there.
+  const sidebarStream = flow.filter((block) => block.zone === "sidebar" && !block.singleOnly && (block.home === "first" || block.hostable));
+  if (sidebarLane && sumHeights(sidebarStream.map((block) => block.height), sideGap) > sideCap1) {
+    for (const block of sidebarStream) {
+      if (block.home !== "first") continue;
+      block.home = "last";
+      block.hostable = true;
+      selfPlaced.add(block.id);
+    }
   }
+  // A hand-arranged layout that puts a section of the main column behind the career sections: it follows the career
+  // entries like any later block (it never stands on page one while the career goes on below it on the next page).
+  if ((zoneFlow || templateId === "elegant") && customLayout && !flat && templateId !== "kreativ") {
+    for (const block of flow) {
+      if (block.zone !== "main" || block.home !== "first" || block.singleOnly || managerRank(block.id) < careerRank) continue;
+      block.home = "last";
+      selfPlaced.add(block.id);
+    }
+  }
+
+  /**
+   * A column laid out as one stream in the order of the section list (`ids`), like a word processor: every section
+   * starts below the one before it, a career entry breaks between bullets, a list block at a row and a paragraph at a
+   * word (two lines on each side). The pages from `reserveFrom` on keep the closing's room.
+   */
+  type StreamPage = { plan: ResumePagePlan; used: number; lastKind?: ResumePageItem["kind"]; lastGap: number };
+  type StreamSpec = {
+    ids: readonly string[];
+    capacity: (pageNumber: number, reserveFrom: number) => number;
+    /** Metrics of the career entries on a page: beside a sidebar ("first") or across the page ("cont"). */
+    mode: (pageNumber: number) => "first" | "cont";
+    /** Height of a block, or of the rows `from`..`to` of a block that breaks, on a page. */
+    blockHeight: (block: FlowBlock, pageNumber: number, from: number, to: number) => number;
+    sidebar: (pageNumber: number) => boolean;
+    /** Blocks that never start on page one (page one draws them in its sidebar). */
+    laterPagesOnly?: ReadonlySet<string>;
+  };
+  const layoutStream = (spec: StreamSpec, reserveFrom: number) => {
+    const pages: StreamPage[] = [];
+    const capacity = (number: number) => Math.max(1, spec.capacity(number, reserveFrom));
+    const nextPage = () => {
+      const plan: ResumePagePlan = { pageNumber: pages.length + 1, items: [], blocks: [], density: "standard", sidebar: spec.sidebar(pages.length + 1),
+        fill: { main: 0, sidebar: 0 } };
+      const page: StreamPage = { plan, used: 0, lastGap: 0 };
+      pages.push(page);
+      return page;
+    };
+    let page = nextPage();
+    const addBlock = (block: FlowBlock, from = 0, to = block.split?.ends.length ?? 0) => {
+      const height = spec.blockHeight(block, page.plan.pageNumber, from, to);
+      const gap = page.used > 0 ? sectionGap : 0;
+      page.used += gap + height;
+      page.plan.blocks!.push(block.id);
+      if (block.split && (from > 0 || to < block.split.ends.length)) {
+        const ends = block.split.ends;
+        (page.plan.blockRanges ??= {})[block.id] = { from: from ? ends[from - 1] : 0,
+          to: ends[to - 1], total: ends[ends.length - 1] };
+      }
+      page.lastKind = undefined;
+    };
+    const addItem = (item: MeasuredItem, from: number, to: number) => {
+      const mode = spec.mode(page.plan.pageNumber);
+      const shown = item.parts && (from > 0 || to < item.parts[mode].lines.length)
+        ? { kind: item.kind, id: item.id, weight: Math.round(item.parts[mode].height(from, to) * 10) / 10,
+          bullets: { from, to, total: item.parts[mode].lines.length } }
+        : strip(item, mode);
+      const gap = page.lastKind === item.kind ? page.lastGap : (page.used > 0 ? sectionGap : 0) + sectionHead(item.kind);
+      page.used += gap + (item.parts ? item.parts[mode].height(from, to) : item[mode]);
+      page.plan.items.push(shown);
+      page.lastKind = item.kind;
+      page.lastGap = item.gapAfter;
+    };
+    const seen = new Set<string>();
+    for (const id of spec.ids) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      if (id === "experience" || id === "education") {
+        for (const item of items.filter((entry) => entry.kind === id)) {
+          const total = item.parts?.first.lines.length ?? 0;
+          let from = 0;
+          while (true) {
+            const mode = spec.mode(page.plan.pageNumber);
+            const heading = page.lastKind === item.kind ? page.lastGap : (page.used > 0 ? sectionGap : 0) + sectionHead(item.kind);
+            const fullHeight = item.parts ? item.parts[mode].height(from, total) : item[mode];
+            if (page.used + heading + fullHeight <= capacity(page.plan.pageNumber) || (!page.used && !item.parts)) {
+              addItem(item, from, total);
+              break;
+            }
+            let end = from;
+            if (item.parts) for (let candidate = from + 1; candidate < total; candidate += 1) {
+              const before = item.parts[mode].lines.slice(from, candidate).reduce((sum, lines) => sum + lines, 0);
+              const after = item.parts.cont.lines.slice(candidate).reduce((sum, lines) => sum + lines, 0);
+              if (before < minLinesBefore(item.kind) || after < MIN_SPLIT_LINES) continue;
+              if (page.used + heading + item.parts[mode].height(from, candidate) <= capacity(page.plan.pageNumber)) end = candidate;
+            }
+            if (end > from) {
+              addItem(item, from, end);
+              from = end;
+              page = nextPage();
+            } else if (page.used > 0) page = nextPage();
+            else {
+              addItem(item, from, total);
+              break;
+            }
+          }
+        }
+        continue;
+      }
+      const block = flow.find((entry) => entry.id === id);
+      if (!block) continue;
+      if (spec.laterPagesOnly?.has(block.id) && page.plan.pageNumber === 1) page = nextPage();
+      if (!block.split) {
+        if (page.used && page.used + sectionGap + spec.blockHeight(block, page.plan.pageNumber, 0, 0) > capacity(page.plan.pageNumber)) page = nextPage();
+        addBlock(block);
+        continue;
+      }
+      let from = 0;
+      const { ends, lines } = block.split;
+      while (from < ends.length) {
+        const gap = page.used > 0 ? sectionGap : 0;
+        let end = from;
+        for (let candidate = from + 1; candidate <= ends.length; candidate += 1) {
+          if (page.used + gap + spec.blockHeight(block, page.plan.pageNumber, from, candidate) > capacity(page.plan.pageNumber)) {
+            // A paragraph's parts only grow with the words they take.
+            if (lines) break;
+            continue;
+          }
+          // A paragraph keeps two lines on either side of a break (no widow, no orphan).
+          if (candidate === ends.length || paragraphBreakAllowed(lines, from, candidate, ends.length)) end = candidate;
+        }
+        if (end === from && page.used > 0) { page = nextPage(); continue; }
+        if (end === from) end = from + 1;
+        addBlock(block, from, end);
+        from = end;
+        if (from < ends.length) page = nextPage();
+      }
+    }
+    return pages;
+  };
+  /** The stream with the closing below the last page's content: when it has no room there, that page and the following ones keep it. */
+  const streamWithClosing = (spec: StreamSpec, lastPageClosing: boolean, closingRoom: number, pageCap: (number: number) => number) => {
+    let pages = layoutStream(spec, lastPageClosing ? Number.POSITIVE_INFINITY : 1);
+    for (let attempt = 0; lastPageClosing && closingRoom > 0 && attempt < 3; attempt += 1) {
+      const last = pages[pages.length - 1];
+      if (last.used + closingRoom <= pageCap(last.plan.pageNumber)) break;
+      pages = layoutStream(spec, last.plan.pageNumber);
+    }
+    return pages;
+  };
 
   // A hand-arranged single-column document is one stream, including blocks
   // between the two career sections. Their saved sidebar zones remain metadata.
   if (flat && (templateId === "tabellarisch" || (customLayout && !context.atsMode))) {
-    type OrderedPage = { plan: ResumePagePlan; used: number; lastKind?: ResumePageItem["kind"]; lastGap: number };
     // Tabellarisch keeps the closing's room on the last page only (where it is drawn); the other one-column layouts keep
     // it on every page.
     const lastPageClosing = templateId === "tabellarisch" && !context.atsMode;
     const closingRoom = lastPageClosing ? tabellarischClosingRoom : closingHeight;
     const pageCap = (number: number) => (number === 1 ? mainCap1 : mainCap2);
-    /** Lays the stream out; pages from `reserveFrom` on keep the closing's room (every page outside Tabellarisch). */
-    const layoutOrdered = (reserveFrom: number) => {
-      const pages: OrderedPage[] = [];
-      const capacity = (number: number) => Math.max(1, pageCap(number) - (!lastPageClosing || number >= reserveFrom ? closingRoom : 0));
-      const nextPage = () => {
-        const plan: ResumePagePlan = { pageNumber: pages.length + 1, items: [], blocks: [], density: "standard", sidebar: false,
-          fill: { main: 0, sidebar: 0 } };
-        const page: OrderedPage = { plan, used: 0, lastGap: 0 };
-        pages.push(page);
-        return page;
-      };
-      let page = nextPage();
-      const addBlock = (block: FlowBlock, from = 0, to = block.split?.ends.length ?? 0) => {
-        const height = block.split ? block.split.height(from, to) : block.height;
-        const gap = page.used > 0 ? sectionGap : 0;
-        page.used += gap + height;
-        page.plan.blocks!.push(block.id);
-        if (block.split && (from > 0 || to < block.split.ends.length)) {
-          const ends = block.split.ends;
-          (page.plan.blockRanges ??= {})[block.id] = { from: from ? ends[from - 1] : 0,
-            to: ends[to - 1], total: ends[ends.length - 1] };
-        }
-        page.lastKind = undefined;
-      };
-      const addItem = (item: MeasuredItem, from: number, to: number) => {
-        const mode = page.plan.pageNumber === 1 ? "first" : "cont";
-        const shown = item.parts && (from > 0 || to < item.parts[mode].lines.length)
-          ? { kind: item.kind, id: item.id, weight: Math.round(item.parts[mode].height(from, to) * 10) / 10,
-            bullets: { from, to, total: item.parts[mode].lines.length } }
-          : strip(item, mode);
-        const gap = page.lastKind === item.kind ? page.lastGap : (page.used > 0 ? sectionGap : 0) + sectionHead(item.kind);
-        page.used += gap + (item.parts ? item.parts[mode].height(from, to) : item[mode]);
-        page.plan.items.push(shown);
-        page.lastKind = item.kind;
-        page.lastGap = item.gapAfter;
-      };
-      const ordered = context.sections?.filter((entry) => entry.visible && !["heading", "personalData", "photo", "closing"].includes(entry.id))
-        .map((entry) => entry.id) ?? ["summary", "strengths", "experience", "education", ...flow.map((block) => block.id)];
-      const seen = new Set<string>();
-      for (const id of ordered) {
-        if (seen.has(id)) continue;
-        seen.add(id);
-        if (id === "experience" || id === "education") {
-          for (const item of items.filter((entry) => entry.kind === id)) {
-            const total = item.parts?.first.lines.length ?? 0;
-            let from = 0;
-            while (true) {
-              const mode = page.plan.pageNumber === 1 ? "first" : "cont";
-              const heading = page.lastKind === item.kind ? page.lastGap : (page.used > 0 ? sectionGap : 0) + sectionHead(item.kind);
-              const fullHeight = item.parts ? item.parts[mode].height(from, total) : item[mode];
-              if (page.used + heading + fullHeight <= capacity(page.plan.pageNumber) || (!page.used && !item.parts)) {
-                addItem(item, from, total);
-                break;
-              }
-              let end = from;
-              if (item.parts) for (let candidate = from + 1; candidate < total; candidate += 1) {
-                const before = item.parts[mode].lines.slice(from, candidate).reduce((sum, lines) => sum + lines, 0);
-                const after = item.parts.cont.lines.slice(candidate).reduce((sum, lines) => sum + lines, 0);
-                if (before < minLinesBefore(item.kind) || after < MIN_SPLIT_LINES) continue;
-                if (page.used + heading + item.parts[mode].height(from, candidate) <= capacity(page.plan.pageNumber)) end = candidate;
-              }
-              if (end > from) {
-                addItem(item, from, end);
-                from = end;
-                page = nextPage();
-              } else if (page.used > 0) page = nextPage();
-              else {
-                addItem(item, from, total);
-                break;
-              }
-            }
-          }
-          continue;
-        }
-        const block = flow.find((entry) => entry.id === id);
-        if (!block) continue;
-        if (!block.split) {
-          if (page.used && page.used + sectionGap + block.height > capacity(page.plan.pageNumber)) page = nextPage();
-          addBlock(block);
-          continue;
-        }
-        let from = 0;
-        while (from < block.split.ends.length) {
-          const gap = page.used > 0 ? sectionGap : 0;
-          let end = from;
-          for (let candidate = from + 1; candidate <= block.split.ends.length; candidate += 1)
-            if (page.used + gap + block.split.height(from, candidate) <= capacity(page.plan.pageNumber)) end = candidate;
-          if (end === from && page.used > 0) { page = nextPage(); continue; }
-          if (end === from) end = from + 1;
-          addBlock(block, from, end);
-          from = end;
-          if (from < block.split.ends.length) page = nextPage();
-        }
-      }
-      return pages;
-    };
-    let pages = layoutOrdered(lastPageClosing ? Number.POSITIVE_INFINITY : 1);
-    // The closing goes below the last page's content: when it has no room there, that page and the following ones keep it.
-    for (let attempt = 0; lastPageClosing && closingRoom > 0 && attempt < 3; attempt += 1) {
-      const last = pages[pages.length - 1];
-      if (last.used + closingRoom <= pageCap(last.plan.pageNumber)) break;
-      pages = layoutOrdered(last.plan.pageNumber);
-    }
+    const ids = context.sections?.filter((entry) => entry.visible && !["heading", "personalData", "photo", "closing"].includes(entry.id))
+      .map((entry) => entry.id) ?? ["summary", "strengths", "experience", "education", ...flow.map((block) => block.id)];
+    const pages = streamWithClosing({
+      ids,
+      capacity: (number, reserveFrom) => pageCap(number) - (!lastPageClosing || number >= reserveFrom ? closingRoom : 0),
+      mode: (number) => (number === 1 ? "first" : "cont"),
+      blockHeight: (block, _number, from, to) => (block.split ? block.split.height(from, to) : block.height),
+      sidebar: () => false,
+    }, lastPageClosing, closingRoom, pageCap);
     pages.forEach((entry, index) => {
       entry.plan.fill = { main: (entry.used + (index === pages.length - 1 ? closingRoom : 0)) /
         (index === 0 ? mainCap1 : mainCap2), sidebar: 0 };
@@ -1889,9 +2001,15 @@ const planResumePages = (
   const lastBlocks = flow.filter((block) => block.home === "last");
   const hostable = lastBlocks.filter((block) => block.hostable);
   // The sidebar fills in the order of the user's layout.
-  if (zoneFlow && customLayout) hostable.sort((left, right) => (left.rank ?? 0) - (right.rank ?? 0));
-  // Elegant draws its sidebar in the order of the section list (Kenntnisse, Sprachen, Zertifikate, …): its lane fills in that order.
-  if (templateId === "elegant" && !context.atsMode) hostable.sort((left, right) => managerRank(left.id) - managerRank(right.id));
+  // A sidebar lane is one stream in the order both outputs draw the column in: the order of a hand-arranged section
+  // list, else the template's own order of its sidebar (`nativeSidebarOrder`; sections it does not draw itself join
+  // in the order of the list behind them).
+  const laneRank = (id: string) => {
+    const native = customLayout ? -1 : nativeSidebarOrder[templateId ?? ""]?.indexOf(id) ?? -1;
+    return native >= 0 ? native : 1000 + managerRank(id);
+  };
+  if (sidebarLane) hostable.sort((left, right) => laneRank(left.id) - laneRank(right.id));
+  else if (zoneFlow && customLayout) hostable.sort((left, right) => (left.rank ?? 0) - (right.rank ?? 0));
 
   const stack = (fixed: number, run: number) => fixed + run + (fixed > 0 && run > 0 ? sectionGap : 0);
   const wholeMain = () =>
@@ -1899,7 +2017,11 @@ const planResumePages = (
   const wholeSide = () => blockLoad([...firstBlocks, ...singleOnlyBlocks, ...lastBlocks], "sidebar");
 
   const forced = options.firstPageItemCount;
-  const onePage = (density: ResumePagePlan["density"]): ResumePagePlan[] => [
+  /** Every page names the sections the plan places itself (`selfPlaced`): the output draws them where `blocks` say. */
+  const withPlaced = (plan: ResumePagePlan[]): ResumePagePlan[] => selfPlaced.size
+    ? plan.map((page) => ({ ...page, placed: [...new Set([...(page.placed ?? []), ...selfPlaced])] }))
+    : plan;
+  const onePage = (density: ResumePagePlan["density"]): ResumePagePlan[] => withPlaced([
     {
       pageNumber: 1,
       items: items.map((item) => strip(item, "first")),
@@ -1908,7 +2030,7 @@ const planResumePages = (
       sidebar: geometry.columns === 2 && !flat,
       fill: { main: wholeMain() / mainCap1, sidebar: sideCap1 ? wholeSide() / sideCap1 : 0 },
     },
-  ];
+  ]);
   const fitsOnePage = wholeMain() <= mainCap1 && (sideCap1 === 0 || wholeSide() <= sideCap1);
   if (fitsOnePage && forced === undefined) return onePage("standard");
   // A slightly compacted single page beats a second page that would be nearly empty,
@@ -1921,13 +2043,6 @@ const planResumePages = (
 
   // Sidebar blocks move to page one whenever that column has room for them.
   const hostedOnFirst = new Set<string>();
-  /**
-   * A template with a continuation sidebar lets its sidebar run through the pages as a lane of its own, independent
-   * of the main column: the sections of the Seitenspalte keep their order, fill every page down to its usable
-   * bottom, and a section that does not fit breaks at an item boundary and goes on in the sidebar of the next page.
-   */
-  const sidebarLane = (zoneFlow && supportsSidebarContinuation(templateId) || templateId === "elegant" && !context.atsMode)
-    && sideCap1 > 0 && !flat;
   type LaneSegment = { block: FlowBlock; from: number; to: number };
   const lanePages: LaneSegment[][] = [[]];
   const segmentHeight = ({ block, from, to }: LaneSegment) => {
@@ -1967,10 +2082,14 @@ const planResumePages = (
         // The part that fits: the heading and at least one row here, and a widow-free rest on the next page.
         let best = from;
         if (block.sideSplit) {
-          // A Kurzprofil keeps a few words together on either side (its rows are words).
+          // A Kurzprofil keeps a few words together on either side (its rows are words) and, where its lines are known,
+          // at least two lines on each page (no widow, no orphan).
           const words = block.id === "summary" ? ELEGANT_SUMMARY_MIN_WORDS : 0;
+          const { lines } = block.sideSplit;
           for (let end = from + Math.max(LANE_MIN_ROWS_BEFORE, words); end <= rows - Math.max(LANE_MIN_ROWS_AFTER, words); end += 1) {
-            if (used + gap + segmentHeight({ block, from, to: end }) <= capacity(page)) best = end;
+            // The parts only grow with `end`: past the first one that is too tall none fits.
+            if (used + gap + segmentHeight({ block, from, to: end }) > capacity(page)) break;
+            if (paragraphBreakAllowed(lines, from, end, rows)) best = end;
           }
         }
         if (best > from) {
@@ -2027,6 +2146,8 @@ const planResumePages = (
   // The sidebar lane places its blocks on every page itself: none of them flows into the main column.
   const inLane = (block: FlowBlock) => sidebarLane && lanePages.some((segments) => segments.some((segment) => segment.block === block));
   const pageTwoFlow = lastBlocks.filter((block) => !hostedOnFirst.has(block.id) && !headBlocks.includes(block) && !inLane(block));
+  /** A zone-flow section of the Seitenspalte without room beside page one and without a lane: it goes on in the main column. */
+  const spilled = (block: FlowBlock) => (zoneFlow || templateId === "elegant") && !sidebarLane && block.zone === "sidebar" && pageTwoFlow.includes(block);
   // The last page has no sidebar: a sidebar block that stays there flows into the full-width main column.
   const contOf = (block: FlowBlock) => block.contHeight ?? block.height;
   /** The height of a block of the main column on page `page` (0-based), by the width the column has there. */
@@ -2049,9 +2170,11 @@ const planResumePages = (
     // template draws them in), or the order of the user's layout.
     const nativeRank = (id: string) =>
       id === "projects" ? 0 : id === "knowledge" ? 1 : id.startsWith("group:") ? 2 : id === "certifications" ? 3 : 4;
+    // A section of the Seitenspalte that has no room beside page one and no lane to go on in (`spilled`) is drawn in
+    // the main column of the later pages, at its place in the order: it joins that stream there, never after it.
     tail.push(
       ...pageTwoFlow
-        .filter((block) => block.zone === "main")
+        .filter((block) => block.zone === "main" || spilled(block))
         .sort((left, right) => customLayout || ordered
           ? byRank(left, right)
           : nativeRank(left.id) - nativeRank(right.id)),
@@ -2065,6 +2188,8 @@ const planResumePages = (
     }
   }
   const pinned = pageTwoFlow.filter((block) => !tail.includes(block));
+  /** Page one draws a spilled sidebar section in its sidebar: the tail on page one stops before the first of them. */
+  const tailOnFirst = tail.some(spilled) ? tail.findIndex(spilled) : tail.length;
   // The ordered one-column templates draw the blocks behind the career in the order of the list on every page.
   if (ordered) pinned.sort(byRank);
   const pinnedLoad = sumHeights(pinned.map((block) => heightOn(block, 1)), sectionGap);
@@ -2123,11 +2248,12 @@ const planResumePages = (
     const item = items[count];
     if (item) for (const kept of breakPoints(item)) cuts.push({ count, kept, tail: 0, rows: 0 });
   }
-  for (let whole = 1; whole <= tail.length; whole += 1) {
-    // A list block may end page one at a safe row boundary; a custom section needs its heading and one entry.
+  for (let whole = 1; whole <= tailOnFirst; whole += 1) {
+    // A list block may end page one at a safe row boundary; a custom section needs its heading and one entry; a
+    // paragraph keeps two lines on either side.
     const split = tail[whole - 1].split;
     if (split) for (let rows = split.minRows ?? 2; rows <= split.ends.length - (split.minRows ?? 2); rows += 1)
-      cuts.push({ count: items.length, kept: 0, tail: whole - 1, rows });
+      if (paragraphBreakAllowed(split.lines, 0, rows, split.ends.length)) cuts.push({ count: items.length, kept: 0, tail: whole - 1, rows });
     cuts.push({ count: items.length, kept: 0, tail: whole, rows: 0 });
   }
   // The signature never travels alone: the last page needs something besides the closing block (the sidebar
@@ -2185,10 +2311,13 @@ const planResumePages = (
     ];
   };
 
+  /** Blocks that lead the main column and go on from page one (`leadOverflow`): a page draws them before its career entries. */
+  const leadIds = new Set<string>();
   /** Continue an overflowing second page through as many A4 sheets as its content needs. */
   const packContinuations = (plan: ResumePagePlan[], reserveClosing: boolean): ResumePagePlan[] => {
     const second = plan[1];
-    if (!second || (second.fill?.main ?? 0) * densityFactor[second.density] <= 1) return plan;
+    // A page two that carries the rest of page one's leading blocks is always packed: they come before its career entries.
+    if (!second || !leadIds.size && (second.fill?.main ?? 0) * densityFactor[second.density] <= 1) return plan;
     // The closing is appended only after the continuation pages are packed; `reserveClosing` keeps its height free on
     // every continuation page, so the last page cannot silently overflow.
     const continuationCap = reserveClosing ? mainCap2 - closingHeight : mainCap2;
@@ -2234,11 +2363,58 @@ const planResumePages = (
       const blockRanges: Record<string, KnowledgeRange> = {};
       let used = 0;
       let previous: ResumePageItem | undefined;
-      while (pendingItems.length) {
+      /**
+       * Fills the page with the pending blocks while `take` accepts the next one. A block that does not fit breaks at
+       * a safe row (a paragraph keeps two lines on each side); the rest waits for the next page, so nothing behind it
+       * may start here. Returns whether the page is full.
+       */
+      const takeBlocks = (take: (block: FlowBlock) => boolean) => {
+        while (pendingBlocks.length && take(pendingBlocks[0].source)) {
+          const next = pendingBlocks[0];
+          const gap = used > 0 ? sectionGap : 0;
+          const height = blockHeight(next);
+          if (used + gap + height <= continuationCap) {
+            selectedBlocks.push(next.source.id); used += gap + height; pendingBlocks.shift();
+            if (next.source.split && (next.from > 0 || next.to < next.source.split.ends.length))
+              blockRanges[next.source.id] = { from: next.from ? next.source.split.ends[next.from - 1] : 0,
+                to: next.source.split.ends[next.to - 1], total: next.source.split.ends.at(-1)! };
+            continue;
+          }
+          if (next.source.split) {
+            const { lines } = next.source.split;
+            let best = next.from;
+            for (let end = next.from + 1; end < next.to; end += 1) {
+              const minRows = next.source.split.minRows ?? 2;
+              if (end - next.from < minRows || next.to - end < minRows) continue;
+              if (used + gap + splitHeightOn(next.source.split, next.from, end, pageIndex) > continuationCap) {
+                // A paragraph's parts only grow with `end`.
+                if (lines) break;
+                continue;
+              }
+              if (paragraphBreakAllowed(lines, next.from, end, next.to)) best = end;
+            }
+            if (best > next.from) {
+              selectedBlocks.push(next.source.id);
+              used += gap + splitHeightOn(next.source.split, next.from, best, pageIndex);
+              blockRanges[next.source.id] = { from: next.from ? next.source.split.ends[next.from - 1] : 0,
+                to: next.source.split.ends[best - 1], total: next.source.split.ends.at(-1)! };
+              pendingBlocks[0] = { ...next, from: best };
+            }
+          }
+          if (!selectedBlocks.length && !selectedItems.length) {
+            selectedBlocks.push(next.source.id); used += gap + height; pendingBlocks.shift();
+          }
+          return true;
+        }
+        return false;
+      };
+      // A block that leads the main column (a Kurzprofil that goes on from page one) comes before the career entries.
+      const leadFull = takeBlocks((block) => leadIds.has(block.id));
+      if (!leadFull && !pendingBlocks.some((part) => leadIds.has(part.source.id))) while (pendingItems.length) {
         const next = pendingItems[0];
         const item = projectItem(next);
         const heading = previous?.kind === item.kind ? next.source.gapAfter :
-          (selectedItems.length ? sectionGap : 0) + sectionHead(item.kind, !selectedItems.length);
+          (used > 0 ? sectionGap : 0) + sectionHead(item.kind, !selectedItems.length && !selectedBlocks.length);
         const needed = heading + item.weight;
         if (used + needed <= continuationCap) {
           selectedItems.push(item); used += needed; previous = item; pendingItems.shift();
@@ -2267,37 +2443,7 @@ const planResumePages = (
         }
         break;
       }
-      if (!pendingItems.length) while (pendingBlocks.length) {
-        const next = pendingBlocks[0];
-        const gap = used > 0 ? sectionGap : 0;
-        const height = blockHeight(next);
-        if (used + gap + height <= continuationCap) {
-          selectedBlocks.push(next.source.id); used += gap + height; pendingBlocks.shift();
-          if (next.source.split && (next.from > 0 || next.to < next.source.split.ends.length))
-            blockRanges[next.source.id] = { from: next.from ? next.source.split.ends[next.from - 1] : 0,
-              to: next.source.split.ends[next.to - 1], total: next.source.split.ends.at(-1)! };
-          continue;
-        }
-        if (next.source.split) {
-          let best = next.from;
-          for (let end = next.from + 1; end < next.to; end += 1) {
-            const minRows = next.source.split.minRows ?? 2;
-            if (end - next.from < minRows || next.to - end < minRows) continue;
-            if (used + gap + splitHeightOn(next.source.split, next.from, end, pageIndex) <= continuationCap) best = end;
-          }
-          if (best > next.from) {
-            selectedBlocks.push(next.source.id);
-            used += gap + splitHeightOn(next.source.split, next.from, best, pageIndex);
-            blockRanges[next.source.id] = { from: next.from ? next.source.split.ends[next.from - 1] : 0,
-              to: next.source.split.ends[best - 1], total: next.source.split.ends.at(-1)! };
-            pendingBlocks[0] = { ...next, from: best };
-          }
-        }
-        if (!selectedBlocks.length && !selectedItems.length) {
-          selectedBlocks.push(next.source.id); used += gap + height; pendingBlocks.shift();
-        }
-        break;
-      }
+      if (!pendingItems.length) takeBlocks(() => true);
       continuations.push({ pageNumber: continuations.length + 2, items: selectedItems,
         density: "standard", blocks: selectedBlocks,
         ...(Object.keys(blockRanges).length ? { blockRanges } : {}), sidebar: templateId === "elegant" && !context.atsMode,
@@ -2308,11 +2454,12 @@ const planResumePages = (
   };
   /**
    * Zweispaltig always reserves the closing. Gepflegt fills its continuation pages to the bottom and reserves the closing
-   * only when the last page has no room left for it.
+   * only when the last page has no room left for it; so do the other templates when page one's leading blocks go on
+   * (`leadIds`), where every later page is packed.
    */
   const continueAfterSecond = (plan: ResumePagePlan[]): ResumePagePlan[] => {
-    if (templateId !== "gepflegt") return packContinuations(plan, templateId === "zweispaltig");
-    const full = packContinuations(plan, false);
+    if (templateId !== "gepflegt" && !leadIds.size) return packContinuations(plan, templateId === "zweispaltig");
+    const full = packContinuations(plan, templateId === "zweispaltig");
     return full.length > 1 && (full[full.length - 1].fill?.main ?? 0) > 1 ? packContinuations(plan, true) : full;
   };
 
@@ -2322,7 +2469,7 @@ const planResumePages = (
    * main column does. Pages of the main column that have nothing pending in the sidebar keep their natural layout.
    */
   const withSidebarLane = (plan: ResumePagePlan[]): ResumePagePlan[] => {
-    if (!sidebarLane) return plan;
+    if (!sidebarLane) return withPlaced(plan);
     const pages: ResumePagePlan[] = plan.map((page) => ({ ...page, blocks: [...(page.blocks ?? [])], fill: { main: page.fill?.main ?? 0, sidebar: page.fill?.sidebar ?? 0 } }));
     while (pages.length < lanePages.length) {
       pages.push({ pageNumber: pages.length + 1, items: [], density: pages[pages.length - 1]?.density ?? "standard", blocks: [], sidebar: false, fill: { main: 0, sidebar: 0 } });
@@ -2339,8 +2486,118 @@ const planResumePages = (
       if (index > 0) page.sidebar = segments.length > 0;
       page.fill = { main: page.fill!.main, sidebar: laneLoad(index) / (index === 0 ? sideCap1 : sideCap2) };
     });
-    return pages;
+    return withPlaced(pages);
   };
+
+  /**
+   * The blocks that lead the main column of page one (a long Kurzprofil, Stärken above the career) are taller than the
+   * page: they flow like a Word document instead of running off the sheet. Page one takes them up to its usable bottom,
+   * the block that does not fit breaks at a word (a paragraph keeps two lines on each side) and goes on at the top of
+   * the next page; the blocks behind it and then the career entries follow there.
+   */
+  const leadOverflow = (): ResumePagePlan[] | undefined => {
+    const lead = pageOneFlow.filter((block) => block.zone === "main").sort((left, right) => managerRank(left.id) - managerRank(right.id));
+    if (load1Fixed <= mainCap1 || !lead.some((block) => block.split)) return undefined;
+    let used = 0;
+    const onFirst: string[] = [];
+    const firstRanges: Record<string, KnowledgeRange> = {};
+    const rest: Array<{ block: FlowBlock; from: number }> = [];
+    for (const block of lead) {
+      if (rest.length) { rest.push({ block, from: 0 }); continue; }
+      const gap = used > 0 ? sectionGap : 0;
+      if (used + gap + block.height <= mainCap1) { onFirst.push(block.id); used += gap + block.height; continue; }
+      const split = block.split;
+      let best = 0;
+      if (split) {
+        const minRows = split.minRows ?? 2;
+        for (let end = minRows; end <= split.ends.length - minRows; end += 1) {
+          const height = split.firstHeight?.(split.ends[end - 1]) ?? split.height(0, end);
+          if (used + gap + height > mainCap1) { if (split.lines) break; continue; }
+          if (paragraphBreakAllowed(split.lines, 0, end, split.ends.length)) best = end;
+        }
+      }
+      if (split && best > 0) {
+        onFirst.push(block.id);
+        used += gap + (split.firstHeight?.(split.ends[best - 1]) ?? split.height(0, best));
+        firstRanges[block.id] = { from: 0, to: split.ends[best - 1], total: split.ends[split.ends.length - 1] };
+        rest.push({ block, from: best });
+      } else if (used === 0) {
+        // Taller than a page and not divisible: drawn whole rather than lost.
+        onFirst.push(block.id);
+        used += block.height;
+      } else rest.push({ block, from: 0 });
+    }
+    if (!rest.length) return undefined;
+    for (const block of lead) selfPlaced.add(block.id);
+    for (const { block } of rest) leadIds.add(block.id);
+    const moved = new Set(rest.filter((part) => part.from === 0).map((part) => part.block.id));
+    const restRanges: Record<string, KnowledgeRange> = Object.fromEntries(rest.filter((part) => part.from > 0).map(({ block, from }) => {
+      const ends = block.split!.ends;
+      return [block.id, { from: ends[from - 1], to: ends[ends.length - 1], total: ends[ends.length - 1] }];
+    }));
+    const firstIds = [...new Set([...pageOneFlow.filter((block) => (block.home === "last" || ordered) && !moved.has(block.id)).map((block) => block.id), ...onFirst])];
+    const pages: ResumePagePlan[] = [
+      {
+        pageNumber: 1, items: [], density: "standard", blocks: firstIds,
+        ...(Object.keys(firstRanges).length ? { blockRanges: firstRanges } : {}),
+        sidebar: geometry.columns === 2 && !flat,
+        fill: { main: used / mainCap1, sidebar: sideFill },
+      },
+      {
+        pageNumber: 2, items: items.map((item) => strip(item, pageMode(1))), density: "standard",
+        blocks: [...rest.map((part) => part.block.id), ...[...tail, ...pinned].map((block) => block.id)],
+        ...(Object.keys(restRanges).length ? { blockRanges: restRanges } : {}),
+        sidebar: templateId === "elegant" && !context.atsMode,
+        fill: { main: 2, sidebar: 0 },
+      },
+    ];
+    return withSidebarLane(continueAfterSecond(pages));
+  };
+  /**
+   * A hand-arranged layout that puts a section of the main column between the two career sections (Berufserfahrung,
+   * Sprachen, Bildungsweg): the main column is one stream in the order of the list, so the section starts once the
+   * entries before it end and the entries behind it follow it, on whatever page that is. The sidebar keeps its own
+   * flow (page one, or its lane).
+   */
+  const interleavedMain = (): ResumePagePlan[] | undefined => {
+    if (!(zoneFlow || templateId === "elegant") || !customLayout || flat || templateId === "kreativ" || forced !== undefined) return undefined;
+    const experienceRank = managerRank("experience");
+    const educationRank = managerRank("education");
+    if (!items.some((item) => item.kind === "experience") || !items.some((item) => item.kind === "education")) return undefined;
+    const low = Math.min(experienceRank, educationRank);
+    const high = Math.max(experienceRank, educationRank);
+    const mainBlocks = flow.filter((block) => block.zone === "main" && !block.singleOnly);
+    if (!mainBlocks.some((block) => managerRank(block.id) > low && managerRank(block.id) < high)) return undefined;
+    // Sidebar sections without room beside page one (templates without a sidebar lane) join the stream at their place
+    // in the list, from page two on.
+    const spill = new Set(flow.filter(spilled).map((block) => block.id));
+    const ids = (context.sections ?? []).map((entry) => entry.id)
+      .filter((id) => id === "experience" || id === "education" || spill.has(id) || mainBlocks.some((block) => block.id === id));
+    for (const block of mainBlocks) selfPlaced.add(block.id);
+    const pageCap = (number: number) => (number === 1 ? mainCap1 : mainCap2);
+    const pages = streamWithClosing({
+      ids,
+      capacity: (number, reserveFrom) => pageCap(number) - (number >= reserveFrom ? closingHeight : 0),
+      mode: (number) => (number === 1 ? "first" : pageMode(number - 1)),
+      blockHeight: (block, number, from, to) => {
+        if (!block.split) return number === 1 ? block.height : heightOn(block, number - 1);
+        if (number > 1) return splitHeightOn(block.split, from, to, number - 1);
+        return from === 0 && block.split.firstHeight ? block.split.firstHeight(block.split.ends[to - 1]) : block.split.height(from, to);
+      },
+      sidebar: (number) => number === 1 || templateId === "elegant" && !context.atsMode,
+      laterPagesOnly: spill,
+    }, true, closingHeight, pageCap);
+    pages.forEach((entry, index) => {
+      // Page one also names the sidebar sections it hosts (without a lane; a lane names its own).
+      if (index === 0) entry.plan.blocks = [...new Set([...entry.plan.blocks!, ...pageOneFlow.filter((block) => block.zone === "sidebar" && block.home === "last").map((block) => block.id)])];
+      entry.plan.fill = { main: (entry.used + (index === pages.length - 1 ? closingHeight : 0)) / pageCap(index + 1), sidebar: index === 0 ? sideFill : 0 };
+    });
+    return withSidebarLane(pages.map((entry) => entry.plan));
+  };
+  const interleavedPlan = interleavedMain();
+  if (interleavedPlan) return interleavedPlan;
+  const leadPlan = leadOverflow();
+  if (leadPlan) return leadPlan;
 
   // A manual page break keeps whole entries on either side of it.
   if (forced !== undefined) {

@@ -19,15 +19,16 @@ describe("Sprachen columns in preview and PDF", () => {
       expect(pdf, `${templateId} PDF`).toBeTruthy();
       expect(pdf.getAttribute("data-columns")).toBe(preview.getAttribute("data-columns"));
       if (mode !== "auto") expect(preview.getAttribute("data-columns")).toBe(String(mode));
-      for (const surface of [preview, pdf]) {
-        const cards = Array.from(surface.querySelectorAll(":scope > .resume-language-item"));
+      // A list the sidebar lane breaks between two pages is read across its parts (each language once, in order).
+      for (const pages of [result.previewPages, result.pdfPages]) {
+        const cards = pages.flatMap((page) => Array.from(page.querySelectorAll('[data-managed-section="languages"] .resume-language-grid > .resume-language-item')));
         expect(cards).toHaveLength(4);
         expect(cards.map((item) => item.querySelector(".resume-language-primary")?.textContent)).toEqual([
           "Deutsch – C1", "Türkisch – C2", "Englisch – B2", "Französisch – B1",
         ]);
         expect(cards.every((item) => item.querySelector("[data-resume-language-dots]") && item.querySelector(".resume-language-description"))).toBe(true);
         if (!templateId.startsWith("pehlione_"))
-          expect(cards[0].querySelector("[data-resume-language-dots]")?.className, `${templateId}: native dot style`).not.toBe("resume-language-dots");
+          for (const card of cards) expect(card.querySelector("[data-resume-language-dots]")?.className, `${templateId}: native dot style`).not.toBe("resume-language-dots");
       }
     }
   });

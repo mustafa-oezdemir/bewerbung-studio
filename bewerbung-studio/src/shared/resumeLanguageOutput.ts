@@ -26,8 +26,13 @@ export function applyResumeLanguageOutput(
 
   const content = Array.from(section.children).find((child) => child !== headingHost && child.children.length >= entries.length);
   const directItems = Array.from(section.children).filter((child) => child !== headingHost);
-  const nativeItems = content && content.children.length === entries.length ? Array.from(content.children)
-    : directItems.length === entries.length ? directItems : [];
+  // The template's rows: one per language of this page, or one per language of the whole list (the page draws a
+  // range of them), else any row as the pattern of the template's markup.
+  const rows = content ? Array.from(content.children) : directItems;
+  const wholeList = Boolean(range) && rows.length === allEntries.length && rows.length !== entries.length;
+  const offset = wholeList ? range!.from : 0;
+  const nativeItems = rows.length === entries.length || wholeList ? rows : [];
+  const patternItem = nativeItems.length ? undefined : rows.find((row) => row.querySelector('[aria-label][class*="dot"],[class*="dots"],[aria-label][role="img"]')) ?? rows[0];
   const document = section.ownerDocument;
   const presentations = entries.map((entry) => resolveLanguagePresentation(entry, profile.resumeLanguageDisplay, { dots: !atsMode, ats: atsMode }));
   const columns = atsMode ? 1 : resolveSectionColumns(
@@ -41,7 +46,7 @@ export function applyResumeLanguageOutput(
   if (!atsMode) grid.setAttribute("style", `--language-columns:${columns}`);
 
   presentations.forEach((language, index) => {
-    const source = nativeItems[index];
+    const source = nativeItems[offset + index] ?? patternItem;
     const item = document.createElement(atsMode ? "li" : source?.tagName.toLowerCase() === "li" && grid.tagName === "UL" ? "li" : "article");
     item.className = `${source?.className ?? ""} resume-language-item`.trim();
     if (!atsMode) {
@@ -67,6 +72,11 @@ export function applyResumeLanguageOutput(
       if (language.showDots) {
         const originalDots = source?.querySelector('[aria-label][class*="dot"],[class*="dots"],[aria-label][role="img"]');
         const dots = originalDots?.cloneNode(true) as Element | undefined ?? document.createElement("span");
+        // The template's dots show this language's level (a pattern row may belong to another language).
+        if (originalDots) Array.from(dots.children).forEach((marker, dot) => {
+          if (dot < language.score) marker.classList.add("filled");
+          else marker.classList.remove("filled");
+        });
         if (!originalDots) dots.className = templateId === "elegant"
           ? section.closest(".cv-sheet") ? "elegant-pdf-language-dots" : "elegant-language__dots"
           : "resume-language-dots";

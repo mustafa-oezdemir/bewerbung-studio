@@ -89,11 +89,20 @@ describe.each(templates)("sidebar lane on the page, %s", (templateId, Component)
       const aside = page.querySelector("aside");
       expect(aside, surface).not.toBeNull();
       expect(output.resolved.pagePlan[1].sidebar).toBe(true);
-      // nothing of page one's sidebar is repeated: no contacts, no strengths, no languages
+      // nothing of page one's sidebar is repeated: no contacts, no strengths (they stand above the knowledge)
       expect(aside!.querySelector('a[href^="mailto:"],a[href^="tel:"]'), surface).toBeNull();
       expect(page.querySelector('[data-managed-section="strengths"]'), surface).toBeNull();
-      expect(page.querySelector('[data-managed-section="languages"]'), surface).toBeNull();
       expect(aside!.querySelector('[data-managed-section="knowledge"]'), surface).not.toBeNull();
+      // Sprachen come behind the knowledge in this column: they start only once it ends, and stand exactly on the
+      // pages the plan names (a list that breaks goes on in the next page's sidebar).
+      const languagesPage = output.resolved.pagePlan.findIndex((plan) => plan.blocks?.includes("languages"));
+      const knowledgeLast = output.resolved.pagePlan.map((plan) => plan.blocks?.includes("knowledge")).lastIndexOf(true);
+      expect(languagesPage, surface).toBeGreaterThanOrEqual(knowledgeLast);
+      const drawn = output.surfaces[surface].map((sheet) => Boolean(sheet.querySelector('[data-managed-section="languages"]')));
+      expect(drawn, surface).toEqual(output.resolved.pagePlan.map((plan) => Boolean(plan.blocks?.includes("languages"))));
+      const order = Array.from(output.surfaces[surface][languagesPage].querySelectorAll(`${SIDEBAR.split(",")[0]} [data-managed-section]`))
+        .map((node) => node.getAttribute("data-managed-section"));
+      if (languagesPage === knowledgeLast) expect(order.indexOf("languages"), surface).toBeGreaterThan(order.indexOf("knowledge"));
     }
   });
 

@@ -134,6 +134,8 @@ export type PaginationGeometry = {
     orgW: number;
     orgFont: number;
     sumFont: number;
+    /** Line pitch (mm) of the Kurzprofil paragraph where it is not `blocks.summary[1]` (that value serves the plain layout too). */
+    summaryLine?: number;
     mainW: number;
     sideW: number;
     atsW: number;
@@ -324,7 +326,8 @@ const geometry: Record<string, PaginationGeometry> = {
     mainRight: 117,
     contentLeft: 15,
     contentRight: 117,
-    text: {contW: 175.5, cw: 0.515, bulletW: 97.5, bulletFont: 2.963, titleW: 102, titleFont: 3.88, orgW: 97.5, orgFont: 2.79, sumFont: 2.963, mainW: 102, sideW: 67, atsW: 175.5, lineRatio: 1.2, fullW: 180},
+    // The Kurzprofil is set at 9.2 pt (measured in the PDF and the preview), above the 8.4 pt body.
+    text: {contW: 175.5, cw: 0.515, bulletW: 97.5, bulletFont: 2.963, titleW: 102, titleFont: 3.88, orgW: 97.5, orgFont: 2.79, sumFont: 3.246, mainW: 102, sideW: 67, atsW: 175.5, lineRatio: 1.2, fullW: 180},
     exp: {base: 9.8, list: 0.6, perBullet: 0.28, linePitch: 3.56, extraLine: 5.5, gap: 4.5, head: 7.6},
     edu: {base: 11.4, extraLine: 3.56, detailLine: 3.56, gap: 4.5, head: 7.6},
     blocks: {summary: [7.6, 3.89], strengths: [4.6, 7.85], knowledge: [13.9, 6], languages: [5.1, 6.26], sectionGap: 7, sideGap: 7},
@@ -378,7 +381,7 @@ const geometry: Record<string, PaginationGeometry> = {
     mainRight: zweispaltigDefaults.layout.marginLeftMm + zweispaltigMainWidth,
     contentLeft: zweispaltigDefaults.layout.marginLeftMm,
     contentRight: zweispaltigDefaults.page.widthMm - zweispaltigDefaults.layout.marginRightMm,
-    text: {contW: zweispaltigContentWidth, cw: 0.51, bulletW: zweispaltigMainWidth - 4.8, bulletFont: zweispaltigBodyMm, titleW: zweispaltigMainWidth, titleFont: 4.06, orgW: zweispaltigMainWidth, orgFont: 3.35, sumFont: zweispaltigBodyMm, mainW: zweispaltigMainWidth, sideW: zweispaltigSideWidth, atsW: zweispaltigContentWidth, lineRatio: zweispaltigDefaults.typography.lineHeight, fullW: zweispaltigContentWidth, bulletCw: 0.544},
+    text: {contW: zweispaltigContentWidth, cw: 0.51, bulletW: zweispaltigMainWidth - 4.8, bulletFont: zweispaltigBodyMm, titleW: zweispaltigMainWidth, titleFont: 4.06, orgW: zweispaltigMainWidth, orgFont: 3.35, sumFont: zweispaltigBodyMm, summaryLine: zweispaltigLineMm, mainW: zweispaltigMainWidth, sideW: zweispaltigSideWidth, atsW: zweispaltigContentWidth, lineRatio: zweispaltigDefaults.typography.lineHeight, fullW: zweispaltigContentWidth, bulletCw: 0.544},
     // The experience header and wrapped-title overhead come from PDF measurements;
     // bullet line pitch follows the current Zweispaltig body size and line height.
     exp: {base: 13.8, list: 2.0, perBullet: 0.4, linePitch: zweispaltigLineMm, extraLine: 4.8, gap: 3.5, head: 9},

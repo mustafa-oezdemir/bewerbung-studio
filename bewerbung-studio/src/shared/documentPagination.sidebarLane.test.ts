@@ -100,8 +100,9 @@ describe("sidebar lane", () => {
 
     it("D. the sidebar persists on every page that still has sidebar content and collapses where it has none", () => {
       const pages = plan(id, { knowledge: 24 });
+      // Sidebar content of a page: the knowledge, and the sections the lane carries behind it (Sprachen, …).
       for (const page of pages.slice(1)) expect(page.sidebar, `page ${page.pageNumber}`).toBe(Boolean(page.blocks?.some((block) =>
-        block === "knowledge" || (id === "kreativ" && ["summary", "strengths", "languages"].includes(block)))));
+        block === "knowledge" || (["summary", "strengths", "languages"].includes(block) && (id === "kreativ" || page.placed?.includes(block))))));
       const idle = plan(id, { knowledge: 3, stations: 5, bullets: 5, education: 4 });
       for (const page of idle.slice(1)) expect(page.sidebar, `page ${page.pageNumber}`).toBe(id === "gepflegt" || id === "elegant");
     });

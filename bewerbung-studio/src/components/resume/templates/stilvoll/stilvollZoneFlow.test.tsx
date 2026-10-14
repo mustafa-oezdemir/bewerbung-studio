@@ -84,9 +84,11 @@ describe("Stilvoll: sections follow their column", () => {
     for (const profile of [makeProfile(3), move(makeProfile(3), "languages", "main"), move(makeProfile(5), "languages", "main", 1)]) {
       const rendered = render(profile);
       for (const surface of surfaces) {
-        const page = rendered.surfaces[surface][0];
+        // Sprachen between the career sections follow the experience entries, on whatever page they end.
+        const page = rendered.surfaces[surface].find((candidate) => sectionOn(candidate, "languages")) ?? rendered.surfaces[surface][0];
         const node = sectionOn(page, "languages")!;
         expect(node, surface).not.toBeNull();
+        expect(rendered.surfaces[surface].filter((candidate) => sectionOn(candidate, "languages")), surface).toHaveLength(1);
         const heading = node.querySelector(":scope > .cv-heading");
         expect(heading?.querySelector(":scope > .cv-heading__label")?.textContent, surface).toBe("Sprachen");
         expect(heading?.querySelector(".cv-heading__icon"), surface).toBeNull();
@@ -196,5 +198,32 @@ describe("Stilvoll: sections follow their column", () => {
         expect(heading?.getAttribute("style") ?? "").toContain("text-transform:none");
       }
     }
+  });
+
+  it("J. a Kurzprofil longer than page one's sidebar goes on at the top of page two's sidebar, Stärken and Sprachen behind it", () => {
+    const summary = Array.from({ length: 14 }, (_, index) =>
+      `Satz ${index + 1} beschreibt fiktive Erfahrung mit Prozessanalyse, Produktionssteuerung und strukturierter Abstimmung im Team.`).join(" ");
+    const rendered = render(makeProfile(3, { summary }));
+    const words = (text: string) => text.replaceAll("\u00ad", "").split(/\s+/).filter(Boolean);
+    for (const surface of surfaces) {
+      const pages = rendered.surfaces[surface];
+      expect(pages, surface).toHaveLength(2);
+      const sidebarIds = (page: Element) => Array.from(sidebarOf(page)?.querySelectorAll("[data-managed-section]") ?? []).map((node) => node.getAttribute("data-managed-section"));
+      // page one: the Kurzprofil alone; page two: its rest first, then Stärken, Zertifikate and Sprachen
+      expect(sidebarIds(pages[0]), surface).toEqual(["summary"]);
+      expect(sidebarIds(pages[1]), surface).toEqual(["summary", "strengths", "certifications", "languages"]);
+      const title = (page: Element) => sidebarSection(page, "summary")?.querySelector(".cv-heading__label")?.textContent;
+      expect(title(pages[0]), surface).toBe("Kurzprofil");
+      expect(title(pages[1]), surface).toBe("Kurzprofil · Fortsetzung");
+      // every word once, in order: the parts join to the whole Kurzprofil
+      const text = pages.map((page) => sidebarSection(page, "summary")?.querySelector("p")?.textContent ?? "").join(" ");
+      expect(words(text), surface).toEqual(words(summary));
+      // the template's own markup on page two: its strengths and its language dots
+      expect(sidebarSection(pages[1], "strengths")?.querySelectorAll(".managed-strength-card"), surface).toHaveLength(2);
+      expect(sidebarSection(pages[1], "languages")?.querySelectorAll('.stilvoll-languages i,[class*="pdf-dots"] i'), surface).toHaveLength(12);
+    }
+    // the preview and the PDF break the Kurzprofil after the same word
+    const firstPart = (surface: "preview" | "pdf") => sidebarSection(rendered.surfaces[surface][0], "summary")?.querySelector("p")?.textContent?.replaceAll("\u00ad", "");
+    expect(firstPart("preview")).toBe(firstPart("pdf"));
   });
 });

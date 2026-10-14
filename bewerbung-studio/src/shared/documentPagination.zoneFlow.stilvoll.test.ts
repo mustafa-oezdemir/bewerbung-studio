@@ -65,3 +65,92 @@ describe("zone flow of stilvoll", () => {
     expect(blocks).toContain("certifications");
   });
 });
+
+/** A fictional Kurzprofil of `sentences` sentences (about 120 characters each). */
+const longSummary = (sentences: number) => Array.from({ length: sentences }, (_, index) =>
+  `Satz ${index + 1} beschreibt fiktive Erfahrung mit Prozessanalyse, Produktionssteuerung und strukturierter Abstimmung im Team.`).join(" ");
+const withSummary = (sentences: number, experiences = 3) => profileSchema.parse({ ...makeProfile(experiences), summary: longSummary(sentences) });
+const pagesOf = (pages: ReturnType<typeof plan>, id: string) => pages.flatMap((page, index) => (page.blocks?.includes(id) ? [index] : []));
+const words = (text: string) => text.split(/\s+/).filter(Boolean);
+/** The Kurzprofil parts in reading order: they go on exactly where the page before stopped and cover the whole text. */
+const expectSummaryFlows = (pages: ReturnType<typeof plan>, summary: string) => {
+  const on = pagesOf(pages, "summary");
+  expect(on.length).toBeGreaterThan(0);
+  on.forEach((page, index) => index > 0 && expect(page).toBe(on[index - 1] + 1));
+  const ranges = on.map((page) => pages[page].blockRanges?.summary ?? { from: 0, to: summary.length, total: summary.length });
+  expect(ranges[0].from).toBe(0);
+  expect(ranges.at(-1)!.to).toBe(summary.trim().length);
+  ranges.forEach((range, index) => index > 0 && expect(range.from).toBe(ranges[index - 1].to));
+  // nothing lost, nothing repeated, and no page holds a stray word or two (a part keeps at least two lines)
+  expect(ranges.flatMap((range) => words(summary.slice(range.from, range.to)))).toEqual(words(summary));
+  if (ranges.length > 1) for (const range of ranges) expect(words(summary.slice(range.from, range.to)).length).toBeGreaterThanOrEqual(8);
+  return on;
+};
+
+describe("stilvoll: a long Kurzprofil flows like a word processor in the sidebar", () => {
+  it("fills page one's sidebar with the Kurzprofil and continues it at the top of page two, Stärken and Sprachen behind it", () => {
+    const profile = withSummary(14);
+    const pages = plan(profile);
+    const on = expectSummaryFlows(pages, profile.summary);
+    expect(on).toEqual([0, 1]);
+    expect(pages).toHaveLength(2);
+    // page one: the Kurzprofil alone, up to the usable bottom of the column
+    expect(pages[0].blocks).not.toContain("strengths");
+    expect(pages[0].blocks).not.toContain("languages");
+    expect(pages[0].fill!.sidebar).toBeGreaterThan(0.9);
+    expect(pages[0].fill!.sidebar).toBeLessThanOrEqual(1);
+    // page two: the rest of the Kurzprofil, then Stärken, then Sprachen (the order of the section list)
+    expect(pages[1].blocks!.filter((id) => ["summary", "strengths", "knowledge", "certifications", "languages"].includes(id)))
+      .toEqual(["summary", "strengths", "certifications", "languages"]);
+    expect(pages[1].placed).toEqual(expect.arrayContaining(["summary", "strengths", "languages"]));
+  });
+
+  it("keeps a short Kurzprofil, Stärken and Sprachen together on page one (no extra page)", () => {
+    const pages = plan(makeProfile(3));
+    expect(pages).toHaveLength(1);
+    expect(pages[0].blockRanges?.summary).toBeUndefined();
+    expect(pages[0].placed).toBeUndefined();
+  });
+
+  it("runs a Kurzprofil over several pages without letting a later section start before it ends", () => {
+    for (const sentences of [30, 45]) {
+      const profile = withSummary(sentences);
+      const pages = plan(profile);
+      const on = expectSummaryFlows(pages, profile.summary);
+      expect(on.length, `${sentences} sentences`).toBeGreaterThanOrEqual(3);
+      for (const id of ["strengths", "certifications", "languages"])
+        expect(Math.min(...pagesOf(pages, id)), `${sentences} sentences: ${id}`).toBeGreaterThanOrEqual(on.at(-1)!);
+      for (const page of pages) expect(page.fill!.sidebar, `${sentences} sentences, page ${page.pageNumber}`).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("follows the section list the user arranged: Sprachen above the Kurzprofil stay on page one, Stärken follow it", () => {
+    const profile = place(withSummary(14), "languages", "sidebar", 0);
+    const pages = plan(profile);
+    const on = expectSummaryFlows(pages, profile.summary);
+    expect(pagesOf(pages, "languages")).toEqual([0]);
+    expect(Math.min(...pagesOf(pages, "strengths"))).toBeGreaterThanOrEqual(on.at(-1)!);
+  });
+
+  it("keeps the rule with other page margins, the sidebar on the right and in the plain (ATS) layout", () => {
+    const profile = withSummary(20);
+    const cases: Array<[string, Record<string, unknown>]> = [
+      ["margin 25 mm", { cvOverrides: { spacing: { pageMarginMm: 25 } } }],
+      ["margin 10 mm", { cvOverrides: { spacing: { pageMarginMm: 10 } } }],
+      ["sidebar right", { resumePresentation: { sidebarSide: "right" } }],
+      ["ats", { resumeOutputMode: "ats" }],
+    ];
+    for (const [label, settings] of cases) {
+      const pages = resolveCvDocument({ profile, templateId, settings: { ...getTemplateDocumentDesignDefaults(templateId), ...settings } }).pagePlan;
+      const on = expectSummaryFlows(pages, profile.summary);
+      expect(on.length, label).toBeGreaterThanOrEqual(2);
+      for (const id of ["strengths", "languages"]) {
+        const at = pagesOf(pages, id);
+        // a section the template draws on page one itself appears in the plan once the plan moves it
+        if (at.length) expect(Math.min(...at), `${label}: ${id}`).toBeGreaterThanOrEqual(on.at(-1)!);
+      }
+      // the career entries of the plain layout start below the Kurzprofil
+      if (label === "ats") expect(pages.findIndex((page) => page.items.length), label).toBeGreaterThanOrEqual(on.at(-1)!);
+    }
+  });
+});
