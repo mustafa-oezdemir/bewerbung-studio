@@ -2,6 +2,9 @@
 // tmp/pagination-flow-qa, plus the page plan of each document. Scenarios: `dense` (a fixed résumé like a real, full one:
 // six strengths, three languages, ten knowledge items, three stations, four education entries) and RANDOM=<n> seeded
 // random ones (SEED=<n>). Every text carries a unique token, so the checker can see lost and doubled content.
+// SUMMARY_WORDS=<n> (or RANDOM with SUMMARY_RANDOM=1) writes a Kurzprofil of n words with a unique token every sixth word,
+// NATIVE=1 keeps the template's own layout (no hand-arranged section list), ATS=1 prints the plain layout,
+// SIDE=left|right puts the sidebar on that side.
 //   node scripts/pagination-flow-qa.mjs [templateId…]   (env: KNOWLEDGE, STRENGTHS, STATIONS, LANGUAGES, SPECIALS, SPECIAL_ENTRIES, SPECIAL_ZONE, SPECIAL_LAST_DESCRIPTION, SUMMARY_TEXT, SUMMARY_LENGTH, BODY_SIZE, SIDEBAR_WIDTH, LINE_HEIGHT, LANG_DISPLAY=dots,level,description, SURFACES=1, PAGE_MARGIN, COLUMN_GAP, ORDER=experience,summary,education, LAYOUT_MODE=two-column, RANDOM, SEED)
 // Check the result with check-pagination-flow-qa.cjs (real Chromium).
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
@@ -56,12 +59,21 @@ try {
   const bulletPool = ['Entwicklung und Implementierung eines Datasource-Plugins für Monitoring-Daten', 'Anbindung einer Programmierschnittstelle zur Abfrage und Verarbeitung von Sensordaten', 'Implementierung einer sicheren Authentifizierung für die Schnittstellenkommunikation', 'Optimierung von Datenabfragen für eine performante Darstellung', 'Koordination laufender Produktionsprozesse und beteiligter Mitarbeiter', 'Auswertung von Produktionsdaten zur Unterstützung der Prozesssteuerung', 'Strukturierte und prozessorientierte Planung operativer Abläufe'];
   const educationTexts = ['Ausbildung zur Fachinformatikerin für Anwendungsentwicklung. Erfolgreich bestandene Abschlussprüfung bei der Kammer. Schwerpunkt auf Softwareentwicklung und der praktischen Umsetzung technischer Anwendungen.', 'Vierjähriges Hochschulstudium im Bereich Industrieingenieurwesen. Der ausländische Hochschulabschluss wurde durch die Zentralstelle für ausländisches Bildungswesen als einem deutschen Hochschulabschluss auf Bachelor-Ebene entsprechend bewertet.', 'Fachrichtung: Pilotenausbildung / Transportfliegerei. Schwerpunkt auf sicherheitskritischen Prozessen, Einsatzplanung und verantwortungsbewusster Entscheidungsfindung.', ''];
 
+  /** A Kurzprofil of `words` words: every sixth one is a unique token (Z000, Z001, …) the checker looks for. */
+  const summaryWithTokens = (words, tokens) => Array.from({ length: words }, (_, index) => {
+    if (index % 6 !== 5) return pick(pool).toLowerCase();
+    const token = `Z${String(tokens.length).padStart(3, '0')}`;
+    tokens.push(token);
+    return `${token},`;
+  }).join(' ').replace(/^./, (first) => first.toUpperCase()) + '.';
+
   /** The fixed `dense` résumé, or a seeded random one. */
   const buildProfile = (random) => {
     const counts = random
       ? { strengths: int(0, 7), knowledge: int(0, 34), stations: int(1, 5), education: int(1, 4), languages: int(1, 6), certifications: int(0, 6), specials: int(0, 2) }
       : { strengths: Number(process.env.STRENGTHS ?? 6), knowledge: Number(process.env.KNOWLEDGE ?? 10), stations: Number(process.env.STATIONS ?? 3), education: Number(process.env.EDUCATION ?? 4), languages: Number(process.env.LANGUAGES ?? 3), certifications: Number(process.env.CERTIFICATIONS ?? 0), specials: Number(process.env.SPECIALS ?? 0) };
-    const tokens = { knowledge: [], bullets: [], education: [], strengths: [], languages: [], certifications: [], specials: [] };
+    const tokens = { knowledge: [], bullets: [], education: [], strengths: [], languages: [], certifications: [], specials: [], summary: [] };
+    const summaryWords = random && process.env.SUMMARY_RANDOM ? int(20, 520) : Number(process.env.SUMMARY_WORDS || 0);
     const knowledgeItems = Array.from({ length: counts.knowledge }, (_, index) => {
       const token = `K${String(index).padStart(2, '0')}`;
       const name = random ? text(int(8, 72), token) : `${knowledgeNames[index % knowledgeNames.length]} ${token}`;
@@ -111,7 +123,7 @@ try {
         street: 'Musterstraße 12', postalCode: '12345', city: 'Musterstadt', country: 'Germany',
         phone: '+49 170 12345678', email: 'mina.kaya@example.com',
         linkedin: 'https://www.linkedin.com/in/mina-kaya/', github: 'https://github.com/mina-kaya', portfolio: 'https://example.com/',
-        summary: process.env.SUMMARY_TEXT ?? (random ? text(int(80, 420), 'Z').replace(' Z', '') : process.env.SUMMARY_LENGTH ? text(Number(process.env.SUMMARY_LENGTH), 'Z') : 'Industrieingenieurin mit Erfahrung in Prozessanalyse, Produktionssteuerung und der strukturierten Bearbeitung technischer Aufgabenstellungen. Praxis in der Auswertung technischer Daten und der Optimierung von Prozessen im Monitoring-Umfeld.'),
+        summary: summaryWords ? summaryWithTokens(summaryWords, tokens.summary) : process.env.SUMMARY_TEXT ?? (random ? text(int(80, 420), 'Z').replace(' Z', '') : process.env.SUMMARY_LENGTH ? text(Number(process.env.SUMMARY_LENGTH), 'Z') : 'Industrieingenieurin mit Erfahrung in Prozessanalyse, Produktionssteuerung und der strukturierten Bearbeitung technischer Aufgabenstellungen. Praxis in der Auswertung technischer Daten und der Optimierung von Prozessen im Monitoring-Umfeld.'),
         strengths, languages, certifications, specialSections, experiences, education,
         // Lebenslauf → Sprachen: Punkte / Niveau / Beschreibung (random in RANDOM runs, LANG_DISPLAY=dots,level,description otherwise)
         resumeLanguageDisplay: random
@@ -151,7 +163,7 @@ try {
           return (a < 0 ? order.length : a) - (b < 0 ? order.length : b);
         });
       }
-      const profile = setResumePhotoVisible(profileSchema.parse({ ...built.input, photoPath: photo, resumeManagerLayouts: { [id]: arranged } }), true);
+      const profile = setResumePhotoVisible(profileSchema.parse({ ...built.input, photoPath: photo, ...(process.env.NATIVE ? {} : { resumeManagerLayouts: { [id]: arranged } }) }), true);
       // SURFACES=1: the user colours both columns (Hintergrundfarbe der Haupt- und der Seitenspalte).
       const qaSpacing = {
         ...(process.env.PAGE_MARGIN !== undefined ? { pageMarginMm: Number(process.env.PAGE_MARGIN) } : {}),
@@ -164,8 +176,9 @@ try {
       const qaPresentation = {
         ...(process.env.LAYOUT_MODE ? { layoutMode: process.env.LAYOUT_MODE } : {}),
         ...(process.env.SIDEBAR_WIDTH ? { sidebarWidthPercent: Number(process.env.SIDEBAR_WIDTH) } : {}),
+        ...(process.env.SIDE ? { sidebarSide: process.env.SIDE } : {}),
       };
-      const settings = { ...getTemplateDocumentDesignDefaults(id), resumeOutputMode: 'visual', ...(Object.keys(qaPresentation).length ? { resumePresentation: qaPresentation } : {}), ...(Object.keys(qaSpacing).length || Object.keys(qaTypography).length ? { cvOverrides: { spacing: qaSpacing, typography: qaTypography } } : {}), ...(process.env.SURFACES ? { resumeAppearance: { sidebarBackgroundColor: '#cfe8d5', mainBackgroundColor: '#f1f6f2' } } : {}) };
+      const settings = { ...getTemplateDocumentDesignDefaults(id), resumeOutputMode: process.env.ATS ? 'ats' : 'visual', ...(Object.keys(qaPresentation).length ? { resumePresentation: qaPresentation } : {}), ...(Object.keys(qaSpacing).length || Object.keys(qaTypography).length ? { cvOverrides: { spacing: qaSpacing, typography: qaTypography } } : {}), ...(process.env.SURFACES ? { resumeAppearance: { sidebarBackgroundColor: '#cfe8d5', mainBackgroundColor: '#f1f6f2' } } : {}) };
 
       const application = applicationSchema.parse({
         schemaVersion: 1, id: crypto.randomUUID(), folderName: 'QA', company: { name: 'QA', city: 'Berlin' }, contact: {}, job: { title: 'Entwicklung' },
@@ -176,7 +189,7 @@ try {
       const resolved = resolveCvDocument({ profile, templateId: id, settings, application });
       const component = await componentOf(id);
       const pages = resolved.pagePlan.map((plan, index) => renderToStaticMarkup(h(ManagedResumePreview, { designSettings: settings, resolvedCv: resolved, profile: resolved.profile, templateId: id, pageNumber: index + 1, totalPages: resolved.pagePlan.length },
-        h(component, { profile: resolved.profile, templateId: id, name: `${profile.firstName} ${profile.lastName}`, atsMode: false, plan, totalPages: resolved.pagePlan.length, accentColor: template.accent, secondaryColor: template.secondary,
+        h(component, { profile: resolved.profile, templateId: id, name: `${profile.firstName} ${profile.lastName}`, atsMode: Boolean(process.env.ATS), plan, totalPages: resolved.pagePlan.length, accentColor: template.accent, secondaryColor: template.secondary,
           photoSource: resolved.profile.photoPath ?? null, resumeProfile: resolved.summary, sections: resolved.sections, backgroundId: settings.backgroundId, closingDate: resolved.closingDate,
           ...(id === 'gepflegt' ? { designVariables: resolved.gepflegtVariables } : {}) }))));
       const paperStyle = Object.entries({ '--doc-accent': template.accent, '--doc-secondary': template.secondary, '--doc-on-secondary': getReadableTextColor(template.secondary), ...getDocumentDesignVariables(settings) })
@@ -185,8 +198,11 @@ try {
       await writeFile(resolve(out, file + '-preview.html'), `<!doctype html><html><head><meta charset="utf-8"><style>${preflight}${appCss}${resumeTemplateStyleSources[id]} body{margin:0;background:white}</style></head><body>${pages.map(paper).join('')}</body></html>`);
       await writeFile(resolve(out, file + '-plan.json'), JSON.stringify(resolved.pagePlan, null, 1));
       manifest.push({ file, id, scenario: scenario.name,
-        zones: process.env.REORDER && id === 'elegant' ? { ...built.zones, knowledge: 'main' } : built.zones,
-        tokens: built.tokens, sidebarLane: supportsSidebarContinuation(id) });
+        zones: process.env.NATIVE ? {} : process.env.REORDER && id === 'elegant' ? { ...built.zones, knowledge: 'main' } : built.zones,
+        tokens: built.tokens, sidebarLane: supportsSidebarContinuation(id),
+        // The section list the outputs follow, for the order check of every column.
+        order: resolved.managerSections.filter((entry) => !entry.fixed && entry.visible).map((entry) => entry.id),
+        ats: Boolean(process.env.ATS), native: Boolean(process.env.NATIVE) });
     }
   }
   await writeFile(resolve(out, 'manifest.json'), JSON.stringify(manifest));

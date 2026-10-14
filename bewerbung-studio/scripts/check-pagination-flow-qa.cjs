@@ -106,6 +106,26 @@ app.whenReady().then(async () => {
         }
       }
     }
+    // Word-processor order of every column: read page after page, a section is one unbroken run (it never starts again
+    // after another section began), and with a hand-arranged list the runs follow its order. Text stays above the
+    // footer of the page.
+    for (const surface of ['pdf', 'preview']) {
+      for (const zone of ['sidebar', 'main']) {
+        const runs = [];
+        for (const page of result[surface]) for (const section of page.sections.filter((entry) => (entry.zone === 'sidebar') === (zone === 'sidebar')).sort((a, b) => a.top - b.top))
+          if (runs.at(-1) !== section.id) runs.push(section.id);
+        const repeated = runs.filter((id, index) => runs.indexOf(id) !== index);
+        if (repeated.length) issue(`${surface} ${zone}: ${repeated[0]} starts again after another section [${runs.join(' > ')}]`);
+        else if (entry.order && !entry.native) {
+          const ranked = runs.map((id) => entry.order.indexOf(id)).filter((rank) => rank >= 0);
+          if (ranked.some((rank, index) => index > 0 && rank < ranked[index - 1])) issue(`${surface} ${zone}: order [${runs.join(' > ')}] differs from the section list`);
+        }
+      }
+      result[surface].forEach((page) => {
+        const limit = (page.footerTop ?? 297) - 0.3;
+        if (Math.max(page.sidebarBottom, page.mainBottom) > limit) issue(`${surface} p${page.page}: text reaches ${Math.max(page.sidebarBottom, page.mainBottom)} mm, footer/sheet at ${limit + 0.3} mm`);
+      });
+    }
     // preview ↔ PDF: the same sections in the same column of every page (heights may differ by the template's own CSS)
     result.pdf.forEach((page, index) => {
       const other = result.preview[index];
