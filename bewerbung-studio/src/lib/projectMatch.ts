@@ -1,5 +1,6 @@
 import type { ApplicantProfile, Application } from "../shared/schema";
 import { normalizeKeywordText } from "./keywordMatch";
+import { resolveJobAdvertisementText } from "../shared/jobAdvertisement";
 
 type ProjectEntry = ApplicantProfile["specialSections"][number]["entries"][number];
 export type ProjectMatch = { project: ProjectEntry; score: number; matchedTechnologies: string[] };
@@ -16,6 +17,9 @@ const aliases: Record<string, string[]> = {
   "docker compose": ["docker"],
   "postgresql": ["postgres"],
 };
+const normalizedAliases = Object.fromEntries(
+  Object.entries(aliases).map(([key, values]) => [normalizeKeywordText(key), values]),
+);
 
 const hasTerm = (text: string, term: string) => {
   const escaped = normalizeKeywordText(term).replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
@@ -26,12 +30,12 @@ const genericWords = new Set(["application", "platform", "project", "projekt", "
 
 /** Stable, local recommendations. The caller owns selection; this function never changes it. */
 export const matchProjects = (application: Application, profile?: ApplicantProfile): ProjectMatch[] => {
-  const advertisement = normalizeKeywordText(`${application.job.title} ${application.job.fullText}`);
+  const advertisement = normalizeKeywordText(`${application.job.title} ${resolveJobAdvertisementText(application.job)}`);
   const projects = profile?.specialSections.filter((section) => section.kind === "projects")
     .flatMap((section) => section.entries) ?? [];
   return projects.map((project, index) => {
     const matchedTechnologies = project.technologies.filter((technology) =>
-      [technology, ...(aliases[normalizeKeywordText(technology)] ?? [])].some((term) => hasTerm(advertisement, term)));
+      [technology, ...(normalizedAliases[normalizeKeywordText(technology)] ?? [])].some((term) => hasTerm(advertisement, term)));
     const evidence = normalizeKeywordText([project.title, project.description, ...project.bullets].join(" "))
       .match(/[a-z0-9+#.]{3,}/g) ?? [];
     const evidenceMatches = [...new Set(evidence)]

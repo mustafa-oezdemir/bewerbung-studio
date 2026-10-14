@@ -695,7 +695,7 @@ export function DocumentsView({
     emailAttachments,
   );
   const sections = resolvedCv.sections;
-  const keywordMatch = analyzeKeywordMatch(application, renderProfile);
+  const keywordMatch = analyzeKeywordMatch(application, profile);
   const projectMatches = matchProjects(application, contentProfile);
   const selectedProjectEntryIds = design.settings.resumePresentation?.selectedProjectEntryIds;
   const name = renderProfile
@@ -2481,12 +2481,28 @@ export function DocumentsView({
                     <header>
                       <div>
                         <span>Stellenanzeigen-Match</span>
-                        <strong>{keywordMatch.score}%</strong>
+                        <strong>{keywordMatch.score === null ? "Keine prüfbaren Anforderungen vorhanden" : `${keywordMatch.score}%`}</strong>
                       </div>
                       <i>
-                        <b style={{ width: `${keywordMatch.score}%` }} />
+                        <b style={{ width: `${keywordMatch.score ?? 0}%` }} />
                       </i>
                     </header>
+                    <div>
+                      <p>Erfüllte Anforderungen</p>
+                      <div className="match-chips positive">
+                        {keywordMatch.met.length ? keywordMatch.met.map((item) => (
+                          <span key={`${item.kind}:${item.label}`}>{item.label} · {item.evidence}</span>
+                        )) : <small>Keine Anforderung nachgewiesen.</small>}
+                      </div>
+                    </div>
+                    <div>
+                      <p>Nicht nachgewiesene Anforderungen</p>
+                      <div className="match-chips suggestions">
+                        {keywordMatch.missing.length ? keywordMatch.missing.map((item) => (
+                          <span key={`${item.kind}:${item.label}`}>{item.label}</span>
+                        )) : <small>Keine.</small>}
+                      </div>
+                    </div>
                     <div>
                       <p>Gefundene Kenntnisse</p>
                       <div className="match-chips positive">
@@ -2500,15 +2516,15 @@ export function DocumentsView({
                       </div>
                     </div>
                     <div>
-                      <p>Begriffe aus der Stellenanzeige prüfen</p>
+                      <p>Weitere Anforderungen prüfen</p>
                       <div className="match-chips suggestions">
-                        {keywordMatch.suggestions.length ? (
-                          keywordMatch.suggestions.map((keyword) => (
+                        {keywordMatch.furtherReview.length ? (
+                          keywordMatch.furtherReview.map((keyword) => (
                             <span key={keyword}>{keyword}</span>
                           ))
                         ) : (
                           <small>
-                            Stellenanzeigentext für Vorschläge ergänzen.
+                            Keine weiteren Anforderungen erkannt.
                           </small>
                         )}
                       </div>

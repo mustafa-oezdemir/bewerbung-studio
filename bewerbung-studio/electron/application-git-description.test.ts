@@ -74,4 +74,13 @@ describe("application Git descriptions", () => {
     expect(statusCommitLabel("Vorstellungsgespräch")).toBe("Vorstellungsgespräch");
     expect(calendarEventCommitLabel("follow-up-call")).toBe("Nachfassen");
   });
+
+  it("labels both advertisement sections without including their text", () => {
+    const after = structuredClone(application);
+    after.job.tasksText = "Vertrauliche Aufgabenbeschreibung";
+    after.job.requirementsText = "Vertrauliche Anforderungen";
+    const changes = describeApplicationChange(application, after);
+    expect(changes).toEqual([{ action: "update", details: ["Aufgaben", "Anforderungen"] }]);
+    expect(JSON.stringify(changes)).not.toContain("Vertrauliche");
+  });
 });

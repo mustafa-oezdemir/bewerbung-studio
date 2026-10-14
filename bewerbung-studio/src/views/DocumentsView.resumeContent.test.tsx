@@ -101,6 +101,28 @@ const mount = async (profiles: ApplicantProfile[], options: { failSave?: () => b
 };
 
 describe("Lebenslauf content edits the profile of the Bewerbung", () => {
+  it("recalculates the requirement score after saved application and bound profile changes", async () => {
+    const first = profileSchema.parse({ ...makeProfile(1, "Fiktives Profil"), skills: ["TypeScript"] });
+    const second = profileSchema.parse({ ...makeProfile(2, "Anderes Profil"), skills: ["SQL"] });
+    const view = await mount([first, second]);
+    const workspace = testStore.state!.workspace as { applications: Application[]; profiles: ApplicantProfile[] };
+    testStore.state = { ...testStore.state, workspace: {
+      ...workspace, applications: [{ ...workspace.applications[0], job: {
+        ...workspace.applications[0].job, tasksText: "React", requirementsText: "TypeScript und SQL",
+      } }],
+    } };
+    await view.rerender();
+    expect(view.query(".match-analysis")?.textContent).toContain("50%");
+    expect(view.query(".match-analysis")?.textContent).toContain("Nicht nachgewiesene Anforderungen");
+    testStore.state = { ...testStore.state, workspace: {
+      ...(testStore.state!.workspace as object), profiles: [
+        { ...first, skills: ["TypeScript", "SQL"], updatedAt: "2026-10-14T11:00:00.000Z" }, second,
+      ],
+    } };
+    await view.rerender();
+    expect(view.query(".match-analysis")?.textContent).toContain("100%");
+    await view.unmount();
+  });
   it("shows an edit as unsaved, saves it into the bound profile only, and keeps it after reopening", async () => {
     const view = await mount([makeProfile(1, "Alter fiktiver Text."), makeProfile(2, "Anderes Profil.")]);
     await view.open("Kurzprofil");

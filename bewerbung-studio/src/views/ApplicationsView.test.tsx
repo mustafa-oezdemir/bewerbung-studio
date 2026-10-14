@@ -1,4 +1,6 @@
+import { act } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { parseHTML } from "linkedom";
 import { describe, expect, it, vi } from "vitest";
 import { defaultDocumentDesign } from "../shared/documentDesign";
 import {
@@ -34,7 +36,7 @@ vi.mock("../store/useAppStore", () => ({
 }));
 
 describe("ApplicationsView", () => {
-  it("renders one independent save form for every detail section", () => {
+  it("renders one independent save form for every detail section", async () => {
     const now = "2026-08-08T10:00:00.000Z";
     const application = applicationSchema.parse({
       schemaVersion: 1,
@@ -47,6 +49,9 @@ describe("ApplicationsView", () => {
       contact: {},
       job: {
         title: "Softwareentwickler",
+        fullText: "Alter fiktiver Text",
+        tasksText: "Alte Aufgaben",
+        requirementsText: "Alte Anforderungen",
       },
       status: "Selbst erstellt",
       templateId: "classic-professional",
@@ -95,6 +100,9 @@ describe("ApplicationsView", () => {
     expect(markup).toContain("Zweiten Ansprechpartner hinzufügen");
     expect(markup).toContain("Termine");
     expect(markup).toContain("Inhalt");
+    expect(markup).toContain('name="tasksText"');
+    expect(markup).toContain('name="requirementsText"');
+    expect(markup).toContain('name="fullText"');
     expect(markup).toContain('aria-label="Lebenslauf öffnen"');
     expect(markup).toContain('aria-label="Anschreiben öffnen"');
     expect(markup.indexOf('aria-label="Lebenslauf öffnen"')).toBeLessThan(
@@ -127,5 +135,41 @@ describe("ApplicationsView", () => {
     expect(twoContactMarkup).not.toContain("2. Ansprechpartner");
     expect(twoContactMarkup).toContain("Erika Musterfrau");
     expect(twoContactMarkup).toContain("erika@example.com");
+
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const previousFormData = globalThis.FormData;
+    const { window } = parseHTML("<html><body><div id='root'></div></body></html>");
+    class FormFields {
+      private values = new Map<string, string>();
+      constructor(form: Element) {
+        for (const field of Array.from(form.querySelectorAll("[name]"))) {
+          this.values.set(field.getAttribute("name")!, (field as HTMLTextAreaElement).value ?? field.textContent ?? "");
+        }
+      }
+      get(name: string) { return this.values.get(name) ?? null; }
+    }
+    Object.assign(globalThis, { window, document: window.document, FormData: FormFields, IS_REACT_ACT_ENVIRONMENT: true });
+    try {
+      const { createRoot } = await import("react-dom/client");
+      const root = createRoot(window.document.getElementById("root")!);
+      await act(async () => { root.render(<ApplicationsView />); });
+      const tasks = window.document.querySelector<HTMLTextAreaElement>('textarea[name="tasksText"]')!;
+      const requirements = window.document.querySelector<HTMLTextAreaElement>('textarea[name="requirementsText"]')!;
+      const legacy = window.document.querySelector<HTMLTextAreaElement>('textarea[name="fullText"]')!;
+      tasks.value = "Neue Aufgaben";
+      requirements.value = "Neue Anforderungen";
+      legacy.value = "Alter fiktiver Text";
+      const form = tasks.closest("form")!;
+      await act(async () => { form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true })); });
+      expect(mockedStore.state!.saveApplication).toHaveBeenCalledWith(expect.objectContaining({
+        job: expect.objectContaining({
+          tasksText: "Neue Aufgaben", requirementsText: "Neue Anforderungen", fullText: "Alter fiktiver Text",
+        }),
+      }));
+      await act(async () => { root.unmount(); });
+    } finally {
+      Object.assign(globalThis, { window: previousWindow, document: previousDocument, FormData: previousFormData });
+    }
   });
 });

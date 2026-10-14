@@ -39,6 +39,8 @@ const defaults: ApplicationInput = {
     source: "",
     url: "",
     fullText: "",
+    tasksText: "",
+    requirementsText: "",
     workModel: "Hybrid",
     contractType: "Unbefristet",
     salaryExpectation: "",
@@ -90,6 +92,7 @@ export function NewApplicationWizard({ onClose }: Props) {
     defaultValues: defaults,
   });
   const selectedTemplateId = watch("templateId");
+  const legacyJobText = watch("job.fullText");
   const sentAt = watch("sentAt");
   const deadlineAt = watch("deadlineAt");
   const primaryContact = watch("contact");
@@ -247,9 +250,20 @@ export function NewApplicationWizard({ onClose }: Props) {
                   </select>
                 </label>
                 <label className="field full">
-                  <span>Stellenanzeige</span>
-                  <textarea rows={6} {...register("job.fullText")} />
+                  <span>Deine Aufgaben</span>
+                  <textarea rows={5} {...register("job.tasksText")} />
                 </label>
+                <label className="field full">
+                  <span>Dein Profil / Anforderungen</span>
+                  <textarea rows={5} {...register("job.requirementsText")} />
+                </label>
+                {legacyJobText ? (
+                  <label className="field full">
+                    <span>Bisheriger Anzeigentext</span>
+                    <small>Der bisherige Text bleibt erhalten. Sie können Inhalte bei Bedarf in die beiden Felder oben übernehmen.</small>
+                    <textarea rows={5} {...register("job.fullText")} />
+                  </label>
+                ) : null}
               </div>
             )}
             {step === 2 && (
