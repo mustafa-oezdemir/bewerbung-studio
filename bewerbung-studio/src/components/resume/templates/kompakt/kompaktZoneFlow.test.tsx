@@ -95,4 +95,21 @@ describe("Kompakt: shared document flow", () => {
       expect(output.surfaces[surface].slice(1).some((page) => section(page, "languages") !== null), surface).toBe(false);
     }
   });
+
+  it("continues a full sidebar between strength cards without repeating an item", () => {
+    const strengths = Array.from({ length: 25 }, (_, index) => ({
+      id: crypto.randomUUID(), title: `Stärke ${String(index + 1).padStart(2, "0")}`, description: "Sorgfältige Ausführung",
+    }));
+    const profile = profileSchema.parse({ ...makeProfile(3), strengths, certifications: [] });
+    const output = render(moveManagerSection(profile, templateId, "languages", "sidebar", 99));
+    expect(output.resolved.pagePlan.some((page) => page.blockRanges?.strengths)).toBe(true);
+    for (const surface of ["preview", "pdf"] as const) {
+      const pages = output.surfaces[surface];
+      const cards = pages.flatMap((page) => Array.from(page.querySelectorAll('[data-managed-section="strengths"] .managed-strength-card strong'))
+        .map((node) => node.textContent?.trim()));
+      expect(cards, surface).toEqual(strengths.map((entry) => entry.title));
+      for (const page of pages.slice(1)) if (section(page, "strengths"))
+        expect(page.querySelector("aside"), surface).not.toBeNull();
+    }
+  });
 });

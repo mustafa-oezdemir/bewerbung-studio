@@ -5,7 +5,7 @@
 // SUMMARY_WORDS=<n> (or RANDOM with SUMMARY_RANDOM=1) writes a Kurzprofil of n words with a unique token every sixth word,
 // NATIVE=1 keeps the template's own layout (no hand-arranged section list), ATS=1 prints the plain layout,
 // SIDE=left|right puts the sidebar on that side.
-//   node scripts/pagination-flow-qa.mjs [templateId…]   (env: KNOWLEDGE, STRENGTHS, STATIONS, LANGUAGES, SPECIALS, SPECIAL_ENTRIES, SPECIAL_ZONE, SPECIAL_LAST_DESCRIPTION, SUMMARY_TEXT, SUMMARY_LENGTH, BODY_SIZE, SIDEBAR_WIDTH, LINE_HEIGHT, LANG_DISPLAY=dots,level,description, SURFACES=1, PAGE_MARGIN, COLUMN_GAP, ORDER=experience,summary,education, LAYOUT_MODE=two-column, RANDOM, SEED)
+//   node scripts/pagination-flow-qa.mjs [templateId…]   (env: KNOWLEDGE, STRENGTHS, STATIONS, LANGUAGES, LANG_ZONE=sidebar, SPECIALS, SPECIAL_ENTRIES, SPECIAL_ZONE, SPECIAL_LAST_DESCRIPTION, SUMMARY_TEXT, SUMMARY_LENGTH, BODY_SIZE, SIDEBAR_WIDTH, LINE_HEIGHT, LANG_DISPLAY=dots,level,description, SURFACES=1, PAGE_MARGIN, COLUMN_GAP, ORDER=experience,summary,education, LAYOUT_MODE=two-column, RANDOM, SEED)
 // Check the result with check-pagination-flow-qa.cjs (real Chromium).
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -87,7 +87,7 @@ try {
       return { id: uid(50 + category), title: ['IT-Kenntnisse', 'Fachliche Kenntnisse', 'Methoden'][category], type: ['it', 'engineering', 'business'][category], displayMode: 'comma-separated', showLevels: false, showYearsOfExperience: false, isVisible: true, sortOrder: category, subcategories: [], items: knowledgeItems.slice(from, to).map((item, order) => ({ ...item, sortOrder: order })) };
     }).filter((category) => category.items.length);
     const strengths = Array.from({ length: counts.strengths }, (_, index) => {
-      const token = `S${index}`;
+      const token = `S${String(index).padStart(3, '0')}`;
       const title = random ? text(int(10, 60), token) : `${strengthNames[index % strengthNames.length]} ${token}`;
       tokens.strengths.push(token);
       return { id: uid(10 + index), title, description: random && rnd() < 0.3 ? text(int(30, 110), `d${index}`) : '' };
@@ -150,7 +150,7 @@ try {
       const arranged = getManagerSections(base, id).filter((entry) => !entry.fixed).map((entry) => ({
         id: entry.id,
         zone: process.env.REORDER && id === 'elegant' && (entry.id === 'summary' || entry.id === 'knowledge') ? 'main'
-          : entry.id === 'knowledge' ? built.zones.knowledge : entry.id === 'certifications' ? built.zones.certifications : entry.id.startsWith('special:') ? built.zones.special : entry.zone,
+          : entry.id === 'knowledge' ? built.zones.knowledge : entry.id === 'certifications' ? built.zones.certifications : entry.id === 'languages' && process.env.LANG_ZONE === 'sidebar' ? 'sidebar' : entry.id.startsWith('special:') ? built.zones.special : entry.zone,
       }));
       if (process.env.REORDER && id === 'elegant') {
         const order = ['experience', 'summary', 'education', 'knowledge', 'languages', 'strengths', 'certifications'];

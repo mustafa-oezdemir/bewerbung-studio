@@ -40,7 +40,7 @@ import {
   type PaginationGeometry,
   type PaginationZone,
 } from "./resumePaginationGeometry";
-import { formatPhoneForDisplay, getResumePersonalDetails } from "./resumePersonalData";
+import { formatPhoneForDisplay, getResumeHeaderContactTexts, getResumePersonalDetails } from "./resumePersonalData";
 import { getResumePhotoGrowth, getResumePhotoScale, resumePhotoShown } from "./resumePhoto";
 import { formatCareerPeriod, resolveExperience } from "./resumeCareer";
 import { getResumeSectionTitle } from "../features/resume-sections/resume-sections";
@@ -1779,8 +1779,19 @@ const planResumePages = (
   const sidebarHero = zoneFlow && hasSidebarHero(templateId);
   const contactItems = sidebarHero && find("personalData")?.visible !== false ? getPehlioneContacts(profile) : [];
   const contactValueWidth = geometry.text.sideW + scale.sideDelta - CONTACT_ICON_MM;
+  const kompaktContacts = templateId === "kompakt" && !context.atsMode && showContacts
+    ? getResumeHeaderContactTexts(profile) : [];
+  // Kompakt prints contacts above the first managed sidebar block; account for their line boxes and gaps.
+  const kompaktSidebarStart = kompaktContacts.length
+    ? geometry.sideTop1! + photoGrowth.side + 13
+      + kompaktContacts.reduce((height, value) => height + Math.max(1,
+        wrappedLines(value, geometry.text.sideW + scale.sideDelta - 6.5, geometry.text.bulletFont * scale.font * .92, 400))
+        * geometry.text.bulletFont * scale.font * geometry.text.lineRatio * scale.line, 0)
+      + (kompaktContacts.length - 1) * (scale.entryGap ?? 3.2) * .8
+    : geometry.sideTop1! + photoGrowth.side;
   const sideTop1 = (templateId === "kreativ" || templateId === "stilvoll") && !context.atsMode
     ? top1
+    : templateId === "kompakt" && !context.atsMode ? kompaktSidebarStart
     : sidebarHero && geometry.sideTop1 !== null
     ? SIDEBAR_HERO_MM + photoGrowth.side + (contactItems.length
       ? CONTACT_HEAD_MM

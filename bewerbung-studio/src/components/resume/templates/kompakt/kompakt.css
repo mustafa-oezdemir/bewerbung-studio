@@ -273,7 +273,7 @@
   overflow-wrap: break-word;
 }
 
-.kompakt-strengths article {
+.kompakt-strengths > article {
   display: grid;
   grid-template-columns: 5mm minmax(0, 1fr);
   gap: 1.5mm;
