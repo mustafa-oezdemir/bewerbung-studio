@@ -648,6 +648,13 @@ export class DataStore {
     return this.files.documentDirectories(application)[document];
   }
 
+  /** The Bewerbung's own folder (`Bewerbungen/<Firma>_<Datum>` or its position subfolder), with all its documents. */
+  getApplicationFolderPath(id: string) {
+    const application = this.workspace.applications.find((item) => item.id === id);
+    if (!application) throw new Error("Bewerbung wurde nicht gefunden.");
+    return this.applicationPath(application);
+  }
+
   getApplicationAnschreibenPath(id: string) {
     const application = this.workspace.applications.find((item) => item.id === id);
     if (!application) throw new Error("Bewerbung wurde nicht gefunden.");

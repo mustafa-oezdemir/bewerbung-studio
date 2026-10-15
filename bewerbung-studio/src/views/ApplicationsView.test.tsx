@@ -20,6 +20,7 @@ type MockStoreState = {
   removeApplication: ReturnType<typeof vi.fn>;
   duplicateApplication: ReturnType<typeof vi.fn>;
   openFolder: ReturnType<typeof vi.fn>;
+  exportPdf: ReturnType<typeof vi.fn>;
 };
 
 const mockedStore = vi.hoisted(() => ({
@@ -85,6 +86,7 @@ describe("ApplicationsView", () => {
       removeApplication: vi.fn(),
       duplicateApplication: vi.fn(),
       openFolder: vi.fn(),
+      exportPdf: vi.fn(),
     };
 
     const markup = renderToStaticMarkup(
@@ -167,6 +169,15 @@ describe("ApplicationsView", () => {
           tasksText: "Neue Aufgaben", requirementsText: "Neue Anforderungen", fullText: "Alter fiktiver Text",
         }),
       }));
+      // The Bewerbungsdetail exports both PDF packages and opens the Bewerbung's main folder.
+      const button = (label: string) => Array.from(window.document.querySelectorAll<HTMLButtonElement>(".detail-actions button"))
+        .find((item) => item.textContent?.includes(label) || item.getAttribute("aria-label") === label)!;
+      await act(async () => { button("Bewerbungsunterlagen PDF").click(); });
+      await act(async () => { button("Bewerbungsmappe PDF").click(); });
+      await act(async () => { button("Bewerbungsordner öffnen").click(); });
+      const id = mockedStore.state!.workspace.applications[0].id;
+      expect(mockedStore.state!.exportPdf.mock.calls).toEqual([[id, "bewerbungsunterlagen"], [id, "mappe"]]);
+      expect(mockedStore.state!.openFolder).toHaveBeenCalledWith(id);
       await act(async () => { root.unmount(); });
     } finally {
       Object.assign(globalThis, { window: previousWindow, document: previousDocument, FormData: previousFormData });

@@ -1,5 +1,6 @@
 import {
   Copy,
+  Download,
   ExternalLink,
   FileText,
   FolderOpen,
@@ -56,6 +57,7 @@ export function ApplicationsView({
     (state) => state.duplicateApplication,
   );
   const openFolder = useAppStore((state) => state.openFolder);
+  const exportPdf = useAppStore((state) => state.exportPdf);
   const saving = useAppStore((state) => state.loading);
   const [filter, setFilter] = useState<Filter>(initialFilter);
   const [query, setQuery] = useState("");
@@ -230,6 +232,22 @@ export function ApplicationsView({
             </div>
             <div className="detail-actions">
               <button
+                className="button secondary"
+                type="button"
+                title="Eine PDF für E-Mail und Online-Bewerbung: Anschreiben, Lebenslauf, Motivationsschreiben, Zeugnisse, Zertifikate – ohne Deckblatt"
+                disabled={saving}
+                onClick={() => void exportPdf(selected.id, "bewerbungsunterlagen")}>
+                <Download size={17} /> Bewerbungsunterlagen PDF
+              </button>
+              <button
+                className="button primary"
+                type="button"
+                title="Eine PDF mit Deckblatt: Deckblatt, Anschreiben, Lebenslauf, Motivationsschreiben, Zeugnisse, Zertifikate"
+                disabled={saving}
+                onClick={() => void exportPdf(selected.id, "mappe")}>
+                <Download size={17} /> Bewerbungsmappe PDF
+              </button>
+              <button
                 className="icon-button"
                 title="Duplizieren"
                 onClick={() => void duplicateApplication(selected.id)}>
@@ -237,8 +255,8 @@ export function ApplicationsView({
               </button>
               <button
                 className="icon-button"
-                title="Anschreiben-Ordner öffnen"
-                aria-label="Anschreiben-Ordner öffnen"
+                title="Bewerbungsordner öffnen"
+                aria-label="Bewerbungsordner öffnen"
                 onClick={() => void openFolder(selected.id)}>
                 <FolderOpen size={17} />
               </button>

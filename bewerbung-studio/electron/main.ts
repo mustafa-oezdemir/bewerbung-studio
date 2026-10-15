@@ -385,9 +385,10 @@ const registerIpc = () => {
       if (error) throw new Error(error);
       return;
     }
-    const error = await shell.openPath(
-      store.getApplicationAnschreibenPath(String(id)),
-    );
+    // Without a document: the Bewerbung's main folder with all its document folders.
+    const folder = store.getApplicationFolderPath(String(id));
+    await mkdir(folder, { recursive: true });
+    const error = await shell.openPath(folder);
     if (error) throw new Error(error);
   });
   handle("profiles:save", async (_event, value: unknown) => {

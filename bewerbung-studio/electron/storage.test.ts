@@ -193,6 +193,9 @@ describe("DataStore backups", () => {
     expect(store.getApplicationAnschreibenPath(firstApplication.id)).toBe(
       path.join(store.files.applicationDataPath(firstApplication.folderName), "Anschreiben"),
     );
+    // "Ordner" in the Bewerbungsdetail opens the Bewerbung's own folder, the parent of its document folders.
+    expect(store.getApplicationFolderPath(firstApplication.id)).toBe(store.files.applicationDataPath(firstApplication.folderName));
+    expect(path.dirname(store.getApplicationAnschreibenPath(firstApplication.id))).toBe(store.getApplicationFolderPath(firstApplication.id));
     await expect(
       access(
         path.join(
