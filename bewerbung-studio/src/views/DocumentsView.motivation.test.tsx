@@ -192,6 +192,8 @@ describe("DocumentsView Motivation tab", () => {
     const application = applicationWith({});
     const motivation = renderMotivationTab(application).querySelector<HTMLElement>(".document-motivation .motivation")!;
     expect(motivation.style.getPropertyValue("--mv-margin-top")).toBe(`${documentTopMarginMm}mm`);
+    // 20 mm less one 11 pt line at one and a half spacing.
+    expect(documentTopMarginMm).toBe(14.2);
     const letterStyles = [...renderTab(application, "anschreiben").querySelectorAll(".document-paper.document-anschreiben > style")]
       .map((style) => style.textContent);
     expect(letterStyles).toContain(letterTopMarginCss);

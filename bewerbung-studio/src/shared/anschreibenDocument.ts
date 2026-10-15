@@ -48,6 +48,7 @@ export const anschreibenCvTypographyCss = `
 .document-anschreiben .letter-preview :is(.sender-title,.sender-contact){font-size:10pt!important;line-height:1.3!important}
 .document-anschreiben .letter-preview :is(address,address *,.paper-date,.letter-attachments,.letter-attachments *){font-size:var(--letter-body-size)!important;line-height:1.3!important}
 .document-anschreiben .letter-preview :is(.letter-salutation,.letter-body,.letter-signature,.letter-signature *){font-size:var(--letter-body-size)!important;line-height:var(--letter-line-height,1.5)!important}
+.document-anschreiben .letter-preview .letter-rule{height:1.25pt!important;min-height:0!important;border:0!important;background:var(--doc-accent)!important}
 .document-anschreiben.letter-cv-colors .letter-preview .sender-name{color:var(--letter-name-color)!important}
 .document-anschreiben.letter-cv-colors .letter-preview .sender-title{color:var(--letter-subject-color)!important}
 .document-anschreiben.letter-cv-colors .letter-preview :is(.sender-contact,address,.paper-date,.letter-salutation,.letter-body,.letter-signature,.signature-name,.letter-attachments){color:var(--letter-text-color)!important}

@@ -4,7 +4,7 @@ import { getTemplateDocumentDesignDefaults } from "./cvDesign";
 import { getCoverLetterMainBody } from "./coverLetter";
 import { getDocumentFont } from "./documentDesign";
 import { resolveCvDocument } from "./resolveCvDocument";
-import { resolveDocumentSideMargins } from "./documentSideMargins";
+import { documentTopMarginMm, resolveDocumentSideMargins } from "./documentSideMargins";
 import { resolveLetterTitleColor } from "./resumeTitleColor";
 import { setResumePhotoVisible } from "./resumePhoto";
 import { getTemplate, templates } from "./templates";
@@ -267,7 +267,7 @@ describe("Motivationsschreiben design: the selected Lebenslauf's effective desig
       "--mv-text": "#7a1f1f", "--mv-name-color": "#4b1d7a", "--mv-contact-color": "#526471",
       "--mv-line": "#123456", "--mv-background": "#fffdf7",
       // Left and right follow the Lebenslauf's Seitenränder (Modern: both sides); top and bottom stay 20 mm.
-      "--mv-margin-left": "14mm", "--mv-margin-right": "14mm", "--mv-margin-top": "20mm", "--mv-margin-bottom": "20mm",
+      "--mv-margin-left": "14mm", "--mv-margin-right": "14mm", "--mv-margin-top": `${documentTopMarginMm}mm`, "--mv-margin-bottom": "20mm",
       "--mv-paragraph-gap": "7mm",
       // Überschrift: 8 empty lines below the Briefkopf, 4 above the Anrede, whatever the section gaps of the Lebenslauf.
       "--mv-header-gap": "calc(var(--mv-body-size) * var(--mv-line-height) * 8)",
@@ -287,7 +287,7 @@ describe("Motivationsschreiben design: the selected Lebenslauf's effective desig
         "--mv-font": getDocumentFont(cv.design.typography.fontId).family,
         "--mv-heading-font": getDocumentFont(cv.design.typography.headingFontId).family,
         "--mv-line-height": "1.3", "--mv-heading-size": "16pt", "--mv-heading-weight": "700",
-        "--mv-margin-left": `${sides.leftMm}mm`, "--mv-margin-right": `${sides.rightMm}mm`, "--mv-margin-top": "20mm", "--mv-margin-bottom": "20mm",
+        "--mv-margin-left": `${sides.leftMm}mm`, "--mv-margin-right": `${sides.rightMm}mm`, "--mv-margin-top": `${documentTopMarginMm}mm`, "--mv-margin-bottom": "20mm",
         "--mv-paragraph-gap": `${paragraphGap}mm`,
       });
     }

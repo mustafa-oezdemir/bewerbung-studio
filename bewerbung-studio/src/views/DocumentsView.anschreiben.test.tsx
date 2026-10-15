@@ -95,6 +95,8 @@ describe("Anschreiben typography (karrierebibel.de)", () => {
     expect(css).toContain(":is(.sender-title,.sender-contact){font-size:10pt!important");
     expect(css).toMatch(/:is\(\.letter-salutation,\.letter-body,[^)]*\)\{font-size:var\(--letter-body-size\)!important;line-height:var\(--letter-line-height,1\.5\)!important\}/);
     expect(anschreibenSubjectCss).toContain("font-size:13pt!important;font-weight:700!important");
+    // The rule under the Briefkopf: the Bewerbung's chosen colour, 1.25 pt (user: 1–1.5 pt).
+    expect(css).toContain(".letter-rule{height:1.25pt!important;min-height:0!important;border:0!important;background:var(--doc-accent)!important}");
     // 11 pt is the floor; a larger Lebenslauf text is followed up to 12 pt.
     expect([9.2, 11, 11.5, 14].map(letterBodySizePt)).toEqual([11, 11, 11.5, 12]);
   });

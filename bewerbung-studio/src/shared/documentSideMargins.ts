@@ -67,8 +67,14 @@ export const documentSideMarginVariables = (margins: DocumentSideMargins): Recor
   "--side-right": `${margins.rightMm}mm`,
 });
 
-/** Space above the Briefkopf of the Anschreiben and the Motivationsschreiben, the same in every template. */
-export const documentTopMarginMm = 20;
+/** One line of the letters' Fließtext: 11 pt with one and a half line spacing (karrierebibel), in mm. */
+export const documentTextLineMm = (11 * 1.5 * 25.4) / 72;
+
+/**
+ * Space above the Briefkopf of the Anschreiben and the Motivationsschreiben, the same in every template: 20 mm less
+ * one text line (user 2026-10-15), 14.2 mm.
+ */
+export const documentTopMarginMm = Math.round((20 - documentTextLineMm) * 10) / 10;
 
 /**
  * The Anschreiben starts as far from the top edge as the Motivationsschreiben, whatever the template letter style says.
