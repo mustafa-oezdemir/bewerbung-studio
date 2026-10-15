@@ -66,6 +66,33 @@ export const anschreibenSubjectCss = ".document-paper.document-anschreiben .lett
  */
 export const letterLineHeightSteps = ["1.5", "1.45", "1.4", "1.35", "1.3"] as const;
 
+/** The least space under the date (above the Betreff) the fit leaves: the „4 Zeilen nach oben“ setting's. */
+export const letterMinimumBetreffGapMm = 4;
+
+/**
+ * The one fit of a letter that is longer than its page (`paper` 297 mm high, `content` its `.letter-preview`), run by
+ * the preview (`fitLetterSpacing`) and inside the PDF's fit script. White space gives way first: the space above the
+ * Betreff shrinks down to 4 mm, so „Standardabstand“ never changes the type. Only then the line spacing steps down
+ * (1.5 → 1.3); whatever still does not fit is scaled by the caller. Lengths go through mm, so the preview's zoom does
+ * not matter.
+ */
+export const letterSpacingFitSource = [
+  "var mm = paper.clientHeight / 297;",
+  "var over = function () { return content.scrollHeight - paper.clientHeight; };",
+  "var date = content.querySelector('.paper-date');",
+  "if (date) date.style.removeProperty('margin-bottom');",
+  "content.style.removeProperty('--letter-line-height');",
+  "if (date && over() > 0.5) {",
+  "  var current = parseFloat(getComputedStyle(date).marginBottom) * 25.4 / 96;",
+  `  var target = Math.max(${letterMinimumBetreffGapMm}, current - over() / mm - 0.2);`,
+  "  if (target < current) date.style.setProperty('margin-bottom', target.toFixed(2) + 'mm', 'important');",
+  "}",
+  `var steps = ${JSON.stringify(letterLineHeightSteps)};`,
+  "for (var i = 0; i < steps.length; i++) { content.style.setProperty('--letter-line-height', steps[i]); if (over() <= 0.5) break; }",
+].join("\n");
+
+export const fitLetterSpacing = new Function("paper", "content", letterSpacingFitSource) as (paper: HTMLElement, content: HTMLElement) => void;
+
 /** Fließtext size: 11 pt at least (karrierebibel), the Lebenslauf's own text size up to 12 pt. */
 export const letterBodySizePt = (cvBodySizePt: number) => Math.min(12, Math.max(11, cvBodySizePt));
 

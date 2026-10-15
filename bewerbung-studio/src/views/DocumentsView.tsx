@@ -67,7 +67,7 @@ import { DocumentBackgroundLayer } from "../components/document/DocumentBackgrou
 import { AnschreibenPage } from "../components/document/AnschreibenPage";
 import { CertificateSelection } from "../components/resume/CertificateSelection";
 import { certificateEntries } from "../shared/certificates";
-import { anschreibenLetterhead, anschreibenSubjectClassName, buildAnschreibenFrame, letterLineHeightSteps, type AnschreibenModel } from "../shared/anschreibenDocument";
+import { anschreibenLetterhead, anschreibenSubjectClassName, buildAnschreibenFrame, fitLetterSpacing, type AnschreibenModel } from "../shared/anschreibenDocument";
 import { ResizableSplitView } from "../components/layout/ResizableSplitView";
 import { ResumeSectionsPanel } from "../components/resume/ResumeSectionsPanel";
 import { ElegantResume } from "../components/resume/templates/elegant";
@@ -562,11 +562,8 @@ export function DocumentsView({
     content.style.removeProperty("transform");
     content.style.width = "100%";
     content.dataset.fitScale = "1.000";
-    // Line spacing gives way first (1.5 → 1.3), the 11 pt text size only after that.
-    for (const lineHeight of letterLineHeightSteps) {
-      content.style.setProperty("--letter-line-height", lineHeight);
-      if (content.scrollHeight <= paper.clientHeight + 0.5) break;
-    }
+    // The space above the Betreff gives way first, then the line spacing; the 11 pt text size only after that.
+    fitLetterSpacing(paper, content);
 
     const heightRatio = paper.clientHeight / Math.max(content.scrollHeight, 1);
     const widthRatio = paper.clientWidth / Math.max(content.scrollWidth, 1);

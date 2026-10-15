@@ -4,7 +4,7 @@ import { parseHTML } from "linkedom";
 import { describe, expect, it, vi } from "vitest";
 import { buildDocumentHtml } from "../../electron/documents";
 import { anschreibenPrintCss } from "../../electron/anschreibenPrintCss";
-import { anschreibenCvTypographyCss, anschreibenSubjectCss, letterBodySizePt, letterLineHeightSteps } from "../shared/anschreibenDocument";
+import { anschreibenCvTypographyCss, anschreibenSubjectCss, letterBodySizePt, letterLineHeightSteps, letterMinimumBetreffGapMm, letterSpacingFitSource } from "../shared/anschreibenDocument";
 import { getTemplateDocumentDesignDefaults } from "../shared/cvDesign";
 import { applicationSchema, defaultSettings, profileSchema } from "../shared/schema";
 import { templates } from "../shared/templates";
@@ -101,10 +101,17 @@ describe("Anschreiben typography (karrierebibel.de)", () => {
     expect([9.2, 11, 11.5, 14].map(letterBodySizePt)).toEqual([11, 11, 11.5, 12]);
   });
 
-  it("gives up line spacing (1.5 down to 1.3) before the PDF scales a long letter, as the preview does", () => {
+  it("lets a long letter give up the space above the Betreff first, then line spacing, before anything is scaled", () => {
+    // „Standardabstand“ must never change the type: the white space under the date shrinks first (down to the
+    // „4 Zeilen“ setting's 4 mm), the line spacing (1.5 → 1.3) only after that, in the preview and the PDF alike.
     expect([...letterLineHeightSteps]).toEqual(["1.5", "1.45", "1.4", "1.35", "1.3"]);
+    expect(letterMinimumBetreffGapMm).toBe(4);
+    const shrinkGap = letterSpacingFitSource.indexOf("date.style.setProperty('margin-bottom'");
+    expect(shrinkGap).toBeGreaterThan(-1);
+    expect(shrinkGap).toBeLessThan(letterSpacingFitSource.indexOf("--letter-line-height', steps[i]"));
+    expect(letterSpacingFitSource).toContain("Math.max(4, current - over() / mm - 0.2)");
     const html = buildDocumentHtml(applicationFor("modern", 0), profile, "anschreiben");
-    expect(html).toContain(`for (const lineHeight of ${JSON.stringify(letterLineHeightSteps)})`);
-    expect(html).toContain('content.style.setProperty("--letter-line-height", lineHeight)');
+    expect(html).toContain(letterSpacingFitSource);
+    expect(html.indexOf(letterSpacingFitSource)).toBeLessThan(html.indexOf("const heightRatio = page.clientHeight"));
   });
 });
