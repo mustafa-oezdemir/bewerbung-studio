@@ -17,7 +17,7 @@ import { resolveResumeClosingLine } from "../src/shared/resumeClosing";
 import { resolveResumeFooterWebsite } from "../src/shared/resumeFooter";
 import { buildMotivationModel, motivationCss, renderMotivationMarkup } from "../src/shared/motivationDocument";
 import { letterSideMarginCss, letterTopMarginCss, resolveDocumentSideMargins } from "../src/shared/documentSideMargins";
-import { anschreibenLetterhead, anschreibenSubjectClassName, buildAnschreibenFrame, renderAnschreibenMarkup } from "../src/shared/anschreibenDocument";
+import { anschreibenLetterhead, anschreibenSubjectClassName, buildAnschreibenFrame, letterLineHeightSteps, renderAnschreibenMarkup } from "../src/shared/anschreibenDocument";
 import { anschreibenPrintCss } from "./anschreibenPrintCss";
 import { isDocumentPackage, packageDocumentOrder } from "../src/shared/applicationDocuments";
 import type { ExportTarget } from "../src/shared/ipc";
@@ -738,6 +738,13 @@ const pageFitScript = `
         }
         content.style.transform = "";
         content.style.width = "100%";
+        // An Anschreiben gives up line spacing first (as the preview does), its 11 pt text size only after that.
+        if (content.closest(".document-anschreiben")) {
+          for (const lineHeight of ${JSON.stringify(letterLineHeightSteps)}) {
+            content.style.setProperty("--letter-line-height", lineHeight);
+            if (content.scrollHeight <= page.clientHeight + 0.5) break;
+          }
+        }
         const heightRatio = page.clientHeight / Math.max(content.scrollHeight, 1);
         const widthRatio = page.clientWidth / Math.max(content.scrollWidth, 1);
         const scale = Math.min(1, heightRatio, widthRatio);

@@ -47,6 +47,29 @@ export const resolveResumeTitleColor = (
 };
 
 /**
+ * The colour the Lebenslauf gives the name in its header, for the templates without a letter identity of their own
+ * (their Anschreiben takes it from here). A colour chosen in the Lebenslauf design wins (Überschrift, then
+ * Akzentfarbe where the template draws the name with it); otherwise the template's rule. Measured against the rendered
+ * PDF (default, theme colour, Überschrift and Akzentfarbe changes). Pehlione sets the name white on its band, so the
+ * letter takes the Überschrift colour there.
+ */
+export const resolveResumeNameColor = (
+  cv: TitleColorSource,
+  { accentColor }: { accentColor: string; secondaryColor: string },
+): string => {
+  const templateId = resolveTemplateId(cv.templateId);
+  const changed = cv.settings.cvOverrides?.colors;
+  if (changed?.heading) return cv.design.colors.heading;
+  const chosenAccent = changed?.accent ? cv.design.colors.accent : undefined;
+  switch (templateId) {
+    case "ivy-league":
+    case "klassisch": return chosenAccent ?? accentColor;
+    case "tabellarisch": return chosenAccent ?? cv.design.colors.heading;
+    default: return cv.design.colors.heading;
+  }
+};
+
+/**
  * The title colour for a text on the white letter page (Betreff of the Anschreiben, Überschrift of the
  * Motivationsschreiben). A title the Lebenslauf sets on a coloured band (Kreativ: white on its header band) would be
  * unreadable there, so the band's colour stands in for it.

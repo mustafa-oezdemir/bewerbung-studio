@@ -4,13 +4,13 @@ import { parseHTML } from "linkedom";
 import { describe, expect, it, vi } from "vitest";
 import { buildDocumentHtml } from "../../electron/documents";
 import { anschreibenPrintCss } from "../../electron/anschreibenPrintCss";
-import { anschreibenSubjectCss } from "../shared/anschreibenDocument";
+import { anschreibenCvTypographyCss, anschreibenSubjectCss, letterBodySizePt, letterLineHeightSteps } from "../shared/anschreibenDocument";
 import { getTemplateDocumentDesignDefaults } from "../shared/cvDesign";
 import { applicationSchema, defaultSettings, profileSchema } from "../shared/schema";
 import { templates } from "../shared/templates";
 import { DocumentsView } from "./DocumentsView";
 import { resolveCvDocument } from "../shared/resolveCvDocument";
-import { resolveLetterTitleColor } from "../shared/resumeTitleColor";
+import { resolveLetterTitleColor, resolveResumeNameColor } from "../shared/resumeTitleColor";
 
 const testStore = vi.hoisted(() => ({ state: undefined as Record<string, unknown> | undefined }));
 vi.mock("../store/useAppStore", () => {
@@ -61,7 +61,7 @@ describe("Anschreiben: the PDF prints the preview's page", () => {
         expect(pdf).not.toBeNull();
         expect(tree(pdf)).toEqual(tree(preview));
         expect(pdf.classList.contains(`letter-gap-${gap}`)).toBe(true);
-        // The Betreff is 14 pt in every template: the shared rule is the last stylesheet of the page.
+        // The Betreff is 13 pt in every template: the shared rule is the last stylesheet of the page.
         expect([...pdf.querySelectorAll(":scope > style")].at(-1)?.textContent).toBe(anschreibenSubjectCss);
         // …in the colour of the Lebenslauf's professional title.
         const cv = resolveCvDocument({ profile, templateId, settings: application.designSettings, application });
@@ -72,9 +72,37 @@ describe("Anschreiben: the PDF prints the preview's page", () => {
         expect(html).toContain(`.document-anschreiben.letter-gap-${gap === 0 ? 4 : gap} .letter-preview .paper-date{margin-bottom:4mm}`);
         expect(pdf.querySelector('[data-part], script')).toBeNull();
         expect(pdf.querySelector(".letter-body")?.textContent).toBe("Einleitung mit <Zeichen> & mehr.");
+        // Sizes and colours follow karrierebibel and the Lebenslauf.
+        const style = (pdf as HTMLElement).style;
+        expect(style.getPropertyValue("--letter-body-size")).toBe(`${letterBodySizePt(cv.design.typography.bodySizePt)}pt`);
+        const identity = ["zweispaltig", "zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt"].includes(templateId);
+        expect(pdf.classList.contains("letter-cv-colors")).toBe(!identity);
+        if (!identity) expect(style.getPropertyValue("--letter-name-color"))
+          .toBe(resolveResumeNameColor(cv, { accentColor: application.accentColor, secondaryColor: application.secondaryColor }));
+        expect([...pdf.querySelectorAll(":scope > style")].map((node) => node.textContent)).toContain(anschreibenCvTypographyCss);
       } finally {
         testStore.state = previous;
       }
     },
   );
+});
+
+describe("Anschreiben typography (karrierebibel.de)", () => {
+  it("sets 11 pt Fließtext with one and a half lines, a 10 pt Briefkopf, a 15 pt name and a 13 pt bold Betreff in one font", () => {
+    const css = anschreibenCvTypographyCss;
+    expect(css).toContain(".document-anschreiben .letter-preview,.document-anschreiben .letter-preview *{font-family:var(--cv-body-font)!important}");
+    expect(css).toContain(".sender-name{font-size:15pt!important");
+    expect(css).toContain(":is(.sender-title,.sender-contact){font-size:10pt!important");
+    expect(css).toMatch(/:is\(\.letter-salutation,\.letter-body,[^)]*\)\{font-size:var\(--letter-body-size\)!important;line-height:var\(--letter-line-height,1\.5\)!important\}/);
+    expect(anschreibenSubjectCss).toContain("font-size:13pt!important;font-weight:700!important");
+    // 11 pt is the floor; a larger Lebenslauf text is followed up to 12 pt.
+    expect([9.2, 11, 11.5, 14].map(letterBodySizePt)).toEqual([11, 11, 11.5, 12]);
+  });
+
+  it("gives up line spacing (1.5 down to 1.3) before the PDF scales a long letter, as the preview does", () => {
+    expect([...letterLineHeightSteps]).toEqual(["1.5", "1.45", "1.4", "1.35", "1.3"]);
+    const html = buildDocumentHtml(applicationFor("modern", 0), profile, "anschreiben");
+    expect(html).toContain(`for (const lineHeight of ${JSON.stringify(letterLineHeightSteps)})`);
+    expect(html).toContain('content.style.setProperty("--letter-line-height", lineHeight)');
+  });
 });

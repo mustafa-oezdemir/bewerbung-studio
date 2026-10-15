@@ -1,6 +1,6 @@
 import type { ResolvedCvDocument } from "./resolveCvDocument";
 import type { DocumentDesignSettings } from "./documentDesign";
-import { getDocumentDesignVariables, getDocumentFont } from "./documentDesign";
+import { getColorContrastRatio, getDocumentDesignVariables, getDocumentFont } from "./documentDesign";
 import { getReadableTextColor } from "./templates";
 import { getZweispaltigLetterVariables, zweispaltigLetterCss } from "./zweispaltigLetterIdentity";
 import { zeitgenoessischLetterCss } from "./zeitgenoessischDesign";
@@ -10,7 +10,7 @@ import { stilvollLetterCss } from "./stilvollDesign";
 import { gepflegtLetterCss } from "./gepflegtDesign";
 import { kompaktLetterCss } from "./kompaktDesign";
 import { documentSideMarginVariables, letterSideMarginCss, letterTopMarginCss, type DocumentSideMargins } from "./documentSideMargins";
-import { resolveLetterTitleColor } from "./resumeTitleColor";
+import { resolveLetterTitleColor, resolveResumeNameColor } from "./resumeTitleColor";
 
 /**
  * The Anschreiben page as the preview draws it: one element tree (`renderAnschreibenMarkup` for the PDF,
@@ -37,18 +37,36 @@ export type AnschreibenModel = {
 
 const identityTemplates = ["zweispaltig", "zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt"];
 
-/** Applied after template letter rules on both preview and PDF. The CV's effective typography is authoritative. */
+/**
+ * Sizes and fonts of every Anschreiben (karrierebibel.de, user 2026-10-15), after the template letter rules on both
+ * preview and PDF: one font (the Lebenslauf's body font, never mixed); Fließtext 11 pt (12 pt at most, following a
+ * larger Lebenslauf text) with one and a half line spacing; Briefkopf 10 pt; the name 15 pt (11-13-15 rule).
+ */
 export const anschreibenCvTypographyCss = `
-.document-anschreiben .letter-preview{font-family:var(--cv-body-font)!important}
-.document-anschreiben .letter-preview .sender-name{font-family:var(--cv-name-font)!important;font-size:var(--cv-name-size)!important}
-.document-anschreiben .letter-preview :is(.sender-contact,address,.paper-date,.letter-salutation,.letter-body,.letter-signature,.signature-name){font-family:var(--cv-body-font)!important;font-size:var(--cv-body-size)!important}
+.document-anschreiben .letter-preview,.document-anschreiben .letter-preview *{font-family:var(--cv-body-font)!important}
+.document-anschreiben .letter-preview .sender-name{font-size:15pt!important;line-height:1.15!important}
+.document-anschreiben .letter-preview :is(.sender-title,.sender-contact){font-size:10pt!important;line-height:1.3!important}
+.document-anschreiben .letter-preview :is(address,address *,.paper-date,.letter-attachments,.letter-attachments *){font-size:var(--letter-body-size)!important;line-height:1.3!important}
+.document-anschreiben .letter-preview :is(.letter-salutation,.letter-body,.letter-signature,.letter-signature *){font-size:var(--letter-body-size)!important;line-height:var(--letter-line-height,1.5)!important}
+.document-anschreiben.letter-cv-colors .letter-preview .sender-name{color:var(--letter-name-color)!important}
+.document-anschreiben.letter-cv-colors .letter-preview .sender-title{color:var(--letter-subject-color)!important}
+.document-anschreiben.letter-cv-colors .letter-preview :is(.sender-contact,address,.paper-date,.letter-salutation,.letter-body,.letter-signature,.signature-name,.letter-attachments){color:var(--letter-text-color)!important}
 `;
 
 /**
- * The Betreff of every Anschreiben is 14 pt in the colour of the Lebenslauf's professional title (user's rules), after
- * every template letter style; preview and PDF alike.
+ * The Betreff of every Anschreiben: 13 pt bold (11-13-15 rule) in the colour of the Lebenslauf's professional title,
+ * after every template letter style; preview and PDF alike.
  */
-export const anschreibenSubjectCss = ".document-paper.document-anschreiben .letter-preview > h3{font-size:14pt!important;color:var(--letter-subject-color)!important}";
+export const anschreibenSubjectCss = ".document-paper.document-anschreiben .letter-preview > h3{font-size:13pt!important;font-weight:700!important;line-height:1.25!important;color:var(--letter-subject-color)!important}";
+
+/**
+ * A letter longer than its page first gives up line spacing (one and a half lines down to 1.3) and only then is
+ * scaled, so the Fließtext keeps its 11 pt as long as possible. Used by the preview and the PDF's fit script alike.
+ */
+export const letterLineHeightSteps = ["1.5", "1.45", "1.4", "1.35", "1.3"] as const;
+
+/** Fließtext size: 11 pt at least (karrierebibel), the Lebenslauf's own text size up to 12 pt. */
+export const letterBodySizePt = (cvBodySizePt: number) => Math.min(12, Math.max(11, cvBodySizePt));
 
 /** The template's own letter stylesheet (Briefkopf, paddings, colours); "" for the templates without one. */
 export const anschreibenTemplateCss = (templateId: string) =>
@@ -70,6 +88,10 @@ export const documentDesignClassName = (settings: DocumentDesignSettings) => {
   return `column-${atsMode ? "compact-ats" : settings.columnLayout} background-${settings.backgroundId} background-scope-${settings.backgroundScope} ${
     settings.showBackgroundInPrint ? "print-background" : "no-print-background"}`;
 };
+
+/** The first colour that reads on the white letter page (a name set white on a CV band does not). */
+const readableOnPaper = (...colors: string[]) =>
+  colors.find((color) => getColorContrastRatio(color, "#ffffff") >= 3) ?? colors.at(-1)!;
 
 /** Classes, style variables and stylesheets of the Anschreiben page. */
 export const buildAnschreibenFrame = ({
@@ -110,12 +132,17 @@ export const buildAnschreibenFrame = ({
   const templateCss = anschreibenTemplateCss(templateId);
   return {
     className: `document-paper document-anschreiben letter-${density} letter-gap-${gapReduction} layout-${layout} ${documentDesignClassName(settings)}${
-      identityTemplates.includes(templateId) ? ` ${templateId}-letter` : ""}`,
+      identityTemplates.includes(templateId) ? ` ${templateId}-letter` : " letter-cv-colors"}`,
     style: {
       ...paper,
       ...(identity ?? {}),
       ...documentSideMarginVariables(sideMargins),
       "--letter-subject-color": resolveLetterTitleColor(resolvedCv, { accentColor, secondaryColor }),
+      // Templates without a letter identity take the Lebenslauf's name and text colours (the others draw their own).
+      "--letter-name-color": readableOnPaper(resolveResumeNameColor(resolvedCv, { accentColor, secondaryColor }),
+        resolveLetterTitleColor(resolvedCv, { accentColor, secondaryColor }), resolvedCv.design.colors.text),
+      "--letter-text-color": readableOnPaper(resolvedCv.design.colors.paragraph, resolvedCv.design.colors.text, "#222b2a"),
+      "--letter-body-size": `${letterBodySizePt(resolvedCv.design.typography.bodySizePt)}pt`,
       "--cv-name-font": getDocumentFont(resolvedCv.design.typography.headingFontId).family,
       "--cv-name-size": `${resolvedCv.design.typography.headingSizePt}pt`,
       "--cv-body-font": getDocumentFont(resolvedCv.design.typography.fontId).family,
