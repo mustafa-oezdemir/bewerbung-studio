@@ -67,6 +67,16 @@ export const documentSideMarginVariables = (margins: DocumentSideMargins): Recor
   "--side-right": `${margins.rightMm}mm`,
 });
 
+/** Space above the Briefkopf of the Anschreiben and the Motivationsschreiben, the same in every template. */
+export const documentTopMarginMm = 20;
+
+/**
+ * The Anschreiben starts as far from the top edge as the Motivationsschreiben, whatever the template letter style says.
+ * Kreativ is the exception: its coloured band begins at the edge by design and carries the Briefkopf inside it.
+ */
+export const letterTopMarginCss =
+  `.page.letter-page>.letter-content:not(.kreativ-letter .letter-content),.document-paper.document-anschreiben:not(.kreativ-letter)>.letter-preview{padding-top:${documentTopMarginMm}mm!important}`;
+
 /**
  * The Anschreiben's text area (PDF `.letter-content`, preview `.letter-preview`) takes the Lebenslauf's left and right
  * margin over every template letter style; its top and bottom stay the letter's own. One rule for both outputs.

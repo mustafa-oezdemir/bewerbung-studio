@@ -4,7 +4,7 @@ import { applicationGreeting } from "./applicationContacts";
 import { formatApplicationDateLong } from "./applicationDate";
 import { formatPhoneForDisplay, phoneHref } from "./contactPresentation";
 import { getColorContrastRatio, getDocumentFont } from "./documentDesign";
-import { resolveDocumentSideMargins } from "./documentSideMargins";
+import { documentTopMarginMm, resolveDocumentSideMargins } from "./documentSideMargins";
 import { getTemplateDocumentDesignDefaults } from "./cvDesign";
 import { resolveEffectiveDesignTokens, resolveResumeAppearance } from "./resumeDesignSystem";
 import { getProfileMediaSource } from "./profileMedia";
@@ -59,7 +59,7 @@ export const motivationDefaults = {
   lineHeight: 1.3,
   headingSizePt: 16,
   headingWeight: 700,
-  marginTopMm: 20,
+  marginTopMm: documentTopMarginMm,
   marginBottomMm: 20,
   /** Empty lines (of the body text) between the Briefkopf and the Überschrift, and between it and the Anrede. */
   headerGapLines: 8,

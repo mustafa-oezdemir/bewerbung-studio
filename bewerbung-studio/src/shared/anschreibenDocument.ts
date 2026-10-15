@@ -9,7 +9,7 @@ import { kreativLetterCss } from "./kreativDesign";
 import { stilvollLetterCss } from "./stilvollDesign";
 import { gepflegtLetterCss } from "./gepflegtDesign";
 import { kompaktLetterCss } from "./kompaktDesign";
-import { documentSideMarginVariables, letterSideMarginCss, type DocumentSideMargins } from "./documentSideMargins";
+import { documentSideMarginVariables, letterSideMarginCss, letterTopMarginCss, type DocumentSideMargins } from "./documentSideMargins";
 import { resolveLetterTitleColor } from "./resumeTitleColor";
 
 /**
@@ -121,7 +121,7 @@ export const buildAnschreibenFrame = ({
       "--cv-body-font": getDocumentFont(resolvedCv.design.typography.fontId).family,
       "--cv-body-size": `${resolvedCv.design.typography.bodySizePt}pt`,
     } as Record<string, string>,
-    stylesheets: [letterSideMarginCss, ...(templateCss ? [templateCss] : []), anschreibenCvTypographyCss, anschreibenSubjectCss],
+    stylesheets: [letterSideMarginCss, letterTopMarginCss, ...(templateCss ? [templateCss] : []), anschreibenCvTypographyCss, anschreibenSubjectCss],
   };
 };
 

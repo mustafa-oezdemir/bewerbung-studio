@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildDocumentHtml } from "../../electron/documents";
 import { getTemplateDocumentDesignDefaults } from "../shared/cvDesign";
 import { applicationSchema, defaultSettings, profileSchema } from "../shared/schema";
-import { letterSideMarginCss } from "../shared/documentSideMargins";
+import { documentTopMarginMm, letterSideMarginCss, letterTopMarginCss } from "../shared/documentSideMargins";
 import { getDocumentFont } from "../shared/documentDesign";
 import { resolveCvDocument } from "../shared/resolveCvDocument";
 import { DocumentsView } from "./DocumentsView";
@@ -176,5 +176,17 @@ describe("DocumentsView Motivation tab", () => {
       expect(printed.style.getPropertyValue("--side-right")).toBe("18mm");
     }
     expect(letterPaper.querySelector(":scope > style")?.textContent).toBe(letterSideMarginCss);
+  });
+
+  it("starts the Anschreiben as far from the top as the Motivationsschreiben, in preview and PDF", () => {
+    const application = applicationWith({});
+    const motivation = renderMotivationTab(application).querySelector<HTMLElement>(".document-motivation .motivation")!;
+    expect(motivation.style.getPropertyValue("--mv-margin-top")).toBe(`${documentTopMarginMm}mm`);
+    const letterStyles = [...renderTab(application, "anschreiben").querySelectorAll(".document-paper.document-anschreiben > style")]
+      .map((style) => style.textContent);
+    expect(letterStyles).toContain(letterTopMarginCss);
+    expect(buildDocumentHtml(application, profile, "anschreiben")).toContain(letterTopMarginCss);
+    // Beats every template letter style; only Kreativ keeps its band at the top edge.
+    expect(letterTopMarginCss).toContain(`.document-paper.document-anschreiben:not(.kreativ-letter)>.letter-preview{padding-top:${documentTopMarginMm}mm!important}`);
   });
 });
