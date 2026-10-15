@@ -63,7 +63,9 @@ describe("Deckblatt design Kopfband", () => {
     expect(page.querySelector(".dk-head .dk-photo img")?.getAttribute("src")).toBe(photo);
     expect(text(".dk-head .dk-lead")).toEqual(["Bewerbung"]);
     expect(text(".dk-head .dk-role")).toEqual(["als Software Engineer"]);
-    expect(text(".dk-head .dk-head-name")).toEqual(["Zora Quellmalz"]);
+    // The name stands once on the page, under the band (user: not twice).
+    expect(page.querySelector(".dk-head .dk-head-name")).toBeNull();
+    expect(page.textContent?.split("Zora Quellmalz").length).toBe(2);
     expect(text(".dk-head .dk-app")).toEqual(["bei Nordlicht AG · Hamburg"]);
     expect(page.querySelector(".dk-head .dk-lines")).toBeNull();
     expect(text(".dk-person .dk-name")).toEqual(["Zora Quellmalz"]);
@@ -102,6 +104,11 @@ describe("Deckblatt design Kopfband", () => {
     // Skills that are not Stärken do not appear, and without Stärken the section is gone.
     const plain = build({ profile: profile({ strengths: [], skills: ["Excel"] }) });
     expect(plain.page.querySelector(".dk-stack")).toBeNull();
+  });
+
+  it("centres the Tech-Stack rows, however many Stärken there are (six per row)", () => {
+    expect(deckblattCss).toContain(".deckblatt--kopfband .dk-stack ul{display:flex;flex-wrap:wrap;justify-content:center;");
+    expect(deckblattCss).toContain(".deckblatt--kopfband .dk-stack li{display:flex;flex:0 0 calc((100% - 15mm) / 6);");
   });
 
   it("fills Qualifikationen with the Kurzprofil of the Deckblatt, justified, and falls back to degrees and years without it", () => {

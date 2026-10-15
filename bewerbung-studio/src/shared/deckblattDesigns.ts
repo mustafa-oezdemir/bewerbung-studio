@@ -480,7 +480,6 @@ const kopfband = (model: DeckblattModel) => {
       <h1 class="dk-heading"><span class="dk-lead">Bewerbung</span> <span class="dk-role dk-role--${subjectSize(role)}">${escapeHtml(role)}</span></h1>${
         company ? `<p class="dk-app">${escapeHtml(company)}</p>` : ""
       }
-      <p class="dk-head-name">${escapeHtml(model.name)}</p>
     </div>
   </header>
   <main class="dk-main">
@@ -632,7 +631,6 @@ export const deckblattCss = `
 .deckblatt--kopfband .dk-lead{font-size:36pt;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
 .deckblatt--kopfband .dk-role{margin-top:1.4mm;font-weight:400;letter-spacing:.02em;text-transform:uppercase}
 .deckblatt--kopfband .dk-role--normal{font-size:17pt}.deckblatt--kopfband .dk-role--long{font-size:13pt}.deckblatt--kopfband .dk-role--xlong{font-size:10.5pt}
-.deckblatt--kopfband .dk-head-name{margin-top:6mm;font-size:11pt;font-weight:700;letter-spacing:.06em;line-height:1.3;text-transform:uppercase;overflow-wrap:anywhere}
 .deckblatt--kopfband .dk-app{margin-top:2mm;font-size:10pt;line-height:1.3;opacity:.85;overflow-wrap:anywhere}
 .deckblatt--kopfband .dk-main{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;padding:13mm var(--side-right,var(--doc-margin)) 14mm var(--side-left,var(--doc-margin));color:var(--ink)}
 .deckblatt--kopfband .dk-person{padding-bottom:7mm;border-bottom:1px solid var(--line);text-align:center}
@@ -646,8 +644,8 @@ export const deckblattCss = `
 .deckblatt--kopfband .dk-block ul{display:grid;gap:1.4mm}
 .deckblatt--kopfband .dk-statement{font-size:11pt;line-height:1.4;text-align:justify;text-justify:inter-word;hyphens:auto;overflow-wrap:break-word}
 .deckblatt--kopfband .dk-block li{font-size:11pt;line-height:1.35;overflow-wrap:anywhere}
-.deckblatt--kopfband .dk-stack ul{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5mm 3mm;margin-top:3mm}
-.deckblatt--kopfband .dk-stack li{display:flex;flex-direction:column;align-items:center;gap:2.2mm;min-width:0;text-align:center}
+.deckblatt--kopfband .dk-stack ul{display:flex;flex-wrap:wrap;justify-content:center;gap:5mm 3mm;margin-top:3mm}
+.deckblatt--kopfband .dk-stack li{display:flex;flex:0 0 calc((100% - 15mm) / 6);flex-direction:column;align-items:center;gap:2.2mm;min-width:0;text-align:center}
 .deckblatt--kopfband .dk-stack-icon{display:grid;width:12mm;height:12mm;place-items:center;font-style:normal}
 .deckblatt--kopfband .dk-stack-icon svg,.deckblatt--kopfband .dk-stack-icon img{width:100%;height:100%}
 .deckblatt--kopfband .dk-stack li span{max-width:100%;font-size:10pt;line-height:1.2;overflow-wrap:anywhere}
