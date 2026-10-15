@@ -4,7 +4,7 @@ import { parseHTML } from "linkedom";
 import { describe, expect, it, vi } from "vitest";
 import { buildDocumentHtml } from "../../electron/documents";
 import { anschreibenPrintCss } from "../../electron/anschreibenPrintCss";
-import { anschreibenCvTypographyCss, anschreibenSubjectCss, letterBodySizePt, letterLineHeightSteps, letterMinimumBetreffGapMm, letterSpacingFitSource } from "../shared/anschreibenDocument";
+import { anschreibenCvTypographyCss, anschreibenSubjectCss, letterBodySizePt, letterMinimumBetreffGapMm, letterMinimumLineHeight, letterSpacingFitSource } from "../shared/anschreibenDocument";
 import { getTemplateDocumentDesignDefaults } from "../shared/cvDesign";
 import { applicationSchema, defaultSettings, profileSchema } from "../shared/schema";
 import { templates } from "../shared/templates";
@@ -75,6 +75,7 @@ describe("Anschreiben: the PDF prints the preview's page", () => {
         // Sizes and colours follow karrierebibel and the Lebenslauf.
         const style = (pdf as HTMLElement).style;
         expect(style.getPropertyValue("--letter-body-size")).toBe(`${letterBodySizePt(cv.design.typography.bodySizePt)}pt`);
+        expect(style.getPropertyValue("--letter-cv-line-height")).toBe(String(cv.design.typography.lineHeight));
         const identity = ["zweispaltig", "zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt"].includes(templateId);
         expect(pdf.classList.contains("letter-cv-colors")).toBe(!identity);
         if (!identity) expect(style.getPropertyValue("--letter-name-color"))
@@ -88,12 +89,13 @@ describe("Anschreiben: the PDF prints the preview's page", () => {
 });
 
 describe("Anschreiben typography (karrierebibel.de)", () => {
-  it("sets 11 pt Fließtext with one and a half lines, a 10 pt Briefkopf, a 15 pt name and a 13 pt bold Betreff in one font", () => {
+  it("sets 11 pt Fließtext with the Lebenslauf's line spacing, a 10 pt Briefkopf, a 15 pt name and a 13 pt bold Betreff in one font", () => {
     const css = anschreibenCvTypographyCss;
     expect(css).toContain(".document-anschreiben .letter-preview,.document-anschreiben .letter-preview *{font-family:var(--cv-body-font)!important}");
     expect(css).toContain(".sender-name{font-size:15pt!important");
     expect(css).toContain(":is(.sender-title,.sender-contact){font-size:10pt!important");
-    expect(css).toMatch(/:is\(\.letter-salutation,\.letter-body,[^)]*\)\{font-size:var\(--letter-body-size\)!important;line-height:var\(--letter-line-height,1\.5\)!important\}/);
+    // The line spacing is the Lebenslauf's (its design's Zeilenabstand).
+    expect(css).toMatch(/:is\(\.letter-salutation,\.letter-body,[^)]*\)\{font-size:var\(--letter-body-size\)!important;line-height:var\(--letter-line-height,var\(--letter-cv-line-height\)\)!important\}/);
     expect(anschreibenSubjectCss).toContain("font-size:13pt!important;font-weight:700!important");
     // The rule under the Briefkopf: the Bewerbung's chosen colour, 1.25 pt (user: 1–1.5 pt).
     expect(css).toContain(".letter-rule{height:1.25pt!important;min-height:0!important;border:0!important;background:var(--doc-accent)!important}");
@@ -104,11 +106,14 @@ describe("Anschreiben typography (karrierebibel.de)", () => {
   it("lets a long letter give up the space above the Betreff first, then line spacing, before anything is scaled", () => {
     // „Standardabstand“ must never change the type: the white space under the date shrinks first (down to the
     // „4 Zeilen“ setting's 4 mm), the line spacing (1.5 → 1.3) only after that, in the preview and the PDF alike.
-    expect([...letterLineHeightSteps]).toEqual(["1.5", "1.45", "1.4", "1.35", "1.3"]);
+    expect(letterMinimumLineHeight).toBe(1.3);
     expect(letterMinimumBetreffGapMm).toBe(4);
     const shrinkGap = letterSpacingFitSource.indexOf("date.style.setProperty('margin-bottom'");
     expect(shrinkGap).toBeGreaterThan(-1);
-    expect(shrinkGap).toBeLessThan(letterSpacingFitSource.indexOf("--letter-line-height', steps[i]"));
+    expect(shrinkGap).toBeLessThan(letterSpacingFitSource.indexOf("content.style.setProperty('--letter-line-height'"));
+    // The line spacing starts at the Lebenslauf's and never goes below 1.3 (nor below the Lebenslauf's own).
+    expect(letterSpacingFitSource).toContain("getPropertyValue('--letter-cv-line-height')");
+    expect(letterSpacingFitSource).toContain("step >= Math.min(base, 1.3) - 0.001");
     expect(letterSpacingFitSource).toContain("Math.max(4, current - over() / mm - 0.2)");
     const html = buildDocumentHtml(applicationFor("modern", 0), profile, "anschreiben");
     expect(html).toContain(letterSpacingFitSource);

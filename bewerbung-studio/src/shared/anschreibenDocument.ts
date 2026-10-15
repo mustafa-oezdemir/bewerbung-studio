@@ -40,14 +40,14 @@ const identityTemplates = ["zweispaltig", "zeitgenoessisch", "elegant", "kreativ
 /**
  * Sizes and fonts of every Anschreiben (karrierebibel.de, user 2026-10-15), after the template letter rules on both
  * preview and PDF: one font (the Lebenslauf's body font, never mixed); Fließtext 11 pt (12 pt at most, following a
- * larger Lebenslauf text) with one and a half line spacing; Briefkopf 10 pt; the name 15 pt (11-13-15 rule).
+ * larger Lebenslauf text) with the Lebenslauf's line spacing; Briefkopf 10 pt; the name 15 pt (11-13-15 rule).
  */
 export const anschreibenCvTypographyCss = `
 .document-anschreiben .letter-preview,.document-anschreiben .letter-preview *{font-family:var(--cv-body-font)!important}
 .document-anschreiben .letter-preview .sender-name{font-size:15pt!important;line-height:1.15!important}
 .document-anschreiben .letter-preview :is(.sender-title,.sender-contact){font-size:10pt!important;line-height:1.3!important}
-.document-anschreiben .letter-preview :is(address,address *,.paper-date,.letter-attachments,.letter-attachments *){font-size:var(--letter-body-size)!important;line-height:1.3!important}
-.document-anschreiben .letter-preview :is(.letter-salutation,.letter-body,.letter-signature,.letter-signature *){font-size:var(--letter-body-size)!important;line-height:var(--letter-line-height,1.5)!important}
+.document-anschreiben .letter-preview :is(address,address *,.paper-date,.letter-attachments,.letter-attachments *){font-size:var(--letter-body-size)!important;line-height:var(--letter-cv-line-height)!important}
+.document-anschreiben .letter-preview :is(.letter-salutation,.letter-body,.letter-signature,.letter-signature *){font-size:var(--letter-body-size)!important;line-height:var(--letter-line-height,var(--letter-cv-line-height))!important}
 .document-anschreiben .letter-preview .letter-rule{height:1.25pt!important;min-height:0!important;border:0!important;background:var(--doc-accent)!important}
 .document-anschreiben.letter-cv-colors .letter-preview .sender-name{color:var(--letter-name-color)!important}
 .document-anschreiben.letter-cv-colors .letter-preview .sender-title{color:var(--letter-subject-color)!important}
@@ -61,10 +61,10 @@ export const anschreibenCvTypographyCss = `
 export const anschreibenSubjectCss = ".document-paper.document-anschreiben .letter-preview > h3{font-size:13pt!important;font-weight:700!important;line-height:1.25!important;color:var(--letter-subject-color)!important}";
 
 /**
- * A letter longer than its page first gives up line spacing (one and a half lines down to 1.3) and only then is
- * scaled, so the Fließtext keeps its 11 pt as long as possible. Used by the preview and the PDF's fit script alike.
+ * A letter longer than its page may narrow a line spacing above 1.3 (in 0.05 steps, never below 1.3 or below the
+ * Lebenslauf's own) before it is scaled, so the Fließtext keeps its 11 pt as long as possible.
  */
-export const letterLineHeightSteps = ["1.5", "1.45", "1.4", "1.35", "1.3"] as const;
+export const letterMinimumLineHeight = 1.3;
 
 /** The least space under the date (above the Betreff) the fit leaves: the „4 Zeilen nach oben“ setting's. */
 export const letterMinimumBetreffGapMm = 4;
@@ -72,8 +72,8 @@ export const letterMinimumBetreffGapMm = 4;
 /**
  * The one fit of a letter that is longer than its page (`paper` 297 mm high, `content` its `.letter-preview`), run by
  * the preview (`fitLetterSpacing`) and inside the PDF's fit script. White space gives way first: the space above the
- * Betreff shrinks down to 4 mm, so „Standardabstand“ never changes the type. Only then the line spacing steps down
- * (1.5 → 1.3); whatever still does not fit is scaled by the caller. Lengths go through mm, so the preview's zoom does
+ * Betreff shrinks down to 4 mm, so „Standardabstand“ never changes the type. Only then a line spacing above 1.3 steps
+ * down; whatever still does not fit is scaled by the caller. Lengths go through mm, so the preview's zoom does
  * not matter.
  */
 export const letterSpacingFitSource = [
@@ -87,8 +87,8 @@ export const letterSpacingFitSource = [
   `  var target = Math.max(${letterMinimumBetreffGapMm}, current - over() / mm - 0.2);`,
   "  if (target < current) date.style.setProperty('margin-bottom', target.toFixed(2) + 'mm', 'important');",
   "}",
-  `var steps = ${JSON.stringify(letterLineHeightSteps)};`,
-  "for (var i = 0; i < steps.length; i++) { content.style.setProperty('--letter-line-height', steps[i]); if (over() <= 0.5) break; }",
+  "var base = parseFloat(getComputedStyle(content).getPropertyValue('--letter-cv-line-height')) || 1.3;",
+  `for (var step = base; step >= Math.min(base, ${letterMinimumLineHeight}) - 0.001; step -= 0.05) { content.style.setProperty('--letter-line-height', step.toFixed(2)); if (over() <= 0.5) break; }`,
 ].join("\n");
 
 export const fitLetterSpacing = new Function("paper", "content", letterSpacingFitSource) as (paper: HTMLElement, content: HTMLElement) => void;
@@ -171,6 +171,8 @@ export const buildAnschreibenFrame = ({
         resolveLetterTitleColor(resolvedCv, { accentColor, secondaryColor }), resolvedCv.design.colors.text),
       "--letter-text-color": readableOnPaper(resolvedCv.design.colors.paragraph, resolvedCv.design.colors.text, "#222b2a"),
       "--letter-body-size": `${letterBodySizePt(resolvedCv.design.typography.bodySizePt)}pt`,
+      // The Lebenslauf's line spacing (Zeilenabstand of its design, the user's choice included).
+      "--letter-cv-line-height": String(resolvedCv.design.typography.lineHeight),
       "--cv-name-font": getDocumentFont(resolvedCv.design.typography.headingFontId).family,
       "--cv-name-size": `${resolvedCv.design.typography.headingSizePt}pt`,
       "--cv-body-font": getDocumentFont(resolvedCv.design.typography.fontId).family,
