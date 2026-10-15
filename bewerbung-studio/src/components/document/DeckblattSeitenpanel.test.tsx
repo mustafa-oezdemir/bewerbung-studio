@@ -80,8 +80,12 @@ describe("Deckblatt design Seitenpanel", () => {
     expect(page.querySelector(".dk-address")).toBeNull();
     expect(text(".dk-reach li")).toEqual(["Adresse:Gartenweg 7, 34117 Kassel", "Tel.:+49 555 0101", "E-Mail:zora@quellmalz.test", "LinkedIn:linkedin.com/in/zora"]);
     expect(page.querySelector('.dk-reach a[href="mailto:zora@quellmalz.test"]')).toBeTruthy();
-    expect(text(".dk-panel .dk-panel-docs h3")).toEqual(["Anlagen:"]);
-    expect(text(".dk-panel .dk-panel-docs li")).toEqual(expect.arrayContaining(["Anschreiben", "Lebenslauf", "Arbeitszeugnis Nordlicht.pdf", "Zertifikat DATEV.pdf"]));
+    // The Anlagen share one row with the contacts (heading at the height of „Adresse“), drawn in the panel column.
+    expect(text(".dk-reach-row > .dk-panel-docs h3")).toEqual(["Anlagen:"]);
+    expect(text(".dk-reach-row > .dk-panel-docs li")).toEqual(expect.arrayContaining(["Anschreiben", "Lebenslauf", "Arbeitszeugnis Nordlicht.pdf", "Zertifikat DATEV.pdf"]));
+    expect(page.querySelector(".dk-reach-row > .dk-reach + .dk-panel-docs")).toBeTruthy();
+    expect(deckblattCss).toContain(".deckblatt--seitenpanel .dk-panel-docs{position:absolute;top:0;left:calc(100% + 12mm + max(5mm,calc(17mm - var(--side-right,8mm))))");
+    expect(page.querySelector(".dk-panel")?.children).toHaveLength(0);
     // Competencies are not part of this design.
     expect(page.querySelector(".dk-competencies")).toBeNull();
   });

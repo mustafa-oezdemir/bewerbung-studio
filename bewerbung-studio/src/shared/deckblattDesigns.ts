@@ -387,11 +387,7 @@ const seitenpanel = (model: DeckblattModel) => {
   const reach = model.contacts;
   const appInfo = [model.company ? `bei ${escapeHtml(model.company)}` : "", [model.location, model.date].filter(Boolean).map(escapeHtml).join(" · ")].filter(Boolean);
   return `
-  <aside class="dk-panel">${
-    model.documents.length
-      ? `<div class="dk-panel-docs${model.documents.length > 6 ? " dk-panel-docs--many" : ""}"><h3>Anlagen:</h3>${list(model.documents)}</div>`
-      : ""
-  }</aside>
+  <aside class="dk-panel"></aside>
   <header class="dk-head">
     <h1 class="dk-heading"><span class="dk-lead">Bewerbung</span> <span class="dk-role${role.length > 48 ? " dk-role--long" : ""}">${escapeHtml(role)}</span></h1>${
       appInfo.length ? `<p class="dk-app">${appInfo.map((line) => `<span>${line}</span>`).join("")}</p>` : ""
@@ -402,10 +398,15 @@ const seitenpanel = (model: DeckblattModel) => {
     <h2 class="dk-name dk-name--${nameSize(model.name)}">${escapeHtml(model.name)}</h2>${
       model.professionalTitle ? `<p class="dk-title">${escapeHtml(model.professionalTitle)}</p>` : ""
     }${model.statement ? `<p class="dk-statement">${escapeHtml(model.statement)}</p>` : ""}${
-      reach.length
-        ? `<ul class="dk-reach">${reach
+      reach.length || model.documents.length
+        // One row: the contacts on the left, the Anlagen drawn in the panel column at the height of „Adresse“.
+        ? `<div class="dk-reach-row">${reach.length ? `<ul class="dk-reach">${reach
             .map((contact) => `<li><span class="dk-reach-label">${escapeHtml(reachLabels[contact.label] ?? contact.label)}:</span><span>${contactValue(contact)}</span></li>`)
-            .join("")}</ul>`
+            .join("")}</ul>` : ""}${
+            model.documents.length
+              ? `<div class="dk-panel-docs${model.documents.length > 6 ? " dk-panel-docs--many" : ""}"><h3>Anlagen:</h3>${list(model.documents)}</div>`
+              : ""
+          }</div>`
         : ""
     }
   </section>`;
@@ -702,7 +703,8 @@ export const deckblattCss = `
 
 .deckblatt--seitenpanel{background:var(--page-background)}
 .deckblatt--seitenpanel .dk-panel{position:absolute;top:0;right:0;bottom:0;width:62mm;background:var(--tint-panel);color:var(--on-panel)}
-.deckblatt--seitenpanel .dk-panel-docs{position:absolute;left:max(5mm,calc(17mm - var(--side-right,8mm)));right:var(--side-right,8mm);bottom:20mm}
+.deckblatt--seitenpanel .dk-reach-row{position:relative;margin-top:8mm}
+.deckblatt--seitenpanel .dk-panel-docs{position:absolute;top:0;left:calc(100% + 12mm + max(5mm,calc(17mm - var(--side-right,8mm))));width:calc(62mm - max(5mm,calc(17mm - var(--side-right,8mm))) - var(--side-right,8mm));color:var(--on-panel)}
 .deckblatt--seitenpanel .dk-panel-docs h3{margin-bottom:2.2mm;font-size:9.5pt;font-weight:700;letter-spacing:.12em;line-height:1.3;text-transform:uppercase;color:inherit}
 .deckblatt--seitenpanel .dk-panel-docs ul{display:grid;gap:.9mm}
 .deckblatt--seitenpanel .dk-panel-docs li{position:relative;padding-left:3.4mm;font-size:9.5pt;line-height:1.3;overflow-wrap:anywhere}
@@ -723,7 +725,7 @@ export const deckblattCss = `
 .deckblatt--seitenpanel .dk-name--normal{font-size:24pt}.deckblatt--seitenpanel .dk-name--long{font-size:20pt}.deckblatt--seitenpanel .dk-name--xlong{font-size:17pt}
 .deckblatt--seitenpanel .dk-title{margin-top:1.8mm;font-size:11pt;line-height:1.3;color:var(--muted)}
 .deckblatt--seitenpanel .dk-statement{display:-webkit-box;margin-top:4mm;overflow:hidden;font-size:9.5pt;line-height:1.4;-webkit-box-orient:vertical;-webkit-line-clamp:5}
-.deckblatt--seitenpanel .dk-reach{display:grid;gap:.8mm;margin-top:8mm}
+.deckblatt--seitenpanel .dk-reach{display:grid;gap:.8mm}
 .deckblatt--seitenpanel .dk-reach li{display:grid;grid-template-columns:17mm minmax(0,1fr);font-size:10pt;line-height:1.35;overflow-wrap:anywhere}
 .deckblatt--seitenpanel .dk-reach-label{color:var(--muted)}
 .deckblatt .cover-identity h2,.deckblatt .dk-name{font-family:var(--heading-font);font-size:var(--cv-name-size)}
