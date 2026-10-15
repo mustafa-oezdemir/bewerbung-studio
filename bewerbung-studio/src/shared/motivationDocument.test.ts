@@ -158,7 +158,7 @@ describe("Motivationsschreiben data", () => {
     expect(motivationCss).toMatch(/\.motivation \.mv-contacts\{[^}]*text-align:right/);
     // No decoration of its own: no bands, cards, icons or background shapes (the inherited Briefkopf's rules only
     // switch the Anschreiben sheet's look off).
-    const ownRules = motivationCss.split("\n").filter((line) => !line.includes(".letterhead-only")).join("\n");
+    const ownRules = motivationCss.split("\n").filter((line) => !line.includes(".letter-frame") && !line.includes("motivation--letter")).join("\n");
     expect(ownRules).not.toMatch(/gradient|box-shadow|border-radius|::before|::after|svg/);
     expect(model("modern", texts, undefined, { street: "", postalCode: "", city: "", phone: "", email: "" }).contacts).toEqual([]);
   });
@@ -191,10 +191,13 @@ describe("Motivationsschreiben data", () => {
   });
 
   it("never cuts, hides or scales the text", () => {
-    const ownRules = motivationCss.split("\n").filter((line) => !line.includes(".letterhead-only")).join("\n");
+    const ownRules = motivationCss.split("\n").filter((line) => !line.includes(".letter-frame") && !line.includes("motivation--letter")).join("\n");
     expect(ownRules).not.toMatch(/(?<!text-)transform:|scale\(|line-clamp|text-overflow|max-height:297mm/);
     // The inherited Briefkopf is never scaled or cut either: its sheet's fit transform and fixed height are switched off.
-    expect(motivationCss).toMatch(/\.motivation>\.letterhead-only\.document-paper\{[^}]*height:auto!important;[^}]*overflow:visible!important;transform:none!important/);
+    // The inherited Anschreiben frame is never scaled or cut either: it grows with the text, its fit transform is off,
+    // and its text box repeats the page margins on every PDF page.
+    expect(motivationCss).toMatch(/\.motivation--letter>\.letter-frame\.document-paper\{[^}]*height:auto!important;[^}]*overflow:visible!important;transform:none!important/);
+    expect(motivationCss).toMatch(/\.motivation--letter>\.letter-frame>\.letter-preview\{[^}]*transform:none!important;[^}]*box-decoration-break:clone/);
     // No rule that holds text may clip it.
     const textRules = motivationCss.split("\n").filter((line) => /^\.motivation(\{| \.mv-(body|paragraph|closing|heading|header)\{)/.test(line));
     expect(textRules.length).toBeGreaterThanOrEqual(6);

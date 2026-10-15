@@ -73,8 +73,9 @@ describe("DocumentsView Motivation tab", () => {
         ["--heading-font", "--cv-name-size", "--body-font", "--body-size"]],
       [renderTab(application, "anschreiben").querySelector<HTMLElement>(".document-anschreiben")!, pdf.querySelector<HTMLElement>(".document-anschreiben")!,
         ["--cv-name-font", "--cv-name-size", "--cv-body-font", "--cv-body-size"]],
-      [renderTab(application, "motivation").querySelector<HTMLElement>(".motivation")!, pdf.querySelector<HTMLElement>(".motivation")!,
-        ["--mv-heading-font", "--mv-name-size", "--mv-font", "--mv-body-size"]],
+      // The Motivationsschreiben is drawn in the Anschreiben's frame and carries the same variables.
+      [renderTab(application, "motivation").querySelector<HTMLElement>(".motivation > .letter-frame")!, pdf.querySelector<HTMLElement>(".motivation > .letter-frame")!,
+        ["--cv-name-font", "--cv-name-size", "--cv-body-font", "--cv-body-size"]],
     ] as const;
     for (const [preview, printed, keys] of pairs) {
       for (const element of [preview, printed]) {
@@ -87,16 +88,16 @@ describe("DocumentsView Motivation tab", () => {
 
   it("shows the automatic Anrede read-only in the editor and on the page, and follows the Ansprechpartner", () => {
     const frau = renderMotivationTab(applicationWith({ salutation: "Frau", firstName: "Anna", lastName: "Schulz" }));
-    expect(frau.querySelector(".document-motivation .mv-salutation")?.textContent).toBe("Sehr geehrte Frau Schulz,");
+    expect(frau.querySelector(".document-motivation .letter-preview > .letter-salutation")?.textContent).toBe("Sehr geehrte Frau Schulz,");
     const editorValues = [...frau.querySelectorAll(".motivation-editor .motivation-generated-value")].map((node) => node.textContent);
     expect(editorValues).toContain("Sehr geehrte Frau Schulz,");
     expect(editorValues).toContain("Kassel, 9. Oktober 2026");
     expect(frau.querySelector('.motivation-editor [name*="salutation" i], .motivation-editor [name*="greeting" i]')).toBeNull();
 
     const herr = renderMotivationTab(applicationWith({ salutation: "Herr", lastName: "Berger" }));
-    expect(herr.querySelector(".document-motivation .mv-salutation")?.textContent).toBe("Sehr geehrter Herr Berger,");
+    expect(herr.querySelector(".document-motivation .letter-preview > .letter-salutation")?.textContent).toBe("Sehr geehrter Herr Berger,");
     const none = renderMotivationTab(applicationWith({}));
-    expect(none.querySelector(".document-motivation .mv-salutation")?.textContent).toBe("Sehr geehrte Damen und Herren,");
+    expect(none.querySelector(".document-motivation .letter-preview > .letter-salutation")?.textContent).toBe("Sehr geehrte Damen und Herren,");
   });
 
   it("lists the editor sections in the requested order", () => {
@@ -123,11 +124,12 @@ describe("DocumentsView Motivation tab", () => {
     expect(control?.querySelector("button")?.hasAttribute("disabled")).toBe(true);
     // Each gap moves on its own.
     expect(headingAfter?.textContent).toContain("Standardabstand");
-    const previewGap = preview.querySelector<HTMLElement>(".document-motivation .motivation")!
+    // Counted in lines of the letter's Fließtext: its size and the Lebenslauf's line spacing.
+    const previewGap = preview.querySelector<HTMLElement>(".document-motivation .motivation > .letter-frame")!
       .style.getPropertyValue("--mv-title-gap");
     const pdfGap = parseHTML(buildDocumentHtml(compact, profile, "motivation")).document
-      .querySelector<HTMLElement>(".motivation")!.style.getPropertyValue("--mv-title-gap");
-    expect(previewGap).toBe("calc(var(--mv-body-size) * var(--mv-line-height) * 1)");
+      .querySelector<HTMLElement>(".motivation > .letter-frame")!.style.getPropertyValue("--mv-title-gap");
+    expect(previewGap).toBe("calc(var(--letter-body-size) * var(--letter-cv-line-height) * 1)");
     expect(pdfGap).toBe(previewGap);
   });
 
@@ -142,11 +144,11 @@ describe("DocumentsView Motivation tab", () => {
     const control = preview.querySelector(".motivation-editor .cover-subject-spacing-control");
     expect(control?.textContent).toContain("4 Zeilen nach oben verschoben");
     expect(control?.querySelector("button")?.hasAttribute("disabled")).toBe(true);
-    const previewGap = preview.querySelector<HTMLElement>(".document-motivation .motivation")!
+    const previewGap = preview.querySelector<HTMLElement>(".document-motivation .motivation > .letter-frame")!
       .style.getPropertyValue("--mv-header-gap");
     const pdfGap = parseHTML(buildDocumentHtml(compact, profile, "motivation")).document
-      .querySelector<HTMLElement>(".motivation")!.style.getPropertyValue("--mv-header-gap");
-    expect(previewGap).toBe("calc(var(--mv-body-size) * var(--mv-line-height) * 4)");
+      .querySelector<HTMLElement>(".motivation > .letter-frame")!.style.getPropertyValue("--mv-header-gap");
+    expect(previewGap).toBe("calc(var(--letter-body-size) * var(--letter-cv-line-height) * 4)");
     expect(pdfGap).toBe(previewGap);
   });
 
@@ -156,8 +158,10 @@ describe("DocumentsView Motivation tab", () => {
     const preview = renderMotivationTab(application).querySelector(".document-motivation .motivation")!;
     const pdf = parseHTML(buildDocumentHtml(application, profile, "motivation")).document.querySelector(".motivation")!;
     expect(tree(preview)).toEqual(tree(pdf));
-    expect((preview as HTMLElement).style.getPropertyValue("--mv-body-size")).toBe("12pt");
-    expect((preview as HTMLElement).style.getPropertyValue("--mv-margin-left")).toBe("18mm");
+    const frame = preview.querySelector<HTMLElement>(":scope > .letter-frame")!;
+    expect(frame.style.getPropertyValue("--letter-body-size")).toBe("12pt");
+    expect(frame.style.getPropertyValue("--letter-cv-line-height")).toBe("1.4");
+    expect(frame.style.getPropertyValue("--side-left")).toBe("18mm");
     expect(preview.textContent).not.toMatch(/Fullstack|Scherer|Erlangen|Bewerbung als/);
     // The preview never scales the page to fit.
     expect(renderMotivationTab(application).querySelector(".document-motivation")?.getAttribute("style")).not.toMatch(/transform|scale|zoom/);
@@ -181,17 +185,19 @@ describe("DocumentsView Motivation tab", () => {
     expect(letterPaper.querySelector(":scope > style")?.textContent).toBe(letterSideMarginCss);
   });
 
-  it("never zooms the inherited Briefkopf a second time inside the zoomed preview page", () => {
-    // app.css zooms every ".paper-stage .document-paper"; the Briefkopf frame inside the Motivation page is one too.
+  it("never zooms the inherited Anschreiben frame a second time inside the zoomed preview page", () => {
+    // app.css zooms every ".paper-stage .document-paper"; the Anschreiben frame inside the Motivation page is one too.
     const appCss = readFileSync(resolve(__dirname, "../app.css"), "utf8");
     expect(appCss).toMatch(/\.paper-stage \.document-paper \{\s*zoom:/);
-    expect(motivationCss).toMatch(/\.motivation>\.letterhead-only\.document-paper\{zoom:1!important;/);
+    expect(motivationCss).toMatch(/\.motivation--letter>\.letter-frame\.document-paper\{zoom:1!important;/);
   });
 
   it("starts the Anschreiben as far from the top as the Motivationsschreiben, in preview and PDF", () => {
     const application = applicationWith({});
-    const motivation = renderMotivationTab(application).querySelector<HTMLElement>(".document-motivation .motivation")!;
-    expect(motivation.style.getPropertyValue("--mv-margin-top")).toBe(`${documentTopMarginMm}mm`);
+    // The Motivationsschreiben is drawn in the Anschreiben's frame and so carries the same top rule.
+    const motivationStyles = [...renderMotivationTab(application).querySelectorAll(".document-motivation .letter-frame > style")]
+      .map((style) => style.textContent);
+    expect(motivationStyles).toContain(letterTopMarginCss);
     // 20 mm less one 11 pt line at one and a half spacing.
     expect(documentTopMarginMm).toBe(14.2);
     const letterStyles = [...renderTab(application, "anschreiben").querySelectorAll(".document-paper.document-anschreiben > style")]

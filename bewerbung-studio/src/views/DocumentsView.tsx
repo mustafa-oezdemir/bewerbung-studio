@@ -67,7 +67,7 @@ import { DocumentBackgroundLayer } from "../components/document/DocumentBackgrou
 import { AnschreibenPage } from "../components/document/AnschreibenPage";
 import { CertificateSelection } from "../components/resume/CertificateSelection";
 import { certificateEntries } from "../shared/certificates";
-import { anschreibenLetterhead, anschreibenSubjectClassName, buildAnschreibenFrame, fitLetterSpacing, type AnschreibenModel } from "../shared/anschreibenDocument";
+import { anschreibenLetterFrame, anschreibenSubjectClassName, buildAnschreibenFrame, fitLetterSpacing, type AnschreibenModel } from "../shared/anschreibenDocument";
 import { ResizableSplitView } from "../components/layout/ResizableSplitView";
 import { ResumeSectionsPanel } from "../components/resume/ResumeSectionsPanel";
 import { ElegantResume } from "../components/resume/templates/elegant";
@@ -795,8 +795,8 @@ export function DocumentsView({
     signature: { greeting: "Mit freundlichen Grüßen", source: signatureSource, name },
     attachments: docs.showCoverLetterAttachments ? coverLetterAttachments : null,
   };
-  // The Motivationsschreiben inherits the Anschreiben's Briefkopf (template look and sender), as the PDF does.
-  const motivationModel = { ...motivationBaseModel, letterhead: anschreibenLetterhead(anschreibenModel) };
+  // The Motivationsschreiben is drawn in the Anschreiben's frame (its whole design), as in the PDF.
+  const motivationModel = { ...motivationBaseModel, letter: anschreibenLetterFrame(anschreibenModel) };
   const legacyTextContrastReadable = hasReadableColorContrast(design.settings.textColor, design.settings.backgroundColor);
   const documentDesignUnsaved = JSON.stringify(design) !== JSON.stringify(createDocumentDesignDraft(application));
   const documentTextUnsaved = JSON.stringify(docs) !== JSON.stringify(application.documents);

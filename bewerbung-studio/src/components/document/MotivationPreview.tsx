@@ -35,7 +35,8 @@ export function MotivationPreview({
   const host = useRef<HTMLDivElement>(null);
   const pagesRef = useRef(0);
   useLayoutEffect(() => {
-    const element = host.current?.querySelector(".motivation");
+    // Inside the Anschreiben frame the letter's text box carries the page margins; else the plain page does.
+    const element = host.current?.querySelector(".motivation--letter .letter-preview") ?? host.current?.querySelector(".motivation");
     if (!element) return;
     const measure = () => {
       const { pages, firstBreakMm } = measureMotivationPages(element);

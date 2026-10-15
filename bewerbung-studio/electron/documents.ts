@@ -17,7 +17,7 @@ import { resolveResumeClosingLine } from "../src/shared/resumeClosing";
 import { resolveResumeFooterWebsite } from "../src/shared/resumeFooter";
 import { buildMotivationModel, motivationCss, renderMotivationMarkup } from "../src/shared/motivationDocument";
 import { letterSideMarginCss, letterTopMarginCss, resolveDocumentSideMargins } from "../src/shared/documentSideMargins";
-import { anschreibenLetterhead, anschreibenSubjectClassName, buildAnschreibenFrame, letterSpacingFitSource, renderAnschreibenMarkup } from "../src/shared/anschreibenDocument";
+import { anschreibenLetterFrame, anschreibenSubjectClassName, buildAnschreibenFrame, letterSpacingFitSource, renderAnschreibenMarkup } from "../src/shared/anschreibenDocument";
 import { anschreibenPrintCss } from "./anschreibenPrintCss";
 import { isDocumentPackage, packageDocumentOrder } from "../src/shared/applicationDocuments";
 import type { ExportTarget } from "../src/shared/ipc";
@@ -3574,15 +3574,15 @@ export const buildDocumentHtml = (
     .join("");
   const cvHtml = isDocumentPackage(target) ? buildDocumentHtml(application, profile, "lebenslauf", attachments, resumeDesign) : "";
   const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings, resolvedCv);
-  // The Motivationsschreiben ("Dritte Seite"): the Anschreiben's Briefkopf, the automatic Anrede and the user's text in
-  // the selected Lebenslauf's effective design (one model and stylesheet with the preview). Its page grows with the
+  // The Motivationsschreiben ("Dritte Seite"): drawn in the Anschreiben's page frame (its whole design), with its own
+  // Überschrift, the automatic Anrede and the user's text (one model and stylesheet with the preview). Its page grows with the
   // text (no fitting, no clipping); in the Mappe it follows the Anschreiben.
   const motivationListed = getApplicationDocumentItems(attachments, application.id, docs.documentListSettings, docs.motivationEnabled)
     .some((item) => item.key === "motivation" && item.isVisible);
   const withMotivation = target === "motivation" || (isDocumentPackage(target) && motivationListed);
   const motivationModel = withMotivation
     ? { ...buildMotivationModel({ application, profile, documents: docs, resolvedCv, themeColors: { accentColor: accent, secondaryColor: secondary } }),
-      letterhead: anschreibenLetterhead({ templateId: template.id, ...letterFrame, sender: letterSender }) }
+      letter: anschreibenLetterFrame({ templateId: template.id, ...letterFrame, sender: letterSender, subjectClassName: anschreibenSubjectClassName(template.id) }) }
     : undefined;
   const motivation = motivationModel
     ? `<section class="page motivation-sheet" data-no-fit="true" style="background:${escapeHtml(motivationModel.style["--mv-background"])}">${renderMotivationMarkup(motivationModel)}</section>`

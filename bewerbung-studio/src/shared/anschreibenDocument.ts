@@ -191,21 +191,29 @@ const escapeHtml = (value: string) =>
     .replaceAll("'", "&#39;");
 
 /**
- * The Anschreiben's Briefkopf on its own: the sender line and the rule inside the page's classes, style variables and
- * stylesheets, so another page (the Motivationsschreiben) shows exactly the Anschreiben's Briefkopf of the template.
+ * The Anschreiben's page frame without its content: classes, style variables, stylesheets, sender and Betreff class.
+ * Another letter of the Bewerbung (the Motivationsschreiben) draws its own content inside it, so it has exactly the
+ * Anschreiben's design in every template: Briefkopf, fonts, sizes, line spacing, colours and margins.
  */
-export type AnschreibenLetterhead = Pick<AnschreibenModel, "templateId" | "className" | "style" | "stylesheets" | "sender">;
+export type AnschreibenLetterFrame = Pick<AnschreibenModel, "templateId" | "className" | "style" | "stylesheets" | "sender" | "subjectClassName">;
 
-/** The Briefkopf of an Anschreiben page; its background classes stay behind (they decorate a whole sheet). */
-export const anschreibenLetterhead = (model: AnschreibenLetterhead): AnschreibenLetterhead => ({
+/**
+ * The frame of an Anschreiben page. What belongs to the Anschreiben's own text stays behind: the background classes
+ * (they decorate one fixed sheet), the density of its text length and its Abstand vor Betreff.
+ */
+export const anschreibenLetterFrame = (model: AnschreibenLetterFrame): AnschreibenLetterFrame => ({
   templateId: model.templateId,
-  className: `${model.className.split(/\s+/).filter((name) => name && !/^(background-|print-background$|no-print-background$)/.test(name)).join(" ")} letterhead-only`,
+  className: `${model.className.split(/\s+/)
+    .filter((name) => name && !/^(background-|print-background$|no-print-background$|letter-(compact|dense|standard)$|letter-gap-\d+$)/.test(name))
+    .join(" ")} letter-standard letter-gap-0 letter-frame`,
   style: model.style,
   stylesheets: model.stylesheets,
   sender: model.sender,
+  subjectClassName: model.subjectClassName,
 });
 
-const senderMarkup = (sender: AnschreibenModel["sender"]) =>
+/** The Briefkopf (sender line and rule) of an Anschreiben page as HTML; the preview draws it with `SenderBlock`. */
+export const renderAnschreibenSenderMarkup = (sender: AnschreibenModel["sender"]) =>
   `<div class="letter-header"><p class="sender-line"><span class="sender-name">${escapeHtml(sender.name)}</span><span class="sender-title">${
     escapeHtml(sender.title)}</span><span class="sender-contact">${escapeHtml(sender.contact)}</span></p></div>`
   + `<i class="paper-rule letter-rule"></i>`;
@@ -223,7 +231,7 @@ export const renderAnschreibenMarkup = (model: AnschreibenModel, backgroundMarku
   + model.stylesheets.map((css) => `<style>${css}</style>`).join("")
   + backgroundMarkup
   + `<div class="letter-preview">`
-  + senderMarkup(model.sender)
+  + renderAnschreibenSenderMarkup(model.sender)
   + `<address>${model.recipientLines.map((line, index) => `<span>${escapeHtml(line)}${index < model.recipientLines.length - 1 ? "<br/>" : ""}</span>`).join("")}</address>`
   + `<p class="paper-date">${escapeHtml(model.placeDate)}</p>`
   + `<h3${model.subjectClassName ? ` class="${model.subjectClassName}"` : ""}>${escapeHtml(model.subject)}</h3>`
@@ -235,8 +243,3 @@ export const renderAnschreibenMarkup = (model: AnschreibenModel, backgroundMarku
   + (model.attachments ? `<div class="letter-attachments"><strong>Anlagen</strong>${model.attachments.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>` : "")
   + `</div></div>`;
 
-/** The Briefkopf alone as HTML (PDF); the preview draws the same tree with `AnschreibenLetterheadBlock`. */
-export const renderAnschreibenLetterheadMarkup = (letterhead: AnschreibenLetterhead) =>
-  `<div class="${escapeHtml(letterhead.className)}" data-resume-template="${escapeHtml(letterhead.templateId)}" style="${escapeHtml(anschreibenStyleText(letterhead))}">`
-  + letterhead.stylesheets.map((css) => `<style>${css}</style>`).join("")
-  + `<div class="letter-preview">${senderMarkup(letterhead.sender)}</div></div>`;

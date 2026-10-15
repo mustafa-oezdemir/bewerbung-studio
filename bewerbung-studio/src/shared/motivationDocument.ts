@@ -10,12 +10,13 @@ import { resolveEffectiveDesignTokens, resolveResumeAppearance } from "./resumeD
 import { getProfileMediaSource } from "./profileMedia";
 import { resolveLetterTitleColor } from "./resumeTitleColor";
 import { getTemplate } from "./templates";
-import { renderAnschreibenLetterheadMarkup, type AnschreibenLetterhead } from "./anschreibenDocument";
+import { anschreibenStyleText, renderAnschreibenSenderMarkup, type AnschreibenLetterFrame } from "./anschreibenDocument";
 
 /**
  * The standalone Motivationsschreiben ("Dritte Seite", see karrierebibel.de/motivationsschreiben), DIN-5008-oriented
- * and plain: the Anschreiben's Briefkopf of the Bewerbung (`letterhead`; without it a plain one with the name on the
- * left and address, phone and e-mail on the right), the Überschrift, the
+ * and plain: drawn inside the Anschreiben's page frame of the Bewerbung (`letter`: its Briefkopf, fonts, sizes, line
+ * spacing, colours and margins; without it a plain page with the name on the left and address, phone and e-mail on the
+ * right), the Überschrift, the
  * Anrede from the application's Ansprechpartner, the user's own paragraphs, the Grußformel with the profile's
  * signature and Ort und Datum. No recipient block, no position or company line, no decoration.
  *
@@ -44,10 +45,12 @@ export type MotivationModel = {
   style: Record<string, string>;
   isEmpty: boolean;
   /**
-   * The Anschreiben's Briefkopf of the same Bewerbung (template look and sender), shown instead of the plain one, so the
-   * two letters always share their Briefkopf. Set by the callers that build the Anschreiben too.
+   * The Anschreiben's page frame of the same Bewerbung (`anschreibenLetterFrame`): the Motivationsschreiben inherits
+   * its whole design and only brings its own content. Set by the callers that build the Anschreiben too.
    */
-  letterhead?: AnschreibenLetterhead;
+  letter?: AnschreibenLetterFrame;
+  /** Empty text lines above the Überschrift and above the Anrede (after the user's „höher“ steps). */
+  gapLines: { header: number; title: number };
 };
 
 /** The editor fields of the document, in the order they are printed. */
@@ -186,8 +189,26 @@ export const buildMotivationModel = ({
     },
     style,
     isEmpty: !paragraphs.length,
+    gapLines: {
+      header: motivationDefaults.headerGapLines - documents.motivationHeadingGapReduction,
+      title: motivationDefaults.titleGapLines - documents.motivationSalutationGapReduction,
+    },
   };
 };
+
+/**
+ * Style of the Anschreiben frame on the Motivationsschreiben: the frame's own variables plus the two gaps, counted in
+ * lines of the letter's Fließtext (its size and the Lebenslauf's line spacing).
+ */
+export const motivationLetterStyle = (model: Pick<MotivationModel, "gapLines"> & { letter: AnschreibenLetterFrame }) => ({
+  ...model.letter.style,
+  "--mv-header-gap": `calc(var(--letter-body-size) * var(--letter-cv-line-height) * ${model.gapLines.header})`,
+  "--mv-title-gap": `calc(var(--letter-body-size) * var(--letter-cv-line-height) * ${model.gapLines.title})`,
+});
+
+/** Class of the Überschrift inside the Anschreiben frame: the template's Betreff class, so it looks like the Betreff. */
+export const motivationLetterHeadingClassName = (letter: AnschreibenLetterFrame) =>
+  `${letter.subjectClassName ? `${letter.subjectClassName} ` : ""}motivation-heading`;
 
 /** Class names of the page root; the React preview and the HTML export use the same list. */
 export const motivationRootClassName = () => "motivation";
@@ -216,9 +237,23 @@ export const renderMotivationMarkup = (model: MotivationModel) => {
   const signature = model.closing.signatureSource
     ? `<img class="mv-signature" src="${escapeHtml(model.closing.signatureSource)}" alt="Unterschrift"/>`
     : "";
+  if (model.letter) {
+    const letter = model.letter;
+    return `<article class="${motivationRootClassName()} motivation--letter" data-motivation-template="${escapeHtml(model.templateId)}">`
+      + `<div class="${escapeHtml(letter.className)}" data-resume-template="${escapeHtml(letter.templateId)}" style="${escapeHtml(anschreibenStyleText({ style: motivationLetterStyle({ ...model, letter }) }))}">`
+      + letter.stylesheets.map((css) => `<style>${css}</style>`).join("")
+      + `<div class="letter-preview">`
+      + renderAnschreibenSenderMarkup(letter.sender)
+      + `<h3 class="${motivationLetterHeadingClassName(letter)}">${escapeHtml(model.heading)}</h3>`
+      + `<p class="letter-salutation">${escapeHtml(model.salutation)}</p>`
+      + model.paragraphs.map((paragraph) => `<p class="letter-body${paragraph.part === "closing" ? " letter-closing" : ""}" data-part="${paragraph.part}">${escapeHtml(paragraph.text)}</p>`).join("")
+      + `<div class="motivation-closing"><p class="letter-signature"><span>${escapeHtml(model.closing.greeting)}</span>${model.closing.signatureSource
+        ? `<img class="signature-image" src="${escapeHtml(model.closing.signatureSource)}" alt="Unterschrift"/>` : ""}<span class="signature-name">${escapeHtml(model.closing.signer)}</span></p>${
+        model.closing.placeDate ? `<p class="paper-date motivation-place-date">${escapeHtml(model.closing.placeDate)}</p>` : ""}</div>`
+      + "</div></div></article>";
+  }
   return `<article class="${motivationRootClassName()}" data-motivation-template="${escapeHtml(model.templateId)}" style="${escapeHtml(motivationStyleText(model))}">`
-    + (model.letterhead ? renderAnschreibenLetterheadMarkup(model.letterhead)
-      : `<header class="mv-header"><h1 class="mv-name">${escapeHtml(model.name)}</h1>${contacts}</header>`)
+    + `<header class="mv-header"><h1 class="mv-name">${escapeHtml(model.name)}</h1>${contacts}</header>`
     + `<h2 class="${motivationHeadingClassName()}">${escapeHtml(model.heading)}</h2>`
     + `<p class="mv-salutation">${escapeHtml(model.salutation)}</p>`
     + (model.paragraphs.length ? `<div class="mv-body">${model.paragraphs.map((paragraph) =>
@@ -236,11 +271,19 @@ export const renderMotivationMarkup = (model: MotivationModel) => {
  */
 export const motivationCss = `
 .motivation{position:relative;box-sizing:border-box;display:block;width:210mm;min-height:297mm;margin:0;padding:var(--mv-margin-top) var(--mv-margin-right) var(--mv-margin-bottom) var(--mv-margin-left);background:var(--mv-background);color:var(--mv-text);font-family:var(--mv-font);font-size:var(--mv-body-size);font-weight:400;line-height:var(--mv-line-height);text-align:left;-webkit-box-decoration-break:clone;box-decoration-break:clone;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.motivation :not(:where(.letterhead-only,.letterhead-only *)){box-sizing:border-box;margin:0;padding:0}
-.motivation :where(p,li,ul,a,footer,header,div,h1,h2):not(:where(.letterhead-only,.letterhead-only *)){font-size:inherit;line-height:inherit;font-weight:inherit;font-style:normal;color:inherit;text-decoration:none}
-.motivation>.letterhead-only.document-paper{zoom:1!important;display:block!important;position:relative!important;width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;aspect-ratio:auto!important;margin:calc(-1 * var(--mv-margin-top)) calc(-1 * var(--mv-margin-right)) 0 calc(-1 * var(--mv-margin-left))!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;overflow:visible!important;transform:none!important;break-inside:avoid}
-.motivation>.letterhead-only>.letter-preview{height:auto!important;min-height:0!important;max-height:none!important;padding-bottom:0!important;transform:none!important;overflow:visible!important}
-.motivation>.letterhead-only .letter-rule{margin-bottom:0!important}
+.motivation :not(:where(.letter-frame,.letter-frame *)){box-sizing:border-box;margin:0;padding:0}
+.motivation :where(p,li,ul,a,footer,header,div,h1,h2):not(:where(.letter-frame,.letter-frame *)){font-size:inherit;line-height:inherit;font-weight:inherit;font-style:normal;color:inherit;text-decoration:none}
+.motivation.motivation--letter{min-height:0;padding:0;background:transparent;text-align:start}
+.motivation--letter>.letter-frame.document-paper{zoom:1!important;display:block!important;position:relative!important;width:210mm!important;height:auto!important;min-height:297mm!important;max-height:none!important;aspect-ratio:auto!important;margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important;transform:none!important}
+.motivation--letter>.letter-frame>.letter-preview{height:auto!important;min-height:297mm!important;max-height:none!important;overflow:visible!important;transform:none!important;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.motivation--letter>.letter-frame>.letter-preview>.letter-rule{margin-bottom:0!important}
+.motivation--letter>.letter-frame>.letter-preview>.motivation-heading{margin:var(--mv-header-gap) 0 0!important;break-after:avoid}
+.motivation--letter>.letter-frame>.letter-preview>.letter-salutation{margin-top:var(--mv-title-gap)!important;break-after:avoid}
+.motivation--letter>.letter-frame.kreativ-letter>.letter-preview{padding-top:${documentTopMarginMm}mm!important}
+.motivation--letter>.letter-frame.kreativ-letter>.letter-preview>.letter-header{margin-top:-${documentTopMarginMm}mm!important}
+.motivation--letter .letter-preview>.letter-body{white-space:pre-line;orphans:3;widows:3}
+.motivation--letter .motivation-closing{display:flex;align-items:flex-end;justify-content:space-between;gap:8mm;break-inside:avoid}
+.motivation--letter .motivation-closing>.paper-date{margin:0!important;text-align:right;white-space:nowrap}
 .motivation .mv-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8mm;padding-bottom:4mm;border-bottom:var(--mv-rule-width) solid var(--mv-line);break-inside:avoid}
 .motivation .mv-name{flex:1 1 auto;min-width:0;font-family:var(--mv-heading-font);font-size:var(--mv-name-size);font-weight:var(--mv-name-weight);line-height:1.15;letter-spacing:0;text-transform:none;color:var(--mv-name-color);overflow-wrap:anywhere}
 .motivation .mv-contacts{flex:0 1 auto;max-width:62%;list-style:none;font-size:var(--mv-contact-size);line-height:1.35;text-align:right;color:var(--mv-contact-color);overflow-wrap:anywhere}

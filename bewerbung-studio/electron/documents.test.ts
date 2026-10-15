@@ -86,7 +86,7 @@ describe("Lebenslauf-Dokumente", () => {
       const page = parseHTML(buildDocumentHtml(selected, profile, "mappe")).document;
       const deckblatt = page.querySelector<HTMLElement>(".deckblatt")!;
       const letter = page.querySelector<HTMLElement>(".document-anschreiben")!;
-      const motivation = page.querySelector<HTMLElement>(".motivation")!;
+      const motivation = page.querySelector<HTMLElement>(".motivation > .letter-frame")!;
       const expectedNameFont = getDocumentFont(cv.design.typography.headingFontId).family;
       const expectedBodyFont = getDocumentFont(cv.design.typography.fontId).family;
       const expectedNameSize = `${cv.design.typography.headingSizePt}pt`;
@@ -99,10 +99,9 @@ describe("Lebenslauf-Dokumente", () => {
       expect(letter.style.getPropertyValue("--cv-name-size")).toBe(expectedNameSize);
       expect(letter.style.getPropertyValue("--cv-body-font")).toBe(expectedBodyFont);
       expect(letter.style.getPropertyValue("--cv-body-size")).toBe(expectedBodySize);
-      expect(motivation.style.getPropertyValue("--mv-heading-font")).toBe(expectedNameFont);
-      expect(motivation.style.getPropertyValue("--mv-name-size")).toBe(expectedNameSize);
-      expect(motivation.style.getPropertyValue("--mv-font")).toBe(expectedBodyFont);
-      expect(motivation.style.getPropertyValue("--mv-body-size")).toBe(expectedBodySize);
+      // The Motivationsschreiben is drawn in the Anschreiben's frame: the same typography variables.
+      for (const name of ["--cv-name-font", "--cv-name-size", "--cv-body-font", "--cv-body-size", "--letter-body-size", "--letter-cv-line-height"])
+        expect(motivation.style.getPropertyValue(name), name).toBe(letter.style.getPropertyValue(name));
     }
   });
 
@@ -384,7 +383,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body.indexOf("letter-page")).toBeLessThan(body.indexOf("cv-sheet"));
   });
 
-  it("exports Motivation with escaped text, profile Briefkopf, automatic Anrede and CV design", () => {
+  it("exports Motivation with escaped text in the Anschreiben's design, automatic Anrede and the CV's typography", () => {
     const selected = applicationSchema.parse({
       ...application,
       templateId: "modern",
@@ -411,23 +410,25 @@ describe("Lebenslauf-Dokumente", () => {
     const selectedProfile = profileSchema.parse({ ...profile, street: "Beispielweg 4", postalCode: "10115", phone: "+49 30 123456", signaturePath: "data:image/png;base64,AA==" });
     const html = buildDocumentHtml(selected, selectedProfile, "motivation");
     const page = parseHTML(html).document.querySelector<HTMLElement>(".motivation")!;
-    // The Briefkopf is the Anschreiben's, sender included.
-    const letterHeader = parseHTML(buildDocumentHtml(selected, selectedProfile, "anschreiben")).document.querySelector(".letter-header")!;
-    expect(page.querySelector(".letterhead-only .sender-name")?.textContent).toBe("Mina Kaya");
-    expect(page.querySelector(".letterhead-only .letter-header")?.outerHTML).toBe(letterHeader.outerHTML);
-    expect(page.querySelector(".mv-header")).toBeNull();
-    expect(page.querySelector(".mv-heading")?.textContent).toBe("Meine <Motivation>");
-    expect(page.querySelector(".mv-salutation")?.textContent).toBe("Sehr geehrte Frau Schulz,");
-    expect([...page.querySelectorAll(".mv-paragraph")].map((node) => node.getAttribute("data-part")))
+    // Drawn in the Anschreiben's frame: its Briefkopf (sender included), its Betreff look for the Überschrift, its
+    // salutation and body paragraphs; only the content is the Motivationsschreiben's own.
+    const letterPage = parseHTML(buildDocumentHtml(selected, selectedProfile, "anschreiben")).document;
+    const frame = page.querySelector<HTMLElement>(":scope > .letter-frame")!;
+    expect(frame.classList.contains("document-anschreiben")).toBe(true);
+    expect(page.querySelector(".letter-header")?.outerHTML).toBe(letterPage.querySelector(".letter-header")!.outerHTML);
+    expect(page.querySelector(".mv-header, .mv-paragraph, .mv-heading")).toBeNull();
+    expect(page.querySelector(".letter-preview > h3.motivation-heading")?.textContent).toBe("Meine <Motivation>");
+    expect(page.querySelector(".letter-preview > .letter-salutation")?.textContent).toBe("Sehr geehrte Frau Schulz,");
+    expect([...page.querySelectorAll(".letter-preview > .letter-body")].map((node) => node.getAttribute("data-part")))
       .toEqual(["introduction", "mainBody", "evidence", "goals", "closing"]);
-    expect(page.querySelector(".mv-signature")).not.toBeNull();
-    expect(page.querySelector(".mv-place-date")?.textContent).toBe("Berlin, 19. Juli 2026");
-    expect(page.style.getPropertyValue("--mv-body-size")).toBe("12pt");
-    expect(page.style.getPropertyValue("--mv-line-height")).toBe("1.4");
-    expect(page.style.getPropertyValue("--mv-line")).toBe("#167081");
+    expect(page.querySelector(".letter-signature .signature-image")).not.toBeNull();
+    expect(page.querySelector(".motivation-place-date")?.textContent).toBe("Berlin, 19. Juli 2026");
+    // The CV's typography reaches it through the letter's variables (11–12 pt, the Lebenslauf's Zeilenhöhe).
+    expect(frame.style.getPropertyValue("--letter-body-size")).toBe("12pt");
+    expect(frame.style.getPropertyValue("--letter-cv-line-height")).toBe("1.4");
     // Left and right are the Lebenslauf's Seitenränder (Modern: the same on both sides), never the Innenabstand.
-    expect(page.style.getPropertyValue("--mv-margin-left")).toBe("22mm");
-    expect(page.style.getPropertyValue("--mv-margin-right")).toBe("22mm");
+    expect(frame.style.getPropertyValue("--side-left")).toBe("22mm");
+    expect(frame.style.getPropertyValue("--side-right")).toBe("22mm");
     expect(html).toContain("Meine &lt;Motivation&gt;");
     expect(html).toContain("Beleg &lt;Projekt&gt;");
     expect(html).not.toContain("<Motivation>");
@@ -436,7 +437,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(page.querySelector(".mv-photo, .recipient, address")).toBeNull();
   });
 
-  it.each(templates.map((template) => template.id))("%s: Motivation inherits the Anschreiben's Briefkopf, nothing else of its page", (templateId) => {
+  it.each(templates.map((template) => template.id))("%s: Motivation is drawn in the Anschreiben's frame, with its own content only", (templateId) => {
     const selected = applicationSchema.parse({
       ...application,
       templateId,
@@ -449,16 +450,25 @@ describe("Lebenslauf-Dokumente", () => {
     const section = parseHTML(html).document.querySelector<HTMLElement>("section.motivation-sheet")!;
     expect([...section.classList]).toEqual(["page", "motivation-sheet"]);
     expect(section.getAttribute("data-no-fit")).toBe("true");
-    expect(section.querySelector(".page-content, .document-background-layer, address, .paper-date, .letter-salutation, .letter-body")).toBeNull();
+    // No Anschreiben content: no recipient, Betreff, Anlagen or background layer.
+    expect(section.querySelector(".page-content, .document-background-layer, address, .letter-attachments, h3:not(.motivation-heading)")).toBeNull();
     expect(section.firstElementChild?.classList.contains("motivation")).toBe(true);
-    // The Briefkopf: the Anschreiben's classes, variables, stylesheets and sender line, without the sheet's background.
+    // The frame: the Anschreiben's classes (without its sheet background, text density and Betreff gap), variables,
+    // stylesheets and Briefkopf.
     const letter = parseHTML(buildDocumentHtml(selected, profile, "anschreiben")).document
       .querySelector<HTMLElement>("section.letter-page > .document-anschreiben")!;
-    const letterhead = section.querySelector<HTMLElement>(".motivation > .letterhead-only")!;
-    expect([...letterhead.classList]).toEqual([...[...letter.classList].filter((name) => !/^(background-|print-background$|no-print-background$)/.test(name)), "letterhead-only"]);
-    expect(letterhead.getAttribute("style")).toBe(letter.getAttribute("style"));
-    expect(letterhead.querySelector(".letter-preview > .letter-header")?.outerHTML).toBe(letter.querySelector(".letter-preview > .letter-header")?.outerHTML);
-    expect(letterhead.querySelector(".letter-preview > .letter-rule")).not.toBeNull();
+    const frame = section.querySelector<HTMLElement>(".motivation > .letter-frame")!;
+    const own = (name: string) => /^(background-|print-background$|no-print-background$|letter-(compact|dense|standard)$|letter-gap-\d+$)/.test(name);
+    expect([...frame.classList]).toEqual([...[...letter.classList].filter((name) => !own(name)), "letter-standard", "letter-gap-0", "letter-frame"]);
+    for (const name of Array.from(letter.style)) expect(frame.style.getPropertyValue(name), name).toBe(letter.style.getPropertyValue(name));
+    expect([...frame.querySelectorAll(":scope > style")].map((node) => node.textContent))
+      .toEqual([...letter.querySelectorAll(":scope > style")].map((node) => node.textContent));
+    expect(frame.querySelector(".letter-preview > .letter-header")?.outerHTML).toBe(letter.querySelector(".letter-preview > .letter-header")?.outerHTML);
+    // Its own content in the letter's elements: the Überschrift as the Betreff, Anrede, paragraphs, signature.
+    expect(frame.querySelector(".letter-preview > h3.motivation-heading")?.className)
+      .toBe([letter.querySelector(".letter-preview > h3")?.getAttribute("class"), "motivation-heading"].filter(Boolean).join(" "));
+    expect(frame.querySelector(".letter-preview > .letter-salutation")).not.toBeNull();
+    expect(frame.querySelector(".letter-signature .signature-name")).not.toBeNull();
     expect(html).toContain(anschreibenPrintCss());
     const resolvedCv = resolveCvDocument({ profile, templateId, settings: selected.designSettings, application: selected });
     expect(section.getAttribute("style")).toBe(`background:${resolvedCv.design.colors.background}`);
@@ -479,13 +489,12 @@ describe("Lebenslauf-Dokumente", () => {
       const document = parseHTML(html).document;
       const deckblatt = document.querySelector<HTMLElement>(".cover-page .deckblatt")!;
       const letter = document.querySelector<HTMLElement>("section.letter-page .document-anschreiben")!;
-      const motivation = document.querySelector<HTMLElement>(".motivation-sheet .motivation")!;
-      for (const element of [deckblatt, letter]) {
+      // The Motivationsschreiben is drawn in the Anschreiben's frame and takes its margins from it.
+      const motivation = document.querySelector<HTMLElement>(".motivation-sheet .motivation > .letter-frame")!;
+      for (const element of [deckblatt, letter, motivation]) {
         expect(element.style.getPropertyValue("--side-left")).toBe(`${sides.leftMm}mm`);
         expect(element.style.getPropertyValue("--side-right")).toBe(`${sides.rightMm}mm`);
       }
-      expect(motivation.style.getPropertyValue("--mv-margin-left")).toBe(`${sides.leftMm}mm`);
-      expect(motivation.style.getPropertyValue("--mv-margin-right")).toBe(`${sides.rightMm}mm`);
       expect(letter.querySelector(":scope > style")?.textContent).toBe(letterSideMarginCss);
     },
   );
@@ -522,7 +531,7 @@ describe("Lebenslauf-Dokumente", () => {
       motivationEnabled: true, motivationMainBody: Array.from({ length: 40 }, () => "Langer Absatz mit Inhalt.").join("\n\n") } }), profile, "motivation");
     expect(html).toContain(".page.motivation-sheet{height:auto;min-height:297mm;max-height:none;overflow:visible}");
     expect(html).toContain("box-decoration-break:clone");
-    expect(parseHTML(html).document.querySelectorAll(".mv-paragraph")).toHaveLength(40);
+    expect(parseHTML(html).document.querySelectorAll(".letter-preview > .letter-body")).toHaveLength(40);
   });
 
   it("places enabled Motivation after the CV and respects its document-list visibility", () => {

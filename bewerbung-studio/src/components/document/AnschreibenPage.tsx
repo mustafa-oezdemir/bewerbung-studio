@@ -1,7 +1,8 @@
 import { forwardRef, type CSSProperties, type ReactNode } from "react";
-import type { AnschreibenLetterhead, AnschreibenModel } from "../../shared/anschreibenDocument";
+import type { AnschreibenModel } from "../../shared/anschreibenDocument";
 
-function SenderBlock({ sender }: { sender: AnschreibenModel["sender"] }) {
+/** The Briefkopf: the tree of `renderAnschreibenSenderMarkup` (PDF). */
+export function SenderBlock({ sender }: { sender: AnschreibenModel["sender"] }) {
   return (
     <>
       <div className="letter-header">
@@ -13,18 +14,6 @@ function SenderBlock({ sender }: { sender: AnschreibenModel["sender"] }) {
       </div>
       <i className="paper-rule letter-rule" />
     </>
-  );
-}
-
-/** The Anschreiben's Briefkopf alone, the tree of `renderAnschreibenLetterheadMarkup` (PDF). */
-export function AnschreibenLetterheadBlock({ letterhead }: { letterhead: AnschreibenLetterhead }) {
-  return (
-    <div className={letterhead.className} data-resume-template={letterhead.templateId} style={letterhead.style as CSSProperties}>
-      {letterhead.stylesheets.map((css, index) => <style key={index}>{css}</style>)}
-      <div className="letter-preview">
-        <SenderBlock sender={letterhead.sender} />
-      </div>
-    </div>
   );
 }
 
