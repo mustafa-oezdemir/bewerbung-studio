@@ -431,6 +431,21 @@
   color: var(--tabellarisch-muted);
 }
 
+/*
+ * Preview = PDF: the app's `.document-paper h1/h2/h3` (heading colour and font of every paper, 0,1,1) and its
+ * reset `ul{list-style:none}` would otherwise win here. The PDF draws the name and the entry titles in the
+ * template's primary colour and the entry details as bulleted lists (`.tabellarisch-pdf-entry h3`, browser `ul`).
+ */
+.tabellarisch-template .tabellarisch-header__name,
+.tabellarisch-template .tabellarisch-timeline-entry__role {
+  color: var(--tabellarisch-primary);
+  font-family: var(--tabellarisch-heading-font);
+}
+
+.tabellarisch-template .tabellarisch-timeline-entry__achievements {
+  list-style: disc outside;
+}
+
 .tabellarisch-additional {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

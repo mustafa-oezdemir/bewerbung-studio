@@ -97,6 +97,19 @@ describe("Tabellarisch: one geometry for preview, PDF and planner", () => {
     expect(pdf).toContain(":is(.tabellarisch-template,.tabellarisch-pdf) [data-managed-section]>:is(h2,h3){color:var(--tabellarisch-section-title-color");
   });
 
+  it("draws name and entry titles in the primary colour and the entry details as bullets in the preview, as the PDF does", () => {
+    // The preview paper sits under app.css: `.document-paper h1/h2/h3` (0,1,1) colours every heading and the reset
+    // removes list bullets; the PDF's `.tabellarisch-pdf-entry h3` and plain `ul` have neither problem.
+    const appCss = readFileSync("src/app.css", "utf8");
+    expect(appCss).toMatch(/\.document-paper h1,\s*\.document-paper h2,\s*\.document-paper h3 \{\s*color: var\(--doc-heading-color\)/);
+    const preview = readFileSync("src/components/resume/templates/tabellarisch/tabellarisch.css", "utf8").replace(/\s+/g, " ");
+    expect(preview).toContain(".tabellarisch-template .tabellarisch-header__name, .tabellarisch-template .tabellarisch-timeline-entry__role { color: var(--tabellarisch-primary);");
+    expect(preview).toContain(".tabellarisch-template .tabellarisch-timeline-entry__achievements { list-style: disc outside; }");
+    const pdf = buildDocumentHtml(harnessApplication("tabellarisch"), pilotProfile(), "lebenslauf");
+    expect(pdf).toContain(".tabellarisch-pdf-entry h3{margin:0;color:var(--tabellarisch-primary)");
+    expect(pdf).not.toMatch(/\.tabellarisch-pdf-entry ul[^{]*\{[^}]*list-style:none/);
+  });
+
   it("lets the central design reach the stylesheets: no floors, no density variants, one bottom padding", () => {
     const preview = readFileSync("src/components/resume/templates/tabellarisch/tabellarisch.css", "utf8");
     const pdf = buildDocumentHtml(harnessApplication("tabellarisch"), pilotProfile(), "lebenslauf");
