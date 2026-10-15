@@ -2630,6 +2630,31 @@ body.is-resizing-split-view * {
   box-shadow: 2px 2px 0 var(--brand);
 }
 
+.deckblatt-design-option--kopfband > i {
+  background:
+    linear-gradient(var(--brand), var(--brand)) 0 0 / 100% 30% no-repeat,
+    #fff;
+}
+
+.deckblatt-design-option--kopfband > i::before {
+  left: 8%;
+  top: 6%;
+  width: 22%;
+  aspect-ratio: 1;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  background: rgba(220, 225, 228, 0.7);
+}
+
+.deckblatt-design-option--kopfband > i::after {
+  left: 22%;
+  right: 22%;
+  top: 40%;
+  height: 4%;
+  background: rgba(120, 130, 128, 0.55);
+  box-shadow: 0 16px 0 0 rgba(120, 130, 128, 0.3), 0 30px 0 0 rgba(120, 130, 128, 0.3);
+}
+
 .cover-letter-editor-sections {
   display: grid;
   gap: 12px;

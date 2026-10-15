@@ -19,6 +19,9 @@ import {
   getDeckblattCompetencies,
   getDeckblattContacts,
   getDeckblattDocuments,
+  getDeckblattPersonalDetails,
+  getDeckblattQualifications,
+  getDeckblattTechStack,
   type DeckblattContact,
 } from "./deckblatt";
 import {
@@ -58,19 +61,25 @@ export const deckblattDesigns: readonly DeckblattDesign[] = [
   {
     id: "akzentband",
     label: "Akzentband",
-    description: "Farbiges Seitenband mit Foto und Kontakt, rechts Betreff, Name, Profil und Anlagen.",
+    description: "Farbiges Seitenband mit Foto, Kontakt und Anlagen, rechts Betreff, Name und Profil.",
     usesDocumentBackground: false,
   },
   {
     id: "farbbalken",
     label: "Farbbalken",
-    description: "Großer Titel, großes Foto, Name und Adresse rechts im hellen Farbband, unten Empfänger und Anlagen.",
+    description: "Großer Titel, großes Foto, im hellen Farbband Name links und Kontakt als Liste rechts, unten Empfänger und Anlagen.",
     usesDocumentBackground: false,
   },
   {
     id: "seitenpanel",
     label: "Seitenpanel",
     description: "Modernes Deckblatt mit heller Hauptfläche, farbigem Seitenpanel und überlappendem Bewerbungsfoto.",
+    usesDocumentBackground: false,
+  },
+  {
+    id: "kopfband",
+    label: "Kopfband",
+    description: "Farbiges Kopfband mit Rundfoto, Titel und Kontakt, darunter Name, Persönliche Daten, Qualifikationen und Tech-Stack aus den Stärken.",
     usesDocumentBackground: false,
   },
 ];
@@ -92,6 +101,15 @@ export type DeckblattModel = {
   photoSource: string;
   contacts: DeckblattContact[];
   competencies: string[];
+  /** Geburt, Staatsangehörigkeit, Familienstand … as `Label: Wert` lines (Kopfband). */
+  personalDetails: string[];
+  /** Latest degrees and years of professional experience (Kopfband). */
+  qualifications: string[];
+  /** The Stärken with their Lebenslauf icon (Kopfband). */
+  techStack: { title: string; icon: string }[];
+  /** Ort of the closing line: the Bewerbungsort of the profile, else its city. */
+  place: string;
+  signatureSource: string;
   documents: string[];
   /** The address block of the recipient, the same lines as on the Anschreiben. */
   recipient: string[];
@@ -203,6 +221,11 @@ export const buildDeckblattModel = ({
   photoSource: getProfileMediaSource(profile?.photoPath),
   contacts: getDeckblattContacts(profile, documents.coverSheetContactVisibility),
   competencies: getDeckblattCompetencies(profile, application),
+  personalDetails: getDeckblattPersonalDetails(profile),
+  qualifications: getDeckblattQualifications(profile),
+  techStack: getDeckblattTechStack(profile),
+  place: profile?.applicationPlace?.trim() || profile?.city?.trim() || "",
+  signatureSource: getProfileMediaSource(profile?.signaturePath),
   documents: getDeckblattDocuments(attachments, application.id, documents.documentListSettings, documents.motivationEnabled),
   recipient: resolveRecipientLines(application, documents.coverRecipientAddress),
   style: { ...getDeckblattStyle(accentColor, secondaryColor, settings, cvTypography), ...(sideMargins ? documentSideMarginVariables(sideMargins) : {}) },
@@ -309,7 +332,7 @@ const akzentband = (model: DeckblattModel) => `
       model.contacts.length
         ? `<div class="dk-band-contact"><h3>Kontakt</h3>${iconContactList(model.contacts)}</div>`
         : ""
-    }
+    }${model.documents.length ? `<div class="dk-band-docs"><h3>Anlagen</h3>${list(model.documents)}</div>` : ""}
   </aside>
   <main class="dk-main">
     <p class="dk-kicker">Bewerbung</p>
@@ -322,19 +345,16 @@ const akzentband = (model: DeckblattModel) => `
       model.professionalTitle ? `<p class="dk-title">${escapeHtml(model.professionalTitle)}</p>` : ""
     }${model.statement ? `<p class="dk-statement">${escapeHtml(model.statement)}</p>` : ""}
     <i class="dk-space dk-space--bottom"></i>
-    <div class="dk-bottom${model.documents.length > 6 ? " dk-bottom--many" : ""}">${
+    ${
       model.competencies.length
-        ? `<div><h3>Kernkompetenzen</h3><ul class="dk-competencies">${model.competencies.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>`
+        ? `<div class="dk-bottom"><div><h3>Kernkompetenzen</h3><ul class="dk-competencies">${model.competencies.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div></div>`
         : ""
-    }${model.documents.length ? `<div><h3>Anlagen</h3>${list(model.documents)}</div>` : ""}</div>
+    }
   </main>`;
 
 const subjectSize = (subject: string) => (subject.length > 60 ? "xlong" : subject.length > 34 ? "long" : "normal");
 
-const farbbalken = (model: DeckblattModel) => {
-  const address = model.contacts.find((contact) => contact.label === "Adresse");
-  const links = model.contacts.filter((contact) => contact !== address);
-  return `
+const farbbalken = (model: DeckblattModel) => `
   <i class="dk-bar dk-bar--top"></i><i class="dk-bar dk-bar--bottom"></i>
   <div class="dk-upper">
     <i class="dk-bar dk-bar--side"></i><i class="dk-bar dk-bar--side-thin"></i>
@@ -342,11 +362,9 @@ const farbbalken = (model: DeckblattModel) => {
     <div class="dk-photo-area"><div class="dk-photo">${photoMarkup(model)}</div></div>
   </div>
   <section class="dk-band">
-    <h2 class="dk-name dk-name--${nameSize(model.name)}">${escapeHtml(model.name)}</h2>${
+    <div class="dk-identity"><h2 class="dk-name dk-name--${nameSize(model.name)}">${escapeHtml(model.name)}</h2>${
       model.professionalTitle ? `<p class="dk-title">${escapeHtml(model.professionalTitle)}</p>` : ""
-    }${address ? `<p class="dk-address">${escapeHtml(address.value)}</p>` : ""}${
-      links.length ? `<ul class="dk-lines">${links.map(iconContactItem).join("")}</ul>` : ""
-    }
+    }</div>${model.contacts.length ? `<ul class="dk-lines">${model.contacts.map(iconContactItem).join("")}</ul>` : ""}
   </section>
   <section class="dk-foot">
     <address class="dk-recipient">${model.recipient
@@ -357,7 +375,6 @@ const farbbalken = (model: DeckblattModel) => {
         : ""
     }
   </section>`;
-};
 
 /** Short labels of the typographic contact rows of Seitenpanel. */
 const reachLabels: Record<string, string> = { Telefon: "Tel.", "E-Mail": "E-Mail", LinkedIn: "LinkedIn", GitHub: "GitHub", Website: "Web" };
@@ -444,7 +461,53 @@ export const fitDeckblattContacts = new Function("root", deckblattFitSource) as 
 /** The same fitting as a script of the exported page (after the fonts are there, too). */
 export const deckblattFitScript = `<script>(function(run){run(document);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){run(document)})})(function(root){${deckblattFitSource}})</script>`;
 
-const renderers: Record<DeckblattDesignId, (model: DeckblattModel) => string> = { klassisch, pastell, akzentband, farbbalken, seitenpanel };
+const kopfband = (model: DeckblattModel) => {
+  // Presentation only: "Bewerbung als X" is drawn as BEWERBUNG over "als X"; the subject itself stays as it is.
+  const lead = /^Bewerbung\b\s*/i.exec(model.subject);
+  const role = lead ? model.subject.slice(lead[0].length) : model.subject;
+  const block = (title: string, items: string[]) =>
+    items.length ? `<div class="dk-block"><h3>${title}</h3><ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>` : "";
+  // Qualifikationen: the user's own "Kurzprofil auf dem Deckblatt" text, justified; without it the degrees and years.
+  const qualifications = model.statement
+    ? `<div class="dk-block"><h3>Qualifikationen</h3><p class="dk-statement">${escapeHtml(model.statement)}</p></div>`
+    : block("Qualifikationen", model.qualifications);
+  const blocks = [block("Persönliche Daten", model.personalDetails), qualifications].filter(Boolean);
+  const company = [model.company ? `bei ${model.company}` : "", model.location].filter(Boolean).join(" · ");
+  return `
+  <header class="dk-head">
+    <div class="dk-photo">${photoMarkup(model)}</div>
+    <div class="dk-head-text">
+      <h1 class="dk-heading"><span class="dk-lead">Bewerbung</span> <span class="dk-role dk-role--${subjectSize(role)}">${escapeHtml(role)}</span></h1>${
+        company ? `<p class="dk-app">${escapeHtml(company)}</p>` : ""
+      }
+      <p class="dk-head-name">${escapeHtml(model.name)}</p>
+    </div>
+  </header>
+  <main class="dk-main">
+    <section class="dk-person">
+      <h2 class="dk-name dk-name--${nameSize(model.name)}">${escapeHtml(model.name)}</h2>${
+        model.professionalTitle ? `<p class="dk-title">${escapeHtml(model.professionalTitle)}</p>` : ""
+      }
+    </section>${blocks.length ? `<i class="dk-gap"></i><section class="dk-facts">${blocks.join("")}</section>` : ""}${
+      model.techStack.length
+        ? `<i class="dk-gap"></i><section class="dk-stack"><h3>Tech-Stack</h3><ul>${model.techStack
+            .map((item) => `<li><i class="dk-stack-icon" aria-hidden="true">${item.icon}</i><span>${escapeHtml(item.title)}</span></li>`)
+            .join("")}</ul></section>`
+        : ""
+    }${
+      model.documents.length || model.contacts.length
+        ? `<i class="dk-gap"></i><section class="dk-bottom">${
+            model.documents.length ? `<div class="dk-docs${model.documents.length > 6 ? " dk-docs--many" : ""}"><h3>Anlagen</h3>${list(model.documents)}</div>` : ""
+          }${model.contacts.length ? `<div class="dk-contact"><h3>Kontakt</h3><ul class="dk-lines">${model.contacts.map(iconContactItem).join("")}</ul></div>` : ""}</section>`
+        : ""
+    }
+    <footer class="dk-sign">${
+      model.signatureSource ? `<div class="dk-signature"><img src="${escapeHtml(model.signatureSource)}" alt="Unterschrift" /></div>` : ""
+    }<p class="dk-place">${escapeHtml([model.place, model.date].filter(Boolean).join(", "))}</p></footer>
+  </main>`;
+};
+
+const renderers: Record<DeckblattDesignId, (model: DeckblattModel) => string> = { klassisch, pastell, akzentband, farbbalken, seitenpanel, kopfband };
 
 const styleAttribute = (style: Record<string, string>) =>
   escapeHtml(Object.entries(style).map(([name, value]) => `${name}:${value}`).join(";"));
@@ -528,10 +591,14 @@ export const deckblattCss = `
 
 .deckblatt--akzentband{display:grid;grid-template-columns:fit-content(100mm) minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
 .deckblatt--akzentband .dk-band{position:relative;min-width:70mm;padding:24mm 8mm 14mm var(--side-left,8mm);border-right:2.4mm solid var(--secondary);background:var(--accent);color:var(--on-accent)}
-.deckblatt--akzentband .dk-band-photo{width:46mm;height:46mm;margin:0 auto;overflow:hidden;border:1.2mm solid color-mix(in srgb,var(--on-accent) 70%,transparent);border-radius:50%;background:color-mix(in srgb,var(--on-accent) 14%,transparent)}
+.deckblatt--akzentband .dk-band-photo{position:relative;left:calc((8mm - var(--side-left,8mm)) / 2);width:46mm;height:46mm;margin:0 auto;overflow:hidden;border:1.2mm solid color-mix(in srgb,var(--on-accent) 70%,transparent);border-radius:50%;background:color-mix(in srgb,var(--on-accent) 14%,transparent)}
 .deckblatt--akzentband .dk-initials{color:var(--on-accent);font-size:34pt}
 .deckblatt--akzentband .dk-band-contact{margin-top:16mm}
-.deckblatt--akzentband .dk-band-contact h3{margin-bottom:3.4mm;padding-bottom:1.6mm;border-bottom:1px solid color-mix(in srgb,var(--on-accent) 45%,transparent);font-size:8.5pt;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.deckblatt--akzentband .dk-band-docs{margin-top:12mm;contain:inline-size}
+.deckblatt--akzentband .dk-band-contact h3,.deckblatt--akzentband .dk-band-docs h3{margin-bottom:3.4mm;padding-bottom:1.6mm;border-bottom:1px solid color-mix(in srgb,var(--on-accent) 45%,transparent);font-size:8.5pt;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.deckblatt--akzentband .dk-band-docs ul{display:grid;gap:1.6mm}
+.deckblatt--akzentband .dk-band-docs li{position:relative;padding-left:3.4mm;font-size:8pt;line-height:1.3;overflow-wrap:anywhere}
+.deckblatt--akzentband .dk-band-docs li:before{position:absolute;left:.4mm;top:.5em;width:1.2mm;height:1.2mm;border-radius:50%;background:currentColor;content:""}
 .deckblatt--akzentband .dk-contacts,.deckblatt--akzentband .dk-contacts--grid{display:grid;grid-template-columns:minmax(0,1fr);gap:3mm}
 .deckblatt--akzentband .dk-contacts li{align-items:flex-start;gap:2.6mm;font-size:var(--dk-contact-size,8pt)}
 .deckblatt--akzentband .dk-contacts li i{flex-basis:4.4mm;width:4.4mm;height:4.4mm;border-radius:0;place-items:start center}
@@ -548,17 +615,56 @@ export const deckblattCss = `
 .deckblatt--akzentband .dk-name--long{font-size:19pt}.deckblatt--akzentband .dk-name--xlong{font-size:16pt}
 .deckblatt--akzentband .dk-title{margin-top:2mm;font-size:12pt;line-height:1.25;color:var(--ink)}
 .deckblatt--akzentband .dk-statement{margin-top:6mm;line-height:1.45;text-align:justify;text-justify:inter-word;hyphens:auto}
-.deckblatt--akzentband .dk-bottom{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(max-content,1fr);gap:10mm;padding-top:6mm;border-top:1px solid var(--line)}
-.deckblatt--akzentband .dk-bottom>div:only-child{grid-column:1/-1}
+.deckblatt--akzentband .dk-bottom{padding-top:6mm;border-top:1px solid var(--line)}
 .deckblatt--akzentband .dk-bottom h3{margin-bottom:3mm;font-size:9.5pt;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
 .deckblatt--akzentband .dk-bottom ul{display:grid;gap:1.4mm}
 .deckblatt--akzentband .dk-bottom li{font-size:9.5pt;overflow-wrap:anywhere}
 .deckblatt--akzentband .dk-competencies li{position:relative;padding-left:3.6mm;line-height:1.35}
 .deckblatt--akzentband .dk-competencies li:before{position:absolute;left:.4mm;top:.55em;width:1.3mm;height:1.3mm;border-radius:50%;background:var(--accent);content:""}
-.deckblatt--akzentband .dk-bottom--many{grid-template-columns:minmax(0,1fr);gap:6mm}
-.deckblatt--akzentband .dk-bottom--many ul{display:block;column-count:2;column-gap:8mm}
-.deckblatt--akzentband .dk-bottom--many li{margin-bottom:1.4mm;break-inside:avoid}
 
+.deckblatt--kopfband{display:flex;flex-direction:column;background:var(--page-background)}
+.deckblatt--kopfband .dk-head{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:9mm;padding:12mm var(--side-right,var(--doc-margin)) 11mm var(--side-left,var(--doc-margin));background:var(--accent);color:var(--on-accent)}
+.deckblatt--kopfband .dk-photo{width:50mm;height:50mm;overflow:hidden;border:1.4mm solid color-mix(in srgb,var(--on-accent) 88%,transparent);border-radius:50%;background:color-mix(in srgb,var(--on-accent) 14%,transparent)}
+.deckblatt--kopfband .dk-photo img{width:100%;height:100%;object-fit:cover}
+.deckblatt--kopfband .dk-initials{color:var(--on-accent);font-size:36pt}
+.deckblatt--kopfband .dk-head-text{min-width:0}
+.deckblatt--kopfband .dk-heading{display:flex;flex-direction:column;font-family:var(--heading-font);line-height:1.05;overflow-wrap:break-word}
+.deckblatt--kopfband .dk-lead{font-size:36pt;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.deckblatt--kopfband .dk-role{margin-top:1.4mm;font-weight:400;letter-spacing:.02em;text-transform:uppercase}
+.deckblatt--kopfband .dk-role--normal{font-size:17pt}.deckblatt--kopfband .dk-role--long{font-size:13pt}.deckblatt--kopfband .dk-role--xlong{font-size:10.5pt}
+.deckblatt--kopfband .dk-head-name{margin-top:6mm;font-size:11pt;font-weight:700;letter-spacing:.06em;line-height:1.3;text-transform:uppercase;overflow-wrap:anywhere}
+.deckblatt--kopfband .dk-app{margin-top:2mm;font-size:10pt;line-height:1.3;opacity:.85;overflow-wrap:anywhere}
+.deckblatt--kopfband .dk-main{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;padding:13mm var(--side-right,var(--doc-margin)) 14mm var(--side-left,var(--doc-margin));color:var(--ink)}
+.deckblatt--kopfband .dk-person{padding-bottom:7mm;border-bottom:1px solid var(--line);text-align:center}
+.deckblatt--kopfband .dk-name{font-family:var(--heading-font);font-weight:300;line-height:1.1;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);overflow-wrap:break-word}
+.deckblatt--kopfband .dk-name--normal{font-size:28pt}.deckblatt--kopfband .dk-name--long{font-size:23pt}.deckblatt--kopfband .dk-name--xlong{font-size:17pt}
+.deckblatt--kopfband .dk-title{margin-top:2mm;font-family:var(--heading-font);font-size:16pt;font-weight:800;line-height:1.15;letter-spacing:.02em;text-transform:uppercase;color:var(--heading);overflow-wrap:break-word}
+.deckblatt--kopfband .dk-gap{display:block;flex:1 1 8mm;min-height:3mm;max-height:24mm}
+.deckblatt--kopfband .dk-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10mm}
+.deckblatt--kopfband .dk-facts>:only-child{grid-column:1/-1}
+.deckblatt--kopfband h3{margin-bottom:3mm;font-size:11.5pt;font-weight:600;letter-spacing:.06em;line-height:1.25;text-transform:uppercase;color:var(--heading)}
+.deckblatt--kopfband .dk-block ul{display:grid;gap:1.4mm}
+.deckblatt--kopfband .dk-statement{font-size:11pt;line-height:1.4;text-align:justify;text-justify:inter-word;hyphens:auto;overflow-wrap:break-word}
+.deckblatt--kopfband .dk-block li{font-size:11pt;line-height:1.35;overflow-wrap:anywhere}
+.deckblatt--kopfband .dk-stack ul{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5mm 3mm;margin-top:3mm}
+.deckblatt--kopfband .dk-stack li{display:flex;flex-direction:column;align-items:center;gap:2.2mm;min-width:0;text-align:center}
+.deckblatt--kopfband .dk-stack-icon{display:grid;width:12mm;height:12mm;place-items:center;font-style:normal}
+.deckblatt--kopfband .dk-stack-icon svg,.deckblatt--kopfband .dk-stack-icon img{width:100%;height:100%}
+.deckblatt--kopfband .dk-stack li span{max-width:100%;font-size:10pt;line-height:1.2;overflow-wrap:anywhere}
+.deckblatt--kopfband .dk-bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:9mm}
+.deckblatt--kopfband .dk-bottom>:only-child{grid-column:1/-1}
+.deckblatt--kopfband .dk-docs ul{display:grid;gap:1.2mm}
+.deckblatt--kopfband .dk-docs li{position:relative;padding-left:3.6mm;font-size:10pt;line-height:1.3;overflow-wrap:anywhere;break-inside:avoid}
+.deckblatt--kopfband .dk-docs li:before{position:absolute;left:.3mm;top:.5em;width:1.4mm;height:1.4mm;border-radius:50%;background:var(--accent);content:""}
+.deckblatt--kopfband .dk-docs--many ul{gap:.3mm}.deckblatt--kopfband .dk-docs--many li{font-size:8.5pt;line-height:1.25}
+.deckblatt--kopfband .dk-lines{display:grid;gap:2mm}
+.deckblatt--kopfband .dk-lines li{display:flex;align-items:center;gap:2.6mm;min-width:0;font-size:10pt;line-height:1.3;overflow-wrap:anywhere}
+.deckblatt--kopfband .dk-lines li i{display:grid;flex:0 0 5.4mm;width:5.4mm;height:5.4mm;place-items:center;border-radius:50%;font-style:normal;color:var(--on-accent);background:var(--accent)}
+.deckblatt--kopfband .dk-lines li i svg{width:3.1mm;height:3.1mm}
+.deckblatt--kopfband .dk-lines a{color:inherit;text-decoration:none}
+.deckblatt--kopfband .dk-sign{display:flex;flex-direction:column;align-items:flex-end;gap:1.2mm;text-align:right;margin-top:auto;padding-top:5mm;font-size:10pt;line-height:1.35}
+.deckblatt--kopfband .dk-signature{display:flex}
+.deckblatt--kopfband .dk-signature img{max-width:52mm;max-height:14mm;object-fit:contain}
 .deckblatt--farbbalken{display:grid;grid-template-rows:minmax(0,1fr) auto auto;background:var(--page-background)}
 .deckblatt--farbbalken .dk-bar{position:absolute;display:block}
 .deckblatt--farbbalken .dk-bar--top{left:0;top:0;width:62%;height:5mm;background:var(--tint-soft)}
@@ -574,16 +680,17 @@ export const deckblattCss = `
 .deckblatt--farbbalken .dk-date{margin-top:3.2mm;font-size:9.5pt;line-height:1.3;color:var(--muted)}
 .deckblatt--farbbalken .dk-photo-area{position:relative;flex:1 1 auto;min-height:0;margin-right:-22mm}
 .deckblatt--farbbalken .dk-photo{position:absolute;left:50%;top:calc(50% + 2mm);height:min(calc(100% - 10mm),108mm);aspect-ratio:3/4;overflow:hidden;transform:translate(-50%,-50%);border:1.4mm solid #fff;background:var(--tint-faint);box-shadow:5mm 5mm 0 var(--tint-soft)}
-.deckblatt--farbbalken .dk-band{position:relative;display:flex;flex-direction:column;align-items:flex-end;padding:9mm var(--side-right,var(--doc-margin)) 8mm 30mm;text-align:right;background:var(--tint-soft)}
+.deckblatt--farbbalken .dk-band{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:9mm;padding:10mm var(--side-right,var(--doc-margin)) 10mm var(--side-left,var(--doc-margin));background:var(--tint-soft)}
 .deckblatt--farbbalken .dk-band:before{position:absolute;left:var(--side-left,var(--doc-margin));top:0;width:26mm;height:1.6mm;background:var(--accent);content:""}
-.deckblatt--farbbalken .dk-name{max-width:100%;font-weight:var(--heading-weight);letter-spacing:normal;text-transform:none}
+.deckblatt--farbbalken .dk-band>:only-child{grid-column:1/-1}
+.deckblatt--farbbalken .dk-identity{min-width:0}
+.deckblatt--farbbalken .dk-name{max-width:100%;font-weight:var(--heading-weight);line-height:1.08;letter-spacing:normal;text-transform:none;overflow-wrap:break-word}
 .deckblatt--farbbalken .dk-name--normal{font-size:26pt}.deckblatt--farbbalken .dk-name--long{font-size:22pt}.deckblatt--farbbalken .dk-name--xlong{font-size:18pt}
-.deckblatt--farbbalken .dk-title{margin-top:1.6mm;font-size:12pt;line-height:1.25;color:var(--ink)}
-.deckblatt--farbbalken .dk-address{margin-top:3.6mm;font-size:10pt;line-height:1.3;overflow-wrap:anywhere}
-.deckblatt--farbbalken .dk-lines{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:1.6mm 5mm;max-width:100%;margin-top:2.6mm}
-.deckblatt--farbbalken .dk-lines li{display:flex;align-items:center;gap:1.8mm;min-width:0;font-size:9pt;line-height:1.25;overflow-wrap:anywhere}
-.deckblatt--farbbalken .dk-lines li i{display:grid;flex:0 0 4.4mm;width:4.4mm;height:4.4mm;place-items:center;border-radius:50%;font-style:normal;color:var(--on-accent);background:var(--accent)}
-.deckblatt--farbbalken .dk-lines li i svg{width:2.7mm;height:2.7mm}
+.deckblatt--farbbalken .dk-title{margin-top:2.4mm;font-size:10pt;font-weight:600;letter-spacing:.1em;line-height:1.35;text-transform:uppercase;color:var(--accent)}
+.deckblatt--farbbalken .dk-lines{display:grid;gap:2mm;min-width:0;max-width:96mm;padding-left:7mm;border-left:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
+.deckblatt--farbbalken .dk-lines li{display:flex;align-items:center;gap:2.6mm;min-width:0;font-size:9pt;line-height:1.25;overflow-wrap:anywhere}
+.deckblatt--farbbalken .dk-lines li i{display:grid;flex:0 0 5mm;width:5mm;height:5mm;place-items:center;border-radius:50%;font-style:normal;color:var(--on-accent);background:var(--accent)}
+.deckblatt--farbbalken .dk-lines li i svg{width:2.9mm;height:2.9mm}
 .deckblatt--farbbalken .dk-foot{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10mm;align-items:end;padding:12mm var(--side-right,var(--doc-margin)) 19mm var(--side-left,var(--doc-margin))}
 .deckblatt--farbbalken .dk-recipient{display:flex;flex-direction:column;gap:.6mm;min-width:0;padding-left:4mm;border-left:1.2mm solid var(--accent);font-size:10pt;font-style:normal;line-height:1.35;overflow-wrap:anywhere}
 .deckblatt--farbbalken .dk-recipient b{font-family:var(--heading-font);font-weight:700;color:var(--heading)}

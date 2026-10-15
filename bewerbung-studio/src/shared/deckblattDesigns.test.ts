@@ -56,7 +56,7 @@ const build = (designId: string, options: Options = {}) => {
 
 describe("Deckblatt designs", () => {
   it("offers the selectable designs from one registry, the first one being the existing Deckblatt", () => {
-    expect(deckblattDesignIds).toEqual(["klassisch", "pastell", "akzentband", "farbbalken", "seitenpanel"]);
+    expect(deckblattDesignIds).toEqual(["klassisch", "pastell", "akzentband", "farbbalken", "seitenpanel", "kopfband"]);
     expect(deckblattDesigns.map((design) => design.id)).toEqual([...deckblattDesignIds]);
     expect(new Set(deckblattDesigns.map((design) => design.label)).size).toBe(deckblattDesignIds.length);
     expect(defaultDeckblattDesign).toBe("klassisch");
@@ -160,7 +160,37 @@ describe("Deckblatt designs", () => {
   });
 });
 
-describe("Akzentband: Kernkompetenzen and Anlagen under the name", () => {
+describe("Farbbalken: name left, contact list right in the band", () => {
+  it("sets the name block beside one icon row per contact, the address included", () => {
+    const { model, markup } = build("farbbalken");
+    const page = parseHTML(`<html><body>${markup}</body></html>`).document;
+    const band = page.querySelector(".dk-band");
+    expect(band?.firstElementChild?.className).toBe("dk-identity");
+    expect(band?.querySelector(".dk-identity .dk-name")?.textContent).toBe(model.name);
+    expect(band?.querySelectorAll(".dk-lines > li")).toHaveLength(model.contacts.length);
+    expect(band?.querySelector(".dk-address")).toBeNull();
+    expect(deckblattCss).toContain(".deckblatt--farbbalken .dk-band{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;");
+  });
+});
+
+describe("Akzentband: Kernkompetenzen under the name, Anlagen in the band", () => {
+  it("puts the Anlagen in the band below Kontakt, with a gap, and not under the name", () => {
+    const { model, markup } = build("akzentband");
+    const page = parseHTML(`<html><body>${markup}</body></html>`).document;
+    const band = page.querySelector(".dk-band");
+    expect(band?.lastElementChild?.className).toBe("dk-band-docs");
+    expect(band?.querySelector(".dk-band-contact + .dk-band-docs")).not.toBeNull();
+    expect(Array.from(page.querySelectorAll(".dk-band-docs li")).map((item) => item.textContent)).toEqual(model.documents);
+    expect(page.querySelector(".dk-main")?.textContent).not.toContain("Anlagen");
+    // Long file names wrap inside the band instead of widening it.
+    expect(deckblattCss).toContain(".deckblatt--akzentband .dk-band-docs{margin-top:12mm;contain:inline-size}");
+  });
+
+  it("centres the photo in the band although the left padding follows the Seitenrand", () => {
+    // Left padding = --side-left, right padding = 8mm: half the difference moves the photo back to the band's middle.
+    expect(deckblattCss).toContain(".deckblatt--akzentband .dk-band-photo{position:relative;left:calc((8mm - var(--side-left,8mm)) / 2);");
+  });
+
   it("lists every Kernkompetenz on a line of its own, as a bullet item", () => {
     const { model, markup } = build("akzentband");
     const page = parseHTML(`<html><body>${markup}</body></html>`).document;

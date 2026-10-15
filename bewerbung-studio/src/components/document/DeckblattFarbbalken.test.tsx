@@ -60,8 +60,8 @@ describe("Deckblatt design Farbbalken", () => {
     expect(page.querySelector(".dk-upper .dk-photo-area .dk-photo img")?.getAttribute("src")).toBe(photo);
     expect(text(".dk-band h2")).toEqual(["Zora Quellmalz"]);
     expect(text(".dk-band .dk-title")).toEqual(["Lohnbuchhalterin"]);
-    expect(text(".dk-band .dk-address")).toEqual(["Gartenweg 7, 34117 Kassel"]);
-    expect(text(".dk-band .dk-lines li")).toEqual(["+49 555 0101", "zora@quellmalz.test", "linkedin.com/in/zora"]);
+    // The address is the first row of the contact list, beside the name block.
+    expect(text(".dk-band .dk-lines li")).toEqual(["Gartenweg 7, 34117 Kassel", "+49 555 0101", "zora@quellmalz.test", "linkedin.com/in/zora"]);
     expect(page.querySelector('.dk-lines a[href="mailto:zora@quellmalz.test"]')).toBeTruthy();
     // The recipient is the address block of the Anschreiben.
     expect(text(".dk-foot .dk-recipient > *")).toEqual(["Nordlicht AG", "Frau Petra Sommer", "Personalabteilung", "Hafenstraße 1", "20095 Hamburg"]);
