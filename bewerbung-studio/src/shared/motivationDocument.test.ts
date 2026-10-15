@@ -64,7 +64,7 @@ describe("Motivationsschreiben data", () => {
     });
     expect(legacy.documents).toMatchObject({
       motivationEnabled: false, motivationHeading: "Meine Motivation", motivationHeadingGapReduction: 0,
-      motivationIntroduction: "", motivationMainBody: "",
+      motivationSalutationGapReduction: 0, motivationIntroduction: "", motivationMainBody: "",
       motivationEvidence: "", motivationGoals: "", motivationClosing: "", coverMotivation: "Alter Text", coverIntroduction: "Hallo",
     });
   });
@@ -77,6 +77,17 @@ describe("Motivationsschreiben data", () => {
     expect(compact.style["--mv-margin-top"]).toBe(standard.style["--mv-margin-top"]);
     expect(compact.style["--mv-title-gap"]).toBe(standard.style["--mv-title-gap"]);
     expect(documentDraftSchema.safeParse({ motivationHeadingGapReduction: 5 }).success).toBe(false);
+  });
+
+  it("moves the Anrede and following text up on its own, keeping one empty line under the Überschrift", () => {
+    const standard = model();
+    const compact = model("modern", { ...texts, motivationSalutationGapReduction: 3 });
+    expect(standard.style["--mv-title-gap"]).toBe("calc(var(--mv-body-size) * var(--mv-line-height) * 4)");
+    expect(compact.style["--mv-title-gap"]).toBe("calc(var(--mv-body-size) * var(--mv-line-height) * 1)");
+    // The Überschrift does not move with it.
+    expect(compact.style["--mv-header-gap"]).toBe(standard.style["--mv-header-gap"]);
+    expect(documentDraftSchema.safeParse({ motivationSalutationGapReduction: 4 }).success).toBe(false);
+    expect(documentDraftSchema.parse({}).motivationSalutationGapReduction).toBe(0);
   });
 
   it("never mixes with the cover letter's coverMotivation", () => {
@@ -219,7 +230,8 @@ describe("Motivationsschreiben Anrede: from the application's Ansprechpartner", 
       documents: documentDraftSchema.parse({ ...texts, coverGreeting: "Liebes Team," }),
       resolvedCv: resolveCvDocument({ profile: profile(), templateId: "modern", settings: getTemplateDocumentDesignDefaults("modern") }) });
     expect(custom.salutation).toBe("Sehr geehrte Damen und Herren,");
-    expect(Object.keys(documentDraftSchema.parse({})).filter((key) => /motivation.*(greeting|salutation|anrede)/i.test(key))).toEqual([]);
+    // Only the spacing above the Anrede is stored, never its text.
+    expect(Object.keys(documentDraftSchema.parse({})).filter((key) => /motivation.*(greeting|salutation|anrede)/i.test(key) && !key.endsWith("GapReduction"))).toEqual([]);
   });
 });
 

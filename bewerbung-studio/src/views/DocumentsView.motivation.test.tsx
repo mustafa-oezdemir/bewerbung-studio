@@ -104,6 +104,30 @@ describe("DocumentsView Motivation tab", () => {
       "Meine Erfahrungen und Stärken", "Meine Ziele und mein Beitrag", "Schluss", "Grußformel und Unterschrift", "Ort und Datum"]);
   });
 
+  it("offers an Anrede spacing control of its own and shares its setting with the PDF", () => {
+    const standard = applicationWith({});
+    const compact = applicationSchema.parse({ ...standard,
+      documents: { ...standard.documents, motivationSalutationGapReduction: 3 } });
+    const controls = (document: ReturnType<typeof renderMotivationTab>) =>
+      [...document.querySelectorAll(".motivation-editor .cover-subject-spacing-control")];
+    const [heading, salutation] = controls(renderMotivationTab(standard));
+    expect(heading?.textContent).toContain("Abstand vor Überschrift");
+    expect(salutation?.textContent).toContain("Abstand vor Anrede");
+    expect(salutation?.textContent).toContain("Standardabstand");
+    const preview = renderMotivationTab(compact);
+    const [headingAfter, control] = controls(preview);
+    expect(control?.textContent).toContain("3 Zeilen nach oben verschoben");
+    expect(control?.querySelector("button")?.hasAttribute("disabled")).toBe(true);
+    // Each gap moves on its own.
+    expect(headingAfter?.textContent).toContain("Standardabstand");
+    const previewGap = preview.querySelector<HTMLElement>(".document-motivation .motivation")!
+      .style.getPropertyValue("--mv-title-gap");
+    const pdfGap = parseHTML(buildDocumentHtml(compact, profile, "motivation")).document
+      .querySelector<HTMLElement>(".motivation")!.style.getPropertyValue("--mv-title-gap");
+    expect(previewGap).toBe("calc(var(--mv-body-size) * var(--mv-line-height) * 1)");
+    expect(pdfGap).toBe(previewGap);
+  });
+
   it("offers the heading spacing control and shares its setting with the PDF", () => {
     const standard = applicationWith({});
     const compact = applicationSchema.parse({ ...standard,

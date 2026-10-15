@@ -997,6 +997,7 @@ export class DataStore {
         motivationEnabled: false,
         motivationHeading: "Meine Motivation",
         motivationHeadingGapReduction: 0,
+        motivationSalutationGapReduction: 0,
         motivationIntroduction: "",
         motivationMainBody: "",
         motivationEvidence: "",

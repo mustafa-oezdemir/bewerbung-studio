@@ -74,7 +74,7 @@ const documentFields: Record<string, [ApplicationGitAction, string]> = {
   coverSheetContactVisibility: ["deckblatt", "Kontakte"], deckblattStatement: ["deckblatt", "Text"],
   resumeProfile: ["lebenslauf", "Kurzprofil"], legacyResumeProfile: ["lebenslauf", "Kurzprofil"],
   motivationEnabled: ["motivation", "Aktivierung"], motivationHeading: ["motivation", "Überschrift"],
-  motivationHeadingGapReduction: ["motivation", "Layout"],
+  motivationHeadingGapReduction: ["motivation", "Layout"], motivationSalutationGapReduction: ["motivation", "Layout"],
   motivationIntroduction: ["motivation", "Einleitung"], motivationMainBody: ["motivation", "Haupttext"],
   motivationEvidence: ["motivation", "Erfahrung"], motivationGoals: ["motivation", "Ziele"],
   motivationClosing: ["motivation", "Schluss"],

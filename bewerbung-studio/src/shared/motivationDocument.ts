@@ -86,7 +86,7 @@ export const buildMotivationModel = ({
   themeColors?: { accentColor: string; secondaryColor: string };
   /** The profile bound to the application: Briefkopf, Ort and signature come from it. */
   profile: ApplicantProfile | undefined;
-  documents: Pick<DocumentDraft, "motivationHeading" | "motivationHeadingGapReduction" | "motivationIntroduction" | "motivationMainBody" | "motivationEvidence" | "motivationGoals" | "motivationClosing">;
+  documents: Pick<DocumentDraft, "motivationHeading" | "motivationHeadingGapReduction" | "motivationSalutationGapReduction" | "motivationIntroduction" | "motivationMainBody" | "motivationEvidence" | "motivationGoals" | "motivationClosing">;
   /** The selected Lebenslauf, resolved: its effective design is the Motivationsschreiben's design. */
   resolvedCv: ResolvedCvDocument;
 }): MotivationModel => {
@@ -136,7 +136,8 @@ export const buildMotivationModel = ({
     "--mv-margin-left": `${sides.leftMm}mm`,
     // Move the heading and all following content together; the Briefkopf stays in place.
     "--mv-header-gap": `calc(var(--mv-body-size) * var(--mv-line-height) * ${motivationDefaults.headerGapLines - documents.motivationHeadingGapReduction})`,
-    "--mv-title-gap": `calc(var(--mv-body-size) * var(--mv-line-height) * ${motivationDefaults.titleGapLines})`,
+    // Moves the Anrede and all following content up; Briefkopf and Überschrift stay in place.
+    "--mv-title-gap": `calc(var(--mv-body-size) * var(--mv-line-height) * ${motivationDefaults.titleGapLines - documents.motivationSalutationGapReduction})`,
     "--mv-paragraph-gap": `${spacingChanged("entryGapMm") ? spacing.entryGapMm : lineMm}mm`,
   };
 

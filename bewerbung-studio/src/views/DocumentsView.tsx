@@ -1007,6 +1007,23 @@ export function DocumentsView({
     });
   };
 
+  const reduceMotivationSalutationGap = () => {
+    setDocumentPreview({
+      applicationId: application.id,
+      documents: {
+        ...docs,
+        motivationSalutationGapReduction: Math.min(3, docs.motivationSalutationGapReduction + 1),
+      },
+    });
+  };
+
+  const resetMotivationSalutationGap = () => {
+    setDocumentPreview({
+      applicationId: application.id,
+      documents: { ...docs, motivationSalutationGapReduction: 0 },
+    });
+  };
+
   const setCoverLetterAttachmentsVisible = (isVisible: boolean) => {
     setDocumentPreview({
       applicationId: application.id,
@@ -1145,6 +1162,7 @@ export function DocumentsView({
         motivationEnabled: docs.motivationEnabled,
         motivationHeading: value("motivationHeading", docs.motivationHeading),
         motivationHeadingGapReduction: docs.motivationHeadingGapReduction,
+        motivationSalutationGapReduction: docs.motivationSalutationGapReduction,
         motivationIntroduction: value("motivationIntroduction", docs.motivationIntroduction),
         motivationMainBody: value("motivationMainBody", docs.motivationMainBody),
         motivationEvidence: value("motivationEvidence", docs.motivationEvidence),
@@ -1746,6 +1764,30 @@ export function DocumentsView({
                       <small>Automatisch aus dem Ansprechpartner der Bewerbung</small>
                     </header>
                     <p className="motivation-generated-value">{motivationModel.salutation}</p>
+                    <div className="cover-subject-spacing-control">
+                      <div>
+                        <b>Abstand vor Anrede</b>
+                        <small>
+                          {docs.motivationSalutationGapReduction
+                            ? `${docs.motivationSalutationGapReduction} Zeile${docs.motivationSalutationGapReduction === 1 ? "" : "n"} nach oben verschoben`
+                            : "Standardabstand"}
+                        </small>
+                      </div>
+                      <div>
+                        <button
+                          type="button"
+                          disabled={docs.motivationSalutationGapReduction === 3}
+                          onClick={reduceMotivationSalutationGap}>
+                          <ChevronUp size={15} />
+                          Anrede höher
+                        </button>
+                        {docs.motivationSalutationGapReduction ? (
+                          <button type="button" onClick={resetMotivationSalutationGap}>
+                            Standard
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
                   </section>
                   {motivationParts.map(({ field, label, placeholder }) => (
                     <section className="cover-letter-editor-section" key={field}>

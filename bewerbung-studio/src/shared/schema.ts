@@ -283,6 +283,8 @@ export const documentDraftSchema = z.object({
   motivationEnabled: z.boolean().default(false),
   motivationHeading: z.string().trim().optional().default("Meine Motivation"),
   motivationHeadingGapReduction: z.number().int().min(0).max(4).default(0),
+  /** Lines the Anrede moves up towards the Überschrift (of 4); one empty line always stays between them. */
+  motivationSalutationGapReduction: z.number().int().min(0).max(3).default(0),
   motivationIntroduction: optionalText,
   motivationMainBody: optionalText,
   motivationEvidence: optionalText,
