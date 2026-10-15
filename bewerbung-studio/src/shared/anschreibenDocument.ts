@@ -133,8 +133,28 @@ const escapeHtml = (value: string) =>
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 
+/**
+ * The Anschreiben's Briefkopf on its own: the sender line and the rule inside the page's classes, style variables and
+ * stylesheets, so another page (the Motivationsschreiben) shows exactly the Anschreiben's Briefkopf of the template.
+ */
+export type AnschreibenLetterhead = Pick<AnschreibenModel, "templateId" | "className" | "style" | "stylesheets" | "sender">;
+
+/** The Briefkopf of an Anschreiben page; its background classes stay behind (they decorate a whole sheet). */
+export const anschreibenLetterhead = (model: AnschreibenLetterhead): AnschreibenLetterhead => ({
+  templateId: model.templateId,
+  className: `${model.className.split(/\s+/).filter((name) => name && !/^(background-|print-background$|no-print-background$)/.test(name)).join(" ")} letterhead-only`,
+  style: model.style,
+  stylesheets: model.stylesheets,
+  sender: model.sender,
+});
+
+const senderMarkup = (sender: AnschreibenModel["sender"]) =>
+  `<div class="letter-header"><p class="sender-line"><span class="sender-name">${escapeHtml(sender.name)}</span><span class="sender-title">${
+    escapeHtml(sender.title)}</span><span class="sender-contact">${escapeHtml(sender.contact)}</span></p></div>`
+  + `<i class="paper-rule letter-rule"></i>`;
+
 /** `style` attribute text of the page, in the order React writes it. */
-export const anschreibenStyleText = (model: AnschreibenModel) =>
+export const anschreibenStyleText = (model: Pick<AnschreibenModel, "style">) =>
   Object.entries(model.style).map(([property, value]) => `${property}:${value}`).join(";");
 
 /**
@@ -146,9 +166,7 @@ export const renderAnschreibenMarkup = (model: AnschreibenModel, backgroundMarku
   + model.stylesheets.map((css) => `<style>${css}</style>`).join("")
   + backgroundMarkup
   + `<div class="letter-preview">`
-  + `<div class="letter-header"><p class="sender-line"><span class="sender-name">${escapeHtml(model.sender.name)}</span><span class="sender-title">${
-    escapeHtml(model.sender.title)}</span><span class="sender-contact">${escapeHtml(model.sender.contact)}</span></p></div>`
-  + `<i class="paper-rule letter-rule"></i>`
+  + senderMarkup(model.sender)
   + `<address>${model.recipientLines.map((line, index) => `<span>${escapeHtml(line)}${index < model.recipientLines.length - 1 ? "<br/>" : ""}</span>`).join("")}</address>`
   + `<p class="paper-date">${escapeHtml(model.placeDate)}</p>`
   + `<h3${model.subjectClassName ? ` class="${model.subjectClassName}"` : ""}>${escapeHtml(model.subject)}</h3>`
@@ -159,3 +177,9 @@ export const renderAnschreibenMarkup = (model: AnschreibenModel, backgroundMarku
     : ""}<span class="signature-name">${escapeHtml(model.signature.name)}</span></p>`
   + (model.attachments ? `<div class="letter-attachments"><strong>Anlagen</strong>${model.attachments.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>` : "")
   + `</div></div>`;
+
+/** The Briefkopf alone as HTML (PDF); the preview draws the same tree with `AnschreibenLetterheadBlock`. */
+export const renderAnschreibenLetterheadMarkup = (letterhead: AnschreibenLetterhead) =>
+  `<div class="${escapeHtml(letterhead.className)}" data-resume-template="${escapeHtml(letterhead.templateId)}" style="${escapeHtml(anschreibenStyleText(letterhead))}">`
+  + letterhead.stylesheets.map((css) => `<style>${css}</style>`).join("")
+  + `<div class="letter-preview">${senderMarkup(letterhead.sender)}</div></div>`;

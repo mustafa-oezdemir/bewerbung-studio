@@ -141,7 +141,7 @@ describe("Motivationsschreiben data", () => {
     expect(markup).not.toMatch(/mv-context|mv-eyebrow|mv-recipient|<address/);
   });
 
-  it("draws a plain Briefkopf: name on the left, address, phone and e-mail on the right", () => {
+  it("without the Anschreiben's Briefkopf, draws a plain one: name on the left, address, phone and e-mail on the right", () => {
     const result = model();
     expect(result.name).toBe("Mina Kaya");
     expect(result.contacts).toEqual([
@@ -156,8 +156,10 @@ describe("Motivationsschreiben data", () => {
     expect(markup).not.toContain("Softwareentwicklerin");
     expect(motivationCss).toContain(".motivation .mv-header{display:flex;align-items:flex-start;justify-content:space-between;");
     expect(motivationCss).toMatch(/\.motivation \.mv-contacts\{[^}]*text-align:right/);
-    // No decoration: no bands, cards, icons or background shapes.
-    expect(motivationCss).not.toMatch(/gradient|box-shadow|border-radius|::before|::after|svg/);
+    // No decoration of its own: no bands, cards, icons or background shapes (the inherited Briefkopf's rules only
+    // switch the Anschreiben sheet's look off).
+    const ownRules = motivationCss.split("\n").filter((line) => !line.includes(".letterhead-only")).join("\n");
+    expect(ownRules).not.toMatch(/gradient|box-shadow|border-radius|::before|::after|svg/);
     expect(model("modern", texts, undefined, { street: "", postalCode: "", city: "", phone: "", email: "" }).contacts).toEqual([]);
   });
 
@@ -189,7 +191,10 @@ describe("Motivationsschreiben data", () => {
   });
 
   it("never cuts, hides or scales the text", () => {
-    expect(motivationCss).not.toMatch(/(?<!text-)transform:|scale\(|line-clamp|text-overflow|max-height:297mm/);
+    const ownRules = motivationCss.split("\n").filter((line) => !line.includes(".letterhead-only")).join("\n");
+    expect(ownRules).not.toMatch(/(?<!text-)transform:|scale\(|line-clamp|text-overflow|max-height:297mm/);
+    // The inherited Briefkopf is never scaled or cut either: its sheet's fit transform and fixed height are switched off.
+    expect(motivationCss).toMatch(/\.motivation>\.letterhead-only\.document-paper\{[^}]*height:auto!important;[^}]*overflow:visible!important;transform:none!important/);
     // No rule that holds text may clip it.
     const textRules = motivationCss.split("\n").filter((line) => /^\.motivation(\{| \.mv-(body|paragraph|closing|heading|header)\{)/.test(line));
     expect(textRules.length).toBeGreaterThanOrEqual(6);

@@ -17,7 +17,7 @@ import { resolveResumeClosingLine } from "../src/shared/resumeClosing";
 import { resolveResumeFooterWebsite } from "../src/shared/resumeFooter";
 import { buildMotivationModel, motivationCss, renderMotivationMarkup } from "../src/shared/motivationDocument";
 import { letterSideMarginCss, letterTopMarginCss, resolveDocumentSideMargins } from "../src/shared/documentSideMargins";
-import { anschreibenSubjectClassName, buildAnschreibenFrame, renderAnschreibenMarkup } from "../src/shared/anschreibenDocument";
+import { anschreibenLetterhead, anschreibenSubjectClassName, buildAnschreibenFrame, renderAnschreibenMarkup } from "../src/shared/anschreibenDocument";
 import { anschreibenPrintCss } from "./anschreibenPrintCss";
 import { isDocumentPackage, packageDocumentOrder } from "../src/shared/applicationDocuments";
 import type { ExportTarget } from "../src/shared/ipc";
@@ -869,20 +869,21 @@ export const buildDocumentHtml = (
     </section>`;
   // The Anschreiben prints the preview's page: its markup (renderAnschreibenMarkup) and its stylesheet
   // (anschreibenPrintCss), so the PDF looks exactly like the preview. Only empty texts keep their printable defaults.
+  const letterFrame = buildAnschreibenFrame({
+    templateId: template.id,
+    layout: template.layout,
+    density: letterStatus.density,
+    gapReduction: docs.coverSubjectGapReduction,
+    settings: designSettings,
+    resolvedCv,
+    accentColor: accent,
+    secondaryColor: secondary,
+    sideMargins,
+  });
   const letter = `
     <section class="page letter-page" data-resume-template="${escapeHtml(template.id)}">${renderAnschreibenMarkup({
       templateId: template.id,
-      ...buildAnschreibenFrame({
-        templateId: template.id,
-        layout: template.layout,
-        density: letterStatus.density,
-        gapReduction: docs.coverSubjectGapReduction,
-        settings: designSettings,
-        resolvedCv,
-        accentColor: accent,
-        secondaryColor: secondary,
-        sideMargins,
-      }),
+      ...letterFrame,
       sender: letterSender,
       recipientLines: resolveRecipientLines(application, docs.coverRecipientAddress),
       placeDate: `${profile?.city ? `${profile.city}, ` : ""}den ${formatApplicationDateLong(application)}`,
@@ -3566,14 +3567,15 @@ export const buildDocumentHtml = (
     .join("");
   const cvHtml = isDocumentPackage(target) ? buildDocumentHtml(application, profile, "lebenslauf", attachments, resumeDesign) : "";
   const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings, resolvedCv);
-  // The Motivationsschreiben ("Dritte Seite"): its own plain Briefkopf, the automatic Anrede and the user's text in the
-  // selected Lebenslauf's effective design (one model and stylesheet with the preview). Its page grows with the text
-  // (no fitting, no clipping); in the Mappe it follows the Anschreiben.
+  // The Motivationsschreiben ("Dritte Seite"): the Anschreiben's Briefkopf, the automatic Anrede and the user's text in
+  // the selected Lebenslauf's effective design (one model and stylesheet with the preview). Its page grows with the
+  // text (no fitting, no clipping); in the Mappe it follows the Anschreiben.
   const motivationListed = getApplicationDocumentItems(attachments, application.id, docs.documentListSettings, docs.motivationEnabled)
     .some((item) => item.key === "motivation" && item.isVisible);
   const withMotivation = target === "motivation" || (isDocumentPackage(target) && motivationListed);
   const motivationModel = withMotivation
-    ? buildMotivationModel({ application, profile, documents: docs, resolvedCv, themeColors: { accentColor: accent, secondaryColor: secondary } })
+    ? { ...buildMotivationModel({ application, profile, documents: docs, resolvedCv, themeColors: { accentColor: accent, secondaryColor: secondary } }),
+      letterhead: anschreibenLetterhead({ templateId: template.id, ...letterFrame, sender: letterSender }) }
     : undefined;
   const motivation = motivationModel
     ? `<section class="page motivation-sheet" data-no-fit="true" style="background:${escapeHtml(motivationModel.style["--mv-background"])}">${renderMotivationMarkup(motivationModel)}</section>`
@@ -3587,7 +3589,7 @@ export const buildDocumentHtml = (
     : template.id === "stilvoll" ? stilvollResolvedCss + stilvollLetterCss
     : template.id === "gepflegt" ? gepflegtResolvedCss + gepflegtLetterCss
     : template.id === "kompakt" ? kompaktResolvedCss + kompaktLetterCss : "";
-  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${template.id === "elegant" ? elegantLetterCss : ""}${zweispaltigDocumentCss}${template.id === "zweispaltig" ? zweispaltigLetterCss : ""}${zeitgenoessischDocumentCss}${template.id === "zeitgenoessisch" ? zeitgenoessischLetterCss : ""}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}${templateSpecificCss}${withMotivation ? `${motivationCss}.page.motivation-sheet{height:auto;min-height:297mm;max-height:none;overflow:visible}` : ""}${letterSideMarginCss}${letterTopMarginCss}${target === "anschreiben" || isDocumentPackage(target) ? anschreibenPrintCss() : ""}</style></head><body>${selected.join("")}${pageFitScript}${target === "deckblatt" || target === "mappe" ? deckblattFitScript : ""}</body></html>`;
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${template.id === "elegant" ? elegantLetterCss : ""}${zweispaltigDocumentCss}${template.id === "zweispaltig" ? zweispaltigLetterCss : ""}${zeitgenoessischDocumentCss}${template.id === "zeitgenoessisch" ? zeitgenoessischLetterCss : ""}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}${templateSpecificCss}${withMotivation ? `${motivationCss}.page.motivation-sheet{height:auto;min-height:297mm;max-height:none;overflow:visible}` : ""}${letterSideMarginCss}${letterTopMarginCss}${target === "anschreiben" || isDocumentPackage(target) || withMotivation ? anschreibenPrintCss() : ""}</style></head><body>${selected.join("")}${pageFitScript}${target === "deckblatt" || target === "mappe" ? deckblattFitScript : ""}</body></html>`;
 };
 
 export const buildCoverLetterMarkdown = (

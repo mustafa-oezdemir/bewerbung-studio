@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { AnschreibenLetterheadBlock } from "./AnschreibenPage";
 import {
   motivationHeadingClassName,
   motivationRootClassName,
@@ -15,18 +16,20 @@ export function MotivationPage({ model }: { model: MotivationModel }) {
       className={motivationRootClassName()}
       data-motivation-template={model.templateId}
       style={model.style as CSSProperties}>
-      <header className="mv-header">
-        <h1 className="mv-name">{model.name}</h1>
-        {model.contacts.length ? (
-          <ul className="mv-contacts">
-            {model.contacts.map((contact) => (
-              <li key={contact.kind} data-kind={contact.kind}>
-                {contact.href ? <a href={contact.href}>{contact.text}</a> : contact.text}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </header>
+      {model.letterhead ? <AnschreibenLetterheadBlock letterhead={model.letterhead} /> : (
+        <header className="mv-header">
+          <h1 className="mv-name">{model.name}</h1>
+          {model.contacts.length ? (
+            <ul className="mv-contacts">
+              {model.contacts.map((contact) => (
+                <li key={contact.kind} data-kind={contact.kind}>
+                  {contact.href ? <a href={contact.href}>{contact.text}</a> : contact.text}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </header>
+      )}
       <h2 className={motivationHeadingClassName()}>{model.heading}</h2>
       <p className="mv-salutation">{model.salutation}</p>
       {model.paragraphs.length ? <div className="mv-body">

@@ -10,10 +10,12 @@ import { resolveEffectiveDesignTokens, resolveResumeAppearance } from "./resumeD
 import { getProfileMediaSource } from "./profileMedia";
 import { resolveLetterTitleColor } from "./resumeTitleColor";
 import { getTemplate } from "./templates";
+import { renderAnschreibenLetterheadMarkup, type AnschreibenLetterhead } from "./anschreibenDocument";
 
 /**
  * The standalone Motivationsschreiben ("Dritte Seite", see karrierebibel.de/motivationsschreiben), DIN-5008-oriented
- * and plain: a Briefkopf with the name on the left and address, phone and e-mail on the right, the Überschrift, the
+ * and plain: the Anschreiben's Briefkopf of the Bewerbung (`letterhead`; without it a plain one with the name on the
+ * left and address, phone and e-mail on the right), the Überschrift, the
  * Anrede from the application's Ansprechpartner, the user's own paragraphs, the Grußformel with the profile's
  * signature and Ort und Datum. No recipient block, no position or company line, no decoration.
  *
@@ -41,6 +43,11 @@ export type MotivationModel = {
   closing: { greeting: string; signatureSource: string; signer: string; placeDate: string };
   style: Record<string, string>;
   isEmpty: boolean;
+  /**
+   * The Anschreiben's Briefkopf of the same Bewerbung (template look and sender), shown instead of the plain one, so the
+   * two letters always share their Briefkopf. Set by the callers that build the Anschreiben too.
+   */
+  letterhead?: AnschreibenLetterhead;
 };
 
 /** The editor fields of the document, in the order they are printed. */
@@ -210,7 +217,8 @@ export const renderMotivationMarkup = (model: MotivationModel) => {
     ? `<img class="mv-signature" src="${escapeHtml(model.closing.signatureSource)}" alt="Unterschrift"/>`
     : "";
   return `<article class="${motivationRootClassName()}" data-motivation-template="${escapeHtml(model.templateId)}" style="${escapeHtml(motivationStyleText(model))}">`
-    + `<header class="mv-header"><h1 class="mv-name">${escapeHtml(model.name)}</h1>${contacts}</header>`
+    + (model.letterhead ? renderAnschreibenLetterheadMarkup(model.letterhead)
+      : `<header class="mv-header"><h1 class="mv-name">${escapeHtml(model.name)}</h1>${contacts}</header>`)
     + `<h2 class="${motivationHeadingClassName()}">${escapeHtml(model.heading)}</h2>`
     + `<p class="mv-salutation">${escapeHtml(model.salutation)}</p>`
     + (model.paragraphs.length ? `<div class="mv-body">${model.paragraphs.map((paragraph) =>
@@ -228,8 +236,11 @@ export const renderMotivationMarkup = (model: MotivationModel) => {
  */
 export const motivationCss = `
 .motivation{position:relative;box-sizing:border-box;display:block;width:210mm;min-height:297mm;margin:0;padding:var(--mv-margin-top) var(--mv-margin-right) var(--mv-margin-bottom) var(--mv-margin-left);background:var(--mv-background);color:var(--mv-text);font-family:var(--mv-font);font-size:var(--mv-body-size);font-weight:400;line-height:var(--mv-line-height);text-align:left;-webkit-box-decoration-break:clone;box-decoration-break:clone;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.motivation *{box-sizing:border-box;margin:0;padding:0}
-.motivation :where(p,li,ul,a,footer,header,div,h1,h2){font-size:inherit;line-height:inherit;font-weight:inherit;font-style:normal;color:inherit;text-decoration:none}
+.motivation :not(:where(.letterhead-only,.letterhead-only *)){box-sizing:border-box;margin:0;padding:0}
+.motivation :where(p,li,ul,a,footer,header,div,h1,h2):not(:where(.letterhead-only,.letterhead-only *)){font-size:inherit;line-height:inherit;font-weight:inherit;font-style:normal;color:inherit;text-decoration:none}
+.motivation>.letterhead-only.document-paper{zoom:1!important;display:block!important;position:relative!important;width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;aspect-ratio:auto!important;margin:calc(-1 * var(--mv-margin-top)) calc(-1 * var(--mv-margin-right)) 0 calc(-1 * var(--mv-margin-left))!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;overflow:visible!important;transform:none!important;break-inside:avoid}
+.motivation>.letterhead-only>.letter-preview{height:auto!important;min-height:0!important;max-height:none!important;padding-bottom:0!important;transform:none!important;overflow:visible!important}
+.motivation>.letterhead-only .letter-rule{margin-bottom:0!important}
 .motivation .mv-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8mm;padding-bottom:4mm;border-bottom:var(--mv-rule-width) solid var(--mv-line);break-inside:avoid}
 .motivation .mv-name{flex:1 1 auto;min-width:0;font-family:var(--mv-heading-font);font-size:var(--mv-name-size);font-weight:var(--mv-name-weight);line-height:1.15;letter-spacing:0;text-transform:none;color:var(--mv-name-color);overflow-wrap:anywhere}
 .motivation .mv-contacts{flex:0 1 auto;max-width:62%;list-style:none;font-size:var(--mv-contact-size);line-height:1.35;text-align:right;color:var(--mv-contact-color);overflow-wrap:anywhere}

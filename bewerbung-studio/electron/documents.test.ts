@@ -411,9 +411,11 @@ describe("Lebenslauf-Dokumente", () => {
     const selectedProfile = profileSchema.parse({ ...profile, street: "Beispielweg 4", postalCode: "10115", phone: "+49 30 123456", signaturePath: "data:image/png;base64,AA==" });
     const html = buildDocumentHtml(selected, selectedProfile, "motivation");
     const page = parseHTML(html).document.querySelector<HTMLElement>(".motivation")!;
-    expect(page.querySelector(".mv-header .mv-name")?.textContent).toBe("Mina Kaya");
-    expect([...page.querySelectorAll(".mv-contacts li")].map((node) => node.textContent))
-      .toEqual(["Beispielweg 4", "10115 Berlin", "+49 30 123456", "mina@example.com"]);
+    // The Briefkopf is the Anschreiben's, sender included.
+    const letterHeader = parseHTML(buildDocumentHtml(selected, selectedProfile, "anschreiben")).document.querySelector(".letter-header")!;
+    expect(page.querySelector(".letterhead-only .sender-name")?.textContent).toBe("Mina Kaya");
+    expect(page.querySelector(".letterhead-only .letter-header")?.outerHTML).toBe(letterHeader.outerHTML);
+    expect(page.querySelector(".mv-header")).toBeNull();
     expect(page.querySelector(".mv-heading")?.textContent).toBe("Meine <Motivation>");
     expect(page.querySelector(".mv-salutation")?.textContent).toBe("Sehr geehrte Frau Schulz,");
     expect([...page.querySelectorAll(".mv-paragraph")].map((node) => node.getAttribute("data-part")))
@@ -434,7 +436,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(page.querySelector(".mv-photo, .recipient, address")).toBeNull();
   });
 
-  it.each(templates.map((template) => template.id))("%s: Motivation is its own plain page, never the Anschreiben's frame or decoration", (templateId) => {
+  it.each(templates.map((template) => template.id))("%s: Motivation inherits the Anschreiben's Briefkopf, nothing else of its page", (templateId) => {
     const selected = applicationSchema.parse({
       ...application,
       templateId,
@@ -447,8 +449,17 @@ describe("Lebenslauf-Dokumente", () => {
     const section = parseHTML(html).document.querySelector<HTMLElement>("section.motivation-sheet")!;
     expect([...section.classList]).toEqual(["page", "motivation-sheet"]);
     expect(section.getAttribute("data-no-fit")).toBe("true");
-    expect(section.querySelector(".letter-header, .letter-rule, .page-content, .document-background-layer")).toBeNull();
+    expect(section.querySelector(".page-content, .document-background-layer, address, .paper-date, .letter-salutation, .letter-body")).toBeNull();
     expect(section.firstElementChild?.classList.contains("motivation")).toBe(true);
+    // The Briefkopf: the Anschreiben's classes, variables, stylesheets and sender line, without the sheet's background.
+    const letter = parseHTML(buildDocumentHtml(selected, profile, "anschreiben")).document
+      .querySelector<HTMLElement>("section.letter-page > .document-anschreiben")!;
+    const letterhead = section.querySelector<HTMLElement>(".motivation > .letterhead-only")!;
+    expect([...letterhead.classList]).toEqual([...[...letter.classList].filter((name) => !/^(background-|print-background$|no-print-background$)/.test(name)), "letterhead-only"]);
+    expect(letterhead.getAttribute("style")).toBe(letter.getAttribute("style"));
+    expect(letterhead.querySelector(".letter-preview > .letter-header")?.outerHTML).toBe(letter.querySelector(".letter-preview > .letter-header")?.outerHTML);
+    expect(letterhead.querySelector(".letter-preview > .letter-rule")).not.toBeNull();
+    expect(html).toContain(anschreibenPrintCss());
     const resolvedCv = resolveCvDocument({ profile, templateId, settings: selected.designSettings, application: selected });
     expect(section.getAttribute("style")).toBe(`background:${resolvedCv.design.colors.background}`);
   });

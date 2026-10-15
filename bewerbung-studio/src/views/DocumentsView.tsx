@@ -67,7 +67,7 @@ import { DocumentBackgroundLayer } from "../components/document/DocumentBackgrou
 import { AnschreibenPage } from "../components/document/AnschreibenPage";
 import { CertificateSelection } from "../components/resume/CertificateSelection";
 import { certificateEntries } from "../shared/certificates";
-import { anschreibenSubjectClassName, buildAnschreibenFrame, type AnschreibenModel } from "../shared/anschreibenDocument";
+import { anschreibenLetterhead, anschreibenSubjectClassName, buildAnschreibenFrame, type AnschreibenModel } from "../shared/anschreibenDocument";
 import { ResizableSplitView } from "../components/layout/ResizableSplitView";
 import { ResumeSectionsPanel } from "../components/resume/ResumeSectionsPanel";
 import { ElegantResume } from "../components/resume/templates/elegant";
@@ -677,9 +677,9 @@ export function DocumentsView({
     globalDesign: resumeDesignLayer,
   });
   const resumeRenderProfile = resolvedCv.profile;
-  // The Motivationsschreiben takes its look from this very Lebenslauf (resolvedCv), its Briefkopf and signature from
-  // the profile and its Anrede from the application's Ansprechpartner.
-  const motivationModel = buildMotivationModel({ application, profile: contentProfile, documents: docs, resolvedCv,
+  // The Motivationsschreiben takes its look from this very Lebenslauf (resolvedCv), its signature from the profile and
+  // its Anrede from the application's Ansprechpartner; the Briefkopf is the Anschreiben's (set below).
+  const motivationBaseModel = buildMotivationModel({ application, profile: contentProfile, documents: docs, resolvedCv,
     themeColors: { accentColor: design.accentColor, secondaryColor: design.secondaryColor } });
   const resumeLayout = resolvedCv.layout;
   // „Gesamt-PDF“ in the e-mail is the file of „Bewerbungsunterlagen PDF“ (without Deckblatt).
@@ -793,6 +793,8 @@ export function DocumentsView({
     signature: { greeting: "Mit freundlichen Grüßen", source: signatureSource, name },
     attachments: docs.showCoverLetterAttachments ? coverLetterAttachments : null,
   };
+  // The Motivationsschreiben inherits the Anschreiben's Briefkopf (template look and sender), as the PDF does.
+  const motivationModel = { ...motivationBaseModel, letterhead: anschreibenLetterhead(anschreibenModel) };
   const legacyTextContrastReadable = hasReadableColorContrast(design.settings.textColor, design.settings.backgroundColor);
   const documentDesignUnsaved = JSON.stringify(design) !== JSON.stringify(createDocumentDesignDraft(application));
   const documentTextUnsaved = JSON.stringify(docs) !== JSON.stringify(application.documents);
@@ -1706,8 +1708,8 @@ export function DocumentsView({
                       <span>Motivationsschreiben in Bewerbungsmappe aufnehmen</span>
                     </label>
                     <p className="field-hint">
-                      Briefkopf (Name, Adresse, Telefon, E-Mail) und Unterschrift kommen
-                      aus dem Profil dieser Bewerbung, die Anrede aus dem Ansprechpartner.
+                      Der Briefkopf ist derselbe wie im Anschreiben (Vorlage und Absender),
+                      die Unterschrift kommt aus dem Profil, die Anrede aus dem Ansprechpartner.
                       Position und Unternehmen werden nicht automatisch eingefügt.
                       DIN-5008-orientiert.
                       {motivationModel.isEmpty

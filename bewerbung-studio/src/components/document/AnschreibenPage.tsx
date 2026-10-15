@@ -1,5 +1,32 @@
 import { forwardRef, type CSSProperties, type ReactNode } from "react";
-import type { AnschreibenModel } from "../../shared/anschreibenDocument";
+import type { AnschreibenLetterhead, AnschreibenModel } from "../../shared/anschreibenDocument";
+
+function SenderBlock({ sender }: { sender: AnschreibenModel["sender"] }) {
+  return (
+    <>
+      <div className="letter-header">
+        <p className="sender-line">
+          <span className="sender-name">{sender.name}</span>
+          <span className="sender-title">{sender.title}</span>
+          <span className="sender-contact">{sender.contact}</span>
+        </p>
+      </div>
+      <i className="paper-rule letter-rule" />
+    </>
+  );
+}
+
+/** The Anschreiben's Briefkopf alone, the tree of `renderAnschreibenLetterheadMarkup` (PDF). */
+export function AnschreibenLetterheadBlock({ letterhead }: { letterhead: AnschreibenLetterhead }) {
+  return (
+    <div className={letterhead.className} data-resume-template={letterhead.templateId} style={letterhead.style as CSSProperties}>
+      {letterhead.stylesheets.map((css, index) => <style key={index}>{css}</style>)}
+      <div className="letter-preview">
+        <SenderBlock sender={letterhead.sender} />
+      </div>
+    </div>
+  );
+}
 
 /**
  * The Anschreiben page of the preview as React text nodes: the same element tree, classes, style variables and
@@ -16,14 +43,7 @@ export const AnschreibenPage = forwardRef<HTMLDivElement, { model: AnschreibenMo
         {model.stylesheets.map((css, index) => <style key={index}>{css}</style>)}
         {background}
         <div className="letter-preview">
-          <div className="letter-header">
-            <p className="sender-line">
-              <span className="sender-name">{model.sender.name}</span>
-              <span className="sender-title">{model.sender.title}</span>
-              <span className="sender-contact">{model.sender.contact}</span>
-            </p>
-          </div>
-          <i className="paper-rule letter-rule" />
+          <SenderBlock sender={model.sender} />
           <address>
             {model.recipientLines.map((line, index) => (
               <span key={`${index}-${line}`}>

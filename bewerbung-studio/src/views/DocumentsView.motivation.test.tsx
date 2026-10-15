@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { parseHTML } from "linkedom";
@@ -8,6 +10,7 @@ import { applicationSchema, defaultSettings, profileSchema } from "../shared/sch
 import { documentTopMarginMm, letterSideMarginCss, letterTopMarginCss } from "../shared/documentSideMargins";
 import { getDocumentFont } from "../shared/documentDesign";
 import { resolveCvDocument } from "../shared/resolveCvDocument";
+import { motivationCss } from "../shared/motivationDocument";
 import { DocumentsView } from "./DocumentsView";
 
 const testStore = vi.hoisted(() => ({ state: undefined as Record<string, unknown> | undefined }));
@@ -176,6 +179,13 @@ describe("DocumentsView Motivation tab", () => {
       expect(printed.style.getPropertyValue("--side-right")).toBe("18mm");
     }
     expect(letterPaper.querySelector(":scope > style")?.textContent).toBe(letterSideMarginCss);
+  });
+
+  it("never zooms the inherited Briefkopf a second time inside the zoomed preview page", () => {
+    // app.css zooms every ".paper-stage .document-paper"; the Briefkopf frame inside the Motivation page is one too.
+    const appCss = readFileSync(resolve(__dirname, "../app.css"), "utf8");
+    expect(appCss).toMatch(/\.paper-stage \.document-paper \{\s*zoom:/);
+    expect(motivationCss).toMatch(/\.motivation>\.letterhead-only\.document-paper\{zoom:1!important;/);
   });
 
   it("starts the Anschreiben as far from the top as the Motivationsschreiben, in preview and PDF", () => {
