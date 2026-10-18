@@ -6,7 +6,7 @@ import { buildDeckblattModel, deckblattCss, deckblattDesignIds, deckblattFitScri
 import { getTemplate, templates } from "../src/shared/templates";
 import { getTemplateDocumentDesignDefaults } from "../src/shared/cvDesign";
 import { createDocumentDesignDraft, resetDocumentDesign } from "../src/shared/documentEditorState";
-import { strengthSymbolOptions } from "../src/shared/strengthSymbols";
+import { getStrengthSymbolMarkup, strengthSymbolOptions } from "../src/shared/strengthSymbols";
 import { parseHTML } from "linkedom";
 import { getZweispaltigLetterVariables, zweispaltigLetterCss } from "../src/shared/zweispaltigLetterIdentity";
 import { resolveCvDocument } from "../src/shared/resolveCvDocument";
@@ -264,6 +264,21 @@ describe("Lebenslauf-Dokumente", () => {
       const pdf = buildDocumentHtml({ ...application, templateId: "modern" }, symbolProfile, "lebenslauf");
       expect(pdf).toContain(`data-strength-symbol="${symbol.id}" style="color:inherit"`);
       expect(pdf).toContain('stroke="currentColor"');
+    }
+  });
+  it("prints category symbols, chosen or detected, with the same markup as the preview in the visual templates", () => {
+    const symbolProfile = profileSchema.parse({ ...profile, strengths: [
+      { id: crypto.randomUUID(), title: "Datenbank", description: "", iconId: "" },
+      { id: crypto.randomUUID(), title: "Go", description: "", iconId: "symbol:cloud" },
+      { id: crypto.randomUUID(), title: "Testing", description: "", iconId: "symbol:check" },
+    ] });
+    for (const templateId of ["modern", "klassisch", "tabellarisch", "zweispaltig", "elegant", "gepflegt"]) {
+      // Managed sections serialise through the DOM, which writes void tags as " />".
+      const pdf = buildDocumentHtml({ ...application, templateId }, symbolProfile, "lebenslauf").replaceAll(" />", "/>");
+      expect(pdf, templateId).toContain(getStrengthSymbolMarkup("symbol:database"));
+      expect(pdf, templateId).toContain(getStrengthSymbolMarkup("symbol:cloud"));
+      expect(pdf, templateId).toContain('data-strength-symbol="symbol:check" style="color:inherit"');
+      expect(pdf, templateId).not.toContain('data-strength-symbol="symbol:test"');
     }
   });
   it("renders Deckblatt information from the actual profile data", () => {

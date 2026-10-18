@@ -1,5 +1,5 @@
 import { deviconOptions } from "../../shared/deviconCatalog";
-import { strengthSymbolOptions } from "../../shared/strengthSymbols";
+import { categorySymbolOptions, getStrengthSymbolMarkup, strengthSymbolOptions } from "../../shared/strengthSymbols";
 import { TechnologyBrandIcon } from "../resume/TechnologyBrandIcon";
 
 export function TechnologyIconPicker({
@@ -28,10 +28,21 @@ export function TechnologyIconPicker({
               onClick={() => onChange(option.id)}>{option.glyph}</button>
           ))}
         </div>
+        <div className="strength-symbol-picker strength-symbol-picker--categories" role="group" aria-label="Kategorie-Symbole">
+          {categorySymbolOptions.map((option) => (
+            <button key={option.id} type="button" title={option.label}
+              aria-label={option.label} aria-pressed={value === option.id}
+              onClick={() => onChange(option.id)}
+              dangerouslySetInnerHTML={{ __html: getStrengthSymbolMarkup(option.id) }} />
+          ))}
+        </div>
         <select aria-label="Symbol / Technologie-Icon" value={value} onChange={(event) => onChange(event.target.value)}>
           <option value="">Automatisch nach Bezeichnung</option>
           <optgroup label="Aufzählungszeichen">
             {strengthSymbolOptions.map((option) => <option key={option.id} value={option.id}>{option.glyph} {option.label}</option>)}
+          </optgroup>
+          <optgroup label="Kategorie-Symbole">
+            {categorySymbolOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
           </optgroup>
           <optgroup label="Technologie-Icons">
           {deviconOptions.map((option) => (
@@ -41,7 +52,7 @@ export function TechnologyIconPicker({
           ))}
           </optgroup>
         </select>
-        <small>Aufzählungszeichen übernehmen die Textfarbe. {deviconOptions.length} Technologie-Icons verfügbar.</small>
+        <small>Aufzählungszeichen übernehmen die Textfarbe, Kategorie-Symbole die Icon-Farbe der Vorlage. {deviconOptions.length} Technologie-Icons verfügbar.</small>
       </div>
     </div>
   );

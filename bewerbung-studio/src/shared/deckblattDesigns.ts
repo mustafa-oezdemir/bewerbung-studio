@@ -648,6 +648,7 @@ export const deckblattCss = `
 .deckblatt--kopfband .dk-stack ul{display:flex;flex-wrap:wrap;justify-content:center;gap:5mm 3mm;margin-top:3mm}
 .deckblatt--kopfband .dk-stack li{display:flex;flex:0 0 calc((100% - 15mm) / 6);flex-direction:column;align-items:center;gap:2.2mm;min-width:0;text-align:center}
 .deckblatt--kopfband .dk-stack-icon{display:grid;width:12mm;height:12mm;place-items:center;font-style:normal}
+.deckblatt--kopfband .dk-stack-icon svg{color:var(--accent)}
 .deckblatt--kopfband .dk-stack-icon svg,.deckblatt--kopfband .dk-stack-icon img{width:100%;height:100%}
 .deckblatt--kopfband .dk-stack li span{max-width:100%;font-size:10pt;line-height:1.2;overflow-wrap:anywhere}
 .deckblatt--kopfband .dk-bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:9mm}

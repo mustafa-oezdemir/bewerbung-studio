@@ -6,6 +6,7 @@ import { getTemplate } from "../../shared/templates";
 import { getTemplateDocumentDesignDefaults } from "../../shared/cvDesign";
 import { getDeckblattExperienceYears, getDeckblattQualifications } from "../../shared/deckblatt";
 import { buildDeckblattModel, deckblattCss, getDeckblattDesign, renderDeckblattMarkup } from "../../shared/deckblattDesigns";
+import { getStrengthSymbolMarkup } from "../../shared/strengthSymbols";
 import { DeckblattPreview } from "./DeckblattPreview";
 
 const now = "2026-09-26T09:00:00.000Z";
@@ -104,6 +105,25 @@ describe("Deckblatt design Kopfband", () => {
     // Skills that are not Stärken do not appear, and without Stärken the section is gone.
     const plain = build({ profile: profile({ strengths: [], skills: ["Excel"] }) });
     expect(plain.page.querySelector(".dk-stack")).toBeNull();
+  });
+
+  it("shows the category symbols in the Tech-Stack: detected from the name, a saved icon first, order and names kept", () => {
+    const titles = ["API", "Backend", "Frontend", "Datenbank", "Monitoring", "CI/CD", "CD", "Testing", "Cloud", "Go", "React", "Docker"];
+    const strengths = titles.map((title) => ({ id: id(), title, iconId: title === "Datenbank" ? "symbol:check" : title === "Go" ? "symbol:cloud" : "" }));
+    const { model, markup, page, text } = build({ profile: profile({ strengths }) });
+    expect(text(".dk-stack li span")).toEqual(titles);
+    const symbols = Array.from(page.querySelectorAll(".dk-stack-icon svg"), (svg) =>
+      svg.getAttribute("data-strength-symbol") ?? svg.getAttribute("data-brand"));
+    expect(symbols).toEqual([
+      "symbol:api", "symbol:backend", "symbol:frontend", "symbol:check", "symbol:monitoring", "symbol:ci",
+      "symbol:cd", "symbol:test", "symbol:cloud", "symbol:cloud", "react", "devicon:docker",
+    ]);
+    expect(model.techStack[0]!.icon).toBe(getStrengthSymbolMarkup("symbol:api"));
+    // The preview prints the very markup of the PDF, icons included, and colours them like the export's
+    // `.technology-brand-svg{color:var(--accent)}`; Aufzählungszeichen keep their inline `color:inherit`.
+    expect(renderToStaticMarkup(<DeckblattPreview model={model} />)).toContain(markup);
+    expect(deckblattCss).toContain(".deckblatt--kopfband .dk-stack-icon svg{color:var(--accent)}");
+    expect(markup).toContain('data-strength-symbol="symbol:check" style="color:inherit"');
   });
 
   it("centres the Tech-Stack rows, however many Stärken there are (six per row)", () => {

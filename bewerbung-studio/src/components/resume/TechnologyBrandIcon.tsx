@@ -1,3 +1,4 @@
+import { isBulletSymbolId } from "../../shared/strengthSymbols";
 import { getTechnologyBrandIconMarkup } from "../../shared/technologyBrand";
 
 export function TechnologyBrandIcon({
@@ -13,7 +14,7 @@ export function TechnologyBrandIcon({
     <span
       className={`technology-brand-icon ${className}`.trim()}
       data-technology={technology}
-      style={iconId.startsWith("symbol:") ? { color: "inherit", background: "none" } : undefined}
+      style={isBulletSymbolId(iconId) ? { color: "inherit", background: "none" } : undefined}
       aria-hidden="true"
       dangerouslySetInnerHTML={{
         __html: getTechnologyBrandIconMarkup(technology, iconId),

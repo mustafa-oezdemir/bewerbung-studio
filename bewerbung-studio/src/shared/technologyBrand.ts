@@ -73,8 +73,28 @@ const frameworkBrand = () =>
     "framework",
   );
 
+/** Exact category names only (no substrings), so React, Docker, Go & Co. keep their brand marks. CI/CD → the pipeline mark. */
+const categorySymbolNames: Record<string, string[]> = {
+  "symbol:api": ["api", "apis", "rest api", "rest apis", "restful api", "restful apis", "web api", "web apis", "api design", "api development", "api entwicklung", "schnittstellen"],
+  "symbol:backend": ["backend", "back end", "backend development", "backend entwicklung", "backendentwicklung", "server", "serverseitige entwicklung"],
+  "symbol:frontend": ["frontend", "front end", "frontend development", "frontend entwicklung", "frontendentwicklung"],
+  "symbol:database": ["datenbank", "datenbanken", "database", "databases", "datenbanksysteme", "datenbankentwicklung", "datenbankdesign", "database design"],
+  "symbol:monitoring": ["monitoring", "observability", "überwachung", "system monitoring", "application monitoring", "monitoring/logging", "monitoring&logging", "logging/monitoring", "logging&monitoring"],
+  "symbol:ci": ["ci", "continuous integration", "kontinuierliche integration", "ci/cd", "ci&cd", "ci cd", "cicd", "ci/cd pipeline", "ci/cd pipelines", "pipelines"],
+  "symbol:cd": ["cd", "continuous deployment", "continuous delivery", "kontinuierliche auslieferung", "kontinuierliche bereitstellung", "deployment"],
+  "symbol:test": ["test", "tests", "testing", "testen", "softwaretest", "softwaretests", "software testing", "unit tests", "unit testing", "testautomatisierung", "test automation", "qualitätssicherung", "quality assurance", "qa"],
+  "symbol:cloud": ["cloud", "cloud computing", "cloud services", "cloud dienste", "cloud infrastruktur", "cloud infrastructure", "cloud native"],
+};
+const categorySymbolByName = new Map(
+  Object.entries(categorySymbolNames).flatMap(([id, names]) => names.map((name) => [name, id] as const)),
+);
+const categoryKey = (normalized: string) =>
+  normalized.replace(/\s*([/&+])\s*/g, (_, joint: string) => (joint === "+" ? "&" : joint)).replace(/[\s_-]+/g, " ").trim();
+
 const getAutomaticTechnologyIconMarkup = (technology: string): string | undefined => {
   const normalized = normalizeTechnologyName(technology);
+  const category = categorySymbolByName.get(categoryKey(normalized));
+  if (category) return getStrengthSymbolMarkup(category);
   if (
     normalized === "react" ||
     normalized === "react.js" ||

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getTechnologyBrandIconMarkup, resolveTechnologyIcon } from "./technologyBrand";
+import { categorySymbolOptions, getStrengthSymbolMarkup } from "./strengthSymbols";
+import { getTechnologyBrandIconMarkup, getThemedTechnologyIconMarkup, resolveTechnologyIcon } from "./technologyBrand";
 
 describe("technology brand icons", () => {
   it("renders branded marks for Go, JavaScript, and PHP", () => {
@@ -80,5 +81,62 @@ describe("technology brand icons", () => {
     expect(fallback.source).toBe("fallback");
     expect(fallback.markup).not.toContain("<script>");
     expect(fallback.markup).toContain("&lt;SC");
+  });
+
+  it("draws the nine category symbols as distinct, static 32×32 marks in the template's icon colour", () => {
+    expect(categorySymbolOptions.map((option) => option.id)).toEqual([
+      "symbol:api", "symbol:backend", "symbol:frontend", "symbol:database", "symbol:monitoring",
+      "symbol:ci", "symbol:cd", "symbol:test", "symbol:cloud",
+    ]);
+    const marks = categorySymbolOptions.map((option) => getStrengthSymbolMarkup(option.id));
+    expect(new Set(marks).size).toBe(9);
+    expect(new Set(categorySymbolOptions.map((option) => option.shape)).size).toBe(9);
+    for (const [index, markup] of marks.entries()) {
+      expect(markup).toContain(`data-strength-symbol="${categorySymbolOptions[index]!.id}"`);
+      expect(markup).toContain('viewBox="0 0 32 32" fill="none" stroke="currentColor"');
+      // Unlike the Aufzählungszeichen they do not force the text colour, so they look like the other technology marks.
+      expect(markup).not.toContain("color:inherit");
+      expect(markup).not.toMatch(/<script|<foreignObject|<image|\son\w+=|href=|url\(|#[0-9a-f]{3,6}/i);
+      // Stroke-only: a template that recolours the stroke reaches the whole mark.
+      expect(markup).not.toMatch(/fill="(?!none")/);
+      expect(getThemedTechnologyIconMarkup("X", categorySymbolOptions[index]!.id)).toBe(markup);
+    }
+  });
+
+  it.each([
+    ["API", "symbol:api"], ["REST-API", "symbol:api"], ["apis", "symbol:api"],
+    ["Backend", "symbol:backend"], ["Back-End", "symbol:backend"], ["Backend-Entwicklung", "symbol:backend"],
+    ["Frontend", "symbol:frontend"], ["front end", "symbol:frontend"],
+    ["Datenbank", "symbol:database"], ["DATENBANKEN", "symbol:database"], ["Database", "symbol:database"],
+    ["Monitoring", "symbol:monitoring"], ["Observability", "symbol:monitoring"], ["Monitoring & Logging", "symbol:monitoring"],
+    ["CI", "symbol:ci"], ["Continuous Integration", "symbol:ci"],
+    ["CI/CD", "symbol:ci"], ["ci / cd", "symbol:ci"], ["CI-CD", "symbol:ci"], ["CICD", "symbol:ci"], ["CI/CD-Pipelines", "symbol:ci"],
+    ["CD", "symbol:cd"], ["Continuous Deployment", "symbol:cd"], ["Continuous Delivery", "symbol:cd"],
+    ["Test", "symbol:test"], ["Tests", "symbol:test"], ["Testing", "symbol:test"], ["  testing  ", "symbol:test"], ["Testautomatisierung", "symbol:test"],
+    ["Cloud", "symbol:cloud"], ["Cloud Computing", "symbol:cloud"], ["cloud-native", "symbol:cloud"],
+  ])("detects the category of %s without a saved icon", (title, symbol) => {
+    expect(resolveTechnologyIcon(title)).toEqual({ source: "auto", markup: getStrengthSymbolMarkup(symbol) });
+    expect(resolveTechnologyIcon(title, "")).toEqual(resolveTechnologyIcon(title));
+  });
+
+  it("keeps brand marks: categories match whole names only, never a part of them", () => {
+    const brands = {
+      Go: "go", React: "react", Docker: "devicon:docker", Grafana: "devicon:grafana", Prometheus: "devicon:prometheus",
+      Jenkins: "devicon:jenkins", "GitHub Actions": "devicon:githubactions", "Google Cloud": "devicon:googlecloud", SQL: "generic",
+    };
+    for (const [technology, brand] of Object.entries(brands)) {
+      const markup = getTechnologyBrandIconMarkup(technology);
+      expect(markup, technology).toContain(`data-brand="${brand}"`);
+      expect(markup, technology).not.toContain("data-strength-symbol");
+    }
+    for (const title of ["React Testing Library", "Cloudflare Workers", "Datenbankadministrator mit Go", "Continuous Learning"])
+      expect(resolveTechnologyIcon(title).markup, title).not.toContain("data-strength-symbol");
+  });
+
+  it("never overrides a saved choice with a category, and a chosen category beats the brand", () => {
+    expect(resolveTechnologyIcon("Datenbank", "symbol:check")).toEqual({ source: "manual", markup: getStrengthSymbolMarkup("symbol:check") });
+    expect(resolveTechnologyIcon("Cloud", "react").markup).toContain('data-brand="devicon:react"');
+    expect(resolveTechnologyIcon("Go", "symbol:cloud")).toEqual({ source: "manual", markup: getStrengthSymbolMarkup("symbol:cloud") });
+    expect(resolveTechnologyIcon("Monitoring", "symbol:unbekannt")).toEqual({ source: "auto", markup: getStrengthSymbolMarkup("symbol:monitoring") });
   });
 });

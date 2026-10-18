@@ -8358,6 +8358,8 @@ body.is-resizing-split-view * {
 .strength-symbol-picker button:hover,
 .strength-symbol-picker button[aria-pressed="true"] { color: var(--brand); background: var(--brand-soft); border-color: var(--brand); }
 .strength-symbol-picker button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.strength-symbol-picker--categories { margin-top: 6px; }
+.strength-symbol-picker--categories button > svg { width: 24px; height: 24px; }
 .technology-icon-picker {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);
