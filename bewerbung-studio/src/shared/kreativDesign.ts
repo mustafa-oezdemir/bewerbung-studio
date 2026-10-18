@@ -131,7 +131,7 @@ export const kreativLetterCss = `
 .kreativ-letter .sender-name{color:var(--kreativ-header-text)!important;font-family:var(--doc-heading-font);font-size:var(--doc-heading-size)!important;font-weight:var(--doc-heading-weight)!important;line-height:1.05;letter-spacing:.015em;text-transform:none}
 .kreativ-letter .sender-title{color:var(--kreativ-header-text)!important;font-family:var(--doc-heading-font);font-size:var(--doc-subheading-size)!important;font-weight:var(--doc-subheading-weight)!important;line-height:var(--doc-line-height)}
 .kreativ-letter .sender-contact{color:var(--kreativ-header-text)!important;font-size:11pt!important;line-height:1.25;overflow-wrap:anywhere}
-.kreativ-letter :is(.letter-rule,.paper-rule){height:.55mm!important;margin:0!important;background:var(--kreativ-divider)!important}
+.kreativ-letter :is(.letter-rule,.paper-rule){display:none!important}
 .kreativ-letter :is(.recipient,.date,address,.paper-date,.letter-salutation,.letter-body,.letter-closing,.signature,.letter-signature,.signature-name){color:var(--kreativ-text);font-size:var(--letter-body-size)!important}
 .kreativ-letter :is(.recipient,address){min-height:20mm;margin-top:20mm;line-height:1.28}
 .kreativ-letter :is(.date,.paper-date){margin:0 0 20mm;text-align:right}

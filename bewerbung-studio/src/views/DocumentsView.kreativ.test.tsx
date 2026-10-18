@@ -63,6 +63,8 @@ describe("Kreativ Anschreiben and Lebenslauf", () => {
       expect(pdfCv?.style.getPropertyValue("--doc-line-height")).toBe("1.3");
       expect(pdfLetterHtml).toContain(kreativLetterCss);
       expect(kreativLetterCss).toContain("text-transform:none");
+      // No rule under the Kreativ letterhead band (Anschreiben and the Motivationsschreiben drawn in its frame).
+      expect(kreativLetterCss).toContain(".kreativ-letter :is(.letter-rule,.paper-rule){display:none!important}");
       expect(profile.firstName).toBe("Mina");
       expect(pdfCv?.querySelector(".kreativ-pdf-identity h1")?.textContent).toBe("Mina Kaya");
       expect(pdfCv?.querySelector(".kreativ-pdf-identity h2")?.textContent).toBe("Prozessplanerin");
