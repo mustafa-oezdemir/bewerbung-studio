@@ -1,6 +1,7 @@
 import type { ApplicantProfile, Application } from "../shared/schema";
 import { flattenKnowledgeNames } from "../features/knowledge/knowledge.utils";
 import { getLanguageLevelScore, parseLanguageEntry } from "../features/languages/language-levels";
+import { isResumeSectionVisible, type ResumeSectionType } from "../features/resume-sections/resume-sections";
 
 export const normalizeKeywordText = (value: string) =>
   value.toLocaleLowerCase("de-DE").normalize("NFKD")
@@ -17,7 +18,18 @@ export const includesKeywordPhrase = (haystack: string, phrase: string) => {
 };
 
 type RequirementKind = "knowledge" | "language" | "education" | "strength";
-export type MatchedRequirement = { label: string; kind: RequirementKind; evidence?: string };
+/** Where a requirement was found: a saved list (Kenntnisse, Stärken), the text of the Lebenslauf or the Anschreiben. */
+export type EvidenceSource = "Kenntnisse" | "Stärken" | "Lebenslauf" | "Anschreiben";
+export type MatchedRequirement = { label: string; kind: RequirementKind; evidence?: string; source?: EvidenceSource };
+/**
+ * The documents of the Bewerbung besides the profile: the effective Kurzprofil, the Anschreiben text as printed and the
+ * Lebenslauf's sections with their visibility (resolveCvDocument's `managerSections`).
+ */
+export type KeywordMatchDocuments = {
+  summary?: string;
+  coverLetter?: string;
+  sections?: ReadonlyArray<{ id: string; visible: boolean }>;
+};
 export type KeywordMatchResult = {
   score: number | null;
   met: MatchedRequirement[];
@@ -52,6 +64,70 @@ const catalog: CatalogEntry[] = [
 
 const evidenceFor = (values: string[], aliases: string[]) =>
   values.find((value) => aliases.some((alias) => includesKeywordPhrase(value, alias)));
+
+/**
+ * The profile as the Lebenslauf prints it: a hidden section proves nothing, and a Kompakt station shows its heading
+ * only. Its Kurzprofil is the effective one.
+ */
+const printedProfile = (profile: ApplicantProfile | undefined, documents: KeywordMatchDocuments): ApplicantProfile | undefined => {
+  if (!profile) return undefined;
+  const { sections } = documents;
+  const shown = (id: ResumeSectionType) => sections
+    ? sections.find((entry) => entry.id === id)?.visible !== false
+    : isResumeSectionVisible(profile, id);
+  const knowledge = shown("knowledge");
+  return {
+    ...profile,
+    summary: shown("summary") ? documents.summary ?? profile.summary : "",
+    strengths: shown("strengths") ? profile.strengths ?? [] : [],
+    skills: knowledge ? profile.skills ?? [] : [],
+    knowledgeSection: profile.knowledgeSection && { ...profile.knowledgeSection, isVisible: knowledge && profile.knowledgeSection.isVisible },
+    experiences: shown("experience") ? (profile.experiences ?? []).map((job) => job.compact
+      ? { ...job, description: "", teamSize: "", tasks: [], projects: [], technologies: [], achievements: [] }
+      : job) : [],
+    education: shown("education") ? profile.education ?? [] : [],
+    languages: shown("languages") ? profile.languages ?? [] : [],
+    certifications: shown("certifications") ? profile.certifications ?? [] : [],
+    specialSections: (profile.specialSections ?? []).filter((section) => section.isVisible !== false &&
+      sections?.find((entry) => entry.id === `special:${section.id}`)?.visible !== false),
+  };
+};
+
+/** A titled part of the Lebenslauf or the Anschreiben whose texts may name a requirement. */
+type TextSource = { label: string; source: "Lebenslauf" | "Anschreiben"; texts: string[] };
+const titled = (prefix: string, title: string) => (title.trim() ? `${prefix}: ${title.trim()}` : prefix);
+
+/** The whole Lebenslauf (not only the knowledge lists) and then the Anschreiben, in reading order. */
+const documentSources = (profile: ApplicantProfile | undefined, documents: KeywordMatchDocuments): TextSource[] => {
+  const sources: TextSource[] = [];
+  const cv = (label: string, texts: Array<string | undefined>) =>
+    sources.push({ label, source: "Lebenslauf", texts: texts.filter((value): value is string => Boolean(value?.trim())) });
+  if (profile) {
+    cv("Berufsbezeichnung", [profile.title]);
+    cv("Kurzprofil", [profile.summary]);
+    for (const strength of profile.strengths ?? []) cv(titled("Stärke", strength.title), [strength.description]);
+    for (const job of profile.experiences ?? [])
+      cv(titled("Werdegang", job.role), [job.role, job.description, ...job.tasks, ...job.projects, ...job.technologies, ...job.achievements]);
+    for (const entry of profile.education ?? [])
+      cv(titled("Bildungsweg", entry.degree), [entry.degree, entry.fieldOfStudy, entry.type, entry.description]);
+    for (const section of profile.specialSections ?? []) {
+      if (section.isVisible === false) continue;
+      const prefix = section.kind === "projects" ? "Projekt" : section.title;
+      for (const entry of section.entries)
+        cv(titled(prefix, entry.title), [entry.title, entry.subtitle, entry.description, ...entry.bullets, ...entry.technologies]);
+    }
+    for (const certificate of profile.certifications ?? []) cv(titled("Zertifikat", certificate), [certificate]);
+  }
+  if (documents.coverLetter?.trim()) sources.push({ label: "Anschreiben", source: "Anschreiben", texts: [documents.coverLetter] });
+  return sources.filter((entry) => entry.texts.length);
+};
+
+/** The technologies named in the Werdegang and the Projekte count like saved knowledge when the ad names them verbatim. */
+const documentTechnologies = (profile?: ApplicantProfile) => profile ? [
+  ...(profile.experiences ?? []).flatMap((job) => job.technologies.map((value) => ({ value, label: titled("Werdegang", job.role) }))),
+  ...(profile.specialSections ?? []).filter((section) => section.isVisible !== false).flatMap((section) => section.entries
+    .flatMap((entry) => entry.technologies.map((value) => ({ value, label: titled(section.kind === "projects" ? "Projekt" : section.title, entry.title) })))),
+].map((entry) => ({ ...entry, value: entry.value.trim() })).filter((entry) => entry.value) : [];
 
 const knowledgeGroupTypes = new Set([
   "core-competencies", "technical-focus", "professional-knowledge", "it-knowledge",
@@ -91,13 +167,28 @@ const minimumLanguageScore = (line: string) => {
   return 0;
 };
 
-export const analyzeKeywordMatch = (application: Application, profile?: ApplicantProfile): KeywordMatchResult => {
+/**
+ * Checks the requirements of the job ad against the whole Bewerbung: first the saved knowledge and strengths, then every
+ * text of the Lebenslauf (Kurzprofil, Werdegang, Bildungsweg, Projekte and the other sections, Zertifikate) and the
+ * Anschreiben. Languages and degrees keep their own level checks. Hidden sections and the details of Kompakt stations
+ * are not printed and do not count.
+ */
+export const analyzeKeywordMatch = (application: Application, savedProfile?: ApplicantProfile, documents: KeywordMatchDocuments = {}): KeywordMatchResult => {
   const text = application.job.requirementsText ?? "";
+  const profile = printedProfile(savedProfile, documents);
   const knowledge = recordedKnowledge(profile);
   const strengths = recordedStrengths(profile);
+  const sources = documentSources(profile, documents);
   const found = new Map<string, MatchedRequirement>();
-  const add = (key: string, label: string, kind: RequirementKind, evidence?: string) => {
-    if (!found.has(key)) found.set(key, { label, kind, evidence });
+  const add = (key: string, label: string, kind: RequirementKind, evidence?: string, source?: EvidenceSource) => {
+    if (!found.has(key)) found.set(key, { label, kind, evidence, ...(evidence && source ? { source } : {}) });
+  };
+  /** The saved list first, else the first part of the Lebenslauf or the Anschreiben that names the requirement. */
+  const locate = (values: string[], listSource: EvidenceSource, aliases: string[]) => {
+    const listed = evidenceFor(values, aliases);
+    if (listed) return { evidence: listed, source: listSource };
+    const part = sources.find((entry) => entry.texts.some((value) => aliases.some((alias) => includesKeywordPhrase(value, alias))));
+    return part ? { evidence: part.label, source: part.source } : { evidence: undefined, source: undefined };
   };
 
   for (const entry of catalog) {
@@ -109,15 +200,20 @@ export const analyzeKeywordMatch = (application: Application, profile?: Applican
         }).find(Boolean)
       : undefined;
     const aliases = version ? entry.aliases.map((alias) => `${alias} ${version}`) : entry.aliases;
-    add(entry.label, `${entry.label}${version ? ` ${version}` : ""}`, entry.kind,
-      evidenceFor(entry.kind === "strength" ? strengths : knowledge, aliases));
+    const { evidence, source } = entry.kind === "strength" ? locate(strengths, "Stärken", aliases) : locate(knowledge, "Kenntnisse", aliases);
+    add(entry.label, `${entry.label}${version ? ` ${version}` : ""}`, entry.kind, evidence, source);
   }
 
-  // Saved uncommon skills can be checked when the requirement names them verbatim.
-  for (const value of knowledge) {
+  // Saved uncommon skills, and the technologies of the Werdegang and the Projekte, can be checked when the requirement
+  // names them verbatim.
+  const uncommon = [
+    ...knowledge.map((value) => ({ value, evidence: value, source: "Kenntnisse" as const })),
+    ...documentTechnologies(profile).map(({ value, label }) => ({ value, evidence: label, source: "Lebenslauf" as const })),
+  ];
+  for (const { value, evidence, source } of uncommon) {
     if (value.length < 3 || !includesKeywordPhrase(text, value)) continue;
     if (catalog.some((entry) => entry.aliases.some((alias) => includesKeywordPhrase(value, alias)))) continue;
-    add(`custom:${normalizeKeywordText(value)}`, value, "knowledge", value);
+    add(`custom:${normalizeKeywordText(value)}`, value, "knowledge", evidence, source);
   }
 
   const lines = text.split(/\r?\n|;/).map((line) => line.replace(/^\s*[-•*]\s*/, "").trim()).filter(Boolean);
@@ -158,6 +254,8 @@ export const analyzeKeywordMatch = (application: Application, profile?: Applican
     met,
     missing: requirements.filter((item) => !item.evidence),
     furtherReview: [...furtherReview],
-    matchedSkills: [...new Set(met.filter((item) => item.kind === "knowledge").map((item) => item.evidence!))],
+    // A knowledge found in a saved list is named as saved; one found in the documents by the requirement's name.
+    matchedSkills: [...new Set(met.filter((item) => item.kind === "knowledge")
+      .map((item) => item.source === "Kenntnisse" ? item.evidence! : item.label))],
   };
 };
