@@ -698,7 +698,6 @@ export function DocumentsView({
     emailAttachments,
   );
   const sections = resolvedCv.sections;
-  const keywordMatch = analyzeKeywordMatch(application, profile);
   const projectMatches = matchProjects(application, contentProfile);
   const selectedProjectEntryIds = design.settings.resumePresentation?.selectedProjectEntryIds;
   const name = renderProfile
@@ -796,6 +795,14 @@ export function DocumentsView({
     signature: { greeting: "Mit freundlichen Grüßen", source: signatureSource, name },
     attachments: docs.showCoverLetterAttachments ? coverLetterAttachments : null,
   };
+  // The match reads the whole Lebenslauf as this Bewerbung prints it (its visible sections) and the Anschreiben's
+  // printed Betreff and paragraphs, without the „… ergänzen …“ placeholders.
+  const keywordMatch = analyzeKeywordMatch(application, resumeRenderProfile ?? profile, {
+    summary: resolvedCv.summary,
+    sections: resolvedCv.managerSections,
+    coverLetter: [anschreibenModel.subject, ...anschreibenModel.paragraphs.map((paragraph) => paragraph.text)]
+      .map((value) => value?.trim() ?? "").filter((value) => value && !/ergänzen …$/.test(value)).join("\n\n"),
+  });
   // The Motivationsschreiben is drawn in the Anschreiben's frame (its whole design), as in the PDF.
   const motivationModel = { ...motivationBaseModel, letter: anschreibenLetterFrame(anschreibenModel) };
   const legacyTextContrastReadable = hasReadableColorContrast(design.settings.textColor, design.settings.backgroundColor);
@@ -2587,8 +2594,10 @@ export function DocumentsView({
                       </div>
                     </div>
                     <small>
-                      Vorschläge werden niemals automatisch in Ihren Lebenslauf
-                      übernommen.
+                      Geprüft werden Kenntnisse, der ganze Lebenslauf
+                      (Kurzprofil, Werdegang, Bildungsweg, Projekte,
+                      Zertifikate) und das Anschreiben. Vorschläge werden
+                      niemals automatisch in Ihren Lebenslauf übernommen.
                     </small>
                   </section>
                 </>

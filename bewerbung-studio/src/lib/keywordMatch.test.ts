@@ -59,6 +59,70 @@ describe("Stellenanzeigen-Match", () => {
     expect(qualified.score).toBe(100);
   });
 
+  it("finds requirements in the whole Lebenslauf and the Anschreiben, not only in the knowledge lists", () => {
+    const ad = application("", "Go, Docker, Kubernetes, Scrum, Prometheus, Analytische Fähigkeiten, React");
+    const result = analyzeKeywordMatch(ad, profile({
+      skills: ["Docker"],
+      experiences: [{ role: "Prozessplaner", description: "Abstimmung im Scrum-Team", tasks: [], projects: [], technologies: [], achievements: [] }] as unknown as ApplicantProfile["experiences"],
+      specialSections: [{ kind: "projects", title: "Projekte", isVisible: true, entries: [
+        { title: "Go Shipping & Returns Microservice", subtitle: "", description: "Microservice mit Go und Gin.", bullets: [], technologies: ["Go", "Prometheus"] },
+      ] }] as unknown as ApplicantProfile["specialSections"],
+      certifications: ["Certified Kubernetes Application Developer"],
+    }), { summary: "Entwickler mit analytischen Fähigkeiten", coverLetter: "Mein analytisches Denken bringe ich gerne ein." });
+    const evidence = Object.fromEntries(result.met.map((item) => [item.label, `${item.source} · ${item.evidence}`]));
+    expect(evidence).toEqual({
+      Go: "Lebenslauf · Projekt: Go Shipping & Returns Microservice",
+      Scrum: "Lebenslauf · Werdegang: Prozessplaner",
+      Docker: "Kenntnisse · Docker",
+      Kubernetes: "Lebenslauf · Zertifikat: Certified Kubernetes Application Developer",
+      "Analytische Fähigkeiten": "Anschreiben · Anschreiben",
+      Prometheus: "Lebenslauf · Projekt: Go Shipping & Returns Microservice",
+    });
+    expect(result.missing.map((item) => item.label)).toEqual(["React"]);
+    expect(result.matchedSkills).toEqual(["Go", "Scrum", "Docker", "Kubernetes", "Prometheus"]);
+  });
+
+  it("ignores hidden sections of the Lebenslauf", () => {
+    const result = analyzeKeywordMatch(application("", "React"), profile({
+      specialSections: [{ kind: "projects", title: "Projekte", isVisible: false, entries: [
+        { title: "Shop", subtitle: "", description: "React-Frontend", bullets: [], technologies: ["React"] },
+      ] }] as unknown as ApplicantProfile["specialSections"],
+    }));
+    expect(result.missing.map((item) => item.label)).toEqual(["React"]);
+  });
+
+  it("ignores sections switched off in the Lebenslauf, by the profile or by the section manager", () => {
+    const ad = application("", "Docker, Scrum, Kubernetes, Analytische Fähigkeiten, Python");
+    const saved = profile({
+      skills: ["Docker"],
+      strengths: [{ title: "Analytische Fähigkeiten" }] as ApplicantProfile["strengths"],
+      experiences: [{ role: "Entwickler", description: "Scrum-Team", tasks: [], projects: [], technologies: [], achievements: [] }] as unknown as ApplicantProfile["experiences"],
+      certifications: ["Certified Kubernetes Application Developer"],
+      specialSections: [{ id: "p1", kind: "projects", title: "Projekte", isVisible: true, entries: [
+        { title: "Data", subtitle: "", description: "Python-Auswertung", bullets: [], technologies: [] },
+      ] }] as unknown as ApplicantProfile["specialSections"],
+    });
+    expect(analyzeKeywordMatch(ad, saved).score).toBe(100);
+    const hiddenByProfile = analyzeKeywordMatch(ad, { ...saved, resumeSections: {
+      profile: true, strengths: false, experience: false, education: true, skills: false, languages: true, certifications: false,
+    } });
+    expect(hiddenByProfile.met.map((item) => item.label)).toEqual(["Python"]);
+    const hiddenByManager = analyzeKeywordMatch(ad, saved, { sections: [
+      { id: "knowledge", visible: true }, { id: "experience", visible: true }, { id: "strengths", visible: true },
+      { id: "certifications", visible: true }, { id: "special:p1", visible: false },
+    ] });
+    expect(hiddenByManager.missing.map((item) => item.label)).toEqual(["Python"]);
+  });
+
+  it("reads only the heading of a Kompakt station and not a hidden Kurzprofil", () => {
+    const ad = application("", "Scrum, Docker, Python");
+    const result = analyzeKeywordMatch(ad, profile({
+      experiences: [{ role: "Python-Entwickler", compact: true, description: "Scrum-Team", tasks: [], projects: [],
+        technologies: ["Docker"], achievements: [] }] as unknown as ApplicantProfile["experiences"],
+    }), { summary: "Erfahrung mit Docker", sections: [{ id: "summary", visible: false }] });
+    expect(result.met.map((item) => `${item.label} · ${item.evidence}`)).toEqual(["Python · Werdegang: Python-Entwickler"]);
+  });
+
   it("shows no percentage for empty or uncheckable requirements", () => {
     expect(analyzeKeywordMatch(application("TypeScript", ""), profile({ skills: ["TypeScript"] })).score).toBeNull();
     const result = analyzeKeywordMatch(application("", "Reisebereitschaft"), profile());
