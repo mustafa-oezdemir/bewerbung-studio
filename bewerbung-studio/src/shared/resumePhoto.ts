@@ -70,6 +70,7 @@ export const resumePhotoLargeGrowthMm: Record<string, ResumePhotoGrowth> = {
   pehlione_white_blue: { main: 0, side: 9.2 },
   pehlione_white: { main: 0, side: 9.2 },
   zweispaltig: { main: 6, side: 6 },
+  "tuerkis-profil": { main: 6, side: 6 },
   zeitgenoessisch: { main: 8.4, side: 8.4 },
   kreativ: { main: 5.6, side: 5.6 },
   stilvoll: { main: 5.2, side: 5.2 },

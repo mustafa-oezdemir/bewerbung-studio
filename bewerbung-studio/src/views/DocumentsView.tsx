@@ -83,6 +83,7 @@ import { StilvollResume } from "../components/resume/templates/stilvoll";
 import { TabellarischResume } from "../components/resume/templates/tabellarisch";
 import { ZeitgenoessischResume } from "../components/resume/templates/zeitgenoessisch";
 import { ZweispaltigResume } from "../components/resume/templates/zweispaltig";
+import { TuerkisProfilResume } from "../components/resume/templates/tuerkis-profil";
 import { analyzeKeywordMatch } from "../lib/keywordMatch";
 import { matchProjects } from "../lib/projectMatch";
 import {
@@ -711,7 +712,7 @@ export function DocumentsView({
     : applicationRecipientLines(application);
   const coverSender = template.id === "stilvoll"
     ? stilvollCoverSenderFromProfile(resolvedCv.profile)
-    : ["zweispaltig", "zeitgenoessisch", "elegant", "kreativ", "gepflegt", "kompakt"].includes(template.id)
+    : ["zweispaltig", "tuerkis-profil", "zeitgenoessisch", "elegant", "kreativ", "gepflegt", "kompakt"].includes(template.id)
     ? coverSenderFromProfile(resolvedCv.profile)
     : resolveCoverSender(renderProfile, docs);
   const { name: coverSenderName, title: coverSenderTitle, contact: coverSenderContact } = coverSender;
@@ -880,6 +881,14 @@ export function DocumentsView({
   const updateCertificateSelection = (selectedCertificateIds: string[]) => setDesign((current) => ({ ...current, settings: {
     ...current.settings, resumePresentation: { ...current.settings.resumePresentation, selectedCertificateIds },
   } }));
+  const updateSpecialEntrySelection = (sectionId: string, ids: string[]) => setDesign((current) => ({
+    ...current, settings: { ...current.settings, resumePresentation: {
+      ...current.settings.resumePresentation,
+      selectedSpecialEntryIds: {
+        ...current.settings.resumePresentation?.selectedSpecialEntryIds, [sectionId]: ids,
+      },
+    } },
+  }));
   const clearProjectSelection = () => setDesign((current) => ({ ...current, settings: {
     ...current.settings, resumePresentation: {
       ...current.settings.resumePresentation, selectedProjectEntryIds: [],
@@ -2511,6 +2520,8 @@ export function DocumentsView({
                           onChange={updateCertificateSelection}
                         />
                       }
+                      selectedSpecialEntryIds={design.settings.resumePresentation?.selectedSpecialEntryIds}
+                      onSpecialEntrySelectionChange={updateSpecialEntrySelection}
                       layoutMode={resumeLayout.mode}
                       closingPlacement={design.settings.resumePresentation?.closing?.placement}
                       closingAlignment={design.settings.resumePresentation?.closing?.alignment ?? (template.id.startsWith("pehlione_") ? "distributed" : "left")}
@@ -2838,8 +2849,20 @@ export function DocumentsView({
                           resumeProfile={resolvedCv.summary}
                           sections={sections}
                         />
-                      ) : template.id === "zweispaltig" ? (
-                        <ZweispaltigResume
+                      ) : template.id === "zweispaltig" || template.id === "tuerkis-profil" ? (
+                        template.id === "tuerkis-profil" ? <TuerkisProfilResume
+                          profile={renderProfile}
+                          name={name}
+                          atsMode={isAtsMode}
+                          plan={plan}
+                          totalPages={resumePlan.length}
+                          accentColor={design.accentColor}
+                          secondaryColor={design.secondaryColor}
+                          designVariables={resolvedCv.zweispaltigVariables}
+                          photoSource={getProfileMediaSource(renderProfile?.photoPath)}
+                          resumeProfile={resolvedCv.summary}
+                          sections={sections}
+                        /> : <ZweispaltigResume
                           profile={renderProfile}
                           name={name}
                           atsMode={isAtsMode}

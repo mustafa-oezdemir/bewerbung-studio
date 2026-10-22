@@ -739,6 +739,22 @@ const geometry: Record<string, PaginationGeometry> = {
   },
 };
 
+// The right career column starts at the top. The left column reserves room for the profile,
+// photo and contact rows before education and other user-placed sections.
+geometry["tuerkis-profil"] = {
+  ...geometry.zweispaltig,
+  sidebarLeft: true,
+  zones: { summary: "sidebar", strengths: "main", knowledge: "main", languages: "sidebar" },
+  top1: 12, top2: 42, sideTop1: 165, sideLimit: 285, limit: 258,
+  mainLeft: 91.2, mainRight: 198, contentLeft: 12, contentRight: 198,
+  text: { ...geometry.zweispaltig.text, contW: 186, mainW: 106.8, sideW: 71.2,
+    bulletW: 102, titleW: 106.8, orgW: 106.8, atsW: 186, fullW: 186 },
+  items: { ...geometry.zweispaltig.items,
+    strengths: { ...geometry.zweispaltig.items.strengths, w: 101, cols: 2 },
+    knowledge: { ...geometry.zweispaltig.items.knowledge, w: 101, cols: 2 },
+  },
+};
+
 /**
  * Tabellarisch's plain (ATS) layout keeps its measured model: its entries are blocks without the date column, and its
  * page has no footer clearance of its own.

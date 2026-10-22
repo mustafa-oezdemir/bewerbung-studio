@@ -3,6 +3,8 @@ import { kreativDefaults } from "../src/shared/cvTemplateDefaults/kreativ.defaul
 import { kompaktDefaults } from "../src/shared/cvTemplateDefaults/kompakt.defaults";
 import { stilvollDefaults } from "../src/shared/cvTemplateDefaults/stilvoll.defaults";
 import { zweispaltigDefaults, zweispaltigPageStyle } from "../src/shared/cvTemplateDefaults/zweispaltig.defaults";
+import tuerkisProfilCss from "../src/components/resume/templates/tuerkis-profil/tuerkis-profil.css?raw";
+import { arrangeTuerkisProfilPage } from "../src/shared/tuerkisProfilLayout";
 import { zweispaltigLetterCss } from "../src/shared/zweispaltigLetterIdentity";
 import { zeitgenoessischLetterCss } from "../src/shared/zeitgenoessischDesign";
 import { getElegantDesignVariables, elegantLetterCss, elegantManagedCss, isElegantWideContact } from "../src/shared/elegantDesign";
@@ -796,7 +798,11 @@ export const buildDocumentHtml = (
   const template = getTemplate(application.templateId);
   const accent = application.accentColor || template.accent;
   const secondary = application.secondaryColor || template.secondary;
-  const zweispaltigCvStyle = `${zweispaltigPageStyle};${Object.entries(resolvedCv.zweispaltigVariables ?? {})
+  const tuerkisPageStyle = ["top", "right", "bottom", "left"]
+    .map((side) => `--zweispaltig-margin-${side}:var(--doc-page-margin,12mm)`).join(";");
+  const tuerkisTypography = template.id === "tuerkis-profil"
+    ? `;--doc-body-size:${fontSizeToPt[resolvedCv.settings.fontSize]}pt;--doc-line-height:${lineHeightLevelToValue[resolvedCv.settings.lineHeightLevel]}` : "";
+  const zweispaltigCvStyle = `${template.id === "tuerkis-profil" ? tuerkisPageStyle : zweispaltigPageStyle}${tuerkisTypography};${Object.entries(resolvedCv.zweispaltigVariables ?? {})
     .map(([key, value]) => `${key}:${escapeHtml(value)}`).join(";")}`;
   const onSecondary = getReadableTextColor(secondary);
   const designSettings = resolvedCv.settings;
@@ -848,7 +854,7 @@ export const buildDocumentHtml = (
   const sideMargins = resolveDocumentSideMargins(resolvedCv.templateId, resolvedCv.design.spacing);
   const letterSender = template.id === "stilvoll"
     ? stilvollCoverSenderFromProfile(resolvedCv.profile)
-    : ["zweispaltig", "zeitgenoessisch", "elegant", "kreativ", "gepflegt", "kompakt"].includes(template.id)
+    : ["zweispaltig", "tuerkis-profil", "zeitgenoessisch", "elegant", "kreativ", "gepflegt", "kompakt"].includes(template.id)
     ? coverSenderFromProfile(resolvedCv.profile)
     : resolveCoverSender(profile, docs);
   const sharedLetterParagraphs = template.id === "kreativ" || template.id === "stilvoll" ? resolveKreativCoverLetterParagraphs(application, docs) : undefined;
@@ -3565,15 +3571,20 @@ export const buildDocumentHtml = (
                       ? renderKreativResumePage
                       : template.id === "zeitgenoessisch"
                         ? renderZeitgenoessischResumePage
-                        : template.id === "zweispaltig"
-                          ? renderZweispaltigResumePage
+                        : template.id === "zweispaltig" || template.id === "tuerkis-profil"
+                          ? template.id === "tuerkis-profil"
+                            ? (plan) => renderZweispaltigResumePage(plan).replace('data-template="zweispaltig"', 'data-template="tuerkis-profil"')
+                            : renderZweispaltigResumePage
                           : template.id === "tabellarisch"
                             ? renderTabellarischResumePage
                             : renderResumePage,
     )
     .join("");
   const cvHtml = isDocumentPackage(target) ? buildDocumentHtml(application, profile, "lebenslauf", attachments, resumeDesign) : "";
-  const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings, resolvedCv);
+  const managedResumeRaw = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings, resolvedCv);
+  const managedResume = template.id === "tuerkis-profil" && !cvHtml
+    ? arrangeTuerkisProfilPage(managedResumeRaw, resolvedCv.managerSections,
+        resolvedCv.pagePlan.filter((page) => page.blocks?.includes("summary")).length > 1) : managedResumeRaw;
   // The Motivationsschreiben ("Dritte Seite"): drawn in the Anschreiben's page frame (its whole design), with its own
   // Überschrift, the automatic Anrede and the user's text (one model and stylesheet with the preview). Its page grows with the
   // text (no fitting, no clipping); in the Mappe it follows the Anschreiben.
@@ -3595,7 +3606,8 @@ export const buildDocumentHtml = (
     : template.id === "kreativ" ? kreativResolvedCss + kreativLetterCss
     : template.id === "stilvoll" ? stilvollResolvedCss + stilvollLetterCss
     : template.id === "gepflegt" ? gepflegtResolvedCss + gepflegtLetterCss
-    : template.id === "kompakt" ? kompaktResolvedCss + kompaktLetterCss : "";
+    : template.id === "kompakt" ? kompaktResolvedCss + kompaktLetterCss
+    : template.id === "tuerkis-profil" ? tuerkisProfilCss : "";
   return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${template.id === "elegant" ? elegantLetterCss : ""}${zweispaltigDocumentCss}${template.id === "zweispaltig" ? zweispaltigLetterCss : ""}${zeitgenoessischDocumentCss}${template.id === "zeitgenoessisch" ? zeitgenoessischLetterCss : ""}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}${templateSpecificCss}${withMotivation ? `${motivationCss}.page.motivation-sheet{height:auto;min-height:297mm;max-height:none;overflow:visible}` : ""}${letterSideMarginCss}${letterTopMarginCss}${target === "anschreiben" || isDocumentPackage(target) || withMotivation ? anschreibenPrintCss() : ""}</style></head><body>${selected.join("")}${pageFitScript}${target === "deckblatt" || target === "mappe" ? deckblattFitScript : ""}</body></html>`;
 };
 

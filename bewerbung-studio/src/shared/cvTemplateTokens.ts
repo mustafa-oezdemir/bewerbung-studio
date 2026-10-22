@@ -14,6 +14,7 @@ import { stilvollDesign } from "./cvTemplateDefaults/stilvoll.defaults";
 import { tabellarischDesign } from "./cvTemplateDefaults/tabellarisch.defaults";
 import { zeitgenoessischDesign } from "./cvTemplateDefaults/zeitgenoessisch.defaults";
 import { zweispaltigDesign } from "./cvTemplateDefaults/zweispaltig.defaults";
+import { tuerkisProfilDesign } from "./cvTemplateDefaults/tuerkis-profil.defaults";
 
 /** Native visual design of the standard rendering; density/ATS variations remain in their template adapters. */
 export const nativeResumeDesigns: Record<string, NativeResumeDesign> = {
@@ -22,6 +23,7 @@ export const nativeResumeDesigns: Record<string, NativeResumeDesign> = {
   gepflegt: gepflegtDesign,
   "ivy-league": ivyLeagueDesign,
   zweispaltig: zweispaltigDesign,
+  "tuerkis-profil": tuerkisProfilDesign,
   zeitgenoessisch: zeitgenoessischDesign,
   kreativ: kreativDesign,
   tabellarisch: tabellarischDesign,

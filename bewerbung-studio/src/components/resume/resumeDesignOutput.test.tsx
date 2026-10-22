@@ -28,12 +28,14 @@ import { StilvollResume } from "./templates/stilvoll";
 import { TabellarischResume } from "./templates/tabellarisch";
 import { ZeitgenoessischResume } from "./templates/zeitgenoessisch";
 import { ZweispaltigResume } from "./templates/zweispaltig";
+import { TuerkisProfilResume } from "./templates/tuerkis-profil";
 
 const components: Record<string, unknown> = {
   elegant: ElegantResume, einspaltig: EinspaltigResume, gepflegt: GepflegtResume, klassisch: KlassischResume,
   kompakt: KompaktResume, kreativ: KreativResume, "ivy-league": IvyLeagueResume, modern: ModernResume,
   pehlione_white: PehlioneResume, pehlione_white_blue: PehlioneResume, stilvoll: StilvollResume,
   tabellarisch: TabellarischResume, zeitgenoessisch: ZeitgenoessischResume, zweispaltig: ZweispaltigResume,
+  "tuerkis-profil": TuerkisProfilResume,
 };
 const now = new Date().toISOString();
 const profile = profileSchema.parse({

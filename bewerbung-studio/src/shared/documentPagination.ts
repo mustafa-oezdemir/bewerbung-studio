@@ -528,7 +528,7 @@ const bounded = (value: number | undefined, fallback: number) =>
   value !== undefined && Number.isFinite(value) && value > 0 ? value : fallback;
 
 const legacyMarginTemplates = new Set([
-  "elegant", "zweispaltig", "zeitgenoessisch", "kreativ", "stilvoll",
+  "elegant", "zweispaltig", "tuerkis-profil", "zeitgenoessisch", "kreativ", "stilvoll",
   "einspaltig", "klassisch", "tabellarisch", "ivy-league",
 ]);
 
@@ -605,7 +605,7 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
       marginInset: padding, fullRatio: ratio, ...factors, ...spacing,
       titleFont: (overrides.entryHeadingPt ?? tabellarischDefaults.typography.entryTitleSizePt) * PT_TO_MM };
   }
-  if (templateId === "zweispaltig") {
+  if (templateId === "zweispaltig" || templateId === "tuerkis-profil") {
     const native = zweispaltigDefaults.layout;
     const chosenMargin = overrides.pageMarginMm ?? (settings && settings.marginLevel !== defaults.marginLevel
       ? marginLevelToMm[settings.marginLevel] : undefined);
@@ -770,6 +770,7 @@ const sumHeights = (values: number[], gap: number) =>
  */
 const nativeSidebarOrder: Record<string, readonly string[]> = {
   zweispaltig: ["summary", "strengths", "knowledge", "languages", "certifications"],
+  "tuerkis-profil": ["summary"],
   gepflegt: ["summary", "strengths", "languages", "knowledge", "certifications"],
   zeitgenoessisch: ["summary", "strengths", "languages", "knowledge", "certifications"],
   elegant: ["summary", "strengths", "knowledge", "languages", "certifications"],
@@ -2469,8 +2470,8 @@ const planResumePages = (
    * (`leadIds`), where every later page is packed.
    */
   const continueAfterSecond = (plan: ResumePagePlan[]): ResumePagePlan[] => {
-    if (templateId !== "gepflegt" && !leadIds.size) return packContinuations(plan, templateId === "zweispaltig");
-    const full = packContinuations(plan, templateId === "zweispaltig");
+    if (templateId !== "gepflegt" && !leadIds.size) return packContinuations(plan, templateId === "zweispaltig" || templateId === "tuerkis-profil");
+    const full = packContinuations(plan, templateId === "zweispaltig" || templateId === "tuerkis-profil");
     return full.length > 1 && (full[full.length - 1].fill?.main ?? 0) > 1 ? packContinuations(plan, true) : full;
   };
 

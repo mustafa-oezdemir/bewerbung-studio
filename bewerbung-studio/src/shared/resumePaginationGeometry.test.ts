@@ -4,7 +4,7 @@ import { genericPaginationGeometry, getPaginationGeometry } from "./resumePagina
 
 const canonical = [
   "pehlione_white_blue", "pehlione_white", "modern", "elegant", "zweispaltig", "zeitgenoessisch", "kreativ",
-  "gepflegt", "kompakt", "stilvoll", "einspaltig", "klassisch", "tabellarisch", "ivy-league",
+  "gepflegt", "kompakt", "stilvoll", "einspaltig", "klassisch", "tabellarisch", "ivy-league", "tuerkis-profil",
 ];
 
 describe("template pagination geometry", () => {
@@ -15,7 +15,8 @@ describe("template pagination geometry", () => {
     expect(geometry.limit).toBeLessThan(297);
     // These native geometry values predate shared full-header repetition; the
     // page planner reserves the extra continuation height separately.
-    expect(geometry.top2).toBeLessThanOrEqual(geometry.top1);
+    if (id === "tuerkis-profil") expect(geometry.top2).toBe(42);
+    else expect(geometry.top2).toBeLessThanOrEqual(geometry.top1);
     expect(geometry.text.cw).toBeGreaterThan(0.3);
     expect(geometry.text.cw).toBeLessThan(0.75);
     expect(geometry.exp.linePitch).toBeGreaterThan(2);
