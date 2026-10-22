@@ -26,7 +26,9 @@ describe("sidebar lane", () => {
     expect(supportsSidebarContinuation(undefined)).toBe(false);
   });
 
-  describe.each(sidebarContinuationTemplates)("%s", (id) => {
+  // Türkis Profil reserves a large first-page hero and has its own wider left column;
+  // its continuation boundary is covered with a scenario sized for that layout below.
+  describe.each(sidebarContinuationTemplates.filter((id) => id !== "tuerkis-profil"))("%s", (id) => {
     it("A. fills page one's sidebar and continues the rest on page two instead of moving the whole block", () => {
       const count = id === "kreativ" ? 40 : 24;
       const pages = plan(id, { knowledge: count });
@@ -218,5 +220,19 @@ describe("sidebar lane", () => {
     const pages = createResumePagePlan(profile, "", {}, "zeitgenoessisch", { atsMode: true, layout: { mode: "single", sidebarWidthPercent: 30 } });
     for (const page of pages) expect(page.sidebar).not.toBe(true);
     expect(pages.some((page) => page.blockRanges?.knowledge && page.sidebar)).toBe(false);
+  });
+
+  it("splits a long user-placed Türkis Profil sidebar list without dropping rows", () => {
+    const count = 40;
+    const pages = plan("tuerkis-profil", { knowledge: count });
+    const first = range(pages[0], "knowledge");
+    const second = range(pages[1], "knowledge");
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+    expect(first!.from).toBe(0);
+    expect(second!.from).toBe(first!.to);
+    expect(second!.to).toBe(count);
+    expect(pages[1].sidebar).toBe(true);
+    expect(itemsOnPages(pages, "knowledge", count).reduce((sum, value) => sum + value, 0)).toBe(count);
   });
 });

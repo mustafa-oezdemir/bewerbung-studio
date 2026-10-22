@@ -69,7 +69,18 @@ export const resolveCvDocument = ({
     ...selectedProjects,
     ...certificateFields(selectCertificateEntries(certificateEntries(selectedProjects), selectedCertificateIds)),
   };
-  let profile = getResumeDisplayProfile(selectedCertificates);
+  const selectedSpecialEntryIds = settings.resumePresentation?.selectedSpecialEntryIds;
+  const selectedSpecialEntries = !selectedCertificates || !selectedSpecialEntryIds ? selectedCertificates : {
+    ...selectedCertificates,
+    specialSections: selectedCertificates.specialSections.map((section) => {
+      const ids = selectedSpecialEntryIds[section.id];
+      if (ids === undefined) return section;
+      const byId = new Map(section.entries.map((entry) => [entry.id, entry]));
+      const entries = [...new Set(ids)].flatMap((id) => byId.get(id) ?? []);
+      return { ...section, entries, isVisible: section.isVisible && entries.length > 0 };
+    }),
+  };
+  let profile = getResumeDisplayProfile(selectedSpecialEntries);
   const sections = {
     ...(profile?.resumeSections ?? {
       profile: true,
@@ -131,7 +142,7 @@ export const resolveCvDocument = ({
   const einspaltigVariables = templateId === "einspaltig"
     ? getEinspaltigDesignVariables(design, settings.cvOverrides?.colors, application?.accentColor)
     : undefined;
-  const zweispaltigVariables = templateId === "zweispaltig"
+  const zweispaltigVariables = templateId === "zweispaltig" || templateId === "tuerkis-profil"
     ? getZweispaltigDesignVariables(design, settings.cvOverrides?.colors,
         application?.accentColor, application?.secondaryColor)
     : undefined;

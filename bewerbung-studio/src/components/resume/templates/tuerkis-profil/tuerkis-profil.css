@@ -1,0 +1,270 @@
+/* Shared preview/PDF layout. The content nodes are arranged by tuerkisProfilLayout on both surfaces. */
+.tuerkis-profil-template {
+  --tuerkis: var(--doc-accent-color, #24a9e1);
+  --tuerkis-text: var(--doc-paragraph-color, #3f464b);
+  --tuerkis-rule: var(--doc-divider-color, #24a9e1);
+}
+/* Explicit native selectors also supply the custom-section style inheritance contract. */
+.tuerkis-profil-template .zweispaltig-section__title {
+  margin: 0 0 2.5mm;
+  padding: 0 0 1.5mm;
+  border-bottom: .4mm solid var(--tuerkis-rule, #24a9e1);
+  color: #42484c;
+  font-size: var(--doc-section-heading-size, 9.5pt);
+  font-weight: 750;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.tuerkis-profil-template .zweispaltig-career-entry h3 { color: #42484c; }
+.tuerkis-profil-template .zweispaltig-page__visual,
+.cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf {
+  --zweispaltig-margin-top: var(--doc-page-margin, 12mm);
+  --zweispaltig-margin-right: var(--doc-page-margin, 12mm);
+  --zweispaltig-margin-bottom: var(--doc-page-margin, 12mm);
+  --zweispaltig-margin-left: var(--doc-page-margin, 12mm);
+  color: var(--tuerkis-text, var(--doc-paragraph-color, #3f464b));
+}
+.tuerkis-profil-template .zweispaltig-columns,
+.cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 40fr) minmax(0, 60fr);
+  column-gap: var(--doc-column-gap, 8mm);
+  align-items: start;
+}
+.tuerkis-profil-template .zweispaltig-sidebar,
+.cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf-sidebar {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+.tuerkis-profil-template .zweispaltig-main,
+.cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf-main {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+.tuerkis-profil-template .tuerkis-profil-hero,
+.cv-sheet[data-template="tuerkis-profil"] .tuerkis-profil-hero {
+  min-height: 56mm;
+  padding: 7mm 6.5mm 6mm;
+  background: var(--tuerkis, var(--doc-accent-color, #24a9e1));
+  color: #fff;
+}
+.tuerkis-profil-template .tuerkis-profil-hero h1,
+.cv-sheet[data-template="tuerkis-profil"] .tuerkis-profil-hero h1 {
+  margin: 0;
+  color: #fff;
+  font-size: var(--doc-heading-size, 25pt);
+  font-weight: 750;
+  line-height: 1.03;
+  letter-spacing: .025em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+.tuerkis-profil-template .tuerkis-profil-hero h2,
+.cv-sheet[data-template="tuerkis-profil"] .tuerkis-profil-hero h2 {
+  margin: 3mm 0 0;
+  padding: 0;
+  color: #fff;
+  font-size: var(--doc-subheading-size, 10.5pt);
+  font-weight: 500;
+  letter-spacing: .1em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+.tuerkis-profil-template .tuerkis-profil-hero [data-managed-section="summary"],
+.tuerkis-profil-template .tuerkis-profil-hero [data-element-id="zweispaltig.summary"],
+.cv-sheet[data-template="tuerkis-profil"] .tuerkis-profil-hero [data-managed-section="summary"] {
+  margin-top: 9mm;
+  color: #fff;
+}
+.tuerkis-profil-template .tuerkis-profil-hero [data-managed-section="summary"] :is(h2,h3,.cv-heading),
+.cv-sheet[data-template="tuerkis-profil"] .tuerkis-profil-hero [data-managed-section="summary"] :is(h2,h3,.cv-heading) {
+  margin: 0 0 2mm;
+  padding-bottom: 1.5mm;
+  border-bottom: .35mm solid #fff;
+  color: #fff;
+  font-size: 9pt;
+  font-weight: 750;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.tuerkis-profil-template .tuerkis-profil-hero [data-managed-section="summary"] [data-cv-heading],
+.cv-sheet[data-template="tuerkis-profil"] .tuerkis-profil-hero [data-managed-section="summary"] [data-cv-heading] {
+  margin: 0 0 2mm !important;
+  padding: 0 0 1.5mm !important;
+  padding-block-start: 0 !important;
+  padding-block-end: 1.5mm !important;
+  border: 0 !important;
+  border-bottom: .35mm solid #fff !important;
+  color: #fff !important;
+  font-size: 9pt !important;
+  line-height: 1 !important;
+  letter-spacing: .16em;
+}
+.tuerkis-profil-template .tuerkis-profil-hero p,
+.cv-sheet[data-template="tuerkis-profil"] .tuerkis-profil-hero p {
+  color: #fff;
+  font-size: var(--doc-body-size, 9.4pt);
+  line-height: var(--doc-line-height, 1.3);
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+.tuerkis-profil-template .tuerkis-profil-photo,
+.cv-sheet[data-template="tuerkis-profil"] .tuerkis-profil-photo {
+  display: block;
+  width: 100%;
+  height: 53mm;
+  margin: 3mm 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  object-fit: cover;
+  overflow: hidden;
+}
+.tuerkis-profil-template .tuerkis-profil-photo img { width: 100%; height: 100%; object-fit: cover; }
+.tuerkis-profil-template .tuerkis-profil-contacts,
+.cv-sheet[data-template="tuerkis-profil"] .tuerkis-profil-contacts {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2mm;
+  width: 100%;
+  max-width: none;
+  margin: 6mm 0 0;
+  color: var(--tuerkis-text, #3f464b);
+  font-size: 8pt;
+  font-style: normal;
+}
+.tuerkis-profil-template .tuerkis-profil-contacts::before,
+.cv-sheet[data-template="tuerkis-profil"] .tuerkis-profil-contacts::before {
+  content: "KONTAKT";
+  display: block;
+  margin-bottom: 1.5mm;
+  padding-bottom: 1.5mm;
+  border-bottom: .4mm solid var(--tuerkis-rule, #24a9e1);
+  color: #42484c;
+  font-size: 9pt;
+  font-weight: 750;
+  letter-spacing: .16em;
+}
+.tuerkis-profil-template .tuerkis-profil-contacts > *,
+.cv-sheet[data-template="tuerkis-profil"] .tuerkis-profil-contacts > * {
+  display: grid;
+  grid-template-columns: 3.5mm minmax(0, 1fr);
+  gap: 1.2mm;
+  min-width: 0;
+  padding: 1mm 0;
+  border-bottom: .2mm solid #d1d2d4;
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.tuerkis-profil-template .tuerkis-profil-contacts svg,
+.cv-sheet[data-template="tuerkis-profil"] .tuerkis-profil-contacts svg {
+  color: var(--tuerkis, #24a9e1);
+}
+.tuerkis-profil-template[data-tuerkis-dense="true"] .tuerkis-profil-hero,
+.cv-sheet[data-template="tuerkis-profil"][data-tuerkis-dense="true"] .tuerkis-profil-hero {
+  min-height: 0;
+  padding: 4mm 4mm 3mm;
+}
+.tuerkis-profil-template[data-tuerkis-dense="true"] .tuerkis-profil-hero h1,
+.cv-sheet[data-template="tuerkis-profil"][data-tuerkis-dense="true"] .tuerkis-profil-hero h1 {
+  font-size: 17pt;
+}
+.tuerkis-profil-template[data-tuerkis-dense="true"] .tuerkis-profil-hero h2,
+.cv-sheet[data-template="tuerkis-profil"][data-tuerkis-dense="true"] .tuerkis-profil-hero h2 {
+  font-size: 8pt;
+}
+.tuerkis-profil-template[data-tuerkis-dense="true"] .tuerkis-profil-hero [data-managed-section="summary"],
+.cv-sheet[data-template="tuerkis-profil"][data-tuerkis-dense="true"] .tuerkis-profil-hero [data-managed-section="summary"] {
+  margin-top: 4mm;
+}
+.tuerkis-profil-template[data-tuerkis-dense="true"] .tuerkis-profil-hero p,
+.cv-sheet[data-template="tuerkis-profil"][data-tuerkis-dense="true"] .tuerkis-profil-hero p {
+  font-size: 8pt;
+  line-height: 1.15;
+}
+.tuerkis-profil-template[data-tuerkis-dense="true"] .tuerkis-profil-photo,
+.cv-sheet[data-template="tuerkis-profil"][data-tuerkis-dense="true"] .tuerkis-profil-photo {
+  height: 32mm;
+  margin-top: 2mm;
+}
+.tuerkis-profil-template[data-tuerkis-dense="true"] .tuerkis-profil-contacts,
+.cv-sheet[data-template="tuerkis-profil"][data-tuerkis-dense="true"] .tuerkis-profil-contacts {
+  gap: 0;
+  margin-top: 3mm;
+  font-size: 7pt;
+  line-height: 1.1;
+}
+.tuerkis-profil-template[data-tuerkis-dense="true"] .tuerkis-profil-contacts > *,
+.cv-sheet[data-template="tuerkis-profil"][data-tuerkis-dense="true"] .tuerkis-profil-contacts > * {
+  padding: .35mm 0;
+}
+.tuerkis-profil-template[data-tuerkis-dense="true"] .zweispaltig-main > section + section,
+.cv-sheet[data-template="tuerkis-profil"][data-tuerkis-dense="true"] .zweispaltig-pdf-main > section + section {
+  margin-top: 3mm;
+}
+.tuerkis-profil-template :is(.zweispaltig-section__title,.managed-extra > h3),
+.cv-sheet[data-template="tuerkis-profil"] :is(.zweispaltig-pdf-section > h3,.zweispaltig-pdf-sidebar section > h3,.managed-extra > h3) {
+  margin: 0 0 2.5mm;
+  padding: 0 0 1.5mm;
+  border: 0;
+  border-bottom: .4mm solid var(--tuerkis-rule, #24a9e1);
+  color: #42484c;
+  font-size: var(--doc-section-heading-size, 9.5pt);
+  font-weight: 750;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.cv-sheet[data-template="tuerkis-profil"] :is(.zweispaltig-pdf-main,.zweispaltig-pdf-sidebar) [data-cv-heading] {
+  padding-bottom: 0 !important;
+  border-bottom: 0 !important;
+}
+.tuerkis-profil-template :is(.zweispaltig-main,.zweispaltig-sidebar) .cv-heading__label,
+.cv-sheet[data-template="tuerkis-profil"] :is(.zweispaltig-pdf-main,.zweispaltig-pdf-sidebar) .cv-heading__label {
+  border-bottom-color: var(--tuerkis-rule, #24a9e1) !important;
+  border-bottom-width: .4mm !important;
+}
+.tuerkis-profil-template :is(.zweispaltig-career-entry h3,.zweispaltig-career-entry__organization),
+.cv-sheet[data-template="tuerkis-profil"] :is(.zweispaltig-pdf-entry h4,.zweispaltig-pdf-entry-organization) {
+  color: #42484c;
+}
+.tuerkis-profil-template .zweispaltig-career-entry,
+.cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf-entry {
+  border-bottom: 0;
+  padding-bottom: 2mm;
+}
+.tuerkis-profil-template .zweispaltig-career-entry__meta,
+.cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf-entry-meta {
+  color: #6a7075;
+}
+.tuerkis-profil-template :is(.zweispaltig-main,.zweispaltig-sidebar) > :first-child,
+.cv-sheet[data-template="tuerkis-profil"] :is(.zweispaltig-pdf-main,.zweispaltig-pdf-sidebar) > :first-child {
+  margin-top: 0 !important;
+}
+.tuerkis-profil-template[data-continuation="true"] .zweispaltig-columns,
+.cv-sheet[data-template="tuerkis-profil"][data-resume-page]:not([data-resume-page="1"]) .zweispaltig-pdf-columns {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.tuerkis-profil-template[data-continuation="true"] :is(.zweispaltig-main,.zweispaltig-sidebar),
+.cv-sheet[data-template="tuerkis-profil"][data-resume-page]:not([data-resume-page="1"]) :is(.zweispaltig-pdf-main,.zweispaltig-pdf-sidebar) {
+  min-height: 0 !important;
+  height: auto !important;
+}
+.tuerkis-profil-template[data-continuation="true"] .zweispaltig-main,
+.cv-sheet[data-template="tuerkis-profil"][data-resume-page]:not([data-resume-page="1"]) .zweispaltig-pdf-main {
+  grid-column: 1;
+  grid-row: 2;
+}
+.tuerkis-profil-template[data-continuation="true"] .zweispaltig-main {
+  grid-row: 2;
+}
+.tuerkis-profil-template[data-ats-mode="true"] .zweispaltig-ats,
+.cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf-ats {
+  display: block;
+  color: #222;
+  background: #fff;
+}

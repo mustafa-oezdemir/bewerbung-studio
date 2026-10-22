@@ -16,6 +16,15 @@ describe("document editor persistence", () => {
     expect(resetDocumentDesign(other).settings.resumePresentation?.selectedProjectEntryIds).toEqual(["project-a"]);
     expect(selectDocumentTemplate(other, "modern").settings.resumePresentation?.selectedProjectEntryIds).toEqual(["project-a"]);
   });
+  it("keeps verification link selection through template changes and design reset", () => {
+    const base = createDocumentDesignDraft(application);
+    const selected = { ...base, settings: { ...base.settings,
+      resumePresentation: { selectedSpecialEntryIds: { section: ["credential-b"] } } } };
+    const other = selectDocumentTemplate(selected, "kompakt");
+    expect(other.settings.resumePresentation?.selectedSpecialEntryIds).toEqual({ section: ["credential-b"] });
+    expect(resetDocumentDesign(other).settings.resumePresentation?.selectedSpecialEntryIds)
+      .toEqual({ section: ["credential-b"] });
+  });
   it("stores Pehlione appearance sparsely per template and resets to native defaults", () => {
     let draft = selectDocumentTemplate(createDocumentDesignDraft(application), "pehlione_white_blue");
     draft = updateResumeAppearanceField(draft, "sectionDividerVisible", false);

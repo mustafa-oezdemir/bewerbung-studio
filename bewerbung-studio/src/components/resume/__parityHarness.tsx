@@ -18,14 +18,16 @@ import { ModernResume } from "./templates/modern";
 import { PehlioneResume } from "./templates/pehlione";
 import { StilvollResume } from "./templates/stilvoll";
 import { TabellarischResume } from "./templates/tabellarisch";
+import { TuerkisProfilResume } from "./templates/tuerkis-profil";
 import { ZeitgenoessischResume } from "./templates/zeitgenoessisch";
 import { ZweispaltigResume } from "./templates/zweispaltig";
 
-/** The 14 active Lebenslauf templates and their React components (test harness: preview vs. PDF). */
+/** The active Lebenslauf templates and their React components (test harness: preview vs. PDF). */
 export const resumeComponents: Record<string, unknown> = {
   elegant: ElegantResume, einspaltig: EinspaltigResume, gepflegt: GepflegtResume, klassisch: KlassischResume, kompakt: KompaktResume,
   kreativ: KreativResume, "ivy-league": IvyLeagueResume, modern: ModernResume, pehlione_white: PehlioneResume, pehlione_white_blue: PehlioneResume,
   stilvoll: StilvollResume, tabellarisch: TabellarischResume, zeitgenoessisch: ZeitgenoessischResume, zweispaltig: ZweispaltigResume,
+  "tuerkis-profil": TuerkisProfilResume,
 };
 export const resumeTemplateIds = Object.keys(resumeComponents);
 

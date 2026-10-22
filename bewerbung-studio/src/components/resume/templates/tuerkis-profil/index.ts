@@ -1,0 +1,1 @@
+export { TuerkisProfilResume } from "./TuerkisProfilResume";

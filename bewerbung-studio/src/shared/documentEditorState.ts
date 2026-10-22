@@ -23,11 +23,14 @@ export type DocumentDesignDraft = ReturnType<typeof createDocumentDesignDraft>;
 const carryProjectSelection = (current: DocumentDesignDraft, next: DocumentDesignDraft["settings"]): DocumentDesignDraft["settings"] => {
   const selectedProjectEntryIds = current.settings.resumePresentation?.selectedProjectEntryIds;
   const selectedCertificateIds = current.settings.resumePresentation?.selectedCertificateIds;
-  const { selectedProjectEntryIds: _old, selectedCertificateIds: _oldCertificates, ...presentation } = next.resumePresentation ?? {};
+  const selectedSpecialEntryIds = current.settings.resumePresentation?.selectedSpecialEntryIds;
+  const { selectedProjectEntryIds: _old, selectedCertificateIds: _oldCertificates,
+    selectedSpecialEntryIds: _oldSpecialEntries, ...presentation } = next.resumePresentation ?? {};
   const merged = {
     ...presentation,
     ...(selectedProjectEntryIds !== undefined ? { selectedProjectEntryIds } : {}),
     ...(selectedCertificateIds !== undefined ? { selectedCertificateIds } : {}),
+    ...(selectedSpecialEntryIds !== undefined ? { selectedSpecialEntryIds } : {}),
   };
   const { resumePresentation: _nextPresentation, ...otherSettings } = next;
   return { ...otherSettings, ...(Object.keys(merged).length ? { resumePresentation: merged } : {}) };

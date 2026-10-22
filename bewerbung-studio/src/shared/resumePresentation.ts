@@ -15,6 +15,8 @@ export const keepResumeLayoutOverrides = (
     ? { selectedProjectEntryIds: previous.selectedProjectEntryIds } : {}),
   ...(previous?.selectedCertificateIds !== undefined && next.selectedCertificateIds === undefined
     ? { selectedCertificateIds: previous.selectedCertificateIds } : {}),
+  ...(previous?.selectedSpecialEntryIds !== undefined && next.selectedSpecialEntryIds === undefined
+    ? { selectedSpecialEntryIds: previous.selectedSpecialEntryIds } : {}),
   ...((next.closing || previous?.closing?.placement || previous?.closing?.alignment) ? { closing: {
     ...next.closing,
     ...(previous?.closing?.placement ? { placement: previous.closing.placement } : {}),

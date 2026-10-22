@@ -112,7 +112,7 @@ export const sectionSemanticType = (id: string, groupSemanticType?: string): Sec
  * and the closing date comes from the application. Templates join this list one by one, after
  * their look was verified on both surfaces.
  */
-export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "pehlione_white", "zweispaltig", "zeitgenoessisch", "kreativ", "ivy-league", "stilvoll", "kompakt", "einspaltig", "klassisch", "gepflegt", "modern"];
+export const zoneFlowTemplates: readonly string[] = ["pehlione_white_blue", "pehlione_white", "zweispaltig", "tuerkis-profil", "zeitgenoessisch", "kreativ", "ivy-league", "stilvoll", "kompakt", "einspaltig", "klassisch", "gepflegt", "modern"];
 
 export const isZoneFlowTemplate = (templateId: string | undefined): boolean =>
   Boolean(templateId && zoneFlowTemplates.includes(templateId));
@@ -124,7 +124,7 @@ export const isZoneFlowTemplate = (templateId: string | undefined): boolean =>
  * the others keep a sidebar block whole (page one, or the main column of the last page). Templates join one by
  * one, once both surfaces draw the continuation sidebar and its column surface.
  */
-export const sidebarContinuationTemplates: readonly string[] = ["zeitgenoessisch", "zweispaltig", "stilvoll", "kreativ", "gepflegt", "elegant", "kompakt"];
+export const sidebarContinuationTemplates: readonly string[] = ["zeitgenoessisch", "zweispaltig", "tuerkis-profil", "stilvoll", "kreativ", "gepflegt", "elegant", "kompakt"];
 
 /**
  * Templates whose Bildungsweg entries the output can cut between their detail units (`applyEducationBreaks`): the planner
@@ -132,7 +132,7 @@ export const sidebarContinuationTemplates: readonly string[] = ["zeitgenoessisch
  * moving the whole entry (and with it the heading) to the next page when it does not fit as a whole.
  */
 export const educationSplitTemplates: readonly string[] = [
-  "zweispaltig", "zeitgenoessisch", "kreativ", "stilvoll", "kompakt", "gepflegt", "elegant", "modern",
+  "zweispaltig", "tuerkis-profil", "zeitgenoessisch", "kreativ", "stilvoll", "kompakt", "gepflegt", "elegant", "modern",
   "tabellarisch", "klassisch", "einspaltig", "ivy-league", "pehlione_white", "pehlione_white_blue",
 ];
 export const supportsEducationSplit = (templateId: string | undefined): boolean =>
@@ -617,6 +617,12 @@ ${host} [data-managed-section^="special:"] [data-custom-role="entry"]{line-heigh
     roots: { preview: ".zweispaltig-template", pdf: '.cv-sheet[data-template="zweispaltig"]', pdfBody: ".zweispaltig-pdf" },
     plainLists: ["certifications"],
     sidebarHero: false,
+  },
+  "tuerkis-profil": {
+    tokens: zweispaltig,
+    roots: { preview: ".tuerkis-profil-template", pdf: '.cv-sheet[data-template="tuerkis-profil"]', pdfBody: ".zweispaltig-pdf" },
+    plainLists: ["certifications"],
+    sidebarHero: true,
   },
   zeitgenoessisch: {
     tokens: zeitgenoessisch,

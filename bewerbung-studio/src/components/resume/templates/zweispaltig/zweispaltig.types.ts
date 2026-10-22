@@ -20,6 +20,7 @@ export type ZweispaltigLanguage = {
 };
 
 export type ZweispaltigResumeProps = {
+  variant?: "zweispaltig" | "tuerkis-profil";
   profile: ApplicantProfile | undefined;
   name: string;
   atsMode: boolean;

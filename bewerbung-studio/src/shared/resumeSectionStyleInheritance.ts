@@ -32,6 +32,11 @@ export const resumeSectionStyleSources = {
       ".zweispaltig-career__list",
       ".zweispaltig-career-entry"
     ],
+    "tuerkis-profil": [
+      ".zweispaltig-section", ".zweispaltig-section__title", ".zweispaltig-career-entry h3",
+      ".zweispaltig-career-entry__organization", ".zweispaltig-career-entry__meta",
+      ".zweispaltig-career__list", ".zweispaltig-career-entry"
+    ],
     "zeitgenoessisch": [
       ".zeitgenoessisch-section",
       ".zeitgenoessisch-section-heading__title",
@@ -159,6 +164,11 @@ export const resumeSectionStyleSources = {
       ".zweispaltig-pdf-entry-meta",
       ".zweispaltig-pdf-list",
       ".zweispaltig-pdf-entry"
+    ],
+    "tuerkis-profil": [
+      ".zweispaltig-pdf-section", ".zweispaltig-pdf-section>h3", ".zweispaltig-pdf-entry h4",
+      ".zweispaltig-pdf-entry-organization", ".zweispaltig-pdf-entry-meta",
+      ".zweispaltig-pdf-list", ".zweispaltig-pdf-entry"
     ],
     "zeitgenoessisch": [
       ".zeit-pdf-section",

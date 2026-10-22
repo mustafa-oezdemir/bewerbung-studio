@@ -19,9 +19,10 @@ export function ZweispaltigResume({
   photoSource,
   resumeProfile,
   sections,
+  variant = "zweispaltig",
 }: ZweispaltigResumeProps) {
   const colors = designVariables ?? getZweispaltigDesignVariables(
-    resolveTemplateCvDesign("zweispaltig"), undefined, accentColor, secondaryColor);
+    resolveTemplateCvDesign(variant), undefined, accentColor, secondaryColor);
   const variables = {
     ...zweispaltigPageVariables,
     ...colors,
@@ -35,7 +36,7 @@ export function ZweispaltigResume({
 
   return (
     <article
-      className="zweispaltig-template"
+      className={`zweispaltig-template${variant === "tuerkis-profil" ? " tuerkis-profil-template" : ""}`}
       data-ats-mode={atsMode}
       data-continuation={plan.pageNumber > 1}
       data-density={plan.density}

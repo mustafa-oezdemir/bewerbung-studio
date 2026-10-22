@@ -317,6 +317,21 @@ export const templateSectionCapabilities: Record<
     timelineSections: ["experience", "education"],
   }),
   zweispaltig: twoColumnCapabilities("zweispaltig"),
+  "tuerkis-profil": {
+    ...twoColumnCapabilities("tuerkis-profil"),
+    defaultSectionOrder: ["summary", "experience", "education", "strengths", "knowledge",
+      "certifications", "languages", "projects", "additional", "references"],
+    allowedZonesBySection: {
+      ...twoColumnCapabilities("tuerkis-profil").allowedZonesBySection,
+      education: ["sidebar", "main"], strengths: ["main", "sidebar"],
+      knowledge: ["main", "sidebar"], languages: ["main", "sidebar"],
+    },
+    defaultZoneBySection: {
+      ...twoColumnCapabilities("tuerkis-profil").defaultZoneBySection,
+      education: "sidebar", strengths: "main", knowledge: "main",
+      languages: "sidebar", certifications: "main",
+    },
+  },
   gepflegt: twoColumnCapabilities("gepflegt"),
   modern: modernCapabilities(),
   elegant: twoColumnCapabilities("elegant"),

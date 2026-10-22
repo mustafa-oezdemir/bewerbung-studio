@@ -24,7 +24,7 @@ try {
   const appCss = (await readFile('src/app.css', 'utf8')).replace('@import "tailwindcss";', '');
   const { getReadableTextColor } = await vite.ssrLoadModule('/src/shared/templates.ts');
   const { getDocumentDesignVariables } = await vite.ssrLoadModule('/src/shared/documentDesign.ts');
-  const names = { einspaltig: 'Einspaltig', 'ivy-league': 'IvyLeague', zeitgenoessisch: 'Zeitgenoessisch' };
+  const names = { einspaltig: 'Einspaltig', 'ivy-league': 'IvyLeague', zeitgenoessisch: 'Zeitgenoessisch', 'tuerkis-profil': 'TuerkisProfil' };
   const componentOf = async (id) => {
     const dir = id.startsWith('pehlione_') ? 'pehlione' : id;
     const name = id.startsWith('pehlione_') ? 'Pehlione' : names[id] ?? id[0].toUpperCase() + id.slice(1);
@@ -51,6 +51,10 @@ try {
       experiences: [{ id: '9a000000-0000-4000-8000-000000000010', from: '2020', to: '2022', role: 'Assistentin', company: 'Beispiel AG', achievements: [] }],
     }),
   };
+  if (process.env.LONG_SUMMARY === '1') scenarios.longSummary = (p) => ({
+    ...p, summary: Array.from({ length: 70 }, (_, index) =>
+      `Fiktive Erfahrung in Analyse, Planung und Abstimmung K${String(index).padStart(3, '0')}.`).join(' '),
+  });
   let seed = Number(process.env.SEED || 11);
   const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
   const pick = (list) => list[Math.floor(rnd() * list.length)];
@@ -100,6 +104,7 @@ try {
       await writeFile(resolve(out, file + '.html'), buildDocumentHtml(application, profile, 'lebenslauf'));
       if (!atsMode) {
         const resolved = resolveCvDocument({ profile, templateId: id, settings, application });
+        if (id === 'tuerkis-profil') await writeFile(resolve(out, file + '-plan.json'), JSON.stringify({ sections: resolved.managerSections, pages: resolved.pagePlan }, null, 2));
         const component = await componentOf(id);
         const pages = resolved.pagePlan.map((plan, index) => renderToStaticMarkup(h(ManagedResumePreview, { designSettings: settings, resolvedCv: resolved, profile: resolved.profile, templateId: id, pageNumber: index + 1, totalPages: resolved.pagePlan.length },
           h(component, { profile: resolved.profile, templateId: id, name: `${profile.firstName} ${profile.lastName}`, atsMode: false, plan, totalPages: resolved.pagePlan.length, accentColor: template.accent, secondaryColor: template.secondary,
