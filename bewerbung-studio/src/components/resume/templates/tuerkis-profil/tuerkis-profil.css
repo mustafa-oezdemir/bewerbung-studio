@@ -45,7 +45,7 @@
 }
 .tuerkis-profil-template .tuerkis-profil-hero,
 .cv-sheet[data-template="tuerkis-profil"] .tuerkis-profil-hero {
-  min-height: 56mm;
+  min-height: 0;
   padding: 7mm 6.5mm 6mm;
   background: var(--tuerkis, var(--doc-accent-color, #24a9e1));
   color: #fff;
@@ -123,6 +123,20 @@
   overflow: hidden;
 }
 .tuerkis-profil-template .tuerkis-profil-photo img { width: 100%; height: 100%; object-fit: cover; }
+.tuerkis-profil-template .zweispaltig-sidebar .tuerkis-profil-summary[data-cv-zone="sidebar"],
+.cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf-sidebar .tuerkis-profil-summary {
+  margin: 4mm 0 0;
+  color: var(--tuerkis-text, #3f464b);
+}
+.tuerkis-profil-template .tuerkis-profil-summary p,
+.cv-sheet[data-template="tuerkis-profil"] .tuerkis-profil-summary p {
+  margin: 0;
+  color: var(--tuerkis-text, #3f464b);
+  font-size: var(--doc-body-size, 9.4pt);
+  line-height: var(--doc-line-height, 1.3);
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
 .tuerkis-profil-template .tuerkis-profil-contacts,
 .cv-sheet[data-template="tuerkis-profil"] .tuerkis-profil-contacts {
   display: flex;
@@ -234,6 +248,54 @@
 .cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf-entry {
   border-bottom: 0;
   padding-bottom: 2mm;
+}
+.tuerkis-profil-template .zweispaltig-main .zweispaltig-career-entry,
+.cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf-main .zweispaltig-pdf-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  column-gap: 2mm;
+  row-gap: .8mm;
+  align-items: baseline;
+}
+.tuerkis-profil-template .zweispaltig-main .zweispaltig-career-entry > h3,
+.cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf-main .zweispaltig-pdf-entry > h4 {
+  grid-column: 1;
+  grid-row: 1;
+  font-size: var(--doc-entry-title-size, 9.5pt);
+}
+.tuerkis-profil-template .zweispaltig-main .zweispaltig-career-entry__organization,
+.cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf-main .zweispaltig-pdf-entry-organization {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0;
+  font-size: var(--doc-body-size, 9pt);
+}
+.tuerkis-profil-template .zweispaltig-main .zweispaltig-career-entry__meta,
+.cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf-main .zweispaltig-pdf-entry-meta {
+  display: contents;
+}
+.tuerkis-profil-template .zweispaltig-main .zweispaltig-career-entry__meta span:first-child,
+.cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf-main .zweispaltig-pdf-entry-meta span:first-child {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  white-space: nowrap;
+}
+.tuerkis-profil-template .zweispaltig-main .zweispaltig-career-entry__meta span + span,
+.cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf-main .zweispaltig-pdf-entry-meta span + span {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  text-align: right;
+}
+.tuerkis-profil-template .zweispaltig-main .zweispaltig-career-entry__meta svg,
+.cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf-main .zweispaltig-pdf-entry-meta svg {
+  display: none;
+}
+.tuerkis-profil-template .zweispaltig-main .zweispaltig-career-entry > ul,
+.cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf-main .zweispaltig-pdf-entry > ul {
+  grid-column: 1 / -1;
+  margin-top: 1mm;
 }
 .tuerkis-profil-template .zweispaltig-career-entry__meta,
 .cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf-entry-meta {

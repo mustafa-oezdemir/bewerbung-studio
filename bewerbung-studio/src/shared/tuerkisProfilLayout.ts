@@ -30,6 +30,8 @@ export const arrangeTuerkisProfilPage = (
     while (wrapper.firstChild) wrapper.parentElement?.insertBefore(wrapper.firstChild, wrapper);
     wrapper.remove();
   }
+  for (const icon of columns.querySelectorAll(".zweispaltig-career-entry__meta svg,.zweispaltig-pdf-entry-meta svg"))
+    icon.remove();
   if (!sidebar) {
     const zones = new Map(managerSections.map((entry) => [entry.id, entry.zone]));
     for (const node of columns.querySelectorAll("[data-managed-section]"))
@@ -52,10 +54,10 @@ export const arrangeTuerkisProfilPage = (
       contacts?.remove();
       hero.appendChild(identity);
     }
-    if (summary) hero.appendChild(summary);
     sidebar.prepend(hero);
     if (photo) { photo.classList.add("tuerkis-profil-photo"); hero.after(photo); }
-    if (contacts) { contacts.classList.add("tuerkis-profil-contacts"); (photo ?? hero).after(contacts); }
+    if (summary) { summary.classList.add("tuerkis-profil-summary"); (photo ?? hero).after(summary); }
+    if (contacts) { contacts.classList.add("tuerkis-profil-contacts"); (summary ?? photo ?? hero).after(contacts); }
     if ((contacts?.children.length ?? 0) > 8 || (identity?.textContent?.trim().length ?? 0) > 115)
       root.setAttribute("data-tuerkis-dense", "true");
     header.remove();
@@ -66,7 +68,7 @@ export const arrangeTuerkisProfilPage = (
     const selector = `[data-managed-section="${entry.id}"],` +
       `[data-element-id="zweispaltig.${entry.id}"]`;
     const node = columns.querySelector(selector);
-    if (!node || node.closest(".tuerkis-profil-hero")) continue;
+    if (!node || node.closest(".tuerkis-profil-hero") || (!continuation && entry.id === "summary" && node.parentElement === sidebar)) continue;
     // A profile that continues in the sidebar must finish before another sidebar
     // section starts. The planner still paginates the other sections in the main lane.
     const target = entry.zone === "sidebar"
