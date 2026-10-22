@@ -607,10 +607,12 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
   }
   if (templateId === "zweispaltig" || templateId === "tuerkis-profil") {
     const native = zweispaltigDefaults.layout;
+    const tuerkisSpacing = templateId === "tuerkis-profil" ? resolveTemplateCvDesign(templateId).spacing : undefined;
+    const nativeHorizontalMargin = tuerkisSpacing?.pageMarginMm ?? native.marginLeftMm;
     const chosenMargin = overrides.pageMarginMm ?? (settings && settings.marginLevel !== defaults.marginLevel
       ? marginLevelToMm[settings.marginLevel] : undefined);
     const contentWidth = zweispaltigDefaults.page.widthMm
-      - (chosenMargin ?? native.marginLeftMm) - (chosenMargin ?? native.marginRightMm);
+      - 2 * (chosenMargin ?? nativeHorizontalMargin);
     const padding = overrides.innerPaddingMm !== undefined ? overrides.innerPaddingMm - nativePadding : 0;
     if (single) {
       const textWidth = Math.max(12, contentWidth - 2 * padding);
@@ -618,7 +620,7 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
       return { font, textHeight, line, width, contWidth: width,
         mainRatio: textWidth / geometry.text.atsW, sideDelta: 0, marginInset: padding, ...factors, ...spacing };
     }
-    const gap = overrides.columnGapMm ?? native.columnGapMm;
+    const gap = overrides.columnGapMm ?? tuerkisSpacing?.columnGapMm ?? native.columnGapMm;
     const sidebarRatio = (context.layout?.sidebarWidthPercent ?? native.rightColumnRatio * 100) / 100;
     const mainWidth = (contentWidth - gap) * (1 - sidebarRatio);
     const sideWidth = (contentWidth - gap) * sidebarRatio;
