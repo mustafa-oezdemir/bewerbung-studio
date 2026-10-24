@@ -45,7 +45,7 @@ export function TechnologyIconPicker({
           <optgroup label="Kategorie-Symbole">
             {categorySymbolOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
           </optgroup>
-          <optgroup label="Go-Frameworks">
+          <optgroup label="Go-Frameworks und Tools">
             {goFrameworkIconOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
           </optgroup>
           <optgroup label="Technologie-Icons">

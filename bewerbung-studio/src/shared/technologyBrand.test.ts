@@ -26,6 +26,27 @@ describe("technology brand icons", () => {
     expect(resolveTechnologyIcon("Go Framework").markup).toContain('data-brand="framework"');
   });
 
+  it("covers the remaining named Go tools without treating documentation pages as separate products", () => {
+    const products = [
+      ["Fyne", "fyne"], ["HUGO", "devicon:hugo"], ["Gorilla, the golang web toolkit", "gorilla"],
+      ["Beego", "beego"], ["Revel - Go Web Framework", "revel"],
+      ["Go kit - A toolkit for microservices", "gokit"], ["krakend", "krakend"],
+      ["Fx", "fx"], ["goa.design", "goa"], ["Iris Web Framework", "iris"],
+      ["Flamingo Documentations", "flamingo"],
+    ] as const;
+    expect(goFrameworkIconOptions).toHaveLength(16);
+    for (const [index, [name, brand]] of products.entries()) {
+      const automatic = resolveTechnologyIcon(name);
+      expect(automatic.source, name).toBe("auto");
+      expect(automatic.markup, name).toContain(`data-brand="${brand}"`);
+      expect(automatic.markup, name).not.toMatch(/<script|<foreignObject|<image|\son\w+=|href=|url\(/i);
+      expect(getTechnologyBrandIconMarkup("Go", goFrameworkIconOptions[index + 5]!.id), name)
+        .toBe(automatic.markup);
+    }
+    expect(getTechnologyBrandIconMarkup("chi 👋 Introduction")).toBe(getTechnologyBrandIconMarkup("Chi"));
+    expect(new Set(goFrameworkIconOptions.map(({ id }) => getTechnologyBrandIconMarkup("Go", id))).size).toBe(16);
+  });
+
   it("renders branded marks for Go, JavaScript, and PHP", () => {
     const go = getTechnologyBrandIconMarkup("Golang");
     const javascript = getTechnologyBrandIconMarkup("JavaScript");

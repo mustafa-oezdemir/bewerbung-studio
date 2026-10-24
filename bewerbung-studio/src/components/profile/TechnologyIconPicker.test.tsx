@@ -20,7 +20,7 @@ describe("TechnologyIconPicker category symbols", () => {
   it("offers the Go frameworks for manual selection and previews their own icons automatically", () => {
     const document = dom(renderToStaticMarkup(<TechnologyIconPicker technologyTitle="Gin" value="" onChange={vi.fn()} />));
     const group = Array.from(document.querySelectorAll("optgroup"))
-      .find((entry) => entry.getAttribute("label") === "Go-Frameworks")!;
+      .find((entry) => entry.getAttribute("label") === "Go-Frameworks und Tools")!;
     expect(Array.from(group.querySelectorAll("option"), (option) => option.getAttribute("value")))
       .toEqual(goFrameworkIconOptions.map((option) => option.id));
     expect(preview(document)?.getAttribute("data-brand")).toBe("gin");
