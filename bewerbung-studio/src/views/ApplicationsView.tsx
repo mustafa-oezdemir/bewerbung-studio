@@ -242,7 +242,7 @@ export function ApplicationsView({
               <button
                 className="button primary"
                 type="button"
-                title="Eine PDF mit Deckblatt: Deckblatt, Anschreiben, Lebenslauf, Motivationsschreiben, Zeugnisse, Zertifikate"
+                title="Eine PDF mit Deckblatt: Anschreiben, Deckblatt, Lebenslauf, Motivationsschreiben, Zeugnisse, Zertifikate"
                 disabled={saving}
                 onClick={() => void exportPdf(selected.id, "mappe")}>
                 <Download size={17} /> Bewerbungsmappe PDF

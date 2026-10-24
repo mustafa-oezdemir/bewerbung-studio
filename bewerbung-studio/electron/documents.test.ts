@@ -391,11 +391,11 @@ describe("Lebenslauf-Dokumente", () => {
     expect(html).not.toContain("Bewerbung als Bewerbung als");
   });
 
-  it("keeps the package order Deckblatt, Anschreiben, Lebenslauf", () => {
+  it("keeps the package order Anschreiben, Deckblatt, Lebenslauf", () => {
     const html = buildDocumentHtml(application, profile, "mappe");
     const body = html.slice(html.indexOf("<body>"));
-    expect(body.indexOf("cover-page")).toBeLessThan(body.indexOf("letter-page"));
-    expect(body.indexOf("letter-page")).toBeLessThan(body.indexOf("cv-sheet"));
+    expect(body.indexOf("letter-page")).toBeLessThan(body.indexOf("cover-page"));
+    expect(body.indexOf("cover-page")).toBeLessThan(body.indexOf("cv-sheet"));
   });
 
   it("exports Motivation with escaped text in the Anschreiben's design, automatic Anrede and the CV's typography", () => {
@@ -552,8 +552,8 @@ describe("Lebenslauf-Dokumente", () => {
   it("places enabled Motivation after the CV and respects its document-list visibility", () => {
     const enabled = applicationSchema.parse({ ...application, documents: { ...application.documents, motivationEnabled: true } });
     const body = buildDocumentHtml(enabled, profile, "mappe").split("<body>")[1];
-    expect(body.indexOf("cover-page")).toBeLessThan(body.indexOf("letter-page"));
-    expect(body.indexOf("letter-page")).toBeLessThan(body.indexOf("cv-sheet"));
+    expect(body.indexOf("letter-page")).toBeLessThan(body.indexOf("cover-page"));
+    expect(body.indexOf("cover-page")).toBeLessThan(body.indexOf("cv-sheet"));
     expect(body.indexOf("cv-sheet")).toBeLessThan(body.indexOf("motivation-sheet"));
     const hidden = applicationSchema.parse({ ...enabled, documents: { ...enabled.documents,
       documentListSettings: [{ key: "motivation", label: "Meine Dritte Seite", isVisible: false }] } });
@@ -573,17 +573,16 @@ describe("Lebenslauf-Dokumente", () => {
     const digital = buildDocumentHtml(enabled, profile, "bewerbungsunterlagen");
     const mappe = buildDocumentHtml(enabled, profile, "mappe");
     expect(order(digital)).toEqual(["letter-page", "cv-sheet", "motivation-sheet"]);
-    expect(order(mappe)).toEqual(["cover-page", "letter-page", "cv-sheet", "motivation-sheet"]);
+    expect(order(mappe)).toEqual(["letter-page", "cover-page", "cv-sheet", "motivation-sheet"]);
     // No Deckblatt page and no Deckblatt markup.
     expect(digital).not.toContain('class="page cover-page');
     expect(digital.split("<body>")[1]).not.toMatch(/class="deckblatt[ "]/);
     expect(mappe.split("<body>")[1]).toMatch(/class="deckblatt[ "]/);
-    // The same pages as the Mappe after its Deckblatt (the Mappe adds only the Deckblatt's fit script): one source for both.
-    const pagesFromLetter = (html: string) => {
-      const body = html.split("<body>")[1];
-      return body.slice(body.indexOf('<section class="page letter-page"'), body.indexOf("<script"));
-    };
-    expect(pagesFromLetter(digital)).toBe(pagesFromLetter(mappe));
+    // The generated pages are identical in both PDFs; the Mappe only inserts the Deckblatt and its fit script.
+    const pagesWithoutDeckblatt = (html: string) =>
+      Array.from(parseHTML(html).document.querySelectorAll("body > section.page:not(.cover-page)"))
+        .map((page) => page.outerHTML);
+    expect(pagesWithoutDeckblatt(digital)).toEqual(pagesWithoutDeckblatt(mappe));
     // Only the Mappe checks the Deckblatt's mandatory data.
     expect(() => buildDocumentHtml(application, undefined, "mappe")).toThrow("Name der Bewerberin oder des Bewerbers");
     expect(() => buildDocumentHtml(application, undefined, "bewerbungsunterlagen")).not.toThrow();

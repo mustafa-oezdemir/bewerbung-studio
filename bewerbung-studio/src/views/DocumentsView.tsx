@@ -1291,7 +1291,7 @@ export function DocumentsView({
           </button>
           <button
             className="button primary"
-            title="Eine PDF mit Deckblatt: Deckblatt, Anschreiben, Lebenslauf, Motivationsschreiben, Zeugnisse, Zertifikate"
+            title="Eine PDF mit Deckblatt: Anschreiben, Deckblatt, Lebenslauf, Motivationsschreiben, Zeugnisse, Zertifikate"
             onClick={() => void exportCurrentPdf("mappe")}>
             <Download size={17} /> Bewerbungsmappe PDF
           </button>

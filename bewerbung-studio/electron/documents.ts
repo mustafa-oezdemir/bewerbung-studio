@@ -3576,7 +3576,7 @@ export const buildDocumentHtml = (
   const managedResume = cvHtml ? cvHtml.slice(cvHtml.indexOf("<body>") + 6, cvHtml.lastIndexOf("</body>")).replace(pageFitScript, "") : applyManagedResumeOutput(resume, profile, template.id, 1, resumePlan.length, designSettings, resolvedCv);
   // The Motivationsschreiben ("Dritte Seite"): drawn in the Anschreiben's page frame (its whole design), with its own
   // Überschrift, the automatic Anrede and the user's text (one model and stylesheet with the preview). Its page grows with the
-  // text (no fitting, no clipping); in the Mappe it follows the Anschreiben.
+  // text (no fitting, no clipping); in the Mappe it follows the Lebenslauf.
   const motivationListed = getApplicationDocumentItems(attachments, application.id, docs.documentListSettings, docs.motivationEnabled)
     .some((item) => item.key === "motivation" && item.isVisible);
   const withMotivation = target === "motivation" || (isDocumentPackage(target) && motivationListed);
@@ -3587,7 +3587,7 @@ export const buildDocumentHtml = (
   const motivation = motivationModel
     ? `<section class="page motivation-sheet" data-no-fit="true" style="background:${escapeHtml(motivationModel.style["--mv-background"])}">${renderMotivationMarkup(motivationModel)}</section>`
     : "";
-  // Bewerbungsunterlagen and Bewerbungsmappe: one shared order (packageDocumentOrder); only the Mappe has the Deckblatt.
+  // Bewerbungsunterlagen and Bewerbungsmappe: one shared order (packageDocumentOrder); the Mappe inserts the Deckblatt after the Anschreiben.
   const pages = { deckblatt: cover, anschreiben: letter, lebenslauf: managedResume, motivation };
   const selected = isDocumentPackage(target) ? packageDocumentOrder(target, withMotivation).map((key) => pages[key]).filter(Boolean)
     : target === "deckblatt" ? [cover] : target === "anschreiben" ? [letter] : target === "motivation" ? [motivation] : [managedResume];

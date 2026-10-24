@@ -86,11 +86,11 @@ describe("Motivationsschreiben in the document lists", () => {
 });
 
 describe("Bewerbungsunterlagen and Bewerbungsmappe", () => {
-  it("share one order of the generated pages; only the Mappe starts with the Deckblatt", () => {
+  it("put the Deckblatt after the Anschreiben only in the Mappe", () => {
     expect(packageDocumentOrder("bewerbungsunterlagen", false)).toEqual(["anschreiben", "lebenslauf"]);
     expect(packageDocumentOrder("bewerbungsunterlagen", true)).toEqual(["anschreiben", "lebenslauf", "motivation"]);
-    expect(packageDocumentOrder("mappe", false)).toEqual(["deckblatt", "anschreiben", "lebenslauf"]);
-    expect(packageDocumentOrder("mappe", true)).toEqual(["deckblatt", "anschreiben", "lebenslauf", "motivation"]);
+    expect(packageDocumentOrder("mappe", false)).toEqual(["anschreiben", "deckblatt", "lebenslauf"]);
+    expect(packageDocumentOrder("mappe", true)).toEqual(["anschreiben", "deckblatt", "lebenslauf", "motivation"]);
     expect(isDocumentPackage("bewerbungsunterlagen")).toBe(true);
     expect(isDocumentPackage("mappe")).toBe(true);
     expect(["deckblatt", "anschreiben", "motivation", "lebenslauf"].some(isDocumentPackage)).toBe(false);

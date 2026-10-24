@@ -16,17 +16,18 @@ export const isDocumentPackage = (target: string): target is DocumentPackage =>
 
 /**
  * The generated pages of a combined PDF, in order; the selected Zeugnisse and then Zertifikate follow them
- * (`getPackageAttachmentPaths`). Both PDFs share this order; only the Bewerbungsmappe starts with the Deckblatt.
+ * (`getPackageAttachmentPaths`). Both PDFs start with the Anschreiben; the Bewerbungsmappe inserts
+ * the Deckblatt immediately after it.
  */
 export const packageDocumentOrder = (kind: DocumentPackage, includeMotivation: boolean) => [
-  ...(kind === "mappe" ? ["deckblatt" as const] : []),
   "anschreiben" as const,
+  ...(kind === "mappe" ? ["deckblatt" as const] : []),
   "lebenslauf" as const,
   ...(includeMotivation ? ["motivation" as const] : []),
 ];
 
 /**
- * The documents of a Bewerbung in the order of the Bewerbungsunterlagen and the Bewerbungsmappe: Anschreiben,
+ * The document list shared by both combined PDFs, excluding the Mappe's Deckblatt: Anschreiben,
  * Lebenslauf, optional Motivationsschreiben, then Zeugnisse and the other attachments.
  */
 export const getApplicationDocumentItems = (
