@@ -66,7 +66,7 @@ const documentFields: Record<string, [ApplicationGitAction, string]> = {
   coverSenderName: ["anschreiben", "Absender"], coverSenderTitle: ["anschreiben", "Absender"],
   coverSenderContact: ["anschreiben", "Absender"], coverRecipientAddress: ["anschreiben", "Empfänger"],
   coverSubject: ["anschreiben", "Betreff"], coverSubjectGapReduction: ["anschreiben", "Layout"],
-  coverGreeting: ["anschreiben", "Anrede"], coverIntroduction: ["anschreiben", "Einleitung"],
+  coverGreeting: ["anschreiben", "Anrede"], coverLetterBasis: ["anschreiben", "Bewerbungsdaten"], coverIntroduction: ["anschreiben", "Einleitung"],
   coverMainBody: ["anschreiben", "Haupttext"], coverMotivation: ["anschreiben", "Motivation"],
   coverQualification: ["anschreiben", "Qualifikation"], coverCompanyFit: ["anschreiben", "Unternehmensbezug"],
   coverExtraParagraph: ["anschreiben", "Zusatzabsatz"], coverClosing: ["anschreiben", "Schluss"],

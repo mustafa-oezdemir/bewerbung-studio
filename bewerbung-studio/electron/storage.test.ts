@@ -1192,3 +1192,51 @@ describe("DataStore backups", () => {
     });
   });
 });
+
+describe("DataStore: copied Bewerbung and its Anschreiben", () => {
+  let root: string;
+  let store: DataStore;
+
+  beforeEach(async () => {
+    root = await mkdtemp(path.join(tmpdir(), "bewerbungsmanager-"));
+    store = new DataStore(root);
+    await store.initialize();
+  });
+
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it("gives the copy's Anschreiben the new Firma, Position and Ansprechpartner and keeps the own texts", async () => {
+    const created = await store.createApplication({
+      ...applicationInput("HDI AG"),
+      contact: { ...applicationInput("HDI AG").contact, salutation: "Herr", firstName: "Aref", lastName: "Olya" },
+    });
+    const source = created.applications[0];
+    // The old editor saved the automatic head as text.
+    await store.saveApplication({ ...source, documents: { ...source.documents,
+      coverRecipientAddress: "HDI AG\nHerrn Aref Olya\n10115 Berlin", coverGreeting: "Sehr geehrter Herr Olya,",
+      coverMainBody: "Mein eigener Hauptteil." } });
+    const duplicated = await store.duplicateApplication(source.id);
+    const copy = duplicated.applications[0];
+    expect(copy.id).not.toBe(source.id);
+    await store.saveApplication({
+      ...copy,
+      company: { ...copy.company, name: "Klingelnberg GmbH", street: "Peterstraße 45", postalCode: "42499", city: "Hückeswagen" },
+      job: { ...copy.job, title: "Anwendungsingenieur" },
+      contact: { ...copy.contact, salutation: "Frau", firstName: "Yasmin", lastName: "Baumstark" },
+    });
+    const context = store.getTemplateDocumentContext(copy.id);
+    expect(context.data).toMatchObject({
+      FIRMA_NAME: "Klingelnberg GmbH",
+      BETREFF: "Bewerbung als Anwendungsingenieur",
+      ANREDE: "Sehr geehrte Frau Baumstark,",
+      EINLEITUNG: "die Position als Anwendungsingenieur bei Klingelnberg GmbH verbindet genau die Aufgaben, in denen ich meine Erfahrung gezielt einbringen möchte.",
+      HAUPTTEXT: "Mein eigener Hauptteil.",
+    });
+    // The source keeps its own letter.
+    expect(store.getTemplateDocumentContext(source.id).data).toMatchObject({
+      BETREFF: "Bewerbung als Softwareentwickler", ANREDE: "Sehr geehrter Herr Olya,",
+    });
+  });
+});

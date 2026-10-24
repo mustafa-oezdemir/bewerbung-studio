@@ -109,6 +109,7 @@ import {
   getCoverLetterMainBody,
   type ApplicationDocumentKind,
 } from "../src/shared/coverLetter";
+import { defaultCoverIntroduction, resolveCoverLetterDocuments } from "../src/shared/coverLetterHeader";
 import {
   compactWordMarginLevelToMm,
   getDocumentFont,
@@ -1028,7 +1029,7 @@ export class DataStore {
         coverSubject: createCoverSubject(input.job.title),
         coverSubjectGapReduction: 0,
         coverGreeting: "",
-        coverIntroduction: `die Position als ${input.job.title} bei ${input.company.name} verbindet genau die Aufgaben, in denen ich meine Erfahrung gezielt einbringen möchte.`,
+        coverIntroduction: defaultCoverIntroduction(input),
         coverMainBody: "",
         coverMotivation: "",
         coverQualification: "",
@@ -1652,6 +1653,8 @@ export class DataStore {
       "\n",
     );
     const greeting = applicationGreeting(application);
+    // Betreff, Anrede and Einleitung as the Anschreiben prints them for the Bewerbung's current data.
+    const letter = resolveCoverLetterDocuments(application, application.documents);
     const knowledgeSection = ensureKnowledgeSection(
       profile?.knowledgeSection,
       profile?.skills ?? [],
@@ -2061,12 +2064,9 @@ export class DataStore {
       STELLENNUMMER: application.job.reference,
       BEWERBUNGSDATUM: formatApplicationDate(application),
       BEWERBUNGSDATUM_LANG: formatApplicationDateLong(application),
-      BETREFF: createCoverSubject(
-        application.job.title,
-        application.documents.coverSubject,
-      ),
-      ANREDE: application.documents.coverGreeting || greeting,
-      EINLEITUNG: application.documents.coverIntroduction,
+      BETREFF: letter.coverSubject,
+      ANREDE: letter.coverGreeting || greeting,
+      EINLEITUNG: letter.coverIntroduction,
       MOTIVATION: "",
       FACHLICHE_EIGNUNG: getCoverLetterMainBody(application.documents),
       UNTERNEHMENSBEZUG: application.documents.coverCompanyFit,

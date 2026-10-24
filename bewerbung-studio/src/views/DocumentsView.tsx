@@ -1,6 +1,7 @@
 import { resolveResumePresentation } from "../shared/resumePresentation";
 import { applyResumeSpacingPreset } from "../shared/resumeSpacing";
 import { resolveCvDocument } from "../shared/resolveCvDocument";
+import { resolveCoverLetterDocuments, storeCoverLetterDocuments } from "../shared/coverLetterHeader";
 import { getZweispaltigLetterVariables } from "../shared/zweispaltigLetterIdentity";
 import { getElegantDesignVariables } from "../shared/elegantDesign";
 import { getResumeSectionTitle } from "../features/resume-sections/resume-sections";
@@ -659,10 +660,14 @@ export function DocumentsView({
   const profile = boundProfile;
   const photoSource = getProfileMediaSource(profile?.photoPath);
   const signatureSource = getProfileMediaSource(profile?.signaturePath);
-  const docs =
+  // Empfänger, Betreff and Anrede follow Unternehmen & Position and the Ansprechpartner (also in a copied Bewerbung);
+  // only the user's own texts for this data stay.
+  const docs = resolveCoverLetterDocuments(
+    application,
     documentPreview?.applicationId === application.id
       ? documentPreview.documents
-      : application.documents;
+      : application.documents,
+  );
   const deckblattDocuments = getDeckblattDocuments(
     attachments,
     application.id,
@@ -824,7 +829,8 @@ export function DocumentsView({
   const motivationModel = { ...motivationBaseModel, letter: anschreibenLetterFrame(anschreibenModel) };
   const legacyTextContrastReadable = hasReadableColorContrast(design.settings.textColor, design.settings.backgroundColor);
   const documentDesignUnsaved = JSON.stringify(design) !== JSON.stringify(createDocumentDesignDraft(application));
-  const documentTextUnsaved = JSON.stringify(docs) !== JSON.stringify(application.documents);
+  // Compared as printed: a letter head that only follows the Bewerbung's data again is no unsaved change.
+  const documentTextUnsaved = JSON.stringify(docs) !== JSON.stringify(resolveCoverLetterDocuments(application, application.documents));
   const editorUnsaved = documentDesignUnsaved || documentTextUnsaved || resumeDesignUnsaved || Boolean(resumeContentDraft);
   const editorSaving = documentSaveStatus === "saving" || profileSaveStatus === "saving";
   const editorSaveLabel = editorSaving ? "Speichert …"
@@ -1146,7 +1152,7 @@ export function DocumentsView({
       secondaryColor: design.secondaryColor,
       designSettings: design.settings,
       templateDesigns: design.templateDesigns,
-      documents: {
+      documents: storeCoverLetterDocuments(application, {
         ...(template.id === "zweispaltig" ? {
           coverSenderName: docs.coverSenderName,
           coverSenderTitle: docs.coverSenderTitle,
@@ -1205,7 +1211,7 @@ export function DocumentsView({
           return typeof current === "string" ? current : undefined;
         }),
         documentListSettings: docs.documentListSettings,
-      },
+      }),
     };
   };
 
@@ -1520,6 +1526,7 @@ export function DocumentsView({
                     <label className="field">
                       <span>Empfängeradresse</span>
                       <textarea
+                        key={docs.coverLetterBasis?.recipient}
                         name="coverRecipientAddress"
                         rows={5}
                         defaultValue={recipientLines.join("\n")}
@@ -1534,6 +1541,7 @@ export function DocumentsView({
                     <label className="field">
                       <span>Betreffzeile</span>
                       <input
+                        key={docs.coverLetterBasis?.subject}
                         name="coverSubject"
                         defaultValue={createCoverSubject(
                           application.job.title,
@@ -1576,6 +1584,7 @@ export function DocumentsView({
                     <label className="field">
                       <span>Anrede</span>
                       <input
+                        key={docs.coverLetterBasis?.greeting}
                         name="coverGreeting"
                         defaultValue={coverGreeting}
                       />

@@ -121,3 +121,56 @@ describe("Anschreiben typography (karrierebibel.de)", () => {
     expect(html.indexOf(letterSpacingFitSource)).toBeLessThan(html.indexOf("const heightRatio = page.clientHeight"));
   });
 });
+
+describe("Anschreiben follows Unternehmen & Position and Ansprechpartner (copied Bewerbung)", () => {
+  const letterTexts = (page: Element) => ({
+    recipient: [...page.querySelectorAll("address > span")].map((line) => line.textContent),
+    subject: page.querySelector(".letter-preview > h3")?.textContent,
+    greeting: page.querySelector(".letter-salutation")?.textContent,
+    body: [...page.querySelectorAll(".letter-body")].map((paragraph) => paragraph.textContent),
+  });
+
+  it.each(["modern", "zweispaltig"])("%s: preview and PDF show the copy's new data and keep the own paragraphs", (templateId) => {
+    // A copy of „HDI AG“ whose letter head still holds the source's values (saved as text by the old editor).
+    const source = applicationFor(templateId, 0);
+    const copy = applicationSchema.parse({
+      ...source,
+      company: { name: "Klingelnberg GmbH", street: "Peterstraße 45", postalCode: "42499", city: "Hückeswagen" },
+      contact: { salutation: "Frau", firstName: "Yasmin", lastName: "Baumstark" },
+      job: { title: "Anwendungsingenieur" },
+      documents: {
+        ...source.documents,
+        coverRecipientAddress: "HDI AG\nHerrn Aref Olya\nHDI-Platz 1\n30659 Hannover",
+        coverSubject: "Bewerbung als Sachbearbeiter IT",
+        coverGreeting: "Sehr geehrter Herr Olya,",
+      },
+    });
+    const previous = testStore.state;
+    try {
+      testStore.state = { workspace: { schemaVersion: 1, applications: [copy], profiles: [profile], events: [],
+        attachments: [], todos: [], customCvDesigns: [], settings: defaultSettings, updatedAt: now } };
+      const view = parseHTML(`<html><body>${renderToStaticMarkup(createElement(DocumentsView, { initialTab: "anschreiben" }))}</body></html>`).document;
+      const preview = view.querySelector(".document-paper.document-anschreiben")!;
+      const pdf = parseHTML(buildDocumentHtml(copy, profile, "anschreiben")).document
+        .querySelector("section.letter-page > .document-paper.document-anschreiben")!;
+      const expected = {
+        recipient: ["Klingelnberg GmbH", "Frau Yasmin Baumstark", "Peterstraße 45", "42499 Hückeswagen"],
+        subject: "Bewerbung als Anwendungsingenieur",
+        greeting: "Sehr geehrte Frau Baumstark,",
+        body: ["Einleitung mit <Zeichen> & mehr.", "Hauptteil.", "Zusatz.", "Unternehmensbezug.", "Schluss."],
+      };
+      expect(letterTexts(preview)).toEqual(expected);
+      expect(letterTexts(pdf)).toEqual(expected);
+      // The editor fields show the same values, so saving them freezes nothing old.
+      expect(view.querySelector('textarea[name="coverRecipientAddress"]')?.textContent).toBe(expected.recipient.join("\n"));
+      expect(view.querySelector('input[name="coverSubject"]')?.getAttribute("value")).toBe(expected.subject);
+      expect(view.querySelector('input[name="coverGreeting"]')?.getAttribute("value")).toBe(expected.greeting);
+      // The Bewerbungsmappe prints the same letter.
+      const mappe = parseHTML(buildDocumentHtml(copy, profile, "mappe")).document
+        .querySelector("section.letter-page > .document-paper.document-anschreiben")!;
+      expect(letterTexts(mappe)).toEqual(expected);
+    } finally {
+      testStore.state = previous;
+    }
+  });
+});

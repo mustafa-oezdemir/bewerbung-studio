@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applicationSchema, profileSchema } from "../src/shared/schema";
+import { coverLetterAuto } from "../src/shared/coverLetterHeader";
 import { resolveResumeSectionInstances } from "../src/features/resume-sections/resume-section-system";
 import { buildDocumentHtml as buildDocumentHtmlWithHyphens } from "./documents";
 import { buildDeckblattModel, deckblattCss, deckblattDesignIds, deckblattFitScript, renderDeckblattMarkup } from "../src/shared/deckblattDesigns";
@@ -1032,6 +1033,8 @@ describe("Lebenslauf-Dokumente", () => {
         coverSenderContact: "mina@example.com | +49 30 123456",
         coverRecipientAddress: "Beispiel AG\nPersonalabteilung\n10115 Berlin",
         coverGreeting: "Guten Tag liebes Recruiting-Team,",
+        // Own texts written for this Bewerbung's data (the editor stores the data they belong to).
+        coverLetterBasis: coverLetterAuto(application),
       },
     });
     const html = buildDocumentHtml(customizedApplication, profile, "anschreiben");

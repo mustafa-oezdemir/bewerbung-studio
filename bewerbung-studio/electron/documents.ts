@@ -1,4 +1,5 @@
 import { inheritResumeSectionStyles } from "../src/shared/resumeSectionStyleInheritance";
+import { resolveCoverLetterDocuments } from "../src/shared/coverLetterHeader";
 import { kreativDefaults } from "../src/shared/cvTemplateDefaults/kreativ.defaults";
 import { kompaktDefaults } from "../src/shared/cvTemplateDefaults/kompakt.defaults";
 import { stilvollDefaults } from "../src/shared/cvTemplateDefaults/stilvoll.defaults";
@@ -815,7 +816,8 @@ export const buildDocumentHtml = (
       : "no-print-background"
   }`;
   const backgroundLayer = programmingBackgroundMarkup(designSettings, atsMode);
-  const docs = application.documents;
+  // Empfänger, Betreff and Anrede follow the Bewerbung's current data unless the user wrote own ones for it.
+  const docs = resolveCoverLetterDocuments(application, application.documents);
   const sections = resolvedCv.sections;
   const name = fullName(profile);
   // The Überschrift of every Lebenslauf template comes from this one resolver (same as the preview).
@@ -3618,7 +3620,7 @@ export const buildCoverLetterMarkdown = (
   application: Application,
   profile?: ApplicantProfile,
 ) => {
-  const docs = application.documents;
+  const docs = resolveCoverLetterDocuments(application, application.documents);
   return `# ${createCoverSubject(application.job.title, docs.coverSubject)}
 
 ${docs.coverGreeting || applicationGreeting(application)}

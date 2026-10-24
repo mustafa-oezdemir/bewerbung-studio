@@ -255,6 +255,11 @@ export const documentDraftSchema = z.object({
   coverSubject: optionalText,
   coverSubjectGapReduction: z.number().int().min(0).max(4).default(0),
   coverGreeting: optionalText,
+  /**
+   * The automatic Empfänger, Betreff and Anrede (from Unternehmen & Position and Ansprechpartner) the stored own texts
+   * above were written for; absent when none is stored (they follow the Bewerbung) and in older workspaces.
+   */
+  coverLetterBasis: z.object({ recipient: z.string(), subject: z.string(), greeting: z.string() }).optional(),
   coverIntroduction: optionalText,
   coverMainBody: optionalText,
   coverMotivation: optionalText,
