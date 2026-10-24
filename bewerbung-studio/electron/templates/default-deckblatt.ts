@@ -78,6 +78,25 @@ const photoDrawing = (bytes: Buffer) => {
 const lines = (value: string | undefined) =>
   (value ?? "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
 
+/** The template data the default Deckblatt reads; the Word file only changes when one of these values changes (main.ts). */
+export const deckblattTemplateKeys = [
+  "BERUFSBEZEICHNUNG",
+  "BEWERBER_NAME",
+  "BEWERBUNGSDATUM",
+  "DECKBLATT_DOKUMENTE",
+  "DECKBLATT_KOMPETENZEN",
+  "DECKBLATT_KONTAKT",
+  "DECKBLATT_KURZPROFIL",
+  "DECKBLATT_STANDORT",
+  "DESIGN_ACCENT",
+  "DESIGN_FONT",
+  "DESIGN_PRIMARY",
+  "FIRMA_NAME",
+  "PROFILFOTO",
+  "STELLENBEZEICHNUNG",
+  "STELLENNUMMER",
+] as const;
+
 export const createDefaultDeckblattDocument = async (
   targetDirectory: string,
   requestedBaseName: string,

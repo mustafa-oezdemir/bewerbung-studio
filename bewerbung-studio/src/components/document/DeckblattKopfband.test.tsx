@@ -58,7 +58,7 @@ describe("Deckblatt design Kopfband", () => {
       expect(line.split(/[{,]/)[0].startsWith(".deckblatt--kopfband"), line).toBe(true);
   });
 
-  it("lays the page out like the reference: header band, name, data blocks, Tech-Stack, place and signature", () => {
+  it("lays the page out like the reference: header band, name, data blocks, Tech-Stack, no signature, no Ort, Datum", () => {
     const { page, text } = build();
     expect(Array.from(page.children).map((child) => child.getAttribute("class"))).toEqual(["dk-head", "dk-main"]);
     expect(page.querySelector(".dk-head .dk-photo img")?.getAttribute("src")).toBe(photo);
@@ -74,17 +74,22 @@ describe("Deckblatt design Kopfband", () => {
     expect(text(".dk-facts h3")).toEqual(["Persönliche Daten", "Qualifikationen"]);
     expect(text(".dk-facts .dk-block:first-child li")).toEqual(["Geboren: 12.05.1992", "Staatsangehörigkeit: deutsch", "Familienstand: Ledig"]);
     expect(text(".dk-facts .dk-block:last-child li")[0]).toBe("M.Sc. Angewandte Informatik");
-    expect(text(".dk-sign .dk-place")).toEqual(["Kassel, 26.09.2026"]);
-    // Only the signature itself, without a line or an "Unterschrift" label; without a signature nothing.
-    expect(page.querySelector(".dk-signature")).toBeNull();
-    expect(page.textContent).not.toContain("Unterschrift");
-    const signed = build({ profile: profile({ signaturePath: photo }) });
-    expect(signed.page.querySelector(".dk-signature img")?.getAttribute("src")).toBe(photo);
-    expect(signed.page.querySelector(".dk-signature")?.textContent).toBe("");
-    // Ort, Datum stands right under the signature.
-    expect(Array.from(signed.page.querySelector(".dk-sign")!.children).map((child) => child.className)).toEqual(["dk-signature", "dk-place"]);
-    expect(deckblattCss).toMatch(/\.deckblatt--kopfband \.dk-sign\{[^}]*flex-direction:column;align-items:flex-end/);
-    expect(deckblattCss).not.toMatch(/\.deckblatt--kopfband \.dk-signature\{[^}]*border/);
+    // A Deckblatt is not signed (user): no signature, not even a saved profile one, and no "Ort, Datum" line.
+    const signature = "data:image/png;base64,BB==";
+    const signed = build({ profile: profile({ signaturePath: signature }) });
+    expect(signed.model).not.toHaveProperty("signatureSource");
+    expect(signed.markup).not.toContain(signature);
+    expect(Array.from(signed.page.querySelectorAll("img"), (image) => image.getAttribute("src"))).toEqual([photo]);
+    expect(signed.page.querySelector(".dk-signature")).toBeNull();
+    expect(signed.page.textContent).not.toContain("Unterschrift");
+    expect(signed.page.querySelector(".dk-sign, .dk-place")).toBeNull();
+    expect(signed.page.textContent).not.toContain("Kassel, 26.09.2026");
+    expect(signed.page.textContent).not.toContain("26.09.2026");
+    expect(signed.model).not.toHaveProperty("place");
+    expect(deckblattCss).not.toMatch(/\.deckblatt--kopfband \.dk-(sign|signature|place)\b/);
+    // Anlagen and Kontakt close the page at its foot instead.
+    expect(page.querySelector(".dk-main")!.lastElementChild?.className).toBe("dk-bottom");
+    expect(deckblattCss).toContain(".deckblatt--kopfband .dk-bottom{margin-top:auto;");
   });
 
   it("sets Anlagen (one third) beside Kontakt (two thirds) at the foot of the page", () => {
@@ -93,7 +98,7 @@ describe("Deckblatt design Kopfband", () => {
     expect(text(".dk-docs li")).toEqual(["Anschreiben", "Lebenslauf", "Zeugnis.pdf"]);
     expect(text(".dk-contact .dk-lines li")).toEqual(["Gartenweg 7, 34117 Kassel", "+49 555 0101", "zora@quellmalz.test", "linkedin.com/in/zora", "github.com/zora"]);
     expect(page.querySelector('.dk-contact a[href="mailto:zora@quellmalz.test"]')).toBeTruthy();
-    expect(deckblattCss).toContain(".deckblatt--kopfband .dk-bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);");
+    expect(deckblattCss).toContain(".deckblatt--kopfband .dk-bottom{margin-top:auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);");
     expect(deckblattCss).toContain(".deckblatt--kopfband .dk-bottom>:only-child{grid-column:1/-1}");
   });
 

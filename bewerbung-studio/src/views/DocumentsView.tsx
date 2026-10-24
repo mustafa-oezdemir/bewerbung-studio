@@ -83,11 +83,13 @@ import { StilvollResume } from "../components/resume/templates/stilvoll";
 import { TabellarischResume } from "../components/resume/templates/tabellarisch";
 import { ZeitgenoessischResume } from "../components/resume/templates/zeitgenoessisch";
 import { ZweispaltigResume } from "../components/resume/templates/zweispaltig";
+import { TuerkisProfilResume } from "../components/resume/templates/tuerkis-profil";
 import { analyzeKeywordMatch } from "../lib/keywordMatch";
 import { matchProjects } from "../lib/projectMatch";
 import {
   applicationGreeting,
   applicationRecipientLines,
+  fallbackGreeting,
 } from "../shared/applicationContacts";
 import {
   formatApplicationDate,
@@ -132,9 +134,10 @@ import { DeckblattDesignPicker } from "../components/document/DeckblattDesignPic
 import { DeckblattPreview } from "../components/document/DeckblattPreview";
 import type { ExportTarget, ProfileMediaKind } from "../shared/ipc";
 import { MotivationPreview } from "../components/document/MotivationPreview";
-import { buildMotivationModel, motivationParts } from "../shared/motivationDocument";
+import { buildMotivationModel, motivationFields, motivationMainBodyText, motivationSections, motivationTextsFromForm, type MotivationSection } from "../shared/motivationDocument";
 import { resolveDocumentSideMargins } from "../shared/documentSideMargins";
 import { getProfileMediaSource } from "../shared/profileMedia";
+import { resolveResumeClosingLayout } from "../shared/resumeClosing";
 import {
   defaultResumePersonalFieldVisibility,
   getResumeSemanticSection,
@@ -156,6 +159,19 @@ import { selectCurrentApplication, useAppStore } from "../store/useAppStore";
 import { resolveExperience } from "../shared/resumeCareer";
 
 type Tab = "deckblatt" | "anschreiben" | "motivation" | "email" | "lebenslauf";
+
+/** Number, title and short description of one of the five parts of the Motivationsschreiben. */
+function MotivationSectionHeader({ section }: { section: MotivationSection }) {
+  const index = motivationSections.findIndex((entry) => entry.section === section);
+  const { title, summary } = motivationSections[index]!;
+  return (
+    <header>
+      <span className="motivation-part-number" aria-hidden="true">{index + 1}</span>
+      <b>{title}</b>
+      <small>{summary}</small>
+    </header>
+  );
+}
 
 function DocumentListEditor({
   items,
@@ -710,7 +726,7 @@ export function DocumentsView({
     : applicationRecipientLines(application);
   const coverSender = template.id === "stilvoll"
     ? stilvollCoverSenderFromProfile(resolvedCv.profile)
-    : ["zweispaltig", "zeitgenoessisch", "elegant", "kreativ", "gepflegt", "kompakt"].includes(template.id)
+    : ["zweispaltig", "tuerkis-profil", "zeitgenoessisch", "elegant", "kreativ", "gepflegt", "kompakt"].includes(template.id)
     ? coverSenderFromProfile(resolvedCv.profile)
     : resolveCoverSender(renderProfile, docs);
   const { name: coverSenderName, title: coverSenderTitle, contact: coverSenderContact } = coverSender;
@@ -794,11 +810,13 @@ export function DocumentsView({
     signature: { greeting: "Mit freundlichen Grüßen", source: signatureSource, name },
     attachments: docs.showCoverLetterAttachments ? coverLetterAttachments : null,
   };
-  // The match reads the whole Lebenslauf as this Bewerbung prints it (its visible sections) and the Anschreiben's
-  // printed Betreff and paragraphs, without the „… ergänzen …“ placeholders.
+  // The match reads the whole Lebenslauf as this Bewerbung prints it (its visible sections and knowledge groups, the
+  // chosen projects and certificates of resolvedCv.profile) and the Anschreiben's printed Betreff and paragraphs,
+  // without the „… ergänzen …“ placeholders.
   const keywordMatch = analyzeKeywordMatch(application, resumeRenderProfile ?? profile, {
     summary: resolvedCv.summary,
     sections: resolvedCv.managerSections,
+    knowledgeGroups: resolvedCv.knowledgeGroups,
     coverLetter: [anschreibenModel.subject, ...anschreibenModel.paragraphs.map((paragraph) => paragraph.text)]
       .map((value) => value?.trim() ?? "").filter((value) => value && !/ergänzen …$/.test(value)).join("\n\n"),
   });
@@ -887,6 +905,14 @@ export function DocumentsView({
   const updateCertificateSelection = (selectedCertificateIds: string[]) => setDesign((current) => ({ ...current, settings: {
     ...current.settings, resumePresentation: { ...current.settings.resumePresentation, selectedCertificateIds },
   } }));
+  const updateSpecialEntrySelection = (sectionId: string, ids: string[]) => setDesign((current) => ({
+    ...current, settings: { ...current.settings, resumePresentation: {
+      ...current.settings.resumePresentation,
+      selectedSpecialEntryIds: {
+        ...current.settings.resumePresentation?.selectedSpecialEntryIds, [sectionId]: ids,
+      },
+    } },
+  }));
   const clearProjectSelection = () => setDesign((current) => ({ ...current, settings: {
     ...current.settings, resumePresentation: {
       ...current.settings.resumePresentation, selectedProjectEntryIds: [],
@@ -1174,11 +1200,10 @@ export function DocumentsView({
         motivationHeading: value("motivationHeading", docs.motivationHeading),
         motivationHeadingGapReduction: docs.motivationHeadingGapReduction,
         motivationSalutationGapReduction: docs.motivationSalutationGapReduction,
-        motivationIntroduction: value("motivationIntroduction", docs.motivationIntroduction),
-        motivationMainBody: value("motivationMainBody", docs.motivationMainBody),
-        motivationEvidence: value("motivationEvidence", docs.motivationEvidence),
-        motivationGoals: value("motivationGoals", docs.motivationGoals),
-        motivationClosing: value("motivationClosing", docs.motivationClosing),
+        ...motivationTextsFromForm(docs, (field) => {
+          const current = data?.get(field);
+          return typeof current === "string" ? current : undefined;
+        }),
         documentListSettings: docs.documentListSettings,
       },
     };
@@ -1734,7 +1759,24 @@ export function DocumentsView({
                       </p>
                     ) : null}
                   </section>
-                  <section className="cover-letter-editor-section">
+                  <section className="cover-letter-editor-section motivation-part is-generated" data-motivation-section="letterhead">
+                    <MotivationSectionHeader section="letterhead" />
+                    <dl className="motivation-letterhead-facts">
+                      <div>
+                        <dt>Absender</dt>
+                        <dd>
+                          {[motivationModel.letter.sender.name, motivationModel.letter.sender.contact]
+                            .map((value) => value.trim()).filter(Boolean).join(" · ") || "Aus dem Profil"}
+                        </dd>
+                      </div>
+                    </dl>
+                    <p className="field-hint">
+                      Automatisch derselbe Briefkopf wie im Anschreiben (Vorlage und Absender). Empfänger und
+                      Datum stehen schon im Anschreiben und werden hier nicht wiederholt.
+                    </p>
+                  </section>
+                  <section className="cover-letter-editor-section motivation-part" data-motivation-section="heading">
+                    <MotivationSectionHeader section="heading" />
                     <label className="field">
                       <span>Überschrift</span>
                       <input
@@ -1743,6 +1785,10 @@ export function DocumentsView({
                         placeholder="Meine Motivation"
                         required
                       />
+                      <small className="field-hint">
+                        „Motivationsschreiben“ geht immer; persönlicher wirkt z. B. „Meine Motivation“
+                        oder „Warum ich mich bei Ihnen bewerbe“.
+                      </small>
                     </label>
                     <div className="cover-subject-spacing-control">
                       <div>
@@ -1769,77 +1815,83 @@ export function DocumentsView({
                       </div>
                     </div>
                   </section>
-                  <section className="cover-letter-editor-section is-generated">
-                    <header>
-                      <b>Anrede</b>
-                      <small>Automatisch aus dem Ansprechpartner der Bewerbung</small>
-                    </header>
-                    <p className="motivation-generated-value">{motivationModel.salutation}</p>
-                    <div className="cover-subject-spacing-control">
-                      <div>
-                        <b>Abstand vor Anrede</b>
-                        <small>
-                          {docs.motivationSalutationGapReduction
-                            ? `${docs.motivationSalutationGapReduction} Zeile${docs.motivationSalutationGapReduction === 1 ? "" : "n"} nach oben verschoben`
-                            : "Standardabstand"}
-                        </small>
-                      </div>
-                      <div>
-                        <button
-                          type="button"
-                          disabled={docs.motivationSalutationGapReduction === 3}
-                          onClick={reduceMotivationSalutationGap}>
-                          <ChevronUp size={15} />
-                          Anrede höher
-                        </button>
-                        {docs.motivationSalutationGapReduction ? (
-                          <button type="button" onClick={resetMotivationSalutationGap}>
-                            Standard
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  </section>
-                  {motivationParts.map(({ field, label, placeholder }) => (
-                    <section className="cover-letter-editor-section" key={field}>
+                  {motivationFields.map(({ section, field, label, placeholder, rows }) => (
+                    <section className="cover-letter-editor-section motivation-part" data-motivation-section={section} key={section}>
+                      <MotivationSectionHeader section={section} />
+                      {section === "introduction" ? (
+                        <>
+                          <div className="motivation-generated-row">
+                            <span>Anrede</span>
+                            <p className="motivation-generated-value">{motivationModel.salutation}</p>
+                          </div>
+                          <p className="field-hint motivation-salutation-hint">
+                            {motivationModel.salutation === fallbackGreeting
+                              ? "Kein Ansprechpartner hinterlegt: „Sehr geehrte Damen und Herren“ ist nur eine Notlösung – tragen Sie den Ansprechpartner in der Bewerbung ein."
+                              : "Automatisch aus dem Ansprechpartner der Bewerbung."}
+                          </p>
+                          <div className="cover-subject-spacing-control">
+                            <div>
+                              <b>Abstand vor Anrede</b>
+                              <small>
+                                {docs.motivationSalutationGapReduction
+                                  ? `${docs.motivationSalutationGapReduction} Zeile${docs.motivationSalutationGapReduction === 1 ? "" : "n"} nach oben verschoben`
+                                  : "Standardabstand"}
+                              </small>
+                            </div>
+                            <div>
+                              <button
+                                type="button"
+                                disabled={docs.motivationSalutationGapReduction === 3}
+                                onClick={reduceMotivationSalutationGap}>
+                                <ChevronUp size={15} />
+                                Anrede höher
+                              </button>
+                              {docs.motivationSalutationGapReduction ? (
+                                <button type="button" onClick={resetMotivationSalutationGap}>
+                                  Standard
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                        </>
+                      ) : null}
                       <label className="field">
                         <span>{label}</span>
                         <textarea
                           name={field}
-                          rows={field === "motivationMainBody" || field === "motivationEvidence" ? 8 : 5}
-                          defaultValue={String(docs[field] ?? "")}
+                          rows={rows}
+                          defaultValue={field === "motivationMainBody" ? motivationMainBodyText(docs) : docs[field]}
                           placeholder={placeholder}
                         />
                       </label>
+                      {section === "closing" ? (
+                        <>
+                          <div className="motivation-generated-row">
+                            <span>Grußformel</span>
+                            <p className="motivation-generated-value">{motivationModel.closing.greeting}</p>
+                          </div>
+                          <div className="document-media-inline">
+                            <span>Unterschrift</span>
+                            <DocumentMediaCard
+                              kind="signature"
+                              label="Unterschrift"
+                              source={signatureSource}
+                              disabled={!profile}
+                              onPick={() => void pickProfileMedia("signature")}
+                              onRemove={() => void removeProfileMedia("signature")}
+                            />
+                          </div>
+                          <div className="motivation-generated-row">
+                            <span>Ort, Datum</span>
+                            <p className="motivation-generated-value">{motivationModel.closing.placeDate}</p>
+                          </div>
+                          <p className="field-hint">
+                            Die Unterschrift kommt aus dem Profil; Ort aus dem Profil, Datum aus der Bewerbung.
+                          </p>
+                        </>
+                      ) : null}
                     </section>
                   ))}
-                  <section className="cover-letter-editor-section is-generated">
-                    <header>
-                      <b>Grußformel und Unterschrift</b>
-                      <small>Abschluss mit der Unterschrift aus dem Profil</small>
-                    </header>
-                    <p className="motivation-generated-value">{motivationModel.closing.greeting}</p>
-                    <div className="document-media-inline">
-                      <span>Unterschrift</span>
-                      <DocumentMediaCard
-                        kind="signature"
-                        label="Unterschrift"
-                        source={signatureSource}
-                        disabled={!profile}
-                        onPick={() => void pickProfileMedia("signature")}
-                        onRemove={() => void removeProfileMedia("signature")}
-                      />
-                    </div>
-                  </section>
-                  <section className="cover-letter-editor-section is-generated">
-                    <header>
-                      <b>Ort und Datum</b>
-                      <small>Ort aus dem Profil, Datum aus der Bewerbung</small>
-                    </header>
-                    <p className="motivation-generated-value">
-                      {motivationModel.closing.placeDate}
-                    </p>
-                  </section>
                 </div>
               )}
               {tab === "email" && (
@@ -2518,9 +2570,11 @@ export function DocumentsView({
                           onChange={updateCertificateSelection}
                         />
                       }
+                      selectedSpecialEntryIds={design.settings.resumePresentation?.selectedSpecialEntryIds}
+                      onSpecialEntrySelectionChange={updateSpecialEntrySelection}
                       layoutMode={resumeLayout.mode}
-                      closingPlacement={design.settings.resumePresentation?.closing?.placement}
-                      closingAlignment={design.settings.resumePresentation?.closing?.alignment ?? (template.id.startsWith("pehlione_") ? "distributed" : "left")}
+                      closingPlacement={resolveResumeClosingLayout(template.id, design.settings.resumePresentation?.closing).placement}
+                      closingAlignment={resolveResumeClosingLayout(template.id, design.settings.resumePresentation?.closing).alignment}
                       onClosingLayoutChange={updateClosingLayout}
                       legacySummary={docs.legacyResumeProfile || docs.resumeProfile}
                       onPickMedia={(kind) => void pickProfileMedia(kind)}
@@ -2583,10 +2637,12 @@ export function DocumentsView({
                       </div>
                     </div>
                     <small>
-                      Geprüft werden Kenntnisse, der ganze Lebenslauf
-                      (Kurzprofil, Werdegang, Bildungsweg, Projekte,
-                      Zertifikate) und das Anschreiben. Vorschläge werden
-                      niemals automatisch in Ihren Lebenslauf übernommen.
+                      Geprüft wird alles, was die Vorschau zeigt: der ganze
+                      Lebenslauf (Kurzprofil, Stärken, Kenntnisse, Werdegang,
+                      Bildungsweg, Sprachen, Projekte, Zertifikate und weitere
+                      Bereiche) und das Anschreiben. Ausgeblendetes zählt nicht.
+                      Vorschläge werden niemals automatisch in Ihren Lebenslauf
+                      übernommen.
                     </small>
                   </section>
                 </>
@@ -2847,8 +2903,20 @@ export function DocumentsView({
                           resumeProfile={resolvedCv.summary}
                           sections={sections}
                         />
-                      ) : template.id === "zweispaltig" ? (
-                        <ZweispaltigResume
+                      ) : template.id === "zweispaltig" || template.id === "tuerkis-profil" ? (
+                        template.id === "tuerkis-profil" ? <TuerkisProfilResume
+                          profile={renderProfile}
+                          name={name}
+                          atsMode={isAtsMode}
+                          plan={plan}
+                          totalPages={resumePlan.length}
+                          accentColor={design.accentColor}
+                          secondaryColor={design.secondaryColor}
+                          designVariables={resolvedCv.zweispaltigVariables}
+                          photoSource={getProfileMediaSource(renderProfile?.photoPath)}
+                          resumeProfile={resolvedCv.summary}
+                          sections={sections}
+                        /> : <ZweispaltigResume
                           profile={renderProfile}
                           name={name}
                           atsMode={isAtsMode}

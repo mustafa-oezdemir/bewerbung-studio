@@ -59,6 +59,9 @@ const greetingForContact = (contact: Contact) => {
   return `Guten Tag ${name}`;
 };
 
+/** The Anrede when no Ansprechpartner is known: only a fallback. */
+export const fallbackGreeting = "Sehr geehrte Damen und Herren,";
+
 export const applicationGreeting = (
   application: Pick<Application, "contact" | "additionalContacts">,
 ) => {
@@ -72,5 +75,5 @@ export const applicationGreeting = (
     );
   return greetings.length
     ? `${greetings.join(", ")},`
-    : "Sehr geehrte Damen und Herren,";
+    : fallbackGreeting;
 };

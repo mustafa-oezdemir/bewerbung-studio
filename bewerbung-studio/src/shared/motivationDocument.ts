@@ -53,14 +53,61 @@ export type MotivationModel = {
   gapLines: { header: number; title: number };
 };
 
-/** The editor fields of the document, in the order they are printed. */
-export const motivationParts: ReadonlyArray<{ part: MotivationPart; field: keyof DocumentDraft; label: string; placeholder: string }> = [
-  { part: "introduction", field: "motivationIntroduction", label: "Einleitung", placeholder: "Was treibt Sie persönlich an? Starten Sie direkt und konkret." },
-  { part: "mainBody", field: "motivationMainBody", label: "Meine Motivation", placeholder: "Warum genau diese Position und dieses Unternehmen? Welche Werte oder Aufgaben passen zu Ihnen?" },
-  { part: "evidence", field: "motivationEvidence", label: "Meine Erfahrungen und Stärken", placeholder: "Belegen Sie Ihre Eignung mit konkreten Erfahrungen, Ergebnissen oder Beispielen." },
-  { part: "goals", field: "motivationGoals", label: "Meine Ziele und mein Beitrag", placeholder: "Was möchten Sie erreichen und welchen konkreten Beitrag möchten Sie leisten?" },
-  { part: "closing", field: "motivationClosing", label: "Schluss", placeholder: "Kurz, positiv und selbstbewusst abschließen." },
+/** The five parts of a Motivationsschreiben (karrierebibel.de/motivationsschreiben), as the editor groups it. */
+export type MotivationSection = "letterhead" | "heading" | "introduction" | "mainBody" | "closing";
+
+export const motivationSections: ReadonlyArray<{ section: MotivationSection; title: string; summary: string }> = [
+  { section: "letterhead", title: "Briefkopf", summary: "Wie im Anschreiben: Name, Anschrift, Telefon, E-Mail" },
+  { section: "heading", title: "Überschrift", summary: "Persönlich: Ihre Motivation oder Eignung benennen" },
+  { section: "introduction", title: "Einleitung", summary: "Neugier wecken" },
+  { section: "mainBody", title: "Hauptteil", summary: "Motivation und Passung verbinden" },
+  { section: "closing", title: "Schluss", summary: "Selbstbewusst beenden" },
 ];
+
+/**
+ * The stored text fields in the order they are printed. Hauptteil is one text since the five-part outline; older
+ * Bewerbungen may still hold Erfahrungen/Ziele texts, which are printed after it until the Hauptteil is saved again
+ * (it then takes them over, see `motivationMainBodyText`).
+ */
+export const motivationParts: ReadonlyArray<{ part: MotivationPart; field: keyof DocumentDraft }> = [
+  { part: "introduction", field: "motivationIntroduction" },
+  { part: "mainBody", field: "motivationMainBody" },
+  { part: "evidence", field: "motivationEvidence" },
+  { part: "goals", field: "motivationGoals" },
+  { part: "closing", field: "motivationClosing" },
+];
+
+/** The text fields of the editor: one per writing part. */
+export const motivationFields: ReadonlyArray<{ section: MotivationSection; field: "motivationIntroduction" | "motivationMainBody" | "motivationClosing"; label: string; placeholder: string; rows: number }> = [
+  { section: "introduction", field: "motivationIntroduction", label: "Einleitung", rows: 5,
+    placeholder: "Ohne Floskeln wie „Hiermit bewerbe ich mich …“: Steigen Sie direkt ein und zeigen Sie, was Sie konkret antreibt." },
+  { section: "mainBody", field: "motivationMainBody", label: "Hauptteil", rows: 12,
+    placeholder: "Ihre stärksten Argumente mit Beispielen aus der Praxis: Was fasziniert Sie an Stelle und Unternehmen, welche Erfahrungen, Stärken und Ziele passen dazu?" },
+  { section: "closing", field: "motivationClosing", label: "Schluss", rows: 5,
+    placeholder: "Selbstbewusst, ohne Konjunktiv: Freude auf ein persönliches Gespräch, ggf. frühester Eintrittstermin." },
+];
+
+/** The Hauptteil as the editor shows it: its own text, followed by older Erfahrungen/Ziele texts as paragraphs. */
+export const motivationMainBodyText = (documents: Pick<DocumentDraft, "motivationMainBody" | "motivationEvidence" | "motivationGoals">) =>
+  [documents.motivationMainBody, documents.motivationEvidence, documents.motivationGoals]
+    .map((text) => text?.trim() ?? "").filter(Boolean).join("\n\n");
+
+type MotivationTexts = Pick<DocumentDraft, "motivationIntroduction" | "motivationMainBody" | "motivationEvidence" | "motivationGoals" | "motivationClosing">;
+
+/**
+ * The texts to store from the editor form (`read` gives a field's value, undefined when it is not in the form). Once
+ * the Hauptteil field is in the form it holds the older Erfahrungen/Ziele texts too, so those are emptied.
+ */
+export const motivationTextsFromForm = (stored: MotivationTexts, read: (field: keyof MotivationTexts) => string | undefined): MotivationTexts => {
+  const mainBody = read("motivationMainBody");
+  return {
+    motivationIntroduction: read("motivationIntroduction") ?? stored.motivationIntroduction,
+    motivationMainBody: mainBody ?? stored.motivationMainBody,
+    motivationEvidence: mainBody === undefined ? stored.motivationEvidence : "",
+    motivationGoals: mainBody === undefined ? stored.motivationGoals : "",
+    motivationClosing: read("motivationClosing") ?? stored.motivationClosing,
+  };
+};
 
 export const motivationGreeting = "Mit freundlichen Grüßen";
 

@@ -11,7 +11,11 @@ import { getTemplate, templates } from "./templates";
 import {
   buildMotivationModel,
   motivationCss,
+  motivationFields,
+  motivationMainBodyText,
+  motivationTextsFromForm,
   motivationParts,
+  motivationSections,
   renderMotivationMarkup,
   splitMotivationParagraphs,
 } from "./motivationDocument";
@@ -46,14 +50,54 @@ const model = (templateId = "modern", documents: Record<string, unknown> = texts
 };
 
 describe("Motivationsschreiben data", () => {
-  it("offers the five body fields after the heading in the requested order", () => {
-    expect(motivationParts.map(({ field, label }) => [field, label])).toEqual([
-      ["motivationIntroduction", "Einleitung"],
-      ["motivationMainBody", "Meine Motivation"],
-      ["motivationEvidence", "Meine Erfahrungen und Stärken"],
-      ["motivationGoals", "Meine Ziele und mein Beitrag"],
-      ["motivationClosing", "Schluss"],
+  it("groups the editor into the five parts of karrierebibel's Aufbau, with one text per writing part", () => {
+    expect(motivationSections.map(({ section, title, summary }) => [section, title, summary])).toEqual([
+      ["letterhead", "Briefkopf", "Wie im Anschreiben: Name, Anschrift, Telefon, E-Mail"],
+      ["heading", "Überschrift", "Persönlich: Ihre Motivation oder Eignung benennen"],
+      ["introduction", "Einleitung", "Neugier wecken"],
+      ["mainBody", "Hauptteil", "Motivation und Passung verbinden"],
+      ["closing", "Schluss", "Selbstbewusst beenden"],
     ]);
+    expect(motivationFields.map(({ section, field, label }) => [section, field, label])).toEqual([
+      ["introduction", "motivationIntroduction", "Einleitung"],
+      ["mainBody", "motivationMainBody", "Hauptteil"],
+      ["closing", "motivationClosing", "Schluss"],
+    ]);
+    // The stored fields keep their print order, so older Erfahrungen/Ziele texts stay where they were.
+    expect(motivationParts.map(({ field, part }) => [field, part])).toEqual([
+      ["motivationIntroduction", "introduction"],
+      ["motivationMainBody", "mainBody"],
+      ["motivationEvidence", "evidence"],
+      ["motivationGoals", "goals"],
+      ["motivationClosing", "closing"],
+    ]);
+  });
+
+  it("shows older Erfahrungen/Ziele texts as paragraphs of the one Hauptteil", () => {
+    expect(motivationMainBodyText({ motivationMainBody: "Motiv.", motivationEvidence: " Erfahrung. ", motivationGoals: "Ziel." }))
+      .toBe("Motiv.\n\nErfahrung.\n\nZiel.");
+    expect(motivationMainBodyText({ motivationMainBody: "", motivationEvidence: "Erfahrung.", motivationGoals: "" })).toBe("Erfahrung.");
+    expect(motivationMainBodyText({ motivationMainBody: "Nur Hauptteil.", motivationEvidence: "", motivationGoals: "" })).toBe("Nur Hauptteil.");
+    // Printed, the merged text gives the same paragraphs in the same order as the three old fields.
+    const old = model("modern", { motivationMainBody: "Motiv.", motivationEvidence: "Erfahrung.", motivationGoals: "Ziel." }).paragraphs;
+    const merged = model("modern", { motivationMainBody: "Motiv.\n\nErfahrung.\n\nZiel.", motivationEvidence: "", motivationGoals: "" }).paragraphs;
+    expect(merged.map(({ text }) => text)).toEqual(old.map(({ text }) => text));
+  });
+
+  it("stores the Hauptteil field as the one Hauptteil and only then empties the older Erfahrungen/Ziele texts", () => {
+    const stored = { motivationIntroduction: "Alt-Einstieg", motivationMainBody: "Motiv.", motivationEvidence: "Erfahrung.",
+      motivationGoals: "Ziel.", motivationClosing: "Alt-Schluss" };
+    // The motivation tab is open: its three fields are in the form.
+    const form: Record<string, string> = { motivationIntroduction: "Einstieg", motivationMainBody: "Motiv.\n\nErfahrung.\n\nZiel.", motivationClosing: "Schluss" };
+    expect(motivationTextsFromForm(stored, (field) => form[field])).toEqual({
+      motivationIntroduction: "Einstieg", motivationMainBody: "Motiv.\n\nErfahrung.\n\nZiel.",
+      motivationEvidence: "", motivationGoals: "", motivationClosing: "Schluss",
+    });
+    // Another tab is open: nothing of the Motivationsschreiben is in the form, everything stays as stored.
+    expect(motivationTextsFromForm(stored, () => undefined)).toEqual(stored);
+    // An emptied Hauptteil is stored empty, not refilled from the older fields.
+    expect(motivationTextsFromForm(stored, (field) => field === "motivationMainBody" ? "" : undefined))
+      .toMatchObject({ motivationMainBody: "", motivationEvidence: "", motivationGoals: "" });
   });
   it("opens older applications without loss: the switch is off and the texts are empty", () => {
     const legacy = applicationSchema.parse({

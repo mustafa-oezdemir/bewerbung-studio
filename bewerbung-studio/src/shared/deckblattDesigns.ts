@@ -107,9 +107,6 @@ export type DeckblattModel = {
   qualifications: string[];
   /** The Stärken with their Lebenslauf icon (Kopfband). */
   techStack: { title: string; icon: string }[];
-  /** Ort of the closing line: the Bewerbungsort of the profile, else its city. */
-  place: string;
-  signatureSource: string;
   documents: string[];
   /** The address block of the recipient, the same lines as on the Anschreiben. */
   recipient: string[];
@@ -224,8 +221,6 @@ export const buildDeckblattModel = ({
   personalDetails: getDeckblattPersonalDetails(profile),
   qualifications: getDeckblattQualifications(profile),
   techStack: getDeckblattTechStack(profile),
-  place: profile?.applicationPlace?.trim() || profile?.city?.trim() || "",
-  signatureSource: getProfileMediaSource(profile?.signaturePath),
   documents: getDeckblattDocuments(attachments, application.id, documents.documentListSettings, documents.motivationEnabled),
   recipient: resolveRecipientLines(application, documents.coverRecipientAddress),
   style: { ...getDeckblattStyle(accentColor, secondaryColor, settings, cvTypography), ...(sideMargins ? documentSideMarginVariables(sideMargins) : {}) },
@@ -501,9 +496,6 @@ const kopfband = (model: DeckblattModel) => {
           }${model.contacts.length ? `<div class="dk-contact"><h3>Kontakt</h3><ul class="dk-lines">${model.contacts.map(iconContactItem).join("")}</ul></div>` : ""}</section>`
         : ""
     }
-    <footer class="dk-sign">${
-      model.signatureSource ? `<div class="dk-signature"><img src="${escapeHtml(model.signatureSource)}" alt="Unterschrift" /></div>` : ""
-    }<p class="dk-place">${escapeHtml([model.place, model.date].filter(Boolean).join(", "))}</p></footer>
   </main>`;
 };
 
@@ -651,7 +643,7 @@ export const deckblattCss = `
 .deckblatt--kopfband .dk-stack-icon svg{color:var(--accent)}
 .deckblatt--kopfband .dk-stack-icon svg,.deckblatt--kopfband .dk-stack-icon img{width:100%;height:100%}
 .deckblatt--kopfband .dk-stack li span{max-width:100%;font-size:10pt;line-height:1.2;overflow-wrap:anywhere}
-.deckblatt--kopfband .dk-bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:9mm}
+.deckblatt--kopfband .dk-bottom{margin-top:auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:9mm}
 .deckblatt--kopfband .dk-bottom>:only-child{grid-column:1/-1}
 .deckblatt--kopfband .dk-docs ul{display:grid;gap:1.2mm}
 .deckblatt--kopfband .dk-docs li{position:relative;padding-left:3.6mm;font-size:10pt;line-height:1.3;overflow-wrap:anywhere;break-inside:avoid}
@@ -662,9 +654,6 @@ export const deckblattCss = `
 .deckblatt--kopfband .dk-lines li i{display:grid;flex:0 0 5.4mm;width:5.4mm;height:5.4mm;place-items:center;border-radius:50%;font-style:normal;color:var(--on-accent);background:var(--accent)}
 .deckblatt--kopfband .dk-lines li i svg{width:3.1mm;height:3.1mm}
 .deckblatt--kopfband .dk-lines a{color:inherit;text-decoration:none}
-.deckblatt--kopfband .dk-sign{display:flex;flex-direction:column;align-items:flex-end;gap:1.2mm;text-align:right;margin-top:auto;padding-top:5mm;font-size:10pt;line-height:1.35}
-.deckblatt--kopfband .dk-signature{display:flex}
-.deckblatt--kopfband .dk-signature img{max-width:52mm;max-height:14mm;object-fit:contain}
 .deckblatt--farbbalken{display:grid;grid-template-rows:minmax(0,1fr) auto auto;background:var(--page-background)}
 .deckblatt--farbbalken .dk-bar{position:absolute;display:block}
 .deckblatt--farbbalken .dk-bar--top{left:0;top:0;width:62%;height:5mm;background:var(--tint-soft)}

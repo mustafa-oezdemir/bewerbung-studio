@@ -100,12 +100,68 @@ describe("DocumentsView Motivation tab", () => {
     expect(none.querySelector(".document-motivation .letter-preview > .letter-salutation")?.textContent).toBe("Sehr geehrte Damen und Herren,");
   });
 
-  it("lists the editor sections in the requested order", () => {
+  it("lists the five parts in order, each with its short description and its fields", () => {
     const document = renderMotivationTab(applicationWith({}));
-    const titles = [...document.querySelectorAll(".motivation-editor > section")].map((section) =>
-      section.querySelector("header b, label.field > span")?.textContent);
-    expect(titles).toEqual(["Motivationsschreiben", "Überschrift", "Anrede", "Einleitung", "Meine Motivation",
-      "Meine Erfahrungen und Stärken", "Meine Ziele und mein Beitrag", "Schluss", "Grußformel und Unterschrift", "Ort und Datum"]);
+    const parts = [...document.querySelectorAll(".motivation-editor > section.motivation-part")].map((section) => [
+      section.querySelector("header > .motivation-part-number")?.textContent,
+      section.querySelector("header > b")?.textContent,
+      section.querySelector("header > small")?.textContent,
+      [...section.querySelectorAll("input[name], textarea[name]")].map((field) => field.getAttribute("name")),
+    ]);
+    // karrierebibel.de/motivationsschreiben: Briefkopf, Überschrift, Einleitung, Hauptteil, Schluss.
+    expect(parts).toEqual([
+      ["1", "Briefkopf", "Wie im Anschreiben: Name, Anschrift, Telefon, E-Mail", []],
+      ["2", "Überschrift", "Persönlich: Ihre Motivation oder Eignung benennen", ["motivationHeading"]],
+      ["3", "Einleitung", "Neugier wecken", ["motivationIntroduction"]],
+      ["4", "Hauptteil", "Motivation und Passung verbinden", ["motivationMainBody"]],
+      ["5", "Schluss", "Selbstbewusst beenden", ["motivationClosing"]],
+    ]);
+    // Only the switch section stands before the five parts; no own Anrede part, no separate Stärken/Ziele fields.
+    expect([...document.querySelectorAll(".motivation-editor > section")].length).toBe(6);
+    expect(document.querySelector('.motivation-editor [data-motivation-section="salutation"]')).toBeNull();
+    expect(document.querySelector('.motivation-editor [name="motivationEvidence"], .motivation-editor [name="motivationGoals"]')).toBeNull();
+    // The Briefkopf is the Anschreiben's: shown read-only with the sender, no Empfänger or Datum row.
+    const letterhead = document.querySelector('.motivation-editor [data-motivation-section="letterhead"]')!;
+    expect(letterhead.classList.contains("is-generated")).toBe(true);
+    expect([...letterhead.querySelectorAll("dt")].map((term) => term.textContent)).toEqual(["Absender"]);
+    expect(letterhead.querySelector("dd")?.textContent).toContain("Mina Kaya");
+    expect(letterhead.textContent).toContain("wie im Anschreiben");
+    // Überschrift has its own part with its spacing control.
+    const heading = document.querySelector('.motivation-editor [data-motivation-section="heading"]')!;
+    expect(heading.querySelector(".cover-subject-spacing-control")?.textContent).toContain("Abstand vor Überschrift");
+    // Schluss: Schlusssätze, Grußformel, Unterschrift, Ort und Datum.
+    const closing = document.querySelector('.motivation-editor [data-motivation-section="closing"]')!;
+    expect([...closing.querySelectorAll(".motivation-generated-row > span")].map((label) => label.textContent)).toEqual(["Grußformel", "Ort, Datum"]);
+    expect(closing.textContent).toContain("Mit freundlichen Grüßen");
+    expect(closing.textContent).toContain("Kassel, 9. Oktober 2026");
+    expect(closing.querySelector(".document-media-inline")).not.toBeNull();
+  });
+
+  it("keeps stored texts in their fields and shows the Anrede at the start of the Einleitung", () => {
+    const stored = renderMotivationTab(applicationWith({}));
+    expect(stored.querySelector<HTMLTextAreaElement>('textarea[name="motivationIntroduction"]')?.textContent).toContain("eigener");
+    expect(stored.querySelector<HTMLTextAreaElement>('textarea[name="motivationClosing"]')?.textContent).toBe("Bis bald.");
+    const introduction = (document: ReturnType<typeof renderMotivationTab>) =>
+      document.querySelector('.motivation-editor [data-motivation-section="introduction"]')!;
+    // Anrede (read-only), its hint and its spacing control stand before the Einleitung text.
+    const order = [...introduction(stored).querySelectorAll(".motivation-generated-row, .motivation-salutation-hint, .cover-subject-spacing-control, label.field")]
+      .map((node) => node.className);
+    expect(order).toEqual(["motivation-generated-row", "field-hint motivation-salutation-hint", "cover-subject-spacing-control", "field"]);
+    expect(introduction(stored).querySelector(".motivation-generated-value")?.textContent).toBe("Sehr geehrte Damen und Herren,");
+    const hint = (document: ReturnType<typeof renderMotivationTab>) => introduction(document).querySelector(".motivation-salutation-hint")?.textContent;
+    expect(hint(stored)).toContain("nur eine Notlösung");
+    expect(hint(renderMotivationTab(applicationWith({ salutation: "Frau", lastName: "Schulz" })))).not.toContain("Notlösung");
+  });
+
+  it("puts older Erfahrungen/Ziele texts into the one Hauptteil field, the page stays the same", () => {
+    const base = applicationWith({});
+    const legacy = applicationSchema.parse({ ...base, documents: { ...base.documents,
+      motivationMainBody: "Warum diese Stelle.", motivationEvidence: "Ein Projektbeispiel.", motivationGoals: "Mein Ziel." } });
+    const document = renderMotivationTab(legacy);
+    expect(document.querySelector('textarea[name="motivationMainBody"]')?.textContent)
+      .toBe("Warum diese Stelle.\n\nEin Projektbeispiel.\n\nMein Ziel.");
+    const printed = [...document.querySelectorAll(".document-motivation .letter-preview > .letter-body")].map((node) => node.textContent);
+    expect(printed).toEqual(["Mein <eigener> Einstieg.", "Warum diese Stelle.", "Ein Projektbeispiel.", "Mein Ziel.", "Bis bald."]);
   });
 
   it("offers an Anrede spacing control of its own and shares its setting with the PDF", () => {
