@@ -505,6 +505,28 @@ describe("A4 document pagination", () => {
     expect(kinds).toEqual(["education", "education", "experience", "experience"]);
   });
 
+  it("uses the Türkis Profil column width so education fills the first page", () => {
+    const base = makeProfile(3, 0, 4);
+    const lengths = [[127, 169, 57, 48], [56, 55], [61, 68, 53]];
+    const sentence = (length: number) => "Planung technischer Abläufe und Entwicklung interner Systeme. ".repeat(4).slice(0, length);
+    const profile = profileSchema.parse({
+      ...base,
+      experiences: base.experiences.map((entry, index) => ({
+        ...entry, achievements: lengths[index].map(sentence),
+      })),
+      resumeManagerLayouts: {
+        ...base.resumeManagerLayouts,
+        "tuerkis-profil": getManagerSections(base, "tuerkis-profil")
+          .filter((entry) => !entry.fixed)
+          .map((entry) => ({ id: entry.id, zone: entry.id === "education" ? "main" : entry.zone })),
+      },
+    });
+    const pages = resolve(profile, "tuerkis-profil").pagePlan;
+    expect(pages[0].items.filter((item) => item.kind === "education")).toHaveLength(4);
+    expect(pages.slice(1).flatMap((page) => page.items).filter((item) => item.kind === "education")).toHaveLength(0);
+    expectEveryBulletOnce(pages, profile.experiences);
+  });
+
   it("keeps a complete Pehlione career timeline on one page", () => {
     const plan = createResumePagePlan(makeProfile(3, 3, 1), "", {}, "pehlione_white_blue");
     expect(plan).toHaveLength(1);
