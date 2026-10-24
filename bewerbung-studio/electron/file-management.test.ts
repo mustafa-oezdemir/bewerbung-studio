@@ -411,6 +411,67 @@ describe("FileManagementService", () => {
     ).resolves.toBe("Fragen");
   });
 
+  it("moves the interview folder in the second interview stage as well", async () => {
+    const application = {
+      company: { name: "Zweit GmbH" },
+      status: "Zweites Gespräch",
+      interviewAt: new Date(2026, 9, 22, 9).toISOString(),
+    } as Application;
+    await service.syncInterviewFolder(undefined, application);
+    const before = service.interviewPath(application);
+    await writeFile(path.join(before, "Vorstellungsgespräch.md"), "# Vorstellungsgespräch");
+    const moved = { ...application, interviewAt: new Date(2026, 9, 29, 9).toISOString() };
+    await service.syncInterviewFolder(application, moved);
+    await expect(access(before)).rejects.toThrow();
+    await expect(readFile(path.join(service.interviewPath(moved), "Vorstellungsgespräch.md"), "utf8"))
+      .resolves.toBe("# Vorstellungsgespräch");
+  });
+
+  it("merges into an existing interview folder without overwriting a note", async () => {
+    const application = {
+      company: { name: "Merge GmbH" },
+      status: "Vorstellungsgespräch",
+      interviewAt: new Date(2026, 9, 22, 9).toISOString(),
+    } as Application;
+    const moved = { ...application, interviewAt: new Date(2026, 9, 23, 9).toISOString() };
+    const source = service.interviewPath(application);
+    const target = service.interviewPath(moved);
+    await mkdir(source, { recursive: true });
+    await mkdir(target, { recursive: true });
+    await writeFile(path.join(source, "Vorstellungsgespräch.md"), "alt 0");
+    await writeFile(path.join(source, "Vorstellungsgespräch_1.md"), "alt 1");
+    await writeFile(path.join(source, "Notizen.txt"), "alt notiz");
+    await writeFile(path.join(target, "Vorstellungsgespräch.md"), "ziel 0");
+    await writeFile(path.join(target, "Notizen.txt"), "ziel notiz");
+    await writeFile(path.join(source, "Vorstellungsgespräch_Merge.md"), "alt firma");
+    await writeFile(path.join(target, "Vorstellungsgespräch_Merge.md"), "ziel firma");
+    await service.syncInterviewFolder(application, moved);
+    const read = (folder: string, name: string) => readFile(path.join(folder, name), "utf8");
+    await expect(read(target, "Vorstellungsgespräch.md")).resolves.toBe("ziel 0");
+    await expect(read(target, "Vorstellungsgespräch_1.md")).resolves.toBe("alt 0");
+    await expect(read(target, "Vorstellungsgespräch_2.md")).resolves.toBe("alt 1");
+    // A company-named note gets the next number of its own company part.
+    await expect(read(target, "Vorstellungsgespräch_Merge.md")).resolves.toBe("ziel firma");
+    await expect(read(target, "Vorstellungsgespräch_Merge_1.md")).resolves.toBe("alt firma");
+    await expect(read(target, "Notizen.txt")).resolves.toBe("ziel notiz");
+    // A non-note file with a taken name stays in the old folder: nothing is lost or overwritten.
+    await expect(read(source, "Notizen.txt")).resolves.toBe("alt notiz");
+  });
+
+  it("leaves an interview folder alone that is not the Bewerbung's own or another Bewerbung shares", async () => {
+    const previous = { company: { name: "Fremd GmbH" }, status: "Gesendet" } as Application;
+    const source = service.interviewPath(previous);
+    await mkdir(source, { recursive: true });
+    await writeFile(path.join(source, "Vorstellungsgespräch.md"), "fremd");
+    const renamed = { ...previous, company: { name: "Andere GmbH" } } as Application;
+    // A Bewerbung without an interview does not take the folder of another one with its old name.
+    await service.syncInterviewFolder(previous, renamed, { owner: false });
+    await service.syncInterviewFolder(previous, renamed, { owner: true, sourceShared: true });
+    await service.syncInterviewFolder(previous, renamed, { owner: true, targetShared: true });
+    await expect(readFile(path.join(source, "Vorstellungsgespräch.md"), "utf8")).resolves.toBe("fremd");
+    await expect(access(service.interviewPath(renamed))).rejects.toThrow();
+  });
+
   it("only accepts archive files from the configured category root", async () => {
     const certificate = path.join(
       service.paths.zertifikateArchive,

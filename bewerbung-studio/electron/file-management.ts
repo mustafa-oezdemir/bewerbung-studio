@@ -17,6 +17,12 @@ import {
   formatApplicationDate,
   getApplicationDate,
 } from "../src/shared/applicationDate";
+import {
+  compareInterviewNoteNames,
+  isInterviewStage,
+  nextInterviewNoteFileName,
+  parseInterviewNoteFileName,
+} from "../src/shared/interviewQuestions";
 
 const reservedWindowsNames =
   /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i;
@@ -350,24 +356,66 @@ export class FileManagementService {
     return candidate;
   }
 
+  /**
+   * The interview folder follows company and interview date (`<Firma>_<Datum>`, `<Firma>_Termin_offen`) in both
+   * interview stages. `owner`: the Bewerbung has (or had) an interview, so an existing folder under its old name is
+   * its own and moves along. A folder another Bewerbung also maps to (`sourceShared` / `targetShared`, same company
+   * and day) is never moved or merged: its notes could not be assigned to one Bewerbung.
+   */
   async syncInterviewFolder(
     previous: Pick<Application, "company" | "interviewAt" | "status"> | undefined,
     next: Pick<Application, "company" | "interviewAt" | "status">,
+    {
+      owner = isInterviewStage(next.status) || isInterviewStage(previous?.status),
+      sourceShared = false,
+      targetShared = false,
+    }: { owner?: boolean; sourceShared?: boolean; targetShared?: boolean } = {},
   ) {
-    if (next.status !== "Vorstellungsgespräch") return;
-
     const target = this.interviewPath(next);
-    const source =
-      previous?.status === "Vorstellungsgespräch"
-        ? this.interviewPath(previous)
-        : undefined;
-    if (source === target || !source || !(await pathExists(source))) {
-      await mkdir(target, { recursive: true });
+    const source = previous ? this.interviewPath(previous) : undefined;
+    if (owner && source && source !== target && !sourceShared && (await pathExists(source))) {
+      if (targetShared) return;
+      if (!(await pathExists(target))) {
+        await this.withRenameRetry(() => rename(source, target));
+        return;
+      }
+      // The target exists already (e.g. created by the status change): the notes join it and stay findable.
+      await this.mergeInterviewFolder(source, target);
       return;
     }
-    if (await pathExists(target)) return;
+    if (isInterviewStage(next.status)) await mkdir(target, { recursive: true });
+  }
 
-    await rename(source, target);
+  /**
+   * Moves the entries of an old interview folder into the current one without overwriting anything: an interview
+   * Markdown file whose name is taken gets the next free number, any other entry with a taken name stays in the old
+   * folder (which then remains).
+   */
+  private async mergeInterviewFolder(source: string, target: string) {
+    // Notes keep their order (base, _1, _2 …) when they get new numbers.
+    const entries = (await readdir(source, { withFileTypes: true }))
+      .sort((a, b) => compareInterviewNoteNames(a.name, b.name));
+    for (const entry of entries) {
+      if (entry.isSymbolicLink()) continue;
+      const from = path.join(source, entry.name);
+      let name = entry.name;
+      if (await pathExists(path.join(target, name))) {
+        // Downloaded images: their names carry a hash of their address, so a taken name is the same image.
+        if (entry.isDirectory() && name === "Bilder") {
+          await this.mergeInterviewFolder(from, path.join(target, name));
+          continue;
+        }
+        const note = parseInterviewNoteFileName(name, { ignoreCase: true });
+        if (!entry.isFile() || !note) continue;
+        name = nextInterviewNoteFileName(note.company, await readdir(target));
+      }
+      await this.withRenameRetry(() => rename(from, path.join(target, name)));
+    }
+    try {
+      await rmdir(source);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOTEMPTY") throw error;
+    }
   }
 
   documentDirectories(
@@ -816,6 +864,8 @@ export class FileManagementService {
       [formatApplicationDate(previous), formatApplicationDate(next)],
       [formatLocalDate(previousDate), formatLocalDate(nextDate)],
     ].filter(([from, to]) => from !== to);
+    // No part of a file name changes: nothing to rename, so the folders are not walked.
+    if (!replacements.length) return;
     const documentDirectories = this.documentDirectories(next);
     const directoryCandidates = [...new Set([
       this.applicationDataPath(next.folderName),

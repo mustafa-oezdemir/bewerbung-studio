@@ -19,7 +19,8 @@ export type ApplicationGitAction =
   | "deckblatt"
   | "motivation"
   | "termin"
-  | "anlagen";
+  | "anlagen"
+  | "interview";
 
 export type ApplicationGitDescription = { position?: string; details?: readonly string[] };
 
@@ -41,6 +42,7 @@ const commitTitles: Record<ApplicationGitAction, string> = {
   motivation: "Motivationsschreiben aktualisiert",
   termin: "Termin aktualisiert",
   anlagen: "Anlagen aktualisiert",
+  interview: "Vorstellungsgespräch vorbereitet",
 };
 
 const commitPart = (value: string, maximum = 80) => value
@@ -57,13 +59,22 @@ export const applicationCommitLine = (companyName: string, action: ApplicationGi
   return `${commitTitles[action]}: ${company || "ohne Firmenname"}${position ? ` – ${position}` : ""}${details.length ? ` – ${details.join(", ")}` : ""}`;
 };
 
-/** One commit per flush: the first change is the subject, every distinct change is listed in the body. */
+/**
+ * Most changes listed in a commit body. The message is a command-line argument of `git commit`: a profile change
+ * touches every Bewerbung, and with several hundred of them the body exceeded the Windows limit of 32 767 characters,
+ * so every following synchronisation failed as well.
+ */
+export const maxCommitBodyLines = 60;
+
+/** One commit per flush: the first change is the subject, the distinct changes are listed in the body. */
 export const buildApplicationCommitMessage = (intents: readonly ApplicationGitIntent[]) => {
   const lines = [...new Set(intents.map((intent) => applicationCommitLine(intent.companyName, intent.action, intent)))];
   if (lines.length <= 1) return { subject: lines[0] ?? "Bewerbungsdaten aktualisiert", body: "" };
+  const listed = lines.slice(0, maxCommitBodyLines).map((line) => `- ${line}`);
+  if (lines.length > maxCommitBodyLines) listed.push(`- … und ${lines.length - maxCommitBodyLines} weitere`);
   return {
     subject: `${lines[0]} (+${lines.length - 1} weitere)`,
-    body: lines.map((line) => `- ${line}`).join("\n"),
+    body: listed.join("\n"),
   };
 };
 
@@ -181,14 +192,38 @@ export type ApplicationGitSyncOptions = {
   remoteUrl?: string;
   gitExecutable?: string;
   timeoutMs?: number;
+  /**
+   * Receives the outcome of every background synchronisation that did something, with its number (the `syncId` of
+   * the "pending" results it settles); main forwards it to the renderer.
+   */
+  onSynchronized?: (outcome: ApplicationGitSyncOutcome, syncId: number) => void;
+};
+
+/**
+ * One application operation: its value as soon as the local save is done, what Git does with it (`gitSync`:
+ * "pending" while a commit and push follow in the background, "skipped" when the operation queued nothing) and
+ * `completion`, which settles with the outcome of the synchronisation that contains the operation.
+ */
+export type ApplicationOperationResult<T> = {
+  result: T;
+  gitSync: ApplicationGitSyncOutcome;
+  completion: Promise<ApplicationGitSyncOutcome>;
+};
+
+type ScheduledSync = {
+  id: number;
+  completion: Promise<ApplicationGitSyncOutcome>;
+  resolve: (outcome: ApplicationGitSyncOutcome) => void;
 };
 
 /**
  * Commits and pushes the Bewerbungsdaten after an application operation of the Electron main process. DataStore
- * queues an intent after its persist; {@link runOperation} commits once the whole IPC operation (persist plus the
- * regenerated Word documents) has finished. Git runs one command at a time, in `paths.root` only, stages only the
- * managed `data` tree (without logs, crash dumps, Electron session and caches) and pushes the current branch to
- * `origin` without force. The local save is never undone when Git fails.
+ * queues an intent after its persist; {@link runOperation} returns once the whole local operation (persist plus the
+ * regenerated Word documents) has finished, and the commit and push follow in the background, one synchronisation
+ * after the other. Git runs one command at a time, in `paths.root` only, stages only the managed `data` tree (without
+ * logs, crash dumps, Electron session and caches) and pushes the current branch to `origin` without force. No
+ * operation writes while Git stages or commits (a commit never holds half an operation); the push only reads the
+ * repository, so local saves go on meanwhile. The local save is never undone when Git fails.
  */
 export class ApplicationGitSync implements ApplicationGitCommitQueue {
   private readonly root: string;
@@ -196,17 +231,27 @@ export class ApplicationGitSync implements ApplicationGitCommitQueue {
   private readonly gitExecutable: string;
   private readonly timeoutMs: number;
   private readonly pathspecs: string[];
+  private readonly onSynchronized?: (outcome: ApplicationGitSyncOutcome, syncId: number) => void;
+  private lastSyncId = 0;
   private intents: ApplicationGitIntent[] = [];
   private activeOperations = 0;
-  private waiting: Array<(outcome: ApplicationGitSyncOutcome) => void> = [];
-  private queue: Promise<unknown> = Promise.resolve();
+  private idleWaiters: Array<() => void> = [];
   private operationQueue: Promise<void> = Promise.resolve();
+  /** Background synchronisations, one after the other. */
+  private syncChain: Promise<void> = Promise.resolve();
+  /** The synchronisation that collects the operations finished since the last one took the index. */
+  private next: ScheduledSync | null = null;
+  /** Set while Git stages and commits: operations wait before they write. */
+  private indexBusy: Promise<void> | null = null;
+  /** Settles when every synchronisation scheduled so far has passed its commit. */
+  private committed: Promise<void> = Promise.resolve();
 
   constructor(options: ApplicationGitSyncOptions) {
     this.root = path.resolve(options.paths.root);
     this.remoteUrl = options.remoteUrl ?? APPLICATION_DATA_REMOTE;
     this.gitExecutable = options.gitExecutable ?? "git";
     this.timeoutMs = options.timeoutMs ?? 120_000;
+    this.onSynchronized = options.onSynchronized;
     const dataRoot = toPathspec(this.root, options.paths.dataRoot);
     if (!dataRoot || dataRoot.startsWith("..") || path.isAbsolute(dataRoot))
       throw new Error("Der Datenordner liegt nicht im Bewerbungsordner.");
@@ -231,18 +276,19 @@ export class ApplicationGitSync implements ApplicationGitCommitQueue {
   }
 
   /**
-   * Runs one application operation and synchronises afterwards. Concurrent operations share one commit that is made
-   * when the last of them has finished, so no commit contains a half-written operation. A failed operation keeps its
-   * intents for the next synchronisation.
+   * Runs one application operation and schedules its synchronisation. Operations run one after the other and never
+   * while Git stages or commits; operations that finish while a synchronisation waits share its commit, which starts
+   * when none of them is running, so no commit contains a half-written operation. A failed operation keeps its intents
+   * for the next synchronisation.
    */
-  async runOperation<T>(operation: () => Promise<T>): Promise<{ result: T; gitSync: ApplicationGitSyncOutcome }> {
+  async runOperation<T>(operation: () => Promise<T>): Promise<ApplicationOperationResult<T>> {
     this.activeOperations += 1;
     const previous = this.operationQueue;
     let release!: () => void;
     this.operationQueue = new Promise<void>((resolve) => { release = resolve; });
     await previous;
-    // Never write a new application file while the preceding batch is staging or committing data.
-    await this.queue;
+    // Never write an application file while the preceding batch is staging or committing data.
+    while (this.indexBusy) await this.indexBusy;
     let result: T;
     try {
       result = await operation();
@@ -252,26 +298,107 @@ export class ApplicationGitSync implements ApplicationGitCommitQueue {
       throw error;
     }
     release();
-    const gitSync = await new Promise<ApplicationGitSyncOutcome>((resolve) => {
-      this.waiting.push(resolve);
-      this.finishOperation();
+    const scheduled = this.intents.length ? this.schedule() : null;
+    this.finishOperation();
+    return scheduled
+      ? { result, gitSync: { state: "pending", syncId: scheduled.id }, completion: scheduled.completion }
+      : { result, gitSync: { state: "skipped" }, completion: Promise.resolve({ state: "skipped" }) };
+  }
+
+  /**
+   * Pushes commits an earlier push could not deliver (the app was closed meanwhile or GitHub was not reachable),
+   * without committing anything. Runs in the queue like every synchronisation.
+   */
+  pushPending(): Promise<ApplicationGitSyncOutcome> {
+    const id = ++this.lastSyncId;
+    let resolve!: (outcome: ApplicationGitSyncOutcome) => void;
+    const completion = new Promise<ApplicationGitSyncOutcome>((done) => { resolve = done; });
+    this.syncChain = this.syncChain.then(async () => {
+      const startedAt = performance.now();
+      let outcome: ApplicationGitSyncOutcome;
+      let attempted = false;
+      try {
+        const branch = await this.verifyRepository();
+        attempted = true;
+        const pushed = await this.pushIfAhead(branch);
+        outcome = pushed ? { state: "synced", committed: false, pushed: true } : { state: "skipped" };
+      } catch (error) {
+        outcome = this.failure(error, startedAt);
+      }
+      resolve(outcome);
+      // A folder that cannot synchronise at all (no repository, another remote) is reported by the next save, not on
+      // every start; a push that was due and failed is reported.
+      if (outcome.state === "synced" || (outcome.state === "failed" && attempted)) this.onSynchronized?.(outcome, id);
     });
-    return { result, gitSync };
+    return completion;
+  }
+
+  /** Settles when every synchronisation scheduled so far has committed (or failed before); its push may go on. */
+  async whenCommitted() {
+    for (;;) {
+      const target = this.committed;
+      await target;
+      if (target === this.committed) return;
+    }
+  }
+
+  /** Settles when every scheduled synchronisation, push included, has finished. */
+  async whenSettled() {
+    for (;;) {
+      const target = this.syncChain;
+      await target;
+      if (target === this.syncChain) return;
+    }
   }
 
   private finishOperation() {
     this.activeOperations -= 1;
-    if (this.activeOperations > 0 || !this.waiting.length) return;
-    const waiting = this.waiting.splice(0);
-    const intents = this.intents.splice(0);
-    const run = this.queue.then(() =>
-      intents.length ? this.synchronize(intents) : { state: "skipped" as const });
-    this.queue = run.catch(() => undefined);
-    void run.then((outcome) => waiting.forEach((resolve) => resolve(outcome)));
+    if (this.activeOperations > 0) return;
+    this.idleWaiters.splice(0).forEach((wake) => wake());
   }
 
-  private async synchronize(intents: readonly ApplicationGitIntent[]): Promise<ApplicationGitSyncOutcome> {
+  private schedule() {
+    if (this.next) return this.next;
+    let resolve!: (outcome: ApplicationGitSyncOutcome) => void;
+    const completion = new Promise<ApplicationGitSyncOutcome>((done) => { resolve = done; });
+    const scheduled: ScheduledSync = { id: ++this.lastSyncId, completion, resolve };
+    this.next = scheduled;
+    let markCommitted!: () => void;
+    const committed = new Promise<void>((done) => { markCommitted = done; });
+    this.committed = this.committed.then(() => committed);
+    this.syncChain = this.syncChain.then(async () => {
+      const outcome = await this.synchronize(scheduled, markCommitted);
+      markCommitted();
+      scheduled.resolve(outcome);
+      if (outcome.state !== "skipped") this.onSynchronized?.(outcome, scheduled.id);
+    });
+    return scheduled;
+  }
+
+  /** Waits until no operation runs and takes the index in the same step, so no operation starts writing in between. */
+  private async acquireIndex() {
+    while (this.activeOperations > 0) await new Promise<void>((wake) => this.idleWaiters.push(wake));
+    let unlock!: () => void;
+    this.indexBusy = new Promise<void>((done) => { unlock = done; });
+    return () => { this.indexBusy = null; unlock(); };
+  }
+
+  private failure(error: unknown, startedAt: number): ApplicationGitSyncOutcome {
+    const code = error instanceof GitSyncFailure ? error.code : "git-failed";
+    logDiagnostic("warn", {
+      event: "git_sync_failed", component: "git-sync", error_code: code,
+      duration_ms: performance.now() - startedAt,
+    });
+    return { state: "failed", code, reason: failureReasons[code] };
+  }
+
+  /**
+   * One synchronisation: checks the repository, then (no operation running) stages and commits the intents queued
+   * until then, releases the index for the next operations and pushes.
+   */
+  private async synchronize(batch: ScheduledSync, markCommitted: () => void): Promise<ApplicationGitSyncOutcome> {
     const startedAt = performance.now();
+    let intents: ApplicationGitIntent[] = [];
     let recorded = false;
     try {
       const branch = await this.verifyRepository();
@@ -279,22 +406,32 @@ export class ApplicationGitSync implements ApplicationGitCommitQueue {
       // A copy of a repository inside the data tree (a full backup copies the Bewerbungsordner with its .git) is never
       // staged: it would become a gitlink, and one without a commit makes `git add` fail.
       const pathspecs = [...this.pathspecs, ...(await this.embeddedRepositories()).map((relative) => `:(exclude,literal)${relative}`)];
-      const add = await this.run(["add", "--all", "--", ...pathspecs]);
-      if (add.code !== 0) throw new GitSyncFailure(localFailure(add.stderr, "stage-failed"));
-      const staged = await this.run(["diff", "--cached", "--quiet", "--", ...pathspecs]);
-      if (staged.code !== 0 && staged.code !== 1) throw new GitSyncFailure("stage-failed");
-      const committed = staged.code === 1;
-      if (committed) {
-        const message = buildApplicationCommitMessage(intents);
-        // --only keeps changes the user staged outside the managed data tree out of this commit.
-        const commit = await this.run([
-          "commit", "--quiet", "--only", "-m", message.subject,
-          ...(message.body ? ["-m", message.body] : []),
-          "--", ...pathspecs,
-        ]);
-        if (commit.code !== 0) throw new GitSyncFailure(localFailure(commit.stderr, "commit-failed"));
+      const unlock = await this.acquireIndex();
+      // Operations that finish from here on belong to the next synchronisation.
+      if (this.next === batch) this.next = null;
+      intents = this.intents.splice(0);
+      let committed: boolean;
+      try {
+        const add = await this.run(["add", "--all", "--", ...pathspecs]);
+        if (add.code !== 0) throw new GitSyncFailure(localFailure(add.stderr, "stage-failed"));
+        const staged = await this.run(["diff", "--cached", "--quiet", "--", ...pathspecs]);
+        if (staged.code !== 0 && staged.code !== 1) throw new GitSyncFailure("stage-failed");
+        committed = staged.code === 1;
+        if (committed) {
+          const message = buildApplicationCommitMessage(intents);
+          // --only keeps changes the user staged outside the managed data tree out of this commit.
+          const commit = await this.run([
+            "commit", "--quiet", "--only", "-m", message.subject,
+            ...(message.body ? ["-m", message.body] : []),
+            "--", ...pathspecs,
+          ]);
+          if (commit.code !== 0) throw new GitSyncFailure(localFailure(commit.stderr, "commit-failed"));
+        }
+        recorded = true;
+      } finally {
+        unlock();
       }
-      recorded = true;
+      markCommitted();
       const pushed = await this.pushIfAhead(branch);
       if (!committed && !pushed) return { state: "skipped" };
       logDiagnostic("info", {
@@ -303,15 +440,11 @@ export class ApplicationGitSync implements ApplicationGitCommitQueue {
       });
       return { state: "synced", committed, pushed };
     } catch (error) {
-      const code = error instanceof GitSyncFailure ? error.code : "git-failed";
+      if (this.next === batch) this.next = null;
       // Nothing was committed: the changes stay in the working tree, so their description goes with the next commit.
       // (After a commit only the push failed; the next synchronisation pushes that commit as it is.)
       if (!recorded) this.intents.unshift(...intents);
-      logDiagnostic("warn", {
-        event: "git_sync_failed", component: "git-sync", error_code: code,
-        duration_ms: performance.now() - startedAt,
-      });
-      return { state: "failed", code, reason: failureReasons[code] };
+      return this.failure(error, startedAt);
     }
   }
 

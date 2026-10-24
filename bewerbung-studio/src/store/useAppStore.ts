@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { ResumeDesignLayer } from "../shared/cvDesignSchema";
-import type { ApplicationChangeResult, DocumentFolderTarget, ExportTarget } from "../shared/ipc";
+import type { ApplicationChangeResult, ApplicationGitSyncOutcome, DocumentFolderTarget, ExportTarget } from "../shared/ipc";
 import {
   defaultSettings,
   type ApplicantProfile,
@@ -29,11 +29,20 @@ const emptyWorkspace: Workspace = {
   updatedAt: new Date().toISOString(),
 };
 
+/** The GitHub side of the last save: the local save is done in every state. */
+export type GitSyncStatus =
+  | { state: "idle" }
+  | { state: "pending" }
+  | { state: "synced" }
+  | { state: "failed"; reason: string };
+
 type StoreState = {
   workspace: Workspace;
   selectedApplicationId?: string;
   selectedProfileId?: string;
+  /** A local save (or another data operation) is running; the GitHub synchronisation is `gitSync`. */
   loading: boolean;
+  gitSync: GitSyncStatus;
   error?: string;
   notice?: string;
   hydrate: () => Promise<void>;
@@ -42,6 +51,11 @@ type StoreState = {
   createApplication: (input: ApplicationInput) => Promise<void>;
   saveApplication: (application: Application) => Promise<void>;
   syncCoverLetter: (applicationId: string) => Promise<void>;
+  /**
+   * A save made outside the store (e.g. the interview notes) reports its local result and its GitHub synchronisation
+   * like every other save: a failed synchronisation is an error, the local save stays done.
+   */
+  reportSavedChange: (notice: string, syncedNotice: string, gitSync: ApplicationGitSyncOutcome) => void;
   removeApplication: (id: string) => Promise<void>;
   duplicateApplication: (id: string) => Promise<void>;
   changeStatus: (
@@ -83,10 +97,43 @@ type StoreState = {
 
 const apiAvailable = () => typeof window.bewerbungsManager !== "undefined";
 
-export const gitSyncFailedMessage =
-  "Änderungen wurden lokal gespeichert, konnten aber nicht zu GitHub übertragen werden.";
+export const gitSyncFailedMessage = "Lokal gespeichert – GitHub-Synchronisierung fehlgeschlagen.";
+export const gitSyncPendingNotice = "Lokal gespeichert, GitHub-Synchronisierung läuft …";
+export const gitSyncedNotice = "Mit GitHub synchronisiert.";
 
 export const useAppStore = create<StoreState>((set, get) => {
+  // The newest save that waits for GitHub: an older synchronisation finishing does not settle it.
+  let awaitedSync: { syncId: number; local: string; synced: string } | null = null;
+  let subscribed = false;
+
+  /** The notice for a local result whose synchronisation runs in the background. */
+  const pendingNotice = (notice: string, syncedNotice: string, gitSync: Extract<ApplicationGitSyncOutcome, { state: "pending" }>) => {
+    awaitedSync = { syncId: gitSync.syncId, local: notice, synced: syncedNotice };
+    return { notice: `${notice} ${gitSyncPendingNotice}`, gitSync: { state: "pending" } as const };
+  };
+
+  /** The outcome of a background synchronisation (main process): GitHub reached, skipped or failed. */
+  const applyGitSyncStatus = (outcome: ApplicationGitSyncOutcome, syncId: number) => {
+    if (outcome.state === "pending") return;
+    if (outcome.state === "failed") {
+      if (awaitedSync && syncId >= awaitedSync.syncId) awaitedSync = null;
+      set({ notice: undefined, error: `${gitSyncFailedMessage} ${outcome.reason}`, gitSync: { state: "failed", reason: outcome.reason } });
+      return;
+    }
+    if (!awaitedSync || syncId < awaitedSync.syncId) return;
+    const awaited = awaitedSync;
+    awaitedSync = null;
+    set(outcome.state === "synced" && (outcome.pushed || outcome.committed)
+      ? { notice: awaited.synced, gitSync: { state: "synced" } }
+      : { notice: awaited.local, gitSync: { state: "idle" } });
+  };
+
+  const subscribeGitSync = () => {
+    if (subscribed || !apiAvailable() || !window.bewerbungsManager.gitSync) return;
+    subscribed = true;
+    window.bewerbungsManager.gitSync.onStatus(applyGitSyncStatus);
+  };
+
   const perform = async (action: () => Promise<Workspace>, notice: string) => {
     set({ loading: true, error: undefined });
     try {
@@ -104,18 +151,28 @@ export const useAppStore = create<StoreState>((set, get) => {
     }
   };
 
-  /** A result means the local save succeeded; a failed GitHub push is shown as an error but not thrown. */
+  /**
+   * A result means the local save succeeded: the form is free again at once. The GitHub synchronisation follows in
+   * the background ("pending") and reports through `applyGitSyncStatus`; a failed push is shown as an error but
+   * never thrown and never undoes the local save.
+   */
   const performApplicationChange = async (
     action: () => Promise<ApplicationChangeResult>,
     notice: string,
     syncedNotice: string,
   ) => {
+    subscribeGitSync();
     set({ loading: true, error: undefined });
     try {
       const { workspace, gitSync } = await action();
       set(gitSync.state === "failed"
-        ? { workspace, loading: false, notice: undefined, error: `${gitSyncFailedMessage} ${gitSync.reason}` }
-        : { workspace, loading: false, notice: gitSync.state === "synced" && gitSync.pushed ? syncedNotice : notice });
+        ? { workspace, loading: false, notice: undefined, error: `${gitSyncFailedMessage} ${gitSync.reason}`,
+          gitSync: { state: "failed", reason: gitSync.reason } }
+        : gitSync.state === "pending"
+          ? { workspace, loading: false, error: undefined, ...pendingNotice(notice, syncedNotice, gitSync) }
+          : { workspace, loading: false,
+            notice: gitSync.state === "synced" && gitSync.pushed ? syncedNotice : notice,
+            gitSync: { state: gitSync.state === "synced" && gitSync.pushed ? "synced" : "idle" } });
     } catch (error) {
       set({
         loading: false,
@@ -131,11 +188,13 @@ export const useAppStore = create<StoreState>((set, get) => {
   return {
     workspace: emptyWorkspace,
     loading: true,
+    gitSync: { state: "idle" },
     async hydrate() {
       if (!apiAvailable()) {
         set({ workspace: emptyWorkspace, loading: false });
         return;
       }
+      subscribeGitSync();
       try {
         const workspace = await window.bewerbungsManager.workspace.get();
         set({
@@ -175,17 +234,30 @@ export const useAppStore = create<StoreState>((set, get) => {
         "Änderungen wurden gespeichert und mit GitHub synchronisiert.",
       );
     },
+    reportSavedChange(notice, syncedNotice, gitSync) {
+      subscribeGitSync();
+      set(gitSync.state === "failed"
+        ? { notice: undefined, error: `${gitSyncFailedMessage} ${gitSync.reason}`, gitSync: { state: "failed", reason: gitSync.reason } }
+        : gitSync.state === "pending"
+          ? { error: undefined, ...pendingNotice(notice, syncedNotice, gitSync) }
+          : { error: undefined, notice: gitSync.state === "synced" && gitSync.pushed ? syncedNotice : notice,
+            gitSync: { state: gitSync.state === "synced" && gitSync.pushed ? "synced" : "idle" } });
+    },
     async syncCoverLetter(applicationId) {
       if (!apiAvailable()) return;
+      subscribeGitSync();
       set({ loading: true, error: undefined });
       try {
         const { document, gitSync } =
           await window.bewerbungsManager.templates.syncAnschreiben(
             applicationId,
           );
+        const updated = `Word-Datei wurde aktualisiert: ${document.fileName}`;
         set(gitSync.state === "failed"
           ? { loading: false, notice: undefined, error: `${gitSyncFailedMessage} ${gitSync.reason}` }
-          : { loading: false, notice: `Word-Datei wurde aktualisiert: ${document.fileName}` });
+          : gitSync.state === "pending"
+            ? { loading: false, ...pendingNotice(updated, `${updated} ${gitSyncedNotice}`, gitSync) }
+            : { loading: false, notice: updated });
       } catch (error) {
         set({
           loading: false,
@@ -362,6 +434,7 @@ export const useAppStore = create<StoreState>((set, get) => {
     },
     async exportPdf(applicationId, target, application) {
       if (!apiAvailable()) return;
+      subscribeGitSync();
       set({ loading: true, error: undefined });
       try {
         const { path: result, gitSync } = await window.bewerbungsManager.export.pdf(
@@ -369,11 +442,13 @@ export const useAppStore = create<StoreState>((set, get) => {
           target,
           application,
         );
+        // The user chose the place in the save dialog; the notice says where it went (cancelled: no notice).
+        const saved = result ? `PDF gespeichert: ${result}` : undefined;
         set(gitSync.state === "failed"
           ? { loading: false, notice: undefined, error: `${gitSyncFailedMessage} ${gitSync.reason}` }
-          : { loading: false,
-            // The user chose the place in the save dialog; the notice says where it went (cancelled: no notice).
-            notice: result ? `PDF gespeichert: ${result}` : undefined });
+          : gitSync.state === "pending" && saved
+            ? { loading: false, ...pendingNotice(saved, `${saved} ${gitSyncedNotice}`, gitSync) }
+            : { loading: false, notice: saved });
       } catch (error) {
         set({
           loading: false,

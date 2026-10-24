@@ -39,7 +39,11 @@ export const readFile = (async (filePath: string, options?: BufferEncoding | { e
   return encoding ? content.toString(encoding) : content;
 }) as typeof fs.readFile;
 
-export const encodeForManagedWrite = (filePath: string, content: Buffer) => {
+/** The plain bytes of a file read with `node:fs` (one read gives both the stored bytes and the content). */
+export const decodeForManagedRead = (filePath: string, bytes: Buffer) =>
+  isManagedPath(filePath) ? decodeManagedBytes(bytes) : bytes;
+
+export const encodeForManagedWrite =(filePath: string, content: Buffer) => {
   if (!active || !isManagedPath(filePath)) return content;
   if (path.basename(filePath).toLowerCase() === "workspace.json")
     return Buffer.from(active.service.encryptWorkspace(content.toString("utf8")), "utf8");

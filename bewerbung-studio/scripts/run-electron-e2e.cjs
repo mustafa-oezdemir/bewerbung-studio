@@ -63,6 +63,45 @@ const verifySecondInstance = async (root, workspaceFile) => {
   }
 };
 
+/** Vorstellungsgespräch – Fragen & Antworten: files on disk, in Git and after a restart and a new interview date. */
+const verifyInterviewNotes = async (root, local, remote) => {
+  await run(root, 'interview');
+  const interviews = path.join(local, 'data', 'Vorstellungsgespräch');
+  const folder = path.join(interviews, 'Seidel_GmbH_&_Co._KG_2026-10-22');
+  const names = (await fs.readdir(folder)).sort();
+  if (names.join() !== 'Vorstellungsgespräch_Seidel.md,Vorstellungsgespräch_Seidel_1.md') throw new Error(`interview folder: ${names}`);
+  const first = await fs.readFile(path.join(folder, 'Vorstellungsgespräch_Seidel.md'));
+  const firstText = first.toString('utf8');
+  if (!firstText.startsWith('# Vorstellungsgespräch\n\n## Frage 1: Erste Frage 1 – Größe & Übung?\n\n### Erklärung\n') ||
+      (firstText.match(/^## Frage \d+:/gm) ?? []).length !== 10 || !firstText.includes('\n---\n'))
+    throw new Error('first Markdown file has the wrong structure');
+  const pathspec = (name) => `main:data/Vorstellungsgespräch/Seidel_GmbH_&_Co._KG_2026-10-22/${name}`;
+  if (git(remote, '-c', 'core.quotePath=false', 'show', pathspec('Vorstellungsgespräch_Seidel_1.md')).split('## Frage').length !== 4)
+    throw new Error('second interview file did not reach the remote');
+  const subjects = git(remote, 'log', '--format=%s', 'main');
+  for (const name of ['Vorstellungsgespräch_Seidel.md', 'Vorstellungsgespräch_Seidel_1.md'])
+    if (!subjects.includes(`Vorstellungsgespräch vorbereitet: Seidel GmbH & Co. KG – Fachinformatiker – ${name} angelegt`))
+      throw new Error(`interview commits are not identifiable: ${subjects}`);
+  await run(root, 'interview-reopen');
+  const moved = path.join(interviews, 'Seidel_GmbH_&_Co._KG_2026-10-23');
+  if ((await fs.readdir(interviews)).join() !== 'Seidel_GmbH_&_Co._KG_2026-10-23')
+    throw new Error(`interview folders after the date change: ${await fs.readdir(interviews)}`);
+  if (!(await fs.readFile(path.join(moved, 'Vorstellungsgespräch_Seidel.md'))).equals(first))
+    throw new Error('the first interview file changed');
+  const edited = await fs.readFile(path.join(moved, 'Vorstellungsgespräch_Seidel_1.md'), 'utf8');
+  if (!edited.includes('Geänderte Antwort 3') || (await fs.readdir(moved)).length !== 2)
+    throw new Error('the edited file was not updated in place');
+  if (!git(remote, 'log', '--format=%s', 'main').includes(
+    'Vorstellungsgespräch vorbereitet: Seidel GmbH & Co. KG – Fachinformatiker – Vorstellungsgespräch_Seidel_1.md geändert'))
+    throw new Error('the edit was not committed as interview preparation');
+  const leftovers = git(local, 'status', '--porcelain', '--untracked-files=all', '--', 'data').split('\n')
+    .filter((line) => line && !/new-application-draft\.json|Setting\/(Logs|CrashDumps|ElectronSession|cache)\//.test(line));
+  if (leftovers.length) throw new Error(`interview notes left unsynchronised changes: ${leftovers.join(', ')}`);
+  if (git(local, 'rev-parse', 'HEAD') !== git(remote, 'rev-parse', 'main'))
+    throw new Error('the interview changes did not reach the remote');
+  console.log('Electron E2E: interview notes verified on disk and in the remote');
+};
+
 (async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'bm-electron-e2e-'));
   let passed = false;
@@ -116,6 +155,7 @@ const verifySecondInstance = async (root, workspaceFile) => {
     const saved = JSON.parse(await fs.readFile(workspaceFile, 'utf8'));
     if (saved.applications[0]?.status !== 'Beworben' || saved.settings.theme !== 'dark')
       throw new Error('on-disk state disagrees with Electron E2E');
+    await verifyInterviewNotes(root, local, remote);
     passed = true;
   } finally {
     const resolved = path.resolve(root);

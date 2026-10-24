@@ -5,6 +5,7 @@ import {
   readFile,
   readdir,
   rm,
+  stat,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -1106,6 +1107,88 @@ describe("DataStore backups", () => {
     await reopened.initialize();
     expect(reopened.getWorkspace().applications[0].job).toMatchObject({
       tasksText: "Neue Aufgaben", requirementsText: "TypeScript erforderlich", fullText: "Alter ungeteilter Text",
+    });
+  });
+
+  describe("saving without needless work", () => {
+    /** Every file below the data folder with its size and modification time (the `.bak` files of atomic writes too). */
+    const snapshot = async () => {
+      const result = new Map<string, string>();
+      const walk = async (directory: string) => {
+        for (const entry of await readdir(directory, { withFileTypes: true })) {
+          const target = path.join(directory, entry.name);
+          if (entry.isDirectory()) await walk(target);
+          else if (!/workspace-\d{4}-\d{2}-\d{2}\.json$/.test(entry.name)) {
+            const info = await stat(target);
+            result.set(path.relative(root, target), `${info.size}:${info.mtimeMs}`);
+          }
+        }
+      };
+      await walk(path.join(root, "data"));
+      return result;
+    };
+    const changedFiles = (before: Map<string, string>, after: Map<string, string>) =>
+      [...new Set([...before.keys(), ...after.keys()])].filter((file) => before.get(file) !== after.get(file)).sort();
+
+    it("leaves workspace, files, updatedAt and Git alone when a section is saved without a change", async () => {
+      const queued: string[] = [];
+      const gitStore = new DataStore(root, { queueCommit: (company, action) => queued.push(`${action}:${company}`) });
+      await gitStore.initialize();
+      const created = (await gitStore.createApplication(applicationInput("Ruhig GmbH"))).applications[0];
+      queued.length = 0;
+      const before = await snapshot();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      const saved = await gitStore.saveApplication(structuredClone(created));
+
+      expect(saved.applications[0].updatedAt).toBe(created.updatedAt);
+      expect(saved.updatedAt).toBe(gitStore.getWorkspace().updatedAt);
+      expect(changedFiles(before, await snapshot())).toEqual([]);
+      expect(queued).toEqual([]);
+    });
+
+    it("rewrites only the files of the saved Bewerbung whose content changes", async () => {
+      const first = (await store.createApplication(applicationInput("Erste GmbH"))).applications[0];
+      const second = (await store.createApplication(applicationInput("Zweite GmbH"))).applications[0];
+      const before = await snapshot();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      await store.saveApplication({ ...structuredClone(first), notes: "Rückruf am Freitag" });
+
+      const changed = changedFiles(before, await snapshot());
+      const firstFolder = path.relative(root, store.files.applicationDataPath(first.folderName));
+      const secondFolder = path.relative(root, store.files.applicationDataPath(second.folderName));
+      // The workspace and the Bewerbung's own record; job advertisement and e-mail stay as they were.
+      expect(changed.filter((file) => !file.startsWith(path.join("data", "Setting")))).toEqual(
+        [path.join(firstFolder, "bewerbung.json"), path.join(firstFolder, "bewerbung.json.bak")].sort());
+      expect(changed.some((file) => file.startsWith(secondFolder))).toBe(false);
+      expect(JSON.parse(await readFile(path.join(root, firstFolder, "bewerbung.json"), "utf8")).notes).toBe("Rückruf am Freitag");
+      const reopened = new DataStore(root);
+      await reopened.initialize();
+      expect(reopened.getWorkspace().applications.find((item) => item.id === first.id)?.notes).toBe("Rückruf am Freitag");
+      expect(reopened.getWorkspace().applications.find((item) => item.id === second.id)?.notes).toBe("");
+    });
+
+    it("still renames and rewrites what a company or date change touches", async () => {
+      const created = (await store.createApplication(applicationInput("Alt GmbH"))).applications[0];
+      const renamed = (await store.saveApplication({
+        ...structuredClone(created), company: { ...created.company, name: "Neu GmbH" }, sentAt: "2026-03-04T10:00:00.000Z",
+      })).applications[0];
+      expect(renamed.folderName).toMatch(/^Neu_GmbH_2026-03-04/);
+      const directories = store.files.documentDirectories(renamed);
+      expect(await readFile(path.join(directories.email, "Email.md"), "utf8")).toContain("Neu GmbH");
+      await expect(access(store.files.applicationDataPath(created.folderName))).rejects.toThrow();
+    });
+
+    it("does not walk the document folders when no file name changes", async () => {
+      const created = (await store.createApplication(applicationInput("Ohne Umbenennung GmbH"))).applications[0];
+      let walked = 0;
+      const files = store.files as unknown as { documentDirectories: (application: unknown) => unknown };
+      const original = files.documentDirectories.bind(store.files);
+      files.documentDirectories = (application) => { walked += 1; return original(application); };
+      await store.files.synchronizeApplicationArtifactNames(created, { ...created, notes: "x" });
+      expect(walked).toBe(0);
+      files.documentDirectories = original;
     });
   });
 });

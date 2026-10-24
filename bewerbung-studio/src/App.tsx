@@ -540,7 +540,12 @@ export default function App() {
                 />
               )}
               {view === "interviews" && (
-                <ApplicationsView key="interviews" initialFilter="interviews" />
+                <ApplicationsView
+                  key="interviews"
+                  initialFilter="interviews"
+                  onOpenResume={() => setView("resume")}
+                  onOpenCover={() => setView("cover")}
+                />
               )}
               {view === "rejections" && (
                 <ApplicationsView key="rejections" initialFilter="rejections" />

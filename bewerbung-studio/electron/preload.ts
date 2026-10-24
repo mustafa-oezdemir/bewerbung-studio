@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { BewerbungsManagerApi } from "../src/shared/ipc";
+import { gitSyncStatusChannel, type ApplicationGitSyncOutcome, type BewerbungsManagerApi } from "../src/shared/ipc";
 import { IpcOperationError, type IpcResult } from "../src/shared/app-error";
 
 const invoke = async <T>(channel: string, ...args: unknown[]): Promise<T> => {
@@ -26,6 +26,14 @@ const api: BewerbungsManagerApi = {
   workspace: {
     get: () => invoke("workspace:get"),
   },
+  gitSync: {
+    onStatus: (listener) => {
+      const forward = (_event: Electron.IpcRendererEvent, outcome: ApplicationGitSyncOutcome, syncId: number) =>
+        listener(outcome, syncId);
+      ipcRenderer.on(gitSyncStatusChannel, forward);
+      return () => { ipcRenderer.removeListener(gitSyncStatusChannel, forward); };
+    },
+  },
   applicationDraft: {
     get: () => invoke("application-draft:get"),
     save: (draft) => invoke("application-draft:save", draft),
@@ -39,6 +47,15 @@ const api: BewerbungsManagerApi = {
     changeStatus: (id, status, reason) =>
       invoke("applications:change-status", id, status, reason),
     openFolder: (id, document) => invoke("applications:open-folder", id, document),
+  },
+  interviews: {
+    list: (applicationId) => invoke("interviews:list", applicationId),
+    create: (applicationId, text) => invoke("interviews:create", applicationId, text),
+    update: (applicationId, fileName, text, revision) =>
+      invoke("interviews:update", applicationId, fileName, text, revision),
+    remove: (applicationId, fileName, revision) => invoke("interviews:remove", applicationId, fileName, revision),
+    open: (applicationId, fileName) => invoke("interviews:open", applicationId, fileName),
+    image: (applicationId, source) => invoke("interviews:image", applicationId, source),
   },
   profiles: {
     save: (profile) => invoke("profiles:save", profile),

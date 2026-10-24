@@ -7,6 +7,7 @@ import {
   Link2,
   Mail,
   MapPin,
+  MessageSquareText,
   Phone,
   Save,
   Search,
@@ -15,7 +16,7 @@ import {
   UserPlus,
   UserRound,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   applicationStatuses,
   rejectionReasons,
@@ -24,6 +25,8 @@ import {
   type RejectionReason,
 } from "../shared/schema";
 import { templates } from "../shared/templates";
+import { showsInterviewPreparation } from "../shared/interviewQuestions";
+import { InterviewPreparationPanel } from "../components/interview/InterviewPreparationPanel";
 import { applicationMatchesQuery } from "../lib/applicationSearch";
 import {
   formatDate,
@@ -61,6 +64,8 @@ export function ApplicationsView({
   const saving = useAppStore((state) => state.loading);
   const [filter, setFilter] = useState<Filter>(initialFilter);
   const [query, setQuery] = useState("");
+  /** The Bewerbung whose interview panel is open; it closes when another Bewerbung is selected. */
+  const [interviewPanelFor, setInterviewPanelFor] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     return workspace.applications.filter((application) => {
@@ -84,6 +89,20 @@ export function ApplicationsView({
     return new FormData(event.currentTarget);
   };
 
+  const sectionSaves = useRef<Promise<unknown>>(Promise.resolve());
+  /**
+   * Saves one section on top of the newest stored state of the Bewerbung, one save after the other: sections saved
+   * in quick succession never overwrite each other's fields with an older copy.
+   */
+  const saveSection = (id: string, change: (current: Application) => Application) => {
+    const run = sectionSaves.current.catch(() => undefined).then(async () => {
+      const current = useAppStore.getState().workspace.applications.find((item) => item.id === id);
+      if (current) await saveApplication(change(current));
+    });
+    sectionSaves.current = run;
+    return run;
+  };
+
   const submitStatusAndDesign = async (
     event: React.FormEvent<HTMLFormElement>,
   ) => {
@@ -93,14 +112,15 @@ export function ApplicationsView({
     const rejectionReason = String(data.get("rejectionReason") || "") as
       | RejectionReason
       | "";
-    await saveApplication({
-      ...selected,
+    await saveSection(selected.id, (current) => ({
+      ...current,
       templateId: String(data.get("templateId")),
       accentColor: String(data.get("accentColor")),
       secondaryColor: String(data.get("secondaryColor")),
       rejectionReason: rejectionReason || undefined,
-    });
-    if (status !== selected.status) {
+    }));
+    const saved = useAppStore.getState().workspace.applications.find((item) => item.id === selected.id);
+    if (saved && status !== saved.status) {
       await changeStatus(selected.id, status, rejectionReason || undefined);
     }
   };
@@ -110,10 +130,10 @@ export function ApplicationsView({
   ) => {
     const data = formData(event);
     if (!selected) return;
-    await saveApplication({
-      ...selected,
+    await saveSection(selected.id, (current) => ({
+      ...current,
       company: {
-        ...selected.company,
+        ...current.company,
         name: String(data.get("company")),
         street: String(data.get("street")),
         postalCode: String(data.get("postalCode")),
@@ -121,21 +141,21 @@ export function ApplicationsView({
         website: String(data.get("website")),
       },
       job: {
-        ...selected.job,
+        ...current.job,
         title: String(data.get("role")),
         reference: String(data.get("jobReference")),
         url: String(data.get("jobUrl")),
         source: String(data.get("source")),
         salaryExpectation: String(data.get("salaryExpectation")),
       },
-    });
+    }));
   };
 
   const submitDates = async (event: React.FormEvent<HTMLFormElement>) => {
     const data = formData(event);
     if (!selected) return;
-    await saveApplication({
-      ...selected,
+    await saveSection(selected.id, (current) => ({
+      ...current,
       sentAt: fromDateInput(String(data.get("sentAt"))),
       deadlineAt: fromDateInput(String(data.get("deadlineAt"))),
       interviewAt: fromDateTimeInput(String(data.get("interviewAt"))),
@@ -146,22 +166,22 @@ export function ApplicationsView({
       contractEndAt: fromDateInput(String(data.get("contractEndAt"))),
       fixedTermEndAt: fromDateInput(String(data.get("fixedTermEndAt"))),
       probationEndAt: fromDateInput(String(data.get("probationEndAt"))),
-    });
+    }));
   };
 
   const submitContent = async (event: React.FormEvent<HTMLFormElement>) => {
     const data = formData(event);
     if (!selected) return;
-    await saveApplication({
-      ...selected,
+    await saveSection(selected.id, (current) => ({
+      ...current,
       job: {
-        ...selected.job,
-        fullText: String(data.get("fullText") ?? selected.job.fullText),
+        ...current.job,
+        fullText: String(data.get("fullText") ?? current.job.fullText),
         tasksText: String(data.get("tasksText") ?? ""),
         requirementsText: String(data.get("requirementsText") ?? ""),
       },
       notes: String(data.get("notes")),
-    });
+    }));
   };
 
   return (
@@ -315,7 +335,7 @@ export function ApplicationsView({
             )}
           </div>
           <div className="detail-form">
-            {initialFilter === "active" && (onOpenResume || onOpenCover) ? (
+            {onOpenResume || onOpenCover || showsInterviewPreparation(selected) ? (
               <nav
                 className="detail-document-nav"
                 aria-label="Bewerbungsunterlagen">
@@ -335,6 +355,14 @@ export function ApplicationsView({
                     aria-label="Anschreiben öffnen"
                     onClick={onOpenCover}>
                     <FileText size={16} /> Anschreiben
+                  </button>
+                ) : null}
+                {showsInterviewPreparation(selected) ? (
+                  <button
+                    className="button secondary detail-document-link"
+                    type="button"
+                    onClick={() => setInterviewPanelFor(selected.id)}>
+                    <MessageSquareText size={16} /> Vorstellungsgespräch – Fragen & Antworten
                   </button>
                 ) : null}
               </nav>
@@ -459,7 +487,7 @@ export function ApplicationsView({
             </FormSection>
             <ContactFormSection
               application={selected}
-              saveApplication={saveApplication}
+              saveSection={saveSection}
               saving={saving}
             />
             <FormSection title="Termine" onSubmit={submitDates} saving={saving}>
@@ -579,6 +607,12 @@ export function ApplicationsView({
               ))}
             </div>
           </section>
+          {interviewPanelFor === selected.id ? (
+            <InterviewPreparationPanel
+              application={selected}
+              onClose={() => setInterviewPanelFor(null)}
+            />
+          ) : null}
         </main>
       ) : (
         <main className="surface empty-detail">
@@ -646,11 +680,11 @@ function ContactFields({
 
 function ContactFormSection({
   application,
-  saveApplication,
+  saveSection,
   saving,
 }: {
   application: Application;
-  saveApplication: (application: Application) => Promise<void>;
+  saveSection: (id: string, change: (current: Application) => Application) => Promise<void>;
   saving: boolean;
 }) {
   const savedSecondContact = application.additionalContacts[0];
@@ -671,13 +705,9 @@ function ContactFormSection({
       email: String(data.get(`${prefix}Email`) || ""),
       phone: String(data.get(`${prefix}Phone`) || ""),
     });
-    await saveApplication({
-      ...application,
-      contact: readContact("contact"),
-      additionalContacts: showSecondContact
-        ? [readContact("secondContact")]
-        : [],
-    });
+    const contact = readContact("contact");
+    const additionalContacts = showSecondContact ? [readContact("secondContact")] : [];
+    await saveSection(application.id, (current) => ({ ...current, contact, additionalContacts }));
   };
 
   return (
@@ -730,8 +760,20 @@ function FormSection({
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
   saving: boolean;
 }) {
+  // A second click while this section is still saving is ignored (the fieldset is disabled one render later).
+  const submitting = useRef(false);
   return (
-    <form onSubmit={(event) => void onSubmit(event)}>
+    <form
+      onSubmit={(event) => {
+        if (submitting.current) {
+          event.preventDefault();
+          return;
+        }
+        submitting.current = true;
+        void onSubmit(event)
+          .catch(() => undefined)
+          .finally(() => { submitting.current = false; });
+      }}>
       <fieldset className="form-section" disabled={saving}>
         <legend>{title}</legend>
         <div className="form-grid">{children}</div>

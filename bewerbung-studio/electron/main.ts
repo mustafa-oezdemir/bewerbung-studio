@@ -29,7 +29,7 @@ import {
   rejectionReasons,
   todoSchema,
 } from "../src/shared/schema";
-import { parseDocumentFolderTarget, parseExportTarget, type ExportTarget } from "../src/shared/ipc";
+import { gitSyncStatusChannel, parseDocumentFolderTarget, parseExportTarget, type ExportTarget } from "../src/shared/ipc";
 import { isDocumentPackage } from "../src/shared/applicationDocuments";
 import type {
   AddTemplateInput,
@@ -38,6 +38,13 @@ import type {
 import { resolveApplicationPaths } from "../src/config/application-paths";
 import { DataStore } from "./storage";
 import { ApplicationGitSync } from "./application-git-queue";
+import {
+  documentFilePaths,
+  documentStamps,
+  type ApplicationDocumentKind,
+  type CoverLetterTemplateStamp,
+  type DocumentStamps,
+} from "./application-document-stamps";
 import { ApplicationFolderLockedError } from "./file-management";
 import { mergePdfDocuments } from "./pdf";
 import { TemplateService } from "./templates/template.service";
@@ -50,7 +57,14 @@ import { WorkspaceSecurity } from "./security/workspace-security";
 import { clearActiveEncryption, isManagedPath, setActiveEncryption } from "./security/secure-fs";
 import { readEncryptionEnvelope, readMigrationJournal, rollbackUncommittedMigration } from "./security/workspace-encryption";
 import { safeExternalUrl } from "./security/external-url";
-import type { ApplicationChangeResult, WorkspaceStatus, WorkspaceChangeMode } from "../src/shared/ipc";
+import type { ApplicationChangeResult, ApplicationGitSyncOutcome, InterviewNoteChangeResult, InterviewNoteRemoveResult, WorkspaceStatus, WorkspaceChangeMode } from "../src/shared/ipc";
+import {
+  interviewApplicationIdSchema,
+  interviewFileNameSchema,
+  interviewImageSourceSchema,
+  interviewRevisionSchema,
+  interviewTextSchema,
+} from "./interview-notes";
 import type { Application, Workspace } from "../src/shared/schema";
 import { AppError } from "../src/shared/app-error";
 import { initializeDiagnostics, logDiagnostic } from "./diagnostics";
@@ -67,7 +81,15 @@ let workspaceManager: WorkspaceManager;
 let workspaceSecurity: WorkspaceSecurity | null = null;
 let securityBusy = false;
 const activeDataOperations = new Set<Promise<unknown>>();
-const waitForDataOperations = async () => { await Promise.allSettled([...activeDataOperations]); };
+/** Running IPC operations and the Git commits they queued (a push may go on; it is retried on the next start). */
+const waitForDataOperations = async () => {
+  await Promise.allSettled([...activeDataOperations]);
+  await applicationGitSync?.whenCommitted();
+};
+/** Forwards the outcome of a background GitHub synchronisation to the window. */
+const notifyGitSync = (outcome: ApplicationGitSyncOutcome, syncId: number) => {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(gitSyncStatusChannel, outcome, syncId);
+};
 const registerHandler: typeof ipcMain.handle = (channel, listener) => ipcMain.handle(
   channel,
   (event, ...args) => runIpcOperation(channel, () => listener(event, ...args)),
@@ -282,12 +304,73 @@ const createMissingExistingDeckblatts = async () => {
   }
 };
 
-/** Create, save and status changes: the Git commit waits for the persist and the regenerated Word documents. */
+/**
+ * Create, save and status changes: the result returns once the persist and the regenerated Word documents are on
+ * disk; the Git commit and push follow in the background and report through {@link notifyGitSync}.
+ */
 const runApplicationChange = async (
   operation: () => Promise<Workspace>,
 ): Promise<ApplicationChangeResult> => {
   const { result, gitSync } = await applicationGitSync.runOperation(operation);
   return { workspace: result, gitSync };
+};
+
+const coverLetterTemplateStamp = async (): Promise<CoverLetterTemplateStamp> => {
+  const template = await templateService.getTemplateById(wordMusterTemplateConfig.id);
+  return template
+    ? { id: template.id, filePath: template.filePath, extension: template.extension, modifiedAt: template.modifiedAt, fileSize: template.fileSize }
+    : null;
+};
+
+/** Word documents whose last regeneration failed: generated again on the next save even when nothing changed. */
+const staleDocuments = new Set<string>();
+
+/** What the Word documents of these Bewerbungen depend on, taken before a change. */
+const captureDocumentStamps = async (applicationIds: readonly string[]) => {
+  const coverTemplate = await coverLetterTemplateStamp();
+  const stamps = new Map<string, DocumentStamps>();
+  for (const id of applicationIds) stamps.set(id, documentStamps(store.getTemplateDocumentContext(id), coverTemplate));
+  return { coverTemplate, stamps };
+};
+
+/**
+ * Regenerates the Deckblatt and the Anschreiben of these Bewerbungen only where something they show changed (their
+ * data, folder, file name or the Word-Muster), where the file is missing or where the last attempt failed. An
+ * unchanged document stays as it is: no write, no new Git object.
+ */
+const regenerateChangedDocuments = async (
+  applicationIds: readonly string[],
+  before: Awaited<ReturnType<typeof captureDocumentStamps>>,
+  /** Profile changes leave Bewerbungen without a profile alone, as before. */
+  { onlyWithProfile = false } = {},
+) => {
+  const coverTemplate = await coverLetterTemplateStamp();
+  const generators: Record<ApplicationDocumentKind, (id: string) => Promise<unknown>> = {
+    deckblatt: synchronizeApplicationDeckblatt,
+    anschreiben: synchronizeApplicationCoverLetter,
+  };
+  const checks: Array<Promise<{ id: string; kind: ApplicationDocumentKind } | null>> = [];
+  for (const id of applicationIds) {
+    if (!store.hasApplication(id)) continue;
+    const context = store.getTemplateDocumentContext(id);
+    if (onlyWithProfile && !store.getProfileForApplication(context.application)) continue;
+    const after = documentStamps(context, coverTemplate);
+    const files = documentFilePaths(context, coverTemplate);
+    for (const kind of ["deckblatt", "anschreiben"] as const) {
+      const unchanged = before.stamps.get(id)?.[kind] === after[kind] && !staleDocuments.has(`${id}:${kind}`);
+      // An unchanged document is only generated when its file is missing (all files checked at once).
+      checks.push(unchanged
+        ? access(files[kind]).then(() => null, () => ({ id, kind }))
+        : Promise.resolve({ id, kind }));
+    }
+  }
+  const due = (await Promise.all(checks)).filter((entry) => entry !== null);
+  const results = await Promise.allSettled(due.map(({ id, kind }) => generators[kind](id).then(
+    () => { staleDocuments.delete(`${id}:${kind}`); },
+    (error: unknown) => { staleDocuments.add(`${id}:${kind}`); throw error; },
+  )));
+  const failed = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+  if (failed) throw failed.reason;
 };
 
 const registerIpc = () => {
@@ -322,11 +405,9 @@ const registerIpc = () => {
     try {
       return await runApplicationChange(async () => {
         const next = applicationSchema.parse(value);
+        const before = await captureDocumentStamps(store.hasApplication(next.id) ? [next.id] : []);
         const workspace = await store.saveApplication(next);
-        await Promise.all([
-          synchronizeApplicationDeckblatt(next.id),
-          synchronizeApplicationCoverLetter(next.id),
-        ]);
+        await regenerateChangedDocuments([next.id], before);
         return workspace;
       });
     } catch (error) {
@@ -365,6 +446,56 @@ const registerIpc = () => {
       return runApplicationChange(() => store.changeStatus(String(id), validStatus, validReason));
     },
   );
+  // Vorstellungsgespräch – Fragen & Antworten: the renderer names the Bewerbung (and an allowed file name), never a
+  // path; DataStore resolves the interview folder from the Bewerbung. Saves are local first, Git follows.
+  handle("interviews:list", (_event, applicationId: unknown) =>
+    store.listInterviewNotes(interviewApplicationIdSchema.parse(applicationId)));
+  handle("interviews:create", async (_event, applicationId: unknown, text: unknown): Promise<InterviewNoteChangeResult> => {
+    const id = interviewApplicationIdSchema.parse(applicationId);
+    // Images are downloaded first, outside the Git operation; the note is then saved with the local image paths.
+    const prepared = await store.prepareInterviewImages(id, interviewTextSchema.parse(text));
+    const { result, gitSync } = await applicationGitSync.runOperation(() => store.createInterviewNote(id, prepared.text));
+    return { ...result, images: prepared.images, gitSync };
+  });
+  handle(
+    "interviews:update",
+    async (_event, applicationId: unknown, fileName: unknown, text: unknown, revision: unknown): Promise<InterviewNoteChangeResult> => {
+      const id = interviewApplicationIdSchema.parse(applicationId);
+      const name = interviewFileNameSchema.parse(fileName);
+      const expected = interviewRevisionSchema.parse(revision);
+      const prepared = await store.prepareInterviewImages(id, interviewTextSchema.parse(text));
+      const { result, gitSync } = await applicationGitSync.runOperation(() =>
+        store.updateInterviewNote(id, name, prepared.text, expected));
+      return { ...result, images: prepared.images, gitSync };
+    },
+  );
+  handle("interviews:image", (_event, applicationId: unknown, source: unknown) =>
+    store.getInterviewImage(interviewApplicationIdSchema.parse(applicationId), interviewImageSourceSchema.parse(source)));
+  // Opens the note in the program set up for .md files; in an encrypted workspace a decrypted temporary copy.
+  handle("interviews:open", async (_event, applicationId: unknown, fileName: unknown) => {
+    const filePath = await store.getInterviewNotePath(
+      interviewApplicationIdSchema.parse(applicationId),
+      interviewFileNameSchema.parse(fileName),
+    );
+    const error = await shell.openPath(await externalReadablePath(filePath));
+    if (error) {
+      throw new AppError(
+        "EXTERNAL_OPEN_FAILED",
+        "Die Markdown-Datei konnte nicht geöffnet werden. Bitte prüfen Sie, ob in Windows ein Programm für .md-Dateien eingerichtet ist.",
+        { expected: true },
+      );
+    }
+  });
+  handle(
+    "interviews:remove",
+    async (_event, applicationId: unknown, fileName: unknown, revision: unknown): Promise<InterviewNoteRemoveResult> => {
+      const id = interviewApplicationIdSchema.parse(applicationId);
+      const name = interviewFileNameSchema.parse(fileName);
+      const expected = interviewRevisionSchema.parse(revision);
+      const { result, gitSync } = await applicationGitSync.runOperation(() => store.removeInterviewNote(id, name, expected));
+      return { ...result, gitSync };
+    },
+  );
   handle("applications:open-folder", async (_event, id: unknown, rawDocument: unknown) => {
     const document = parseDocumentFolderTarget(rawDocument);
     if (document) {
@@ -394,21 +525,22 @@ const registerIpc = () => {
   handle("profiles:save", async (_event, value: unknown) => {
     const profile = profileSchema.parse(value);
     return runApplicationChange(async () => {
+      // Bewerbungen of this profile, and those without one of their own: they follow the default profile, which this
+      // save may change. Only documents whose content changes are generated again.
+      const affected = () => store.getApplicationIds((application) =>
+        !application.profileId || store.getProfileForApplication(application)?.id === profile.id);
+      const before = await captureDocumentStamps(affected());
       const workspace = await store.saveProfile(profile);
-      await Promise.all(workspace.applications
-        .filter((application) => store.getProfileForApplication(application)?.id === profile.id)
-        .flatMap((application) => [synchronizeApplicationDeckblatt(application.id),
-          synchronizeApplicationCoverLetter(application.id)]));
+      await regenerateChangedDocuments([...new Set([...before.stamps.keys(), ...affected()])], before, { onlyWithProfile: true });
       return workspace;
     });
   });
   handle("profiles:remove", async (_event, id: unknown) => {
     return runApplicationChange(async () => {
+      const ids = store.getApplicationIds();
+      const before = await captureDocumentStamps(ids);
       const workspace = await store.removeProfile(String(id));
-      await Promise.all(workspace.applications
-        .filter((application) => store.getProfileForApplication(application))
-        .flatMap((application) => [synchronizeApplicationDeckblatt(application.id),
-          synchronizeApplicationCoverLetter(application.id)]));
+      await regenerateChangedDocuments(ids, before, { onlyWithProfile: true });
       return workspace;
     });
   });
@@ -830,10 +962,13 @@ const initializeRuntime = async (root: string) => {
   if (encrypted) setActiveEncryption(root, workspaceSecurity!.service!);
   else clearActiveEncryption();
   applicationPaths = resolveApplicationPaths(root, bundledTemplatesRoot);
+  // The previous Bewerbungsordner's commits are made before the runtime switches (its push may go on).
+  await applicationGitSync?.whenCommitted();
   applicationGitSync = new ApplicationGitSync({
     paths: applicationPaths,
     // Development builds only: lets the Electron check push to a local bare repository instead of GitHub.
     remoteUrl: app.isPackaged ? undefined : process.env.BEWERBUNG_GIT_SYNC_TEST_REMOTE?.trim() || undefined,
+    onSynchronized: notifyGitSync,
   });
   store = new DataStore(applicationPaths, applicationGitSync, workspaceManager.lockToken(root));
   await store.initialize();
@@ -845,6 +980,8 @@ const initializeRuntime = async (root: string) => {
     runtimeRegistered = true;
   }
   workspaceStatus = { state: "ready", root };
+  // Commits a closed app or an unreachable GitHub left unpushed go out now, in the background.
+  void applicationGitSync.pushPending();
 };
 
 const notifyDueEvents = () => {
@@ -1392,7 +1529,13 @@ app.on("before-quit", (event) => {
   event.preventDefault();
   if (shutdownInProgress) return;
   shutdownInProgress = true;
-  void Promise.resolve()
+  // Running saves and the Git commits they queued finish first (bounded); an open push is retried on the next start.
+  const settled = Promise.race([
+    waitForDataOperations(),
+    new Promise<void>((resolve) => setTimeout(resolve, 60_000)),
+  ]);
+  void settled
+    .catch(() => undefined)
     .then(() => workspaceManager?.releaseAllLocks())
     .then(() => rm(secureTempRoot(), { recursive: true, force: true }))
     .finally(() => {

@@ -15,6 +15,8 @@ import {
   buildApplicationCommitMessage,
   classifyPushFailure,
   describeRemote,
+  maxCommitBodyLines,
+  type ApplicationOperationResult,
   type GitCommandResult,
 } from "./application-git-queue";
 import { logDiagnostic } from "./diagnostics";
@@ -39,11 +41,18 @@ const applicationInput = (company: string): ApplicationInput => ({
 const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8", windowsHide: true }).trim();
 
-/** Records every Git command and how many ran at the same time. */
+/**
+ * Records every Git command and how many ran at the same time. These scenarios check the whole synchronisation, so
+ * `runOperation` waits for it here; the background behaviour itself is tested with the plain class below.
+ */
 class RecordingGitSync extends ApplicationGitSync {
   commands: string[][] = [];
   running = 0;
   maxRunning = 0;
+  override async runOperation<T>(operation: () => Promise<T>): Promise<ApplicationOperationResult<T>> {
+    const started = await super.runOperation(operation);
+    return { ...started, gitSync: await started.completion };
+  }
   protected override async run(args: readonly string[]): Promise<GitCommandResult> {
     this.commands.push([...args]);
     this.running += 1;
@@ -143,6 +152,20 @@ describe("remote and commit message rules", () => {
     });
     expect(buildApplicationCommitMessage([{ companyName: "Y", action: "status", details: ["Bewerbung gesendet"] }]).subject)
       .toBe("Status geändert: Y – Bewerbung gesendet");
+  });
+
+  it("keeps the commit message of a change to hundreds of Bewerbungen below the Windows command-line limit", () => {
+    const intents = Array.from({ length: 1000 }, (_, index) => ({
+      companyName: `Fiktiv ${String(index).padStart(4, "0")} Gesellschaft mit beschränkter Haftung und langem Namen`,
+      action: "lebenslauf" as const, position: "Softwareentwicklerin für webbasierte Formularsysteme im öffentlichen Dienst",
+      details: ["Profil", "Design"],
+    }));
+    const message = buildApplicationCommitMessage(intents);
+    expect(message.subject).toMatch(/\(\+999 weitere\)$/);
+    const lines = message.body.split("\n");
+    expect(lines).toHaveLength(maxCommitBodyLines + 1);
+    expect(lines.at(-1)).toBe(`- … und ${1000 - maxCommitBodyLines} weitere`);
+    expect(message.subject.length + message.body.length).toBeLessThan(20_000);
   });
 
   it("classifies push failures without using the output itself", () => {
@@ -342,6 +365,37 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
     expect(remoteSubjects().slice(0, 2)).toEqual(["Bewerbung aktualisiert: Offline GmbH – Softwareentwickler – Notizen", "Bewerbung angelegt: Offline GmbH – Softwareentwickler"]);
   });
 
+  it("commits interview notes as Vorstellungsgespräch preparation and keeps them when the push fails", async () => {
+    await openStore();
+    await create("Seidel GmbH & Co. KG");
+    const id = store.getWorkspace().applications[0].id;
+    await sync.runOperation(async () => {
+      await store.changeStatus(id, "Vorstellungsgespräch");
+      return store.saveApplication({ ...store.getApplication(id), interviewAt: new Date(2026, 9, 22, 10).toISOString() });
+    });
+    const first = await sync.runOperation(() =>
+      store.createInterviewNote(id, "Frage 1: Was wissen Sie über uns?\nErklärung: Interesse\nAntwort: Viel."));
+    expect(first.gitSync).toEqual({ state: "synced", committed: true, pushed: true });
+    expect(remoteSubjects()[0]).toBe(
+      "Vorstellungsgespräch vorbereitet: Seidel GmbH & Co. KG – Softwareentwickler – Vorstellungsgespräch_Seidel.md angelegt",
+    );
+    const note = "data/Vorstellungsgespräch/Seidel_GmbH_&_Co._KG_2026-10-22/Vorstellungsgespräch_Seidel.md";
+    expect(remoteFiles().split("\n")).toContain(note);
+    expect(git(remote, "-c", "core.quotePath=false", "show", `main:${note}`)).toContain("## Frage 1: Was wissen Sie über uns?");
+
+    const offline = `${remote}-offline`;
+    await rename(remote, offline);
+    const second = await sync.runOperation(() => store.createInterviewNote(id, "Frage 1: Zweiter Block?\nAntwort: Ja."));
+    expect(second.gitSync).toMatchObject({ state: "failed", code: "push-failed" });
+    expect(second.result.file.fileName).toBe("Vorstellungsgespräch_Seidel_1.md");
+    const local = path.join(root, "data", "Vorstellungsgespräch", "Seidel_GmbH_&_Co._KG_2026-10-22", "Vorstellungsgespräch_Seidel_1.md");
+    expect(await readFile(local, "utf8")).toContain("## Frage 1: Zweiter Block?");
+    expect(localSubjects()[0]).toBe(
+      "Vorstellungsgespräch vorbereitet: Seidel GmbH & Co. KG – Softwareentwickler – Vorstellungsgespräch_Seidel_1.md angelegt",
+    );
+    await rename(offline, remote);
+  });
+
   it("refuses to push to another remote and never rewrites origin", async () => {
     const other = path.join(base, "other.git");
     git(base, "init", "--quiet", "--bare", "--initial-branch=main", other);
@@ -437,7 +491,8 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
     expect(sync.maxRunning).toBe(1);
     const files = remoteFiles();
     for (const name of ["Beta", "Gamma", "Delta"]) expect(files).toContain(`data/Bewerbungen/${name}.txt`);
-    expect(remoteSubjects()[remoteSubjects().length - 2]).toBe("Bewerbung angelegt: Parallel GmbH – Softwareentwickler");
+    // Saves that finish before the first synchronisation takes the index share its commit.
+    expect(remoteSubjects()[remoteSubjects().length - 2]).toMatch(/^Bewerbung angelegt: Parallel GmbH – Softwareentwickler( \(\+\d+ weitere\))?$/);
     expect(remoteSubjects().length).toBeLessThanOrEqual(5);
     expect(git(root, "status", "--porcelain", "--", "data")).toBe("");
     git(root, "fsck", "--no-progress");
@@ -672,5 +727,184 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
     expect(vi.mocked(logDiagnostic).mock.calls.every(([, fields]) =>
       Object.keys(fields).every((key) => ["event", "component", "error_code", "duration_ms"].includes(key)))).toBe(true);
     expect(await readFile(path.join(root, ".git", "config"), "utf8")).not.toContain(secret);
+  });
+
+  describe("background synchronisation", () => {
+    /** The plain queue (no waiting in runOperation), with a slow or unreachable GitHub on demand. */
+    class BackgroundGitSync extends ApplicationGitSync {
+      pushDelayMs = 0;
+      offline = false;
+      pushes = 0;
+      outcomes: Array<{ outcome: unknown; syncId: number }> = [];
+      constructor(options: ConstructorParameters<typeof ApplicationGitSync>[0]) {
+        super({ ...options, onSynchronized: (outcome, syncId) => this.outcomes.push({ outcome, syncId }) });
+      }
+      protected override async run(args: readonly string[]): Promise<GitCommandResult> {
+        if (args[0] === "push") {
+          this.pushes += 1;
+          if (this.pushDelayMs) await new Promise((resolve) => setTimeout(resolve, this.pushDelayMs));
+          if (this.offline) return { code: 128, stdout: "", stderr: "fatal: unable to access: Could not resolve host: github.com" };
+        }
+        return super.run(args);
+      }
+    }
+    let background: BackgroundGitSync;
+    const openBackground = async () => {
+      background = new BackgroundGitSync({ paths, remoteUrl: remote });
+      store = new DataStore(paths, background);
+      await initializeWithProfile(store);
+    };
+    const createIn = (company: string) => background.runOperation(async () => {
+      const workspace = await store.createApplication(applicationInput(company));
+      await synchronizeDocuments(store, workspace.applications[0].id);
+      return workspace;
+    });
+    const saveNotes = (notes: string) => background.runOperation(async () => {
+      const application = structuredClone(store.getWorkspace().applications[0]);
+      application.notes = notes;
+      return store.saveApplication(application);
+    });
+
+    it("returns after the local save while a slow push goes on, then reports the push", async () => {
+      await openBackground();
+      background.pushDelayMs = 1500;
+      const started = performance.now();
+      const created = await createIn("Langsam GmbH");
+      const localMs = performance.now() - started;
+
+      expect(created.gitSync).toMatchObject({ state: "pending" });
+      expect(created.result.applications[0].company.name).toBe("Langsam GmbH");
+      expect(localMs).toBeLessThan(1500);
+      // Saved on disk before GitHub has it.
+      const reopened = new DataStore(paths);
+      await reopened.initialize();
+      expect(reopened.getWorkspace().applications.map((item) => item.company.name)).toContain("Langsam GmbH");
+
+      expect(await created.completion).toEqual({ state: "synced", committed: true, pushed: true });
+      expect(remoteSubjects()[0]).toBe("Bewerbung angelegt: Langsam GmbH – Softwareentwickler");
+      const syncId = created.gitSync.state === "pending" ? created.gitSync.syncId : -1;
+      expect(background.outcomes).toEqual([{ outcome: { state: "synced", committed: true, pushed: true }, syncId }]);
+    });
+
+    it("lets the next save run during a slow push and loses neither a change nor its commit description", async () => {
+      await openBackground();
+      await (await createIn("Folge GmbH")).completion;
+      background.pushDelayMs = 2000;
+      const first = await saveNotes("erste Notiz");
+      // The first synchronisation is pushing now; the second save does not wait for GitHub.
+      while (background.pushes < 2) await new Promise((resolve) => setTimeout(resolve, 10));
+      const started = performance.now();
+      const second = await background.runOperation(async () => {
+        const application = structuredClone(store.getWorkspace().applications[0]);
+        application.job.reference = "REF-42";
+        return store.saveApplication(application);
+      });
+      expect(performance.now() - started).toBeLessThan(2000);
+      expect(second.gitSync.state).toBe("pending");
+
+      expect((await first.completion).state).toBe("synced");
+      expect((await second.completion).state).toBe("synced");
+      await background.whenSettled();
+      const folder = store.getWorkspace().applications[0].folderName;
+      const stored = git(remote, "show", `main:data/Bewerbungen/${folder}/bewerbung.json`);
+      expect(stored).toContain("erste Notiz");
+      expect(stored).toContain("REF-42");
+      expect(remoteSubjects().slice(0, 2)).toEqual([
+        "Bewerbung aktualisiert: Folge GmbH – Softwareentwickler – Stelle",
+        "Bewerbung aktualisiert: Folge GmbH – Softwareentwickler – Notizen",
+      ]);
+      expect(git(root, "status", "--porcelain", "--", "data")).toBe("");
+    });
+
+    it("shares one commit among saves that finish while a synchronisation waits for them", async () => {
+      await openBackground();
+      await (await createIn("Bündel GmbH")).completion;
+      const commits = remoteSubjects().length;
+      const saves = await Promise.all([saveNotes("eins"), saveNotes("zwei"), saveNotes("drei")]);
+      const outcomes = await Promise.all(saves.map((save) => save.completion));
+      expect(outcomes.every((outcome) => outcome.state === "synced")).toBe(true);
+      await background.whenSettled();
+      expect(remoteSubjects().length - commits).toBeLessThanOrEqual(2);
+      expect(git(remote, "show", `main:data/Bewerbungen/${store.getWorkspace().applications[0].folderName}/bewerbung.json`))
+        .toContain("drei");
+    });
+
+    it("keeps the local save when GitHub is unreachable, says so, and pushes the commit on the next start", async () => {
+      await openBackground();
+      await (await createIn("Vorher GmbH")).completion;
+      background.offline = true;
+      const offline = await saveNotes("ohne Netz");
+      expect(offline.gitSync.state).toBe("pending");
+      expect(await offline.completion).toMatchObject({ state: "failed", code: "network", reason: "GitHub ist nicht erreichbar. Bitte die Internetverbindung prüfen." });
+      expect(background.outcomes.at(-1)?.outcome).toMatchObject({ state: "failed", code: "network" });
+      // Committed locally (the app may close now), not on GitHub.
+      expect(localSubjects()[0]).toBe("Bewerbung aktualisiert: Vorher GmbH – Softwareentwickler – Notizen");
+      expect(remoteSubjects()[0]).toBe("Bewerbung angelegt: Vorher GmbH – Softwareentwickler");
+
+      // Next start: the unpushed commit goes out without a new save and without a new commit.
+      await openBackground();
+      const commitsBefore = localSubjects().length;
+      expect(await background.pushPending()).toEqual({ state: "synced", committed: false, pushed: true });
+      expect(remoteSubjects()[0]).toBe("Bewerbung aktualisiert: Vorher GmbH – Softwareentwickler – Notizen");
+      expect(localSubjects()).toHaveLength(commitsBefore);
+      expect(await background.pushPending()).toEqual({ state: "skipped" });
+    });
+
+    it("stays quiet on start when the folder cannot synchronise at all, but reports a due push that fails", async () => {
+      git(root, "remote", "remove", "origin");
+      await openBackground();
+      expect(await background.pushPending()).toMatchObject({ state: "failed", code: "remote-missing" });
+      expect(background.outcomes).toEqual([]);
+
+      git(root, "remote", "add", "origin", remote);
+      await openBackground();
+      background.offline = true;
+      await (await createIn("Später GmbH")).completion;
+      background.outcomes.length = 0;
+      expect(await background.pushPending()).toMatchObject({ state: "failed", code: "network" });
+      expect(background.outcomes).toHaveLength(1);
+    });
+
+    it("waits for the commit (not the push) before the app quits or locks", async () => {
+      await openBackground();
+      await (await createIn("Ende GmbH")).completion;
+      background.pushDelayMs = 3000;
+      const save = await saveNotes("vor dem Beenden");
+      const started = performance.now();
+      await background.whenCommitted();
+      expect(performance.now() - started).toBeLessThan(3000);
+      expect(localSubjects()[0]).toBe("Bewerbung aktualisiert: Ende GmbH – Softwareentwickler – Notizen");
+      expect(git(root, "status", "--porcelain", "--", "data")).toBe("");
+      expect((await save.completion).state).toBe("synced");
+    });
+
+    it("never runs Git commands at the same time, also with saves during a background push", async () => {
+      class CountingSync extends BackgroundGitSync {
+        running = 0;
+        maxRunning = 0;
+        protected override async run(args: readonly string[]): Promise<GitCommandResult> {
+          this.running += 1;
+          this.maxRunning = Math.max(this.maxRunning, this.running);
+          try { return await super.run(args); } finally { this.running -= 1; }
+        }
+      }
+      const counting = new CountingSync({ paths, remoteUrl: remote });
+      background = counting;
+      store = new DataStore(paths, counting);
+      await initializeWithProfile(store);
+      counting.pushDelayMs = 300;
+      const created = await createIn("Takt GmbH");
+      const saves = [];
+      for (const note of ["a", "b", "c", "d"]) {
+        saves.push(await saveNotes(note));
+        await new Promise((resolve) => setTimeout(resolve, 120));
+      }
+      await Promise.all([created.completion, ...saves.map((save) => save.completion)]);
+      await counting.whenSettled();
+      expect(counting.maxRunning).toBe(1);
+      expect(git(root, "status", "--porcelain", "--", "data")).toBe("");
+      expect(git(remote, "rev-parse", "main")).toBe(git(root, "rev-parse", "HEAD"));
+      git(root, "fsck", "--no-progress");
+    });
   });
 });

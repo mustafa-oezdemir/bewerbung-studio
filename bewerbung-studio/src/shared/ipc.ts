@@ -27,11 +27,16 @@ export type DocumentFolderTarget = (typeof documentFolderTargets)[number];
 /**
  * GitHub synchronisation after a managed Bewerbung or document was saved. The local save has always
  * succeeded when this is returned; `reason` is a fixed German text without paths, URLs or credentials.
+ * "pending": the commit and push run in the background; their outcome arrives through `gitSync.onStatus`.
  */
 export type ApplicationGitSyncOutcome =
   | { state: "skipped" }
+  | { state: "pending"; syncId: number }
   | { state: "synced"; committed: boolean; pushed: boolean }
   | { state: "failed"; code: string; reason: string };
+
+/** The main-process channel that carries the outcome of every background synchronisation. */
+export const gitSyncStatusChannel = "git-sync:status";
 
 export type ApplicationChangeResult = {
   workspace: Workspace;
@@ -39,6 +44,46 @@ export type ApplicationChangeResult = {
 };
 export type DocumentChangeResult = { document: CreatedDocumentResult; gitSync: ApplicationGitSyncOutcome };
 export type PdfChangeResult = { path: string | null; gitSync: ApplicationGitSyncOutcome };
+
+/** One Markdown file of the Bewerbung's interview folder (Vorstellungsgespräch – Fragen & Antworten). */
+export type InterviewNoteFile = {
+  /** `Vorstellungsgespräch.md`, `Vorstellungsgespräch_1.md`, … – the only names the main process accepts. */
+  fileName: string;
+  /** SHA-256 of the stored bytes: an update names the revision it was based on and never replaces a newer file. */
+  revision: string;
+  modifiedAt: string;
+  /** The Markdown text; `null` when the file cannot be shown (`error` says why, with the file name). */
+  content: string | null;
+  error: string | null;
+};
+
+export type InterviewNotesListing = {
+  applicationId: string;
+  /** `<Firma>_<Datum>` inside `data/Vorstellungsgespräch` (no full path). */
+  folderName: string;
+  files: InterviewNoteFile[];
+  /**
+   * Other Bewerbungen whose interview folder is the same (same company, same interview day): the notes cannot be
+   * assigned to one of them, so nothing is listed or written.
+   */
+  sharedWith: Array<{ company: string; position: string }>;
+};
+
+export type InterviewNoteChangeResult = {
+  file: InterviewNoteFile;
+  /** `false`: the saved text was the same as the file, nothing was written or committed. */
+  changed: boolean;
+  /** Images of the text downloaded into the interview folder (`saved`) and those that could not be (`failed`). */
+  images?: { saved: number; failed: string[] };
+  gitSync: ApplicationGitSyncOutcome;
+};
+
+export type InterviewNoteRemoveResult = {
+  fileName: string;
+  /** Where the deleted file is kept, relative to `data` (e.g. `Silinenler/<Ordner>/<Name>_gelöscht_<Zeit>.md`). */
+  archivedAs: string;
+  gitSync: ApplicationGitSyncOutcome;
+};
 
 export type WorkspaceStatus =
   | { state: "ready"; root: string }
@@ -95,6 +140,13 @@ export interface BewerbungsManagerApi {
   workspace: {
     get: () => Promise<Workspace>;
   };
+  gitSync: {
+    /**
+     * Calls `listener` with the outcome of every background synchronisation and its number (it settles the "pending"
+     * results with that `syncId`); returns the unsubscribe function.
+     */
+    onStatus: (listener: (outcome: ApplicationGitSyncOutcome, syncId: number) => void) => () => void;
+  };
   applicationDraft: {
     get: () => Promise<ApplicationDraft | null>;
     save: (draft: ApplicationDraft) => Promise<void>;
@@ -112,6 +164,25 @@ export interface BewerbungsManagerApi {
     ) => Promise<ApplicationChangeResult>;
     /** Opens the Bewerbung's folder; with a document, that document's folder (where its PDF was saved). */
     openFolder: (id: string, document?: DocumentFolderTarget) => Promise<void>;
+  };
+  interviews: {
+    /** The interview notes of this Bewerbung; the folder is resolved in the main process from its id. */
+    list: (applicationId: string) => Promise<InterviewNotesListing>;
+    /** Parses the text and saves it as a new file under the next free name; never overwrites a file. */
+    create: (applicationId: string, text: string) => Promise<InterviewNoteChangeResult>;
+    /** Saves the text into exactly this file when it still has `revision`. */
+    update: (
+      applicationId: string,
+      fileName: string,
+      text: string,
+      revision: string,
+    ) => Promise<InterviewNoteChangeResult>;
+    /** Deletes exactly this file (when it still has `revision`); it is kept in the Silinenler archive. */
+    remove: (applicationId: string, fileName: string, revision: string) => Promise<InterviewNoteRemoveResult>;
+    /** Opens exactly this file in the program set up for Markdown (encrypted workspace: a temporary copy). */
+    open: (applicationId: string, fileName: string) => Promise<void>;
+    /** A downloaded image (`Bilder/…`) of the interview folder as a `data:` URL. */
+    image: (applicationId: string, source: string) => Promise<string>;
   };
   profiles: {
     save: (profile: ApplicantProfile) => Promise<ApplicationChangeResult>;

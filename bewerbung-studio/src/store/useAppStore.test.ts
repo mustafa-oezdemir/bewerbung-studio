@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ApplicationGitSyncOutcome, BewerbungsManagerApi } from "../shared/ipc";
 import { defaultSettings, type Application, type Workspace } from "../shared/schema";
-import { gitSyncFailedMessage, useAppStore } from "./useAppStore";
+import { gitSyncFailedMessage, gitSyncPendingNotice, useAppStore } from "./useAppStore";
 
 const workspace: Workspace = {
   schemaVersion: 1,
@@ -28,7 +28,7 @@ const installApi = (gitSync: ApplicationGitSyncOutcome) => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  useAppStore.setState({ error: undefined, notice: undefined, loading: false });
+  useAppStore.setState({ error: undefined, notice: undefined, loading: false, gitSync: { state: "idle" } });
 });
 
 describe("application changes with GitHub synchronisation", () => {
@@ -110,5 +110,67 @@ describe("application changes with GitHub synchronisation", () => {
     installApi({ state: "synced", committed: false, pushed: false });
     await useAppStore.getState().saveApplication(workspace.applications[0]);
     expect(useAppStore.getState().notice).toBe("Änderungen wurden gespeichert.");
+  });
+});
+
+describe("local save first, GitHub in the background", () => {
+  // The store subscribes once; every stub shares this channel, so the test can play the main process.
+  const listeners: Array<(outcome: ApplicationGitSyncOutcome, syncId: number) => void> = [];
+  const gitSync = { onStatus: vi.fn((listener: (outcome: ApplicationGitSyncOutcome, syncId: number) => void) => {
+    listeners.push(listener);
+    return () => undefined;
+  }) };
+  const emit = (outcome: ApplicationGitSyncOutcome, syncId: number) => listeners.forEach((listener) => listener(outcome, syncId));
+  const installPending = () => {
+    let syncId = 0;
+    const save = vi.fn(async () => ({ workspace, gitSync: { state: "pending" as const, syncId: ++syncId } }));
+    vi.stubGlobal("window", { bewerbungsManager: { applications: { save }, gitSync } as unknown as BewerbungsManagerApi });
+    return save;
+  };
+
+  it("frees the form as soon as the local save is done and says that GitHub follows", async () => {
+    installPending();
+    useAppStore.setState({ workspace: { ...workspace, applications: [] } });
+    await useAppStore.getState().saveApplication(workspace.applications[0]);
+    expect(useAppStore.getState()).toMatchObject({
+      workspace, loading: false, error: undefined, gitSync: { state: "pending" },
+      notice: `Änderungen wurden gespeichert. ${gitSyncPendingNotice}`,
+    });
+    expect(gitSync.onStatus).toHaveBeenCalledTimes(1);
+
+    emit({ state: "synced", committed: true, pushed: true }, 1);
+    expect(useAppStore.getState()).toMatchObject({
+      notice: "Änderungen wurden gespeichert und mit GitHub synchronisiert.", gitSync: { state: "synced" }, error: undefined,
+    });
+  });
+
+  it("reports a failed background push without undoing the local save", async () => {
+    installPending();
+    await useAppStore.getState().saveApplication(workspace.applications[0]);
+    emit({ state: "failed", code: "network", reason: "GitHub ist nicht erreichbar. Bitte die Internetverbindung prüfen." }, 1);
+    expect(useAppStore.getState()).toMatchObject({
+      workspace, loading: false, notice: undefined, gitSync: { state: "failed" },
+      error: "Lokal gespeichert – GitHub-Synchronisierung fehlgeschlagen. GitHub ist nicht erreichbar. Bitte die Internetverbindung prüfen.",
+    });
+  });
+
+  it("does not call a newer save synchronised when an older synchronisation finishes", async () => {
+    installPending();
+    await useAppStore.getState().saveApplication(workspace.applications[0]);
+    await useAppStore.getState().saveApplication(workspace.applications[0]);
+    emit({ state: "synced", committed: true, pushed: true }, 1);
+    expect(useAppStore.getState()).toMatchObject({ gitSync: { state: "pending" }, notice: `Änderungen wurden gespeichert. ${gitSyncPendingNotice}` });
+    emit({ state: "synced", committed: true, pushed: true }, 2);
+    expect(useAppStore.getState()).toMatchObject({ gitSync: { state: "synced" }, notice: "Änderungen wurden gespeichert und mit GitHub synchronisiert." });
+    // A later failure (e.g. a retried push on the next start) is always shown.
+    emit({ state: "failed", code: "auth-failed", reason: "Die Anmeldung bei GitHub ist fehlgeschlagen." }, 3);
+    expect(useAppStore.getState().error).toBe(`${gitSyncFailedMessage} Die Anmeldung bei GitHub ist fehlgeschlagen.`);
+  });
+
+  it("returns to the plain local notice when the background synchronisation had nothing to do", async () => {
+    installPending();
+    await useAppStore.getState().saveApplication(workspace.applications[0]);
+    emit({ state: "skipped" }, 1);
+    expect(useAppStore.getState()).toMatchObject({ notice: "Änderungen wurden gespeichert.", gitSync: { state: "idle" } });
   });
 });

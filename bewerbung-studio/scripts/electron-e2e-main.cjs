@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = process.env.BM_E2E_ROOT;
 const phase = process.env.BM_E2E_PHASE;
-if (!root || !['create', 'reopen', 'hold', 'second'].includes(phase))
+if (!root || !['create', 'reopen', 'hold', 'second', 'interview', 'interview-reopen'].includes(phase))
   throw new Error('Isolated E2E fixture is required');
 app.setPath('userData', path.join(root, 'userData'));
 process.env.BEWERBUNG_ROOT_PATH = path.join(root, 'workspace');
@@ -26,6 +26,22 @@ setTimeout(() => fail(new Error(`Electron E2E ${phase} timed out`)), 60_000).unr
 const createScenario = `(async () => {
   const api = window.bewerbungsManager;
   if (!api) throw new Error('preload API is missing');
+  // The IPC result arrives after the local save ("pending"); the commit and push are reported as an event.
+  const outcomes = [];
+  api.gitSync.onStatus((outcome, syncId) => outcomes.push({ outcome, syncId }));
+  const pushed = async (result, label) => {
+    if (result.gitSync.state !== 'pending' || typeof result.gitSync.syncId !== 'number')
+      throw new Error(label + ': the local result did not hand Git to the background');
+    for (let attempt = 0; attempt < 300; attempt += 1) {
+      const hit = outcomes.find((entry) => entry.syncId >= result.gitSync.syncId);
+      if (hit) {
+        if (hit.outcome.state !== 'synced' || !hit.outcome.pushed) throw new Error(label + ': ' + JSON.stringify(hit.outcome));
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    throw new Error(label + ': no GitHub outcome arrived');
+  };
   const status = await api.system.workspaceStatus();
   if (status.state !== 'ready' || typeof status.root !== 'string')
     throw new Error('preload did not unwrap the workspace status IPC result');
@@ -49,8 +65,7 @@ const createScenario = `(async () => {
     notes: 'synthetic E2E data',
   });
   if (created.workspace.applications.length !== 1) throw new Error('application was not created');
-  if (created.gitSync.state !== 'synced' || !created.gitSync.pushed)
-    throw new Error('application creation was not pushed from Electron');
+  await pushed(created, 'application creation was not pushed from Electron');
   const documentChange = structuredClone(created.workspace.applications[0]);
   documentChange.documents.coverMainBody = 'Fiktiver Anschreibentext';
   documentChange.documents.resumeProfile = 'Fiktives Kurzprofil';
@@ -58,14 +73,15 @@ const createScenario = `(async () => {
   documentChange.documents.motivationIntroduction = 'Fiktive Motivation';
   documentChange.interviewAt = '2026-10-20T09:00:00.000Z';
   const updated = await api.applications.save(documentChange);
-  if (updated.gitSync.state !== 'synced' || !updated.gitSync.pushed)
-    throw new Error('document and appointment changes were not pushed from Electron');
+  await pushed(updated, 'document and appointment changes were not pushed from Electron');
+  // Saving the same Bewerbung again without a change: no Git work at all.
+  const unchanged = await api.applications.save(structuredClone(updated.workspace.applications[0]));
+  if (unchanged.gitSync.state !== 'skipped') throw new Error('an unchanged save started a synchronisation');
   const interview = structuredClone(updated.workspace.events.find((event) =>
     event.applicationId === documentChange.id && event.type === 'interview'));
   interview.startAt = '2026-10-21T10:30:00.000Z';
   const moved = await api.events.save(interview);
-  if (moved.gitSync.state !== 'synced' || !moved.gitSync.pushed)
-    throw new Error('the moved interview appointment was not pushed from Electron');
+  await pushed(moved, 'the moved interview appointment was not pushed from Electron');
   // The unsaved wizard draft lives in the data tree but must never be pushed.
   await api.applicationDraft.save({ company: { name: 'E2E Entwurf GmbH' } });
   await api.settings.save({ ...created.workspace.settings, theme: 'dark' });
@@ -82,6 +98,22 @@ const createScenario = `(async () => {
 const verifyScenario = `(async () => {
   const api = window.bewerbungsManager;
   if (!api) throw new Error('preload API is missing after restart');
+  // The IPC result arrives after the local save ("pending"); the commit and push are reported as an event.
+  const outcomes = [];
+  api.gitSync.onStatus((outcome, syncId) => outcomes.push({ outcome, syncId }));
+  const pushed = async (result, label) => {
+    if (result.gitSync.state !== 'pending' || typeof result.gitSync.syncId !== 'number')
+      throw new Error(label + ': the local result did not hand Git to the background');
+    for (let attempt = 0; attempt < 300; attempt += 1) {
+      const hit = outcomes.find((entry) => entry.syncId >= result.gitSync.syncId);
+      if (hit) {
+        if (hit.outcome.state !== 'synced' || !hit.outcome.pushed) throw new Error(label + ': ' + JSON.stringify(hit.outcome));
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    throw new Error(label + ': no GitHub outcome arrived');
+  };
   const status = await api.system.workspaceStatus();
   if (status.state !== 'ready') throw new Error('workspace status was not restored after restart');
   const workspace = await api.workspace.get();
@@ -102,8 +134,7 @@ const verifyScenario = `(async () => {
   if (!document.body.innerText.includes('E2E Nachverfolgung'))
     throw new Error('todo did not render after navigation');
   const statusChange = await api.applications.changeStatus(workspace.applications[0].id, 'Beworben');
-  if (statusChange.gitSync.state !== 'synced' || !statusChange.gitSync.pushed)
-    throw new Error('status change was not pushed from Electron');
+  await pushed(statusChange, 'status change was not pushed from Electron');
   return workspace.applications[0].id;
 })()`;
 
@@ -115,6 +146,204 @@ const verifyReloadScenario = `(async () => {
   return true;
 })()`;
 
+// Vorstellungsgespräch – Fragen & Antworten, driven through the real panel (renderer helpers shared by the phases).
+const interviewHelpers = `
+  const api = window.bewerbungsManager;
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const until = async (check, label) => {
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      const value = check();
+      if (value) return value;
+      await wait(50);
+    }
+    throw new Error('Timeout: ' + label);
+  };
+  const buttonWith = (text, scope = document) =>
+    [...scope.querySelectorAll('button')].find((button) => button.textContent.includes(text));
+  const questionButtons = () => [...document.querySelectorAll('.interview-answer__toggle')];
+  const expanded = () => questionButtons().map((button) => button.getAttribute('aria-expanded'));
+  const outcomes = [];
+  api.gitSync.onStatus((outcome, syncId) => outcomes.push({ outcome, syncId }));
+  const nextPush = async (count, label) => {
+    const outcome = await until(() => outcomes[count], label + ': no GitHub outcome');
+    if (outcome.outcome.state !== 'synced' || !outcome.outcome.pushed) throw new Error(label + ': ' + JSON.stringify(outcome.outcome));
+  };
+  const typeInto = (textarea, value) => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(textarea, value);
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+  const questions = (prefix, count) => Array.from({ length: count }, (_, index) =>
+    'Frage ' + (index + 1) + ': ' + prefix + ' Frage ' + (index + 1) + ' – Größe & Übung?\\n\\nErklärung:\\n' + prefix +
+    ' Erklärung ' + (index + 1) + '\\nZweite Zeile\\n\\nAntwort:\\n' + prefix + ' Antwort ' + (index + 1) + '\\n- Punkt A\\n- Punkt B\\n').join('\\n');
+  const openPanel = async (navTitle) => {
+    document.querySelector('button.nav-item[title="' + navTitle + '"]').click();
+    const item = await until(() => [...document.querySelectorAll('.application-item')]
+      .find((entry) => entry.textContent.includes('Seidel GmbH & Co. KG')), 'Seidel in ' + navTitle);
+    item.click();
+    const open = await until(() => buttonWith('Vorstellungsgespräch – Fragen & Antworten', document.querySelector('.detail-form')),
+      'interview button in ' + navTitle);
+    open.click();
+    return until(() => document.querySelector('.interview-prep'), 'interview panel');
+  };
+  const saveText = async (text, expectedCount) => {
+    const textarea = await until(() => document.querySelector('.interview-editor__input'), 'editor');
+    typeInto(textarea, text);
+    await wait(50);
+    if (!buttonWith('Als Markdown speichern').disabled) throw new Error('saving was possible without a preview');
+    buttonWith('Vorschau prüfen').click();
+    await until(() => document.querySelector('.interview-editor__summary'), 'preview');
+    const summary = document.querySelector('.interview-editor__summary').textContent;
+    if (summary !== expectedCount + ' Fragen erkannt.') throw new Error('preview: ' + summary);
+    if (expanded().length !== expectedCount || expanded().some((value) => value !== 'false'))
+      throw new Error('preview answers were not all closed: ' + expanded());
+    const before = outcomes.length;
+    buttonWith('Als Markdown speichern').click();
+    const notice = await until(() => document.querySelector('.interview-prep__notice'), 'save notice');
+    await nextPush(before, 'interview notes');
+    return notice.textContent;
+  };
+`;
+
+const interviewSetupScenario = `(async () => {
+  ${interviewHelpers}
+  const workspace = await api.workspace.get();
+  const created = await api.applications.create({
+    company: { name: 'Seidel GmbH & Co. KG', city: 'Leipzig' }, contact: {}, job: { title: 'Fachinformatiker' },
+    templateId: 'classic-professional', accentColor: '#155e58', profileId: workspace.profiles[0].id, notes: '',
+  });
+  const application = created.workspace.applications.find((item) => item.company.name === 'Seidel GmbH & Co. KG');
+  await until(() => outcomes.length >= 1, 'create push');
+  const status = await api.applications.changeStatus(application.id, 'Vorstellungsgespräch');
+  await until(() => outcomes.length >= 2, 'status push');
+  const current = status.workspace.applications.find((item) => item.id === application.id);
+  await api.applications.save({ ...current, interviewAt: new Date(2026, 9, 22, 10, 0).toISOString() });
+  await until(() => outcomes.length >= 3, 'date push');
+  if (outcomes.some((entry) => entry.outcome.state !== 'synced')) throw new Error('setup push failed: ' + JSON.stringify(outcomes));
+  return application.id;
+})()`;
+
+const interviewUiScenario = `(async () => {
+  ${interviewHelpers}
+  const panel = await openPanel('Aktive Bewerbungen');
+  const header = panel.querySelector('.interview-prep__header').textContent;
+  if (!header.includes('Seidel GmbH & Co. KG') || !header.includes('Fachinformatiker') || !header.includes('22.10.2026'))
+    throw new Error('panel header: ' + header);
+  const notice = await saveText(questions('Erste', 10), 10);
+  if (notice !== '„Vorstellungsgespräch_Seidel.md“ wurde lokal gespeichert.') throw new Error('notice: ' + notice);
+  await until(() => questionButtons().length === 10, 'saved file accordion');
+  if (expanded().some((value) => value !== 'false')) throw new Error('saved answers were not closed');
+  if (!document.querySelector('.interview-answer__body').hidden) throw new Error('answer visible before opening');
+  const explanation = document.querySelector('.interview-question__explanation');
+  if (!explanation.innerText.includes('Erste Erklärung 1') || explanation.getBoundingClientRect().height === 0)
+    throw new Error('the Erklärung is not shown: ' + explanation.innerText);
+  // Mouse: independent questions, several open at once, a second click closes.
+  questionButtons()[0].click();
+  questionButtons()[2].click();
+  await wait(50);
+  if (expanded().slice(0, 4).join() !== 'true,false,true,false') throw new Error('mouse toggle: ' + expanded());
+  const body = document.querySelector('.interview-answer__body');
+  if (body.hidden || !body.innerText.includes('Erste Antwort 1') || body.querySelectorAll('ul > li').length !== 2)
+    throw new Error('opened answer: ' + body.innerText);
+  questionButtons()[0].click();
+  await wait(50);
+  if (expanded().slice(0, 3).join() !== 'false,false,true') throw new Error('second click did not close: ' + expanded());
+  questionButtons()[2].click();
+  await wait(50);
+  questionButtons()[1].focus();
+  return document.activeElement === questionButtons()[1];
+})()`;
+
+const interviewSecondFileScenario = `(async () => {
+  ${interviewHelpers}
+  buttonWith('Neue Datei').click();
+  const notice = await saveText(questions('Zweite', 3), 3);
+  if (notice !== '„Vorstellungsgespräch_Seidel_1.md“ wurde lokal gespeichert.') throw new Error('second notice: ' + notice);
+  const chips = [...document.querySelectorAll('.interview-file-chip span')].map((chip) => chip.textContent);
+  if (chips.join() !== 'Vorstellungsgespräch_Seidel.md,Vorstellungsgespräch_Seidel_1.md') throw new Error('chips: ' + chips);
+  // The same button from the Vorstellungsgespräche view, the same panel.
+  document.querySelector('.interview-prep button[aria-label="Schließen"]').click();
+  await until(() => !document.querySelector('.interview-prep'), 'panel closed');
+  const panel = await openPanel('Vorstellungsgespräche');
+  await until(() => panel.querySelectorAll('.interview-file-chip').length === 2, 'files in Vorstellungsgespräche view');
+  return true;
+})()`;
+
+const interviewReopenScenario = `(async () => {
+  ${interviewHelpers}
+  const panel = await openPanel('Vorstellungsgespräche');
+  await until(() => panel.querySelectorAll('.interview-file-chip').length === 2, 'files after restart');
+  const chips = [...panel.querySelectorAll('.interview-file-chip')].map((chip) => chip.textContent);
+  if (!chips[0].includes('Vorstellungsgespräch_Seidel.md') || !chips[0].includes('10 Fragen') || !chips[1].includes('3 Fragen'))
+    throw new Error('chips after restart: ' + chips);
+  if (questionButtons().length !== 10 || expanded().some((value) => value !== 'false')) throw new Error('reopened accordion');
+  buttonWith('Vorstellungsgespräch_Seidel_1.md').click();
+  await until(() => questionButtons().length === 3, 'second file');
+  questionButtons()[1].click();
+  await wait(50);
+  if (!document.querySelectorAll('.interview-answer__body')[1].innerText.includes('Zweite Antwort 2')) throw new Error('second file content');
+  buttonWith('Datei bearbeiten').click();
+  const textarea = await until(() => document.querySelector('.interview-editor__input'), 'edit editor');
+  if (!textarea.value.startsWith('# Vorstellungsgespräch\\n\\n## Frage 1: Zweite Frage 1')) throw new Error('editor content: ' + textarea.value.slice(0, 80));
+  const notice = await saveText(textarea.value.replace('Zweite Antwort 3', 'Geänderte Antwort 3'), 3);
+  if (notice !== '„Vorstellungsgespräch_Seidel_1.md“ wurde lokal gespeichert.') throw new Error('update notice: ' + notice);
+  const chipsAfter = [...panel.querySelectorAll('.interview-file-chip span')].map((chip) => chip.textContent);
+  if (chipsAfter.join() !== 'Vorstellungsgespräch_Seidel.md,Vorstellungsgespräch_Seidel_1.md') throw new Error('update created a file: ' + chipsAfter);
+  // Invalid input is shown in German and cannot be saved.
+  buttonWith('Neue Datei').click();
+  typeInto(await until(() => document.querySelector('.interview-editor__input'), 'editor'), 'Ohne Fragen');
+  buttonWith('Vorschau prüfen').click();
+  const issues = await until(() => document.querySelector('.interview-issues'), 'issues');
+  if (!issues.textContent.includes('Es wurde keine Frage erkannt.') || !buttonWith('Als Markdown speichern').disabled)
+    throw new Error('invalid input: ' + issues.textContent);
+  window.confirm = () => true;
+  buttonWith('Abbrechen').click();
+  document.querySelector('.interview-prep').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await until(() => !document.querySelector('.interview-prep'), 'Escape closes the panel');
+  // A new interview date: the folder follows, no note is lost.
+  const workspace = await api.workspace.get();
+  const application = workspace.applications.find((item) => item.company.name === 'Seidel GmbH & Co. KG');
+  const before = outcomes.length;
+  await api.applications.save({ ...application, interviewAt: new Date(2026, 9, 23, 9, 30).toISOString() });
+  await nextPush(before, 'date change');
+  const listing = await api.interviews.list(application.id);
+  if (listing.folderName !== 'Seidel_GmbH_&_Co._KG_2026-10-23' || listing.files.length !== 2 ||
+      !listing.files[1].content.includes('Geänderte Antwort 3'))
+    throw new Error('notes after date change: ' + JSON.stringify(listing.files.map((file) => file.fileName)) + ' ' + listing.folderName);
+  // The main process refuses paths and unknown names.
+  let refused = 0;
+  for (const name of ['../workspace.json', 'Notizen.md']) {
+    try { await api.interviews.update(application.id, name, 'Frage 1: X?\\nAntwort: y', 'a'.repeat(64)); }
+    catch (error) { if (String(error.message).startsWith('Die eingegebenen Daten sind ungültig.')) refused += 1; }
+  }
+  if (refused !== 2) throw new Error('invalid file names were not refused');
+  return true;
+})()`;
+
+/** Real keyboard input (not synthetic DOM events): Enter and Space on the focused question button. */
+const pressKey = async (window, keyCode) => {
+  window.webContents.focus();
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode });
+  window.webContents.sendInputEvent({ type: 'char', keyCode: keyCode === 'Space' ? ' ' : '\r' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode });
+  await new Promise((resolve) => setTimeout(resolve, 150));
+};
+
+const runInterviewKeyboardCheck = async (window) => {
+  const state = () => window.webContents.executeJavaScript(
+    "[...document.querySelectorAll('.interview-answer__toggle')].map((b) => b.getAttribute('aria-expanded')).slice(0, 3).join()",
+  );
+  if (await state() !== 'false,false,false') throw new Error(`keyboard start state: ${await state()}`);
+  await pressKey(window, 'Enter');
+  if (await state() !== 'false,true,false') throw new Error(`Enter did not open question 2: ${await state()}`);
+  await pressKey(window, 'Space');
+  if (await state() !== 'false,false,false') throw new Error(`Space did not close question 2: ${await state()}`);
+  const focus = await window.webContents.executeJavaScript(
+    "getComputedStyle(document.activeElement).outlineStyle + ' / focus-visible: ' + document.activeElement.matches(':focus-visible')",
+  );
+  console.log(`Electron E2E: keyboard toggle passed (outline ${focus})`);
+};
+
+let interviewStep = 0;
 let reloadPending = false;
 app.on('browser-window-created', (_, window) => {
   if (phase === 'second') { fail(new Error('Second Electron instance opened a window')); return; }
@@ -147,7 +376,23 @@ app.on('browser-window-created', (_, window) => {
         }, 100);
         return;
       }
-      if (phase === 'create') {
+      if (phase === 'interview') {
+        // The applications are set up through IPC; the reload hydrates the renderer with them.
+        if (interviewStep === 0) {
+          interviewStep = 1;
+          await window.webContents.executeJavaScript(interviewSetupScenario);
+          window.webContents.reload();
+          return;
+        }
+        if (!(await window.webContents.executeJavaScript(interviewUiScenario)))
+          throw new Error('question button did not take the focus');
+        await runInterviewKeyboardCheck(window);
+        await window.webContents.executeJavaScript(interviewSecondFileScenario);
+        console.log('Electron E2E: interview notes pasted, previewed, saved and toggled');
+      } else if (phase === 'interview-reopen') {
+        await window.webContents.executeJavaScript(interviewReopenScenario);
+        console.log('Electron E2E: interview notes reloaded, edited in place and kept across a date change');
+      } else if (phase === 'create') {
         await window.webContents.executeJavaScript(createScenario);
         console.log('Electron E2E: create, validation, settings and todo passed');
       } else if (!reloadPending) {

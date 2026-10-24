@@ -11,6 +11,7 @@ import {
 } from "./security/secure-fs";
 import { encodeForManagedWrite, activeEncryption, isManagedPath } from "./security/secure-fs";
 import { parseEncryptedWorkspace } from "./security/encryption-service";
+import { AppError } from "../src/shared/app-error";
 import { createHash } from "node:crypto";
 import os from "node:os";
 import { defaultDeckblattDesign } from "../src/shared/deckblattDesignIds";
@@ -71,7 +72,25 @@ import {
   bewerbungsunterlagenFileName,
 } from "../src/shared/applicationEmail";
 import { isDocumentPackage } from "../src/shared/applicationDocuments";
-import type { ExportTarget } from "../src/shared/ipc";
+import type { ExportTarget, InterviewNoteFile, InterviewNotesListing } from "../src/shared/ipc";
+import { hasInterviewHistory, interviewCompanySlug } from "../src/shared/interviewQuestions";
+import {
+  fetchInterviewImage,
+  localizeInterviewImages,
+  readInterviewImage,
+  remoteInterviewImages,
+  type ImageFetcher,
+} from "./interview-images";
+import {
+  createInterviewNoteFile,
+  interviewMarkdownFromText,
+  interviewNoteFilePath,
+  listInterviewNoteFiles,
+  resolveInterviewFolder,
+  removeInterviewNoteFile,
+  sameInterviewFolder,
+  updateInterviewNoteFile,
+} from "./interview-notes";
 import {
   applicationContactDepartmentLines,
   applicationGreeting,
@@ -363,6 +382,16 @@ export class DataStore {
     return structuredClone(this.workspace);
   }
 
+  /** Whether a Bewerbung with this id exists (without copying the workspace). */
+  hasApplication(id: string) {
+    return this.workspace.applications.some((application) => application.id === id);
+  }
+
+  /** The ids of the Bewerbungen, optionally only those `filter` accepts (without copying the workspace). */
+  getApplicationIds(filter: (application: Readonly<Application>) => boolean = () => true) {
+    return this.workspace.applications.filter(filter).map((application) => application.id);
+  }
+
   clearForLock() {
     this.workspace = emptyWorkspace();
     this.loadedWorkspaceHash = null;
@@ -547,9 +576,8 @@ export class DataStore {
     }
   }
 
-  private async persist(applicationsToPersist: readonly Application[] = []) {
-    // Application documents are snapshots. Unrelated workspace saves must not
-    // rewrite older application folders or their modification timestamps.
+  /** This instance still holds the workspace lock (another instance or a lost lock refuses every write). */
+  private async assertWorkspaceLockOwned() {
     const lockPath = path.join(path.dirname(this.dataPath), ".workspace.lock");
     const lockContent = await readFile(lockPath, "utf8").catch((error: NodeJS.ErrnoException) => {
       if (error.code === "ENOENT") return null;
@@ -565,6 +593,12 @@ export class DataStore {
           (this.expectedLockId && lock.lockId !== this.expectedLockId))
         throw new Error(workspaceLockLostMessage);
     }
+  }
+
+  private async persist(applicationsToPersist: readonly Application[] = []) {
+    // Application documents are snapshots. Unrelated workspace saves must not
+    // rewrite older application folders or their modification timestamps.
+    await this.assertWorkspaceLockOwned();
     const diskContent = await readFile(this.workspacePath, "utf8").catch((error: NodeJS.ErrnoException) => {
       if (error.code === "ENOENT") return null;
       throw error;
@@ -665,6 +699,16 @@ export class DataStore {
     return this.files.ensureApplicationDataDirectories(application);
   }
 
+  /**
+   * Writes a managed file only when its content changes. An unchanged file keeps its bytes and its date, so an
+   * unchanged Bewerbung produces no write and no Git change (encrypted files would differ on every write).
+   */
+  private async writeIfChanged(filePath: string, content: string) {
+    const current = await readFile(filePath, "utf8").catch(() => null);
+    if (current === content) return;
+    await this.atomicWrite(filePath, content);
+  }
+
   private async persistApplicationFiles(application: Application) {
     const documents = this.files.documentDirectories(application);
     await mkdir(documents.anschreiben, { recursive: true });
@@ -684,23 +728,23 @@ export class DataStore {
     );
     const email = getApplicationEmail(application, profile, emailAttachments);
     await Promise.all([
-      this.atomicWrite(
+      this.writeIfChanged(
         path.join(dataRoot, "bewerbung.json"),
         JSON.stringify(applicationSchema.parse(application), null, 2),
       ),
-      this.atomicWrite(
+      this.writeIfChanged(
         path.join(documents.stellenanzeige, "stellenanzeige.json"),
         JSON.stringify(application.job, null, 2),
       ),
-      this.atomicWrite(
+      this.writeIfChanged(
         path.join(documents.stellenanzeige, "stellenanzeige.txt"),
         resolveJobAdvertisementText(application.job),
       ),
-      this.atomicWrite(
+      this.writeIfChanged(
         path.join(documents.email, "Email.md"),
         buildApplicationEmailMarkdown(application, profile, emailAttachments),
       ),
-      this.atomicWrite(
+      this.writeIfChanged(
         path.join(documents.email, "email.json"),
         JSON.stringify(email, null, 2),
       ),
@@ -1045,7 +1089,10 @@ export class DataStore {
       application.documents = clearProfileDerivedDocumentFields(application.documents);
     }
     const shouldCommitUpdate = applicationContentChanged(current, application);
+    // Documents still in a legacy folder move into the Bewerbung's folder (only when such a folder exists).
     await this.files.consolidateLegacyDocumentDirectories(current);
+    // Saving without a change touches nothing else: no new updatedAt, no rename, no file and no Git commit.
+    if (!shouldCommitUpdate) return this.getWorkspace();
     const applicationDate = new Date(application.sentAt ?? current.createdAt);
     if (isNestedFolderName(current.folderName)) {
       await this.nestLegacyApplicationAt(
@@ -1073,17 +1120,15 @@ export class DataStore {
       );
       throw error;
     }
-    await this.files.syncInterviewFolder(current, application);
+    await this.files.syncInterviewFolder(current, application, this.interviewFolderMove(current, application));
     application.updatedAt = nowIso();
     this.workspace.applications[index] = application;
     this.syncEvents(application);
     this.syncApplicationTodo(application);
     await this.persist([application]);
-    if (shouldCommitUpdate) {
-      const changes = describeApplicationChange(current, application);
-      if (!changes.length) this.queueGitCommit(application.id, "update", ["Weitere Angaben"]);
-      else for (const change of changes) this.queueGitCommit(application.id, change.action, change.details);
-    }
+    const changes = describeApplicationChange(current, application);
+    if (!changes.length) this.queueGitCommit(application.id, "update", ["Weitere Angaben"]);
+    else for (const change of changes) this.queueGitCommit(application.id, change.action, change.details);
     return this.getWorkspace();
   }
 
@@ -1455,6 +1500,146 @@ export class DataStore {
     const application = this.workspace.applications.find((item) => item.id === id);
     if (!application) throw new Error("Bewerbung wurde nicht gefunden.");
     return application;
+  }
+
+  /**
+   * The other Bewerbungen with an interview whose interview folder is this one's (same company, same interview day
+   * or both without a date): their notes would mix, so the folder belongs to none of them alone.
+   */
+  private interviewFolderSharers(application: Application, folder = this.files.interviewPath(application)) {
+    return this.workspace.applications.filter((other) =>
+      other.id !== application.id &&
+      hasInterviewHistory(other) &&
+      sameInterviewFolder(this.files.interviewPath(other), folder));
+  }
+
+  /** How the interview folder may follow a change of company or interview date (see `syncInterviewFolder`). */
+  private interviewFolderMove(previous: Application, next: Application) {
+    return {
+      owner: hasInterviewHistory(previous) || hasInterviewHistory(next),
+      sourceShared: this.interviewFolderSharers(next, this.files.interviewPath(previous)).length > 0,
+      targetShared: this.interviewFolderSharers(next).length > 0,
+    };
+  }
+
+  /** The folder of the Bewerbung's interview notes, refused when another Bewerbung shares it. */
+  private interviewNotesFolder(id: string) {
+    const application = this.getApplication(id);
+    const folder = this.files.interviewPath(application);
+    return { application, folder, sharedWith: this.interviewFolderSharers(application, folder) };
+  }
+
+  private assertInterviewNotesWritable(id: string) {
+    const target = this.interviewNotesFolder(id);
+    if (!hasInterviewHistory(target.application)) {
+      throw new AppError(
+        "VALIDATION_FAILED",
+        "Für diese Bewerbung ist kein Vorstellungsgespräch eingetragen.",
+        { expected: true },
+      );
+    }
+    if (target.sharedWith.length) {
+      throw new AppError(
+        "VALIDATION_FAILED",
+        `Der Vorstellungsgesprächsordner „${path.basename(target.folder)}“ gehört auch zu einer anderen Bewerbung. Die Notizen wurden nicht gespeichert, damit sie keiner falschen Bewerbung zugeordnet werden.`,
+        { expected: true },
+      );
+    }
+    return target;
+  }
+
+  async listInterviewNotes(id: string): Promise<InterviewNotesListing> {
+    const { application, folder, sharedWith } = this.interviewNotesFolder(id);
+    return {
+      applicationId: application.id,
+      folderName: path.basename(folder),
+      files: sharedWith.length ? [] : await listInterviewNoteFiles(this.files.paths.interviewsRoot, folder),
+      sharedWith: sharedWith.map((other) => ({ company: other.company.name, position: other.job.title })),
+    };
+  }
+
+  /** Saves the parsed questions as a new Markdown file (`Vorstellungsgespräch.md`, `_1`, `_2` …). */
+  async createInterviewNote(id: string, text: string): Promise<{ file: InterviewNoteFile; changed: boolean }> {
+    const markdown = interviewMarkdownFromText(text);
+    const { application, folder } = this.assertInterviewNotesWritable(id);
+    await this.assertWorkspaceLockOwned();
+    const file = await createInterviewNoteFile(
+      this.files.paths.interviewsRoot,
+      folder,
+      markdown,
+      interviewCompanySlug(application.company.name),
+    );
+    this.queueGitCommit(application.id, "interview", [`${file.fileName} angelegt`]);
+    return { file, changed: true };
+  }
+
+  /** Saves the parsed questions into exactly this file when it is still the revision the user edited. */
+  async updateInterviewNote(
+    id: string,
+    fileName: string,
+    text: string,
+    revision: string,
+  ): Promise<{ file: InterviewNoteFile; changed: boolean }> {
+    const markdown = interviewMarkdownFromText(text);
+    const { application, folder } = this.assertInterviewNotesWritable(id);
+    await this.assertWorkspaceLockOwned();
+    const result = await updateInterviewNoteFile(this.files.paths.interviewsRoot, folder, fileName, markdown, revision);
+    if (result.changed) this.queueGitCommit(application.id, "interview", [`${result.file.fileName} geändert`]);
+    return result;
+  }
+
+  /** Downloads images; replaced in tests. */
+  interviewImageFetcher: ImageFetcher = fetchInterviewImage;
+
+  /**
+   * Before a save: downloads the image addresses of the text into the interview folder's `Bilder/` and returns the
+   * text pointing to the local files. Runs outside the Git operation (downloads may take seconds); invalid text or a
+   * folder that is not this Bewerbung's own is refused before anything is downloaded.
+   */
+  async prepareInterviewImages(id: string, text: string) {
+    interviewMarkdownFromText(text);
+    const { folder } = this.assertInterviewNotesWritable(id);
+    if (!remoteInterviewImages(text).length) return { text, images: { saved: 0, failed: [] as string[] } };
+    await this.assertWorkspaceLockOwned();
+    const resolved = (await resolveInterviewFolder(this.files.paths.interviewsRoot, folder, true))!;
+    const localized = await localizeInterviewImages(resolved, text, this.interviewImageFetcher);
+    return { text: localized.text, images: { saved: localized.saved, failed: localized.failed } };
+  }
+
+  /** A downloaded image of this Bewerbung's interview folder as a `data:` URL. */
+  async getInterviewImage(id: string, source: string) {
+    const { folder, sharedWith } = this.interviewNotesFolder(id);
+    const resolved = sharedWith.length ? null : await resolveInterviewFolder(this.files.paths.interviewsRoot, folder, false);
+    if (!resolved) throw new AppError("RESOURCE_NOT_FOUND", "Das Bild wurde nicht gefunden.", { expected: true });
+    return readInterviewImage(resolved, source);
+  }
+
+  /** The path of one note of this Bewerbung for opening it in another program (nothing is written). */
+  async getInterviewNotePath(id: string, fileName: string) {
+    const { folder, sharedWith } = this.interviewNotesFolder(id);
+    if (sharedWith.length) {
+      throw new AppError(
+        "VALIDATION_FAILED",
+        `Der Vorstellungsgesprächsordner „${path.basename(folder)}“ gehört auch zu einer anderen Bewerbung. Die Datei wird nicht geöffnet.`,
+        { expected: true },
+      );
+    }
+    return interviewNoteFilePath(this.files.paths.interviewsRoot, folder, fileName);
+  }
+
+  /** Deletes this file from the interview folder; it is kept under `Silinenler/Vorstellungsgespräch`. */
+  async removeInterviewNote(id: string, fileName: string, revision: string): Promise<{ fileName: string; archivedAs: string }> {
+    const { application, folder } = this.assertInterviewNotesWritable(id);
+    await this.assertWorkspaceLockOwned();
+    const { archivedAs } = await removeInterviewNoteFile(
+      this.files.paths.interviewsRoot,
+      folder,
+      fileName,
+      revision,
+      path.join(this.files.paths.deletedRoot, "Vorstellungsgespräch"),
+    );
+    this.queueGitCommit(application.id, "interview", [`${fileName} gelöscht`]);
+    return { fileName, archivedAs };
   }
 
   getTemplateDocumentContext(id: string) {

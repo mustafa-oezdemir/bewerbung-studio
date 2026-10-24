@@ -27,14 +27,18 @@ const mockedStore = vi.hoisted(() => ({
   state: undefined as MockStoreState | undefined,
 }));
 
-vi.mock("../store/useAppStore", () => ({
-  useAppStore: (selector: (state: MockStoreState) => unknown) =>
-    selector(mockedStore.state!),
-  selectCurrentApplication: (state: MockStoreState) =>
-    state.workspace.applications.find(
-      (application) => application.id === state.selectedApplicationId,
-    ) ?? state.workspace.applications[0],
-}));
+vi.mock("../store/useAppStore", () => {
+  const useAppStore = (selector: (state: MockStoreState) => unknown) =>
+    selector(mockedStore.state!);
+  useAppStore.getState = () => mockedStore.state!;
+  return {
+    useAppStore,
+    selectCurrentApplication: (state: MockStoreState) =>
+      state.workspace.applications.find(
+        (application) => application.id === state.selectedApplicationId,
+      ) ?? state.workspace.applications[0],
+  };
+});
 
 describe("ApplicationsView", () => {
   it("renders one independent save form for every detail section", async () => {
@@ -181,6 +185,137 @@ describe("ApplicationsView", () => {
       await act(async () => { root.unmount(); });
     } finally {
       Object.assign(globalThis, { window: previousWindow, document: previousDocument, FormData: previousFormData });
+    }
+  });
+
+  it("saves quick successive sections on top of each other and ignores a double click", async () => {
+    const now = "2026-08-08T10:00:00.000Z";
+    const application = applicationSchema.parse({
+      schemaVersion: 1, id: "10000000-0000-4000-8000-000000000002", folderName: "Schnell_GmbH_2026-08-08",
+      company: { name: "Schnell GmbH", city: "Berlin" }, contact: {}, job: { title: "Entwicklerin", tasksText: "Alt" },
+      status: "Entwurf", templateId: "classic-professional", accentColor: "#155e58", secondaryColor: "#244766",
+      designSettings: defaultDocumentDesign, documents: {}, attachmentIds: [], statusHistory: [], createdAt: now, updatedAt: now,
+    });
+    const workspace: Workspace = {
+      schemaVersion: 1, applications: [application], profiles: [], events: [], attachments: [], todos: [], customCvDesigns: [],
+      settings: defaultSettings, updatedAt: now,
+    };
+    // A slow local save that stores what it got, like the real store.
+    const saveApplication = vi.fn(async (saved: typeof application) => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      mockedStore.state = { ...mockedStore.state!, workspace: { ...mockedStore.state!.workspace, applications: [saved] } };
+    });
+    mockedStore.state = {
+      workspace, selectedApplicationId: application.id, loading: false, selectApplication: vi.fn(), saveApplication,
+      changeStatus: vi.fn(), removeApplication: vi.fn(), duplicateApplication: vi.fn(), openFolder: vi.fn(), exportPdf: vi.fn(),
+    };
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const previousFormData = globalThis.FormData;
+    const { window } = parseHTML("<html><body><div id='root'></div></body></html>");
+    class FormFields {
+      private values = new Map<string, string>();
+      constructor(form: Element) {
+        for (const field of Array.from(form.querySelectorAll("[name]"))) {
+          this.values.set(field.getAttribute("name")!, (field as HTMLTextAreaElement).value ?? field.textContent ?? "");
+        }
+      }
+      get(name: string) { return this.values.get(name) ?? null; }
+    }
+    Object.assign(globalThis, { window, document: window.document, FormData: FormFields, IS_REACT_ACT_ENVIRONMENT: true });
+    try {
+      const { createRoot } = await import("react-dom/client");
+      const root = createRoot(window.document.getElementById("root")!);
+      await act(async () => { root.render(<ApplicationsView />); });
+      const tasks = window.document.querySelector<HTMLTextAreaElement>('textarea[name="tasksText"]')!;
+      tasks.value = "Neue Aufgaben";
+      const notes = window.document.querySelector<HTMLTextAreaElement>('textarea[name="notes"]')!;
+      notes.value = "Rückruf";
+      const content = tasks.closest("form")!;
+      const reference = window.document.querySelector<HTMLInputElement>('input[name="jobReference"]')!;
+      reference.value = "REF-7";
+      const company = reference.closest("form")!;
+      const submit = (form: Element) => form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+      await act(async () => {
+        submit(content);
+        submit(content);
+        submit(company);
+        await new Promise((resolve) => setTimeout(resolve, 120));
+      });
+      // The double click on "Inhalt" saved once; the company section was saved on top of it.
+      expect(saveApplication).toHaveBeenCalledTimes(2);
+      const stored = mockedStore.state!.workspace.applications[0];
+      expect(stored.job).toMatchObject({ tasksText: "Neue Aufgaben", reference: "REF-7" });
+      expect(stored.notes).toBe("Rückruf");
+      await act(async () => { root.unmount(); });
+    } finally {
+      Object.assign(globalThis, { window: previousWindow, document: previousDocument, FormData: previousFormData });
+    }
+  });
+
+  it("shows the interview button for interview stages and saved interview dates and opens it for that Bewerbung", async () => {
+    const now = "2026-10-01T10:00:00.000Z";
+    const base = (id: string, company: string, extra: Record<string, unknown>) => applicationSchema.parse({
+      schemaVersion: 1, id, folderName: `${company}_2026-10-01/Entwickler`, company: { name: company, city: "Berlin" },
+      contact: {}, job: { title: "Entwickler" }, status: "Gesendet", templateId: "classic-professional",
+      accentColor: "#155e58", secondaryColor: "#244766", designSettings: defaultDocumentDesign, documents: {},
+      attachmentIds: [], statusHistory: [{ at: now, to: "Gesendet" }], createdAt: now, updatedAt: now, ...extra,
+    });
+    const interview = base("20000000-0000-4000-8000-000000000001", "Seidel GmbH & Co. KG", {
+      status: "Vorstellungsgespräch", interviewAt: new Date(2026, 9, 22, 10).toISOString(),
+    });
+    const dated = base("20000000-0000-4000-8000-000000000002", "Termin AG", { interviewAt: new Date(2026, 9, 23, 9).toISOString() });
+    const plain = base("20000000-0000-4000-8000-000000000003", "Ohne GmbH", {});
+    const rejected = base("20000000-0000-4000-8000-000000000004", "Absage GmbH", {
+      status: "Absage", interviewAt: new Date(2026, 9, 20, 9).toISOString(),
+    });
+    const label = "Vorstellungsgespräch – Fragen &amp; Antworten";
+    const render = (selectedApplicationId: string, initialFilter?: "active" | "interviews") => {
+      mockedStore.state = {
+        workspace: {
+          schemaVersion: 1, applications: [interview, dated, plain, rejected], profiles: [], events: [], attachments: [],
+          todos: [], customCvDesigns: [], settings: defaultSettings, updatedAt: now,
+        },
+        selectedApplicationId, loading: false, selectApplication: vi.fn(), saveApplication: vi.fn(), changeStatus: vi.fn(),
+        removeApplication: vi.fn(), duplicateApplication: vi.fn(), openFolder: vi.fn(), exportPdf: vi.fn(),
+      };
+      return renderToStaticMarkup(<ApplicationsView initialFilter={initialFilter} />);
+    };
+    expect(render(interview.id)).toContain(label);
+    expect(render(interview.id, "interviews")).toContain(label);
+    // In the Gespräche view the button sits next to Lebenslauf and Anschreiben, in one row.
+    const interviewsMarkup = renderToStaticMarkup(
+      <ApplicationsView initialFilter="interviews" onOpenResume={vi.fn()} onOpenCover={vi.fn()} />,
+    );
+    const nav = /<nav class="detail-document-nav"[\s\S]*?<\/nav>/.exec(interviewsMarkup)![0];
+    expect([nav.indexOf("Lebenslauf öffnen"), nav.indexOf("Anschreiben öffnen"), nav.indexOf(label)].every((at) => at > 0)).toBe(true);
+    expect(nav.indexOf("Anschreiben öffnen")).toBeLessThan(nav.indexOf(label));
+    expect(render(dated.id)).toContain(label);
+    expect(render(plain.id)).not.toContain(label);
+    expect(render(rejected.id)).not.toContain(label);
+
+    render(dated.id, "interviews");
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const { window } = parseHTML("<html><body><div id='root'></div></body></html>");
+    const list = vi.fn(async (applicationId: string) => ({ applicationId, folderName: "Termin_AG_2026-10-23", files: [], sharedWith: [] }));
+    Object.assign(window, { bewerbungsManager: { interviews: { list, create: vi.fn(), update: vi.fn() } } });
+    Object.assign(globalThis, { window, document: window.document, IS_REACT_ACT_ENVIRONMENT: true });
+    try {
+      const { createRoot } = await import("react-dom/client");
+      const root = createRoot(window.document.getElementById("root")!);
+      await act(async () => { root.render(<ApplicationsView initialFilter="interviews" />); });
+      expect(window.document.querySelector('[role="dialog"]')).toBeNull();
+      const open = Array.from(window.document.querySelectorAll("button"))
+        .find((button) => button.textContent?.includes("Vorstellungsgespräch – Fragen & Antworten"))!;
+      await act(async () => { open.click(); await new Promise((resolve) => setTimeout(resolve, 0)); });
+      expect(list).toHaveBeenCalledWith(dated.id);
+      const dialog = window.document.querySelector('[role="dialog"]')!;
+      expect(dialog.textContent).toContain("Termin AG");
+      expect(dialog.textContent).toContain("23.10.2026");
+      await act(async () => { root.unmount(); });
+    } finally {
+      Object.assign(globalThis, { window: previousWindow, document: previousDocument });
     }
   });
 });
