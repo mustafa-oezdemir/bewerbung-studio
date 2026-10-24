@@ -5,8 +5,9 @@ import {
   isResumeSectionVisible,
 } from "./resume-sections";
 import {
+  getPersonalDataTitle,
   getResumeSemanticSection,
-  getResumeSemanticTitle,
+  personalDataDefaultTitle,
   resolveKnowledgeGroups,
   resolveResumeSectionInstances,
   resumeSectionDefinitions,
@@ -82,9 +83,9 @@ export const getManagerSections = (
       id,
       title: {
         heading: "Überschrift",
-        personalData: getResumeSemanticTitle(
+        personalData: getPersonalDataTitle(
           profile.resumeSemanticSections,
-          "personalData",
+          templateId,
         ),
         photo: "Bewerbungsfoto",
         closing: "Ort, Datum und Unterschrift",
@@ -182,14 +183,16 @@ export const getManagerSections = (
   );
 };
 
-/** The default title is stored as "no custom title", so a later change of the default still applies. */
+/**
+ * The default title is stored as "no custom title", so a later change of the default still applies. The default is the
+ * one of the template the title is chosen in (`personalDataDefaultTitle`): any other choice is stored as it is.
+ */
 export const setPersonalDataTitle = (
   profile: ApplicantProfile,
   title: string,
+  templateId?: string,
 ): ApplicantProfile => {
-  const fallback = resumeSectionDefinitions.find(
-    (definition) => definition.semanticType === "personalData",
-  )!.defaultTitle;
+  const fallback = personalDataDefaultTitle(templateId);
   return {
     ...profile,
     resumeSemanticSections: resolveResumeSectionInstances(

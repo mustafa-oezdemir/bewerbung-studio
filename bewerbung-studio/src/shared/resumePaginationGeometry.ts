@@ -1,4 +1,6 @@
 import { zweispaltigDefaults } from "./cvTemplateDefaults/zweispaltig.defaults";
+import { tuerkisProfilDefaults } from "./cvTemplateDefaults/tuerkis-profil.defaults";
+import { resolveTuerkisGeometry } from "./tuerkisProfilDesign";
 import { kreativDefaults } from "./cvTemplateDefaults/kreativ.defaults";
 import { stilvollDefaults, stilvollDesign } from "./cvTemplateDefaults/stilvoll.defaults";
 import { gepflegtGeometry } from "./gepflegtDesign";
@@ -190,6 +192,13 @@ export type PaginationGeometry = {
     metaPad: number; metaWidth: number; dateFont: number; dateWeight: number; dateLineHeight: number;
     locationGap: number; locationFont: number; locationLineHeight: number;
   };
+  /**
+   * A grid entry (Türkis Profil), computed from its stylesheet instead of `exp`/`edu` while the measured text is used:
+   * the title row (beside the date) at the entry title size, the organisation row (beside the place) at the body size,
+   * `rowGap` between the rows, then the list (`listTop` margin, `itemMargin` around and between the items, the body line
+   * height) and `padBottom` below the entry. The title keeps its size when the body size changes.
+   */
+  gridEntry?: { titleLineHeight: number; orgLineHeight: number; rowGap: number; listTop: number; itemMargin: number; padBottom: number };
   /** `gap` is the space between two entries of a section (margin or padding that belongs to no single entry). */
   exp: { base: number; list: number; perBullet: number; linePitch: number; extraLine: number; gap: number; head: number };
   /**
@@ -737,6 +746,47 @@ const geometry: Record<string, PaginationGeometry> = {
     ats: {exp: 1.0, edu: 1.0, head: 8.3, knowledge: {head: 8.27, title: 7.9, gap: 3, pitch: 3.11, font: 2.96, w: 166, tail: 0}, languages: [7.9, 3.5], certs: {base: 8, perItem: 3.47}, density: {compact: 0.95, dense: 0.94}},
     density: {compact: 0.95, dense: 0.93},
   },
+};
+
+// Türkis Profil (DIN page, tuerkisProfilDesign.ts): the main column starts at the 25 mm top margin and runs down to the
+// 20 mm bottom margin, like a page in Word; the left column holds the hero, photo, Kurzprofil and Kontakt above its
+// sections (estimated from the stylesheet in the planner). Career entries are computed from tuerkis-profil.css
+// (`gridEntry`) and wrapped with the measured font; widths follow resolveTuerkisGeometry (buildScale).
+const tuerkisBox = resolveTuerkisGeometry();
+const tuerkisType = tuerkisProfilDefaults.typography;
+const tuerkisBodyMm = tuerkisType.bodySizePt * PT_MM;
+const tuerkisLineMm = tuerkisBodyMm * tuerkisType.lineHeight;
+geometry["tuerkis-profil"] = {
+  ...geometry.zweispaltig,
+  sidebarLeft: true,
+  zones: { summary: "sidebar", strengths: "main", knowledge: "main", languages: "sidebar" },
+  top1: tuerkisBox.top, top2: tuerkisBox.top + 30, sideTop1: 165, sideLimit: tuerkisBox.contentBottom, limit: tuerkisBox.contentBottom,
+  mainLeft: tuerkisBox.mainLeft, mainRight: tuerkisBox.left + tuerkisBox.contentWidth,
+  contentLeft: tuerkisBox.left, contentRight: tuerkisBox.left + tuerkisBox.contentWidth,
+  text: { ...geometry.zweispaltig.text, contW: tuerkisBox.contentWidth, mainW: tuerkisBox.mainWidth, sideW: tuerkisBox.sideWidth,
+    bulletW: tuerkisBox.mainWidth - 4.5, bulletCw: 0.46, titleW: tuerkisBox.mainWidth, orgW: tuerkisBox.mainWidth,
+    atsW: tuerkisBox.contentWidth, fullW: tuerkisBox.contentWidth,
+    bulletFont: tuerkisBodyMm, sumFont: tuerkisBodyMm, summaryLine: tuerkisLineMm, lineRatio: tuerkisType.lineHeight,
+    titleFont: tuerkisType.entryTitleSizePt * PT_MM, orgFont: tuerkisBodyMm,
+    // Date and place share a max-content column 2 mm beside title and organisation (9.5 pt, never wrapped).
+    wrap: { fontId: "source-sans", bodyWeight: 400, titleWeight: 600, orgWeight: 750, listInset: 4.5, metaGap: 2,
+      metaRatio: tuerkisType.metaSizePt / tuerkisType.bodySizePt, metaMinPt: tuerkisType.metaSizePt, metaMaxWidth: 999, marker: true } },
+  gridEntry: { titleLineHeight: 1.18, orgLineHeight: 1.18, rowGap: 0.8, listTop: 1, itemMargin: 0.5, padBottom: 2 },
+  // Career entries are 3.5 mm apart; their 2 mm padding is part of every entry (no divider): no chrome between them. The
+  // entries of a special section keep Zweispaltig's rule (3 mm padding + dashed divider). Section title 6.33 mm + 2.5 mm
+  // margin (14 pt, measured).
+  entryChrome: 0,
+  customEntryChrome: 3.25,
+  exp: { ...geometry.zweispaltig.exp, linePitch: tuerkisLineMm, head: 8.84 },
+  edu: { ...geometry.zweispaltig.edu, detailLine: tuerkisLineMm, head: 8.84 },
+  blocks: { ...geometry.zweispaltig.blocks, summary: [8.84, tuerkisLineMm] },
+  // The item models of the left column (one column less the item icon); the main column's grids take their columns
+  // and widths from the page (gridModel). Items at the text size and line height.
+  items: { ...geometry.zweispaltig.items,
+    strengths: { ...geometry.zweispaltig.items.strengths, w: tuerkisBox.sideWidth - 9, cols: 1, font: tuerkisBodyMm, pitch: tuerkisLineMm },
+    knowledge: { ...geometry.zweispaltig.items.knowledge, w: tuerkisBox.sideWidth - 9, cols: 1, font: tuerkisBodyMm, pitch: tuerkisLineMm },
+  },
+  certs: { ...geometry.zweispaltig.certs, font: tuerkisBodyMm, pitch: tuerkisLineMm },
 };
 
 /**

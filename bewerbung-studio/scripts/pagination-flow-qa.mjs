@@ -35,7 +35,7 @@ try {
   const photo = (await readFile('scripts/fixtures/qa-photo.b64', 'utf8')).trim();
   const now = new Date().toISOString();
   const uid = (n) => `9b000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
-  const names = { einspaltig: 'Einspaltig', 'ivy-league': 'IvyLeague', zeitgenoessisch: 'Zeitgenoessisch' };
+  const names = { einspaltig: 'Einspaltig', 'ivy-league': 'IvyLeague', zeitgenoessisch: 'Zeitgenoessisch', 'tuerkis-profil': 'TuerkisProfil' };
   const componentOf = async (id) => {
     const dir = id.startsWith('pehlione_') ? 'pehlione' : id;
     const name = id.startsWith('pehlione_') ? 'Pehlione' : names[id] ?? id[0].toUpperCase() + id.slice(1);

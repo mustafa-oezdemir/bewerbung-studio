@@ -317,6 +317,21 @@ export const templateSectionCapabilities: Record<
     timelineSections: ["experience", "education"],
   }),
   zweispaltig: twoColumnCapabilities("zweispaltig"),
+  "tuerkis-profil": {
+    ...twoColumnCapabilities("tuerkis-profil"),
+    defaultSectionOrder: ["summary", "experience", "education", "strengths", "knowledge",
+      "certifications", "languages", "projects", "additional", "references"],
+    allowedZonesBySection: {
+      ...twoColumnCapabilities("tuerkis-profil").allowedZonesBySection,
+      education: ["sidebar", "main"], strengths: ["main", "sidebar"],
+      knowledge: ["main", "sidebar"], languages: ["main", "sidebar"],
+    },
+    defaultZoneBySection: {
+      ...twoColumnCapabilities("tuerkis-profil").defaultZoneBySection,
+      education: "sidebar", strengths: "main", knowledge: "main",
+      languages: "sidebar", certifications: "main",
+    },
+  },
   gepflegt: twoColumnCapabilities("gepflegt"),
   modern: modernCapabilities(),
   elegant: twoColumnCapabilities("elegant"),
@@ -388,6 +403,23 @@ export const hasSavedTemplateSectionLayout = (
     profile?.resumeSectionLayouts?.[templateId]?.length ||
     profile?.resumeSectionLayout?.length,
   );
+
+/**
+ * The sidebar order of a saved (older) section layout of the template, or undefined without one. Templates that draw
+ * their sidebar from it (Zweispaltig) and the page planner read the same order, so a section split across pages is
+ * never followed by another one before its continuation.
+ */
+export const savedTemplateSidebarOrder = (
+  profile:
+    | Pick<ApplicantProfile, "resumeSectionLayout" | "resumeSectionLayouts">
+    | undefined,
+  templateId: string,
+): ResumeSectionType[] | undefined =>
+  hasSavedTemplateSectionLayout(profile, templateId)
+    ? getProfileResumeSectionLayout(profile, templateId)
+      .filter(({ zone }) => zone === "sidebar")
+      .map(({ type }) => type)
+    : undefined;
 
 export const isResumeSectionVisible = (
   profile: Pick<ApplicantProfile, "resumeSections"> | undefined,

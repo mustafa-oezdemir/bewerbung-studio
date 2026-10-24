@@ -15,6 +15,24 @@ export const resumeClosingCss = `
 [data-resume-closing-signature] strong{font-size:8pt;font-weight:600}
 `;
 
+export type ResumeClosingPlacement = "footer" | "main";
+export type ResumeClosingAlignment = "left" | "center" | "right" | "distributed";
+
+/**
+ * Where the closing (Ort, Datum, Unterschrift) stands and how it is aligned. Without a choice of the user it stands
+ * in the main column, right-aligned; Pehlione keeps its own footer with the parts spread across it.
+ */
+export const resolveResumeClosingLayout = (
+  templateId: string,
+  choice?: { placement?: ResumeClosingPlacement; alignment?: ResumeClosingAlignment },
+): { placement: ResumeClosingPlacement; alignment: ResumeClosingAlignment } => {
+  const pehlione = templateId.startsWith("pehlione_");
+  return {
+    placement: choice?.placement ?? (pehlione ? "footer" : "main"),
+    alignment: choice?.alignment ?? (pehlione ? "distributed" : "right"),
+  };
+};
+
 export const germanDate = (value: string) => {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
   return match ? `${match[3]}.${match[2]}.${match[1]}` : value.trim();
@@ -74,10 +92,10 @@ export const applyResumeClosingOutput = (
   native.forEach(node => node.remove());
   const document = page.ownerDocument;
   const block = document.createElement("div");
-  const placement = choice?.placement ?? "footer";
+  const { placement, alignment } = resolveResumeClosingLayout(templateId, choice);
   block.setAttribute("data-resume-closing", "");
   block.setAttribute("data-resume-closing-placement", placement);
-  block.setAttribute("data-resume-closing-align", choice?.alignment ?? (pehlione ? "distributed" : "left"));
+  block.setAttribute("data-resume-closing-align", alignment);
   // With the date of the application place and date are one line, `Marburg, 26.09.2026`.
   const line = closingDate !== undefined && !pehlione && place && date ? document.createElement("span") : null;
   line?.setAttribute("data-resume-closing-line", "");

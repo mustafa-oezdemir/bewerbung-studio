@@ -79,7 +79,8 @@ describe("Anschreiben: the PDF prints the preview's page", () => {
         const identity = ["zweispaltig", "zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt"].includes(templateId);
         expect(pdf.classList.contains("letter-cv-colors")).toBe(!identity);
         if (!identity) expect(style.getPropertyValue("--letter-name-color"))
-          .toBe(resolveResumeNameColor(cv, { accentColor: application.accentColor, secondaryColor: application.secondaryColor }));
+          .toBe(templateId === "tuerkis-profil" ? "#3F464B"
+            : resolveResumeNameColor(cv, { accentColor: application.accentColor, secondaryColor: application.secondaryColor }));
         expect([...pdf.querySelectorAll(":scope > style")].map((node) => node.textContent)).toContain(anschreibenCvTypographyCss);
       } finally {
         testStore.state = previous;

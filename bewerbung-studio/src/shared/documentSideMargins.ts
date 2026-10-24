@@ -1,6 +1,7 @@
 import type { CvDesignTokens } from "./cvDesignSchema";
 import { resolveEinspaltigGeometry } from "./einspaltigDesign";
 import { resolveKlassischGeometry } from "./klassischDesign";
+import { resolveTuerkisGeometry } from "./tuerkisProfilDesign";
 import { resolveKompaktGeometry } from "./kompaktDesign";
 import { resolveKreativSideMargins } from "./kreativDesign";
 import { resolveStilvollSideMargins } from "./stilvollDesign";
@@ -31,6 +32,10 @@ export const resolveDocumentSideMargins = (
     }
     case "klassisch": {
       const geometry = resolveKlassischGeometry(margin);
+      return pair(geometry.left, geometry.right);
+    }
+    case "tuerkis-profil": {
+      const geometry = resolveTuerkisGeometry(margin, spacing.columnGapMm);
       return pair(geometry.left, geometry.right);
     }
     case "kompakt": {

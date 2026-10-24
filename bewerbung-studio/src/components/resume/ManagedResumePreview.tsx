@@ -16,6 +16,7 @@ import { kreativResolvedCss } from "../../shared/kreativDesign";
 import { stilvollResolvedCss } from "../../shared/stilvollDesign";
 import { gepflegtResolvedCss } from "../../shared/gepflegtDesign";
 import { kompaktResolvedCss } from "../../shared/kompaktDesign";
+import { arrangeTuerkisProfilPage } from "../../shared/tuerkisProfilLayout";
 
 const inheritedStyles = new Map<string, string>();
 const templateStyles = (templateId: string) => {
@@ -65,6 +66,8 @@ export function ManagedResumePreview({
     firstPageHtml,
     rawFirstPageHtml,
   );
+  const arrangedHtml = templateId === "tuerkis-profil"
+    ? arrangeTuerkisProfilPage(html, resolvedCv?.managerSections ?? [], resolvedCv?.pagePlan, pageNumber) : html;
   return (
     <>
       <style>{managedResumeCss + templateStyles(templateId) + (templateId === "elegant" ? elegantManagedCss
@@ -74,7 +77,7 @@ export function ManagedResumePreview({
         : templateId === "kompakt" ? kompaktResolvedCss : "")}</style>
       <div
         className="managed-resume-preview"
-        dangerouslySetInnerHTML={{ __html: html }}
+        dangerouslySetInnerHTML={{ __html: arrangedHtml }}
       />
     </>
   );

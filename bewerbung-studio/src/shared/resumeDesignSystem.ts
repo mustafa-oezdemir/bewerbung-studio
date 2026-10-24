@@ -104,10 +104,11 @@ const roundTenth = (value: number) => Math.round(value * 10) / 10;
 /**
  * Templates whose Lebenslauf ignores the document-wide size sliders (Seitenrand-, Innenabstand-, Abschnitts-,
  * Zeilenhöhen- und Schriftgrößenstufe of the "Dokumentweit: Anschreiben und Deckblatt" group): their CV is drawn from
- * the native design plus the semantic Lebenslauf settings only. Klassisch and Einspaltig: a new Bewerbung carries the
- * app-wide slider defaults, which would otherwise read as a choice and replace their DIN-oriented page (25 / 20 mm, 11 pt).
+ * the native design plus the semantic Lebenslauf settings only. Klassisch, Einspaltig and Türkis Profil: a new Bewerbung
+ * carries the app-wide slider defaults, which would otherwise read as a choice and replace their DIN-oriented page
+ * (25 / 20 mm, 11 pt).
  */
-const nativeSizeTemplates = new Set(["klassisch", "einspaltig"]);
+const nativeSizeTemplates = new Set(["klassisch", "einspaltig", "tuerkis-profil"]);
 export const foldsDocumentSizeSliders = (templateId: string) => !nativeSizeTemplates.has(resolveTemplateId(templateId));
 
 /**

@@ -28,6 +28,9 @@ const languageRowModels: Record<string, LanguageRowModel> = {
   stilvoll: { cols: 1, head: 4.55, row: 6.22, desc: 3.51, line: 3.22, dots: 14, colGap: 0, cw: 1.48 },
   zeitgenoessisch: { cols: 1, head: 6.49, row: 6.57, desc: 3.51, line: 3.57, dots: 13.1, colGap: 0, cw: 1.63 },
   zweispaltig: { cols: 1, head: 6.54, row: 6.06, desc: 3.52, line: 3.57, dots: 22, colGap: 0, cw: 1.51 },
+  // Türkis Profil (11 pt, measured 2026-10-24 in its left column): ruled title 6.33 + 2.5 mm, rows of name (4.85) 2 mm apart,
+  // description and wrapped lines one text line (4.85 mm).
+  "tuerkis-profil": { cols: 1, head: 6.83, row: 6.85, desc: 4.85, line: 4.85, dots: 22, colGap: 0, cw: 1.66 },
   // Klassisch (11 pt, measured 2026-10-07): heading 5.93 + 2.5 mm, rows of name (4.85) + 1.5 mm row gap, description 0.6 + 3.82 mm.
   klassisch: { cols: 2, head: 6.93, row: 6.35, desc: 4.42, line: 4.85, dots: 20.2, colGap: 14, cw: 2.0, wideWhenLong: true },
   tabellarisch: { cols: 1, head: 8.05, row: 5.47, desc: 3.79, line: 5.47, dots: 23, colGap: 3, cw: 1.47 },

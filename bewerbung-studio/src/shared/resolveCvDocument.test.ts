@@ -24,6 +24,29 @@ const makeProfile = () => profileSchema.parse({
 });
 
 describe("shared CV document resolution", () => {
+  it("shows only selected verification links without changing the profile catalogue", () => {
+    const sectionId = crypto.randomUUID();
+    const first = crypto.randomUUID();
+    const second = crypto.randomUUID();
+    const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true,
+      firstName: "Mina", lastName: "Kaya", updatedAt: new Date().toISOString(),
+      specialSections: [{ id: sectionId, kind: "custom", title: "Credential Verification Links", isVisible: true,
+        entries: [{ id: first, title: "First", url: "https://example.com/first" },
+          { id: second, title: "Second", url: "https://example.com/second" }] }] });
+    const original = JSON.stringify(profile);
+    const settings = { ...defaultDocumentDesign,
+      resumePresentation: { selectedSpecialEntryIds: { [sectionId]: [second] } } };
+    const resolved = resolveCvDocument({ profile, templateId: "zweispaltig", settings });
+    expect(resolved.profile?.specialSections[0].entries.map((entry) => entry.title)).toEqual(["Second"]);
+    const app = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Beispiel",
+      company: { name: "Beispiel GmbH", city: "Berlin" }, contact: {}, job: { title: "Go" }, status: "Entwurf",
+      templateId: "zweispaltig", accentColor: "#123456", documents: {}, designSettings: settings,
+      statusHistory: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+    const html = buildDocumentHtml(app, profile, "lebenslauf");
+    expect(html).toContain("https://example.com/second");
+    expect(html).not.toContain("https://example.com/first");
+    expect(JSON.stringify(profile)).toBe(original);
+  });
   it("filters project catalogue per Bewerbung before pagination and PDF rendering", () => {
     const projects = ["Alpha", "Beta", "Gamma"].map((title) => ({ id: crypto.randomUUID(), title,
       url: `https://example.com/${title.toLowerCase()}`, technologies: ["Go"], description: `${title} description` }));

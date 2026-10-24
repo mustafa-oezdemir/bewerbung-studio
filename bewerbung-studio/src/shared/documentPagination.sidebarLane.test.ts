@@ -26,7 +26,9 @@ describe("sidebar lane", () => {
     expect(supportsSidebarContinuation(undefined)).toBe(false);
   });
 
-  describe.each(sidebarContinuationTemplates)("%s", (id) => {
+  // Türkis Profil reserves a large first-page hero and has its own wider left column;
+  // its continuation boundary is covered with a scenario sized for that layout below.
+  describe.each(sidebarContinuationTemplates.filter((id) => id !== "tuerkis-profil"))("%s", (id) => {
     it("A. fills page one's sidebar and continues the rest on page two instead of moving the whole block", () => {
       const count = id === "kreativ" ? 40 : 24;
       const pages = plan(id, { knowledge: count });
@@ -155,7 +157,8 @@ describe("sidebar lane", () => {
     });
   });
 
-  describe.each(sidebarContinuationTemplates)("%s: the main column beside a continuation sidebar", (id) => {
+  // Türkis Profil's later pages are one column (the rest of its Seitenspalte stands above the main column): see below.
+  describe.each(sidebarContinuationTemplates.filter((id) => id !== "tuerkis-profil"))("%s: the main column beside a continuation sidebar", (id) => {
     it("I. is measured narrow: the main-column list on page two takes more room beside the lane than on a full-width page", () => {
       if (id === "gepflegt" || id === "elegant") {
         // Their identity sidebar stays visible on every continuation, even when it has no section.
@@ -218,5 +221,54 @@ describe("sidebar lane", () => {
     const pages = createResumePagePlan(profile, "", {}, "zeitgenoessisch", { atsMode: true, layout: { mode: "single", sidebarWidthPercent: 30 } });
     for (const page of pages) expect(page.sidebar).not.toBe(true);
     expect(pages.some((page) => page.blockRanges?.knowledge && page.sidebar)).toBe(false);
+  });
+
+  describe("Türkis Profil flows like a word processor", () => {
+    const items = (pages: ResumePagePlan[], kind: string) => pages.flatMap((page) => page.items.filter((item) => item.kind === kind).map((item) => item.id));
+
+    it("fills page one's main column: the sections behind the career start there and break between rows", () => {
+      const pages = plan("tuerkis-profil", { stations: 2, bullets: 3, strengths: 6, certifications: 6 });
+      expect(pages[0].blocks).toContain("strengths");
+      expect(pages[0].fill!.main).toBeLessThanOrEqual(1);
+      expect(pages[0].fill!.main).toBeGreaterThan(0.6);
+    });
+
+    it("breaks the Bildungsweg of the Seitenspalte between two entries and goes on at the top of page two", () => {
+      const pages = plan("tuerkis-profil", { stations: 4, bullets: 6, education: 7 });
+      const first = items([pages[0]], "education");
+      const rest = items(pages.slice(1), "education");
+      expect(first.length).toBeGreaterThan(0);
+      expect(rest.length).toBeGreaterThan(0);
+      expect([...first, ...rest]).toEqual(Array.from({ length: 7 }, (_, index) => uid(300 + index)));
+      // the rest leads the next page, before any part of the main column's career
+      expect(pages[1].items[0].kind).toBe("education");
+      expect(pages[0].fill!.sidebar).toBeLessThanOrEqual(1);
+    });
+
+    it("lets the rest of the Seitenspalte take its room above the one-column page two", () => {
+      const content = { knowledge: 14, zone: "main", stations: 4, bullets: 6, education: 4, strengths: 6 } as const;
+      const beside = plan("tuerkis-profil", { ...content, specialsZone: "sidebar", specials: 2, specialEntries: 16 });
+      const alone = plan("tuerkis-profil", content);
+      // page two is never measured narrow: the plan keeps the main column across the page …
+      expect(beside[1].sidebar).toBe(true);
+      // … and holds less of it, the column's rest standing above it
+      const knowledgeOn = (page: ResumePagePlan) => !page.blocks?.includes("knowledge") ? 0
+        : page.blockRanges?.knowledge ? page.blockRanges.knowledge.to - page.blockRanges.knowledge.from : 14;
+      expect(knowledgeOn(beside[1])).toBeLessThan(knowledgeOn(alone[1]) || 15);
+      for (const page of beside) expect(page.fill!.main).toBeLessThanOrEqual(1);
+    });
+  });
+
+  it("splits a long user-placed Türkis Profil sidebar list without dropping rows", () => {
+    const count = 40;
+    const pages = plan("tuerkis-profil", { knowledge: count });
+    // page one's column takes what it has room for; the rest goes on above the one-column later pages, part after part
+    const parts = pages.map((page) => range(page, "knowledge")).filter((part) => part !== undefined);
+    expect(parts.length).toBeGreaterThanOrEqual(2);
+    expect(parts[0]!.from).toBe(0);
+    parts.slice(1).forEach((part, index) => expect(part!.from).toBe(parts[index]!.to));
+    expect(parts.at(-1)!.to).toBe(count);
+    expect(pages[1].sidebar).toBe(true);
+    expect(itemsOnPages(pages, "knowledge", count).reduce((sum, value) => sum + value, 0)).toBe(count);
   });
 });

@@ -215,10 +215,10 @@ describe("Persönliche Daten in the Lebenslauf panel", () => {
     expect(Array.from(root.querySelectorAll('p[role="status"]')).map((node) => node.textContent)).toEqual(["Im Profil fehlen noch: Telefonnummer, E-Mail-Adresse."]);
   });
 
-  it("offers the four section titles; Persönliche Daten stays the default", () => {
+  it("offers the section titles; Persönliche Daten stays the default", () => {
     const root = card(profile());
     const select = root.querySelector('select[aria-label="Persönliche Daten Überschrift"]')!;
-    expect(Array.from(select.querySelectorAll("option")).map((option) => option.textContent)).toEqual(["Persönliche Daten", "Angaben zur Person", "Persönliche Angaben", "Über mich"]);
+    expect(Array.from(select.querySelectorAll("option")).map((option) => option.textContent)).toEqual(["Persönliche Daten", "Angaben zur Person", "Persönliche Angaben", "Über mich", "Kontakt", "Kontaktdaten"]);
     expect(select.querySelector("option[selected]")?.textContent).toBe("Persönliche Daten");
   });
 

@@ -209,6 +209,19 @@ export const getResumeSemanticTitle = (
   return instance.customTitle.trim() || definition.defaultTitle;
 };
 
+/**
+ * The title of the Persönliche Daten section where the template has a default of its own: Türkis Profil heads its
+ * contact list "Kontakt". A title the user chose wins everywhere.
+ */
+export const personalDataDefaultTitle = (templateId?: string) =>
+  templateId === "tuerkis-profil" ? "Kontakt"
+    : resumeSectionDefinitions.find((item) => item.semanticType === "personalData")!.defaultTitle;
+
+export const getPersonalDataTitle = (
+  saved: readonly ResumeSectionInstance[] | undefined,
+  templateId?: string,
+) => getResumeSemanticSection(saved, "personalData").customTitle.trim() || personalDataDefaultTitle(templateId);
+
 export const validateRequiredResumeSections = (
   saved: readonly ResumeSectionInstance[] | undefined,
 ) => {

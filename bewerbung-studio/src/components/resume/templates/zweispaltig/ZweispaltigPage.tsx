@@ -16,6 +16,7 @@ import {
   getProfileResumeSectionLayout,
   getResumeSectionTitle,
   hasSavedTemplateSectionLayout,
+  savedTemplateSidebarOrder,
   type ResumeSectionType,
 } from "../../../../features/resume-sections/resume-sections";
 
@@ -39,9 +40,9 @@ export function ZweispaltigPage({
   const mainOrder: ResumeSectionType[] = hasCustomLayout
     ? savedLayout.filter(({ zone }) => zone === "main" || zone === "full").map(({ type }) => type)
     : ["experience", "education"];
-  const sidebarOrder: ResumeSectionType[] = hasCustomLayout
-    ? savedLayout.filter(({ zone }) => zone === "sidebar").map(({ type }) => type)
-    : ["summary", "strengths", "knowledge", "languages", "certifications"];
+  // The planner reads the same order (`savedTemplateSidebarOrder`), so its sidebar lane matches this column.
+  const sidebarOrder: ResumeSectionType[] = savedTemplateSidebarOrder(profile, "zweispaltig")
+    ?? ["summary", "strengths", "knowledge", "languages", "certifications"];
   const atsOrder: ResumeSectionType[] = hasCustomLayout
     ? savedLayout.map(({ type }) => type)
     : ["summary", "experience", "education", "knowledge", "languages", "strengths", "certifications"];

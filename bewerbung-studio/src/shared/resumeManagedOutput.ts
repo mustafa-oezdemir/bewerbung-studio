@@ -527,7 +527,8 @@ export const applyManagedResumeOutput = (
       : (root.querySelector(sidebarSelector) ?? main);
     const columnsFor = (entry: ManagerSection, values: {title: string; description?: string}[], strengths = false) =>
       resolveSectionColumns(strengths ? designSettings.strengthsColumns : designSettings.knowledgeColumns, templateId,
-        entry.zone, values, designSettings, sidebar !== main && !isAts);
+        // Türkis Profil's later pages are one column: the sections of its Seitenspalte stand above the main column there.
+        entry.zone, values, designSettings, sidebar !== main && !isAts && !(templateId === "tuerkis-profil" && number > 1));
     const grid = (entry: ManagerSection, values: {title: string; description?: string}[], content: string, strengths = false) => {
       const columns = columnsFor(entry, values, strengths);
       return `<div class="${strengths ? "managed-strengths-grid" : "managed-item-grid"}" data-columns="${columns}" style="--section-columns:${columns}">${content}</div>`;
@@ -1159,7 +1160,10 @@ export const applyManagedResumeOutput = (
     const closingInset = !hasSidebar ? undefined
       : resolved.layout.overridden
         ? { left: resolved.layout.sidebarSide === "left" ? Math.round(sidebarMm + 8) : 12, right: resolved.layout.sidebarSide === "right" ? Math.round(sidebarMm + 8) : 12 }
-        : { left: Math.max(12, Math.round(geometry.contentLeft)), right: Math.max(12, Math.round(210 - geometry.contentRight)) };
+        // Türkis Profil's page one keeps its main column right of the Seitenspalte; its later pages are one column.
+        : templateId === "tuerkis-profil"
+          ? { left: number === 1 ? Math.round(geometry.mainLeft) : 12, right: Math.max(12, Math.round(210 - geometry.mainRight)) }
+          : { left: Math.max(12, Math.round(geometry.contentLeft)), right: Math.max(12, Math.round(210 - geometry.contentRight)) };
     applyResumeClosingOutput(root, main, profile, templateId, designSettings, last, enabled("closing"), closingInset, resolved.closingDate);
     applyGeneralResumeAppearance(root, resolved.templateId, designSettings, main, sidebar, resolved.design.colors.divider);
     applyPehlioneAppearance(root, resolved.templateId, designSettings);
@@ -1182,6 +1186,10 @@ export const applyManagedResumeOutput = (
       };
       Array.from(paragraph.childNodes).forEach(hyphenateText);
     });
+    // The closing follows the text of the main column, also where a section was added to that column after it (the
+    // preview's special sections).
+    const mainClosing = root.querySelector('[data-resume-closing][data-resume-closing-placement="main"]');
+    if (mainClosing?.parentElement) mainClosing.parentElement.appendChild(mainClosing);
     if (number === 1) firstPageHeader = root.querySelector("header")?.cloneNode(true) as Element | null;
   });
   return document.body.innerHTML;

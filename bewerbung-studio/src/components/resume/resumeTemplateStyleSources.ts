@@ -1,6 +1,7 @@
 import modernStyles from "./templates/modern/modern.css?raw";
 import elegantStyles from "./templates/elegant/elegant.css?raw";
 import zweispaltigStyles from "./templates/zweispaltig/zweispaltig.css?raw";
+import tuerkisProfilStyles from "./templates/tuerkis-profil/tuerkis-profil.css?raw";
 import zeitgenoessischStyles from "./templates/zeitgenoessisch/zeitgenoessisch.css?raw";
 import kreativStyles from "./templates/kreativ/kreativ.css?raw";
 import gepflegtStyles from "./templates/gepflegt/gepflegt.css?raw";
@@ -16,6 +17,7 @@ export const resumeTemplateStyleSources: Record<string, string> = {
   "modern": modernStyles,
   "elegant": elegantStyles,
   "zweispaltig": zweispaltigStyles,
+  "tuerkis-profil": zweispaltigStyles + tuerkisProfilStyles,
   "zeitgenoessisch": zeitgenoessischStyles,
   "kreativ": kreativStyles,
   "gepflegt": gepflegtStyles,

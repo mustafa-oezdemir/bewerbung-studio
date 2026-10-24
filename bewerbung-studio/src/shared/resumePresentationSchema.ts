@@ -7,6 +7,8 @@ export const resumePresentationSchema = z.object({
   selectedProjectEntryIds: z.array(z.string()).optional(),
   /** Absent shows every certificate of the profile; otherwise the chosen ones in this order, [] none. */
   selectedCertificateIds: z.array(z.string()).optional(),
+  /** Section id to entry ids: absent shows all entries, [] hides the section's entries for this Bewerbung. */
+  selectedSpecialEntryIds: z.record(z.string(), z.array(z.string())).optional(),
   sections: z.record(z.string(), z.object({
     title: z.string().trim().min(1).optional(),
     visible: z.boolean().optional(),

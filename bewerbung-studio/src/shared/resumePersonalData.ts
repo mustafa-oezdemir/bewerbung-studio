@@ -179,6 +179,8 @@ export const personalDataTitleOptions = [
   "Angaben zur Person",
   "Persönliche Angaben",
   "Über mich",
+  "Kontakt",
+  "Kontaktdaten",
 ] as const;
 
 // --- Pflichtangaben and validation ----------------------------------------------------------------------

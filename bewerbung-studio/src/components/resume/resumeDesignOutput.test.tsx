@@ -28,12 +28,14 @@ import { StilvollResume } from "./templates/stilvoll";
 import { TabellarischResume } from "./templates/tabellarisch";
 import { ZeitgenoessischResume } from "./templates/zeitgenoessisch";
 import { ZweispaltigResume } from "./templates/zweispaltig";
+import { TuerkisProfilResume } from "./templates/tuerkis-profil";
 
 const components: Record<string, unknown> = {
   elegant: ElegantResume, einspaltig: EinspaltigResume, gepflegt: GepflegtResume, klassisch: KlassischResume,
   kompakt: KompaktResume, kreativ: KreativResume, "ivy-league": IvyLeagueResume, modern: ModernResume,
   pehlione_white: PehlioneResume, pehlione_white_blue: PehlioneResume, stilvoll: StilvollResume,
   tabellarisch: TabellarischResume, zeitgenoessisch: ZeitgenoessischResume, zweispaltig: ZweispaltigResume,
+  "tuerkis-profil": TuerkisProfilResume,
 };
 const now = new Date().toISOString();
 const profile = profileSchema.parse({
@@ -314,7 +316,7 @@ describe("Seitenränder and Innenabstand in preview and PDF", () => {
         // These layouts change their physical page box; the others shift managed text.
         expect(marginStyle(scope(name)), `${surface} ${name}`).not.toEqual(marginStyle(nativeScope));
         expect(paddingStyle(scope(name)), `${surface} ${name}`).toEqual(paddingStyle(nativeScope));
-        expect(textInset(scope(name)), `${surface} ${name}`).toBe(id !== "zweispaltig" && id !== "zeitgenoessisch" && id !== "kreativ" && id !== "stilvoll" && id !== "gepflegt" && id !== "kompakt" && id !== "klassisch" && id !== "einspaltig" && id !== "tabellarisch");
+        expect(textInset(scope(name)), `${surface} ${name}`).toBe(id !== "zweispaltig" && id !== "zeitgenoessisch" && id !== "kreativ" && id !== "stilvoll" && id !== "gepflegt" && id !== "kompakt" && id !== "klassisch" && id !== "einspaltig" && id !== "tabellarisch" && id !== "tuerkis-profil");
         if (id === "tabellarisch") {
           // resolveTabellarischGeometry: left and right follow the chosen margin, top 15 mm and bottom 14 mm stay.
           const chosen = name === "margin" ? "16mm" : "6mm";
@@ -324,7 +326,7 @@ describe("Seitenränder and Innenabstand in preview and PDF", () => {
           expect(styleOf(scope(name))["--tabellarisch-margin-bottom"]).toBe("14mm");
           expect(styleOf(scope(name))["--resume-page-text-shift"]).toBeUndefined();
         }
-        for (const prefix of id === "klassisch" ? ["klassisch"] : id === "einspaltig" ? ["einfach"] : []) {
+        for (const prefix of id === "klassisch" ? ["klassisch"] : id === "einspaltig" ? ["einfach"] : id === "tuerkis-profil" ? ["tuerkis"] : []) {
           // Seitenränder is horizontal only and symmetric once chosen; top 25 mm and bottom 20 mm stay.
           const chosen = name === "margin" ? "16mm" : "6mm";
           expect(styleOf(scope(name))[`--${prefix}-margin-left`]).toBe(chosen);

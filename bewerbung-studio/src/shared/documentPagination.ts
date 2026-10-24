@@ -15,6 +15,8 @@ import {
 } from "./documentDesign";
 import { getTemplateDocumentDesignDefaults, resolveTemplateCvDesign } from "./cvDesign";
 import { zweispaltigDefaults } from "./cvTemplateDefaults/zweispaltig.defaults";
+import { tuerkisProfilDefaults } from "./cvTemplateDefaults/tuerkis-profil.defaults";
+import { resolveTuerkisGeometry } from "./tuerkisProfilDesign";
 import { kompaktDefaults } from "./cvTemplateDefaults/kompakt.defaults";
 import { gepflegtDefaults } from "./cvTemplateDefaults/gepflegt.defaults";
 import { elegantDefaults, elegantDesign } from "./cvTemplateDefaults/elegant.defaults";
@@ -43,7 +45,7 @@ import {
 import { formatPhoneForDisplay, getResumeHeaderContactTexts, getResumePersonalDetails } from "./resumePersonalData";
 import { getResumePhotoGrowth, getResumePhotoScale, resumePhotoShown } from "./resumePhoto";
 import { formatCareerPeriod, resolveExperience } from "./resumeCareer";
-import { getResumeSectionTitle } from "../features/resume-sections/resume-sections";
+import { getResumeSectionTitle, savedTemplateSidebarOrder } from "../features/resume-sections/resume-sections";
 import { estimateElegantHeaderTop, estimateGepflegtHeaderTop, estimateKreativHeaderTop, estimateResumeHeaderTop, estimateStilvollHeaderTop, estimateTabellarischTop } from "./resumeHeaderGeometry";
 import { resolveLanguagePresentation } from "../features/languages/language-levels";
 import { languageBlockHeight } from "./languageBlockHeight";
@@ -309,6 +311,8 @@ type MeasuredItem = ResumePageItem & {
   gapAfter: number;
   /** Experience entries can break between bullets: metrics for the first-page and the continuation width. */
   parts?: { first: EntryMetrics; cont: EntryMetrics };
+  /** Height of the entry where page one draws it in the sidebar (Türkis Profil's Bildungsweg). */
+  side?: number;
 };
 
 /**
@@ -323,7 +327,7 @@ const measuredEntryLines = (
 ) => {
   const wrap = geometry.text.wrap;
   if (!wrap || !scale.wrapText) return undefined;
-  const titleMm = geometry.text.titleFont * scale.font;
+  const titleMm = scale.titleFont ?? geometry.text.titleFont * scale.font;
   // The marker (resumeEntrySplitCss): 0.45 em margin, then the text at 0.72 em, weight 500, 0.02 em letter-spacing, no wrap.
   const marker = continued && wrap.marker ? 0.45 * titleMm + textWidthMm("· Fortsetzung", 0.72 * titleMm, 500, 0.02) : 0;
   const bulletWidth = geometry.text.bulletW * widthScale;
@@ -339,6 +343,25 @@ const measuredEntryLines = (
     location: location ? Math.max(1, wrappedLines(location, wrap.metaMaxWidth, metaMm)) : 1,
     details: details.map((detail) => wrappedLines(detail, bulletWidth, bodyMm, wrap.bodyWeight)),
   };
+};
+
+/**
+ * A grid entry (`geometry.gridEntry`, Türkis Profil) from its stylesheet: the title row, the organisation row (where there
+ * is an organisation or a place), and the list of the shown details (`lines` per paragraph), the padding below.
+ */
+const gridEntryHeight = (
+  geometry: PaginationGeometry, scale: Scale, titleLines: number, organisationRow: boolean, lines: readonly number[],
+) => {
+  const grid = geometry.gridEntry!;
+  const bodyMm = geometry.text.bulletFont * scale.font;
+  const titleMm = scale.titleFont ?? geometry.text.titleFont;
+  const list = lines.length
+    ? grid.rowGap + grid.listTop + grid.itemMargin * (lines.length + 1)
+      + lines.reduce((total, value) => total + value, 0) * bodyMm * geometry.text.lineRatio * scale.line
+    : 0;
+  return titleLines * titleMm * grid.titleLineHeight
+    + (organisationRow ? grid.rowGap + bodyMm * grid.orgLineHeight : 0)
+    + list + grid.padBottom + scale.contentGapDelta;
 };
 
 /**
@@ -382,6 +405,9 @@ const timelineMetrics = (
   return { lines, height };
 };
 
+/** The padding a list item of a grid entry takes off its text column (zweispaltig li: padding-left 0.3 mm). */
+const GRID_ITEM_PADDING_MM = 0.3;
+
 const experienceMetrics = (
   experience: ApplicantProfile["experiences"][number],
   geometry: PaginationGeometry,
@@ -400,7 +426,12 @@ const experienceMetrics = (
     ? (text.bulletCw ?? text.cw) * (1 + Math.max(0, 1 - widthScale) * (text.bulletNarrowSlack ?? 0))
     : text.cw;
   const measured = measuredEntryLines(geometry, scale, widthScale, resolved.role, resolved.organization, resolved.location, resolved.period, bullets);
-  const lines = measured?.details ?? bullets.map((bullet) => linesFor(bullet.length, text.bulletW * widthScale, text.bulletFont * scale.font, bulletCw));
+  // A grid entry's bullets wrap at spaces and hyphens in the column less the item padding. (Hyphenated lines would be
+  // tighter, but Chromium hyphenates fewer words than the German patterns allow: measured, they under-count 3 % of the
+  // bullets, the plain wrap none.)
+  const lines = geometry.gridEntry && measured
+    ? bullets.map((bullet) => wrappedLines(bullet, text.bulletW * widthScale - GRID_ITEM_PADDING_MM, text.bulletFont * scale.font, geometry.text.wrap!.bodyWeight))
+    : measured?.details ?? bullets.map((bullet) => linesFor(bullet.length, text.bulletW * widthScale, text.bulletFont * scale.font, bulletCw));
   const titleLines = measured?.title ?? linesFor(resolved.role.length, text.titleW * widthScale, text.titleFont * scale.font, text.cw * 1.08);
   const orgLines = measured?.org ?? linesFor(resolved.organization.length, text.orgW * widthScale, text.orgFont * scale.font, text.cw * 1.06);
   const extra = Math.max(0, titleLines - 1) + Math.max(0, orgLines - 1) + Math.max(0, (measured?.location ?? 1) - 1);
@@ -409,6 +440,12 @@ const experienceMetrics = (
     ? measuredEntryLines(geometry, scale, widthScale, resolved.role, resolved.organization, resolved.location, resolved.period, [], true)?.title
     : undefined;
   const continuedExtra = extra + Math.max(0, (continuedTitle ?? titleLines) - titleLines);
+  if (geometry.gridEntry && measured) {
+    // The organisation keeps one line beside its place (the measured column); a wrapped one adds its lines.
+    const organisationRow = Boolean(resolved.organization || resolved.location);
+    return { lines, height: (from, to) => gridEntryHeight(geometry, scale, from > 0 ? continuedTitle ?? titleLines : titleLines,
+      organisationRow, lines.slice(from, to)) + Math.max(0, orgLines - 1) * geometry.text.bulletFont * scale.font * geometry.gridEntry!.orgLineHeight };
+  }
   // Every part of an entry repeats the header (dates, role, company); only the bullets are shared out.
   const height = (from: number, to: number) => {
     const shown = lines.slice(from, to);
@@ -461,7 +498,9 @@ const educationMetrics = (
   const detailWidth = text.bulletW * widthScale;
   const detailFont = text.bulletFont * scale.font;
   /** Lines of a detail text: wrapped with the measured font where the template has one. */
-  const detailLinesOf = (value: string) => measured
+  const detailLinesOf = (value: string) => geometry.gridEntry && measured
+    ? wrappedLines(value, detailWidth - GRID_ITEM_PADDING_MM, detailFont, geometry.text.wrap!.bodyWeight)
+    : measured
     ? wrappedLines(value, detailWidth, detailFont, geometry.text.wrap!.bodyWeight)
     : linesFor(value.length, detailWidth, detailFont, detailCw);
   const lines = units.map((unit) => detailLinesOf(unit.text));
@@ -471,6 +510,12 @@ const educationMetrics = (
     ? measuredEntryLines(geometry, scale, widthScale, view.title, view.institution, view.location, formatCareerPeriod(view.from, view.to), [], true)?.title
     : undefined;
   const continuedHeader = header + edu.extraLine * Math.max(0, (continuedTitle ?? titleLines) - titleLines);
+  if (geometry.gridEntry && measured) {
+    const organisationRow = Boolean(view.institution || view.location);
+    return { lines, height: (from, to) => gridEntryHeight(geometry, scale, from > 0 ? continuedTitle ?? titleLines : titleLines,
+      organisationRow, paragraphs(from, to).map(detailLinesOf))
+      + Math.max(0, orgLines - 1) * geometry.text.bulletFont * scale.font * geometry.gridEntry!.orgLineHeight };
+  }
   const height = (from: number, to: number) => {
     const shown = units.slice(from, to);
     // the units of one detail are one paragraph: its lines are counted on the joined text
@@ -558,7 +603,8 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
     ? overrides.pageMarginMm - nativeMargin : legacyMargin;
   const nativePadding = templateId ? resolveTemplateCvDesign(templateId).spacing.innerPaddingMm : 0;
   const textInset = marginInset + (overrides.innerPaddingMm !== undefined ? overrides.innerPaddingMm - nativePadding : 0);
-  const sectionGap = overrides.sectionGapMm ?? (settings && settings.sectionSpacingLevel !== defaults.sectionSpacingLevel
+  // Türkis Profil draws its own section gap whatever the legacy spacing level says (only the design's value reaches it).
+  const sectionGap = overrides.sectionGapMm ?? (settings && settings.sectionSpacingLevel !== defaults.sectionSpacingLevel && templateId !== "tuerkis-profil"
     ? nativeSectionGapOf(geometry, context.atsMode) + sectionSpacingLevelToMm[settings.sectionSpacingLevel] - sectionSpacingLevelToMm[defaults.sectionSpacingLevel]
     : undefined);
   const single = context.atsMode || context.layout?.mode === "single";
@@ -605,12 +651,37 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
       marginInset: padding, fullRatio: ratio, ...factors, ...spacing,
       titleFont: (overrides.entryHeadingPt ?? tabellarischDefaults.typography.entryTitleSizePt) * PT_TO_MM };
   }
+  if (templateId === "tuerkis-profil") {
+    // Türkis Profil's DIN page (resolveTuerkisGeometry): Seitenränder moves only the side edges (no vertical inset), the
+    // type comes from the design alone (the legacy size sliders never reach it), the left column keeps 40 % of the width.
+    const box = resolveTuerkisGeometry(overrides.pageMarginMm, overrides.columnGapMm);
+    const ownFont = bounded(overrides.bodySizePt, nativePt) / nativePt;
+    const ownLine = bounded(overrides.lineHeight, geometry.text.lineRatio) / geometry.text.lineRatio;
+    const ownHeight = Math.max(1, Math.pow(ownFont, 1.3));
+    const padding = overrides.innerPaddingMm !== undefined ? overrides.innerPaddingMm - nativePadding : 0;
+    const listInset = geometry.text.wrap?.listInset ?? 4.5;
+    const fullTextWidth = Math.max(12, box.contentWidth - 2 * padding);
+    if (single) {
+      return { font: ownFont, textHeight: ownHeight, line: ownLine, width: fullTextWidth / geometry.text.bulletW, contWidth: fullTextWidth / geometry.text.bulletW,
+        mainRatio: fullTextWidth / geometry.text.atsW, sideDelta: 0, marginInset: padding, ...factors, ...spacing };
+    }
+    const mainTextWidth = Math.max(12, box.mainWidth - 2 * padding);
+    return { font: ownFont, textHeight: ownHeight, line: ownLine,
+      // The entry title keeps its own size whatever the text size is.
+      titleFont: (overrides.entryHeadingPt ?? tuerkisProfilDefaults.typography.entryTitleSizePt) * PT_TO_MM,
+      width: Math.max(0.5, (mainTextWidth - listInset) / geometry.text.bulletW),
+      contWidth: (fullTextWidth - listInset) / geometry.text.bulletW,
+      mainRatio: mainTextWidth / geometry.text.mainW,
+      fullRatio: fullTextWidth / geometry.text.fullW,
+      sideDelta: box.sideWidth - 2 * padding - geometry.text.sideW,
+      marginInset: 0, ...factors, ...spacing };
+  }
   if (templateId === "zweispaltig") {
     const native = zweispaltigDefaults.layout;
     const chosenMargin = overrides.pageMarginMm ?? (settings && settings.marginLevel !== defaults.marginLevel
       ? marginLevelToMm[settings.marginLevel] : undefined);
     const contentWidth = zweispaltigDefaults.page.widthMm
-      - (chosenMargin ?? native.marginLeftMm) - (chosenMargin ?? native.marginRightMm);
+      - 2 * (chosenMargin ?? native.marginLeftMm);
     const padding = overrides.innerPaddingMm !== undefined ? overrides.innerPaddingMm - nativePadding : 0;
     if (single) {
       const textWidth = Math.max(12, contentWidth - 2 * padding);
@@ -770,10 +841,19 @@ const sumHeights = (values: number[], gap: number) =>
  */
 const nativeSidebarOrder: Record<string, readonly string[]> = {
   zweispaltig: ["summary", "strengths", "knowledge", "languages", "certifications"],
+  "tuerkis-profil": ["summary"],
   gepflegt: ["summary", "strengths", "languages", "knowledge", "certifications"],
   zeitgenoessisch: ["summary", "strengths", "languages", "knowledge", "certifications"],
   elegant: ["summary", "strengths", "knowledge", "languages", "certifications"],
 };
+
+/** Templates whose page draws its sidebar in the order of a saved (older) section layout when there is one. */
+const savedLayoutSidebarTemplates = new Set(["zweispaltig"]);
+
+/** The order the template itself draws its sidebar in: a saved section layout's, else `nativeSidebarOrder`. */
+const templateSidebarOrder = (profile: ApplicantProfile | undefined, templateId: string | undefined): readonly string[] | undefined =>
+  (templateId && savedLayoutSidebarTemplates.has(templateId) ? savedTemplateSidebarOrder(profile, templateId) : undefined)
+  ?? nativeSidebarOrder[templateId ?? ""];
 
 /**
  * One-column templates whose pages follow the order of the section list, also across page breaks: a Kurzprofil or
@@ -829,9 +909,12 @@ const planResumePages = (
   // Templates draw a section in its native column until the user arranges the
   // layout; only then do the managed zones apply (see applyManagedResumeOutput).
   const customLayout = Boolean(templateId && profile?.resumeManagerLayouts?.[templateId]?.length);
+  // Kreativ and Türkis Profil arrange their page by the zones of the section list, also before the user changes it
+  // (tuerkisProfilLayout: Bildungsweg and Sprachen in the left column, Zertifikate in the main column).
+  const zonesFromList = customLayout || templateId === "kreativ" || templateId === "tuerkis-profil";
   const zoneOf = (id: SectionId): PaginationZone => {
     if (flat) return "main";
-    const configured = customLayout || templateId === "kreativ" ? find(id)?.zone : undefined;
+    const configured = zonesFromList ? find(id)?.zone : undefined;
     if (configured) return configured;
     if (id === "summary" || id === "strengths" || id === "knowledge" || id === "languages") return geometry.zones[id];
     return "main";
@@ -880,6 +963,15 @@ const planResumePages = (
   const sideGap = scale.sectionGap ?? geometry.blocks.sideGap;
   const experienceGap = geometry.exp.gap > 0 ? (scale.entryGap ?? geometry.exp.gap) + (geometry.entryChrome ?? 0) : 0;
   const educationGap = geometry.edu.gap > 0 ? (scale.entryGap ?? geometry.edu.gap) + (geometry.entryChrome ?? 0) : 0;
+  /**
+   * Türkis Profil draws the Bildungsweg in its left column where the section list puts it there (its default): on page
+   * one those entries take room in that column, not in the main column beside it; the later pages have one column.
+   * There the entries keep the plain entry style of the column (title, organisation, meta row), measured with the
+   * column's width plus the 2 mm padding Türkis gives every entry.
+   */
+  const educationBeside = templateId === "tuerkis-profil" && !flat && find("education")?.zone === "sidebar";
+  const besideGeometry: PaginationGeometry = { ...geometry, gridEntry: undefined };
+  const besideWidth = (geometry.text.sideW + scale.sideDelta - (geometry.text.wrap?.listInset ?? 0)) / geometry.text.bulletW;
   const items: MeasuredItem[] = [
     ...(profile?.experiences ?? []).map((experience): MeasuredItem => {
       const first = experienceMetrics(experience, geometry, scale, scale.width, true);
@@ -894,12 +986,19 @@ const planResumePages = (
     ...(profile?.education ?? []).map((education): MeasuredItem => {
       const first = educationMetrics(education, geometry, scale, scale.width, profile?.resumeEducationFieldVisibility, true);
       const cont = educationMetrics(education, geometry, scale, scale.contWidth, profile?.resumeEducationFieldVisibility, false);
+      const beside = educationBeside
+        ? educationMetrics(education, besideGeometry, scale, besideWidth, profile?.resumeEducationFieldVisibility, true) : undefined;
+      // The later pages draw the column's sections above the main column, in the column's own entry style.
+      const besideCont = educationBeside
+        ? educationMetrics(education, besideGeometry, scale, scale.contWidth, profile?.resumeEducationFieldVisibility, false) : undefined;
       return {
         kind: "education", id: education.id, weight: 0, gapAfter: educationGap,
         first: first.height(0, first.lines.length),
-        cont: cont.height(0, cont.lines.length),
-        // An entry may break between its detail units where the output can cut it there (`supportsEducationSplit`).
-        ...(educationSplit && first.lines.length > 1 ? { parts: { first, cont } } : {}),
+        cont: besideCont ? besideCont.height(0, besideCont.lines.length) + (geometry.gridEntry?.padBottom ?? 0) : cont.height(0, cont.lines.length),
+        ...(beside ? { side: beside.height(0, beside.lines.length) + (geometry.gridEntry?.padBottom ?? 0) } : {}),
+        // An entry may break between its detail units where the output can cut it there (`supportsEducationSplit`); one
+        // beside the career stays whole on page one.
+        ...(educationSplit && !beside && first.lines.length > 1 ? { parts: { first, cont } } : {}),
       };
     }),
   ];
@@ -923,8 +1022,10 @@ const planResumePages = (
     const wrapping = geometry.text.wrap;
     if (!wrapping || !scale.wrapText) return 1;
     const title = `${getResumeSectionTitle(profile, kind === "experience" ? "experience" : "education")}${continued ? " · Fortsetzung" : ""}`;
+    // (Türkis Profil sets its titles at weight 750, 0.16 em apart)
+    const tuerkis = templateId === "tuerkis-profil";
     return Math.max(1, wrappedLines(title.toLocaleUpperCase("de-DE"), geometry.text.bulletW * scale.width + wrapping.listInset,
-      sectionHeadingPt * PT_TO_MM, 600, 0.04));
+      sectionHeadingPt * PT_TO_MM, tuerkis ? 750 : 600, tuerkis ? 0.16 : 0.04));
   };
   const sectionHead = (kind: ResumePageItem["kind"], continued = false) =>
     ((context.atsMode ? geometry.ats.head : undefined) ?? (kind === "experience" ? geometry.exp.head : geometry.edu.head)) + scale.titleGapDelta
@@ -949,6 +1050,25 @@ const planResumePages = (
   };
   const wholeShown = (item: MeasuredItem, page: "first" | "cont"): Shown => ({ kind: item.kind, height: item[page], gapAfter: item.gapAfter });
   const itemsHeight = (list: readonly MeasuredItem[], page: "first" | "cont") => runHeight(list.map((item) => wholeShown(item, page)));
+  /** The entries page one draws in its main column (Türkis Profil's Bildungsweg may stand beside it). */
+  const inMainFirst = (item: { kind: ResumePageItem["kind"] }) => !(educationBeside && item.kind === "education");
+  /** Height the entries on page one take in the sidebar: their heading and the entries `educationGap` apart. */
+  /**
+   * Türkis Profil's section titles (14 pt capitals 0.16 em apart, line height 1) wrap in its narrow left column: every further line of
+   * a title there adds its line box to the section (each part of a section that breaks repeats its title).
+   */
+  const sideTitleExtra = (id: string) => {
+    if (templateId !== "tuerkis-profil" || flat) return 0;
+    const special = id.startsWith("special:") ? profile?.specialSections.find((entry) => `special:${entry.id}` === id) : undefined;
+    const title = (special ? special.title : ["summary", "strengths", "knowledge", "languages", "certifications", "education", "experience"].includes(id)
+      ? getResumeSectionTitle(profile, id as Parameters<typeof getResumeSectionTitle>[1]) : "").toLocaleUpperCase("de-DE");
+    const titleMm = 14 * PT_TO_MM;
+    return title ? (Math.max(1, wrappedLines(title, geometry.text.sideW + scale.sideDelta, titleMm, 750, 0.16)) - 1) * titleMm : 0;
+  };
+  const besideHeight = (list: readonly MeasuredItem[]) => {
+    const beside = list.filter((item) => item.side !== undefined);
+    return beside.length ? sectionHead("education") + sideTitleExtra("education") + sumHeights(beside.map((item) => item.side!), educationGap) : 0;
+  };
 
   // --- fixed blocks -----------------------------------------------------------
   const summaryText = (resumeProfile || profile?.summary || "").trim();
@@ -1003,7 +1123,8 @@ const planResumePages = (
       ...model,
       cols,
       w: Math.max(12, (width - GRID_COLUMN_GAP_MM * (cols - 1)) / cols - (context.atsMode ? 0 : GRID_ICON_MM)),
-      gap: kind === "strengths" ? (templateId === "zeitgenoessisch" ? 2 : 3) : 2,
+      // (Türkis Profil's strength rows stand 3.5 mm apart, measured)
+      gap: kind === "strengths" ? (templateId === "zeitgenoessisch" ? 2 : templateId === "tuerkis-profil" ? 3.5 : 3) : 2,
     };
   };
 
@@ -1036,7 +1157,9 @@ const planResumePages = (
   const careerLikeContentGap = context.overrides?.entryContentGapMm ?? (templateId ? resolveTemplateCvDesign(templateId).spacing.entryContentGapMm : 0);
   /**
    * A special section: its entries are drawn like career entries (the template's entry spacing between them)
-   * with paragraphs in the body font, in whichever column the section stands.
+   * with paragraphs in the body font, in whichever column the section stands. The lines are wrapped and pitched in the
+   * scaled body font already, so the height is not scaled by the font once more (`scale.textHeight` counted a larger
+   * font twice: Projekte at 9.2 pt in Kreativ came out 11 mm too tall and their last entry left a roomy page).
    */
   const specialHeight = (
     zone: PaginationZone,
@@ -1079,7 +1202,7 @@ const planResumePages = (
       ? side ? side.between + careerLikeEntryGapDelta : careerLikeEntryGap
       : side?.between ?? (templateId === "modern" && listed
         ? metrics.gapMm : geometry.exp.gap + (zone === "sidebar" && listed ? metrics.gapMm : 3));
-    return (metrics.headingMm + (side?.edge ?? 0) + entries.reduce((total, value) => total + value, 0) + between * Math.max(0, entries.length - 1)) * scale.textHeight;
+    return metrics.headingMm + (side?.edge ?? 0) + entries.reduce((total, value) => total + value, 0) + between * Math.max(0, entries.length - 1);
   };
   /**
    * The project highlight in the sidebar: the title, the company line and the bullets keep their body sizes,
@@ -1236,6 +1359,28 @@ const planResumePages = (
     + entries.reduce((total, entry) => total + Math.max(1, wrappedLines(entry.title, elegantSideWidth - GRID_ICON_MM, elegantBodyMm, 700)) * elegantLine
       + 1 + (entry.description ? Math.max(1, wrappedLines(entry.description, elegantSideWidth - GRID_ICON_MM, elegantBodyMm, 400)) * elegantLine : 0), 0)
     + 3 * Math.max(0, entries.length - 1);
+  /**
+   * Türkis Profil's main column flows like a word processor: the Stärken behind the career break between two rows of
+   * their grid (the heading leads every part), page one in the column beside the sidebar, the later pages across the
+   * page width with the columns the grid has there.
+   */
+  const wordFlowGrid = (entries: ListEntry[]): Pick<FlowBlock, "split" | "contHeight"> => {
+    const first = gridModel("strengths", entries, "main", "first");
+    const last = gridModel("strengths", entries, "main", "last");
+    const ends = entries.map((_, index) => index + 1).filter((end) => end % last.cols === 0 || end === entries.length);
+    const covered = (items: number, cols: number) => Math.min(entries.length, Math.ceil(items / cols) * cols);
+    const startOf = (row: number) => (row > 0 ? ends[row - 1] : 0);
+    return {
+      contHeight: listBlockHeight(last, scale, entries),
+      split: {
+        ends,
+        height: (from, to) => listBlockHeight(last, scale, entries.slice(startOf(from), ends[to - 1])),
+        firstHeight: (items) => listBlockHeight(first, scale, entries.slice(0, covered(items, first.cols))),
+        narrowHeight: (from, to) => listBlockHeight(first, scale, entries.slice(startOf(from), ends[to - 1])),
+        minRows: 1,
+      },
+    };
+  };
   if (visible("strengths") && strengthEntries.length && derivedStrengths !== "never") {
     const zone = zoneOf("strengths");
     flow.push({
@@ -1255,6 +1400,7 @@ const planResumePages = (
           : listBlockHeight(gridModel("strengths", strengthEntries, zone, "first"), scale, strengthEntries.slice(from, to)) } } : {}),
       // Elegant's sidebar lane: the strengths break between two cards.
       ...(elegantSidebar && zone === "sidebar" && derivedStrengths !== "single" ? { home: "last" as const, hostable: true } : {}),
+      ...(templateId === "tuerkis-profil" && zone === "main" && !flat && derivedStrengths !== "single" ? wordFlowGrid(strengthEntries) : {}),
     });
   }
   if (visible("languages") && languages.length) {
@@ -1469,7 +1615,7 @@ const planResumePages = (
     );
     const model = plain ? geometry.ats.certs : certificates;
     // A template that keeps them in its sidebar draws them on page one; flattened layouts append them.
-    const zone = flat ? "main" : ((customLayout ? find("certifications")?.zone : undefined) ?? certificates.zone);
+    const zone = flat ? "main" : ((customLayout || templateId === "tuerkis-profil" ? find("certifications")?.zone : undefined) ?? certificates.zone);
     const legacyHeight = (model.base + model.perItem * shown.length + certificates.pitch * scale.line * wrapped) * scale.textHeight;
     const inSidebar = (zoneFlow || templateId === "elegant") && zone === "sidebar";
     const certificateHeight = (values: readonly string[]) => {
@@ -1497,6 +1643,14 @@ const planResumePages = (
       height: zoneFlow ? plainListHeight(zone, shown) : tabellarischList ? tabellarischListHeight(0, tabellarischList.length) : legacyHeight,
       ...(tabellarischList && tabellarischList.length > 1
         ? { split: { ends: tabellarischList.map((_, index) => index + 1), height: tabellarischListHeight, minRows: 1 } } : {}),
+      // Türkis Profil's main column breaks the list between two certificates, like a word processor.
+      ...(templateId === "tuerkis-profil" && zone === "main" && shown.length > 1 ? { split: {
+        ends: shown.map((_, index) => index + 1),
+        height: (from: number, to: number) => plainListHeight("main", shown.slice(from, to), true),
+        firstHeight: (items: number) => plainListHeight("main", shown.slice(0, items)),
+        narrowHeight: (from: number, to: number) => plainListHeight("main", shown.slice(from, to)),
+        minRows: 1,
+      } } : {}),
       // A sidebar block that does not fit beside page one goes to the full-width main column of the last page.
       contHeight: zoneFlow ? plainListHeight("main", shown, true) : undefined,
       // A zone-flow template hosts the certificates on page one when their column has room, whatever home the
@@ -1767,6 +1921,10 @@ const planResumePages = (
     ? elegantDefaults.layout.mainTopMm + scale.marginInset + 18.2 + sectionGap
     : templateId === "kompakt" && !context.atsMode
       ? geometry.top2 + (contactOnContinuation ? 5.5 : 0)
+    // Türkis Profil's later pages repeat a compact header of their own above the one-column flow (measured: 42 mm in the
+    // PDF, the preview starts higher); page one has no header above its main column.
+    : templateId === "tuerkis-profil" && !context.atsMode
+      ? geometry.top2
       : grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop2 : geometry.top1) + kompaktContactHeight + photoGrowth.main, true));
   const verticalInset = templateId === "elegant" && !context.atsMode
     ? scale.marginInset
@@ -1789,7 +1947,34 @@ const planResumePages = (
         * geometry.text.bulletFont * scale.font * geometry.text.lineRatio * scale.line, 0)
       + (kompaktContacts.length - 1) * (scale.entryGap ?? 3.2) * .8
     : geometry.sideTop1! + photoGrowth.side;
-  const sideTop1 = (templateId === "kreativ" || templateId === "stilvoll") && !context.atsMode
+  /**
+   * Türkis Profil's left column on page one (tuerkis-profil.css, measured): the turquoise hero (7 + 6 mm padding, the name
+   * in capitals at its size × 1.03 and the Berufsbezeichnung 3 mm below it at its size × 1.25), the photo (3 + 53 mm),
+   * the Kontakt list 6 mm below (its title row 9.32 mm; rows of 1 mm padding, the contact line at 1.2 and a 0.2 mm rule,
+   * 1.2 mm apart), then the sections of the column from 4 mm below it: the Kurzprofil first, which may go on at the
+   * next page like any section of the column.
+   */
+  const tuerkisSideTop = (() => {
+    if (templateId !== "tuerkis-profil" || context.atsMode || flat || !profile) return undefined;
+    const type = tuerkisProfilDefaults.typography;
+    const name = `${profile.firstName ?? ""} ${profile.lastName ?? ""}`.trim().toLocaleUpperCase("de-DE");
+    const title = (profile.title ?? "").trim();
+    const contacts = showContacts ? getResumeHeaderContactTexts(profile) : [];
+    const inner = geometry.text.sideW + scale.sideDelta - 13;
+    const nameMm = (context.overrides?.headingSizePt ?? type.nameSizePt) * PT_TO_MM;
+    const titleMm = (context.overrides?.subheadingSizePt ?? type.professionSizePt) * PT_TO_MM;
+    const hero = 13 + Math.max(1, wrappedLines(name, inner, nameMm, 750, 0.025)) * nameMm * 1.03
+      + (title ? 3 + wrappedLines(title, inner, titleMm, 600, 0.02) * titleMm * 1.25 : 0);
+    const photo = withPhoto ? tuerkisProfilDefaults.layout.photoGapMm + tuerkisProfilDefaults.layout.photoHeightMm : 0;
+    const rowLine = type.contactSizePt * PT_TO_MM * 1.2;
+    const rowWidth = geometry.text.sideW + scale.sideDelta - 4.7;
+    const rows = contacts.reduce((total, value) =>
+      total + 2.2 + Math.max(1, wrappedLines(value, rowWidth, type.contactSizePt * PT_TO_MM)) * rowLine, 0);
+    const list = contacts.length ? 6 + 9.32 + rows + 1.2 * (contacts.length - 1) : 0;
+    return geometry.top1 + hero + photo + 4 + list;
+  })();
+  const sideTop1 = tuerkisSideTop !== undefined ? tuerkisSideTop
+    : (templateId === "kreativ" || templateId === "stilvoll") && !context.atsMode
     ? top1
     : templateId === "kompakt" && !context.atsMode ? kompaktSidebarStart
     : sidebarHero && geometry.sideTop1 !== null
@@ -1827,7 +2012,18 @@ const planResumePages = (
   // starts while the one before it still goes on: a Kurzprofil that breaks at the page end continues at the top of
   // the next page's sidebar, and Stärken and Sprachen follow it there.
   const sidebarStream = flow.filter((block) => block.zone === "sidebar" && !block.singleOnly && (block.home === "first" || block.hostable));
-  if (sidebarLane && sumHeights(sidebarStream.map((block) => block.height), sideGap) > sideCap1) {
+  /**
+   * Türkis Profil's Bildungsweg in the Seitenspalte joins that stream at its place in the section list: the lane
+   * breaks it between two entries like any other section of the column (its entries stay plan items; see `besideItems`).
+   */
+  const besideList = educationBeside ? items.filter((item) => !inMainFirst(item)) : [];
+  const educationLane: FlowBlock | undefined = sidebarLane && besideList.length ? {
+    id: "education", zone: "sidebar", home: "last", rank: managerRank("education"), hostable: true,
+    height: besideHeight(besideList),
+    sideSplit: { ends: besideList.map((_, index) => index + 1), height: (from, to) => besideHeight(besideList.slice(from, to)) },
+  } : undefined;
+  if (sidebarLane && sumHeights([...sidebarStream, ...(educationLane ? [educationLane] : [])]
+    .map((block) => block.height + (block === educationLane ? 0 : sideTitleExtra(block.id))), sideGap) > sideCap1) {
     for (const block of sidebarStream) {
       if (block.home !== "first") continue;
       block.home = "last";
@@ -1837,7 +2033,8 @@ const planResumePages = (
   }
   // A hand-arranged layout that puts a section of the main column behind the career sections: it follows the career
   // entries like any later block (it never stands on page one while the career goes on below it on the next page).
-  if ((zoneFlow || templateId === "elegant") && customLayout && !flat && templateId !== "kreativ") {
+  // Türkis Profil arranges its page by the section list from the start (its default list has them behind the career).
+  if ((zoneFlow || templateId === "elegant") && (customLayout || templateId === "tuerkis-profil") && !flat && templateId !== "kreativ") {
     for (const block of flow) {
       if (block.zone !== "main" || block.home !== "first" || block.singleOnly || managerRank(block.id) < careerRank) continue;
       block.home = "last";
@@ -2013,19 +2210,25 @@ const planResumePages = (
   const hostable = lastBlocks.filter((block) => block.hostable);
   // The sidebar fills in the order of the user's layout.
   // A sidebar lane is one stream in the order both outputs draw the column in: the order of a hand-arranged section
-  // list, else the template's own order of its sidebar (`nativeSidebarOrder`; sections it does not draw itself join
-  // in the order of the list behind them).
+  // list, else the template's own order of its sidebar (`templateSidebarOrder`: a saved section layout's or the native
+  // one; sections it does not draw itself join in the order of the list behind them).
+  const sidebarOrder = customLayout ? undefined : templateSidebarOrder(profile, templateId);
   const laneRank = (id: string) => {
-    const native = customLayout ? -1 : nativeSidebarOrder[templateId ?? ""]?.indexOf(id) ?? -1;
+    const native = sidebarOrder?.indexOf(id) ?? -1;
     return native >= 0 ? native : 1000 + managerRank(id);
   };
+  if (educationLane) hostable.push(educationLane);
   if (sidebarLane) hostable.sort((left, right) => laneRank(left.id) - laneRank(right.id));
   else if (zoneFlow && customLayout) hostable.sort((left, right) => (left.rank ?? 0) - (right.rank ?? 0));
 
   const stack = (fixed: number, run: number) => fixed + run + (fixed > 0 && run > 0 ? sectionGap : 0);
   const wholeMain = () =>
-    stack(blockLoad([...firstBlocks, ...singleOnlyBlocks], "main"), stack(itemsHeight(items, "first"), blockLoad(lastBlocks, "main"))) + closingHeight;
-  const wholeSide = () => blockLoad([...firstBlocks, ...singleOnlyBlocks, ...lastBlocks], "sidebar");
+    stack(blockLoad([...firstBlocks, ...singleOnlyBlocks], "main"), stack(itemsHeight(items.filter(inMainFirst), "first"), blockLoad(lastBlocks, "main"))) + closingHeight;
+  const wholeSide = () => {
+    const blocksLoad = blockLoad([...firstBlocks, ...singleOnlyBlocks, ...lastBlocks], "sidebar");
+    const beside = besideHeight(items);
+    return blocksLoad + beside + (blocksLoad > 0 && beside > 0 ? sideGap : 0);
+  };
 
   const forced = options.firstPageItemCount;
   /** Every page names the sections the plan places itself (`selfPlaced`): the output draws them where `blocks` say. */
@@ -2056,10 +2259,29 @@ const planResumePages = (
   const hostedOnFirst = new Set<string>();
   type LaneSegment = { block: FlowBlock; from: number; to: number };
   const lanePages: LaneSegment[][] = [[]];
-  const segmentHeight = ({ block, from, to }: LaneSegment) => {
+  const sideSegmentHeight = ({ block, from, to }: LaneSegment) => {
     const height = block.sideSplit ? block.sideSplit.height(from, to) : block.height;
-    return templateId === "elegant" && block.id === "knowledge" && !elegantSidebar ? height * 1.35 : height;
+    // (the Bildungsweg's lane block counts its title already)
+    return (templateId === "elegant" && block.id === "knowledge" && !elegantSidebar ? height * 1.35 : height)
+      + (block.id === "education" ? 0 : sideTitleExtra(block.id));
   };
+  /**
+   * Türkis Profil draws the rest of its Seitenspalte across the page width on the later pages: a list may take more
+   * rows there (its grid follows the wider column) than in the column, so the taller of the two counts.
+   */
+  const segmentHeight = (segment: LaneSegment, page = 0) => {
+    const side = sideSegmentHeight(segment);
+    const { block, from, to } = segment;
+    if (templateId !== "tuerkis-profil" || page === 0) return side;
+    const ends = block.sideSplit?.ends;
+    if (!block.split || !ends) return Math.max(side, from === 0 && to === (ends?.length ?? 1) ? block.contHeight ?? block.height : side);
+    const fromItems = from > 0 ? ends[from - 1] : 0;
+    const toItems = ends[to - 1];
+    const start = block.split.ends.findIndex((end) => end > fromItems);
+    const stop = block.split.ends.findIndex((end) => end >= toItems) + 1;
+    return start < 0 || stop <= start ? side : Math.max(side, block.split.height(start, stop));
+  };
+
   // Elegant and Gepflegt repeat only the page cue and optional contacts in the continuation sidebar (name and
   // Berufsbezeichnung stand in the header of the main column).
   const continuationSideContacts = (profile?.resumeContinuationContactVisibility.email && profile.email ? 1 : 0)
@@ -2076,7 +2298,10 @@ const planResumePages = (
     : top2;
   const sideCap2 = (geometry.sideLimit - sideTop2 - verticalInset) * ZONE_FLOW_SIDEBAR_SAFETY;
   if (sidebarLane) {
-    const capacity = (page: number) => (page === 0 ? sideCap1 : sideCap2) * ZONE_FLOW_HOST_SHARE;
+    // Türkis Profil's later pages have one column: what the sidebar of page one has no room for opens the next page,
+    // above its main column (tuerkisProfilLayout), and takes its room there (`laneRestOn`), as far down as that page goes.
+    const capacity = (page: number) => page > 0 && templateId === "tuerkis-profil" ? mainCap2 - sectionGap
+      : (page === 0 ? sideCap1 : sideCap2) * ZONE_FLOW_HOST_SHARE;
     let used = blockLoad(firstBlocks, "sidebar");
     for (const block of hostable) {
       const rows = block.sideSplit?.ends.length ?? 1;
@@ -2085,9 +2310,9 @@ const planResumePages = (
         const page = lanePages.length - 1;
         const gap = used > 0 ? sideGap : 0;
         const whole = { block, from, to: rows };
-        if (used + gap + segmentHeight(whole) <= capacity(page)) {
+        if (used + gap + segmentHeight(whole, page) <= capacity(page)) {
           lanePages[page].push(whole);
-          used += gap + segmentHeight(whole);
+          used += gap + segmentHeight(whole, page);
           break;
         }
         // The part that fits: the heading and at least one row here, and a widow-free rest on the next page.
@@ -2099,7 +2324,7 @@ const planResumePages = (
           const { lines } = block.sideSplit;
           for (let end = from + Math.max(LANE_MIN_ROWS_BEFORE, words); end <= rows - Math.max(LANE_MIN_ROWS_AFTER, words); end += 1) {
             // The parts only grow with `end`: past the first one that is too tall none fits.
-            if (used + gap + segmentHeight({ block, from, to: end }) > capacity(page)) break;
+            if (used + gap + segmentHeight({ block, from, to: end }, page) > capacity(page)) break;
             if (paragraphBreakAllowed(lines, from, end, rows)) best = end;
           }
         }
@@ -2114,7 +2339,7 @@ const planResumePages = (
         // that does not fit an empty page either is drawn there whole rather than looping.
         if (used === 0) {
           lanePages[page].push(whole);
-          used = segmentHeight(whole);
+          used = segmentHeight(whole, page);
           break;
         }
         lanePages.push([]);
@@ -2132,6 +2357,9 @@ const planResumePages = (
       }
     }
   }
+  // The Bildungsweg's entries are plan items: page one takes those its lane part covers, the rest opens the next page.
+  const besideOnFirst = lanePages[0].find((segment) => segment.block === educationLane)?.to ?? 0;
+  for (const [index, segments] of lanePages.entries()) lanePages[index] = segments.filter((segment) => segment.block !== educationLane);
   // An empty trailing page of the lane is no page.
   while (lanePages.length > 1 && !lanePages[lanePages.length - 1].length) lanePages.pop();
   /** The lane carries sidebar content beyond page one: the document needs a second page whatever the main column does. */
@@ -2141,12 +2369,18 @@ const planResumePages = (
    * page one, not like on a continuation page where the column takes the full width.
    */
   const laneOn = (page: number) => (templateId === "elegant" && !context.atsMode && page > 0)
-    || (sidebarLane && Boolean(lanePages[page]?.length));
+    || (sidebarLane && Boolean(lanePages[page]?.length) && (page === 0 || templateId !== "tuerkis-profil"));
   const pageMode = (page: number): "first" | "cont" => (laneOn(page) ? "first" : "cont");
   const laneLoad = (page: number) => sumHeights(
-    [...(page === 0 ? firstBlocks.filter((block) => block.zone === "sidebar").map((block) => block.height) : []), ...lanePages[page].map(segmentHeight)],
+    [...(page === 0 ? firstBlocks.filter((block) => block.zone === "sidebar").map((block) => block.height + sideTitleExtra(block.id)) : []), ...lanePages[page].map((segment) => segmentHeight(segment, page))],
     sideGap,
   );
+  /**
+   * Türkis Profil: the rest of the Seitenspalte stands above the main column of a later page and takes its room there,
+   * with one more section gap for a main section that runs on above it (tuerkisProfilLayout).
+   */
+  const laneRestOn = (page: number) => templateId === "tuerkis-profil" && page > 0 && lanePages[page]?.length ? laneLoad(page) + sectionGap : 0;
+  const laneRest = laneRestOn(1);
   // Zone flow and Elegant: the main column keeps the order of the user's layout. A block that stands above the
   // career sections belongs to page one; the others follow the career entries, and start on page one
   // for as long as it has room.
@@ -2186,7 +2420,7 @@ const planResumePages = (
     tail.push(
       ...pageTwoFlow
         .filter((block) => block.zone === "main" || spilled(block))
-        .sort((left, right) => customLayout || ordered
+        .sort((left, right) => customLayout || ordered || templateId === "tuerkis-profil"
           ? byRank(left, right)
           : nativeRank(left.id) - nativeRank(right.id)),
     );
@@ -2214,6 +2448,23 @@ const planResumePages = (
    * then `tail` whole blocks, then `rows` grid rows of the next block.
    */
   type Cut = { count: number; kept: number; tail: number; rows: number };
+  /**
+   * The entries of the main column's stream that the cut walks through. Entries page one draws in its sidebar (Türkis
+   * Profil's Bildungsweg) are no part of it: the main column goes on behind the career whatever they do, and page one
+   * takes as many of them as its sidebar has room for (the rest opens the next page, which has one column).
+   */
+  const cutItems = educationBeside ? items.filter(inMainFirst) : items;
+  const besideItems = besideList;
+  let besideCount = educationLane ? besideOnFirst : 0;
+  while (!educationLane && besideCount < besideItems.length) {
+    const beside = besideHeight(besideItems.slice(0, besideCount + 1));
+    if (sideLoadOne + (sideLoadOne > 0 ? sideGap : 0) + beside > sideCap1) break;
+    besideCount += 1;
+  }
+  const besideFirst = besideItems.slice(0, besideCount);
+  const besideRest = besideItems.slice(besideCount);
+  /** What page one's sidebar holds with the entries it draws beside the career. */
+  const sideLoadFirst = sideLoadOne + besideHeight(besideFirst) + (sideLoadOne > 0 && besideCount > 0 ? sideGap : 0);
   const totalBullets = (item: MeasuredItem) => item.parts?.first.lines.length ?? 0;
   /** Bullet counts after which an entry may break without leaving a widow or an orphan. */
   const breakPoints = (item: MeasuredItem): number[] => {
@@ -2227,16 +2478,17 @@ const planResumePages = (
     return points;
   };
   const shownFirst = ({ count, kept }: Cut): Shown[] => {
-    const list = items.slice(0, count).map((item) => wholeShown(item, "first"));
-    const split = kept ? items[count] : undefined;
+    const list = cutItems.slice(0, count).map((item) => wholeShown(item, "first"));
+    const split = kept ? cutItems[count] : undefined;
     if (split?.parts) list.push({ kind: split.kind, height: split.parts.first.height(0, kept), gapAfter: split.gapAfter });
     return list;
   };
   const shownLast = ({ count, kept }: Cut): Shown[] => {
-    const split = kept ? items[count] : undefined;
-    const list: Shown[] = [];
+    const split = kept ? cutItems[count] : undefined;
+    // The next page draws the sidebar's entries above the main column (tuerkisProfilLayout).
+    const list: Shown[] = besideRest.map((item) => wholeShown(item, pageMode(1)));
     if (split?.parts) list.push({ kind: split.kind, height: split.parts[pageMode(1)].height(kept, totalBullets(split)), gapAfter: split.gapAfter });
-    list.push(...items.slice(count + (kept ? 1 : 0)).map((item) => wholeShown(item, pageMode(1))));
+    list.push(...cutItems.slice(count + (kept ? 1 : 0)).map((item) => wholeShown(item, pageMode(1))));
     return list;
   };
   /** Heights of the tail blocks drawn on page one / on the last page, including a block that breaks between them. */
@@ -2251,12 +2503,12 @@ const planResumePages = (
   const loadFirst = (cut: Cut) =>
     stack(load1Fixed, stack(runHeight(shownFirst(cut)), sumHeights(tailFirst(cut), sectionGap)));
   const loadLast = (cut: Cut) =>
-    stack(stack(runHeight(shownLast(cut), true), sumHeights(tailLast(cut), sectionGap)), pinnedLoad) + closingHeight;
+    stack(laneRest, stack(stack(runHeight(shownLast(cut), true), sumHeights(tailLast(cut), sectionGap)), pinnedLoad)) + closingHeight;
 
   const cuts: Cut[] = [];
-  for (let count = 0; count <= items.length; count += 1) {
+  for (let count = 0; count <= cutItems.length; count += 1) {
     cuts.push({ count, kept: 0, tail: 0, rows: 0 });
-    const item = items[count];
+    const item = cutItems[count];
     if (item) for (const kept of breakPoints(item)) cuts.push({ count, kept, tail: 0, rows: 0 });
   }
   for (let whole = 1; whole <= tailOnFirst; whole += 1) {
@@ -2264,8 +2516,8 @@ const planResumePages = (
     // paragraph keeps two lines on either side.
     const split = tail[whole - 1].split;
     if (split) for (let rows = split.minRows ?? 2; rows <= split.ends.length - (split.minRows ?? 2); rows += 1)
-      if (paragraphBreakAllowed(split.lines, 0, rows, split.ends.length)) cuts.push({ count: items.length, kept: 0, tail: whole - 1, rows });
-    cuts.push({ count: items.length, kept: 0, tail: whole, rows: 0 });
+      if (paragraphBreakAllowed(split.lines, 0, rows, split.ends.length)) cuts.push({ count: cutItems.length, kept: 0, tail: whole - 1, rows });
+    cuts.push({ count: cutItems.length, kept: 0, tail: whole, rows: 0 });
   }
   // The signature never travels alone: the last page needs something besides the closing block (the sidebar
   // lane that goes on there counts).
@@ -2279,18 +2531,19 @@ const planResumePages = (
   };
 
   const assemble = (cut: Cut, densityOne: ResumePagePlan["density"], densityTwo: ResumePagePlan["density"]): ResumePagePlan[] => {
-    const split = cut.kept ? items[cut.count] : undefined;
+    const split = cut.kept ? cutItems[cut.count] : undefined;
     const part = (item: MeasuredItem, from: number, to: number, page: "first" | "cont"): ResumePageItem => ({
       kind: item.kind,
       id: item.id,
       weight: Math.round((item.parts?.[page].height(from, to) ?? 0) * 10) / 10,
       bullets: { from, to, total: totalBullets(item) },
     });
-    const firstItems: ResumePageItem[] = items.slice(0, cut.count).map((item) => strip(item, "first"));
+    const firstItems: ResumePageItem[] = cutItems.slice(0, cut.count).map((item) => strip(item, "first"));
     if (split) firstItems.push(part(split, 0, cut.kept, "first"));
-    const lastItems: ResumePageItem[] = [];
+    firstItems.push(...besideFirst.map((item) => strip(item, "first")));
+    const lastItems: ResumePageItem[] = besideRest.map((item) => strip(item, pageMode(1)));
     if (split) lastItems.push(part(split, cut.kept, totalBullets(split), pageMode(1)));
-    lastItems.push(...items.slice(cut.count + (split ? 1 : 0)).map((item) => strip(item, pageMode(1))));
+    lastItems.push(...cutItems.slice(cut.count + (split ? 1 : 0)).map((item) => strip(item, pageMode(1))));
     // A list block that breaks between the pages is drawn on both, each with its own items.
     const broken = cut.rows ? tail[cut.tail] : undefined;
     const total = broken?.split?.ends.at(-1) ?? 0;
@@ -2307,7 +2560,7 @@ const planResumePages = (
         blocks: [...pageOneFlow.filter((block) => block.home === "last" || ordered), ...tail.slice(0, cut.tail + (broken ? 1 : 0))].map((block) => block.id),
         ...(ranges ? { blockRanges: ranges.first } : {}),
         sidebar: geometry.columns === 2 && !flat,
-        fill: { main: loadFirst(cut) / mainCap1, sidebar: sideFill },
+        fill: { main: loadFirst(cut) / mainCap1, sidebar: educationBeside && sideCap1 ? sideLoadFirst / sideCap1 : sideFill },
       },
       {
         pageNumber: 2,
@@ -2372,7 +2625,7 @@ const planResumePages = (
       const selectedItems: ResumePageItem[] = [];
       const selectedBlocks: string[] = [];
       const blockRanges: Record<string, KnowledgeRange> = {};
-      let used = 0;
+      let used = laneRestOn(pageIndex);
       let previous: ResumePageItem | undefined;
       /**
        * Fills the page with the pending blocks while `take` accepts the next one. A block that does not fit breaks at
@@ -2412,8 +2665,13 @@ const planResumePages = (
               pendingBlocks[0] = { ...next, from: best };
             }
           }
-          if (!selectedBlocks.length && !selectedItems.length) {
+          // A block taller than an empty page is drawn there whole (with the range of its rest) rather than looping. A page
+          // that already holds the rest of Türkis Profil's Seitenspalte is not empty: the block goes on to the next page.
+          if (!selectedBlocks.length && !selectedItems.length && used === 0) {
             selectedBlocks.push(next.source.id); used += gap + height; pendingBlocks.shift();
+            if (next.source.split && next.from > 0)
+              blockRanges[next.source.id] = { from: next.source.split.ends[next.from - 1],
+                to: next.source.split.ends[next.to - 1], total: next.source.split.ends.at(-1)! };
           }
           return true;
         }
@@ -2469,8 +2727,8 @@ const planResumePages = (
    * (`leadIds`), where every later page is packed.
    */
   const continueAfterSecond = (plan: ResumePagePlan[]): ResumePagePlan[] => {
-    if (templateId !== "gepflegt" && !leadIds.size) return packContinuations(plan, templateId === "zweispaltig");
-    const full = packContinuations(plan, templateId === "zweispaltig");
+    if (templateId !== "gepflegt" && !leadIds.size) return packContinuations(plan, templateId === "zweispaltig" || templateId === "tuerkis-profil");
+    const full = packContinuations(plan, templateId === "zweispaltig" || templateId === "tuerkis-profil");
     return full.length > 1 && (full[full.length - 1].fill?.main ?? 0) > 1 ? packContinuations(plan, true) : full;
   };
 
@@ -2612,7 +2870,7 @@ const planResumePages = (
 
   // A manual page break keeps whole entries on either side of it.
   if (forced !== undefined) {
-    const cut: Cut = { count: Math.min(Math.max(forced, 0), items.length), kept: 0, tail: 0, rows: 0 };
+    const cut: Cut = { count: Math.min(Math.max(forced, 0), cutItems.length), kept: 0, tail: 0, rows: 0 };
     return withSidebarLane(continueAfterSecond(assemble(cut, densityFor(Math.max(loadFirst(cut) / mainCap1, sideFill)).density, densityFor(loadLast(cut) / mainCap2).density)));
   }
 

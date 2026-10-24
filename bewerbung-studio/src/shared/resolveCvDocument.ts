@@ -11,7 +11,8 @@ import { effectiveManagerZone, getManagerSections } from "../features/resume-sec
 import { resolveKnowledgeGroups } from "../features/resume-sections/resume-section-system";
 import { createResumePagePlan, type ResumePlanContext } from "./documentPagination";
 import { formatApplicationDate, type ApplicationDateSource } from "./applicationDate";
-import { resolveResumeClosingLine } from "./resumeClosing";
+import { resolveResumeClosingLayout, resolveResumeClosingLine } from "./resumeClosing";
+import { getTuerkisDesignVariables } from "./tuerkisProfilDesign";
 import { resolveResumeSummary } from "./resumeSummary";
 import { formatLanguageForAts } from "../features/languages/language-levels";
 import { getZeitgenoessischDesignVariables } from "./zeitgenoessischDesign";
@@ -69,7 +70,18 @@ export const resolveCvDocument = ({
     ...selectedProjects,
     ...certificateFields(selectCertificateEntries(certificateEntries(selectedProjects), selectedCertificateIds)),
   };
-  let profile = getResumeDisplayProfile(selectedCertificates);
+  const selectedSpecialEntryIds = settings.resumePresentation?.selectedSpecialEntryIds;
+  const selectedSpecialEntries = !selectedCertificates || !selectedSpecialEntryIds ? selectedCertificates : {
+    ...selectedCertificates,
+    specialSections: selectedCertificates.specialSections.map((section) => {
+      const ids = selectedSpecialEntryIds[section.id];
+      if (ids === undefined) return section;
+      const byId = new Map(section.entries.map((entry) => [entry.id, entry]));
+      const entries = [...new Set(ids)].flatMap((id) => byId.get(id) ?? []);
+      return { ...section, entries, isVisible: section.isVisible && entries.length > 0 };
+    }),
+  };
+  let profile = getResumeDisplayProfile(selectedSpecialEntries);
   const sections = {
     ...(profile?.resumeSections ?? {
       profile: true,
@@ -131,9 +143,11 @@ export const resolveCvDocument = ({
   const einspaltigVariables = templateId === "einspaltig"
     ? getEinspaltigDesignVariables(design, settings.cvOverrides?.colors, application?.accentColor)
     : undefined;
-  const zweispaltigVariables = templateId === "zweispaltig"
-    ? getZweispaltigDesignVariables(design, settings.cvOverrides?.colors,
-        application?.accentColor, application?.secondaryColor)
+  // Türkis Profil shares Zweispaltig's colours and adds its DIN page and type scale (resolveTuerkisGeometry).
+  const zweispaltigVariables = templateId === "zweispaltig" || templateId === "tuerkis-profil"
+    ? { ...getZweispaltigDesignVariables(design, settings.cvOverrides?.colors,
+        application?.accentColor, application?.secondaryColor),
+      ...(templateId === "tuerkis-profil" ? getTuerkisDesignVariables(design) : {}) }
     : undefined;
   // The Kurzprofil every output shows (and the planner measures): the Bewerbung's own text, else the profile's.
   // The Deckblatt text is another field and never stands in for it.
@@ -160,7 +174,7 @@ export const resolveCvDocument = ({
         closingSection?.visible !== false &&
         Boolean(closingLine || (!atsMode && profile.resumeClosing.showSignature && getProfileMediaSource(profile.signaturePath))),
       signature: !atsMode && profile.resumeClosing.showSignature && Boolean(getProfileMediaSource(profile.signaturePath)),
-      placement: settings.resumePresentation?.closing?.placement ?? "footer",
+      placement: resolveResumeClosingLayout(templateId, settings.resumePresentation?.closing).placement,
     },
     overrides: {
       bodySizePt: ["zeitgenoessisch", "elegant", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch", "einspaltig", "tabellarisch"].includes(templateId) ? design.typography.bodySizePt : overrides?.typography?.bodySizePt,

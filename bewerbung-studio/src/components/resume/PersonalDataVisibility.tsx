@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { ApplicantProfile } from "../../shared/schema";
 import {
-  getResumeSemanticTitle,
+  getPersonalDataTitle,
   resolveResumePersonalFieldVisibility,
   resumePersonalFieldLabels,
   type ResumePersonalFieldKey,
@@ -54,14 +54,17 @@ const profileFieldsOf: Partial<Record<ResumePersonalFieldKey, readonly PersonalR
 export function PersonalDataVisibility({
   profile,
   onChange,
+  templateId,
 }: {
   profile: ApplicantProfile;
   onChange: Dispatch<SetStateAction<ApplicantProfile>>;
+  /** The Lebenslauf's template: its own default title (Türkis Profil: "Kontakt") is shown and stored as "no title". */
+  templateId?: string;
 }) {
   const visibility = resolveResumePersonalFieldVisibility(
     profile.resumePersonalFieldVisibility,
   );
-  const title = getResumeSemanticTitle(profile.resumeSemanticSections, "personalData");
+  const title = getPersonalDataTitle(profile.resumeSemanticSections, templateId);
   const titles: readonly string[] = (personalDataTitleOptions as readonly string[]).includes(title)
     ? personalDataTitleOptions
     : [...personalDataTitleOptions, title];
@@ -108,7 +111,7 @@ export function PersonalDataVisibility({
           aria-label="Persönliche Daten Überschrift"
           value={title}
           onChange={(event) =>
-            onChange((current) => setPersonalDataTitle(current, event.target.value))
+            onChange((current) => setPersonalDataTitle(current, event.target.value, templateId))
           }>
           {titles.map((option) => (
             <option key={option} value={option}>

@@ -60,7 +60,9 @@ describe("education units", () => {
 
 describe.each(resumeTemplateIds)("education break on the output of %s", (templateId) => {
   const rendered = renderCv(templateId, profile);
-  const surfaces: Array<["preview" | "pdf", Element]> = [["preview", rendered.previewPages[0]], ["pdf", rendered.pdfPages[0]]];
+  // The page that draws the entry (a template may draw its Bildungsweg in a column that goes on at the next page).
+  const withEntry = (pages: Element[]) => pages.find((page) => page.querySelector('[data-managed-section="education"]')) ?? pages[0];
+  const surfaces: Array<["preview" | "pdf", Element]> = [["preview", withEntry(rendered.previewPages)], ["pdf", withEntry(rendered.pdfPages)]];
 
   it.each(surfaces)("%s: the first part keeps the header and the first details, the second the rest, with a marker", (_surface, page) => {
     const first = text(cut(page, 0, 3));

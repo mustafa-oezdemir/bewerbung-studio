@@ -1,3 +1,4 @@
+import { resolveResumeClosingLayout } from "../../shared/resumeClosing";
 import { ManagedBlockEditor } from "./ManagedBlockEditor";
 import { ResumeHeadingEditor } from "./ResumeHeadingEditor";
 import {
@@ -70,6 +71,9 @@ type Props = {
   onLanguagesColumnsChange?: (value: SectionColumnMode) => void;
   /** The Bewerbung's choice of certificates (Zertifikate & Weiterbildungen card). */
   certificateSelection?: ReactNode;
+  /** Bewerbung-specific choice of entries in link-based custom sections. */
+  selectedSpecialEntryIds?: Record<string, string[]>;
+  onSpecialEntrySelectionChange?: (sectionId: string, ids: string[]) => void;
   /** The Bewerbung's choice of projects (Projekte card). */
   projectSelection?: ReactNode;
   /**
@@ -98,6 +102,8 @@ export function ResumeSectionsPanel({
   languagesColumns,
   onLanguagesColumnsChange,
   certificateSelection,
+  selectedSpecialEntryIds,
+  onSpecialEntrySelectionChange,
   projectSelection,
   onDiscard,
 }: Props) {
@@ -169,6 +175,11 @@ export function ResumeSectionsPanel({
     draft.specialSections.some((section) => `special:${section.id}` === entry.id && section.kind === kind);
   const content = (entry: ManagerSection) => {
     const group = groups.find((item) => item.id === entry.groupId);
+    const special = entry.id.startsWith("special:")
+      ? draft.specialSections.find((section) => section.id === entry.id.slice(8)) : undefined;
+    const selectableLinks = special?.kind === "custom" && special.entries.some((item) => item.url.trim());
+    const selectedLinks = special && selectableLinks
+      ? selectedSpecialEntryIds?.[special.id] ?? special.entries.map((item) => item.id) : [];
     const interests = isSpecialOfKind(entry, "interests");
     const highlight = entry.id === "projects" ? getPehlioneProjectHighlight(draft) : undefined;
     // The profile's own editors of Kurzprofil, Kenntnisse and Interessen carry their title field: no second one here.
@@ -198,7 +209,7 @@ export function ResumeSectionsPanel({
           onPick={() => onPickMedia?.("photo")} onRemove={() => onRemoveMedia?.("photo")} />}
         {entry.id === "personalData" && (
           <><PersonalDataEditor profile={draft} onChange={setDraft} showIssues={false} />
-            <PersonalDataVisibility profile={draft} onChange={setDraft} /></>
+            <PersonalDataVisibility profile={draft} onChange={setDraft} templateId={templateId} /></>
         )}
         {entry.id === "closing" && (
           <>
@@ -208,7 +219,7 @@ export function ResumeSectionsPanel({
             <div className="resume-data-field-grid">
               <label className="field">
                 <span>Platzierung</span>
-                <select aria-label="Abschluss Platzierung" value={closingPlacement ?? "footer"}
+                <select aria-label="Abschluss Platzierung" value={closingPlacement ?? resolveResumeClosingLayout(templateId).placement}
                   onChange={(event) => onClosingLayoutChange?.("placement", event.target.value as "footer" | "main")}>
                   <option value="footer">Footer</option>
                   <option value="main">Hauptspalte</option>
@@ -216,7 +227,7 @@ export function ResumeSectionsPanel({
               </label>
               <label className="field">
                 <span>Ausrichtung</span>
-                <select aria-label="Abschluss Ausrichtung" value={closingAlignment ?? "left"}
+                <select aria-label="Abschluss Ausrichtung" value={closingAlignment ?? "right"}
                   onChange={(event) => onClosingLayoutChange?.("alignment", event.target.value as "left" | "center" | "right" | "distributed")}>
                   <option value="left">Links</option>
                   <option value="center">Mitte</option>
@@ -251,6 +262,40 @@ export function ResumeSectionsPanel({
           </>
         )}
         {isSpecialOfKind(entry, "projects") ? projectSelection : null}
+        {special && selectableLinks && onSpecialEntrySelectionChange ? (
+          <section className="certificate-selection" aria-label={`${special.title} auswählen`}>
+            <header><strong>Nachweise für diese Bewerbung auswählen</strong>
+              <small>Nur markierte Einträge erscheinen in diesem Lebenslauf. Alle Einträge bleiben im Profil erhalten.</small>
+            </header>
+            <div className="certificate-selection__tools">
+              <button type="button" className="button secondary small-button"
+                onClick={() => onSpecialEntrySelectionChange(special.id, special.entries.map((item) => item.id))}>
+                Alle auswählen
+              </button>
+              <button type="button" className="button secondary small-button"
+                onClick={() => onSpecialEntrySelectionChange(special.id, [])}>
+                Auswahl aufheben
+              </button>
+            </div>
+            <p className="certificate-selection__status" role="status">
+              Ausgewählt: {selectedLinks.length} von {special.entries.length}
+            </p>
+            <ul className="certificate-selection__list">
+              {special.entries.map((item) => <li key={item.id}>
+                <label className="certificate-selection__item">
+                  <input type="checkbox" checked={selectedLinks.includes(item.id)}
+                    aria-label={`${item.title}: Im Lebenslauf anzeigen`}
+                    onChange={(event) => onSpecialEntrySelectionChange(special.id,
+                      event.target.checked
+                        ? [...selectedLinks, item.id]
+                        : selectedLinks.filter((id) => id !== item.id))} />
+                  <span><strong>{item.title || "Nachweis"}</strong>{item.subtitle ? <small>{item.subtitle}</small> : null}</span>
+                </label>
+              </li>)}
+            </ul>
+            {!entry.visible ? <small>Mit dem Augensymbol diesen Bereich zusätzlich im Lebenslauf anzeigen.</small> : null}
+          </section>
+        ) : null}
         {entry.id === "knowledge" && <KnowledgeProfileEditor profile={draft} onChange={setDraft} knowledgeOnly />}
         {interests && <InterestsEditor profile={draft} onChange={setDraft} />}
         {!entry.id.startsWith("group:") &&

@@ -167,7 +167,7 @@ const getSectionStack = (section: Element): Element | null => {
  * Klassisch: resolveKlassischGeometry, Einspaltig: resolveEinspaltigGeometry, Tabellarisch: resolveTabellarischGeometry
  * (horizontal only: header, sections and footer share the left and right edge).
  */
-const ownPageMarginTemplates = new Set(["zeitgenoessisch", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch", "einspaltig", "tabellarisch"]);
+const ownPageMarginTemplates = new Set(["zeitgenoessisch", "kreativ", "stilvoll", "gepflegt", "kompakt", "klassisch", "einspaltig", "tabellarisch", "tuerkis-profil"]);
 
 /**
  * Templates whose entries are spaced by a padding that reads the template's gap variable (Tabellarisch: the timeline padding

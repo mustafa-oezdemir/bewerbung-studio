@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseHTML } from "linkedom";
 import { profileSchema } from "./schema";
 import { defaultDocumentDesign } from "./documentDesign";
-import { applyResumeClosingOutput, resolveResumeClosingLine } from "./resumeClosing";
+import { applyResumeClosingOutput, resolveResumeClosingLayout, resolveResumeClosingLine } from "./resumeClosing";
 
 const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: new Date().toISOString(),
   applicationPlace: "Marburg", applicationDate: "2026-09-28", signaturePath: "data:image/png;base64,AA==" });
@@ -29,6 +29,20 @@ describe("shared resume closing", () => {
     expect(root.querySelector("[data-resume-closing-place]")).toBeNull();
     expect(root.querySelector("[data-resume-closing-date]")?.textContent).toBe("28.09.2026");
     expect(root.querySelector("[data-resume-closing-signature]")).toBeNull();
+  });
+  it("places the closing in the main column, right-aligned, unless the user chose otherwise", () => {
+    expect(resolveResumeClosingLayout("modern")).toEqual({ placement: "main", alignment: "right" });
+    expect(resolveResumeClosingLayout("klassisch", { alignment: "left" })).toEqual({ placement: "main", alignment: "left" });
+    expect(resolveResumeClosingLayout("klassisch", { placement: "footer" })).toEqual({ placement: "footer", alignment: "right" });
+    expect(resolveResumeClosingLayout("pehlione_white")).toEqual({ placement: "footer", alignment: "distributed" });
+    const document = page();
+    const root = document.querySelector(".cv-sheet")!;
+    const main = root.querySelector("main")!;
+    applyResumeClosingOutput(root, main, profile, "modern", defaultDocumentDesign, true, true);
+    const block = root.querySelector("[data-resume-closing]")!;
+    expect(block.getAttribute("data-resume-closing-placement")).toBe("main");
+    expect(block.getAttribute("data-resume-closing-align")).toBe("right");
+    expect(block.parentElement).toBe(main);
   });
   it("keeps Pehlione's distributed alignment when only its placement changes", () => {
     const document = page();
