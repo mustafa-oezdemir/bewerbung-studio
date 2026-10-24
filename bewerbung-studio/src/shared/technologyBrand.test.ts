@@ -1,8 +1,31 @@
 import { describe, expect, it } from "vitest";
 import { categorySymbolOptions, getStrengthSymbolMarkup } from "./strengthSymbols";
 import { getTechnologyBrandIconMarkup, getThemedTechnologyIconMarkup, resolveTechnologyIcon } from "./technologyBrand";
+import { goFrameworkIconOptions } from "./goFrameworkIcons";
 
 describe("technology brand icons", () => {
+  it("recognizes the five Go frameworks and keeps their marks in the PDF and preview resolver", () => {
+    const names = ["Echo", "Fiber", "Chi", "Buffalo", "Gin Web Framework"];
+    const brands = ["echo", "devicon:fiber", "chi", "buffalo", "gin"];
+    for (const [index, name] of names.entries()) {
+      const automatic = resolveTechnologyIcon(name);
+      expect(automatic.source, name).toBe("auto");
+      expect(automatic.markup, name).toContain(`data-brand="${brands[index]}"`);
+      expect(automatic.markup, name).toContain('class="technology-brand-svg"');
+      expect(automatic.markup, name).not.toMatch(/<script|<foreignObject|<image|\son\w+=|href=|url\(/i);
+      expect(getTechnologyBrandIconMarkup(name, goFrameworkIconOptions[index]!.id), name)
+        .toBe(automatic.markup);
+      expect(getTechnologyBrandIconMarkup("Go", goFrameworkIconOptions[index]!.id), name)
+        .toBe(automatic.markup);
+      expect(getThemedTechnologyIconMarkup(name), name).toContain(`data-brand="${brands[index]}"`);
+    }
+    expect(new Set(names.map((name) => getTechnologyBrandIconMarkup(name))).size).toBe(5);
+    expect(resolveTechnologyIcon("Go Fiber").markup).toBe(getTechnologyBrandIconMarkup("Fiber"));
+    expect(resolveTechnologyIcon("Go-Chi").markup).toBe(getTechnologyBrandIconMarkup("Chi"));
+    expect(resolveTechnologyIcon("Gin", "symbol:check").source).toBe("manual");
+    expect(resolveTechnologyIcon("Go Framework").markup).toContain('data-brand="framework"');
+  });
+
   it("renders branded marks for Go, JavaScript, and PHP", () => {
     const go = getTechnologyBrandIconMarkup("Golang");
     const javascript = getTechnologyBrandIconMarkup("JavaScript");

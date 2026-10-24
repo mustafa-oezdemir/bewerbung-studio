@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { profileSchema } from "../../shared/schema";
 import { categorySymbolOptions, getStrengthSymbolMarkup } from "../../shared/strengthSymbols";
 import { getTechnologyBrandIconMarkup } from "../../shared/technologyBrand";
+import { goFrameworkIconOptions } from "../../shared/goFrameworkIcons";
 import { TechnologyIconPicker } from "./TechnologyIconPicker";
 
 const categoryLabels = [
@@ -16,6 +17,17 @@ const categoryButtons = (root: ParentNode) =>
 const preview = (root: ParentNode) => root.querySelector(".technology-icon-picker__preview svg");
 
 describe("TechnologyIconPicker category symbols", () => {
+  it("offers the Go frameworks for manual selection and previews their own icons automatically", () => {
+    const document = dom(renderToStaticMarkup(<TechnologyIconPicker technologyTitle="Gin" value="" onChange={vi.fn()} />));
+    const group = Array.from(document.querySelectorAll("optgroup"))
+      .find((entry) => entry.getAttribute("label") === "Go-Frameworks")!;
+    expect(Array.from(group.querySelectorAll("option"), (option) => option.getAttribute("value")))
+      .toEqual(goFrameworkIconOptions.map((option) => option.id));
+    expect(preview(document)?.getAttribute("data-brand")).toBe("gin");
+    const selected = dom(renderToStaticMarkup(<TechnologyIconPicker technologyTitle="Go" value="go-framework:gin" onChange={vi.fn()} />));
+    expect(preview(selected)?.getAttribute("data-brand")).toBe("gin");
+  });
+
   it("offers the nine categories as labelled, keyboard-reachable buttons that show their icon", () => {
     const document = dom(renderToStaticMarkup(<TechnologyIconPicker technologyTitle="Datenbank" value="symbol:database" onChange={vi.fn()} />));
     const buttons = categoryButtons(document);

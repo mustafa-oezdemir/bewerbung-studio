@@ -1,4 +1,5 @@
 import { deviconOptions } from "../../shared/deviconCatalog";
+import { goFrameworkIconOptions } from "../../shared/goFrameworkIcons";
 import { categorySymbolOptions, getStrengthSymbolMarkup, strengthSymbolOptions } from "../../shared/strengthSymbols";
 import { TechnologyBrandIcon } from "../resume/TechnologyBrandIcon";
 
@@ -43,6 +44,9 @@ export function TechnologyIconPicker({
           </optgroup>
           <optgroup label="Kategorie-Symbole">
             {categorySymbolOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </optgroup>
+          <optgroup label="Go-Frameworks">
+            {goFrameworkIconOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
           </optgroup>
           <optgroup label="Technologie-Icons">
           {deviconOptions.map((option) => (

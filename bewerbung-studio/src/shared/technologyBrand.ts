@@ -1,4 +1,5 @@
 import { getStrengthSymbolMarkup } from "./strengthSymbols";
+import { getAutomaticGoFrameworkIconMarkup, getGoFrameworkIconMarkup } from "./goFrameworkIcons";
 
 const technologyAliases: Record<string, string> = {
   golang: "go", "go language": "go", "go-lang": "go",
@@ -9,6 +10,7 @@ const technologyAliases: Record<string, string> = {
   "python 3": "python", python3: "python", py: "python",
   "php 8": "php", php8: "php", "docker engine": "docker", "docker compose": "docker",
   "git hub": "github", "github.com": "github",
+  "go fiber": "fiber", gofiber: "fiber", "fiber web framework": "fiber",
 };
 export const normalizeTechnologyName = (name: string) => {
   const normalized = name.trim().toLocaleLowerCase("en-US").replace(/^(?:programming|programmiersprache)\s*[:–-]?\s*/i, "");
@@ -95,6 +97,8 @@ const getAutomaticTechnologyIconMarkup = (technology: string): string | undefine
   const normalized = normalizeTechnologyName(technology);
   const category = categorySymbolByName.get(categoryKey(normalized));
   if (category) return getStrengthSymbolMarkup(category);
+  const goFramework = getAutomaticGoFrameworkIconMarkup(normalized);
+  if (goFramework) return goFramework;
   if (
     normalized === "react" ||
     normalized === "react.js" ||
@@ -163,6 +167,10 @@ const getAutomaticTechnologyIconMarkup = (technology: string): string | undefine
       "frameworks",
       "framework / libraries",
       "frameworks / libraries",
+      "go framework",
+      "golang framework",
+      "go web framework",
+      "golang web framework",
     ].includes(normalized)
   )
     return frameworkBrand();
@@ -206,7 +214,7 @@ export type ResolvedTechnologyIcon = { source: "manual" | "auto" | "fallback"; m
 
 /** Manual choice wins; known names use their brand; unknown names get a safe mark. */
 export const resolveTechnologyIcon = (technology: string, manualIcon = ""): ResolvedTechnologyIcon => {
-  const manual = getStrengthSymbolMarkup(manualIcon) || getDeviconMarkup(manualIcon);
+  const manual = getStrengthSymbolMarkup(manualIcon) || getGoFrameworkIconMarkup(manualIcon) || getDeviconMarkup(manualIcon);
   if (manual) return { source: "manual", markup: manual };
   const automatic = getAutomaticTechnologyIconMarkup(technology);
   if (automatic) return { source: "auto", markup: automatic };
