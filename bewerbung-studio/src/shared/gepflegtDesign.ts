@@ -175,6 +175,11 @@ export const gepflegtResolvedCss = [
   both(".gepflegt-sidebar__summary,.gepflegt-knowledge", ".gepflegt-pdf-summary,.gepflegt-pdf-knowledge", "font-size:var(--gepflegt-body-size);line-height:var(--gepflegt-line-height);color:var(--gepflegt-sidebar-text)"),
   both(".gepflegt-strengths", ".gepflegt-pdf-strengths", "gap:var(--gepflegt-entry-gap)"),
   both(".gepflegt-strength h3", ".gepflegt-pdf-strength h4", "font-family:var(--gepflegt-heading-font);font-size:var(--gepflegt-body-size);font-weight:var(--gepflegt-entry-weight);line-height:var(--gepflegt-line-height);color:var(--gepflegt-sidebar-text)"),
+  // Stärken icons in the sidebar take the sidebar text colour: the shared managed card rule (and the PDF export's
+  // .technology-brand-svg rule) draw them in the accent, which is the sidebar's own background → invisible.
+  both(".gepflegt-sidebar .managed-strength-card>svg,[data-cv-zone=\"sidebar\"] .managed-strength-card>svg,.gepflegt-strength>.technology-brand-icon",
+    ".gepflegt-pdf-sidebar .managed-strength-card>svg,[data-cv-zone=\"sidebar\"] .managed-strength-card>svg,.gepflegt-pdf-strength svg",
+    "color:var(--gepflegt-sidebar-text)"),
   both(".gepflegt-strength p", ".gepflegt-pdf-strength p", "font-size:var(--gepflegt-body-size);line-height:var(--gepflegt-line-height);color:var(--gepflegt-sidebar-muted)"),
   both(".gepflegt-languages", ".gepflegt-pdf-languages", "gap:calc(var(--gepflegt-entry-gap) * .8)"),
   both(".gepflegt-languages strong,.gepflegt-languages span", ".gepflegt-pdf-language strong,.gepflegt-pdf-language span", "font-size:var(--gepflegt-body-size);line-height:var(--gepflegt-line-height)"),

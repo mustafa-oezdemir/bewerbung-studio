@@ -88,6 +88,7 @@ export function ModernResume({
   const renderOrderedSection = (
     type: ResumeSectionType,
     variant: "visual" | "ats",
+    column: "main" | "sidebar" = "main",
   ) => {
     if (type === "summary") {
       return !isContinuation && sections.profile ? (
@@ -102,6 +103,13 @@ export function ModernResume({
     if (type === "education") {
       return sections.education ? (
         <ModernEducationSection profile={pageProfile} />
+      ) : null;
+    }
+    // The sidebar stands on page one only, so Sprachen placed there are drawn there (like the template's own sidebar);
+    // otherwise a résumé of two or more pages would show them nowhere. Same rule in the PDF (electron/documents.ts).
+    if (type === "languages" && column === "sidebar") {
+      return sections.languages ? (
+        <ModernLanguagesSection profile={pageProfile} accentColor={accentColor} atsMode={variant === "ats"} />
       ) : null;
     }
     if (!isLastPage) return null;
@@ -273,7 +281,7 @@ export function ModernResume({
             {!isContinuation ? (
               hasCustomLayout ? (
                 <div className="modern-resume-right-column" data-ats-mode="false">
-                  {sidebarOrder.map((type) => <Fragment key={type}>{renderOrderedSection(type, "visual")}</Fragment>)}
+                  {sidebarOrder.map((type) => <Fragment key={type}>{renderOrderedSection(type, "visual", "sidebar")}</Fragment>)}
                 </div>
               ) : (
                 <ModernRightColumn

@@ -186,6 +186,38 @@ describe("Modern: sections follow their column", () => {
     }
   });
 
+  it("M. with a saved section layout Sprachen in the sidebar stand on page one of a longer résumé, once and alike", () => {
+    // An older saved layout (`resumeSectionLayouts`) draws its sidebar on page one only; Sprachen used to be drawn on
+    // the last page only, so a résumé of two pages showed them nowhere (real case 2026-10-21).
+    const savedLayout = [
+      { type: "summary", zone: "sidebar" }, { type: "strengths", zone: "sidebar" }, { type: "experience", zone: "main" },
+      { type: "education", zone: "main" }, { type: "languages", zone: "sidebar" }, { type: "certifications", zone: "sidebar" },
+    ];
+    const saved = makeProfile(6, { resumeSectionLayouts: { modern: savedLayout } });
+    // Also with the section list arranged by hand on top of it (Sprachen moved to the top of the sidebar).
+    const arranged = move(saved, "languages", "sidebar", 0);
+    for (const profile of [saved, arranged]) {
+      const rendered = render(profile);
+      expect(rendered.resolved.pagePlan.length).toBeGreaterThanOrEqual(2);
+      for (const surface of surfaces) {
+        const pages = rendered.surfaces[surface];
+        const drawn = pages.flatMap((page) => Array.from(page.querySelectorAll('[data-managed-section="languages"]')));
+        expect(drawn, surface).toHaveLength(1);
+        const node = sidebarSection(pages[0], "languages");
+        expect(node, surface).not.toBeNull();
+        expect(node?.querySelector(".cv-heading__label")?.textContent, surface).toBe("Sprachen");
+        expect(node?.textContent, surface).toContain("Deutsch");
+        expect(node?.textContent, surface).toContain("Englisch");
+        expect(node?.querySelectorAll(".modern-languages-item__dots span,.modern-pdf-dots i"), surface).toHaveLength(12);
+      }
+      // Preview and PDF list the same sidebar sections of page one in the same order.
+      const order = (page: Element) => Array.from(sidebarOf(page)?.querySelectorAll("[data-managed-section]") ?? [])
+        .map((section) => section.getAttribute("data-managed-section"));
+      expect(order(rendered.surfaces.preview[0])).toEqual(order(rendered.surfaces.pdf[0]));
+      expect(order(rendered.surfaces.preview[0])).toContain("languages");
+    }
+  });
+
   it("I. the typography chosen for the section headings reaches every heading of either column", () => {
     const settings = { cvOverrides: { typography: { sectionHeadingSizePt: 15, sectionHeadingUppercase: false } } };
     const rendered = render(move(makeProfile(3), "certifications", "main", 99), settings);

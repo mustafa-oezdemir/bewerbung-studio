@@ -1,4 +1,6 @@
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
+import postcss from "postcss";
 import { describe, expect, it } from "vitest";
 import { parseHTML } from "linkedom";
 import { applicationSchema, profileSchema } from "../../../../shared/schema";
@@ -51,6 +53,51 @@ const render = (profile: Profile) => {
 };
 const section = (page: Element, id: string) => page.querySelector(`[data-managed-section="${id}"]`);
 
+/** Specificity [ids, classes/attributes/pseudo-classes, elements] of one complex selector (:where counts 0, :is/:not/:has their argument). */
+const specificity = (selector: string): number[] => {
+  const total = [0, 0, 0];
+  let rest = selector.replace(/::?(before|after|marker|placeholder)\b/g, " x ");
+  for (;;) {
+    const match = /:(where|is|not|has)\(/.exec(rest);
+    if (!match) break;
+    let depth = 1, end = match.index + match[0].length;
+    for (; end < rest.length && depth; end += 1) depth += rest[end] === "(" ? 1 : rest[end] === ")" ? -1 : 0;
+    const inner = rest.slice(match.index + match[0].length, end - 1);
+    if (match[1] !== "where") {
+      const best = inner.split(",").map(specificity).sort((a, b) => b[0] - a[0] || b[1] - a[1] || b[2] - a[2])[0];
+      best.forEach((value, index) => { total[index] += value; });
+    }
+    rest = `${rest.slice(0, match.index)} ${rest.slice(end)}`;
+  }
+  rest = rest.replace(/\[[^\]]*\]/g, () => { total[1] += 1; return " "; });
+  total[0] += (rest.match(/#[\w-]+/g) ?? []).length;
+  total[1] += (rest.match(/\.[\w-]+|:[\w-]+(\([^)]*\))?/g) ?? []).length;
+  total[2] += (rest.replace(/[.#:][\w-]+(\([^)]*\))?/g, " ").match(/(^|[\s>+~])[a-z][\w-]*/gi) ?? []).length;
+  return total;
+};
+/** The colour the cascade gives an element: the most specific matching `color` declaration (important first, later wins ties). */
+const cascadedColor = (element: Element, css: string) => {
+  let winner: { important: boolean; weight: number[]; order: number; value: string } | undefined;
+  let order = 0;
+  postcss.parse(css).walkDecls("color", (decl) => {
+    order += 1;
+    const rule = decl.parent;
+    if (rule?.type !== "rule" || rule.parent?.type !== "root") return;
+    for (const selector of (rule as postcss.Rule).selectors) {
+      let matches = false;
+      try { matches = element.matches(selector); } catch { continue; }
+      if (!matches) continue;
+      const candidate = { important: decl.important, weight: specificity(selector), order, value: decl.value };
+      const beats = !winner || Number(candidate.important) - Number(winner.important)
+        || candidate.weight[0] - winner.weight[0] || candidate.weight[1] - winner.weight[1] || candidate.weight[2] - winner.weight[2]
+        || candidate.order - winner.order;
+      if (!winner || (beats as number) > 0) winner = candidate;
+    }
+  });
+  return winner?.value;
+};
+const appStylesheets = ["../../../../app.css", "./gepflegt.css"].map((file) => readFileSync(new URL(file, import.meta.url), "utf8")).join("\n");
+
 describe("Gepflegt: shared document flow", () => {
   it("takes title typography, color, and rule from the destination column", () => {
     const main = resolveSectionPresentation(templateId, "certifications", "main")!;
@@ -100,6 +147,36 @@ describe("Gepflegt: shared document flow", () => {
       expect(section(pages[0], "languages")?.querySelector("[role='img'],.gepflegt-pdf-dots"), surface).not.toBeNull();
       expect(pages[0].querySelector("[data-resume-closing]"), surface).toBeNull();
       expect(pages[pages.length - 1].querySelector("[data-resume-closing-line]")?.textContent, surface).toBe("Marburg, 26.09.2026");
+    }
+  });
+
+  it("draws the Stärken icons in the sidebar text colour, not in the accent of the sidebar background", () => {
+    const profile = profileSchema.parse({
+      ...makeProfile(2),
+      strengths: ["API", "React", "Analytisches Denken"].map((title) => ({ id: crypto.randomUUID(), title, description: "Beschreibung" })),
+    });
+    const output = render(profile);
+    for (const surface of ["preview", "pdf"] as const) {
+      const page = output.surfaces[surface][0];
+      const strengths = section(page, "strengths");
+      expect(strengths?.getAttribute("data-cv-zone"), surface).toBe("sidebar");
+      const icons = Array.from(strengths?.querySelectorAll(".managed-strength-card > svg") ?? []);
+      expect(icons.length, surface).toBe(3);
+      const css = [surface === "preview" ? appStylesheets : "", ...Array.from((page.ownerDocument ?? page).querySelectorAll("style")).map((style) => style.textContent ?? "")].join("\n");
+      for (const icon of icons) {
+        // A bullet symbol inherits the text colour inline; every other mark takes the colour the cascade gives the svg.
+        if (/color:\s*inherit/.test(icon.getAttribute("style") ?? "")) continue;
+        expect(cascadedColor(icon, css), `${surface} ${icon.closest("article")?.textContent}`).toBe("var(--gepflegt-sidebar-text)");
+      }
+    }
+    // On the white main column the icons keep the accent.
+    const moved = render(moveManagerSection(profile, templateId, "strengths", "main", 0));
+    for (const surface of ["preview", "pdf"] as const) {
+      const page = moved.surfaces[surface][0];
+      const icon = section(page, "strengths")?.querySelector(".managed-strength-card > svg");
+      expect(icon?.closest("[data-cv-zone]")?.getAttribute("data-cv-zone"), surface).toBe("main");
+      const css = [surface === "preview" ? appStylesheets : "", ...Array.from((page.ownerDocument ?? page).querySelectorAll("style")).map((style) => style.textContent ?? "")].join("\n");
+      expect(cascadedColor(icon!, css), surface).not.toContain("--gepflegt-sidebar-text");
     }
   });
 });
