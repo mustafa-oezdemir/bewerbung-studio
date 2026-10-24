@@ -9,7 +9,8 @@ import { goFrameworkIconOptions } from "../../shared/goFrameworkIcons";
 import { TechnologyIconPicker } from "./TechnologyIconPicker";
 
 const categoryLabels = [
-  "API", "Backend", "Frontend", "Datenbank", "Monitoring", "CI (Continuous Integration)", "CD (Continuous Deployment)", "Test", "Cloud",
+  "API", "Backend", "Frontend", "Datenbank", "Monitoring", "CI (Continuous Integration)", "CD (Continuous Deployment)", "Test", "Cloud", "DevOps",
+  "Linux Shell", "PowerShell", "GPO (Gruppenrichtlinien)", "Active Directory",
 ];
 const dom = (html: string) => parseHTML(`<html><body>${html}</body></html>`).document;
 const categoryButtons = (root: ParentNode) =>

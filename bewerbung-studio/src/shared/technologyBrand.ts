@@ -86,6 +86,12 @@ const categorySymbolNames: Record<string, string[]> = {
   "symbol:cd": ["cd", "continuous deployment", "continuous delivery", "kontinuierliche auslieferung", "kontinuierliche bereitstellung", "deployment"],
   "symbol:test": ["test", "tests", "testing", "testen", "softwaretest", "softwaretests", "software testing", "unit tests", "unit testing", "testautomatisierung", "test automation", "qualitätssicherung", "quality assurance", "qa"],
   "symbol:cloud": ["cloud", "cloud computing", "cloud services", "cloud dienste", "cloud infrastruktur", "cloud infrastructure", "cloud native"],
+  "symbol:devops": ["devops", "dev ops", "devsecops", "devops engineering", "devops kultur", "devops culture"],
+  // "Linux" alone keeps its Tux brand mark; the shell, the terminal and the command line get the terminal mark.
+  "symbol:linux-shell": ["linux shell", "linux shells", "linux terminal", "linux cli", "linux kommandozeile", "shell", "shells", "bash", "zsh", "shell scripting", "shell skripting", "bash scripting", "bash skripting", "shell skripte", "bash skripte", "terminal", "cli", "command line", "kommandozeile"],
+  "symbol:powershell": ["powershell", "power shell", "windows powershell", "powershell core", "pwsh", "powershell scripting", "powershell skripting", "powershell skripte", "powershell automatisierung"],
+  "symbol:gpo": ["gpo", "gpos", "group policy", "group policies", "group policy objects", "gruppenrichtlinie", "gruppenrichtlinien", "gpo (gruppenrichtlinien)", "gruppenrichtlinien (gpo)"],
+  "symbol:active-directory": ["active directory", "active directory (ad)", "ad", "ms ad", "microsoft active directory", "ad ds", "active directory domain services", "active directory domänendienste", "verzeichnisdienst", "verzeichnisdienste"],
 };
 const categorySymbolByName = new Map(
   Object.entries(categorySymbolNames).flatMap(([id, names]) => names.map((name) => [name, id] as const)),
@@ -185,9 +191,6 @@ const getAutomaticTechnologyIconMarkup = (technology: string): string | undefine
       '<ellipse cx="16" cy="7" rx="10" ry="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 7v18c0 2.2 4.5 4 10 4s10-1.8 10-4V7M6 16c0 2.2 4.5 4 10 4s10-1.8 10-4" fill="none" stroke="currentColor" stroke-width="2"/>',
     );
   }
-  if (["bash", "shell", "zsh"].includes(normalized)) return letterMark(">_");
-  if (["powershell", "power shell"].includes(normalized))
-    return letterMark("PS");
   if (["visual basic", "vb", "vb.net"].includes(normalized))
     return letterMark("VB");
   if (["f#", "fsharp"].includes(normalized)) return letterMark("F#", "hexagon");

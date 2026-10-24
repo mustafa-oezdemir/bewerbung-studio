@@ -127,14 +127,15 @@ describe("technology brand icons", () => {
     expect(fallback.markup).toContain("&lt;SC");
   });
 
-  it("draws the nine category symbols as distinct, static 32×32 marks in the template's icon colour", () => {
+  it("draws the fourteen category symbols as distinct, static 32×32 marks in the template's icon colour", () => {
     expect(categorySymbolOptions.map((option) => option.id)).toEqual([
       "symbol:api", "symbol:backend", "symbol:frontend", "symbol:database", "symbol:monitoring",
-      "symbol:ci", "symbol:cd", "symbol:test", "symbol:cloud",
+      "symbol:ci", "symbol:cd", "symbol:test", "symbol:cloud", "symbol:devops",
+      "symbol:linux-shell", "symbol:powershell", "symbol:gpo", "symbol:active-directory",
     ]);
     const marks = categorySymbolOptions.map((option) => getStrengthSymbolMarkup(option.id));
-    expect(new Set(marks).size).toBe(9);
-    expect(new Set(categorySymbolOptions.map((option) => option.shape)).size).toBe(9);
+    expect(new Set(marks).size).toBe(14);
+    expect(new Set(categorySymbolOptions.map((option) => option.shape)).size).toBe(14);
     for (const [index, markup] of marks.entries()) {
       expect(markup).toContain(`data-strength-symbol="${categorySymbolOptions[index]!.id}"`);
       expect(markup).toContain('viewBox="0 0 32 32" fill="none" stroke="currentColor"');
@@ -158,6 +159,16 @@ describe("technology brand icons", () => {
     ["CD", "symbol:cd"], ["Continuous Deployment", "symbol:cd"], ["Continuous Delivery", "symbol:cd"],
     ["Test", "symbol:test"], ["Tests", "symbol:test"], ["Testing", "symbol:test"], ["  testing  ", "symbol:test"], ["Testautomatisierung", "symbol:test"],
     ["Cloud", "symbol:cloud"], ["Cloud Computing", "symbol:cloud"], ["cloud-native", "symbol:cloud"],
+    ["DevOps", "symbol:devops"], ["Dev-Ops", "symbol:devops"], ["DevSecOps", "symbol:devops"],
+    ["Linux Shell", "symbol:linux-shell"], ["Linux-Shell", "symbol:linux-shell"], ["Bash", "symbol:linux-shell"], ["Shell", "symbol:linux-shell"],
+    ["Zsh", "symbol:linux-shell"], ["Shell-Scripting", "symbol:linux-shell"], ["Terminal", "symbol:linux-shell"], ["CLI", "symbol:linux-shell"],
+    ["Kommandozeile", "symbol:linux-shell"],
+    ["PowerShell", "symbol:powershell"], ["Power Shell", "symbol:powershell"], ["Windows PowerShell", "symbol:powershell"],
+    ["PowerShell-Skripting", "symbol:powershell"], ["pwsh", "symbol:powershell"],
+    ["GPO", "symbol:gpo"], ["GPOs", "symbol:gpo"], ["Gruppenrichtlinien", "symbol:gpo"], ["Gruppenrichtlinien (GPO)", "symbol:gpo"],
+    ["Group Policy", "symbol:gpo"],
+    ["Active Directory", "symbol:active-directory"], ["Active Directory (AD)", "symbol:active-directory"], ["AD", "symbol:active-directory"],
+    ["AD DS", "symbol:active-directory"], ["Verzeichnisdienst", "symbol:active-directory"],
   ])("detects the category of %s without a saved icon", (title, symbol) => {
     expect(resolveTechnologyIcon(title)).toEqual({ source: "auto", markup: getStrengthSymbolMarkup(symbol) });
     expect(resolveTechnologyIcon(title, "")).toEqual(resolveTechnologyIcon(title));
@@ -166,14 +177,15 @@ describe("technology brand icons", () => {
   it("keeps brand marks: categories match whole names only, never a part of them", () => {
     const brands = {
       Go: "go", React: "react", Docker: "devicon:docker", Grafana: "devicon:grafana", Prometheus: "devicon:prometheus",
-      Jenkins: "devicon:jenkins", "GitHub Actions": "devicon:githubactions", "Google Cloud": "devicon:googlecloud", SQL: "generic",
+      Jenkins: "devicon:jenkins", "GitHub Actions": "devicon:githubactions", "Google Cloud": "devicon:googlecloud", "Azure DevOps": "devicon:azuredevops", SQL: "generic",
+      Linux: "devicon:linux", Ubuntu: "devicon:ubuntu",
     };
     for (const [technology, brand] of Object.entries(brands)) {
       const markup = getTechnologyBrandIconMarkup(technology);
       expect(markup, technology).toContain(`data-brand="${brand}"`);
       expect(markup, technology).not.toContain("data-strength-symbol");
     }
-    for (const title of ["React Testing Library", "Cloudflare Workers", "Datenbankadministrator mit Go", "Continuous Learning"])
+    for (const title of ["React Testing Library", "Cloudflare Workers", "Datenbankadministrator mit Go", "Continuous Learning", "Linux-Administration", "Azure AD Connect"])
       expect(resolveTechnologyIcon(title).markup, title).not.toContain("data-strength-symbol");
   });
 

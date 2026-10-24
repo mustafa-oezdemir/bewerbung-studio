@@ -96,6 +96,33 @@ export const categorySymbolOptions = [
     label: "Cloud",
     shape: '<path d="M23.3 25.3H12a9.3 9.3 0 1 1 9-12h2.3a6 6 0 1 1 0 12z"/>',
   },
+  {
+    id: "symbol:devops",
+    label: "DevOps",
+    // ∞ loop of Continuous Integration and Delivery; the arrowheads give it the direction of the cycle.
+    shape: '<path d="M16 16c-2.5-3.5-4.5-6-8-6a6 6 0 0 0 0 12c3.5 0 5.5-2.5 8-6s4.5-6 8-6a6 6 0 0 1 0 12c-3.5 0-5.5-2.5-8-6zM22 8l2 2-2 2M10 20l-2 2 2 2"/>',
+  },
+  // IT-Kenntnisse marks drawn on a 24×24 grid: scaled to the 32×32 box, their 1.5 stroke is the family's 2.
+  {
+    id: "symbol:linux-shell",
+    label: "Linux Shell",
+    shape: '<g transform="scale(1.3333)" stroke-width="1.5"><rect x="2.5" y="3.5" width="19" height="17" rx="2.5"/><path d="M2.5 8h19"/><path d="M5.7 5.8h.01M8.3 5.8h.01" stroke-width="2"/><path d="m6.6 12 3.1 2.5-3.1 2.5M11.8 17h5.4"/></g>',
+  },
+  {
+    id: "symbol:powershell",
+    label: "PowerShell",
+    shape: '<g transform="scale(1.3333)" stroke-width="1.5"><path d="M7 3.5h12.3a2 2 0 0 1 1.94 2.5l-3.4 12.6a2.5 2.5 0 0 1-2.42 1.9H4.7a2 2 0 0 1-1.94-2.5L4.55 5.5A2.5 2.5 0 0 1 7 3.5Z"/><path d="m8 10 3.6 3.1L8 16.1M12.7 16.3h3.8"/></g>',
+  },
+  {
+    id: "symbol:gpo",
+    label: "GPO (Gruppenrichtlinien)",
+    shape: '<g transform="scale(1.3333)" stroke-width="1.5"><path d="M6 2.8h8l4 4V21H6a2 2 0 0 1-2-2V4.8a2 2 0 0 1 2-2Z"/><path d="M14 2.8v4h4"/><path d="M8 10.5h1.55M12.45 10.5H16M8 14.5h3.55M14.45 14.5H16M8 18.5h.55M11.45 18.5H16"/><circle cx="11" cy="10.5" r="1.45"/><circle cx="13" cy="14.5" r="1.45"/><circle cx="10" cy="18.5" r="1.45"/></g>',
+  },
+  {
+    id: "symbol:active-directory",
+    label: "Active Directory",
+    shape: '<g transform="scale(1.3333)" stroke-width="1.5"><rect x="9" y="2.5" width="6" height="5" rx="1"/><path d="M12 7.5v4.1M5 15v-3.4h14V15M12 11.6V15"/><rect x="2.5" y="15" width="5" height="6" rx="1"/><rect x="9.5" y="15" width="5" height="6" rx="1"/><rect x="16.5" y="15" width="5" height="6" rx="1"/></g>',
+  },
 ] as const;
 
 /** Aufzählungszeichen take the text colour; category symbols keep the template's icon colour like technology marks. */
