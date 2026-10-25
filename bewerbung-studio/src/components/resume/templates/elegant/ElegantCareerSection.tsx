@@ -1,5 +1,6 @@
 import { formatElegantDateRange } from "./elegant.model";
 import type { ElegantCareerSectionProps } from "./elegant.types";
+import { cvRole } from "../../../../shared/resumeTextRoles";
 
 export function ElegantCareerSection({
   kind,
@@ -23,12 +24,12 @@ export function ElegantCareerSection({
           <article className="elegant-career-entry" key={item.id}>
             <div className="elegant-career-entry__heading">
               <div>
-                <h3>{item.title}</h3>
-                <p>{item.organization}</p>
+                <h3 {...cvRole("entry-title")}>{item.title}</h3>
+                <p {...cvRole("organization")}>{item.organization}</p>
               </div>
               <p className="elegant-career-entry__meta">
-                <strong>{formatElegantDateRange(item.from, item.to)}</strong>
-                {item.city ? <span>{item.city}</span> : null}
+                <strong {...cvRole("period")}>{formatElegantDateRange(item.from, item.to)}</strong>
+                {item.city ? <span {...cvRole("location")}>{item.city}</span> : null}
               </p>
             </div>
             {item.achievements?.length ? (

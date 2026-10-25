@@ -5,6 +5,7 @@
 
 import type { TabellarischTimelineEntryProps } from "./tabellarisch.types";
 import { formatTabellarischDateRange } from "./tabellarisch.model";
+import { cvRole } from "../../../../shared/resumeTextRoles";
 
 export function TabellarischTimelineEntry({
   from,
@@ -24,13 +25,15 @@ export function TabellarischTimelineEntry({
   if (atsMode) {
     return (
       <article className="tabellarisch-timeline-entry tabellarisch-timeline-entry--ats">
-        <h3 className="tabellarisch-timeline-entry__role">{role}</h3>
-        <p className="tabellarisch-timeline-entry__organization">
+        <h3 className="tabellarisch-timeline-entry__role" {...cvRole("entry-title")}>{role}</h3>
+        <p className="tabellarisch-timeline-entry__organization" {...cvRole("organization")}>
           {organization}
         </p>
         {(dateRange || city) && (
           <p className="tabellarisch-timeline-entry__ats-meta">
-            {[dateRange, city].filter(Boolean).join(" · ")}
+            {dateRange ? <span {...cvRole("period")}>{dateRange}</span> : null}
+            {dateRange && city ? " · " : null}
+            {city ? <span {...cvRole("location")}>{city}</span> : null}
           </p>
         )}
         {summary ? (
@@ -50,9 +53,9 @@ export function TabellarischTimelineEntry({
   return (
     <article className="tabellarisch-timeline-entry">
       <div className="tabellarisch-timeline-entry__meta">
-        <p className="tabellarisch-timeline-entry__date">{dateRange}</p>
+        <p className="tabellarisch-timeline-entry__date" {...cvRole("period")}>{dateRange}</p>
         {city && (
-          <p className="tabellarisch-timeline-entry__location">
+          <p className="tabellarisch-timeline-entry__location" {...cvRole("location")}>
             {city}
           </p>
         )}
@@ -61,10 +64,10 @@ export function TabellarischTimelineEntry({
       <span className="tabellarisch-timeline-entry__rail" aria-hidden="true" />
 
       <div className="tabellarisch-timeline-entry__content">
-        <h3 className="tabellarisch-timeline-entry__role">
+        <h3 className="tabellarisch-timeline-entry__role" {...cvRole("entry-title")}>
           {role}
         </h3>
-        <p className="tabellarisch-timeline-entry__organization">
+        <p className="tabellarisch-timeline-entry__organization" {...cvRole("organization")}>
           {organization}
         </p>
 

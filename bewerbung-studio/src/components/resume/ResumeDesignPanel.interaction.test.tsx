@@ -68,4 +68,39 @@ describe("real React design input events", () => {
     expect(colors.hasAttribute("open")).toBe(true);
     await act(async () => { root.unmount(); });
   });
+
+  it("edits the entry roles one by one: a date size, an organisation colour, a project description size", async () => {
+    const { window } = parseHTML("<html><body><div id='root'></div></body></html>");
+    Object.assign(globalThis, { window, document: window.document, IS_REACT_ACT_ENVIRONMENT: true });
+    const { createRoot } = await import("react-dom/client");
+    const root = createRoot(window.document.getElementById("root")!);
+    const states: DesignEditState[] = [];
+    function Harness() {
+      const [state, setState] = useState<DesignEditState>(() => ({ draft: createDocumentDesignDraft(application), global: undefined }));
+      states.push(state);
+      return <ResumeDesignPanel documentId={application.id} templateId="klassisch" templateName="Klassisch" settings={state.draft.settings} global={state.global} hasSidebar
+        onEditToken={(scope, group, key, value) => setState((current) => editCvDesignField(current, scope, group, key as never, value as never))}
+        onEditAppearance={(scope, key, value) => setState((current) => editResumeAppearanceField(current, scope, key, value as never))}
+        onPreset={() => undefined} onReset={() => undefined} />;
+    }
+    await act(async () => { root.render(<Harness />); });
+    const send = async (label: string, value: string) => {
+      const element = window.document.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
+      element.value = value;
+      await act(async () => { element.dispatchEvent(new window.Event("input", { bubbles: true })); });
+      await act(async () => { element.dispatchEvent(new window.Event("blur")); });
+    };
+    const overrides = () => states.at(-1)!.draft.settings.cvOverrides;
+    await send("Datum / Zeitraum (pt)", "9,5");
+    expect(overrides()).toEqual({ typography: { dateSizePt: 9.5 } });
+    await send("Unternehmen / Einrichtung HEX", "#1F6F43");
+    expect(overrides()).toEqual({ typography: { dateSizePt: 9.5 }, colors: { organization: "#1F6F43" } });
+    await send("Projektbeschreibung (pt)", "10,25");
+    expect(overrides()?.typography).toEqual({ dateSizePt: 9.5, projectDescriptionSizePt: 10.25 });
+    // A value beyond the limits is refused and keeps the last accepted one.
+    await send("Datum / Zeitraum (pt)", "40");
+    expect(overrides()?.typography?.dateSizePt).toBe(9.5);
+    expect(window.document.querySelector('[role="alert"]')?.textContent).toContain("zwischen 6 und 16");
+    await act(async () => { root.unmount(); });
+  });
 });

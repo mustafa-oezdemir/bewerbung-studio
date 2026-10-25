@@ -49,6 +49,7 @@ import { applyResumeLanguageOutput } from "./resumeLanguageOutput";
 import { resumeSummaryTextCss } from "./resumeSummary";
 import { hyphenateResumeSummary } from "./resumeSummaryHyphenation";
 import { tabellarischContinuationCss, tabellarischSectionTitleCss } from "./tabellarischDesign";
+import { applyResumeTextRoleStyles } from "./resumeTextRoles";
 
 const escape = (value: string) =>
   value
@@ -276,13 +277,18 @@ export const applyResumeDesignOverrides = (
   if (settings.cvOverrides?.colors?.surface) (scope as HTMLElement).style.setProperty("--secondary", design.colors.surface);
 
   const colors = overrides.colors;
+  // Entry roles are resolved separately after the template's general colours. A broad paragraph or supporting
+  // selector must not recolour a date, organisation, place or project title through its wrapper.
+  const isRoleText = (node: Element) => node.hasAttribute("data-cv-role") || Boolean(node.querySelector("[data-cv-role]"));
   if (colors?.background) {
     set(root, "background-color", design.colors.background);
     set(scope, "background-color", design.colors.background);
   }
   if (colors?.text) set(scope, "color", design.colors.text);
-  if (colors?.paragraph) for (const node of scope.querySelectorAll("p,li")) set(node, "color", design.colors.paragraph);
-  if (colors?.muted) for (const node of scope.querySelectorAll("small,time,[class*='meta'],[class*='date']")) set(node, "color", design.colors.muted);
+  if (colors?.paragraph) for (const node of scope.querySelectorAll("p,li"))
+    if (!isRoleText(node)) set(node, "color", design.colors.paragraph);
+  if (colors?.muted) for (const node of scope.querySelectorAll("small,time,[class*='meta'],[class*='date']"))
+    if (!isRoleText(node)) set(node, "color", design.colors.muted);
   if (colors?.icon) for (const node of scope.querySelectorAll("svg")) {
     set(node, "color", design.colors.icon);
     set(node, "stroke", design.colors.icon);
@@ -296,12 +302,17 @@ export const applyResumeDesignOverrides = (
 
   const sources = resumeSectionStyleSources[surface][resolveTemplateId(templateId) as keyof typeof resumeSectionStyleSources.preview];
   const sectionHeadings = sources ? scope.querySelectorAll(`${sources[1]},[data-custom-role='heading'],[data-cv-heading]`) : scope.querySelectorAll("[data-managed-section]>h2,[data-managed-section]>h3");
-  const entryHeadings = sources ? scope.querySelectorAll(`${sources[2]},[data-custom-role='entry'] h3,[data-custom-role='entry'] h4`) : scope.querySelectorAll("article h3,article h4");
+  // A heading tag that carries another entry role (the organisation of a hobby set as h4) is not an entry title.
+  const notAnotherRole = ':not([data-cv-role]:not([data-cv-role="entry-title"]))';
+  const entryHeadings = sources
+    ? scope.querySelectorAll(`${sources[2]},[data-custom-role='entry'] h3${notAnotherRole},[data-custom-role='entry'] h4${notAnotherRole}`)
+    : scope.querySelectorAll(`article h3${notAnotherRole},article h4${notAnotherRole}`);
   const supporting = sources ? scope.querySelectorAll(sources[3]) : scope.querySelectorAll("[class*='company'],[class*='organization']");
   if (colors?.sectionHeading) for (const node of sectionHeadings) set(node, "color", design.colors.sectionHeading);
   if (colors?.entryHeading) for (const node of entryHeadings) set(node, "color", design.colors.entryHeading);
   if (colors?.divider) for (const node of sectionHeadings) set(node, "border-color", design.colors.divider);
-  if (colors?.accent) for (const node of supporting) set(node, "color", design.colors.accent);
+  if (colors?.accent) for (const node of supporting)
+    if (!isRoleText(node)) set(node, "color", design.colors.accent);
   if (resolveTemplateId(templateId) === "zweispaltig" && colors?.employer)
     for (const node of scope.querySelectorAll("[data-cv-employer]")) set(node, "color", colors.employer);
   if (colors?.surface) for (const node of scope.querySelectorAll(resumeColorSurfaceSelector)) {
@@ -1151,6 +1162,8 @@ export const applyManagedResumeOutput = (
       }
     }
     applyResumeMetadataLayout(root, profile, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
+    // The entry roles last: their own colour and size beat the template's and the generic overrides of the same text.
+    applyResumeTextRoleStyles(root, templateId, designSettings, resolved.design);
     // A footer closing must stay inside the main column when a sidebar shares the page.
     const geometry = getPaginationGeometry(resolved.templateId);
     const hasSidebar =

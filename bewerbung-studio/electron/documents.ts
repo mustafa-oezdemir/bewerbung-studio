@@ -944,8 +944,8 @@ export const buildDocumentHtml = (
     return `
       <article class="cv-entry">
         <div class="cv-entry-head">
-          <div><strong>${escapeHtml(item.role)}</strong><p>${escapeHtml(item.organization)}</p></div>
-          <small>${escapeHtml(item.period)}${item.location ? `<br>${escapeHtml(item.location)}` : ""}</small>
+          <div><strong data-cv-role="entry-title">${escapeHtml(item.role)}</strong><p data-cv-role="organization">${escapeHtml(item.organization)}</p></div>
+          <small><span data-cv-role="period">${escapeHtml(item.period)}</span>${item.location ? `<br><span data-cv-role="location">${escapeHtml(item.location)}</span>` : ""}</small>
         </div>
         ${item.bullets.length ? `<ul>${item.bullets.map((bullet) => `<li>${escapeHtml(bullet)}</li>`).join("")}</ul>` : ""}
       </article>`;
@@ -957,8 +957,8 @@ export const buildDocumentHtml = (
     return `
       <article class="cv-entry">
         <div class="cv-entry-head">
-          <div><strong>${escapeHtml(item.degree)}</strong><p>${escapeHtml(item.institution)}</p></div>
-          <small>${escapeHtml(item.from)} – ${escapeHtml(item.to)}${item.city ? `<br>${escapeHtml(item.city)}` : ""}</small>
+          <div><strong data-cv-role="entry-title">${escapeHtml(item.degree)}</strong><p data-cv-role="organization">${escapeHtml(item.institution)}</p></div>
+          <small><span data-cv-role="period">${escapeHtml(item.from)} – ${escapeHtml(item.to)}</span>${item.city ? `<br><span data-cv-role="location">${escapeHtml(item.city)}</span>` : ""}</small>
         </div>
       </article>`;
   };
@@ -1029,12 +1029,12 @@ export const buildDocumentHtml = (
       <article class="elegant-pdf-entry">
         <div class="elegant-pdf-entry-head">
           <div>
-            <h4>${escapeHtml(item.title)}</h4>
-            <p>${escapeHtml(item.organization)}</p>
+            <h4 data-cv-role="entry-title">${escapeHtml(item.title)}</h4>
+            <p data-cv-role="organization">${escapeHtml(item.organization)}</p>
           </div>
           <div class="elegant-pdf-entry-meta">
-            <strong>${escapeHtml(formatDateRange(item.from, item.to))}</strong>
-            ${item.city ? `<span>${escapeHtml(item.city)}</span>` : ""}
+            <strong data-cv-role="period">${escapeHtml(formatDateRange(item.from, item.to))}</strong>
+            ${item.city ? `<span data-cv-role="location">${escapeHtml(item.city)}</span>` : ""}
           </div>
         </div>
         ${
@@ -1283,11 +1283,11 @@ export const buildDocumentHtml = (
     if (!item) return "";
     return `
       <article class="zweispaltig-pdf-entry">
-        <h4>${escapeHtml(item.title)}</h4>
-        <p class="zweispaltig-pdf-entry-organization"${kind === "experience" ? ' data-cv-employer="true"' : ""}>${escapeHtml(item.organization)}</p>
+        <h4 data-cv-role="entry-title">${escapeHtml(item.title)}</h4>
+        <p class="zweispaltig-pdf-entry-organization" data-cv-role="organization"${kind === "experience" ? ' data-cv-employer="true"' : ""}>${escapeHtml(item.organization)}</p>
         <p class="zweispaltig-pdf-entry-meta">
-          <span>${zweispaltigIconMarkup("calendar")}${escapeHtml(formatDateRange(item.from, item.to))}</span>
-          ${item.city ? `<span>${zweispaltigIconMarkup("location")}${escapeHtml(item.city)}</span>` : ""}
+          <span data-cv-role="period">${zweispaltigIconMarkup("calendar")}${escapeHtml(formatDateRange(item.from, item.to))}</span>
+          ${item.city ? `<span data-cv-role="location">${zweispaltigIconMarkup("location")}${escapeHtml(item.city)}</span>` : ""}
         </p>
         ${
           item.achievements.length
@@ -1663,12 +1663,12 @@ export const buildDocumentHtml = (
     return `
       <article class="zeit-pdf-entry">
         <div class="zeit-pdf-entry-top">
-          <h4>${escapeHtml(item.organization)}</h4>
-          <span>${escapeHtml(item.city)}</span>
+          <h4 data-cv-role="organization">${escapeHtml(item.organization)}</h4>
+          <span${item.city ? ' data-cv-role="location"' : ""}>${escapeHtml(item.city)}</span>
         </div>
         <div class="zeit-pdf-entry-role">
-          <h5>${escapeHtml(item.title)}</h5>
-          <span>${escapeHtml(formatDateRange(item.from, item.to))}</span>
+          <h5 data-cv-role="entry-title">${escapeHtml(item.title)}</h5>
+          <span data-cv-role="period">${escapeHtml(formatDateRange(item.from, item.to))}</span>
         </div>
         ${
           item.achievements.length
@@ -2009,12 +2009,12 @@ export const buildDocumentHtml = (
     return `
       <article class="kreativ-pdf-entry" data-resume-entry-id="${escapeHtml(id)}"${range ? ` data-resume-entry-range="${range.from}:${range.to}"` : ""}${range && range.from > 0 ? ' data-resume-entry-continued=""' : ""}${range && range.to < range.total ? ' data-resume-entry-continues=""' : ""}>
         <div class="kreativ-pdf-entry-heading">
-          <h4>${escapeHtml(item.title)}${range && range.from > 0 ? '<span data-resume-entry-marker>· Fortsetzung</span>' : ""}</h4>
-          <p class="kreativ-pdf-entry-meta">${escapeHtml(formatDateRange(item.from, item.to))}</p>
+          <h4 data-cv-role="entry-title">${escapeHtml(item.title)}${range && range.from > 0 ? '<span data-resume-entry-marker>· Fortsetzung</span>' : ""}</h4>
+          <p class="kreativ-pdf-entry-meta" data-cv-role="period">${escapeHtml(formatDateRange(item.from, item.to))}</p>
         </div>
         <div class="kreativ-pdf-entry-subheading">
-          <h5>${escapeHtml(item.organization)}</h5>
-          ${item.city ? `<p class="kreativ-pdf-entry-location">${escapeHtml(item.city)}</p>` : ""}
+          <h5 data-cv-role="organization">${escapeHtml(item.organization)}</h5>
+          ${item.city ? `<p class="kreativ-pdf-entry-location" data-cv-role="location">${escapeHtml(item.city)}</p>` : ""}
         </div>
         ${
           achievements.length
@@ -2249,8 +2249,8 @@ export const buildDocumentHtml = (
           })();
     if (!item) return "";
     return `<article class="ivy-pdf-entry">
-      <div class="ivy-pdf-entry-role"><h4>${escapeHtml(item.title)}</h4><span>${escapeHtml(formatDateRange(item.from, item.to))}</span></div>
-      <div class="ivy-pdf-entry-top"><h3>${escapeHtml(item.organization)}</h3>${item.city ? `<span>${escapeHtml(item.city)}</span>` : "<span></span>"}</div>
+      <div class="ivy-pdf-entry-role"><h4 data-cv-role="entry-title">${escapeHtml(item.title)}</h4><span data-cv-role="period">${escapeHtml(formatDateRange(item.from, item.to))}</span></div>
+      <div class="ivy-pdf-entry-top"><h3 data-cv-role="organization">${escapeHtml(item.organization)}</h3>${item.city ? `<span data-cv-role="location">${escapeHtml(item.city)}</span>` : "<span></span>"}</div>
       ${item.achievements.length ? `<ul>${item.achievements.map((achievement) => `<li>${escapeHtml(achievement)}</li>`).join("")}</ul>` : ""}
     </article>`;
   };
@@ -2412,12 +2412,12 @@ export const buildDocumentHtml = (
           .join("")}</ul>`
       : "";
     if (variant === "einfach") {
-      return `<article class="managed-pdf-entry einfach-pdf-entry"><div class="einfach-pdf-entry-heading"><h3>${escapeHtml(item.title)}</h3><time>${escapeHtml(formatDateRange(item.from, item.to))}</time></div><div class="einfach-pdf-entry-organization"><h4>${escapeHtml(item.organization)}</h4>${item.city ? `<span>${escapeHtml(item.city)}</span>` : ""}</div>${achievements}</article>`;
+      return `<article class="managed-pdf-entry einfach-pdf-entry"><div class="einfach-pdf-entry-heading"><h3 data-cv-role="entry-title">${escapeHtml(item.title)}</h3><time data-cv-role="period">${escapeHtml(formatDateRange(item.from, item.to))}</time></div><div class="einfach-pdf-entry-organization"><h4 data-cv-role="organization">${escapeHtml(item.organization)}</h4>${item.city ? `<span data-cv-role="location">${escapeHtml(item.city)}</span>` : ""}</div>${achievements}</article>`;
     }
     if (variant === "kompakt") {
-      return `<article class="managed-pdf-entry kompakt-pdf-entry"><div class="kompakt-pdf-entry-heading"><h3>${escapeHtml(item.title)}</h3><time>${escapeHtml(formatDateRange(item.from, item.to))}</time></div><p class="kompakt-pdf-meta"><strong>${escapeHtml(item.organization)}</strong>${item.city ? `<span>${escapeHtml(item.city)}</span>` : ""}</p>${achievements}</article>`;
+      return `<article class="managed-pdf-entry kompakt-pdf-entry"><div class="kompakt-pdf-entry-heading"><h3 data-cv-role="entry-title">${escapeHtml(item.title)}</h3><time data-cv-role="period">${escapeHtml(formatDateRange(item.from, item.to))}</time></div><p class="kompakt-pdf-meta"><strong data-cv-role="organization">${escapeHtml(item.organization)}</strong>${item.city ? `<span data-cv-role="location">${escapeHtml(item.city)}</span>` : ""}</p>${achievements}</article>`;
     }
-    return `<article class="managed-pdf-entry stilvoll-pdf-entry"><div class="stilvoll-pdf-heading"><h3>${escapeHtml(item.title)}</h3><span>${escapeHtml(formatDateRange(item.from, item.to))}</span></div><p class="stilvoll-pdf-meta"><strong>${escapeHtml(item.organization)}</strong>${item.city ? `<span>${escapeHtml(item.city)}</span>` : ""}</p>${achievements}</article>`;
+    return `<article class="managed-pdf-entry stilvoll-pdf-entry"><div class="stilvoll-pdf-heading"><h3 data-cv-role="entry-title">${escapeHtml(item.title)}</h3><span data-cv-role="period">${escapeHtml(formatDateRange(item.from, item.to))}</span></div><p class="stilvoll-pdf-meta"><strong data-cv-role="organization">${escapeHtml(item.organization)}</strong>${item.city ? `<span data-cv-role="location">${escapeHtml(item.city)}</span>` : ""}</p>${achievements}</article>`;
   };
   const managedSection = (
     title: string,
@@ -2652,7 +2652,7 @@ export const buildDocumentHtml = (
           .map((achievement) => `<li>${escapeHtml(achievement)}</li>`)
           .join("")}</ul>`
       : "";
-    return `<article class="klassisch-pdf-entry"><div class="klassisch-pdf-entry-head"><div><h3>${escapeHtml(item.title)}</h3><h4>${escapeHtml(item.organization)}</h4></div><p class="klassisch-pdf-entry-meta">${item.city ? `<span>${escapeHtml(item.city)}</span>` : ""}<time>${escapeHtml(formatDateRange(item.from, item.to))}</time></p></div>${achievements}</article>`;
+    return `<article class="klassisch-pdf-entry"><div class="klassisch-pdf-entry-head"><div><h3 data-cv-role="entry-title">${escapeHtml(item.title)}</h3><h4 data-cv-role="organization">${escapeHtml(item.organization)}</h4></div><p class="klassisch-pdf-entry-meta">${item.city ? `<span data-cv-role="location">${escapeHtml(item.city)}</span>` : ""}<time data-cv-role="period">${escapeHtml(formatDateRange(item.from, item.to))}</time></p></div>${achievements}</article>`;
   };
   const klassischProfession = professionalTitle;
   const klassischContacts = managedContactValues
@@ -2825,7 +2825,7 @@ export const buildDocumentHtml = (
               : undefined;
           })();
     if (!item) return "";
-    return `<article class="modern-pdf-entry"><h3>${escapeHtml(item.title)}</h3><p class="modern-pdf-entry-meta"><strong>${escapeHtml(item.organization)}</strong><span class="modern-pdf-entry-date">${renderContactIcon({ kind: "calendar" })}${escapeHtml(formatDateRange(item.from, item.to))}</span>${item.city ? `<span class="modern-pdf-entry-location">${renderContactIcon({ kind: "location" })}${escapeHtml(item.city)}</span>` : ""}</p>${item.achievements.length ? `<ul>${item.achievements.map((achievement) => `<li>${escapeHtml(achievement)}</li>`).join("")}</ul>` : ""}</article>`;
+    return `<article class="modern-pdf-entry"><h3 data-cv-role="entry-title">${escapeHtml(item.title)}</h3><p class="modern-pdf-entry-meta"><strong data-cv-role="organization">${escapeHtml(item.organization)}</strong><span class="modern-pdf-entry-date" data-cv-role="period">${renderContactIcon({ kind: "calendar" })}${escapeHtml(formatDateRange(item.from, item.to))}</span>${item.city ? `<span class="modern-pdf-entry-location" data-cv-role="location">${renderContactIcon({ kind: "location" })}${escapeHtml(item.city)}</span>` : ""}</p>${item.achievements.length ? `<ul>${item.achievements.map((achievement) => `<li>${escapeHtml(achievement)}</li>`).join("")}</ul>` : ""}</article>`;
   };
   const modernDescribedStrengths = managedStrengths.filter(
     (item) => item.description,
@@ -3018,12 +3018,12 @@ export const buildDocumentHtml = (
             if (!raw) return "";
             const source = resolveExperience(raw);
             const achievements = source.bullets;
-            return `<article class="pehlione-pdf-entry">${template.id === "pehlione_white_blue" ? `<div class="pehlione-pdf-entry__meta"><p>${escapeHtml(source.period)}</p>${source.location ? `<small>${escapeHtml(source.location)}</small>` : ""}</div>` : `<p>${escapeHtml(source.period)}</p>`}<div><h4>${escapeHtml(source.role)}</h4><strong>${escapeHtml(source.organization)}${template.id === "pehlione_white" && source.location ? ` · ${escapeHtml(source.location)}` : ""}</strong>${achievements.length ? `<ul>${achievements.map((value: string) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}</div></article>`;
+            return `<article class="pehlione-pdf-entry">${template.id === "pehlione_white_blue" ? `<div class="pehlione-pdf-entry__meta"><p data-cv-role="period">${escapeHtml(source.period)}</p>${source.location ? `<small data-cv-role="location">${escapeHtml(source.location)}</small>` : ""}</div>` : `<p data-cv-role="period">${escapeHtml(source.period)}</p>`}<div><h4 data-cv-role="entry-title">${escapeHtml(source.role)}</h4><strong><span data-cv-role="organization">${escapeHtml(source.organization)}</span>${template.id === "pehlione_white" && source.location ? ` · <span data-cv-role="location">${escapeHtml(source.location)}</span>` : ""}</strong>${achievements.length ? `<ul>${achievements.map((value: string) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}</div></article>`;
           }
           const source = educationById.get(item.id);
           if (!source) return "";
           const view = resolveEducationPresentation(source, profile?.resumeEducationFieldVisibility);
-          return `<article class="pehlione-pdf-entry">${template.id === "pehlione_white_blue" ? `<div class="pehlione-pdf-entry__meta"><p>${escapeHtml(view.dateRange)}</p>${view.location ? `<small>${escapeHtml(view.location)}</small>` : ""}</div>` : `<p>${escapeHtml(view.dateRange)}</p>`}<div><h4>${escapeHtml(view.title)}</h4><strong>${escapeHtml(view.institution)}${template.id === "pehlione_white" && view.location ? ` · ${escapeHtml(view.location)}` : ""}</strong>${view.details.length ? `<ul>${view.details.map((detail) => `<li>${escapeHtml(detail)}</li>`).join("")}</ul>` : ""}</div></article>`;
+          return `<article class="pehlione-pdf-entry">${template.id === "pehlione_white_blue" ? `<div class="pehlione-pdf-entry__meta"><p data-cv-role="period">${escapeHtml(view.dateRange)}</p>${view.location ? `<small data-cv-role="location">${escapeHtml(view.location)}</small>` : ""}</div>` : `<p data-cv-role="period">${escapeHtml(view.dateRange)}</p>`}<div><h4 data-cv-role="entry-title">${escapeHtml(view.title)}</h4><strong><span data-cv-role="organization">${escapeHtml(view.institution)}</span>${template.id === "pehlione_white" && view.location ? ` · <span data-cv-role="location">${escapeHtml(view.location)}</span>` : ""}</strong>${view.details.length ? `<ul>${view.details.map((detail) => `<li>${escapeHtml(detail)}</li>`).join("")}</ul>` : ""}</div></article>`;
         })
         .join("");
     const experience = entries("experience");
@@ -3085,7 +3085,7 @@ export const buildDocumentHtml = (
       : "";
     // The page plan decides which page draws the project highlight (it follows the education entries).
     const projectHere = atsMode || !plan.blocks ? lastPage : plan.blocks.includes("projects");
-    const main = `${!continuation && summarySection.visible && sections.profile && managedSummary ? `<section class="pehlione-pdf-section pehlione-pdf-summary-section">${sectionHeading(getResumeSemanticTitle(semanticSections, "summary"), "profile")}<p class="pehlione-pdf-summary">${escapeHtml(managedSummary)}</p></section>` : ""}${sections.experience && experience ? `<section class="pehlione-pdf-section pehlione-pdf-experience">${sectionHeading(`${getResumeSemanticTitle(semanticSections, "career")}${continuation ? " · Fortsetzung" : ""}`, "experience")}${experience}</section>` : ""}${sections.education && education ? `<section class="pehlione-pdf-section pehlione-pdf-education">${sectionHeading(getResumeSemanticTitle(semanticSections, "education"), "education")}${education}</section>` : ""}${projectHere && project && !(template.id === "pehlione_white_blue" && hasPehlioneCustomProjectHighlight(profile)) && !knowledgeGroups.some((group) => group.semanticType === "project-highlight" && visibleBlockItems(group).length) ? `<section class="pehlione-pdf-section pehlione-pdf-project">${sectionHeading("Projekt-Highlight", "project")}<h4>${escapeHtml(project.title)}</h4><p>${[project.company, ...project.technologies].filter(Boolean).map(escapeHtml).join(" · ")}</p>${project.achievements.length ? `<ul>${project.achievements.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}</section>` : ""}${lastPage && knowledgeSection.visible && profile?.resumeKnowledgeContainer?.showTitle && mainKnowledge ? `<section class="pehlione-pdf-section">${sectionHeading(getResumeSemanticTitle(semanticSections, "knowledge"), "profile")}</section>` : ""}${lastPage && knowledgeSection.visible ? mainKnowledge : ""}${lastPage && sections.certifications && kreativCertifications.length && !knowledgeGroups.some((group) => ["training", "certificates"].includes(group.semanticType)) ? `<section class="pehlione-pdf-section pehlione-pdf-training">${sectionHeading("Weiterbildungen", "training")}<ul>${kreativCertifications.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}${atsMode && lastPage && languages ? `<section class="pehlione-pdf-section pehlione-pdf-training">${sectionHeading("Sprachen", "languages")}<ul>${languages}</ul></section>` : ""}${closingMarkup}${!experience && !education ? "<p class='muted'>Berufserfahrung und Ausbildung im Profil ergänzen.</p>" : ""}`;
+    const main = `${!continuation && summarySection.visible && sections.profile && managedSummary ? `<section class="pehlione-pdf-section pehlione-pdf-summary-section">${sectionHeading(getResumeSemanticTitle(semanticSections, "summary"), "profile")}<p class="pehlione-pdf-summary">${escapeHtml(managedSummary)}</p></section>` : ""}${sections.experience && experience ? `<section class="pehlione-pdf-section pehlione-pdf-experience">${sectionHeading(`${getResumeSemanticTitle(semanticSections, "career")}${continuation ? " · Fortsetzung" : ""}`, "experience")}${experience}</section>` : ""}${sections.education && education ? `<section class="pehlione-pdf-section pehlione-pdf-education">${sectionHeading(getResumeSemanticTitle(semanticSections, "education"), "education")}${education}</section>` : ""}${projectHere && project && !(template.id === "pehlione_white_blue" && hasPehlioneCustomProjectHighlight(profile)) && !knowledgeGroups.some((group) => group.semanticType === "project-highlight" && visibleBlockItems(group).length) ? `<section class="pehlione-pdf-section pehlione-pdf-project">${sectionHeading("Projekt-Highlight", "project")}<h4 data-cv-role="entry-title">${escapeHtml(project.title)}</h4><p>${project.company ? `<span data-cv-role="organization">${escapeHtml(project.company)}</span>` : ""}${project.company && project.technologies.length ? " · " : ""}${project.technologies.length ? `<span data-cv-role="technologies">${project.technologies.map(escapeHtml).join(" · ")}</span>` : ""}</p>${project.achievements.length ? `<ul>${project.achievements.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}</section>` : ""}${lastPage && knowledgeSection.visible && profile?.resumeKnowledgeContainer?.showTitle && mainKnowledge ? `<section class="pehlione-pdf-section">${sectionHeading(getResumeSemanticTitle(semanticSections, "knowledge"), "profile")}</section>` : ""}${lastPage && knowledgeSection.visible ? mainKnowledge : ""}${lastPage && sections.certifications && kreativCertifications.length && !knowledgeGroups.some((group) => ["training", "certificates"].includes(group.semanticType)) ? `<section class="pehlione-pdf-section pehlione-pdf-training">${sectionHeading("Weiterbildungen", "training")}<ul>${kreativCertifications.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}${atsMode && lastPage && languages ? `<section class="pehlione-pdf-section pehlione-pdf-training">${sectionHeading("Sprachen", "languages")}<ul>${languages}</ul></section>` : ""}${closingMarkup}${!experience && !education ? "<p class='muted'>Berufserfahrung und Ausbildung im Profil ergänzen.</p>" : ""}`;
     // Pehlione's `compact` mode is its strongest compaction; the `dense` stylesheet only trims margins.
     const density = plan.density === "dense" ? "compact" : plan.density;
     if (atsMode) {
@@ -3172,9 +3172,9 @@ export const buildDocumentHtml = (
           .join("")}</ul>`
       : "";
     if (ats) {
-      return `<article class="tabellarisch-pdf-entry"><div class="tabellarisch-pdf-entry-content"><h3>${escapeHtml(item.title)}</h3><p class="tabellarisch-pdf-organization">${escapeHtml(item.organization)}</p><p class="tabellarisch-pdf-ats-meta">${escapeHtml(formatTabellarischDateRange(item.from, item.to))}${item.city ? ` - ${escapeHtml(item.city)}` : ""}</p>${achievements}</div></article>`;
+      return `<article class="tabellarisch-pdf-entry"><div class="tabellarisch-pdf-entry-content"><h3 data-cv-role="entry-title">${escapeHtml(item.title)}</h3><p class="tabellarisch-pdf-organization" data-cv-role="organization">${escapeHtml(item.organization)}</p><p class="tabellarisch-pdf-ats-meta"><span data-cv-role="period">${escapeHtml(formatTabellarischDateRange(item.from, item.to))}</span>${item.city ? ` - <span data-cv-role="location">${escapeHtml(item.city)}</span>` : ""}</p>${achievements}</div></article>`;
     }
-    return `<article class="tabellarisch-pdf-entry"><div class="tabellarisch-pdf-meta"><p class="tabellarisch-pdf-date">${escapeHtml(formatTabellarischDateRange(item.from, item.to))}</p>${item.city ? `<p class="tabellarisch-pdf-location">${escapeHtml(item.city)}</p>` : ""}</div><span class="tabellarisch-pdf-rail" aria-hidden="true"></span><div class="tabellarisch-pdf-entry-content"><h3>${escapeHtml(item.title)}</h3><p class="tabellarisch-pdf-organization">${escapeHtml(item.organization)}</p>${achievements}</div></article>`;
+    return `<article class="tabellarisch-pdf-entry"><div class="tabellarisch-pdf-meta"><p class="tabellarisch-pdf-date" data-cv-role="period">${escapeHtml(formatTabellarischDateRange(item.from, item.to))}</p>${item.city ? `<p class="tabellarisch-pdf-location" data-cv-role="location">${escapeHtml(item.city)}</p>` : ""}</div><span class="tabellarisch-pdf-rail" aria-hidden="true"></span><div class="tabellarisch-pdf-entry-content"><h3 data-cv-role="entry-title">${escapeHtml(item.title)}</h3><p class="tabellarisch-pdf-organization" data-cv-role="organization">${escapeHtml(item.organization)}</p>${achievements}</div></article>`;
   };
   const tabellarischFooter = (plan: ResumePagePlan) =>
     `<footer class="tabellarisch-pdf-footer">${footerWebsiteLink}<span>Seite ${plan.pageNumber} / ${resumePlan.length}</span></footer>`;
@@ -3395,7 +3395,7 @@ export const buildDocumentHtml = (
               : undefined;
           })();
     if (!item) return "";
-    return `<article class="gepflegt-pdf-entry"><div class="gepflegt-pdf-entry-heading"><h4>${escapeHtml(item.title)}</h4><span>${escapeHtml(formatGepflegtDateRange(item.from, item.to))}</span></div><div class="gepflegt-pdf-entry-subheading"><strong>${escapeHtml(item.organization)}</strong>${item.city ? `<span>${escapeHtml(item.city)}</span>` : ""}</div>${item.achievements.length ? `<ul>${item.achievements.map((achievement) => `<li>${escapeHtml(achievement)}</li>`).join("")}</ul>` : ""}</article>`;
+    return `<article class="gepflegt-pdf-entry"><div class="gepflegt-pdf-entry-heading"><h4 data-cv-role="entry-title">${escapeHtml(item.title)}</h4><span data-cv-role="period">${escapeHtml(formatGepflegtDateRange(item.from, item.to))}</span></div><div class="gepflegt-pdf-entry-subheading"><strong data-cv-role="organization">${escapeHtml(item.organization)}</strong>${item.city ? `<span data-cv-role="location">${escapeHtml(item.city)}</span>` : ""}</div>${item.achievements.length ? `<ul>${item.achievements.map((achievement) => `<li>${escapeHtml(achievement)}</li>`).join("")}</ul>` : ""}</article>`;
   };
   const renderGepflegtResumePage = (plan: ResumePagePlan) => {
     const isContinuation = plan.pageNumber > 1;

@@ -6,17 +6,18 @@ import { toTemplateEducationItem } from "../../../../shared/resumeEducation";
 import type { GepflegtMainContentProps } from "./gepflegt.types";
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
 import { toTemplateExperienceItem } from "../../../../shared/resumeCareer";
+import { cvRole } from "../../../../shared/resumeTextRoles";
 
 function GepflegtCareerEntry({ item }: { item: TemplateCareerItem }) {
   return (
     <article className="gepflegt-entry">
       <div className="gepflegt-entry__heading">
-        <h3>{item.title}</h3>
-        <span>{formatTemplateDateRange(item.from, item.to)}</span>
+        <h3 {...cvRole("entry-title")}>{item.title}</h3>
+        <span {...cvRole("period")}>{formatTemplateDateRange(item.from, item.to)}</span>
       </div>
       <div className="gepflegt-entry__subheading">
-        <strong>{item.organization}</strong>
-        {item.city ? <span>{item.city}</span> : null}
+        <strong {...cvRole("organization")}>{item.organization}</strong>
+        {item.city ? <span {...cvRole("location")}>{item.city}</span> : null}
       </div>
       {item.achievements.length ? (
         <ul>

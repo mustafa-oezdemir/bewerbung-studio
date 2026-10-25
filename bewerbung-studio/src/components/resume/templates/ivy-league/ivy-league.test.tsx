@@ -175,7 +175,7 @@ describe("Ivy League rendering", () => {
     expect(markup).toContain("ivy-league-header");
     expect(markup).toContain("ivy-league-strengths");
     expect(markup).toContain("ivy-league-career");
-    expect(markup).toContain('<div class="ivy-league-career-entry__role"><h4>Senior Maschinenbauingenieurin</h4><time>2019 – 2023</time></div><div class="ivy-league-career-entry__top"><h3>Siemens AG</h3><span>Berlin</span></div>');
+    expect(markup).toContain('<div class="ivy-league-career-entry__role"><h4 data-cv-role="entry-title">Senior Maschinenbauingenieurin</h4><time data-cv-role="period">2019 – 2023</time></div><div class="ivy-league-career-entry__top"><h3 data-cv-role="organization">Siemens AG</h3><span data-cv-role="location">Berlin</span></div>');
     expect(markup).toContain("ivy-league-languages");
     expect(markup).toContain("ivy-league-languages--columns-2");
     expect(markup).toContain('href="https://linkedin.com/in/lena"');

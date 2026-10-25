@@ -61,6 +61,10 @@ const elegantDesignColors = {
   subheading: elegantDefaults.colors.primary,
   sectionHeading: elegantDefaults.colors.heading,
   entryHeading: elegantDefaults.colors.heading,
+  // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort.
+  date: elegantDefaults.colors.mutedText,
+  organization: elegantDefaults.colors.primary,
+  location: elegantDefaults.colors.mutedText,
   divider: elegantDefaults.colors.divider,
   background: elegantDefaults.colors.pageBackground,
   accent: elegantDefaults.colors.primary,
@@ -80,6 +84,12 @@ export const elegantDesign: NativeResumeDesign = {
       subheadingSizePt: elegantDefaults.typography.professionSizePt,
       sectionHeadingSizePt: elegantDefaults.typography.sectionTitleSizePt,
       entryHeadingSizePt: elegantDefaults.typography.entryTitleSizePt,
+      // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort, Projekte.
+      dateSizePt: 9.45,
+      organizationSizePt: elegantDefaults.typography.bodySizePt,
+      locationSizePt: 9.45,
+      projectTechnologiesSizePt: elegantDefaults.typography.bodySizePt,
+      projectDescriptionSizePt: elegantDefaults.typography.bodySizePt,
       lineHeight: elegantDefaults.typography.lineHeight,
       headingWeight: 500,
       subheadingWeight: 400,

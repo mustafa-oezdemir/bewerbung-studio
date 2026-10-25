@@ -169,4 +169,40 @@ describe("global and document Lebenslauf design storage", () => {
     expect(designOf(id).cvOverrides).toBeUndefined();
     expect(store.getWorkspace().settings.resumeDesign).toEqual(layer);
   });
+
+  it("stores the entry roles of a Bewerbung and of the shared layer, reopens them and prints them", async () => {
+    const profile = store.getWorkspace().profiles[0];
+    await store.saveProfile(profileSchema.parse({ ...profile, experiences: [{ id: crypto.randomUUID(), from: "11/2024", to: "06/2025", role: "Praktikum",
+      company: "Universitätsstadt Marburg", city: "Marburg", achievements: [] }] }));
+    await store.createApplication(applicationInput("kompakt"));
+    const id = store.getWorkspace().applications[0].id;
+    const application = store.getWorkspace().applications[0];
+    const own = { colors: { date: "#B4232C", organization: "#1F6F43" }, typography: { dateSizePt: 9.5, projectDescriptionSizePt: 10.25 } };
+    await store.saveApplication({ ...application, designSettings: { ...application.designSettings, cvOverrides: own } });
+    const shared: ResumeDesignLayer = { cvOverrides: { colors: { location: "#2347A8", date: "#000000" }, typography: { locationSizePt: 8.5, organizationSizePt: 11 } } };
+    await store.saveSettings({ ...store.getWorkspace().settings, resumeDesign: shared });
+    const reopened = new DataStore(root);
+    await reopened.initialize();
+    expect(designOf(id, reopened).cvOverrides).toEqual(own);
+    expect(reopened.getWorkspace().settings.resumeDesign).toEqual(shared);
+    const pdf = parseHTML(reopened.getExportHtml(id, "lebenslauf")).document;
+    const style = (role: string) => pdf.querySelector(`[data-cv-role="${role}"]`)?.getAttribute("style") ?? "";
+    // The Bewerbung's own date beats the shared one; the shared place and organisation size reach it as well.
+    expect(style("period")).toContain("color:#B4232C!important");
+    expect(style("period")).toContain("font-size:9.5pt!important");
+    expect(style("organization")).toContain("color:#1F6F43!important");
+    expect(style("organization")).toContain("font-size:11pt!important");
+    expect(style("location")).toContain("color:#2347A8!important");
+    expect(style("location")).toContain("font-size:8.5pt!important");
+    expect(style("entry-title")).not.toContain("!important");
+  });
+
+  it("rejects entry-role sizes beyond their limits", async () => {
+    const file = path.join(root, "role-settings.json");
+    await writeFile(file, JSON.stringify({ ...store.getWorkspace().settings, resumeDesign: { cvOverrides: { typography: { dateSizePt: 40 } } } }), "utf8");
+    await expect(store.importSettings(file)).rejects.toThrow();
+    await writeFile(file, JSON.stringify({ ...store.getWorkspace().settings, resumeDesign: { cvOverrides: { colors: { organization: "red" } } } }), "utf8");
+    await expect(store.importSettings(file)).rejects.toThrow();
+    expect(store.getWorkspace().settings.resumeDesign).toBeUndefined();
+  });
 });

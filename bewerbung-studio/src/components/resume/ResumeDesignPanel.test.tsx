@@ -232,3 +232,88 @@ describe("Seitenränder and Innenabstand in the panel", () => {
     expect(set(both, "document", "pageMarginMm", undefined).draft.settings.cvOverrides?.spacing).toEqual({ innerPaddingMm: 2.5 });
   });
 });
+
+describe("entry roles in the panel (Werdegang, Bildungsweg, Projekte, Hobbys)", () => {
+  const german = (value: number) => value.toLocaleString("de-DE", { maximumFractionDigits: 2, useGrouping: false });
+  const colorFields = [["date", "Datum / Zeitraum"], ["organization", "Unternehmen / Einrichtung"], ["location", "Ort / Standort"]] as const;
+  const sizeFields = [
+    ["dateSizePt", "Datum / Zeitraum (pt)"], ["organizationSizePt", "Unternehmen / Einrichtung (pt)"], ["locationSizePt", "Ort / Standort (pt)"],
+    ["projectTechnologiesSizePt", "Projekttechnologien (pt)"], ["projectDescriptionSizePt", "Projektbeschreibung (pt)"],
+  ] as const;
+  const hex = (document: Document, label: string) => field(document, `${label} HEX`).getAttribute("value");
+
+  it.each(templates)("offers every role once and shows the values $name draws", ({ id }) => {
+    const native = resolveTemplateCvDesign(id);
+    const document = panel(stateFor(id));
+    const labels = controls(document);
+    for (const [, label] of [...colorFields, ...sizeFields]) expect(labels.filter((item) => item === label), label).toHaveLength(1);
+    for (const [key, label] of colorFields) {
+      expect(hex(document, label), label).toBe(native.colors[key].toUpperCase());
+      expect(field(document, label).closest(".rds-sub")?.getAttribute("aria-label")).toBe("Einträge");
+      expect(field(document, label).closest(".rds-group")?.querySelector("summary strong")?.textContent).toBe("Farben und Dekoration");
+    }
+    for (const [key, label] of sizeFields) {
+      expect(valueOf(document, label), label).toBe(german(native.typography[key]));
+      expect(frameOf(document, label).textContent, label).toContain(`Vorlage: ${german(native.typography[key])} pt`);
+      expect(frameOf(document, label).closest(".rds-sub")?.getAttribute("aria-label")).toBe("Größen in Einträgen");
+    }
+    // The entry title keeps its one control; the technologies follow the Hervorhebungsfarbe (Zweispaltig edits it above the panel).
+    expect(labels.filter((label) => label === "Eintragstitel (pt)")).toHaveLength(1);
+    if (id !== "zweispaltig") expect(document.querySelector(".rds")?.textContent).toContain("Färbt auch die Technologiezeile der Projekte.");
+  });
+
+  it("changes one role at a time and drops the value again on its reset", () => {
+    const native = resolveTemplateCvDesign("zweispaltig");
+    let state = editCvDesignField(stateFor("zweispaltig"), "document", "typography", "dateSizePt", 9);
+    expect(state.draft.settings.cvOverrides).toEqual({ typography: { dateSizePt: 9 } });
+    const document = panel(state);
+    expect(valueOf(document, "Datum / Zeitraum (pt)")).toBe("9");
+    expect(frameOf(document, "Datum / Zeitraum (pt)").querySelector(".rds-badge--document")?.textContent).toBe("Bewerbung");
+    for (const [key, label] of sizeFields.filter(([key]) => key !== "dateSizePt")) {
+      expect(valueOf(document, label), label).toBe(german(native.typography[key]));
+      expect(frameOf(document, label).querySelector(".rds-badge"), label).toBeNull();
+    }
+    expect(valueOf(document, "Eintragstitel (pt)")).toBe(german(native.typography.entryHeadingSizePt));
+    state = editCvDesignField(state, "document", "colors", "location", "#2347A8");
+    expect(hex(panel(state), "Ort / Standort")).toBe("#2347A8");
+    expect(hex(panel(state), "Datum / Zeitraum")).toBe(native.colors.date.toUpperCase());
+    state = editCvDesignField(editCvDesignField(state, "document", "typography", "dateSizePt", undefined), "document", "colors", "location", undefined);
+    expect(state.draft.settings.cvOverrides).toBeUndefined();
+    expect(valueOf(panel(state), "Datum / Zeitraum (pt)")).toBe(german(native.typography.dateSizePt));
+  });
+
+  it("lets the Bewerbung's value beat the global one and returns to the global value on its reset", () => {
+    let state = editCvDesignField(stateFor("klassisch"), "global", "colors", "organization", "#225588");
+    state = editCvDesignField(state, "global", "typography", "organizationSizePt", 12);
+    const view = () => resolveResumeDesignView("klassisch", state.draft.settings, state.global);
+    expect(view().effective.tokens.colors.organization).toBe("#225588");
+    expect(view().sourceOfToken("colors", "organization")).toBe("global");
+    expect(view().effective.tokens.typography.organizationSizePt).toBe(12);
+    state = editCvDesignField(state, "document", "colors", "organization", "#AA3300");
+    expect(view().effective.tokens.colors.organization).toBe("#AA3300");
+    expect(view().sourceOfToken("colors", "organization")).toBe("document");
+    expect(view().sourceOfToken("typography", "organizationSizePt")).toBe("global");
+    state = editCvDesignField(state, "document", "colors", "organization", undefined);
+    expect(view().effective.tokens.colors.organization).toBe("#225588");
+    expect(state.draft.settings.cvOverrides).toBeUndefined();
+  });
+
+  it("keeps the native organisation colour when only Hervorhebungsfarbe changes, and keeps an own one", () => {
+    const accent = editCvDesignField(stateFor("einspaltig"), "document", "colors", "accent", "#B05000");
+    expect(resolveResumeDesignView("einspaltig", accent.draft.settings).effective.tokens.colors.organization)
+      .toBe(resolveTemplateCvDesign("einspaltig").colors.organization);
+    const own = editCvDesignField(accent, "document", "colors", "organization", "#1F6F43");
+    expect(resolveResumeDesignView("einspaltig", own.draft.settings).effective.tokens.colors.organization).toBe("#1F6F43");
+    // Dates and places keep the template's values: only an own Datum / Zeitraum or Ort / Standort replaces them.
+    expect(resolveResumeDesignView("einspaltig", accent.draft.settings).effective.tokens.colors.date)
+      .toBe(resolveTemplateCvDesign("einspaltig").colors.date);
+  });
+
+  it("keeps the roles of a template when the Bewerbung switches templates and back", () => {
+    let state = editCvDesignField(stateFor("kompakt"), "document", "typography", "projectTechnologiesSizePt", 10);
+    state = { ...state, draft: selectDocumentTemplate(state.draft, "stilvoll") };
+    expect(valueOf(panel(state), "Projekttechnologien (pt)")).toBe(german(resolveTemplateCvDesign("stilvoll").typography.projectTechnologiesSizePt));
+    state = { ...state, draft: selectDocumentTemplate(state.draft, "kompakt") };
+    expect(valueOf(panel(state), "Projekttechnologien (pt)")).toBe("10");
+  });
+});

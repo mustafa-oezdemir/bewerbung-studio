@@ -107,6 +107,10 @@ const modernDesignColors = {
   subheading: modernTemplateDefaults.colors.primary,
   sectionHeading: "#686F73",
   entryHeading: modernTemplateDefaults.colors.heading,
+  // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort.
+  date: modernTemplateDefaults.colors.mutedText,
+  organization: modernTemplateDefaults.colors.primary,
+  location: modernTemplateDefaults.colors.mutedText,
   divider: modernTemplateDefaults.colors.divider,
   background: modernTemplateDefaults.colors.pageBackground,
   accent: modernTemplateDefaults.colors.primary,
@@ -126,6 +130,12 @@ export const modernDesign: NativeResumeDesign = {
       subheadingSizePt: 12,
       sectionHeadingSizePt: modernTemplateDefaults.typography.sectionTitleSizePt,
       entryHeadingSizePt: modernTemplateDefaults.typography.entryTitleSizePt,
+      // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort, Projekte.
+      dateSizePt: 7.9,
+      organizationSizePt: 7.9,
+      locationSizePt: 7.9,
+      projectTechnologiesSizePt: 7.39,
+      projectDescriptionSizePt: 9.2,
       lineHeight: 1.2,
       headingWeight: modernTemplateDefaults.typography.nameWeight,
       subheadingWeight: modernTemplateDefaults.typography.professionWeight,

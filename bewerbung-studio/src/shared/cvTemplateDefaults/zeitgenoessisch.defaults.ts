@@ -53,6 +53,10 @@ const zeitgenoessischDesignColors = {
   subheading: zeitgenoessischDefaults.colors.primaryDark,
   sectionHeading: zeitgenoessischDefaults.colors.primaryDark,
   entryHeading: zeitgenoessischDefaults.colors.heading,
+  // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort.
+  date: zeitgenoessischDefaults.colors.mutedText,
+  organization: zeitgenoessischDefaults.colors.heading,
+  location: zeitgenoessischDefaults.colors.mutedText,
   divider: zeitgenoessischDefaults.colors.divider,
   background: zeitgenoessischDefaults.colors.pageBackground,
   accent: zeitgenoessischDefaults.colors.primary,
@@ -71,7 +75,14 @@ export const zeitgenoessischDesign: NativeResumeDesign = {
       headingSizePt: zeitgenoessischDefaults.typography.nameSizePt,
       subheadingSizePt: zeitgenoessischDefaults.typography.professionSizePt,
       sectionHeadingSizePt: zeitgenoessischDefaults.typography.sectionTitleSizePt,
-      entryHeadingSizePt: zeitgenoessischDefaults.typography.entryTitleSizePt,
+      // The position under the organisation is set at the body size (the larger entry title size is the organisation's).
+      entryHeadingSizePt: zeitgenoessischDefaults.typography.bodySizePt,
+      // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort, Projekte.
+      dateSizePt: 9.24,
+      organizationSizePt: zeitgenoessischDefaults.typography.entryTitleSizePt,
+      locationSizePt: 9.24,
+      projectTechnologiesSizePt: 9.24,
+      projectDescriptionSizePt: zeitgenoessischDefaults.typography.bodySizePt,
       lineHeight: zeitgenoessischDefaults.typography.lineHeight,
       headingWeight: 350,
       subheadingWeight: 600,

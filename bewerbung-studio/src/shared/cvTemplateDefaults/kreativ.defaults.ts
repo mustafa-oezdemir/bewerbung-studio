@@ -58,6 +58,10 @@ const kreativDesignColors = {
   subheading: "#FFFFFF",
   sectionHeading: kreativDefaults.colors.heading,
   entryHeading: kreativDefaults.colors.heading,
+  // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort.
+  date: kreativDefaults.colors.mutedText,
+  organization: kreativDefaults.colors.primary,
+  location: kreativDefaults.colors.mutedText,
   divider: kreativDefaults.colors.primaryDark,
   background: kreativDefaults.colors.pageBackground,
   accent: kreativDefaults.colors.primary,
@@ -77,6 +81,12 @@ export const kreativDesign: NativeResumeDesign = {
       subheadingSizePt: kreativDefaults.typography.professionSizePt,
       sectionHeadingSizePt: kreativDefaults.typography.sectionTitleSizePt,
       entryHeadingSizePt: kreativDefaults.typography.entryTitleSizePt,
+      // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort, Projekte.
+      dateSizePt: 9.24,
+      organizationSizePt: 10.29,
+      locationSizePt: 9.24,
+      projectTechnologiesSizePt: 9.24,
+      projectDescriptionSizePt: kreativDefaults.typography.bodySizePt,
       lineHeight: kreativDefaults.typography.lineHeight,
       headingWeight: 750,
       subheadingWeight: 650,

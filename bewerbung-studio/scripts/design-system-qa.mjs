@@ -28,7 +28,7 @@ try {
     experiences: [1, 2].map((n) => ({ id: uuid(), from: `0${n}/2020`, to: 'Heute', role: `Rolle ${n}`, company: `Firma ${n}`, city: 'Berlin', achievements: ['Anwendungen entwickelt.', 'Team geleitet.'] })),
     education: [{ id: uuid(), from: '2012', to: '2016', degree: 'B.Sc.', institution: 'Hochschule' }],
   });
-  const names = { einspaltig: 'Einspaltig', 'ivy-league': 'IvyLeague', zeitgenoessisch: 'Zeitgenoessisch' };
+  const names = { einspaltig: 'Einspaltig', 'ivy-league': 'IvyLeague', zeitgenoessisch: 'Zeitgenoessisch', 'tuerkis-profil': 'TuerkisProfil' };
   const sharedValues = { sectionGapMm: 8, sectionTitleGapMm: 4, bodySizePt: 10.5, lineHeight: 1.3, sectionHeadingSizePt: 15, sectionHeadingWeight: 800, marginShiftMm: 4 };
   const preflight = await readFile('node_modules/tailwindcss/preflight.css', 'utf8');
   const appCss = (await readFile('src/app.css', 'utf8')).replace('@import "tailwindcss";', '');

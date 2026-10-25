@@ -28,6 +28,8 @@ import { einspaltigDefaults } from "./cvTemplateDefaults/einfach.defaults";
 import { tabellarischDefaults } from "./cvTemplateDefaults/tabellarisch.defaults";
 import { resolveTabellarischGeometry, tabellarischLines } from "./tabellarischDesign";
 import { einspaltigSectionTitleMm, resolveEinspaltigGeometry } from "./einspaltigDesign";
+import type { ResumeTextRole } from "./resumeTextRoles";
+import { sideBySideEntryHead, type EntryHeadModel } from "./resumeEntryRoleMetrics";
 
 const einspaltigGeometry = resolveEinspaltigGeometry();
 const einspaltigLine = (pt: number, lineHeight: number = einspaltigDefaults.typography.lineHeight) => pt * PT_MM * lineHeight;
@@ -199,6 +201,17 @@ export type PaginationGeometry = {
    * height) and `padBottom` below the entry. The title keeps its size when the body size changes.
    */
   gridEntry?: { titleLineHeight: number; orgLineHeight: number; rowGap: number; listTop: number; itemMargin: number; padBottom: number };
+  /**
+   * The head of a career entry for the sizes of its roles (Lebenslauf-Design → Typografie: Eintragstitel, Datum / Zeitraum,
+   * Unternehmen / Einrichtung, Ort / Standort; resumeEntryRoleMetrics): which roles share a row, which stand above each
+   * other, and their line heights (measured). Only a chosen size makes it count.
+   */
+  entryHead: EntryHeadModel;
+  /** The plain (ATS) layout's entry head and role sizes (pt) where they differ from `entryHead` and the native design. */
+  atsEntryHead?: EntryHeadModel;
+  atsRolePt?: Partial<Record<ResumeTextRole, number>>;
+  /** Sizes (pt) a Projekte / Hobbys role is drawn in where they differ from the template's native role size (measured). */
+  customRolePt?: Partial<Record<ResumeTextRole, number>>;
   /** `gap` is the space between two entries of a section (margin or padding that belongs to no single entry). */
   exp: { base: number; list: number; perBullet: number; linePitch: number; extraLine: number; gap: number; head: number };
   /**
@@ -267,6 +280,9 @@ export type PaginationGeometry = {
 const geometry: Record<string, PaginationGeometry> = {
   "pehlione_white_blue": {
     columns: 2,
+    // The head of a career entry (rows, cells, lines) for the entry-role sizes, measured line heights.
+    entryHead: { rows: [[["period", "location"], ["entry-title", "organization"]]], lineRatio: { period: 1.2, location: 1.25, "entry-title": 1.2, organization: 1.3 }, fixedCells: true, inline: ["organization"] },
+    customRolePt: { period: 9.2, location: 9.2 },
     // The career entry rule: 4 mm padding and a 0.25 mm divider below every entry but the last.
     customEntryChrome: 4.25,
     sidebarLeft: true,
@@ -294,6 +310,8 @@ const geometry: Record<string, PaginationGeometry> = {
   },
   "pehlione_white": {
     columns: 2,
+    // The head of a career entry (rows, cells, lines) for the entry-role sizes, measured line heights.
+    entryHead: { rows: [[["period"], ["entry-title", ["organization", "location"]]]], lineRatio: { period: 1.25, "entry-title": 1.2, organization: 1.3, location: 1.3 }, fixedCells: true, inline: ["organization", "location"] },
     // The career entry rule: 4 mm padding and a 0.25 mm divider below every entry but the last.
     customEntryChrome: 4.25,
     sidebarLeft: true,
@@ -321,6 +339,8 @@ const geometry: Record<string, PaginationGeometry> = {
   },
   "modern": {
     columns: 2,
+    // The head of a career entry (rows, cells, lines) for the entry-role sizes, measured line heights.
+    entryHead: { rows: [[["entry-title"]], [[["organization", "period", "location"]]]], lineRatio: { "entry-title": 1.15, organization: 1.2, period: 1.2, location: 1.2 }, inline: ["organization", "period", "location"] },
     safety: 0.93,
     sidebarLeft: false,
     zones: {summary: "main", strengths: "sidebar", knowledge: "sidebar", languages: "sidebar"},
@@ -348,6 +368,11 @@ const geometry: Record<string, PaginationGeometry> = {
   },
   "elegant": {
     columns: 2,
+    // The plain layout stacks title and organisation and sets period and place inline below them.
+    atsEntryHead: { rows: [[["entry-title"]], [["organization"]], [[["period", "location"]]]], lineRatio: { "entry-title": 1.2, organization: 1.2, period: 1.2, location: 1.2 }, inline: ["period", "location"] },
+    // The head of a career entry (rows, cells, lines) for the entry-role sizes, measured line heights.
+    entryHead: { rows: [[["entry-title", "organization"], ["period", "location"]]], lineRatio: { "entry-title": 1.2, organization: 1.2, period: 1.2, location: 1.2 } },
+    customRolePt: { period: 10.5, location: 10.5 },
     sidebarLeft: false,
     zones: {summary: "sidebar", strengths: "sidebar", knowledge: "sidebar", languages: "sidebar"},
     top1: 57,
@@ -375,6 +400,8 @@ const geometry: Record<string, PaginationGeometry> = {
   },
   "zweispaltig": {
     columns: 2,
+    // The head of a career entry (rows, cells, lines) for the entry-role sizes, measured line heights.
+    entryHead: { rows: [[["entry-title"]], [["organization"]], [[["period", "location"]]]], lineRatio: { "entry-title": 1.18, organization: 1.18, period: 1.2, location: 1.2 } },
     entryChrome: 3.25,
     safety: 1,
     sidebarLeft: false,
@@ -408,6 +435,8 @@ const geometry: Record<string, PaginationGeometry> = {
   },
   "zeitgenoessisch": {
     columns: 2,
+    // The head of a career entry (rows, cells, lines) for the entry-role sizes, measured line heights.
+    entryHead: sideBySideEntryHead({ "entry-title": 1.26, organization: 1.26, period: 1.26, location: 1.26 }),
     sidebarLeft: true,
     zones: {summary: "main", strengths: "sidebar", knowledge: "sidebar", languages: "sidebar"},
     top1: 53,
@@ -437,6 +466,9 @@ const geometry: Record<string, PaginationGeometry> = {
   },
   "kreativ": {
     columns: 2,
+    // The head of a career entry (rows, cells, lines) for the entry-role sizes, measured line heights.
+    entryHead: sideBySideEntryHead({ "entry-title": 1.26, organization: 1.26, period: 1.26, location: 1.26 }),
+    customRolePt: { organization: 9.5, period: 7.8, location: 7.8 },
     customEntryChrome: kreativDefaults.layout.entryDividerGapMm + 0.25,
     sidebarLeft: false,
     zones: {summary: "sidebar", strengths: "sidebar", knowledge: "sidebar", languages: "sidebar"},
@@ -464,6 +496,12 @@ const geometry: Record<string, PaginationGeometry> = {
   // Re-measured 2026-10-06 on the real PDF at the 11 pt / 1.3 defaults (340 career entries, sidebar and language probes).
   "gepflegt": {
     columns: 2,
+    // The plain layout keeps the base sheet's sizes (11.5 / 9.8 / 8.8 pt at 1.15).
+    atsEntryHead: sideBySideEntryHead({ "entry-title": 1.15, organization: 1.15, period: 1.15, location: 1.15 }),
+    atsRolePt: { "entry-title": 11.5, organization: 9.8, period: 8.8, location: 8.8 },
+    // The head of a career entry (rows, cells, lines) for the entry-role sizes, measured line heights.
+    entryHead: sideBySideEntryHead({ "entry-title": 1.3, organization: 1.3, period: 1.3, location: 1.3 }),
+    customRolePt: { organization: 9.8 },
     safety: 1,
     sidebarLeft: true,
     zones: {summary: "sidebar", strengths: "sidebar", knowledge: "sidebar", languages: "sidebar"},
@@ -498,6 +536,9 @@ const geometry: Record<string, PaginationGeometry> = {
   },
   "kompakt": {
     columns: 2,
+    // The head of a career entry (rows, cells, lines) for the entry-role sizes, measured line heights.
+    entryHead: sideBySideEntryHead({ "entry-title": 1.2, organization: 1.2, period: 1.2, location: 1.2 }),
+    customRolePt: { "entry-title": 10.5, organization: 8.4, period: 10.3, location: 10.3 },
     sidebarLeft: false,
     safety: 1,
     zones: {summary: "main", strengths: "sidebar", knowledge: "sidebar", languages: "main"},
@@ -524,6 +565,9 @@ const geometry: Record<string, PaginationGeometry> = {
   },
   "stilvoll": {
     columns: 2,
+    // The head of a career entry (rows, cells, lines) for the entry-role sizes, measured line heights.
+    entryHead: sideBySideEntryHead({ "entry-title": 1.25, organization: 1.25, period: 1.25, location: 1.25 }),
+    customRolePt: { "entry-title": 11, organization: 9.8, period: 7.8, location: 7.8 },
     sidebarLeft: true,
     zones: {summary: "sidebar", strengths: "sidebar", knowledge: "sidebar", languages: "sidebar"},
     top1: stilvollDefaults.layout.contentTopMm,
@@ -553,6 +597,8 @@ const geometry: Record<string, PaginationGeometry> = {
   // model (`cw`) only serves other fonts.
   "einspaltig": {
     columns: 1,
+    // The head of a career entry (rows, cells, lines) for the entry-role sizes, measured line heights.
+    entryHead: sideBySideEntryHead({ "entry-title": 1.2, organization: 1.25, period: 1.25, location: 1.25 }),
     safety: 1,
     sidebarLeft: false,
     zones: {summary: "main", strengths: "main", knowledge: "main", languages: "main"},
@@ -607,6 +653,8 @@ const geometry: Record<string, PaginationGeometry> = {
   // (`wrap`, estimateKlassischHeaderTop); the character model (`cw`) only serves the plain (ATS) layout and other fonts.
   "klassisch": {
     columns: 1,
+    // The head of a career entry (rows, cells, lines) for the entry-role sizes, measured line heights.
+    entryHead: { rows: [[["entry-title", "organization"], ["location", "period"]]], lineRatio: { "entry-title": 1.2, organization: 1.2, period: 1.2, location: 1.2 }, fixedCells: true },
     safety: 1,
     sidebarLeft: false,
     zones: {summary: "main", strengths: "main", knowledge: "main", languages: "main"},
@@ -658,6 +706,9 @@ const geometry: Record<string, PaginationGeometry> = {
   },
   "tabellarisch": {
     columns: 1,
+    // The head of a career entry (rows, cells, lines) for the entry-role sizes, measured line heights.
+    entryHead: sideBySideEntryHead({ "entry-title": 1.15, organization: 1.2, period: 1.15, location: 1.3 }),
+    customRolePt: { period: 10, location: 10 },
     sidebarLeft: false,
     zones: {summary: "main", strengths: "main", knowledge: "main", languages: "main"},
     // Page one: the measured standard header (estimateTabellarischTop raises it); later pages: the compact head
@@ -723,6 +774,8 @@ const geometry: Record<string, PaginationGeometry> = {
   },
   "ivy-league": {
     columns: 1,
+    // The head of a career entry (rows, cells, lines) for the entry-role sizes, measured line heights.
+    entryHead: sideBySideEntryHead({ "entry-title": 1.18, organization: 1.15, period: 1.2, location: 1.2 }),
     sidebarLeft: false,
     zones: {summary: "main", strengths: "main", knowledge: "main", languages: "main"},
     top1: 38.9,
@@ -772,6 +825,10 @@ geometry["tuerkis-profil"] = {
     wrap: { fontId: "source-sans", bodyWeight: 400, titleWeight: 600, orgWeight: 750, listInset: 4.5, metaGap: 2,
       metaRatio: tuerkisType.metaSizePt / tuerkisType.bodySizePt, metaMinPt: tuerkisType.metaSizePt, metaMaxWidth: 999, marker: true } },
   gridEntry: { titleLineHeight: 1.18, orgLineHeight: 1.18, rowGap: 0.8, listTop: 1, itemMargin: 0.5, padBottom: 2 },
+  entryHead: sideBySideEntryHead({ "entry-title": 1.18, organization: 1.18, period: 1.2, location: 1.2 }),
+  // The plain layout is Zweispaltig's: title, organisation, then period and place in one line.
+  atsEntryHead: geometry.zweispaltig.entryHead,
+  customRolePt: { "entry-title": 11.5, organization: 9.5, period: 7.8, location: 7.8 },
   // Career entries are 3.5 mm apart; their 2 mm padding is part of every entry (no divider): no chrome between them. The
   // entries of a special section keep Zweispaltig's rule (3 mm padding + dashed divider). Section title 6.33 mm + 2.5 mm
   // margin (14 pt, measured).
@@ -807,6 +864,9 @@ export const tabellarischAtsPaginationGeometry: PaginationGeometry = {
   safety: undefined,
   reserveMm: undefined,
   timeline: undefined,
+  atsRolePt: { "entry-title": 11, period: 8.3, location: 8.3 },
+  // Title, organisation, then period and place in one line.
+  entryHead: { rows: [[["entry-title"]], [["organization"]], [[["period", "location"]]]], lineRatio: { "entry-title": 1.15, organization: 1.2, period: 1.2, location: 1.2 }, inline: ["period", "location"] },
 };
 
 /** Single-column fallback for unknown templates: the widest measured layout. */

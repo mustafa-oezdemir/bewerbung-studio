@@ -171,3 +171,28 @@ describe.each(resumeTemplateIds)("content edited in the Lebenslauf in %s", (temp
     }
   });
 });
+
+describe.each(resumeTemplateIds)("entry roles of the Lebenslauf-Design in %s", (templateId) => {
+  // Every entry role at once, larger and smaller than the template draws it (Typografie, Farben und Dekoration).
+  const variants = {
+    larger: { colors: { entryHeading: "#7A1F5C", date: "#B4232C", organization: "#1F6F43", location: "#2347A8", accent: "#A04A00", paragraph: "#2B2B2B" },
+      typography: { entryHeadingSizePt: 14, dateSizePt: 11, organizationSizePt: 12, locationSizePt: 11, projectTechnologiesSizePt: 11, projectDescriptionSizePt: 11.5 } },
+    smaller: { typography: { entryHeadingSizePt: 8.5, dateSizePt: 6.5, organizationSizePt: 7, locationSizePt: 6.5, projectTechnologiesSizePt: 6.5, projectDescriptionSizePt: 7 } },
+  };
+  const styled = (pages: Element[]) => pages.flatMap((page) => Array.from(page.querySelectorAll("[data-cv-role]")))
+    .filter((node) => (node.textContent ?? "").trim())
+    .map((node) => `${node.getAttribute("data-cv-role")}|${(node.textContent ?? "").replace(/\s+/g, " ").trim()}|${(node.getAttribute("style") ?? "").split(";").filter((part) => part.includes("!important")).sort().join(";")}`)
+    .sort();
+  for (const [name, cvOverrides] of Object.entries(variants)) for (const ats of [false, true]) {
+    it(`gives preview and PDF the same role values and pages (${name}, ${ats ? "ATS" : "visual"})`, () => {
+      const result = renderCv(templateId, maximalProfile(), { ats, overrides: { cvOverrides } as never });
+      expect(result.pdfPages.length).toBe(result.previewPages.length);
+      expect(result.pdfPages.length).toBe(result.resolved.pagePlan.length);
+      expect(styled(result.pdfPages)).toEqual(styled(result.previewPages));
+      expect(styled(result.pdfPages).some((line) => line.includes("font-size:"))).toBe(true);
+      // The content stays complete.
+      for (const surface of ["preview", "pdf"] as const) for (const token of [...maximalTokens.career, ...maximalTokens.education, ...maximalTokens.custom])
+        expect(result[surface], `${surface}: ${token}`).toContain(token);
+    });
+  }
+});

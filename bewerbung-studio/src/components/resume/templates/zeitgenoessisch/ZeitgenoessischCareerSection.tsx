@@ -1,6 +1,7 @@
 import { formatZeitgenoessischDateRange } from "./zeitgenoessisch.model";
 import type { ZeitgenoessischCareerSectionProps } from "./zeitgenoessisch.types";
 import { ZeitgenoessischSectionHeading } from "./ZeitgenoessischSectionHeading";
+import { cvRole } from "../../../../shared/resumeTextRoles";
 
 export function ZeitgenoessischCareerSection({
   kind,
@@ -26,12 +27,12 @@ export function ZeitgenoessischCareerSection({
         {items.map((item) => (
           <article className="zeitgenoessisch-career-entry" key={item.id}>
             <div className="zeitgenoessisch-career-entry__top">
-              <h3>{item.organization}</h3>
-              {item.city ? <span>{item.city}</span> : <span />}
+              <h3 {...cvRole("organization")}>{item.organization}</h3>
+              {item.city ? <span {...cvRole("location")}>{item.city}</span> : <span />}
             </div>
             <div className="zeitgenoessisch-career-entry__role-row">
-              <h4>{item.title}</h4>
-              <span>
+              <h4 {...cvRole("entry-title")}>{item.title}</h4>
+              <span {...cvRole("period")}>
                 {formatZeitgenoessischDateRange(item.from, item.to)}
               </span>
             </div>

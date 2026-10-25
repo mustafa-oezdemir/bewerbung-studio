@@ -233,6 +233,7 @@ function Sub({ title, children }: { title: string; children: ReactNode }) {
 const colorGroups = [
   ["Textfarben", [["text", "Fließtext"], ["paragraph", "Absatztext"], ["muted", "Sekundärtext"]]],
   ["Überschriftenfarben", [["heading", "Name"], ["subheading", "Berufsbezeichnung"], ["sectionHeading", "Abschnittsüberschriften"], ["entryHeading", "Eintragstitel"]]],
+  ["Einträge", [["date", "Datum / Zeitraum"], ["organization", "Unternehmen / Einrichtung"], ["location", "Ort / Standort"]]],
   ["Design", [["accent", "Hervorhebungsfarbe"], ["divider", "Trennlinien"], ["background", "Seitenhintergrund"], ["surface", "Karten- und Flächenhintergrund"], ["icon", "Symbole"]]],
 ] as const;
 
@@ -246,6 +247,23 @@ const sizeFields = [
   ["bodySizePt", "Lesetext"], ["headingSizePt", "Hauptüberschrift"], ["subheadingSizePt", "Unterüberschrift"],
   ["sectionHeadingSizePt", "Abschnittsüberschrift"], ["entryHeadingSizePt", "Eintragstitel"],
 ] as const;
+/** The texts of an entry that have a size of their own; the entry title keeps "Eintragstitel" above. */
+const entrySizeFields = [
+  ["dateSizePt", "Datum / Zeitraum"], ["organizationSizePt", "Unternehmen / Einrichtung"], ["locationSizePt", "Ort / Standort"],
+  ["projectTechnologiesSizePt", "Projekttechnologien"], ["projectDescriptionSizePt", "Projektbeschreibung"],
+] as const;
+const sizeNotes: Partial<Record<string, string>> = {
+  entryHeadingSizePt: "Positionen, Abschlüsse, Projekt- und Hobbytitel.",
+  projectTechnologiesSizePt: "Die Technologiezeile unter einem Projekttitel.",
+  projectDescriptionSizePt: "Der Beschreibungstext eines Projekts.",
+};
+const colorNotes: Partial<Record<string, string>> = {
+  entryHeading: "Positionen, Abschlüsse, Projekt- und Hobbytitel; ein Projektlink folgt dieser Farbe.",
+  date: "Zeiträume im Werdegang, im Bildungsweg und bei Hobbys. Ohne eigenen Wert zeichnet die Vorlage sie selbst; eine gewählte Sekundärtextfarbe kann sie mitfärben.",
+  organization: "Unternehmen und Einrichtungen in Werdegang, Bildungsweg und Hobbys. Ohne eigenen Wert zeichnet die Vorlage sie selbst, auch in einer gewählten Hervorhebungsfarbe.",
+  location: "Orte im Werdegang, im Bildungsweg und bei Hobbys. Ohne eigenen Wert zeichnet die Vorlage sie selbst; eine gewählte Sekundärtextfarbe kann sie mitfärben.",
+  accent: "Färbt auch die Technologiezeile der Projekte.",
+};
 const weightFields = [
   ["headingWeight", "Name – Gewicht"], ["subheadingWeight", "Untertitel – Gewicht"], ["sectionHeadingWeight", "Abschnittstitel – Gewicht"],
 ] as const;
@@ -362,10 +380,12 @@ export function ResumeDesignPanel({ documentId = "", templateId, templateName, s
               ? zweispaltigVariables["--zweispaltig-subheading"] : displayed.tokens.colors[key];
             return <ColorCard key={key} label={label} value={value} contextKey={contextKey} onChange={(color) => onEditToken(scope, "colors", key, color)}>
               <ColorHint {...token("colors", key)} templateText={native.tokens.colors[key].toUpperCase()} />
-              {explicitColors?.[key] !== undefined && ["text", "paragraph", "muted", "heading", "subheading", "sectionHeading", "entryHeading", "accent"].includes(key)
+              {explicitColors?.[key] !== undefined && ["text", "paragraph", "muted", "heading", "subheading", "sectionHeading", "entryHeading", "date", "organization", "location", "accent"].includes(key)
                 && !hasReadableColorContrast(value, displayed.tokens.colors.background)
                 ? <small className="resume-sections-warning" role="status">Diese Textfarbe erreicht zum Seitenhintergrund weniger als 4,5:1 Kontrast. Ihre Auswahl bleibt erhalten.</small> : null}
               {key === "surface" ? <small className="rds-field__note">Färbt einzelne Projektkarten und Inhaltskarten, nicht die Arbeitgebernamen. Ohne eigene Textfarbe wird die Schrift für mindestens 4,5:1 Kontrast angepasst.</small> : null}
+              {colorNotes[key] ? <small className="rds-field__note">{colorNotes[key]}{key === "organization" && templateId === "zweispaltig"
+                ? " Die Arbeitgebernamen oben gelten zuerst für den beruflichen Werdegang." : ""}</small> : null}
             </ColorCard>;
           })}
         </div>
@@ -434,8 +454,11 @@ export function ResumeDesignPanel({ documentId = "", templateId, templateName, s
         })}
       </Sub>
       <Sub title="Größen und Zeilenhöhe">
-        {sizeFields.map(([key, label]) => tokenNumber("typography", key, `${label}`, "pt", cvDesignLimits[key][0], cvDesignLimits[key][1], 0.1))}
+        {sizeFields.map(([key, label]) => tokenNumber("typography", key, `${label}`, "pt", cvDesignLimits[key][0], cvDesignLimits[key][1], 0.1, sizeNotes[key]))}
         {tokenNumber("typography", "lineHeight", "Zeilenhöhe", "", cvDesignLimits.lineHeight[0], cvDesignLimits.lineHeight[1], 0.01)}
+      </Sub>
+      <Sub title="Größen in Einträgen">
+        {entrySizeFields.map(([key, label]) => tokenNumber("typography", key, label, "pt", cvDesignLimits[key][0], cvDesignLimits[key][1], 0.1, sizeNotes[key]))}
       </Sub>
       <Sub title="Gewichte und Schreibweise">
         {weightFields.map(([key, label]) => {

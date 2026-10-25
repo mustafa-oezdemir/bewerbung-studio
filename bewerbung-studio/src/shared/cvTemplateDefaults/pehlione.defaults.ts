@@ -63,6 +63,10 @@ type PehlioneDefaults = typeof pehlioneWhiteBlueDefaults | typeof pehlioneWhiteD
 /** Both themes share typography and spacing; they differ in colours and in the entry title size. */
 const pehlioneDesign = (defaults: PehlioneDefaults): NativeResumeDesign => {
   const { colors, layout, typography } = defaults;
+  // Entry roles (measured on the PDF): the stylesheet sets period, organisation and place itself, per theme.
+  const roles = defaults === pehlioneWhiteDefaults
+    ? { date: "#1E3150", organization: "#173F82", location: "#173F82", dateSizePt: 9.2, locationSizePt: 9.2 }
+    : { date: colors.text, organization: "#173F82", location: "#1E3150", dateSizePt: 9, locationSizePt: 8.2 };
   return {
     tokens: {
       colors: {
@@ -72,6 +76,9 @@ const pehlioneDesign = (defaults: PehlioneDefaults): NativeResumeDesign => {
         subheading: colors.subtitle,
         sectionHeading: colors.primary,
         entryHeading: colors.primary,
+        date: roles.date,
+        organization: roles.organization,
+        location: roles.location,
         divider: colors.divider,
         background: colors.background,
         accent: colors.primary,
@@ -87,6 +94,11 @@ const pehlioneDesign = (defaults: PehlioneDefaults): NativeResumeDesign => {
         subheadingSizePt: typography.subheadingSizePt,
         sectionHeadingSizePt: typography.sectionHeadingSizePt,
         entryHeadingSizePt: typography.entryHeadingSizePt,
+        dateSizePt: roles.dateSizePt,
+        organizationSizePt: typography.bodySizePt,
+        locationSizePt: roles.locationSizePt,
+        projectTechnologiesSizePt: 7.74,
+        projectDescriptionSizePt: typography.bodySizePt,
         lineHeight: typography.lineHeight,
         headingWeight: typography.headingWeight,
         subheadingWeight: typography.subheadingWeight,

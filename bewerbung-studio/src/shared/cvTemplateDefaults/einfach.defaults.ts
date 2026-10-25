@@ -97,6 +97,10 @@ const einspaltigDesignColors = {
   subheading: einspaltigDefaults.colors.primary,
   sectionHeading: einspaltigDefaults.colors.primary,
   entryHeading: einspaltigDefaults.colors.heading,
+  // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort.
+  date: einspaltigDefaults.colors.muted,
+  organization: einspaltigDefaults.colors.text,
+  location: einspaltigDefaults.colors.muted,
   divider: einspaltigDefaults.colors.primary,
   background: "#FFFFFF",
   accent: einspaltigDefaults.colors.primary,
@@ -116,6 +120,12 @@ export const einspaltigDesign: NativeResumeDesign = {
       subheadingSizePt: einspaltigDefaults.typography.titleSizePt,
       sectionHeadingSizePt: einspaltigDefaults.typography.sectionHeadingSizePt,
       entryHeadingSizePt: einspaltigDefaults.typography.entryHeadingSizePt,
+      // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort, Projekte.
+      dateSizePt: einspaltigDefaults.typography.metaSizePt,
+      organizationSizePt: einspaltigDefaults.typography.bodySizePt,
+      locationSizePt: einspaltigDefaults.typography.metaSizePt,
+      projectTechnologiesSizePt: einspaltigDefaults.typography.bodySizePt,
+      projectDescriptionSizePt: einspaltigDefaults.typography.bodySizePt,
       lineHeight: einspaltigDefaults.typography.lineHeight,
       headingWeight: einspaltigDefaults.typography.nameWeight,
       subheadingWeight: einspaltigDefaults.typography.titleWeight,

@@ -139,6 +139,10 @@ const tabellarischDesignColors = {
   subheading: tabellarischDefaults.colors.accent,
   sectionHeading: tabellarischDefaults.colors.sectionTitle,
   entryHeading: tabellarischDefaults.colors.primary,
+  // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort.
+  date: tabellarischDefaults.colors.primary,
+  organization: tabellarischDefaults.colors.accent,
+  location: tabellarischDefaults.colors.text,
   divider: tabellarischDefaults.colors.line,
   background: tabellarischDefaults.colors.background,
   accent: tabellarischDefaults.colors.accent,
@@ -158,6 +162,12 @@ export const tabellarischDesign: NativeResumeDesign = {
       subheadingSizePt: tabellarischDefaults.typography.jobTitleSizePt,
       sectionHeadingSizePt: tabellarischDefaults.typography.sectionTitleSizePt,
       entryHeadingSizePt: tabellarischDefaults.typography.entryTitleSizePt,
+      // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort, Projekte.
+      dateSizePt: 10,
+      organizationSizePt: 10.2,
+      locationSizePt: 8.4,
+      projectTechnologiesSizePt: 8.1,
+      projectDescriptionSizePt: tabellarischDefaults.typography.bodySizePt,
       lineHeight: tabellarischDefaults.typography.bodyLineHeight,
       headingWeight: 750,
       subheadingWeight: 650,

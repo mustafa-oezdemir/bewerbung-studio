@@ -54,7 +54,8 @@ export const getZeitgenoessischDesignVariables = (
     "--doc-heading-size": `${design.typography.headingSizePt}pt`,
     "--doc-subheading-size": `${design.typography.subheadingSizePt}pt`,
     "--doc-section-heading-size": `${design.typography.sectionHeadingSizePt}pt`,
-    "--doc-entry-heading-size": `${design.typography.entryHeadingSizePt}pt`,
+    // The stylesheet sizes the organisation above the position with it (Unternehmen / Einrichtung).
+    "--doc-entry-heading-size": `${design.typography.organizationSizePt}pt`,
     "--doc-heading-weight": String(design.typography.headingWeight),
     "--doc-subheading-weight": String(design.typography.subheadingWeight),
     "--doc-section-heading-weight": String(design.typography.sectionHeadingWeight),

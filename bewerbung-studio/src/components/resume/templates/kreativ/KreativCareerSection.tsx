@@ -1,6 +1,7 @@
 import { formatKreativDateRange } from "./kreativ.model";
 import type { KreativCareerSectionProps } from "./kreativ.types";
 import { KreativSectionHeading } from "./KreativSectionHeading";
+import { cvRole } from "../../../../shared/resumeTextRoles";
 
 export function KreativCareerSection({
   kind,
@@ -28,15 +29,15 @@ export function KreativCareerSection({
             data-resume-entry-continued={item.bullets && item.bullets.from > 0 ? "" : undefined}
             data-resume-entry-continues={item.bullets && item.bullets.to < item.bullets.total ? "" : undefined}>
             <div className="kreativ-career-entry__heading">
-              <h3>{item.title}{item.bullets && item.bullets.from > 0 ? <span data-resume-entry-marker="">· Fortsetzung</span> : null}</h3>
-              <p className="kreativ-career-entry__meta">
+              <h3 {...cvRole("entry-title")}>{item.title}{item.bullets && item.bullets.from > 0 ? <span data-resume-entry-marker="">· Fortsetzung</span> : null}</h3>
+              <p className="kreativ-career-entry__meta" {...cvRole("period")}>
                 {formatKreativDateRange(item.from, item.to)}
               </p>
             </div>
             <div className="kreativ-career-entry__subheading">
-              <h4>{item.organization}</h4>
+              <h4 {...cvRole("organization")}>{item.organization}</h4>
               {item.city ? (
-                <p className="kreativ-career-entry__location">{item.city}</p>
+                <p className="kreativ-career-entry__location" {...cvRole("location")}>{item.city}</p>
               ) : null}
             </div>
             {item.achievements?.length ? (

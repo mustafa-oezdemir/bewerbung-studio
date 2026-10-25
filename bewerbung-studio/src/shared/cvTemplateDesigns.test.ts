@@ -17,7 +17,8 @@ const nativeValues: Record<string, Record<string, number>> = {
   pehlione_white: { body: 9.2, line: 1.2, name: 29, section: 13, entry: 10.4, sectionGap: 6, entryGap: 4, titleGap: 3, margin: 7 },
   zweispaltig: { body: 10, line: 1.32, name: 24, section: 14, entry: 11.5, sectionGap: 6.5, entryGap: 3.5, titleGap: 2.5, margin: 15 },
   "tuerkis-profil": { body: 11, line: 1.25, name: 24, section: 14, entry: 12, sectionGap: 6.5, entryGap: 3.5, titleGap: 2.5, margin: 25 },
-  zeitgenoessisch: { body: 10.5, line: 1.26, name: 25, section: 12.5, entry: 11.5, sectionGap: 7, entryGap: 5, titleGap: 3, margin: 20 },
+  // The position is set at the body size; the 11.5 pt above it is the organisation (organizationSizePt).
+  zeitgenoessisch: { body: 10.5, line: 1.26, name: 25, section: 12.5, entry: 10.5, sectionGap: 7, entryGap: 5, titleGap: 3, margin: 20 },
   kreativ: { body: 10.5, line: 1.26, name: 23, section: 14, entry: 11, sectionGap: 4.5, entryGap: 2.5, titleGap: 3.5, margin: 20 },
   "ivy-league": { body: 8.4, line: 1.05, name: 17.5, section: 13.5, entry: 9.7, sectionGap: 4.5, entryGap: 4.5, titleGap: 2.5, margin: 11 },
   stilvoll: { body: 10.5, line: 1.25, name: 23, section: 11, entry: 11.5, sectionGap: 6, entryGap: 4, titleGap: 3, margin: 20 },
@@ -33,7 +34,38 @@ const nativeValues: Record<string, Record<string, number>> = {
   tabellarisch: { body: 9.2, line: 1.1, name: 25, section: 15, entry: 12, sectionGap: 6.3, entryGap: 4.4, titleGap: 3.5, margin: 15 },
 };
 
+/**
+ * The entry roles as the PDF draws them (scripts/entry-role-qa.mjs → check-entry-role-qa.cjs, Werdegang at standard
+ * density): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort and the technologies and description of a project.
+ */
+const nativeRoleValues: Record<string, { date: number; organization: number; location: number; technologies: number; description: number; colors: [string, string, string] }> = {
+  pehlione_white_blue: { date: 9, organization: 9.2, location: 8.2, technologies: 7.74, description: 9.2, colors: ["#142235", "#173F82", "#1E3150"] },
+  pehlione_white: { date: 9.2, organization: 9.2, location: 9.2, technologies: 7.74, description: 9.2, colors: ["#1E3150", "#173F82", "#173F82"] },
+  zweispaltig: { date: 7.8, organization: 9.5, location: 7.8, technologies: 8.8, description: 10, colors: ["#667178", "#58B5F7", "#667178"] },
+  "tuerkis-profil": { date: 9.5, organization: 11, location: 9.5, technologies: 9.68, description: 11, colors: ["#6A7075", "#42484C", "#6A7075"] },
+  zeitgenoessisch: { date: 9.24, organization: 11.5, location: 9.24, technologies: 9.24, description: 10.5, colors: ["#687277", "#374247", "#687277"] },
+  kreativ: { date: 9.24, organization: 10.29, location: 9.24, technologies: 9.24, description: 10.5, colors: ["#687277", "#37B978", "#687277"] },
+  "ivy-league": { date: 8.4, organization: 10.5, location: 8.4, technologies: 7.39, description: 8.4, colors: ["#3F4B50", "#FF6A00", "#3F4B50"] },
+  stilvoll: { date: 9.24, organization: 10.5, location: 9.24, technologies: 9.24, description: 10.5, colors: ["#6D777C", "#36B873", "#6D777C"] },
+  kompakt: { date: 9.06, organization: 10.3, location: 9.06, technologies: 9.06, description: 10.3, colors: ["#6D757A", "#FF6200", "#6D757A"] },
+  einspaltig: { date: 10, organization: 11, location: 10, technologies: 11, description: 11, colors: ["#68747A", "#3B454B", "#68747A"] },
+  klassisch: { date: 10, organization: 11, location: 10, technologies: 11, description: 11, colors: ["#68747A", "#00AFC5", "#68747A"] },
+  gepflegt: { date: 9.68, organization: 11, location: 9.68, technologies: 9.68, description: 11, colors: ["#657075", "#087875", "#657075"] },
+  elegant: { date: 9.45, organization: 10.5, location: 9.45, technologies: 10.5, description: 10.5, colors: ["#6D757A", "#168BE0", "#6D757A"] },
+  modern: { date: 7.9, organization: 7.9, location: 7.9, technologies: 7.39, description: 9.2, colors: ["#686F73", "#06B6C9", "#686F73"] },
+  tabellarisch: { date: 10, organization: 10.2, location: 8.4, technologies: 8.1, description: 9.2, colors: ["#17263D", "#C78300", "#3F4850"] },
+};
+
 describe("native Lebenslauf designs", () => {
+  it.each(templates)("names the entry roles of $name as its PDF draws them", ({ id }) => {
+    const { typography, colors } = resolveTemplateCvDesign(id);
+    expect({
+      date: typography.dateSizePt, organization: typography.organizationSizePt, location: typography.locationSizePt,
+      technologies: typography.projectTechnologiesSizePt, description: typography.projectDescriptionSizePt,
+      colors: [colors.date, colors.organization, colors.location].map((color) => color.toUpperCase()),
+    }).toEqual(nativeRoleValues[id]);
+  });
+
   it("defines a complete, valid design for every selectable template", () => {
     expect(templates.map((template) => template.id).sort()).toEqual(Object.keys(nativeResumeDesigns).sort());
     for (const { id } of templates) {

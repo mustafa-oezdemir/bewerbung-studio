@@ -11,6 +11,7 @@ import {
   type TemplateCareerItem,
 } from "../resume-template-data";
 import { LanguageDescriptionText, LanguageLevelText, languageDotsLabel, presentLanguage } from "../LanguageLevelText";
+import { cvRole } from "../../../../shared/resumeTextRoles";
 
 export function StilvollHeading({
   children,
@@ -45,12 +46,12 @@ export function StilvollCareer({
         {items.map((item) => (
           <article key={item.id}>
             <div className="stilvoll-career__heading">
-              <h3>{item.title}</h3>
-              <time>{formatTemplateDateRange(item.from, item.to)}</time>
+              <h3 {...cvRole("entry-title")}>{item.title}</h3>
+              <time {...cvRole("period")}>{formatTemplateDateRange(item.from, item.to)}</time>
             </div>
             <div className="stilvoll-career__meta">
-              <strong>{item.organization}</strong>
-              {item.city ? <span>{item.city}</span> : null}
+              <strong {...cvRole("organization")}>{item.organization}</strong>
+              {item.city ? <span {...cvRole("location")}>{item.city}</span> : null}
             </div>
             {item.achievements.length ? (
               <ul>

@@ -1362,7 +1362,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(document.querySelector(".zweispaltig-pdf-sidebar")?.textContent).toContain("TypeScript");
   });
 
-  it("keeps Zweispaltig career titles blue when the organization accent is green", () => {
+  it("keeps Zweispaltig career titles and employer colour independent of the chosen accent", () => {
     const zweispaltigApplication = applicationSchema.parse({
       ...application,
       templateId: "zweispaltig",
@@ -1381,7 +1381,8 @@ describe("Lebenslauf-Dokumente", () => {
     expect(page?.getAttribute("style")).toContain("--zweispaltig-accent:#1DBF2F");
     expect(html).toContain("--zweispaltig-heading:#0B3D86");
     expect(page?.querySelector(".zweispaltig-pdf-entry h4")).toBeTruthy();
-    expect(page?.querySelector(".zweispaltig-pdf-entry-organization")?.getAttribute("style")).toContain("color:#1DBF2F");
+    // Hervorhebungsfarbe must not silently replace the template's employer colour.
+    expect(page?.querySelector(".zweispaltig-pdf-entry-organization")?.getAttribute("style")).toContain("color:#58B5F7");
   });
 
   it("keeps a sidebar summary in the right Zweispaltig PDF column", () => {
@@ -1718,8 +1719,8 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).toContain("Echo, Gin");
     expect(body).toContain('class="kreativ-pdf-entry-heading"');
     expect(body).toContain('class="kreativ-pdf-entry-subheading"');
-    expect(body).toContain('class="kreativ-pdf-entry-meta">01/2020 – 12/2020</p>');
-    expect(body).toContain('class="kreativ-pdf-entry-location">Berlin</p>');
+    expect(body).toContain('class="kreativ-pdf-entry-meta" data-cv-role="period">01/2020 – 12/2020</p>');
+    expect(body).toContain('class="kreativ-pdf-entry-location" data-cv-role="location">Berlin</p>');
   });
 
   it("removes the Kreativ PDF photo placeholder when no photo exists", () => {
@@ -1847,8 +1848,8 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).toContain("ivy-pdf-languages--columns-3");
     expect(html).toContain("grid-template-columns:auto auto;justify-content:start;gap:2mm");
     expect(body).toContain("Erfahrung");
-    expect(body).toContain('<div class="ivy-pdf-entry-role"><h4>Senior Entwicklerin</h4><span data-resume-nowrap="">01/2022 – heute</span></div>');
-    expect(body).toContain('<div class="ivy-pdf-entry-top"><h3>Beispiel GmbH</h3><span>Berlin</span></div>');
+    expect(body).toContain('<div class="ivy-pdf-entry-role"><h4 data-cv-role="entry-title">Senior Entwicklerin</h4><span data-resume-nowrap="" data-cv-role="period">01/2022 – heute</span></div>');
+    expect(body).toContain('<div class="ivy-pdf-entry-top"><h3 data-cv-role="organization">Beispiel GmbH</h3><span data-cv-role="location">Berlin</span></div>');
     expect(body).toContain(
       'href="https://linkedin.com/in/mina-kaya"',
     );
@@ -2015,8 +2016,8 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).not.toContain("Softwareentwicklerin | TypeScript");
     expect(body).toContain("Kurzprofil");
     expect(body).toContain("Erfahrung");
-    expect(body).toContain('<div class="stilvoll-pdf-heading"><h3>Senior Entwicklerin</h3><span data-resume-nowrap="">01/2022 – heute</span></div>');
-    expect(body).toContain('<p class="stilvoll-pdf-meta"><strong>Beispiel GmbH</strong><span>Berlin</span></p>');
+    expect(body).toContain('<div class="stilvoll-pdf-heading"><h3 data-cv-role="entry-title">Senior Entwicklerin</h3><span data-resume-nowrap="" data-cv-role="period">01/2022 – heute</span></div>');
+    expect(body).toContain('<p class="stilvoll-pdf-meta"><strong data-cv-role="organization">Beispiel GmbH</strong><span data-cv-role="location">Berlin</span></p>');
     expect(body).toContain(
       'href="https://linkedin.com/in/mina-kaya"',
     );
@@ -2169,8 +2170,8 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).toContain("Java");
     expect(body).toContain("★");
     expect(body).not.toContain("&#9873;");
-    expect(body).toContain('<div class="kompakt-pdf-entry-heading"><h3>Senior Entwicklerin</h3><time data-resume-nowrap="">01/2022 – heute</time></div>');
-    expect(body).toContain('<p class="kompakt-pdf-meta"><strong>Beispiel GmbH</strong><span>Berlin</span></p>');
+    expect(body).toContain('<div class="kompakt-pdf-entry-heading"><h3 data-cv-role="entry-title">Senior Entwicklerin</h3><time data-resume-nowrap="" data-cv-role="period">01/2022 – heute</time></div>');
+    expect(body).toContain('<p class="kompakt-pdf-meta"><strong data-cv-role="organization">Beispiel GmbH</strong><span data-cv-role="location">Berlin</span></p>');
     expect(html).toContain(".kompakt-pdf .managed-pdf-title{padding-bottom:1mm;border-bottom:.3mm solid var(--managed-divider)}");
     expect(body).toContain('href="https://linkedin.com/in/mina-kaya"');
     expect(body).toContain("https://mina.example.com");

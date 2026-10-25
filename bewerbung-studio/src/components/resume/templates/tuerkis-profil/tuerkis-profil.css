@@ -337,3 +337,16 @@
   color: #222;
   background: #fff;
 }
+
+/* Entry roles the shared Zweispaltig rules draw in the light grey of the rules (the template's secondary colour): the
+   technologies of a project take the Hervorhebungsfarbe, the organisation of a hobby and the preview's employers the dark
+   grey the career organisations have in the PDF. A colour chosen in the Lebenslauf-Design still wins (inline). */
+.tuerkis-profil-template .zweispaltig-career-entry .zweispaltig-career-entry__organization[data-cv-employer],
+.tuerkis-profil-template [data-custom-template] [data-cv-role="organization"],
+.cv-sheet[data-template="tuerkis-profil"] [data-custom-template] [data-cv-role="organization"] {
+  color: #42484c;
+}
+.tuerkis-profil-template [data-custom-template] [data-cv-role="technologies"],
+.cv-sheet[data-template="tuerkis-profil"] [data-custom-template] [data-cv-role="technologies"] {
+  color: var(--tuerkis-accent, #24a9e1);
+}

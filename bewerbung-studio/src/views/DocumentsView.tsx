@@ -2153,7 +2153,8 @@ export function DocumentsView({
                           : setDesign((current) => ({ ...current, secondaryColor: color }))}>
                         {template.id === "zweispaltig" ? <small className="rds-field__note">Nur die Unternehmen im beruflichen Werdegang. Berufsbezeichnung und Kartenhintergründe werden separat eingestellt.
                           {!design.settings.cvOverrides?.colors?.employer ? (resumeDesignLayer?.cvOverrides?.colors?.employer
-                            ? " Globaler Arbeitgeberwert übernommen." : " Bisherige Hervorhebungsfarbe übernommen.") : " Eigener Wert dieser Bewerbung."}
+                            ? " Globaler Arbeitgeberwert übernommen."
+                            : resolvedCv.settings.cvOverrides?.colors?.organization ? " Unternehmen / Einrichtung übernommen." : " Bisherige Hervorhebungsfarbe übernommen.") : " Eigener Wert dieser Bewerbung."}
                           {design.settings.cvOverrides?.colors?.employer ? <button type="button" className="rds-link" onClick={() => editResumeDesignToken("document", "colors", "employer", undefined)}>Eigene Arbeitgeberfarbe entfernen</button> : null}
                         </small> : null}
                       </ColorCard>

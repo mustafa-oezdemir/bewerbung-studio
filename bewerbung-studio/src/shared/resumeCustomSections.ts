@@ -39,20 +39,24 @@ export const renderCustomSectionContent = (section: Section, range?: { from: num
     if (section.kind === "projects") {
       const title = entry.title.trim();
       const url = safeExternalUrl(entry.url.trim());
-      const heading = title ? `<h3 data-custom-role="entry-title" data-section-type="subsection">${url
+      const heading = title ? `<h3 data-custom-role="entry-title" data-cv-role="entry-title" data-section-type="subsection">${url
         ? `<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${escape(title)}</a>`
         : escape(title)}</h3>` : "";
       const technologies = entry.technologies.map((technology) => technology.trim()).filter(Boolean);
       const technologyLine = technologies.length
-        ? `<p class="resume-special-output__technologies" data-custom-role="supporting">${technologies.map(escape).join(" · ")}</p>` : "";
+        ? `<p class="resume-special-output__technologies" data-custom-role="supporting" data-cv-role="technologies">${technologies.map(escape).join(" · ")}</p>` : "";
       const description = entry.description.trim()
-        ? `<p data-custom-role="body">${escape(entry.description)}</p>` : "";
+        ? `<p data-custom-role="body" data-cv-role="description">${escape(entry.description)}</p>` : "";
       return `<article data-custom-role="entry" class="resume-special-output__entry resume-special-output__project" data-entry-id="${escape(entry.id)}">${heading}${technologyLine}${description}</article>`;
     }
     const period = entry.date.trim() || [entry.from, entry.to].filter(value => value.trim()).join(" – ");
-    const metadata = [entry.location, period].filter(value => value.trim()).join(" · ");
+    // Place and period keep one line of text; each is its own role (Ort / Standort, Datum / Zeitraum).
+    const metadata = [
+      ...(entry.location.trim() ? [`<span data-cv-role="location">${escape(entry.location)}</span>`] : []),
+      ...(period.trim() ? [`<span data-cv-role="period">${escape(period)}</span>`] : []),
+    ].join(" · ");
     const titleTag = entry.sectionType === "subsection" ? "h3" : "p";
-    const details = `${entry.title.trim() ? `<${titleTag} data-custom-role="${entry.sectionType === "subsection" ? "entry-title" : "body"}" data-section-type="${entry.sectionType}">${escape(entry.title)}</${titleTag}>` : ""}${entry.subtitle.trim() ? `<p data-custom-role="supporting">${escape(entry.subtitle)}</p>` : ""}${metadata ? `<p data-custom-role="metadata" class="resume-special-output__meta">${escape(metadata)}</p>` : ""}${entry.description.trim() ? `<p data-custom-role="body">${escape(entry.description)}</p>` : ""}${entry.bullets.some(value => value.trim()) ? `<ul>${entry.bullets.filter(value => value.trim()).map(value => `<li>${escape(value)}</li>`).join("")}</ul>` : ""}${entry.url.trim() ? `<p class="resume-special-output__url">${escape(entry.url)}</p>` : ""}`;
+    const details = `${entry.title.trim() ? `<${titleTag} data-custom-role="${entry.sectionType === "subsection" ? "entry-title" : "body"}"${entry.sectionType === "subsection" ? ' data-cv-role="entry-title"' : ""} data-section-type="${entry.sectionType}">${escape(entry.title)}</${titleTag}>` : ""}${entry.subtitle.trim() ? `<p data-custom-role="supporting" data-cv-role="organization">${escape(entry.subtitle)}</p>` : ""}${metadata ? `<p data-custom-role="metadata" class="resume-special-output__meta">${metadata}</p>` : ""}${entry.description.trim() ? `<p data-custom-role="body">${escape(entry.description)}</p>` : ""}${entry.bullets.some(value => value.trim()) ? `<ul>${entry.bullets.filter(value => value.trim()).map(value => `<li>${escape(value)}</li>`).join("")}</ul>` : ""}${entry.url.trim() ? `<p class="resume-special-output__url">${escape(entry.url)}</p>` : ""}`;
     const tag = ["list", "skills", "timeline"].includes(normalized.contentType) ? "li" : "article";
     return `<${tag} data-custom-role="entry" class="resume-special-output__entry" data-entry-id="${escape(entry.id)}">${details}</${tag}>`;
   }).join("");

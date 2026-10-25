@@ -91,6 +91,13 @@ export const applyGlobalResumeDesign = <Settings extends DocumentDesignSettings>
     if (Object.keys(restSpacing).length) cvOverrides.spacing = restSpacing;
     else delete cvOverrides.spacing;
   }
+  // Zweispaltig's Arbeitgebernamen are the more specific choice for the employers; a Bewerbung that chose its own
+  // Unternehmen / Einrichtung does not keep an Arbeitgeberfarbe it would only inherit.
+  if (settings.cvOverrides?.colors?.organization !== undefined && settings.cvOverrides.colors.employer === undefined
+      && layer?.cvOverrides?.colors?.employer !== undefined && cvOverrides.colors) {
+    const { employer: _inheritedEmployer, ...restColors } = cvOverrides.colors;
+    cvOverrides.colors = restColors;
+  }
   const { cvOverrides: _cv, resumeAppearance: _appearance, ...rest } = settings;
   return {
     ...rest,

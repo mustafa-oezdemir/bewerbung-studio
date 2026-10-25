@@ -63,6 +63,10 @@ const zweispaltigDesignColors = {
   subheading: zweispaltigDefaults.colors.accent,
   sectionHeading: zweispaltigDefaults.colors.heading,
   entryHeading: zweispaltigDefaults.colors.primary,
+  // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort.
+  date: zweispaltigDefaults.colors.mutedText,
+  organization: zweispaltigDefaults.colors.accent,
+  location: zweispaltigDefaults.colors.mutedText,
   divider: zweispaltigDefaults.colors.primary,
   background: zweispaltigDefaults.colors.pageBackground,
   accent: zweispaltigDefaults.colors.accent,
@@ -82,6 +86,12 @@ export const zweispaltigDesign: NativeResumeDesign = {
       subheadingSizePt: 11.5,
       sectionHeadingSizePt: zweispaltigDefaults.typography.sectionTitleSizePt,
       entryHeadingSizePt: zweispaltigDefaults.typography.entryTitleSizePt,
+      // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort, Projekte.
+      dateSizePt: 7.8,
+      organizationSizePt: 9.5,
+      locationSizePt: 7.8,
+      projectTechnologiesSizePt: 8.8,
+      projectDescriptionSizePt: zweispaltigDefaults.typography.bodySizePt,
       lineHeight: zweispaltigDefaults.typography.lineHeight,
       headingWeight: 750,
       subheadingWeight: 700,

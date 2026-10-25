@@ -5,6 +5,7 @@ import { resolveTemplateId } from "./templates";
 import { resolveEducationPresentation } from "./resumeEducation";
 import { getCvDesignVariables, resolveCvDesign } from "./cvDesign";
 import { resolveExperience } from "./resumeCareer";
+import type { ResumeTextRole } from "./resumeTextRoles";
 
 export const resumeMetadataCss = `
 [data-resume-metadata-entry]{display:block!important;min-width:0;break-inside:auto}
@@ -34,6 +35,8 @@ export const resumeMetadataCss = `
 
 type Career = { role: string; company: string; city?: string; from: string; to: string };
 const normalized = (value: string) => value.replace(/\s+/g, " ").trim().toLocaleLowerCase("de-DE");
+/** The entry text roles (resumeTextRoles) of the rebuilt metadata, so the Lebenslauf-Design reaches them here too. */
+const metadataRoles = { role: "entry-title", organization: "organization", date: "period", location: "location" } as const satisfies Record<string, ResumeTextRole>;
 
 /** Project the same career metadata for the React preview and the PDF HTML. */
 export const applyResumeMetadataLayout = (
@@ -86,6 +89,7 @@ export const applyResumeMetadataLayout = (
           if (!value) continue;
           const element = entry.ownerDocument.createElement(key === "role" ? "strong" : "span");
           element.setAttribute(`data-resume-metadata-${key}`, "");
+          element.setAttribute("data-cv-role", metadataRoles[key as keyof typeof metadataRoles]);
           element.textContent = value;
           grid.appendChild(element);
         }

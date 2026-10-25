@@ -48,5 +48,7 @@ export const getTuerkisDesignVariables = (design: CvDesignTokens): Record<string
     "--tuerkis-entry-title-size": `${design.typography.entryHeadingSizePt}pt`,
     "--tuerkis-meta-size": `${type.metaSizePt}pt`,
     "--tuerkis-contact-size": `${type.contactSizePt}pt`,
+    // The Hervorhebungsfarbe of the project technologies (the shared Zweispaltig accent is the grey of the rules here).
+    "--tuerkis-accent": design.colors.accent,
   };
 };

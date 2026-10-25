@@ -11,6 +11,7 @@ import {
 } from "../resume-template-data";
 import { wideLanguageLineChars } from "../../../../features/languages/language-levels";
 import { LanguageDescriptionText, LanguageLevelText, languageDotsLabel, presentLanguage } from "../LanguageLevelText";
+import { cvRole } from "../../../../shared/resumeTextRoles";
 
 export function KlassischHeading({ children }: { children: ReactNode }) {
   return <h2 className="klassisch-section__title">{children}</h2>;
@@ -84,12 +85,12 @@ export function KlassischCareer({
           <article key={item.id}>
             <div className="klassisch-career__heading">
               <div>
-                <h3>{item.title}</h3>
-                <h4>{item.organization}</h4>
+                <h3 {...cvRole("entry-title")}>{item.title}</h3>
+                <h4 {...cvRole("organization")}>{item.organization}</h4>
               </div>
               <p>
-                {item.city ? <span>{item.city}</span> : null}
-                <time>{formatTemplateDateRange(item.from, item.to)}</time>
+                {item.city ? <span {...cvRole("location")}>{item.city}</span> : null}
+                <time {...cvRole("period")}>{formatTemplateDateRange(item.from, item.to)}</time>
               </p>
             </div>
             {item.achievements.length ? (

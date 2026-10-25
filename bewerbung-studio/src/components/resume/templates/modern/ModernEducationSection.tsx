@@ -7,6 +7,7 @@ import type { ModernEducationSectionProps } from "./modern.types";
 import { resolveEducationPresentation } from "../../../../shared/resumeEducation";
 import { ContactIcon } from "../ContactIcon";
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
+import { cvRole } from "../../../../shared/resumeTextRoles";
 
 export function ModernEducationSection({
   profile,
@@ -22,17 +23,17 @@ export function ModernEducationSection({
         {profile.education.map((edu) => {
           const item = resolveEducationPresentation(edu, profile.resumeEducationFieldVisibility);
           return <li key={edu.id} className="modern-education-entry">
-            <h3 className="modern-education-entry__degree">{item.title}</h3>
+            <h3 className="modern-education-entry__degree" {...cvRole("entry-title")}>{item.title}</h3>
             <div className="modern-education-entry__meta">
-              <span className="modern-education-entry__institution">
+              <span className="modern-education-entry__institution" {...cvRole("organization")}>
                 {item.institution}
               </span>
-              <span className="modern-education-entry__date">
+              <span className="modern-education-entry__date" {...cvRole("period")}>
                 <ContactIcon kind="calendar" />
                 {item.dateRange}
               </span>
               {item.location && (
-                <span className="modern-education-entry__location">
+                <span className="modern-education-entry__location" {...cvRole("location")}>
                   <ContactIcon kind="location" />
                   {item.location}
                 </span>

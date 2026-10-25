@@ -1,6 +1,7 @@
 import { formatIvyLeagueDateRange } from "./ivy-league.model";
 import type { IvyLeagueCareerItem } from "./ivy-league.types";
 import { IvyLeagueSectionHeading } from "./IvyLeagueSectionHeading";
+import { cvRole } from "../../../../shared/resumeTextRoles";
 
 export function IvyLeagueCareerSection({
   kind,
@@ -30,12 +31,12 @@ export function IvyLeagueCareerSection({
         {items.map((item) => (
           <article className="ivy-league-career-entry" key={item.id}>
             <div className="ivy-league-career-entry__role">
-              <h4>{item.title}</h4>
-              <time>{formatIvyLeagueDateRange(item.from, item.to)}</time>
+              <h4 {...cvRole("entry-title")}>{item.title}</h4>
+              <time {...cvRole("period")}>{formatIvyLeagueDateRange(item.from, item.to)}</time>
             </div>
             <div className="ivy-league-career-entry__top">
-              <h3>{item.organization}</h3>
-              {item.city ? <span>{item.city}</span> : null}
+              <h3 {...cvRole("organization")}>{item.organization}</h3>
+              {item.city ? <span {...cvRole("location")}>{item.city}</span> : null}
             </div>
             {item.achievements.length ? (
               <ul>

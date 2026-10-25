@@ -49,6 +49,8 @@ import { getResumeSectionTitle, savedTemplateSidebarOrder } from "../features/re
 import { estimateElegantHeaderTop, estimateGepflegtHeaderTop, estimateKreativHeaderTop, estimateResumeHeaderTop, estimateStilvollHeaderTop, estimateTabellarischTop } from "./resumeHeaderGeometry";
 import { resolveLanguagePresentation } from "../features/languages/language-levels";
 import { languageBlockHeight } from "./languageBlockHeight";
+import type { ResumeTextRole } from "./resumeTextRoles";
+import { entryHeadDelta, nativeEntryRoleSizes, roleTextDelta, rolesBeside, type EntryHeadModel, type EntryRoleSizes } from "./resumeEntryRoleMetrics";
 
 /**
  * Bullets `from`..`to` (exclusive, of `total`) of a career entry that continues on the next page: the bullets of an
@@ -125,6 +127,11 @@ export type ResumePlanContext = {
     sectionGapMm?: number; entryGapMm?: number;
     /** Lebenslauf-Design → Erweiterte Abstände: "Abstand nach Abschnittstitel", "Abstand nach Eintragstitel", "Spaltenabstand". */
     sectionTitleGapMm?: number; entryContentGapMm?: number; columnGapMm?: number;
+    /**
+     * Lebenslauf-Design → Typografie: the sizes (pt) the user chose for the entry roles (Eintragstitel, Datum / Zeitraum,
+     * Unternehmen / Einrichtung, Ort / Standort, Projekttechnologien, Projektbeschreibung); only the chosen ones.
+     */
+    entryRoleSizes?: Partial<Record<ResumeTextRole, number>>;
   };
   /** Design settings: they decide how many columns a strengths or knowledge grid gets. */
   settings?: DocumentDesignSettings;
@@ -297,6 +304,9 @@ type Scale = {
   titleGapDelta: number;
   contentGapDelta: number;
   columnGapDelta: number;
+  /** The entry-role sizes (native and chosen) and the head of a career entry they change; no `roles` without a choice. */
+  roles?: EntryRoleSizes;
+  entryHead?: EntryHeadModel;
 };
 
 const linesFor = (chars: number, widthMm: number, fontMm: number, cw: number) =>
@@ -382,7 +392,10 @@ const timelineMetrics = (
   const bodyMm = geometry.text.bulletFont * scale.font;
   const bodyLine = bodyMm * geometry.text.lineRatio * scale.line;
   const titleMm = scale.titleFont ?? geometry.text.titleFont;
-  const orgMm = geometry.text.orgFont;
+  // The organisation, the date and the place at the sizes the user chose (Typografie → Größen in Einträgen).
+  const orgMm = chosenRoleMm(scale, "organization", geometry.text.orgFont);
+  const dateFont = chosenRoleMm(scale, "period", timeline.dateFont);
+  const locationFont = chosenRoleMm(scale, "location", timeline.locationFont);
   const marker = wrap.marker ? 0.45 * titleMm + textWidthMm("· Fortsetzung", 0.72 * titleMm, 500, 0.02) : 0;
   const titleHeight = (continued: boolean) => Math.max(1, wrappedLines(head.title, column, titleMm, wrap.titleWeight, 0, continued ? marker : 0))
     * titleMm * timeline.roleLineHeight;
@@ -392,8 +405,8 @@ const timelineMetrics = (
     ? contentGap + Math.max(1, wrappedLines(head.organization, column, orgMm, wrap.orgWeight)) * orgMm * timeline.orgLineHeight + timeline.orgGapAfter
     : Math.max(contentGap, timeline.orgGapAfter);
   const meta = timeline.metaPad
-    + (head.period.trim() ? Math.max(1, wrappedLines(head.period, timeline.metaWidth, timeline.dateFont, timeline.dateWeight)) * timeline.dateFont * timeline.dateLineHeight : 0)
-    + (head.location.trim() ? timeline.locationGap + Math.max(1, wrappedLines(head.location, timeline.metaWidth, timeline.locationFont)) * timeline.locationFont * timeline.locationLineHeight : 0);
+    + (head.period.trim() ? Math.max(1, wrappedLines(head.period, timeline.metaWidth, dateFont, timeline.dateWeight)) * dateFont * timeline.dateLineHeight : 0)
+    + (head.location.trim() ? timeline.locationGap + Math.max(1, wrappedLines(head.location, timeline.metaWidth, locationFont)) * locationFont * timeline.locationLineHeight : 0);
   const bulletWidth = geometry.text.bulletW * widthScale;
   const lines = details.map((detail) => wrappedLines(detail, bulletWidth, bodyMm, wrap.bodyWeight));
   const height = (from: number, to: number) => {
@@ -407,6 +420,41 @@ const timelineMetrics = (
 
 /** The padding a list item of a grid entry takes off its text column (zweispaltig li: padding-left 0.3 mm). */
 const GRID_ITEM_PADDING_MM = 0.3;
+
+/**
+ * What the chosen entry-role sizes add to (or take from) the head of a career entry: its rows as the template draws them
+ * (`geometry.entryHead`), every text wrapped at its own size. Zero without a chosen size, so the plan stays as it was.
+ */
+const roleHeadDelta = (
+  geometry: PaginationGeometry, scale: Scale, widthScale: number, texts: Partial<Record<ResumeTextRole, string>>,
+) => {
+  const { roles, entryHead: head } = scale;
+  if (!roles || !head) return 0;
+  const { text } = geometry;
+  const wrap = text.wrap;
+  const weights: Partial<Record<ResumeTextRole, number>> = { "entry-title": wrap?.titleWeight ?? 600, organization: wrap?.orgWeight ?? 600 };
+  // What a date or a place beside a title or an organisation takes off its line (it never wraps itself).
+  const besideMm = (role: ResumeTextRole, pt: number) => texts[role]?.trim()
+    ? Math.min(wrap?.metaMaxWidth ?? Infinity, textWidthMm(texts[role]!.trim(), pt * PT_TO_MM, weights[role] ?? 400)) + (wrap?.metaGap ?? 2) : 0;
+  const width = (role: ResumeTextRole, sizeOf: (role: ResumeTextRole) => number) => {
+    if (role === "period") return undefined;
+    const own = role === "entry-title" ? text.titleW : text.orgW;
+    if (role === "location") return Math.min(wrap?.metaMaxWidth ?? 45, own * widthScale);
+    const beside = head.fixedCells ? [] : rolesBeside(head, role).filter((other) => other === "period" || other === "location");
+    const besideWidth = (sizeOfRole: (role: ResumeTextRole) => number) => Math.max(0, ...beside.map((other) => besideMm(other, sizeOfRole(other))));
+    // With the measured column (`text.wrap`) the line is the column less what stands beside it; otherwise the calibrated
+    // width already leaves room for a date at the template's size, and only a larger one takes more.
+    return wrap ? text.bulletW * widthScale + wrap.listInset - besideWidth(sizeOf)
+      : own * widthScale - Math.max(0, besideWidth(sizeOf) - besideWidth((other) => roles.native[other]));
+  };
+  return entryHeadDelta(head, roles, texts, width, (value, columnMm, fontMm, role) => wrappedLines(value, columnMm, fontMm, weights[role] ?? 400));
+};
+
+/** The chosen size (mm) of a role, or `fallback` (the measured model) while the user keeps the template's. */
+const chosenRoleMm = (scale: Scale, role: ResumeTextRole, fallback: number) => {
+  const chosen = scale.roles?.chosen[role];
+  return chosen === undefined || chosen === scale.roles?.native[role] ? fallback : chosen * PT_TO_MM;
+};
 
 const experienceMetrics = (
   experience: ApplicantProfile["experiences"][number],
@@ -440,11 +488,14 @@ const experienceMetrics = (
     ? measuredEntryLines(geometry, scale, widthScale, resolved.role, resolved.organization, resolved.location, resolved.period, [], true)?.title
     : undefined;
   const continuedExtra = extra + Math.max(0, (continuedTitle ?? titleLines) - titleLines);
+  // Every part repeats the head: the chosen role sizes change each of them alike.
+  const roleDelta = roleHeadDelta(geometry, scale, widthScale,
+    { "entry-title": resolved.role, organization: resolved.organization, period: resolved.period, location: resolved.location });
   if (geometry.gridEntry && measured) {
     // The organisation keeps one line beside its place (the measured column); a wrapped one adds its lines.
     const organisationRow = Boolean(resolved.organization || resolved.location);
     return { lines, height: (from, to) => gridEntryHeight(geometry, scale, from > 0 ? continuedTitle ?? titleLines : titleLines,
-      organisationRow, lines.slice(from, to)) + Math.max(0, orgLines - 1) * geometry.text.bulletFont * scale.font * geometry.gridEntry!.orgLineHeight };
+      organisationRow, lines.slice(from, to)) + Math.max(0, orgLines - 1) * geometry.text.bulletFont * scale.font * geometry.gridEntry!.orgLineHeight + roleDelta };
   }
   // Every part of an entry repeats the header (dates, role, company); only the bullets are shared out.
   const height = (from: number, to: number) => {
@@ -455,7 +506,7 @@ const experienceMetrics = (
         exp.perBullet * shown.length +
         exp.linePitch * scale.line * shown.reduce((total, value) => total + value, 0) +
         exp.extraLine * (from > 0 ? continuedExtra : extra)) *
-      scale.exp * scale.textHeight
+      scale.exp * scale.textHeight + roleDelta
     );
   };
   return { lines, height };
@@ -510,11 +561,13 @@ const educationMetrics = (
     ? measuredEntryLines(geometry, scale, widthScale, view.title, view.institution, view.location, formatCareerPeriod(view.from, view.to), [], true)?.title
     : undefined;
   const continuedHeader = header + edu.extraLine * Math.max(0, (continuedTitle ?? titleLines) - titleLines);
+  const roleDelta = roleHeadDelta(geometry, scale, widthScale,
+    { "entry-title": view.title, organization: view.institution, period: formatCareerPeriod(view.from, view.to), location: view.location });
   if (geometry.gridEntry && measured) {
     const organisationRow = Boolean(view.institution || view.location);
     return { lines, height: (from, to) => gridEntryHeight(geometry, scale, from > 0 ? continuedTitle ?? titleLines : titleLines,
       organisationRow, paragraphs(from, to).map(detailLinesOf))
-      + Math.max(0, orgLines - 1) * geometry.text.bulletFont * scale.font * geometry.gridEntry!.orgLineHeight };
+      + Math.max(0, orgLines - 1) * geometry.text.bulletFont * scale.font * geometry.gridEntry!.orgLineHeight + roleDelta };
   }
   const height = (from: number, to: number) => {
     const shown = units.slice(from, to);
@@ -527,7 +580,7 @@ const educationMetrics = (
     const detailLines = details.reduce((sum, value) => sum + detailLinesOf(value), 0);
     const list = details.length ? edu.detailList ?? 0 : 0;
     return (edu.base + (details.length ? edu.detailBase ?? 0 : 0) + scale.contentGapDelta + list + (from > 0 ? continuedHeader : header)
-      + (edu.detailLine ?? edu.extraLine) * detailLines + (edu.detailItem ?? 0) * details.length) * scale.edu * scale.textHeight;
+      + (edu.detailLine ?? edu.extraLine) * detailLines + (edu.detailItem ?? 0) * details.length) * scale.edu * scale.textHeight + roleDelta;
   };
   return { lines, height };
 };
@@ -890,9 +943,14 @@ const planResumePages = (
   // Tabellarisch's plain layout keeps its measured model; the visual one is computed from the stylesheet.
   const geometry = context.atsMode && templateId === "tabellarisch" ? tabellarischAtsPaginationGeometry : getPaginationGeometry(templateId);
   const wrap = geometry.text.wrap;
+  const chosenRoles = context.overrides?.entryRoleSizes;
   const scale: Scale = {
     ...buildScale(geometry, context, templateId),
     wrapText: Boolean(wrap && (!context.atsMode || wrap.atsWidth) && (context.overrides?.fontId ?? wrap.fontId) === wrap.fontId),
+    ...(chosenRoles && Object.keys(chosenRoles).length ? {
+      roles: { native: { ...nativeEntryRoleSizes(resolveTemplateCvDesign(templateId ?? "").typography), ...(context.atsMode ? geometry.atsRolePt : {}) }, chosen: chosenRoles },
+      entryHead: context.atsMode ? geometry.atsEntryHead ?? geometry.entryHead : geometry.entryHead,
+    } : {}),
   };
   const flat = Boolean(context.atsMode) || context.layout?.mode === "single" || geometry.columns === 1;
 
@@ -1156,6 +1214,21 @@ const planResumePages = (
   const careerLikeEntryGap = (scale.entryGap ?? nativeEntryGap) + (geometry.customEntryChrome ?? geometry.entryChrome ?? 0);
   const careerLikeContentGap = context.overrides?.entryContentGapMm ?? (templateId ? resolveTemplateCvDesign(templateId).spacing.entryContentGapMm : 0);
   /**
+   * What the chosen entry-role sizes add to a Projekte / Hobbys entry (renderCustomSectionContent): its title, the
+   * technologies and the description of a project, the organisation and the place-and-period line of the other kinds, each
+   * at the line height of these entries (the design's), against the size the template draws it in. 0 without a choice.
+   */
+  const customRoleDelta = (kind: string, entry: ReturnType<typeof normalizeCustomSection>["entries"][number], width: number) => {
+    if (!scale.roles) return 0;
+    const delta = (roles: readonly ResumeTextRole[], value: string) => roleTextDelta(scale.roles, roles, value, width,
+      geometry.text.lineRatio * scale.line, (text, columnMm, fontMm) => linesFor(text.trim().length, columnMm, fontMm, SPECIAL_CW), geometry.customRolePt);
+    if (kind === "projects") return delta(["entry-title"], entry.title)
+      + delta(["technologies"], entry.technologies.filter((value) => value.trim()).join(" · ")) + delta(["description"], entry.description);
+    const period = entry.date.trim() || [entry.from, entry.to].filter((value) => value.trim()).join(" – ");
+    return (entry.sectionType === "subsection" ? delta(["entry-title"], entry.title) : 0) + delta(["organization"], entry.subtitle)
+      + delta(["location", "period"], [entry.location, period].filter((value) => value.trim()).join(" · "));
+  };
+  /**
    * A special section: its entries are drawn like career entries (the template's entry spacing between them)
    * with paragraphs in the body font, in whichever column the section stands. The lines are wrapped and pitched in the
    * scaled body font already, so the height is not scaled by the font once more (`scale.textHeight` counted a larger
@@ -1184,7 +1257,8 @@ const planResumePages = (
       if (section.kind === "projects") return lines(entry.title, indent) * pitch * 1.13
         + (entry.title.trim() && (entry.technologies.some((value) => value.trim()) || entry.description.trim()) ? careerLikeContentGap : 0)
         + lines(entry.technologies.join(" · "), indent) * pitch * .88
-        + lines(entry.description, indent) * pitch;
+        + lines(entry.description, indent) * pitch
+        + customRoleDelta(section.kind, entry, column - indent);
       const meta = [entry.location, entry.date.trim() || [entry.from, entry.to].filter((value) => value.trim()).join(" – ")].filter((value) => value.trim()).join(" · ");
       const head = headed
         ? lines(entry.title, indent) * pitch * 1.13 + (entry.subtitle.trim() ? 6.7 : 0) + (meta ? 4.1 : 0)
@@ -1194,7 +1268,8 @@ const planResumePages = (
       return head + titleGap
         + lines(entry.description, indent) * pitch
         + entry.bullets.reduce((total, value) => total + lines(value, indent + metrics.indentMm) * pitch, 0)
-        + lines(entry.url, indent) * pitch;
+        + lines(entry.url, indent) * pitch
+        + customRoleDelta(section.kind, entry, column - indent);
     });
     // The entries of a sidebar section may be styled like the template's own entries (margins, a divider's padding).
     const side = zone === "sidebar" && listed ? geometry.specialSide : undefined;
@@ -1225,7 +1300,14 @@ const planResumePages = (
       + titleLines * titleFont * 1.3 * scale.line
       + (companyLines ? companyLines * bodyFont * 1.2 * scale.line + 2.5 : 0)
       + list
-    ) * scale.textHeight;
+    ) * scale.textHeight + projectHighlightRoleDelta(project, column);
+  };
+  /** The chosen Eintragstitel and the company-and-technology line of the project highlight (10.4 pt title, 9.2 pt line). */
+  const projectHighlightRoleDelta = (project: NonNullable<ReturnType<typeof getPehlioneProjectHighlight>>, width: number) => {
+    const lines = (text: string, columnMm: number, fontMm: number) => linesFor(text.length, columnMm, fontMm, PROJECT_COMPANY_CW);
+    return roleTextDelta(scale.roles, ["entry-title"], project.title, width, 1.2, lines, { "entry-title": 10.4 })
+      + roleTextDelta(scale.roles, ["organization", "technologies"], [project.company, ...project.technologies].filter(Boolean).join(" · "), width, 1.3,
+        lines, { organization: 9.2, technologies: 9.2 });
   };
   /** A free knowledge group: its items as a plain list (level and description under the text). */
   const groupTexts = (id: string) => {
@@ -1478,7 +1560,7 @@ const planResumePages = (
       );
       // Pehlione renders its project highlight after education. When education
       // continues on page two, the project must follow it there as well.
-      const mainHeight = (24 + lines * geometry.exp.linePitch) * scale.textHeight;
+      const mainHeight = (24 + lines * geometry.exp.linePitch) * scale.textHeight + projectHighlightRoleDelta(project, geometry.text.mainW * scale.mainRatio);
       const zone = zoneFlow ? zoneOf("projects") : "main";
       const inSidebar = zoneFlow && zone === "sidebar";
       flow.push({
@@ -1685,7 +1767,8 @@ const planResumePages = (
       return 9 + shown.reduce((total, item) => {
         const [title, ...rest] = visibleTexts(item);
         const titleGap = careerLike && normalized.contentType === "entries" && title.trim() && rest.some((value) => value.trim()) ? careerLikeContentGap : 0;
-        return total + (careerLike ? titleGap : 4) + visibleTexts(item).reduce((lines, value) => lines + lineCount(value) * pitch, 0);
+        return total + (careerLike ? titleGap : 4) + visibleTexts(item).reduce((lines, value) => lines + lineCount(value) * pitch, 0)
+          + customRoleDelta(special.kind, item, availableWidth);
       }, 0) + (careerLike ? careerLikeEntryGap * Math.max(0, shown.length - 1) : 0);
     };
     /**
@@ -1706,9 +1789,13 @@ const planResumePages = (
         // The entry title keeps the entry title size of the design, whatever the body size is.
         const title = headed ? text(item.title, scale.titleFont ?? geometry.text.titleFont, 600) : text(item.title);
         const period = item.date.trim() || [item.from, item.to].filter((value) => value.trim()).join(" – ");
+        // Technologies, description, organisation and the place-and-period line at the sizes the user chose (place and
+        // period stand inline in a line of the body size, which a smaller choice does not lower).
+        const metaMm = Math.max(bodyMm, chosenRoleMm(scale, "location", bodyMm), chosenRoleMm(scale, "period", bodyMm));
         const rest = special.kind === "projects"
-          ? text(item.technologies.filter((value) => value.trim()).join(" · "), bodyMm * 0.88) + text(item.description)
-          : text(item.subtitle) + text([item.location, period].filter((value) => value.trim()).join(" · ")) + text(item.description)
+          ? text(item.technologies.filter((value) => value.trim()).join(" · "), chosenRoleMm(scale, "technologies", bodyMm * 0.88))
+            + text(item.description, chosenRoleMm(scale, "description", bodyMm))
+          : text(item.subtitle, chosenRoleMm(scale, "organization", bodyMm)) + text([item.location, period].filter((value) => value.trim()).join(" · "), metaMm) + text(item.description)
             + item.bullets.reduce((sum, value) => sum + text(value, bodyMm, 400, tabellarischDefaults.layout.listIndentMm), 0) + text(item.url);
         return total + title + (headed && item.title.trim() && rest > 0 ? careerLikeContentGap : 0) + rest;
       }, 0) + careerLikeEntryGap * Math.max(0, shown.length - 1);

@@ -34,6 +34,12 @@ export const tuerkisProfilDesign: NativeResumeDesign = {
       subheadingSizePt: tuerkisProfilDefaults.typography.professionSizePt,
       sectionHeadingSizePt: tuerkisProfilDefaults.typography.sectionTitleSizePt,
       entryHeadingSizePt: tuerkisProfilDefaults.typography.entryTitleSizePt,
+      // Entry roles (measured on the PDF): dates and places at the meta size, the organisation at the body size.
+      dateSizePt: tuerkisProfilDefaults.typography.metaSizePt,
+      organizationSizePt: tuerkisProfilDefaults.typography.bodySizePt,
+      locationSizePt: tuerkisProfilDefaults.typography.metaSizePt,
+      projectTechnologiesSizePt: 9.68,
+      projectDescriptionSizePt: tuerkisProfilDefaults.typography.bodySizePt,
     },
     colors: {
       ...zweispaltigDesign.tokens.colors,
@@ -41,6 +47,7 @@ export const tuerkisProfilDesign: NativeResumeDesign = {
       subheading: "#24A9E1", sectionHeading: "#42484C", entryHeading: "#42484C",
       divider: "#24A9E1", accent: "#24A9E1", surface: "#FFFFFF",
       muted: "#687177", icon: "#24A9E1", background: "#FFFFFF",
+      date: "#6A7075", organization: "#42484C", location: "#6A7075",
     },
     spacing: {
       ...zweispaltigDesign.tokens.spacing,

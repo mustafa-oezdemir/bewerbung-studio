@@ -41,6 +41,10 @@ const stilvollDesignColors = {
   subheading: stilvollDefaults.colors.primary,
   sectionHeading: stilvollDefaults.colors.muted,
   entryHeading: stilvollDefaults.colors.primaryDark,
+  // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort.
+  date: stilvollDefaults.colors.muted,
+  organization: stilvollDefaults.colors.primary,
+  location: stilvollDefaults.colors.muted,
   divider: stilvollDefaults.colors.divider,
   background: "#FFFFFF",
   accent: stilvollDefaults.colors.primary,
@@ -60,6 +64,12 @@ export const stilvollDesign: NativeResumeDesign = {
       subheadingSizePt: 12,
       sectionHeadingSizePt: 11,
       entryHeadingSizePt: 11.5,
+      // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort, Projekte.
+      dateSizePt: 9.24,
+      organizationSizePt: 10.5,
+      locationSizePt: 9.24,
+      projectTechnologiesSizePt: 9.24,
+      projectDescriptionSizePt: 10.5,
       lineHeight: 1.25,
       headingWeight: 400,
       subheadingWeight: 400,

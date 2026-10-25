@@ -89,6 +89,10 @@ const klassischDesignColors = {
   subheading: klassischDefaults.colors.text,
   sectionHeading: klassischDefaults.colors.heading,
   entryHeading: klassischDefaults.colors.primary,
+  // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort.
+  date: klassischDefaults.colors.muted,
+  organization: klassischDefaults.colors.accent,
+  location: klassischDefaults.colors.muted,
   divider: klassischDefaults.colors.border,
   background: "#FFFFFF",
   accent: klassischDefaults.colors.accent,
@@ -108,6 +112,12 @@ export const klassischDesign: NativeResumeDesign = {
       subheadingSizePt: klassischDefaults.typography.titleSizePt,
       sectionHeadingSizePt: klassischDefaults.typography.sectionHeadingSizePt,
       entryHeadingSizePt: klassischDefaults.typography.entryHeadingSizePt,
+      // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort, Projekte.
+      dateSizePt: klassischDefaults.typography.metaSizePt,
+      organizationSizePt: klassischDefaults.typography.bodySizePt,
+      locationSizePt: klassischDefaults.typography.metaSizePt,
+      projectTechnologiesSizePt: klassischDefaults.typography.bodySizePt,
+      projectDescriptionSizePt: klassischDefaults.typography.bodySizePt,
       lineHeight: klassischDefaults.typography.lineHeight,
       headingWeight: klassischDefaults.typography.nameWeight,
       subheadingWeight: klassischDefaults.typography.titleWeight,

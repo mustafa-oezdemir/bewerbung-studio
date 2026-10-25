@@ -12,6 +12,7 @@ import klassischStyles from "./templates/klassisch/klassisch.css?raw";
 import tabellarischStyles from "./templates/tabellarisch/tabellarisch.css?raw";
 import ivyLeagueStyles from "./templates/ivy-league/ivy-league.css?raw";
 import pehlioneStyles from "./templates/pehlione/pehlione.css?raw";
+import pehlioneBlocksStyles from "./templates/pehlione/pehlione-blocks.css?raw";
 import pehlioneWhiteStyles from "./templates/pehlione/pehlione-white.css?raw";
 export const resumeTemplateStyleSources: Record<string, string> = {
   "modern": modernStyles,
@@ -27,6 +28,6 @@ export const resumeTemplateStyleSources: Record<string, string> = {
   "klassisch": klassischStyles,
   "tabellarisch": tabellarischStyles,
   "ivy-league": ivyLeagueStyles,
-  "pehlione_white": pehlioneStyles + pehlioneWhiteStyles,
-  "pehlione_white_blue": pehlioneStyles,
+  "pehlione_white": pehlioneStyles + pehlioneBlocksStyles + pehlioneWhiteStyles,
+  "pehlione_white_blue": pehlioneStyles + pehlioneBlocksStyles,
 };

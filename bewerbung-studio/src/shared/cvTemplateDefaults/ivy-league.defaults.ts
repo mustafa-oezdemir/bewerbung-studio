@@ -53,6 +53,10 @@ const ivyLeagueDesignColors = {
   subheading: ivyLeagueDefaults.colors.accent,
   sectionHeading: ivyLeagueDefaults.colors.heading,
   entryHeading: ivyLeagueDefaults.colors.primary,
+  // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort.
+  date: ivyLeagueDefaults.colors.text,
+  organization: ivyLeagueDefaults.colors.accent,
+  location: ivyLeagueDefaults.colors.text,
   divider: ivyLeagueDefaults.colors.divider,
   background: ivyLeagueDefaults.colors.pageBackground,
   accent: ivyLeagueDefaults.colors.accent,
@@ -72,6 +76,12 @@ export const ivyLeagueDesign: NativeResumeDesign = {
       subheadingSizePt: ivyLeagueDefaults.typography.professionSizePt,
       sectionHeadingSizePt: ivyLeagueDefaults.typography.sectionTitleSizePt,
       entryHeadingSizePt: 9.7,
+      // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort, Projekte.
+      dateSizePt: 8.4,
+      organizationSizePt: ivyLeagueDefaults.typography.entryTitleSizePt,
+      locationSizePt: 8.4,
+      projectTechnologiesSizePt: 7.39,
+      projectDescriptionSizePt: 8.4,
       lineHeight: 1.05,
       headingWeight: 700,
       subheadingWeight: 400,

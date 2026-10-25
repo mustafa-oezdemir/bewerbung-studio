@@ -29,6 +29,8 @@ import { TabellarischResume } from "./templates/tabellarisch";
 import { ZeitgenoessischResume } from "./templates/zeitgenoessisch";
 import { ZweispaltigResume } from "./templates/zweispaltig";
 import { TuerkisProfilResume } from "./templates/tuerkis-profil";
+import { renderCv } from "./__parityHarness";
+import { resumeTextRoles, type ResumeTextRole } from "../../shared/resumeTextRoles";
 
 const components: Record<string, unknown> = {
   elegant: ElegantResume, einspaltig: EinspaltigResume, gepflegt: GepflegtResume, klassisch: KlassischResume,
@@ -463,5 +465,148 @@ describe("long two-column CVs", () => {
     const texts = [parseHTML(pdf).document.body.textContent ?? "", parseHTML(`<html><body>${preview}</body></html>`).document.body.textContent ?? ""];
     for (const text of texts) for (const line of achievements.flat())
       expect(text.split(line).length - 1, `${id}: ${line}`).toBe(1);
+  });
+});
+
+/** Werdegang, Bildungsweg, Projekte and Hobbys with every entry role filled (the example of the Lebenslauf-Design request). */
+const roleProfile = profileSchema.parse({
+  id: "e1000000-0000-4000-8000-000000000001", isDefault: true, firstName: "Lena", lastName: "Beispiel", title: "Fachinformatikerin", city: "Marburg",
+  email: "lena.beispiel@example.test", updatedAt: now,
+  experiences: [{ id: "e1000000-0000-4000-8000-000000000010", from: "11/2024", to: "06/2025", role: "Praktikum als Anwendungsentwickler",
+    company: "Universitätsstadt Marburg", city: "Marburg", achievements: ["Entwicklung eines Grafana-Datasource-Plugins für PRTG"] }],
+  education: [{ id: "e1000000-0000-4000-8000-000000000020", from: "07/2023", to: "06/2025", degree: "Fachinformatiker für Anwendungsentwicklung",
+    institution: "IAD GmbH", city: "Marburg" }],
+  specialSections: [
+    { id: "e1000000-0000-4000-8000-000000000030", kind: "projects", title: "Projekte", isVisible: true, entries: [
+      { id: "e1000000-0000-4000-8000-000000000031", title: "Spring Boot E-Commerce Shop mit Kafka", url: "https://github.com/example/shop",
+        technologies: ["Spring Boot", "Kafka", "RabbitMQ", "MySQL"], description: "E-Commerce-Demoanwendung mit Spring Boot und Kafka.", bullets: [] },
+      { id: "e1000000-0000-4000-8000-000000000032", title: "Go Microservice", url: "", technologies: ["Go", "Gin", "GORM"],
+        description: "Microservice mit Go und Docker Compose.", bullets: [] },
+    ] },
+    { id: "e1000000-0000-4000-8000-000000000040", kind: "interests", title: "Hobbys", isVisible: true, contentType: "entries", entries: [
+      { id: "e1000000-0000-4000-8000-000000000041", title: "Gartenarbeit", subtitle: "Interkultureller Garten", location: "Marburg", date: "seit 2023", description: "Aktives Mitglied.", bullets: [] },
+    ] },
+  ],
+});
+const roleNodes = (pages: Element[], role?: ResumeTextRole) =>
+  pages.flatMap((page) => Array.from(page.querySelectorAll<HTMLElement>(role ? `[data-cv-role="${role}"]` : "[data-cv-role]")))
+    .filter((node) => (node.textContent ?? "").trim());
+const kindOf = (node: Element) => {
+  // Pehlione's Projekt-Highlight (from the career's projects) carries the roles of its title and company line too.
+  if (node.closest(".pehlione-project,.pehlione-pdf-project")) return "highlight";
+  const section = node.closest("[data-managed-section]");
+  const id = section?.getAttribute("data-managed-section") ?? "";
+  return ["experience", "education"].includes(id) ? id : section?.getAttribute("data-custom-kind") ?? id;
+};
+const contract = (pages: Element[]) => roleNodes(pages).map((node) =>
+  `${kindOf(node)}:${node.getAttribute("data-cv-role")}:${(node.textContent ?? "").replace(/·\s*Fortsetzung/, "").replace(/\s+/g, " ").trim()}`).sort();
+/** The declaration the Lebenslauf-Design writes on a role text (inline, with priority, so a template rule never wins). */
+const declared = (node: Element, property: string) => new RegExp(`(?:^|;)${property}:([^;!]+)!important`).exec(node.getAttribute("style") ?? "")?.[1];
+
+describe("entry roles of the Lebenslauf-Design (Werdegang, Bildungsweg, Projekte, Hobbys)", () => {
+  const expected = [
+    "experience:entry-title:Praktikum als Anwendungsentwickler", "experience:organization:Universitätsstadt Marburg", "experience:period:11/2024 – 06/2025",
+    "experience:location:Marburg", "education:entry-title:Fachinformatiker für Anwendungsentwicklung", "education:organization:IAD GmbH",
+    "education:location:Marburg", "projects:entry-title:Spring Boot E-Commerce Shop mit Kafka", "projects:technologies:Spring Boot · Kafka · RabbitMQ · MySQL",
+    "projects:description:E-Commerce-Demoanwendung mit Spring Boot und Kafka.", "projects:entry-title:Go Microservice", "projects:technologies:Go · Gin · GORM",
+    "interests:entry-title:Gartenarbeit", "interests:organization:Interkultureller Garten", "interests:location:Marburg", "interests:period:seit 2023",
+  ];
+
+  describe.each(templates)("$name", ({ id }) => {
+    for (const ats of [false, true]) it(`marks every role text once, alike in preview and PDF (${ats ? "ATS" : "visual"})`, () => {
+      const result = renderCv(id, roleProfile, { ats });
+      const preview = contract(result.previewPages);
+      expect(contract(result.pdfPages)).toEqual(preview);
+      for (const item of expected) expect(preview, item).toContain(item);
+      // Every role text stands in one element only: no role inside another one.
+      for (const node of roleNodes(result.pdfPages)) expect(node.parentElement?.closest("[data-cv-role]"), node.outerHTML).toBeNull();
+    });
+
+    it("writes nothing on a role text while the Bewerbung keeps the template's values", () => {
+      const result = renderCv(id, roleProfile);
+      for (const node of roleNodes([...result.previewPages, ...result.pdfPages])) expect(node.getAttribute("style") ?? "", node.outerHTML).not.toContain("!important");
+    });
+
+    const single: [string, Record<string, unknown>, ResumeTextRole, string | undefined, string | undefined][] = [
+      ["Datum / Zeitraum", { colors: { date: "#B4232C" }, typography: { dateSizePt: 11 } }, "period", "#B4232C", "11pt"],
+      ["Unternehmen / Einrichtung", { colors: { organization: "#1F6F43" }, typography: { organizationSizePt: 12 } }, "organization", "#1F6F43", "12pt"],
+      ["Ort / Standort", { colors: { location: "#2347A8" }, typography: { locationSizePt: 10.5 } }, "location", "#2347A8", "10.5pt"],
+      ["Eintragstitel", { colors: { entryHeading: "#7A1F5C" }, typography: { entryHeadingSizePt: 13 } }, "entry-title", "#7A1F5C", "13pt"],
+      ["Projekttechnologien / Hervorhebungsfarbe", { colors: { accent: "#A04A00" }, typography: { projectTechnologiesSizePt: 9.5 } }, "technologies", "#A04A00", "9.5pt"],
+      ["Projektbeschreibung / Absatztext", { colors: { paragraph: "#2B2B2B" }, typography: { projectDescriptionSizePt: 10.25 } }, "description", "#2B2B2B", "10.25pt"],
+    ];
+    it.each(single)("applies %s to all of its texts on both surfaces and to no other role", (_label, cvOverrides, role, color, size) => {
+      const result = renderCv(id, roleProfile, { overrides: { cvOverrides } as never });
+      for (const pages of [result.previewPages, result.pdfPages]) {
+        const own = roleNodes(pages, role);
+        expect(own.length).toBeGreaterThan(0);
+        // Werdegang and Bildungsweg (and Projekte and Hobbys) follow the same rule.
+        if (["period", "organization", "location", "entry-title"].includes(role))
+          expect(new Set(own.map(kindOf))).toEqual(new Set(role === "period" ? ["experience", "education", "interests"]
+            : ["experience", "education", "interests", ...(role === "entry-title" ? ["projects"] : []), ...(id.startsWith("pehlione_") && role !== "location" ? ["highlight"] : [])]));
+        for (const node of own) {
+          expect(declared(node, "color"), node.outerHTML).toBe(color);
+          expect(declared(node, "font-size"), node.outerHTML).toBe(size);
+        }
+        for (const other of resumeTextRoles.filter((candidate) => candidate !== role))
+          for (const node of roleNodes(pages, other)) {
+            if (role === "technologies" && other === "organization") {
+              expect(declared(node, "color"), node.outerHTML).toBe(resolveTemplateCvDesign(id).colors.organization);
+              continue;
+            }
+            expect(node.getAttribute("style") ?? "", `${other}: ${node.outerHTML}`).not.toContain("!important");
+          }
+      }
+    });
+
+    it("keeps the project link in the title colour and every project formatted alike", () => {
+      const result = renderCv(id, roleProfile, { overrides: { cvOverrides: { colors: { entryHeading: "#7A1F5C" } } } as never });
+      for (const pages of [result.previewPages, result.pdfPages]) {
+        const links = pages.flatMap((page) => Array.from(page.querySelectorAll('[data-cv-role="entry-title"] a')));
+        expect(links.map((link) => link.getAttribute("href"))).toEqual(["https://github.com/example/shop"]);
+        for (const link of links) expect(link.getAttribute("style") ?? "").not.toContain("color");
+        const titles = roleNodes(pages, "entry-title").filter((node) => kindOf(node) === "projects");
+        expect(titles.map((node) => declared(node, "color"))).toEqual(["#7A1F5C", "#7A1F5C"]);
+      }
+      expect(buildDocumentHtml(applicationFor(id), roleProfile, "lebenslauf")).toMatch(/\.resume-special-output__project a\{color:inherit/);
+    });
+  });
+
+  it("escapes project texts and links only safe URLs", () => {
+    const unsafe = profileSchema.parse({ ...roleProfile, specialSections: [{ ...roleProfile.specialSections[0], entries: [
+      { id: "e1000000-0000-4000-8000-000000000051", title: "<img src=x onerror=alert(1)>", url: "javascript:alert(1)", technologies: ["<b>Go</b>"], description: "a & b", bullets: [] },
+    ] }] });
+    for (const surface of ["previewPages", "pdfPages"] as const) {
+      const pages = renderCv("zweispaltig", unsafe)[surface];
+      const title = roleNodes(pages, "entry-title").find((node) => kindOf(node) === "projects")!;
+      expect(title.querySelector("img,a")).toBeNull();
+      expect(title.textContent).toBe("<img src=x onerror=alert(1)>");
+      expect(roleNodes(pages, "technologies")[0].querySelector("b")).toBeNull();
+      expect(roleNodes(pages, "description")[0].textContent).toBe("a & b");
+    }
+  });
+
+  it("keeps Zweispaltig's Arbeitgebernamen for the Werdegang before Unternehmen / Einrichtung, which colours the rest", () => {
+    const settings = { cvOverrides: { colors: { employer: "#12E203", organization: "#1F6F43" } } };
+    const result = renderCv("zweispaltig", roleProfile, { overrides: settings as never });
+    expect(result.resolved.zweispaltigVariables?.["--zweispaltig-employer"]).toBe("#12E203");
+    for (const pages of [result.previewPages, result.pdfPages]) {
+      const organizations = roleNodes(pages, "organization");
+      expect(organizations.filter((node) => node.hasAttribute("data-cv-employer")).map((node) => node.style.getPropertyValue("color"))).toEqual(["#12E203"]);
+      expect(organizations.filter((node) => !node.hasAttribute("data-cv-employer")).map((node) => declared(node, "color"))).toEqual(["#1F6F43", "#1F6F43"]);
+    }
+    // Without an Arbeitgeberfarbe the employers take Unternehmen / Einrichtung too, and the card above the panel shows it.
+    const general = renderCv("zweispaltig", roleProfile, { overrides: { cvOverrides: { colors: { organization: "#1F6F43" } } } as never });
+    expect(general.resolved.zweispaltigVariables?.["--zweispaltig-employer"]).toBe("#1F6F43");
+    expect(roleNodes(general.pdfPages, "organization").map((node) => declared(node, "color"))).toEqual(["#1F6F43", "#1F6F43", "#1F6F43"]);
+  });
+
+  it("lets a Bewerbung's own Arbeitgeberfarbe win over an inherited global Unternehmen / Einrichtung, and its own one over a global Arbeitgeberfarbe", () => {
+    const ownEmployer = applyGlobalResumeDesign({ ...getTemplateDocumentDesignDefaults("zweispaltig"), cvOverrides: { colors: { employer: "#12E203" } } },
+      { cvOverrides: { colors: { organization: "#225588" } } });
+    expect(ownEmployer.cvOverrides?.colors).toEqual({ organization: "#225588", employer: "#12E203" });
+    const ownOrganization = applyGlobalResumeDesign({ ...getTemplateDocumentDesignDefaults("zweispaltig"), cvOverrides: { colors: { organization: "#1F6F43" } } },
+      { cvOverrides: { colors: { employer: "#12E203" } } });
+    expect(ownOrganization.cvOverrides?.colors).toEqual({ organization: "#1F6F43" });
   });
 });

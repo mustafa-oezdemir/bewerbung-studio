@@ -41,6 +41,10 @@ const kompaktDesignColors = {
   subheading: kompaktDefaults.colors.muted,
   sectionHeading: kompaktDefaults.colors.muted,
   entryHeading: kompaktDefaults.colors.primary,
+  // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort.
+  date: kompaktDefaults.colors.muted,
+  organization: kompaktDefaults.colors.accent,
+  location: kompaktDefaults.colors.muted,
   divider: kompaktDefaults.colors.divider,
   background: "#FFFFFF",
   accent: kompaktDefaults.colors.accent,
@@ -60,6 +64,12 @@ export const kompaktDesign: NativeResumeDesign = {
       subheadingSizePt: 10.5,
       sectionHeadingSizePt: 11,
       entryHeadingSizePt: 11.3,
+      // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort, Projekte.
+      dateSizePt: 9.06,
+      organizationSizePt: 10.3,
+      locationSizePt: 9.06,
+      projectTechnologiesSizePt: 9.06,
+      projectDescriptionSizePt: 10.3,
       lineHeight: 1.2,
       headingWeight: 450,
       subheadingWeight: 500,

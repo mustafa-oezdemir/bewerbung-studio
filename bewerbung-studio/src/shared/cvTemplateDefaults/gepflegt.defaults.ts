@@ -73,6 +73,10 @@ const gepflegtDesignColors = {
   subheading: gepflegtDefaults.colors.accent,
   sectionHeading: gepflegtDefaults.colors.heading,
   entryHeading: gepflegtDefaults.colors.heading,
+  // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort.
+  date: gepflegtDefaults.colors.mutedText,
+  organization: gepflegtDefaults.colors.accent,
+  location: gepflegtDefaults.colors.mutedText,
   divider: gepflegtDefaults.colors.divider,
   background: gepflegtDefaults.colors.pageBackground,
   accent: gepflegtDefaults.colors.accent,
@@ -92,6 +96,12 @@ export const gepflegtDesign: NativeResumeDesign = {
       subheadingSizePt: gepflegtDefaults.typography.jobTitleSizePt,
       sectionHeadingSizePt: gepflegtDefaults.typography.sectionTitleSizePt,
       entryHeadingSizePt: gepflegtDefaults.typography.entryTitleSizePt,
+      // Entry roles (measured on the PDF): Datum / Zeitraum, Unternehmen / Einrichtung, Ort / Standort, Projekte.
+      dateSizePt: 9.68,
+      organizationSizePt: gepflegtDefaults.typography.bodySizePt,
+      locationSizePt: 9.68,
+      projectTechnologiesSizePt: 9.68,
+      projectDescriptionSizePt: gepflegtDefaults.typography.bodySizePt,
       lineHeight: gepflegtDefaults.typography.bodyLineHeight,
       headingWeight: gepflegtDefaults.typography.nameWeight,
       subheadingWeight: 500,

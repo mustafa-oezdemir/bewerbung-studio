@@ -11,6 +11,7 @@ import {
   type TemplateCareerItem,
 } from "../resume-template-data";
 import { LanguageDescriptionText, LanguageLevelText, languageDotsLabel, presentLanguage } from "../LanguageLevelText";
+import { cvRole } from "../../../../shared/resumeTextRoles";
 
 export function EinfachHeading({
   children,
@@ -84,12 +85,12 @@ export function EinfachCareer({
         {items.map((item) => (
           <article key={item.id}>
             <div className="einfach-career__heading">
-              <h3>{item.title}</h3>
-              <time>{formatTemplateDateRange(item.from, item.to)}</time>
+              <h3 {...cvRole("entry-title")}>{item.title}</h3>
+              <time {...cvRole("period")}>{formatTemplateDateRange(item.from, item.to)}</time>
             </div>
             <div className="einfach-career__organization">
-              <h4>{item.organization}</h4>
-              {item.city ? <span>{item.city}</span> : null}
+              <h4 {...cvRole("organization")}>{item.organization}</h4>
+              {item.city ? <span {...cvRole("location")}>{item.city}</span> : null}
             </div>
             {item.achievements.length ? (
               <ul>

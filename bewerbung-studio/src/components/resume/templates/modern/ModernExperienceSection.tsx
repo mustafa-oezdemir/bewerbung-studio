@@ -8,6 +8,7 @@ import type { ModernExperienceSectionProps } from "./modern.types";
 import type { ApplicantProfile } from "../../../../shared/schema";
 import { ContactIcon } from "../ContactIcon";
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
+import { cvRole } from "../../../../shared/resumeTextRoles";
 
 export function ModernExperienceSection({
   profile,
@@ -24,19 +25,19 @@ export function ModernExperienceSection({
           const exp = resolveExperience(entry);
           return (
             <li key={exp.id} className="modern-experience-entry">
-              <h3 className="modern-experience-entry__role">{exp.role}</h3>
+              <h3 className="modern-experience-entry__role" {...cvRole("entry-title")}>{exp.role}</h3>
               <div className="modern-experience-entry__meta">
-                <span className="modern-experience-entry__company">
+                <span className="modern-experience-entry__company" {...cvRole("organization")}>
                   {exp.organization}
                 </span>
                 {exp.period && (
-                  <span className="modern-experience-entry__date">
+                  <span className="modern-experience-entry__date" {...cvRole("period")}>
                     <ContactIcon kind="calendar" />
                     {exp.period}
                   </span>
                 )}
                 {exp.location && (
-                  <span className="modern-experience-entry__location">
+                  <span className="modern-experience-entry__location" {...cvRole("location")}>
                     <ContactIcon kind="location" />
                     {exp.location}
                   </span>

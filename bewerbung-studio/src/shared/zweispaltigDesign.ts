@@ -19,7 +19,8 @@ export const getZweispaltigDesignVariables = (
     ?? (accentWasChosen ? applicationColors.accent : design.colors.accent);
   const subheading = changedColors?.subheading ?? changedColors?.accent
     ?? (accentWasChosen ? applicationColors.accent : defaultSubheading ? design.colors.accent : design.colors.subheading);
-  const employer = changedColors?.employer ?? changedColors?.accent ?? changedColors?.subheading ?? legacyHighlight;
+  // Arbeitgebernamen (experience only) before Unternehmen / Einrichtung (every entry) before the older inheritance.
+  const employer = changedColors?.employer ?? changedColors?.organization ?? changedColors?.accent ?? changedColors?.subheading ?? legacyHighlight;
   const sectionHeading = changedColors?.sectionHeading
     ?? (design.colors.sectionHeading.toLowerCase() === native.heading.toLowerCase() ? primary : design.colors.sectionHeading);
 

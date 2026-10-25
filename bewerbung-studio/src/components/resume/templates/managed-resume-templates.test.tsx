@@ -285,8 +285,8 @@ describe("Kompakt rendering", () => {
     expect(markup).toContain("Stärken");
     expect(markup).toContain("★");
     expect(markup).not.toContain("♜");
-    expect(markup).toContain('<div class="kompakt-career-entry__heading"><h3>Senior IT-Projektmanagerin</h3><time>2019 – 2023</time></div>');
-    expect(markup).toContain('<div class="kompakt-career-entry__meta"><strong>Beispiel AG</strong><span>Berlin</span></div>');
+    expect(markup).toContain('<div class="kompakt-career-entry__heading"><h3 data-cv-role="entry-title">Senior IT-Projektmanagerin</h3><time data-cv-role="period">2019 – 2023</time></div>');
+    expect(markup).toContain('<div class="kompakt-career-entry__meta"><strong data-cv-role="organization">Beispiel AG</strong><span data-cv-role="location">Berlin</span></div>');
     expect(markup).toContain('href="https://linkedin.com/in/lena"');
     expect(markup).toContain("https://lena.example.com");
     expect(markup).not.toContain("Seite 1 / 1");

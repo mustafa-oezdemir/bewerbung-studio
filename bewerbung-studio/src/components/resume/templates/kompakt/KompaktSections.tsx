@@ -14,6 +14,7 @@ import {
 import { formatResumeAddress, formatResumeBirth, getResumePersonalDetails, getResumeLinkContacts } from "../../../../shared/resumePersonalData";
 import { formatPhoneForDisplay, phoneHref } from "../../../../shared/contactPresentation";
 import { LanguageDescriptionText, LanguageLevelText, languageDotsLabel, presentLanguage } from "../LanguageLevelText";
+import { cvRole } from "../../../../shared/resumeTextRoles";
 
 export function KompaktHeading({
   children,
@@ -48,12 +49,12 @@ export function KompaktCareer({
         {items.map((item) => (
           <article className="kompakt-career-entry" key={item.id}>
             <div className="kompakt-career-entry__heading">
-              <h3>{item.title}</h3>
-              <time>{formatTemplateDateRange(item.from, item.to)}</time>
+              <h3 {...cvRole("entry-title")}>{item.title}</h3>
+              <time {...cvRole("period")}>{formatTemplateDateRange(item.from, item.to)}</time>
             </div>
             <div className="kompakt-career-entry__meta">
-              <strong>{item.organization}</strong>
-              {item.city ? <span>{item.city}</span> : null}
+              <strong {...cvRole("organization")}>{item.organization}</strong>
+              {item.city ? <span {...cvRole("location")}>{item.city}</span> : null}
             </div>
             {item.achievements.length ? (
               <ul>

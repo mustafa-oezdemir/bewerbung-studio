@@ -25,6 +25,7 @@ import { getKlassischDesignVariables } from "./klassischDesign";
 import { getTabellarischDesignVariables } from "./tabellarischDesign";
 import { getEinspaltigDesignVariables } from "./einspaltigDesign";
 import { getZweispaltigDesignVariables } from "./zweispaltigDesign";
+import { chosenEntryRoleSizes } from "./resumeEntryRoleMetrics";
 
 type CvDocumentInput = {
   profile: ApplicantProfile | undefined;
@@ -191,6 +192,8 @@ export const resolveCvDocument = ({
       sectionTitleGapMm: ["elegant", "kompakt", "klassisch", "einspaltig", "tabellarisch"].includes(templateId) ? design.spacing.sectionTitleGapMm : overrides?.spacing?.sectionTitleGapMm,
       entryContentGapMm: ["elegant", "kompakt", "klassisch", "einspaltig", "tabellarisch"].includes(templateId) ? design.spacing.entryContentGapMm : overrides?.spacing?.entryContentGapMm,
       columnGapMm: ["elegant", "kompakt", "gepflegt"].includes(templateId) ? design.spacing.columnGapMm : overrides?.spacing?.columnGapMm,
+      // The entry roles' own sizes (Typografie → Eintragstitel, Größen in Einträgen): the planner measures their lines.
+      entryRoleSizes: chosenEntryRoleSizes(overrides?.typography),
     },
     settings,
   };

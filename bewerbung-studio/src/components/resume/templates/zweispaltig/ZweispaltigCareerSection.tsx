@@ -1,6 +1,7 @@
 import { CalendarDays, MapPin } from "lucide-react";
 import { formatZweispaltigDateRange } from "./zweispaltig.model";
 import type { ZweispaltigCareerSectionProps } from "./zweispaltig.types";
+import { cvRole } from "../../../../shared/resumeTextRoles";
 
 export function ZweispaltigCareerSection({
   kind,
@@ -22,17 +23,17 @@ export function ZweispaltigCareerSection({
       <div className="zweispaltig-career__list">
         {items.map((item) => (
           <article className="zweispaltig-career-entry" key={item.id}>
-            <h3>{item.title}</h3>
-            <p className="zweispaltig-career-entry__organization" data-cv-employer={kind === "experience" ? "true" : undefined}>
+            <h3 {...cvRole("entry-title")}>{item.title}</h3>
+            <p className="zweispaltig-career-entry__organization" {...cvRole("organization")} data-cv-employer={kind === "experience" ? "true" : undefined}>
               {item.organization}
             </p>
             <p className="zweispaltig-career-entry__meta">
-              <span>
+              <span {...cvRole("period")}>
                 <CalendarDays aria-hidden="true" />
                 {formatZweispaltigDateRange(item.from, item.to)}
               </span>
               {item.city ? (
-                <span>
+                <span {...cvRole("location")}>
                   <MapPin aria-hidden="true" />
                   {item.city}
                 </span>
