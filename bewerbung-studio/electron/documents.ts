@@ -60,7 +60,7 @@ import { getPehlioneContacts, renderPehlioneContacts, pehlioneContactsCss } from
 import { pehlioneBlueprintMarkup } from "../src/shared/pehlioneBlueprint";
 import { validateDeckblattData } from "../src/shared/deckblatt";
 import { getProfessionalTitle } from "../src/shared/profileSelection";
-import { coverSenderFromProfile, resolveCoverSender, stilvollCoverSenderFromProfile } from "../src/shared/coverSender";
+import { coverSenderFromProfile, resolveCoverSender } from "../src/shared/coverSender";
 import {
   buildDeckblattModel,
   deckblattCss,
@@ -851,9 +851,7 @@ export const buildDocumentHtml = (
   const letterStatus = getLetterPageStatus(docs);
   // Deckblatt, Anschreiben and Motivationsschreiben share the Lebenslauf's left and right page margin.
   const sideMargins = resolveDocumentSideMargins(resolvedCv.templateId, resolvedCv.design.spacing);
-  const letterSender = template.id === "stilvoll"
-    ? stilvollCoverSenderFromProfile(resolvedCv.profile)
-    : ["zweispaltig", "tuerkis-profil", "zeitgenoessisch", "elegant", "kreativ", "gepflegt", "kompakt"].includes(template.id)
+  const letterSender = ["stilvoll", "zweispaltig", "tuerkis-profil", "zeitgenoessisch", "elegant", "kreativ", "gepflegt", "kompakt"].includes(template.id)
     ? coverSenderFromProfile(resolvedCv.profile)
     : resolveCoverSender(profile, docs);
   const sharedLetterParagraphs = template.id === "kreativ" || template.id === "stilvoll" ? resolveKreativCoverLetterParagraphs(application, docs) : undefined;

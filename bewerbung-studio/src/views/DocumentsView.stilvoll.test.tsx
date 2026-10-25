@@ -80,7 +80,8 @@ describe("Stilvoll Anschreiben and Lebenslauf", () => {
         expect(letter?.querySelector(".sender-name")?.textContent).toBe("Mina Kaya");
         expect(letter?.querySelector(".sender-title")?.textContent).toBe("Prozessplanerin");
         expect(letter?.querySelector(".sender-contact")?.textContent).toContain("mina.kaya@example.com");
-        expect(letter?.querySelector(".sender-contact")?.textContent).toContain("linkedin.com/in/mina-kaya");
+        // The Absender is name, title and address | e-mail | phone; the CV's online profiles stay in the CV.
+        expect(letter?.querySelector(".sender-contact")?.textContent).not.toContain("linkedin.com/in/mina-kaya");
         expect(letter?.textContent).toContain("Fachkraft Produktion");
         expect(letter?.textContent).not.toContain("Alter Name");
       }

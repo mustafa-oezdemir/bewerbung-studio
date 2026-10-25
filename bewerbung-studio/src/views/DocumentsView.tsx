@@ -144,7 +144,7 @@ import {
   getResumeSemanticSection,
 } from "../features/resume-sections/resume-section-system";
 import { getProfessionalTitle, resolveApplicationProfile } from "../shared/profileSelection";
-import { coverSenderFromProfile, keepCoverSenderOverrides, resolveCoverSender, stilvollCoverSenderFromProfile } from "../shared/coverSender";
+import { coverSenderFromProfile, keepCoverSenderOverrides, resolveCoverSender } from "../shared/coverSender";
 import type {
   ApplicantProfile,
   Application,
@@ -729,9 +729,7 @@ export function DocumentsView({
         .map((line) => line.trim())
         .filter(Boolean)
     : applicationRecipientLines(application);
-  const coverSender = template.id === "stilvoll"
-    ? stilvollCoverSenderFromProfile(resolvedCv.profile)
-    : ["zweispaltig", "tuerkis-profil", "zeitgenoessisch", "elegant", "kreativ", "gepflegt", "kompakt"].includes(template.id)
+  const coverSender = ["stilvoll", "zweispaltig", "tuerkis-profil", "zeitgenoessisch", "elegant", "kreativ", "gepflegt", "kompakt"].includes(template.id)
     ? coverSenderFromProfile(resolvedCv.profile)
     : resolveCoverSender(renderProfile, docs);
   const { name: coverSenderName, title: coverSenderTitle, contact: coverSenderContact } = coverSender;
