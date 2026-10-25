@@ -25,6 +25,18 @@ describe("Tabellarisch: the Website checkbox", () => {
   const off = render({ visibility: { website: false }, fields: footerOn });
   const on = render({ visibility: { website: true }, fields: footerOn });
 
+  it("stacks the title below the name and keeps the primary contact line identical in preview and PDF", () => {
+    const line = (page: Element) => {
+      const header = page.querySelector("header")!;
+      const name = header.querySelector("h1")!;
+      const title = header.querySelector(".tabellarisch-header__title,h2")!;
+      expect(name.nextElementSibling).toBe(title);
+      return header.querySelector(".tabellarisch-header__primary-contacts,.tabellarisch-pdf-primary-contacts")?.textContent?.replace(/\s+/g, " ").trim();
+    };
+    expect(line(on.previewPages[0])).toBe("Beispielallee 20 | 35039 Marburg, Deutschland | mina.beispiel1408@example.com | +49 176 12345678");
+    expect(line(on.pdfPages[0])).toBe(line(on.previewPages[0]));
+  });
+
   it("shows the Website only when its checkbox is on, in the header and in the footer, on every page", () => {
     for (const rendered of [off, on]) {
       const shown = rendered === on;
@@ -57,8 +69,8 @@ describe("Tabellarisch: the Website checkbox", () => {
 
   it("changes nothing else of the header: the other contacts, in the same order, in the preview and the PDF", () => {
     const withoutWebsite = (pages: Element[]) => Array.from(pages[0].querySelectorAll("header [data-contact-kind]")).map((node) => node.getAttribute("data-contact-kind"));
-    for (const pages of Object.values(surfaces(off))) expect(withoutWebsite(pages)).toEqual(["phone", "email", "linkedin", "location", "github"]);
-    for (const pages of Object.values(surfaces(on))) expect(withoutWebsite(pages)).toEqual(["phone", "email", "linkedin", "location", "github", "website"]);
+    for (const pages of Object.values(surfaces(off))) expect(withoutWebsite(pages)).toEqual(["street", "location", "email", "phone", "linkedin", "github"]);
+    for (const pages of Object.values(surfaces(on))) expect(withoutWebsite(pages)).toEqual(["street", "location", "email", "phone", "linkedin", "github", "website"]);
   });
 
   it("draws in the header exactly the contacts the page planner measured", () => {

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { profileSchema } from "../../shared/schema";
 import { categorySymbolOptions, getStrengthSymbolMarkup } from "../../shared/strengthSymbols";
 import { getTechnologyBrandIconMarkup } from "../../shared/technologyBrand";
+import { dotnetIconOptions } from "../../shared/deviconCatalog";
 import { goFrameworkIconOptions } from "../../shared/goFrameworkIcons";
 import { TechnologyIconPicker } from "./TechnologyIconPicker";
 
@@ -18,6 +19,21 @@ const categoryButtons = (root: ParentNode) =>
 const preview = (root: ParentNode) => root.querySelector(".technology-icon-picker__preview svg");
 
 describe("TechnologyIconPicker category symbols", () => {
+  it("lists sourced .NET family icons and previews ASP.NET", () => {
+    const document = dom(renderToStaticMarkup(<TechnologyIconPicker technologyTitle="ASP.NET" value="" onChange={vi.fn()} />));
+    const group = Array.from(document.querySelectorAll("optgroup"))
+      .find((entry) => entry.getAttribute("label") === "C# / .NET")!;
+    expect(dotnetIconOptions.map((option) => option.id)).toEqual([
+      "aspnet", "blazor", "csharp", "dotnet", "dotnetcore",
+      "entityframeworkcore", "fsharp", "nuget", "visualbasic", "xamarin",
+    ]);
+    expect(Array.from(group.querySelectorAll("option"), (option) => option.getAttribute("value")))
+      .toEqual(dotnetIconOptions.map((option) => option.id));
+    expect(dotnetIconOptions.map((option) => option.label)).toContain("ASP.NET");
+    expect(dotnetIconOptions.map((option) => option.label)).toContain("C#");
+    expect(preview(document)?.getAttribute("data-brand")).toBe("aspnet");
+  });
+
   it("offers the Go frameworks for manual selection and previews their own icons automatically", () => {
     const document = dom(renderToStaticMarkup(<TechnologyIconPicker technologyTitle="Gin" value="" onChange={vi.fn()} />));
     const group = Array.from(document.querySelectorAll("optgroup"))

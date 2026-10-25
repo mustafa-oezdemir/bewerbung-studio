@@ -69,6 +69,7 @@ import {
   renderDeckblattMarkup,
 } from "../src/shared/deckblattDesigns";
 import { getTechnologyBrandIconMarkup } from "../src/shared/technologyBrand";
+import { getTabellarischHeaderContacts } from "../src/shared/tabellarischHeaderContacts";
 import { getReadableTextColor, getTemplate } from "../src/shared/templates";
 import {
   applicationGreeting,
@@ -720,6 +721,7 @@ const tabellarischDocumentCss = `
   .tabellarisch-pdf-background{position:absolute;top:0;right:0;z-index:0;width:100%;height:58mm;fill:none;stroke:var(--tabellarisch-line);stroke-width:1.15;opacity:.62;pointer-events:none}
   .tabellarisch-pdf-header{display:grid;grid-template-columns:minmax(0,1fr) calc(32mm * var(--resume-photo-scale,1));gap:10mm;align-items:start;min-height:30mm}.tabellarisch-pdf-header.no-photo{grid-template-columns:1fr}.tabellarisch-pdf-identity{min-width:0;padding-top:1mm}.tabellarisch-pdf-header h1{margin:0;color:var(--tabellarisch-primary);font-family:var(--tabellarisch-heading-font);font-size:var(--tabellarisch-name-size);font-weight:var(--tabellarisch-name-weight);letter-spacing:.015em;line-height:1;text-transform:uppercase;overflow-wrap:anywhere}.tabellarisch-pdf-header h2{margin:2.3mm 0 0;color:var(--tabellarisch-accent);font-family:var(--tabellarisch-heading-font);font-size:var(--tabellarisch-title-size);font-weight:var(--tabellarisch-title-weight);line-height:1.15;overflow-wrap:anywhere}.tabellarisch-pdf-photo{display:block;width:calc(30mm * var(--resume-photo-scale,1));height:calc(30mm * var(--resume-photo-scale,1));justify-self:end;border-radius:50%;background:#e8ebed;object-fit:cover}
   .tabellarisch-pdf-contacts{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:1.15mm 7mm;width:100%;max-width:132mm;margin:2.5mm 0 0;color:var(--tabellarisch-text);font-size:8.4pt;font-style:normal;font-weight:600;line-height:1.2}.tabellarisch-pdf-contact{display:grid;grid-template-columns:3.2mm minmax(0,1fr);gap:1.2mm;align-items:center;min-width:0}.tabellarisch-pdf-contact svg{width:3mm;height:3mm;fill:none;stroke:var(--tabellarisch-accent);stroke-linecap:round;stroke-linejoin:round;stroke-width:2.4}.tabellarisch-pdf-contact span,.tabellarisch-pdf-contact a{min-width:0;overflow-wrap:anywhere}.tabellarisch-pdf-contact[data-contact-kind="linkedin"] a{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere}
+  .tabellarisch-pdf-identity,.tabellarisch-pdf-contacts{text-align:left}.tabellarisch-pdf-primary-contacts{display:block;min-width:0;margin:2.5mm 0 0;color:var(--tabellarisch-text);font-size:8.4pt;font-style:normal;font-weight:600;line-height:1.2;text-align:left}.tabellarisch-pdf-primary-contacts .tabellarisch-pdf-contact{display:inline;overflow-wrap:anywhere}.tabellarisch-pdf-primary-contacts a{color:inherit;text-decoration:none}.tabellarisch-pdf-primary-contacts + .tabellarisch-pdf-contacts{margin-top:1.15mm}
   .tabellarisch-pdf-section{min-width:0;margin-top:var(--tabellarisch-section-gap);break-inside:auto}.tabellarisch-pdf-title{display:flex;align-items:baseline;gap:2.5mm;margin:0 0 var(--tabellarisch-section-title-gap);color:var(--tabellarisch-primary);font-family:var(--tabellarisch-heading-font);font-size:var(--tabellarisch-section-title-size);font-weight:var(--tabellarisch-section-title-weight);letter-spacing:.01em;line-height:1.05;text-transform:var(--tabellarisch-heading-case);break-after:avoid}.tabellarisch-pdf-title small{color:var(--tabellarisch-muted);font-size:7.5pt;font-weight:600;text-transform:none}.tabellarisch-pdf-summary{margin:0;text-align:justify;text-justify:inter-word;hyphens:auto;overflow-wrap:break-word}
   .tabellarisch-pdf-strengths{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5mm 12mm}.tabellarisch-pdf-strength{display:grid;grid-template-columns:8mm minmax(0,1fr);gap:2.5mm;align-items:start;break-inside:avoid}.tabellarisch-pdf-strength svg{width:6mm;height:6mm;fill:none;stroke:var(--tabellarisch-accent);stroke-linecap:round;stroke-linejoin:round;stroke-width:2.1}.tabellarisch-pdf-strength h3{margin:0 0 1.5mm;color:var(--tabellarisch-primary);font-size:10.3pt;font-weight:700;line-height:1.2}.tabellarisch-pdf-strength p{margin:0;hyphens:auto;overflow-wrap:break-word}
   .tabellarisch-pdf-timeline{display:flex;flex-direction:column}.tabellarisch-pdf-entry{display:grid;grid-template-columns:minmax(30mm,35mm) 7mm minmax(0,1fr);gap:4mm;min-width:0;padding-bottom:var(--tabellarisch-entry-gap);break-inside:auto}.tabellarisch-pdf-entry:last-child{padding-bottom:0}.tabellarisch-pdf-meta{padding-top:.45mm}.tabellarisch-pdf-date,.tabellarisch-pdf-location{margin:0}.tabellarisch-pdf-date{color:var(--tabellarisch-primary);font-size:10pt;font-weight:750;line-height:1.15}.tabellarisch-pdf-location{margin-top:2mm;color:var(--tabellarisch-text);font-size:8.4pt;line-height:1.3}.tabellarisch-pdf-rail{position:relative;display:block;min-height:100%}.tabellarisch-pdf-rail:before{position:absolute;top:2.5mm;bottom:-1mm;left:50%;width:.35mm;background:var(--tabellarisch-line);content:"";transform:translateX(-50%)}.tabellarisch-pdf-rail:after{position:absolute;top:.6mm;left:50%;width:2.3mm;height:2.3mm;border-radius:50%;background:var(--tabellarisch-primary);content:"";transform:translateX(-50%)}.tabellarisch-pdf-entry-content{min-width:0}.tabellarisch-pdf-entry h3{margin:0;color:var(--tabellarisch-primary);font-family:var(--tabellarisch-heading-font);font-size:var(--tabellarisch-entry-title-size);font-weight:500;line-height:1.15;overflow-wrap:anywhere}.tabellarisch-pdf-organization{margin:var(--tabellarisch-entry-content-gap) 0 1.5mm;color:var(--tabellarisch-accent);font-size:10.2pt;font-weight:700;line-height:1.2;overflow-wrap:anywhere}.tabellarisch-pdf-entry ul,.tabellarisch-pdf-list ul,.tabellarisch-pdf-ats ul{margin:0;padding-left:4.5mm}.tabellarisch-pdf-entry li,.tabellarisch-pdf-list li,.tabellarisch-pdf-ats li{margin:.45mm 0;padding-left:.5mm;hyphens:auto;overflow-wrap:break-word}.tabellarisch-pdf-entry li::marker{color:var(--tabellarisch-muted)}
@@ -3105,78 +3107,17 @@ export const buildDocumentHtml = (
     return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="${escapeHtml(template.id)}" data-no-fit="true"><div class="page-content pehlione-pdf${template.id === "pehlione_white" ? " pehlione-pdf-white" : ""}" data-density="${density}" style="grid-template-columns:${sidebarWidth}mm minmax(0,1fr)">${sidebar}<main class="pehlione-pdf-main">${pehlioneFooter}${header}${main}</main></div></section>`;
   };
 
-  const tabellarischExtraIcon = (kind: "profile" | "flag" | "trophy") => {
-    const paths = {
-      profile:
-        '<path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/>',
-      flag: '<path d="M5 22V4"/><path d="M5 5c5-4 9 4 14 0v10c-5 4-9-4-14 0"/>',
-      trophy:
-        '<path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4v2a4 4 0 0 0 4 4M17 6h3v2a4 4 0 0 1-4 4"/>',
-    } as const;
-    return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[kind]}</svg>`;
+  const tabellarischContacts = getTabellarischHeaderContacts(profile);
+  const renderTabellarischContact = (contact: (typeof tabellarischContacts)[number], ats: boolean, icon: boolean) => {
+    const value = `${ats ? `<strong>${escapeHtml(contact.label)}: </strong>` : ""}${escapeHtml(contact.text)}`;
+    const linkedValue = contact.href ? `<a href="${escapeHtml(contact.href)}">${value}</a>` : `<span>${value}</span>`;
+    return `<span class="tabellarisch-pdf-contact" data-contact-kind="${escapeHtml(contact.kind)}">${icon && !ats ? renderContactIcon({ ...contact, value: contact.text }) : ""}${linkedValue}</span>`;
   };
-  const tabellarischContacts = [
-    {
-      kind: "phone",
-      label: "Telefon",
-      icon: kreativIconMarkup("phone"),
-      value: formatPhoneForDisplay(profile?.phone),
-      href: phoneHref(profile?.phone),
-    },
-    {
-      kind: "email",
-      label: "E-Mail",
-      icon: kreativIconMarkup("mail"),
-      value: profile?.email || "",
-      href: profile?.email ? `mailto:${profile.email}` : "",
-    },
-    {
-      kind: "linkedin",
-      label: "LinkedIn",
-      icon: tabellarischExtraIcon("profile"),
-      value: profile?.linkedin || "",
-      href: externalHref(profile?.linkedin),
-    },
-    {
-      kind: "location",
-      label: "Wohnort",
-      icon: kreativIconMarkup("location"),
-      value: formatResumeAddress(profile),
-      href: "",
-    },
-    {
-      kind: "github",
-      label: "GitHub",
-      icon: tabellarischExtraIcon("profile"),
-      value: profile?.github || "",
-      href: externalHref(profile?.github),
-    },
-    {
-      kind: "website",
-      label: "Portfolio",
-      icon: tabellarischExtraIcon("profile"),
-      value: profile?.portfolio || "",
-      href: externalHref(profile?.portfolio),
-    },
-    {
-      kind: "birth",
-      label: "Geboren",
-      icon: kreativIconMarkup("birth"),
-      value: formatResumeBirth(profile),
-      href: "",
-    },
-    ...getResumePersonalDetails(profile).map((detail) => ({ kind: detail.kind, label: detail.label, icon: "", value: atsMode || detail.href ? detail.value : detail.text, href: detail.href })),
-  ].filter((contact) => contact.value.trim());
-  const renderTabellarischContacts = (ats = false) =>
-    `<address class="tabellarisch-pdf-contacts">${tabellarischContacts
-      .map((contact) => {
-        const value = contact.href
-          ? `<a href="${escapeHtml(contact.href)}">${escapeHtml(contact.value)}</a>`
-          : `<span>${escapeHtml(contact.value)}</span>`;
-        return `<span class="tabellarisch-pdf-contact" data-contact-kind="${contact.kind}">${ats ? `<strong>${escapeHtml(contact.label)}:</strong>` : renderContactIcon(contact)}${value}</span>`;
-      })
-      .join("")}</address>`;
-  const tabellarischBackground = `<svg class="tabellarisch-pdf-background" viewBox="0 0 1000 260" preserveAspectRatio="xMidYMin slice" aria-hidden="true"><defs><pattern id="tabellarisch-pdf-cubes" width="144" height="84" patternUnits="userSpaceOnUse"><path d="M72 0 144 42 72 84 0 42 72 0v84M0 42l72 42 72-42"/></pattern><linearGradient id="tabellarisch-pdf-fade" x1="0" x2="1"><stop offset="0" stop-color="white" stop-opacity="0"/><stop offset=".25" stop-color="white" stop-opacity=".45"/><stop offset=".48" stop-color="white" stop-opacity="1"/></linearGradient><mask id="tabellarisch-pdf-mask"><rect width="1000" height="260" fill="url(#tabellarisch-pdf-fade)"/></mask></defs><rect x="210" y="-44" width="850" height="310" fill="url(#tabellarisch-pdf-cubes)" mask="url(#tabellarisch-pdf-mask)"/></svg>`;
+  const renderTabellarischContacts = (ats = false) => {
+    const primary = tabellarischContacts.filter((contact) => contact.primary);
+    const extra = tabellarischContacts.filter((contact) => !contact.primary);
+    return `${primary.length ? `<address class="tabellarisch-pdf-primary-contacts">${primary.map((contact, index) => `${index ? `<span class="tabellarisch-pdf-separator" aria-hidden="true"> | </span>` : ""}${renderTabellarischContact(contact, ats, false)}`).join("")}</address>` : ""}${extra.length ? `<address class="tabellarisch-pdf-contacts">${extra.map((contact) => renderTabellarischContact(contact, ats, true)).join("")}</address>` : ""}`;
+  };  const tabellarischBackground = `<svg class="tabellarisch-pdf-background" viewBox="0 0 1000 260" preserveAspectRatio="xMidYMin slice" aria-hidden="true"><defs><pattern id="tabellarisch-pdf-cubes" width="144" height="84" patternUnits="userSpaceOnUse"><path d="M72 0 144 42 72 84 0 42 72 0v84M0 42l72 42 72-42"/></pattern><linearGradient id="tabellarisch-pdf-fade" x1="0" x2="1"><stop offset="0" stop-color="white" stop-opacity="0"/><stop offset=".25" stop-color="white" stop-opacity=".45"/><stop offset=".48" stop-color="white" stop-opacity="1"/></linearGradient><mask id="tabellarisch-pdf-mask"><rect width="1000" height="260" fill="url(#tabellarisch-pdf-fade)"/></mask></defs><rect x="210" y="-44" width="850" height="310" fill="url(#tabellarisch-pdf-cubes)" mask="url(#tabellarisch-pdf-mask)"/></svg>`;
   const tabellarischSection = (
     title: string,
     content: string,

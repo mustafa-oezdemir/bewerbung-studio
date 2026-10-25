@@ -1,4 +1,4 @@
-import { deviconOptions } from "../../shared/deviconCatalog";
+import { deviconOptions, dotnetIconOptions, otherDeviconOptions } from "../../shared/deviconCatalog";
 import { goFrameworkIconOptions } from "../../shared/goFrameworkIcons";
 import { categorySymbolOptions, getStrengthSymbolMarkup, strengthSymbolOptions } from "../../shared/strengthSymbols";
 import { TechnologyBrandIcon } from "../resume/TechnologyBrandIcon";
@@ -48,8 +48,15 @@ export function TechnologyIconPicker({
           <optgroup label="Go-Frameworks und Tools">
             {goFrameworkIconOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
           </optgroup>
+          <optgroup label="C# / .NET">
+          {dotnetIconOptions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+          </optgroup>
           <optgroup label="Technologie-Icons">
-          {deviconOptions.map((option) => (
+          {otherDeviconOptions.map((option) => (
             <option key={option.id} value={option.id}>
               {option.label} ({option.id})
             </option>

@@ -105,6 +105,31 @@ describe("technology brand icons", () => {
   });
 
   it.each([
+    ["ASP.NET", "aspnet"], ["ASP.NET Core", "aspnet"],
+    ["Blazor", "devicon:blazor"], ["Blazor WebAssembly", "devicon:blazor"],
+    ["C#", "devicon:csharp"], ["C Sharp", "devicon:csharp"],
+    [".NET", "dotnet"], [".NET Core", "devicon:dotnetcore"],
+    ["F#", "devicon:fsharp"], ["VB.NET", "devicon:visualbasic"],
+    ["EF Core", "devicon:entityframeworkcore"],
+    ["NuGet", "devicon:nuget"], ["Xamarin", "devicon:xamarin"],
+  ])("uses the sourced .NET family logo for %s", (name, brand) => {
+    const result = resolveTechnologyIcon(name);
+    expect(result.source).toBe("auto");
+    expect(result.markup).toContain(`data-brand="${brand}"`);
+    expect(result.markup).not.toContain("<text ");
+    expect(result.markup).toContain("currentColor");
+    expect(result.markup).not.toMatch(/#[0-9a-f]{3,8}/i);
+    expect(result.markup).not.toContain("<image");
+  });
+
+  it("keeps a manually selected .NET family icon ahead of the title", () => {
+    const chosen = resolveTechnologyIcon("ASP.NET", "blazor");
+    expect(chosen.source).toBe("manual");
+    expect(chosen.markup).toContain('data-brand="devicon:blazor"');
+    expect(resolveTechnologyIcon("ASP.NET").markup).toContain('fill="currentColor"');
+  });
+
+  it.each([
     ["Golang", "Go", "go"], ["Java", "Java", "java"], ["JS", "JavaScript", "javascript"],
     ["TypeScript (TS)", "TypeScript", "typescript"], ["ReactJS", "React", "react"],
     ["Spring Boot", "Spring", "devicon:spring"], ["Python 3", "Python", "python"],

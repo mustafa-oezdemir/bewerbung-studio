@@ -182,7 +182,7 @@ describe("Lebenslauf-Dokumente", () => {
     const restored = { ...modified, accentColor: reset.accentColor, secondaryColor: reset.secondaryColor, designSettings: reset.settings };
     expect(buildDocumentHtml(restored, profile, "lebenslauf")).toBe(buildDocumentHtml(original, profile, "lebenslauf"));
   });
-  it.each(["classic-professional", "modern-sidebar", "minimal-clean", "technical-developer", "executive-dark", "creative-accent", "pehlione_white", "pehlione_white_blue", "modern", "elegant", "zweispaltig", "zeitgenoessisch", "kreativ", "gepflegt", "kompakt", "stilvoll", "einspaltig", "klassisch", "tabellarisch", "ivy-league"])("uses shared contact icons in %s", (templateId) => {
+  it.each(["classic-professional", "modern-sidebar", "minimal-clean", "technical-developer", "executive-dark", "creative-accent", "pehlione_white", "pehlione_white_blue", "modern", "elegant", "zweispaltig", "zeitgenoessisch", "kreativ", "gepflegt", "kompakt", "stilvoll", "einspaltig", "klassisch", "ivy-league"])("uses shared contact icons in %s", (templateId) => {
     const contactProfile = profileSchema.parse({
       ...profile,
       phone: "+49123456789",
@@ -196,6 +196,20 @@ describe("Lebenslauf-Dokumente", () => {
     for (const kind of ["phone", "email", "linkedin", "location"]) {
       expect(document.querySelector(`svg[data-contact-icon="${kind}"]`)).not.toBeNull();
     }
+  });
+
+  it("prints Tabellarisch's identity and primary contacts as a left-aligned stack", () => {
+    const contactProfile = profileSchema.parse({
+      ...profile, street: "Musterweg 20", postalCode: "35039", city: "Marburg", phone: "+49 176 12345678",
+    });
+    const { document } = parseHTML(buildDocumentHtml(
+      applicationSchema.parse({ ...application, templateId: "tabellarisch" }), contactProfile, "lebenslauf",
+    ));
+    const header = document.querySelector(".tabellarisch-pdf-header");
+    expect(header?.querySelector("h1")?.textContent).toBe("Mina Kaya");
+    expect(header?.querySelector("h2")?.textContent).toBe("Softwareentwicklerin");
+    expect(header?.querySelector(".tabellarisch-pdf-primary-contacts")?.textContent?.replace(/\s+/g, " ").trim())
+      .toBe("Musterweg 20 | 35039 Marburg | mina@example.com | +49 176 12345678");
   });
 
   it.each(["visual", "ats"])("exports separate Tabellarisch social links in %s mode", (mode) => {

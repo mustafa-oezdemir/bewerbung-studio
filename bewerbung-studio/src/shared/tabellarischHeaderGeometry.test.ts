@@ -21,98 +21,60 @@ const reported = (visibility: Partial<Record<CalibrationCheckbox, boolean>> = {}
 const display = (options: TabellarischFixtureOptions) => getResumeDisplayProfile(makeTabellarischProfile(options))!;
 const top = (options: TabellarischFixtureOptions) => estimateTabellarischTop(display(options), true, options.photo ?? true).top;
 
-describe("Tabellarisch header: the contacts and their grid", () => {
-  it("lists the contacts in the order the header draws them, with the values it prints", () => {
+describe("Tabellarisch header: the left-aligned identity and contacts", () => {
+  it("places address parts, e-mail and phone in the requested order before optional links", () => {
     const contacts = getTabellarischHeaderContacts(display({ visibility: everything }));
     expect(contacts.map((contact) => contact.kind)).toEqual([
-      "phone", "email", "linkedin", "location", "github", "website", "birth", "nationality", "familyStatus", "children", "onlineProfile", "onlineProfile",
+      "street", "location", "email", "phone", "linkedin", "github", "website", "birth",
+      "nationality", "familyStatus", "children", "onlineProfile", "onlineProfile",
     ]);
-    expect(contacts[0].text).toBe("+49 176 12345678");
-    expect(contacts[2].text).toBe("https://www.linkedin.com/in/mina-beispiel-k/");
-    expect(contacts[3].text).toBe("Beispielallee 20, 35039 Marburg, Deutschland");
+    expect(contacts.slice(0, 4).map((contact) => contact.text)).toEqual([
+      "Beispielallee 20", "35039 Marburg, Deutschland", "mina.beispiel1408@example.com", "+49 176 12345678",
+    ]);
+    expect(contacts.slice(0, 4).every((contact) => contact.primary)).toBe(true);
+    expect(contacts.slice(4).every((contact) => !contact.primary)).toBe(true);
   });
 
-  it("leaves out what a checkbox switches off", () => {
+  it("respects field visibility without leaving an empty separator", () => {
     const kinds = (visibility: Partial<Record<CalibrationCheckbox, boolean>>) => getTabellarischHeaderContacts(display({ visibility })).map((contact) => contact.kind);
-    expect(kinds({})).toEqual(["phone", "email", "linkedin", "location", "github", "website"]);
-    expect(kinds({ website: false })).toEqual(["phone", "email", "linkedin", "location", "github"]);
-    expect(kinds({ github: false })).toEqual(["phone", "email", "linkedin", "location", "website"]);
-    expect(kinds({ address: false })).toEqual(["phone", "email", "linkedin", "github", "website"]);
+    expect(kinds({})).toEqual(["street", "location", "email", "phone", "linkedin", "github", "website"]);
+    expect(kinds({ address: false })).toEqual(["email", "phone", "linkedin", "github", "website"]);
+    expect(kinds({ email: false, phone: false })).toEqual(["street", "location", "linkedin", "github", "website"]);
   });
 
-  // The text lines of every grid row of the browser (Chromium, real PDF) for the same data.
-  it.each<[string, Partial<Record<CalibrationCheckbox, boolean>>, number[]]>([
-    ["everything", everything, [1, 2, 1, 1, 1, 1]],
-    ["no address", { ...everything, address: false }, [1, 1, 1, 1, 1, 1]],
-    ["no Website: the next contact takes its cell", { ...everything, website: false }, [1, 2, 1, 1, 2, 1]],
-    ["no LinkedIn", { ...everything, linkedin: false }, [1, 1, 1, 1, 1, 1]],
-    ["no phone", { ...everything, phone: false }, [2, 1, 1, 1, 1, 1]],
-    ["the reported header", {}, [1, 2, 1]],
-    ["the reported header without the Website", { website: false }, [1, 2, 1]],
-    ["GitHub and Website without LinkedIn share a row", { linkedin: false }, [1, 1, 1]],
-  ])("places the contacts like the browser: %s", (_label, visibility, lines) => {
-    expect(tabellarischContactRows(getTabellarischHeaderContacts(display({ visibility })))).toEqual(lines);
-  });
-
-  it("wraps a long Website over the lines the browser drew", () => {
-    const rows = (fields: Record<string, unknown>) => tabellarischContactRows(getTabellarischHeaderContacts(display({ fields })));
-    expect(rows({ portfolio: "https://www.example.com/sehr-langer-pfad/portfolio/projekte/softwareentwicklung" })).toEqual([1, 2, 4]);
-    expect(rows({ email: "mina.beispiel.mit.einer.sehr.langen.adresse1408@beispiel-mail-anbieter.example.com" })).toEqual([3, 2, 1]);
+  it("measures one primary line and the optional grid separately", () => {
+    const rows = (fields: Record<string, unknown> = {}) => tabellarischContactRows(getTabellarischHeaderContacts(display({ fields })));
+    expect(rows()).toEqual([1, 1, 1]);
+    expect(rows({ email: "mina.beispiel.mit.einer.sehr.langen.adresse1408@beispiel-mail-anbieter.example.com" })[0]).toBe(2);
+    expect(rows({ portfolio: "https://www.example.com/sehr-langer-pfad/portfolio/projekte/softwareentwicklung" }).at(-1)).toBe(4);
   });
 });
 
-describe("Tabellarisch header: where the first section starts", () => {
-  // The top of the first section (mm) that Chromium measured, and what the model says. Never below, and at most a
-  // text line above (a wrap that is a little pessimistic is cheaper than a bullet that runs into the footer).
+describe("Tabellarisch header: the first section follows the rendered header", () => {
+  // Measured with Electron/Chromium from the new PDF header; these fixtures use no personal data.
   it.each<[string, TabellarischFixtureOptions, number]>([
-    ["everything", { visibility: everything }, 77.51],
-    ["no address", { visibility: { ...everything, address: false } }, 73.95],
-    ["no phone", { visibility: { ...everything, phone: false } }, 77.51],
-    ["no e-mail", { visibility: { ...everything, email: false } }, 77.51],
-    ["no LinkedIn", { visibility: { ...everything, linkedin: false } }, 73.95],
-    ["no GitHub", { visibility: { ...everything, github: false } }, 77.51],
-    ["no Website", { visibility: { ...everything, website: false } }, 81.06],
-    ["no online profiles", { visibility: { ...everything, onlineProfiles: false } }, 77.51],
-    ["no birth date", { visibility: { ...everything, birthDate: false } }, 77.51],
-    ["no nationality", { visibility: { ...everything, nationality: false } }, 81.06],
-    ["no family status", { visibility: { ...everything, familyStatus: false } }, 81.06],
-    ["no children", { visibility: { ...everything, children: false } }, 81.06],
-    ["no Xing", { visibility: { ...everything, xing: false } }, 77.51],
-    ["the reported header, Website off", { visibility: { website: false } }, 63.39],
-    ["the reported header, Website on", { visibility: { website: true } }, 63.39],
-    ["GitHub off, Website on", { visibility: { github: false } }, 63.39],
-    ["no LinkedIn: GitHub and Website share a row", { visibility: { linkedin: false } }, 59.83],
-    ["a long Website (4 lines)", { fields: { portfolio: "https://www.example.com/sehr-langer-pfad/portfolio/projekte/softwareentwicklung" } }, 74.06],
-    ["a long e-mail (3 lines)", { fields: { email: "mina.beispiel.mit.einer.sehr.langen.adresse1408@beispiel-mail-anbieter.example.com" } }, 70.51],
-    ["a long LinkedIn that fits its row", { fields: { linkedin: "https://www.linkedin.com/in/mina-beispiel-senior-entwicklerin-prozessplanung-123456789/" } }, 63.39],
-    ["a long name", { fields: { firstName: "Mina-Alexandra", lastName: "Beispiel-Schmidt-Wolkenstein" } }, 72.21],
-    ["a long title without a photo", { photo: false, fields: { title: "Technisch und prozessorientierter Quereinsteiger mit langjähriger Erfahrung im Produktionsumfeld sowie in der Prozessplanung und Digitalisierung" } }, 63.39],
-    ["a long title beside the photo", { photo: true, fields: { title: "Technisch und prozessorientierter Quereinsteiger mit langjähriger Erfahrung im Produktionsumfeld sowie in der Prozessplanung und Digitalisierung" } }, 68.87],
-    ["no title", { fields: { title: "" } }, 51.29],
-  ])("%s", (label, options, measured) => {
-    // The photo narrows only the column of the name and the title; the contacts are 132 mm wide with or without it.
-    for (const photo of options.photo === undefined ? [true, false] : [options.photo]) {
-      const estimate = top({ ...options, photo });
-      expect(estimate, `${label}${photo ? "" : " (no photo)"}`).toBeGreaterThanOrEqual(measured - 0.01);
-      expect(estimate, `${label}${photo ? "" : " (no photo)"}`).toBeLessThanOrEqual(measured + 3.6);
-    }
+    ["all contacts", { visibility: everything, photo: false }, 73.95],
+    ["all contacts with photo", { visibility: everything, photo: true }, 73.95],
+    ["reported header", { photo: false }, 59.83],
+    ["reported header with photo", { photo: true }, 59.83],
+    ["no LinkedIn", { visibility: { ...everything, linkedin: false }, photo: true }, 69.24],
+    ["long Website", { fields: { portfolio: "https://www.example.com/sehr-langer-pfad/portfolio/projekte/softwareentwicklung" }, photo: true }, 70.51],
+    ["long e-mail", { fields: { email: "mina.beispiel.mit.einer.sehr.langen.adresse1408@beispiel-mail-anbieter.example.com" }, photo: true }, 63.39],
+    ["long name", { fields: { firstName: "Mina-Alexandra", lastName: "Beispiel-Schmidt-Wolkenstein" }, photo: true }, 68.65],
+    ["long title with photo", { fields: { title: "Technisch und prozessorientierter Quereinsteiger mit langjähriger Erfahrung im Produktionsumfeld sowie in der Prozessplanung und Digitalisierung" }, photo: true }, 65.31],
+    ["no title", { fields: { title: "" }, photo: true }, 51.29],
+  ])("%s", (_label, options, measured) => {
+    const estimate = top(options);
+    expect(estimate).toBeGreaterThanOrEqual(measured - 0.05);
+    expect(estimate).toBeLessThanOrEqual(measured + (_label === "long e-mail" ? 3.6 : 0.5));
   });
 
-  it("adds no height when a Website joins the row GitHub is in, and one text line when it needs a row of its own", () => {
-    const base = top({ visibility: { website: false } });
-    expect(top({ visibility: { website: true } })).toBe(base);
-    expect(top({ visibility: { website: true, github: false, linkedin: false } })).toBeLessThanOrEqual(top({ visibility: { website: false, github: false, linkedin: false } }) + 3.6);
-    // a Website that wraps into more lines than the row had really is taller
-    expect(top({ fields: { portfolio: "https://www.example.com/sehr-langer-pfad/portfolio/projekte/softwareentwicklung" } })).toBeGreaterThan(base + 8);
-  });
-
-  it("keeps the generic rule for the other templates: a header model reaches only Tabellarisch", () => {
+  it("keeps the generic rule for other templates", () => {
     const profile = display({});
     expect(estimateResumeHeaderTop("tabellarisch", profile, "side", 60)).toBeUndefined();
     expect(estimateResumeHeaderTop("tabellarisch", profile, "main", 90)).toBe(90);
   });
 });
-
 describe("Tabellarisch: the page plan follows the real header", () => {
   const settings = getTemplateDocumentDesignDefaults("tabellarisch");
   const plan = (options: TabellarischFixtureOptions) => {

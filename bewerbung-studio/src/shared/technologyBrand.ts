@@ -11,6 +11,14 @@ const technologyAliases: Record<string, string> = {
   "php 8": "php", php8: "php", "docker engine": "docker", "docker compose": "docker",
   "git hub": "github", "github.com": "github",
   "go fiber": "fiber", gofiber: "fiber", "fiber web framework": "fiber",
+  "asp.net": "aspnet", "asp net": "aspnet", "asp.net core": "aspnet", "aspnet core": "aspnet",
+  "asp.net mvc": "aspnet", "aspnet mvc": "aspnet",
+  ".net": "dotnet", "dot net": "dotnet", ".net core": "dotnetcore", "dot net core": "dotnetcore",
+  "c#": "csharp", "c sharp": "csharp", "c-sharp": "csharp",
+  "f#": "fsharp", "f sharp": "fsharp", "f-sharp": "fsharp",
+  "vb.net": "visualbasic", "vb net": "visualbasic", "visual basic .net": "visualbasic", vb: "visualbasic",
+  "entity framework core": "entityframeworkcore", "ef core": "entityframeworkcore",
+  "blazor webassembly": "blazor", "blazor wasm": "blazor", "blazor server": "blazor",
 };
 export const normalizeTechnologyName = (name: string) => {
   const normalized = name.trim().toLocaleLowerCase("en-US").replace(/^(?:programming|programmiersprache)\s*[:–-]?\s*/i, "");
@@ -153,12 +161,10 @@ const getAutomaticTechnologyIconMarkup = (technology: string): string | undefine
       "M9 8h15l-.4 4-8.8 3.5h8.5l-.8 8-6.5 1.8-6.5-1.8-.4-4h4l.2 1.2 2.7.7 2.8-.8.2-2.2H9.8l-.3-3.8 8.7-3.4H9.3z",
     );
   }
-  if (normalized === "c#") return letterMark("C#", "hexagon");
   if (normalized === "c++") return letterMark("C++", "hexagon");
   if (normalized === "c") return letterMark("C", "hexagon");
   if (normalized === "php") return phpBrand();
   if (["go", "golang", "go language"].includes(normalized)) return goBrand();
-  if (normalized === ".net") return letterMark(".NET");
   if (["typescript", "type script", "ts"].includes(normalized))
     return typescriptBrand();
   if (
@@ -191,9 +197,7 @@ const getAutomaticTechnologyIconMarkup = (technology: string): string | undefine
       '<ellipse cx="16" cy="7" rx="10" ry="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 7v18c0 2.2 4.5 4 10 4s10-1.8 10-4V7M6 16c0 2.2 4.5 4 10 4s10-1.8 10-4" fill="none" stroke="currentColor" stroke-width="2"/>',
     );
   }
-  if (["visual basic", "vb", "vb.net"].includes(normalized))
-    return letterMark("VB");
-  if (["f#", "fsharp"].includes(normalized)) return letterMark("F#", "hexagon");
+  if (normalized === "visual basic") return getDeviconMarkup("visualbasic");
   if (normalized === "objective-c") return letterMark("ObjC", "rounded");
   if (normalized === "solidity") return letterMark("SOL", "hexagon");
   if (normalized === "elixir") return letterMark("EX", "rounded");

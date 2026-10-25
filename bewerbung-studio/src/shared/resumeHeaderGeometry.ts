@@ -1,13 +1,12 @@
 import type { ApplicantProfile } from "./schema";
 import {
   formatResumeAddress,
-  formatResumeBirth,
   getResumeFullName,
   getResumeHeaderContactTexts,
   getResumeLinkContacts,
-  getResumePersonalDetails,
 } from "./resumePersonalData";
-import { formatPhoneForDisplay } from "./contactPresentation";
+import { getTabellarischHeaderContacts, type TabellarischHeaderContact } from "./tabellarischHeaderContacts";
+export { getTabellarischHeaderContacts } from "./tabellarischHeaderContacts";
 import { getResumePhotoScale } from "./resumePhoto";
 import { kreativDefaults } from "./cvTemplateDefaults/kreativ.defaults";
 import { stilvollDefaults, stilvollDesign } from "./cvTemplateDefaults/stilvoll.defaults";
@@ -117,28 +116,8 @@ const headerModels: Record<string, Partial<Record<"main" | "side" | "mainPhoto" 
   },
 };
 
-/**
- * Tabellarisch draws its contacts in a two-column grid (`.tabellarisch-header__contacts`: columns 1.15fr / 0.85fr,
- * 132 mm wide, with or without the photo) and places GitHub in column 1 and the Website in column 2 explicitly. Which
- * cell a contact lands in therefore depends on the contacts before it, and a contact that shares a row with another
- * adds no height: the generic list of texts cannot say that, a switch of one checkbox must only move the page plan when
- * it moves the real rows. This is the grid the template draws (the order of `TabellarischHeader.tsx` and of the PDF's
- * `tabellarischContacts`, with the values it prints: the full URLs, the address on one line), kept in step with both
- * by `tabellarischHeaderGeometry.test.tsx`.
- */
-export type HeaderContact = { kind: string; text: string };
-
-export const getTabellarischHeaderContacts = (profile: ApplicantProfile | undefined): HeaderContact[] =>
-  [
-    { kind: "phone", text: formatPhoneForDisplay(profile?.phone) },
-    { kind: "email", text: profile?.email ?? "" },
-    { kind: "linkedin", text: profile?.linkedin ?? "" },
-    { kind: "location", text: formatResumeAddress(profile) },
-    { kind: "github", text: profile?.github ?? "" },
-    { kind: "website", text: profile?.portfolio ?? "" },
-    { kind: "birth", text: formatResumeBirth(profile) },
-    ...getResumePersonalDetails(profile).map((detail) => ({ kind: detail.kind as string, text: detail.href ? detail.value : detail.text })),
-  ].filter((contact) => contact.text.trim());
+/** Tabellarisch puts the address, e-mail and phone on a left-aligned line, then optional details below. */
+export type HeaderContact = TabellarischHeaderContact;
 
 /** Measured on the real PDF (`scripts/tabellarisch-header-calibration.mjs`, 172 headers): see `tabellarischContactRows`. */
 const tabellarischGrid = {
@@ -154,7 +133,7 @@ const tabellarischGrid = {
   column2: { url: { one: 28, per: 25 }, plain: { one: 29, per: 28 } },
 };
 
-/** The contact grid is at most 132 mm wide (and never wider than the identity column beside the photo). */
+/** The optional-contact grid is at most 132 mm wide; the primary line uses the entire identity column. */
 const TABELLARISCH_CONTACT_GRID_MM = 132;
 
 /** Text width (mm) of a contact cell: its column of the grid (1.15fr / 0.85fr, 7 mm apart) less the 3.2 mm icon and 1.2 mm gap. */
@@ -178,12 +157,17 @@ const tabellarischContactLines = (text: string, column: 1 | 2, grid = TABELLARIS
  * free cell, except GitHub (column 1) and the Website (column 2), which look for a free cell in their column from the
  * cursor on and start a new row when their column lies before the cursor's. Returns the text lines of every row.
  */
-export const tabellarischContactRows = (contacts: readonly HeaderContact[], grid = TABELLARISCH_CONTACT_GRID_MM): number[] => {
-  const rows: number[] = [];
+export const tabellarischContactRows = (contacts: readonly HeaderContact[], width = 180): number[] => {
+  const primary = contacts.filter((contact) => contact.primary);
+  const grid = Math.min(TABELLARISCH_CONTACT_GRID_MM, width);
+  const rows: number[] = primary.length
+    ? [Math.max(1, wrappedLines(primary.map((contact) => contact.text).join(" | "), width, 8.4 * 25.4 / 72, 600))]
+    : [];
+  const extraRows: number[] = [];
   const taken = new Set<string>();
   let row = 1;
   let column = 1;
-  for (const contact of contacts) {
+  for (const contact of contacts.filter((entry) => !entry.primary)) {
     const fixed = contact.kind === "github" ? 1 : contact.kind === "website" ? 2 : 0;
     if (fixed) {
       if (fixed < column) row += 1;
@@ -199,9 +183,9 @@ export const tabellarischContactRows = (contacts: readonly HeaderContact[], grid
       }
     }
     taken.add(`${row},${column}`);
-    rows[row - 1] = Math.max(rows[row - 1] ?? 0, tabellarischContactLines(contact.text, column as 1 | 2, grid));
+    extraRows[row - 1] = Math.max(extraRows[row - 1] ?? 0, tabellarischContactLines(contact.text, column as 1 | 2, grid));
   }
-  return Array.from(rows, (lines) => lines ?? 1);
+  return [...rows, ...Array.from(extraRows, (lines) => lines ?? 1)];
 };
 
 /** Chromium's wrap of the name (25 pt, capitals) and of the Berufsbezeichnung (13.5 pt) per mm of the identity column. */
@@ -237,10 +221,15 @@ export const estimateTabellarischTop = (
   const title = profile.title.trim().length * titleScale;
   const titleLines = !title ? 0 : Math.max(title <= identityWidth * tabellarischText.titleOneLinePerMm ? 1 : Math.ceil(title / (identityWidth * tabellarischText.titleCharsPerMm)),
     wrappedLines(profile.title.trim(), identityWidth, 13.5 * titleScale * PT, 700));
-  const rows = showContacts ? tabellarischContactRows(getTabellarischHeaderContacts(profile), Math.min(TABELLARISCH_CONTACT_GRID_MM, identityWidth)) : [];
-  const contacts = rows.length
-    ? 2.5 + rows.reduce((total, lines) => total + lines * tabellarischGrid.line, 0) + (rows.length - 1) * tabellarischGrid.rowGap
+  const visibleContacts = showContacts ? getTabellarischHeaderContacts(profile) : [];
+  const rows = tabellarischContactRows(visibleContacts, identityWidth);
+  const hasPrimary = visibleContacts.some((contact) => contact.primary);
+  const primaryHeight = hasPrimary ? 2.5 + rows[0] * tabellarischGrid.line : 0;
+  const extraRows = hasPrimary ? rows.slice(1) : rows;
+  const extraHeight = extraRows.length
+    ? (hasPrimary ? 1.15 : 2.5) + extraRows.reduce((total, lines) => total + lines * tabellarischGrid.line, 0) + (extraRows.length - 1) * tabellarischGrid.rowGap
     : 0;
+  const contacts = primaryHeight + extraHeight;
   const identity = 1 + nameLines * tabellarischText.nameLine * nameScale + (title ? 2.3 + titleLines * tabellarischText.titleLine * titleScale : 0) + contacts;
   const headerHeight = Math.max(identity, 30, withPhoto ? 30 * photoScale : 0);
   return { top: 15 + headerHeight + (options.sectionGapMm ?? 6.3), margin: 1 };

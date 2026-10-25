@@ -1,15 +1,7 @@
+import { Fragment } from "react";
 import { ContactIcon } from "../ContactIcon";
-import { toExternalHref } from "./tabellarisch.model";
 import type { TabellarischHeaderProps } from "./tabellarisch.types";
-import { formatResumeAddress, formatResumeBirth, getResumePersonalDetails } from "../../../../shared/resumePersonalData";
-import { formatPhoneForDisplay, phoneHref } from "../../../../shared/contactPresentation";
-
-type HeaderContact = {
-  kind: "phone" | "email" | "linkedin" | "github" | "website" | "location" | "birth" | "nationality" | "familyStatus" | "children";
-  label: string;
-  value: string;
-  href: string;
-};
+import { getTabellarischHeaderContacts, type TabellarischHeaderContact } from "../../../../shared/tabellarischHeaderContacts";
 
 export function TabellarischHeader({
   name,
@@ -17,54 +9,18 @@ export function TabellarischHeader({
   photoSource,
   atsMode,
 }: TabellarischHeaderProps) {
-  const location = formatResumeAddress(profile);
-  const birth = formatResumeBirth(profile);
-  const contacts: HeaderContact[] = [
-    {
-      kind: "phone",
-      label: "Telefon",
-      value: formatPhoneForDisplay(profile?.phone),
-      href: phoneHref(profile?.phone),
-    },
-    {
-      kind: "email",
-      label: "E-Mail",
-      value: profile?.email || "",
-      href: profile?.email ? `mailto:${profile.email}` : "",
-    },
-    {
-      kind: "linkedin",
-      label: "LinkedIn",
-      value: profile?.linkedin || "",
-      href: profile?.linkedin ? toExternalHref(profile.linkedin) : "",
-    },
-    {
-      kind: "location",
-      label: "Wohnort",
-      value: location,
-      href: "",
-    },
-    {
-      kind: "github",
-      label: "GitHub",
-      value: profile?.github || "",
-      href: profile?.github ? toExternalHref(profile.github) : "",
-    },
-    {
-      kind: "website",
-      label: "Portfolio",
-      value: profile?.portfolio || "",
-      href: profile?.portfolio ? toExternalHref(profile.portfolio) : "",
-    },
-    {
-      kind: "birth",
-      label: "Geboren",
-      value: birth,
-      href: "",
-    },
-    // The plain layout prints the label in front; the visual one shows the detail with its label.
-    ...getResumePersonalDetails(profile).map((detail) => ({ kind: detail.kind, label: detail.label, value: atsMode || detail.href ? detail.value : detail.text, href: detail.href })),
-  ].filter((contact) => contact.value.trim()) as HeaderContact[];
+  const contacts = getTabellarischHeaderContacts(profile);
+  const primaryContacts = contacts.filter((contact) => contact.primary);
+  const extraContacts = contacts.filter((contact) => !contact.primary);
+  const renderContact = (contact: TabellarischHeaderContact, icon: boolean) => {
+    const value = <>{atsMode ? <strong>{contact.label}: </strong> : null}{contact.text}</>;
+    return (
+      <span data-contact-kind={contact.kind} aria-label={`${contact.label}: ${contact.text}`}>
+        {icon && !atsMode ? <ContactIcon {...contact} value={contact.text} /> : null}
+        {contact.href ? <a href={contact.href}>{value}</a> : <span>{value}</span>}
+      </span>
+    );
+  };
 
   return (
     <header
@@ -76,37 +32,17 @@ export function TabellarischHeader({
         {profile?.title ? (
           <p className="tabellarisch-header__title">{profile.title}</p>
         ) : null}
-        {contacts.length ? (
-          <address className="tabellarisch-header__contacts">
-            {contacts.map((contact) => {
-              const content = (
-                <>
-                  {!atsMode ? <ContactIcon {...contact} /> : null}
-                  {atsMode ? <strong>{contact.label}:</strong> : null}
-                  <span>{contact.value}</span>
-                </>
-              );
-              return contact.href ? (
-                <a
-                  aria-label={`${contact.label}: ${contact.value}`}
-                  data-contact-kind={contact.kind}
-                  href={contact.href}
-                  key={contact.label}
-                >
-                  {content}
-                </a>
-              ) : (
-                <span
-                  aria-label={`${contact.label}: ${contact.value}`}
-                  data-contact-kind={contact.kind}
-                  key={contact.label}
-                >
-                  {content}
-                </span>
-              );
-            })}
-          </address>
-        ) : null}
+        {primaryContacts.length ? <address className="tabellarisch-header__primary-contacts">
+          {primaryContacts.map((contact, index) => <Fragment key={contact.kind}>
+            {index ? <span className="tabellarisch-header__separator" aria-hidden="true"> | </span> : null}
+            {renderContact(contact, false)}
+          </Fragment>)}
+        </address> : null}
+        {extraContacts.length ? <address className="tabellarisch-header__contacts">
+          {extraContacts.map((contact, index) => <Fragment key={`${contact.kind}-${index}`}>
+            {renderContact(contact, true)}
+          </Fragment>)}
+        </address> : null}
       </div>
 
       {photoSource && !atsMode ? (

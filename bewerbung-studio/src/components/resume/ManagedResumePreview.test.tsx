@@ -129,7 +129,7 @@ describe("managed template previews", () => {
     }
   });
   it.each(Object.entries(components))("renders all nine strengths in order in %s", (templateId, component) => {
-    const strengths = ["Go", "React", "Spring Boot", "SQL", "Docker", "Git", "Linux", "Java", "TypeScript"].map((title, index) => ({ id: crypto.randomUUID(), title, description: index === 0 ? "Echo, Gin\nREST" : "", iconId: index === 1 ? "symbol:check" : "" }));
+    const strengths = ["Go", "React", "Spring Boot", "SQL", "Docker", "Git", "Linux", "ASP.NET", "TypeScript"].map((title, index) => ({ id: crypto.randomUUID(), title, description: index === 0 ? "Echo, Gin\nREST" : "", iconId: index === 1 ? "symbol:check" : "" }));
     const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: new Date().toISOString(), strengths });
     const plan = createResumePagePlan(profile, "", {}, templateId)[0];
     for (const atsMode of [false, true]) {
@@ -144,6 +144,7 @@ describe("managed template previews", () => {
         const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test", company: { name: "Test", city: "Berlin" }, contact: {},
           job: { title: "Entwicklung" }, status: "Entwurf", templateId, accentColor: "#123456", secondaryColor: "#234567", documents: {}, statusHistory: [], createdAt: now, updatedAt: now });
         const pdf = parseHTML(buildDocumentHtml(application, profile, "lebenslauf")).document;
+        const aspNetMarkup: string[] = [];
         for (const output of [document, pdf]) {
           const cards = Array.from(output.querySelectorAll(".managed-strength-card"));
           const icon = (title: string) => cards.find(card => card.querySelector("strong")?.textContent === title)?.querySelector("svg");
@@ -151,8 +152,12 @@ describe("managed template previews", () => {
           expect(icon("Spring Boot")?.getAttribute("data-brand"), templateId).toBe("devicon:spring");
           expect(icon("Docker")?.getAttribute("data-brand"), templateId).toBe("devicon:docker");
           expect(icon("Git")?.getAttribute("data-brand"), templateId).toBe("devicon:git");
+          expect(icon("ASP.NET")?.getAttribute("data-brand"), templateId).toBe("aspnet");
+          expect(icon("ASP.NET")?.getAttribute("fill"), templateId).toBe("currentColor");
+          aspNetMarkup.push(icon("ASP.NET")?.outerHTML ?? "");
           expect(icon("React")?.getAttribute("data-strength-symbol"), templateId).toBe("symbol:check");
         }
+        expect(aspNetMarkup[1], templateId).toBe(aspNetMarkup[0]);
       }
     }
   });
