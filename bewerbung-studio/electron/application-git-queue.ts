@@ -147,6 +147,18 @@ class GitSyncFailure extends Error {
 const localFailure = (output: string, fallback: ApplicationGitFailureCode): ApplicationGitFailureCode =>
   /index\.lock/i.test(output) ? "repository-busy" : fallback;
 
+/**
+ * `git add` exits with 1 when an exclude pathspec names a path the user's .gitignore ignores (e.g. `*.bak` and the
+ * draft backup), although it has staged everything else. That report alone is no failure: the path stays out either way.
+ */
+export const onlyExcludedPathsIgnored = (stderr: string, excluded: readonly string[]) => {
+  const lines = stderr.split(/\r?\n/).map((line) => line.trimEnd()).filter(Boolean);
+  const header = lines.indexOf("The following paths are ignored by one of your .gitignore files:");
+  if (header < 0) return false;
+  const listed = lines.slice(header + 1).filter((line) => !/^(?:warning|hint):/.test(line));
+  return listed.length > 0 && listed.every((line) => excluded.includes(line.replace(/\/$/, "")));
+};
+
 /** Push output is only classified here; it may contain URLs and is never shown or logged. */
 export const classifyPushFailure = (output: string): ApplicationGitFailureCode => {
   if (/\[rejected\]|non-fast-forward|fetch first/i.test(output)) return "non-fast-forward";
@@ -231,6 +243,8 @@ export class ApplicationGitSync implements ApplicationGitCommitQueue {
   private readonly gitExecutable: string;
   private readonly timeoutMs: number;
   private readonly pathspecs: string[];
+  /** The paths below the data tree that are never staged, relative to the root. */
+  private readonly excludedPaths: string[];
   private readonly onSynchronized?: (outcome: ApplicationGitSyncOutcome, syncId: number) => void;
   private lastSyncId = 0;
   private intents: ApplicationGitIntent[] = [];
@@ -255,17 +269,18 @@ export class ApplicationGitSync implements ApplicationGitCommitQueue {
     const dataRoot = toPathspec(this.root, options.paths.dataRoot);
     if (!dataRoot || dataRoot.startsWith("..") || path.isAbsolute(dataRoot))
       throw new Error("Der Datenordner liegt nicht im Bewerbungsordner.");
+    this.excludedPaths = [
+      options.paths.logsRoot,
+      options.paths.crashDumpsRoot,
+      options.paths.electronSessionRoot,
+      path.dirname(options.paths.previewCache),
+      // The wizard draft is an unsaved editor state; only a created Bewerbung belongs to the history.
+      options.paths.applicationDraftPath,
+      `${options.paths.applicationDraftPath}.bak`,
+    ].map((excluded) => toPathspec(this.root, excluded));
     this.pathspecs = [
       `:(literal)${dataRoot}`,
-      ...[
-        options.paths.logsRoot,
-        options.paths.crashDumpsRoot,
-        options.paths.electronSessionRoot,
-        path.dirname(options.paths.previewCache),
-        // The wizard draft is an unsaved editor state; only a created Bewerbung belongs to the history.
-        options.paths.applicationDraftPath,
-        `${options.paths.applicationDraftPath}.bak`,
-      ].map((excluded) => `:(exclude,literal)${toPathspec(this.root, excluded)}`),
+      ...this.excludedPaths.map((excluded) => `:(exclude,literal)${excluded}`),
       // A temporary file of an atomic write that is still being written is never staged.
       `:(exclude,glob)${dataRoot.replace(/[*?[\]\\]/g, "\\$&")}/**/*.tmp`,
     ];
@@ -405,7 +420,8 @@ export class ApplicationGitSync implements ApplicationGitCommitQueue {
       if ((await this.run(["rev-parse", "-q", "--verify", "MERGE_HEAD"])).code === 0) throw new GitSyncFailure("merge-in-progress");
       // A copy of a repository inside the data tree (a full backup copies the Bewerbungsordner with its .git) is never
       // staged: it would become a gitlink, and one without a commit makes `git add` fail.
-      const pathspecs = [...this.pathspecs, ...(await this.embeddedRepositories()).map((relative) => `:(exclude,literal)${relative}`)];
+      const embedded = await this.embeddedRepositories();
+      const pathspecs = [...this.pathspecs, ...embedded.map((relative) => `:(exclude,literal)${relative}`)];
       const unlock = await this.acquireIndex();
       // Operations that finish from here on belong to the next synchronisation.
       if (this.next === batch) this.next = null;
@@ -413,7 +429,8 @@ export class ApplicationGitSync implements ApplicationGitCommitQueue {
       let committed: boolean;
       try {
         const add = await this.run(["add", "--all", "--", ...pathspecs]);
-        if (add.code !== 0) throw new GitSyncFailure(localFailure(add.stderr, "stage-failed"));
+        if (add.code !== 0 && !(add.code === 1 && onlyExcludedPathsIgnored(add.stderr, [...this.excludedPaths, ...embedded])))
+          throw new GitSyncFailure(localFailure(add.stderr, "stage-failed"));
         const staged = await this.run(["diff", "--cached", "--quiet", "--", ...pathspecs]);
         if (staged.code !== 0 && staged.code !== 1) throw new GitSyncFailure("stage-failed");
         committed = staged.code === 1;

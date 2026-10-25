@@ -596,6 +596,28 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
     expect(git(root, "status", "--porcelain", "--", "data")).toMatch(/new-application-draft\.json/);
   });
 
+  it("syncs when the user's .gitignore ignores excluded paths (draft backup *.bak, a tracked Electron session)", async () => {
+    await openStore();
+    await create("Erste GmbH");
+    await mkdir(paths.electronSessionRoot, { recursive: true });
+    await writeFile(path.join(paths.electronSessionRoot, "Preferences"), "{}");
+    git(root, "add", "--", paths.electronSessionRoot);
+    git(root, "commit", "--quiet", "-m", "Session (old sync)");
+    await writeFile(path.join(root, ".gitignore"), "*.bak\nElectronSession/\n");
+    git(root, "add", ".gitignore");
+    git(root, "commit", "--quiet", "-m", "Ignore backups");
+    await store.saveApplicationDraft({ company: { name: "Entwurf GmbH" } });
+    await writeFile(`${paths.applicationDraftPath}.bak`, "{}");
+    await writeFile(path.join(paths.electronSessionRoot, "Preferences"), "{\"changed\":true}");
+
+    expect((await save((application) => { application.notes = "Nach dem Ignorieren"; })).gitSync.state).toBe("synced");
+
+    expect(remoteSubjects()[0]).toMatch(/^Bewerbung aktualisiert: Erste GmbH/);
+    expect(remoteFiles()).not.toMatch(/new-application-draft/m);
+    expect(git(root, "diff", "--name-only")).toContain("data/Setting/ElectronSession/Preferences");
+    expect(git(root, "diff", "--cached", "--name-only")).toBe("");
+  });
+
   it("leaves no difference behind when the app is opened again (no rewritten event timestamps)", async () => {
     await openStore();
     const id = (await create("Neustart GmbH")).result.applications[0].id;
