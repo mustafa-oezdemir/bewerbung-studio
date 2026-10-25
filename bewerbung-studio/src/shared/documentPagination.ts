@@ -2018,8 +2018,10 @@ const planResumePages = (
     : templateId === "stilvoll" && !context.atsMode
       ? Math.max(0, scale.marginInset) : 2 * scale.marginInset;
 
-  const mainCap1 = (geometry.limit - top1 - verticalInset - (geometry.reserveMm ?? 0)) * (geometry.safety ?? SAFETY);
-  const mainCap2 = (geometry.limit - top2 - verticalInset - (geometry.reserveMm ?? 0)) * (geometry.safety ?? SAFETY);
+  // Electron's full ATS font load leaves less usable height in Pehlione than the visual density estimate.
+  const mainSafety = context.atsMode && templateId?.startsWith("pehlione_") ? 0.9 : (geometry.safety ?? SAFETY);
+  const mainCap1 = (geometry.limit - top1 - verticalInset - (geometry.reserveMm ?? 0)) * mainSafety;
+  const mainCap2 = (geometry.limit - top2 - verticalInset - (geometry.reserveMm ?? 0)) * mainSafety;
   // Where the first sidebar block starts depends on how many contact entries (and wrapped values) precede it.
   const sidebarHero = zoneFlow && hasSidebarHero(templateId);
   const contactItems = sidebarHero && find("personalData")?.visible !== false ? getPehlioneContacts(profile) : [];
@@ -2814,8 +2816,9 @@ const planResumePages = (
    * (`leadIds`), where every later page is packed.
    */
   const continueAfterSecond = (plan: ResumePagePlan[]): ResumePagePlan[] => {
-    if (templateId !== "gepflegt" && !leadIds.size) return packContinuations(plan, templateId === "zweispaltig" || templateId === "tuerkis-profil");
-    const full = packContinuations(plan, templateId === "zweispaltig" || templateId === "tuerkis-profil");
+    const reserveClosing = templateId === "zweispaltig" || templateId === "tuerkis-profil" || Boolean(templateId?.startsWith("pehlione_"));
+    if (templateId !== "gepflegt" && !leadIds.size) return packContinuations(plan, reserveClosing);
+    const full = packContinuations(plan, reserveClosing);
     return full.length > 1 && (full[full.length - 1].fill?.main ?? 0) > 1 ? packContinuations(plan, true) : full;
   };
 

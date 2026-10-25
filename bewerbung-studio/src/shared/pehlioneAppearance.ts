@@ -130,6 +130,10 @@ export const pehlioneAppearanceCss = `
 .pehlione-resume.pehlione-resume[data-template="pehlione_white"][data-density="compact"] .pehlione-header h2{white-space:normal}
 .pehlione-resume[data-template^="pehlione_"] .pehlione-header,
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-header{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary))}
+.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-ats .pehlione-pdf-section-icon{display:none}
+.cv-sheet[data-template^="pehlione_"][data-resume-page]:not([data-resume-page='1']) .pehlione-pdf-ats{padding-top:10mm}
+.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-ats [data-managed-section="languages"]{margin-bottom:0}
+.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-ats [data-custom-template^="pehlione_"] [data-custom-role="supporting"]{margin:0}
 .pehlione-resume:is([data-template="pehlione_white_blue"],[data-template="pehlione_white"]):not([data-page="1"]):not([data-density="compact"]) .pehlione-header{margin-bottom:7mm;padding-bottom:4mm}
 .pehlione-resume:is([data-template="pehlione_white_blue"],[data-template="pehlione_white"]):not([data-page="1"]):not([data-density="compact"]) .pehlione-header h1{font-size:var(--pehlione-native-heading-size)}
 .pehlione-resume:is([data-template="pehlione_white_blue"],[data-template="pehlione_white"]):not([data-page="1"]):not([data-density="compact"]) .pehlione-header h2{margin-top:2mm;font-size:var(--pehlione-native-subheading-size)}
@@ -148,6 +152,13 @@ export const pehlioneAppearanceCss = `
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-entry h4{margin:0;font-size:var(--pehlione-native-entry-heading-size);line-height:1.2;font-weight:700}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry__period,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-entry__meta>p{white-space:nowrap}
+.pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry__period{color:var(--pehlione-native-text)}
+.pehlione-resume[data-template="pehlione_white"] .pehlione-career-entry__period{font-size:9.2pt}
+.pehlione-resume[data-template^="pehlione_"] [data-custom-template^="pehlione_"] .resume-special-output__meta{font-size:9.2pt}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-project h4{font-size:var(--pehlione-native-entry-heading-size)}
+.cv-sheet[data-template^="pehlione_"] .pehlione-pdf[data-density="compact"] .pehlione-pdf-project p{font-size:8.2pt}
+.cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf[data-density="compact"] .pehlione-pdf-project h4{font-size:9.3pt}
+.pehlione-resume.pehlione-resume[data-density="compact"] [data-custom-template^="pehlione_"] [data-cv-role="description"][data-custom-role="body"]{font-size:9.2pt}
 .pehlione-resume[data-template="pehlione_white_blue"] .pehlione-career-entry__location,
 .cv-sheet[data-template="pehlione_white_blue"] .pehlione-pdf-entry__meta>small{display:block;margin-top:1mm;color:#1e3150;font-size:8.2pt;line-height:1.25}
 .pehlione-resume[data-template="pehlione_white_blue"] [data-resume-metadata-grid="side-by-side"][data-resume-metadata-order="dates-first"],

@@ -5,7 +5,7 @@
 
 import type { CSSProperties } from "react";
 import { TabellarischPage } from "./TabellarischPage";
-import { tabellarischDefaults } from "./tabellarisch.defaults";
+import { tabellarischAtsColor, tabellarischDefaults } from "./tabellarisch.defaults";
 import type { TabellarischResumeProps } from "./tabellarisch.types";
 import "./tabellarisch.css";
 
@@ -23,9 +23,11 @@ export function TabellarischResume({
 }: TabellarischResumeProps) {
   const cssVariables = {
     "--tabellarisch-primary":
-      secondaryColor || tabellarischDefaults.colors.primary,
+      atsMode && secondaryColor?.toUpperCase() === tabellarischDefaults.colors.primary.toUpperCase()
+        ? tabellarischAtsColor : secondaryColor || tabellarischDefaults.colors.primary,
     "--tabellarisch-accent":
-      accentColor || tabellarischDefaults.colors.accent,
+      atsMode && accentColor?.toUpperCase() === tabellarischDefaults.colors.accent.toUpperCase()
+        ? tabellarischAtsColor : accentColor || tabellarischDefaults.colors.accent,
   } as CSSProperties;
 
   return (

@@ -25,6 +25,7 @@ import { ModernSummarySection } from "./ModernSummarySection";
 import { ResumeSpecialSections } from "../../ResumeSpecialSections";
 import "./modern.css";
 import { resolveResumeFooterWebsite } from "../../../../shared/resumeFooter";
+import { modernAtsColors, modernTemplateDefaults } from "../../../../shared/cvTemplateDefaults/modern.defaults";
 
 export function ModernResume({
   profile,
@@ -71,8 +72,15 @@ export function ModernResume({
       }
     : undefined;
   const cssVariables = {
-    "--modern-primary": accentColor,
+    "--modern-primary": atsMode && accentColor.toUpperCase() === modernTemplateDefaults.colors.primary.toUpperCase()
+      ? modernAtsColors.primary : accentColor,
     "--modern-primary-soft": secondaryColor,
+    ...(atsMode ? {
+      "--modern-heading": modernAtsColors.heading,
+      "--modern-text": modernAtsColors.text,
+      "--modern-muted": modernAtsColors.muted,
+      "--modern-divider": modernAtsColors.divider,
+    } : {}),
   } as CSSProperties;
   const hasCustomLayout = hasSavedTemplateSectionLayout(profile, "modern");
   const savedLayout = getProfileResumeSectionLayout(profile, "modern");

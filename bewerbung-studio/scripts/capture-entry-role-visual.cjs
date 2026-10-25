@@ -16,10 +16,15 @@ app.whenReady().then(async () => {
   // 210 mm at 96 px per inch: the preview paper is drawn at its real size.
   const window = new BrowserWindow({ show: false, width: 1100, height: 1600, useContentSize: true, webPreferences: { sandbox: true } });
   for (const name of names) {
+    for (const file of fs.readdirSync(out)) {
+      if (file.startsWith(`${name}-preview-`) || file.startsWith(`${name}-side-`)) fs.unlinkSync(path.join(out, file));
+    }
     await window.loadFile(path.join(dir, `${name}-pdf.html`));
+    await window.webContents.executeJavaScript('document.fonts.ready.then(() => true)');
     const pdf = await window.webContents.printToPDF({ pageSize: 'A4', preferCSSPageSize: true, printBackground: true, margins: { marginType: 'none' } });
     fs.writeFileSync(path.join(out, `${name}.pdf`), pdf);
     await window.loadFile(path.join(dir, `${name}-preview.html`));
+    await window.webContents.executeJavaScript('document.fonts.ready.then(() => true)');
     await new Promise((done) => setTimeout(done, 150));
     const boxes = await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.document-paper')).map((page) => {
       const box = page.getBoundingClientRect(); return { x: box.left + scrollX, y: box.top + scrollY, width: box.width, height: box.height };

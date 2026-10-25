@@ -26,7 +26,7 @@ describe("custom section style inheritance", () => {
     const css = '.modern-section__title{color:var(--heading);border-bottom:1px solid red}@media print{.modern-resume-ats .modern-section__title{font-size:10pt}}';
     const output = inheritResumeSectionStyles(css, "modern", "preview");
     expect(output).toContain('.modern-section__title{color:var(--heading);border-bottom:1px solid red}');
-    expect(output).toContain('.modern-resume-ats :where([data-custom-template="modern"]) [data-custom-role="heading"]{font-size:10pt}');
+    expect(output).toContain('.modern-resume-ats [data-custom-template="modern"] [data-custom-role="heading"]{font-size:10pt}');
     expect(output).toContain('@media print{');
   });
   it("inherits entry spacing and last-entry rules without importing career column geometry", () => {
@@ -37,6 +37,6 @@ describe("custom section style inheritance", () => {
   });
   it("keeps adjacent-entry spacing inside the same custom section", () => {
     const output = inheritResumeSectionStyles('.pehlione-pdf-entry+.pehlione-pdf-entry{padding-top:4mm}', "pehlione_white", "pdf", true);
-    expect(output).toContain(':where([data-custom-template="pehlione_white"]) [data-custom-role="entry"]+[data-custom-role="entry"]{padding-top:4mm}');
+    expect(output).toContain('[data-custom-template="pehlione_white"] [data-custom-role="entry"]+[data-custom-role="entry"]{padding-top:4mm}');
   });
 });

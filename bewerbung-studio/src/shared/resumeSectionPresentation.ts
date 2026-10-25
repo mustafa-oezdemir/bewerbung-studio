@@ -812,7 +812,7 @@ ${host} [data-cv-section="certifications"]>[data-cv-list] li{display:grid;grid-t
 ${host} [data-cv-section="certifications"]>[data-cv-list] li i{color:var(--kompakt-accent,var(--managed-accent,#ff6200));font-size:11pt;font-style:normal;line-height:1}` : ""}
 ${host} [data-cv-zone="main"]:has(+ ${closingSelector}){margin-bottom:0}
 ${compact(`[data-cv-zone="main"]:has(+ ${closingSelector})`)}{margin-bottom:0}
-${sidebarInheritsText ? `${host} [data-cv-zone="sidebar"] :is(h4,h5,strong,p,li,small){color:inherit}\n` : ""}${host} [data-cv-zone="sidebar"] p{text-align:left}
+${sidebarInheritsText ? `${host} [data-cv-zone="sidebar"] :is(h4,h5,strong,p,li,small):not([data-cv-role]):not(:has([data-cv-role])){color:inherit}\n` : ""}${host} [data-cv-zone="sidebar"] p{text-align:left}
 ${zoneCss ? zoneCss(host) : ""}
 `;
 };

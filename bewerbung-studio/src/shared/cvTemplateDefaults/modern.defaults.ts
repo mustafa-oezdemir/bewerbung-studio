@@ -97,6 +97,15 @@ export const modernTemplateDefaults = {
   },
 } as const;
 
+/** The deliberately quieter ATS palette, shared by the React page and Electron print page. */
+export const modernAtsColors = {
+  primary: "#173B63",
+  heading: "#26343E",
+  text: "#303B42",
+  muted: "#626E75",
+  divider: "#AEB8BF",
+} as const;
+
 export type ModernTemplateDefaults = typeof modernTemplateDefaults;
 
 /** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */

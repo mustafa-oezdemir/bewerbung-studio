@@ -107,6 +107,7 @@ app.whenReady().then(async () => {
   const measured = {};
   for (const entry of manifest) for (const surface of ['preview', 'pdf']) {
     await window.loadFile(path.join(dir, `${entry.file}-${surface}.html`));
+    await window.webContents.executeJavaScript('document.fonts.ready.then(() => true)');
     await new Promise((done) => setTimeout(done, 60));
     measured[`${entry.file}|${surface}`] = await window.webContents.executeJavaScript(`(${probe.toString()})()`);
   }

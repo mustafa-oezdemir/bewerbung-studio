@@ -19,6 +19,8 @@ export function IvyLeagueResume({
   const variables = {
     "--ivy-primary": accentColor || ivyLeagueDefaults.colors.primary,
     "--ivy-accent": secondaryColor || ivyLeagueDefaults.colors.accent,
+    // Managed projects and interests are siblings of the inner ATS block; they need its native text palette too.
+    ...(atsMode ? { "--ivy-text": "#303B42" } : {}),
   } as CSSProperties;
 
   return (

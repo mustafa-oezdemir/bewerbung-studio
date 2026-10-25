@@ -277,7 +277,9 @@ export const inheritResumeSectionStyles = (css: string, templateId: string, surf
   const sources = resumeSectionStyleSources[surface][id as keyof typeof resumeSectionStyleSources.preview];
   if (!sources) return aliasesOnly ? "" : css;
   const scope = `[data-custom-template="${id}"]`;
-  const roleSelector = (role: string) => `:where(${scope}) [data-custom-role="${role}"]`;
+  // The template's native entry rule must win over the document shell's generic h3/p colour. Keeping the scope inside
+  // :where() gave the alias lower specificity than `.document-paper h3`, so project and hobby titles took the shell blue.
+  const roleSelector = (role: string) => `${scope} [data-custom-role="${role}"]`;
   // Match the browser's default weight for native heading/strong elements;
   // explicit template declarations below retain precedence.
   const supportingBold = /(?:h[1-6]|strong)$/.test(sources[3]);
@@ -346,6 +348,11 @@ export const inheritResumeSectionStyles = (css: string, templateId: string, surf
   });
   for (const { rule, selectors, declarations } of inheritedRules) {
     const clone = rule.clone({ selector: selectors.join(",") });
+    if (id === "zeitgenoessisch" && selectors.some(selector => selector.includes('[data-custom-role="supporting"]'))) {
+      clone.walkDecls("font-size", decl => {
+        if (decl.value.includes("--doc-entry-heading-size")) decl.value = decl.value.replace("--doc-entry-heading-size", "--zeit-supporting-size");
+      });
+    }
     if (declarations !== undefined) {
       clone.removeAll();
       for (const node of rule.nodes ?? []) {

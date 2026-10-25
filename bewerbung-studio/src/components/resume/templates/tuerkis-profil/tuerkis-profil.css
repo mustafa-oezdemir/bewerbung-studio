@@ -350,3 +350,22 @@
 .cv-sheet[data-template="tuerkis-profil"] [data-custom-template] [data-cv-role="technologies"] {
   color: var(--tuerkis-accent, #24a9e1);
 }
+
+/* Managed project and hobby entries use the same native role metrics on both renderers. */
+.tuerkis-profil-template [data-custom-template="tuerkis-profil"] [data-custom-role="entry-title"],
+.cv-sheet[data-template="tuerkis-profil"] [data-custom-template="tuerkis-profil"] [data-custom-role="entry-title"] {
+  color: #42484c;
+  font-size: var(--tuerkis-entry-title-size, 12pt);
+}
+.tuerkis-profil-template [data-custom-template="tuerkis-profil"] [data-custom-role="supporting"],
+.cv-sheet[data-template="tuerkis-profil"] [data-custom-template="tuerkis-profil"] [data-custom-role="supporting"] {
+  font-size: var(--doc-body-size, 11pt);
+}
+.tuerkis-profil-template [data-custom-template="tuerkis-profil"] [data-custom-role="metadata"],
+.cv-sheet[data-template="tuerkis-profil"] [data-custom-template="tuerkis-profil"] [data-custom-role="metadata"] {
+  color: #6a7075;
+  font-size: var(--tuerkis-meta-size, 9.5pt);
+}
+.tuerkis-profil-template [data-element-id="zweispaltig.education"] .zweispaltig-career-entry__organization {
+  color: #42484c;
+}

@@ -251,7 +251,7 @@
 }
 
 .elegant-career-entry__meta strong {
-  color: var(--elegant-heading);
+  color: var(--elegant-muted);
   font-weight: 700;
   white-space: nowrap;
 }
@@ -264,6 +264,7 @@
 .elegant-career-entry__achievements {
   margin: 1.8mm 0 0;
   padding-left: 4.5mm;
+  list-style: disc;
   color: var(--elegant-text);
 }
 

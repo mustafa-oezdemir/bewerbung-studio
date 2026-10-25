@@ -129,6 +129,9 @@ export const tabellarischDefaults = {
   },
 } as const;
 
+/** Neutral ink used by both Tabellarisch ATS surfaces until the user chooses an individual colour. */
+export const tabellarischAtsColor = "#222B30";
+
 export type TabellarischTemplateDefaults = typeof tabellarischDefaults;
 
 /** Semantic design of the rendered template (measured on the PDF at standard density); values the module names itself are referenced. */

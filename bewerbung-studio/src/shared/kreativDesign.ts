@@ -100,7 +100,7 @@ export const kreativResolvedCss = `
 .kreativ-template .kreativ-section__title small{font-size:calc(var(--doc-body-size) * .78)}
 .kreativ-template .kreativ-career-entry h3,.kreativ-pdf .kreativ-pdf-entry h4{font-family:var(--doc-heading-font);font-size:var(--doc-entry-heading-size);line-height:var(--doc-line-height);color:var(--kreativ-dark)}
 .kreativ-template .kreativ-career-entry h4,.kreativ-pdf .kreativ-pdf-entry h5{font-size:calc(var(--doc-body-size) * .98);line-height:var(--doc-line-height);color:var(--kreativ-primary)}
-.kreativ-template .kreativ-career-entry__meta,.kreativ-template .kreativ-career-entry__location,.kreativ-pdf .kreativ-pdf-entry-meta,.kreativ-pdf .kreativ-pdf-entry-location{font-size:calc(var(--doc-body-size) * .88);line-height:var(--doc-line-height)}
+.kreativ-template .kreativ-career-entry__meta,.kreativ-template .kreativ-career-entry__location,.kreativ-pdf .kreativ-pdf-entry-meta,.kreativ-pdf .kreativ-pdf-entry-location,:is(.kreativ-template,.kreativ-pdf) [data-custom-template="kreativ"] [data-custom-role="metadata"]{font-size:calc(var(--doc-body-size) * .88);line-height:var(--doc-line-height)}
 .kreativ-template .kreativ-career-entry li,.kreativ-pdf .kreativ-pdf-entry li{font-size:var(--doc-body-size);line-height:var(--doc-line-height)}
 .kreativ-template .kreativ-career-entry li::marker,.kreativ-pdf .kreativ-pdf-entry li::marker{color:var(--kreativ-primary)}
 .kreativ-template .kreativ-summary,.kreativ-pdf .kreativ-pdf-summary{font-size:var(--doc-body-size);line-height:var(--doc-line-height)}
