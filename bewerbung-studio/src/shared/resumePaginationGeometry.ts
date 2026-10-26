@@ -267,6 +267,21 @@ export type PaginationGeometry = {
     certs: { base: number; perItem: number };
     /** Width of the summary paragraph when it differs from `text.atsW` (Pehlione's plain layout spans the page). */
     summaryW?: number;
+    /**
+     * The Kurzprofil as the plain PDF sets it (measured): paragraph width (× the scale's `mainRatio`), font, line pitch and
+     * the heading block above it. Its lines are wrapped like the visual one (hyphenatedSummaryLines, exact on every plain PDF).
+     */
+    summary?: { w: number; font: number; line: number; head: number };
+    /**
+     * Career entries of the plain PDF where they differ from the styled ones (measured per entry, 2026-10-27): the frame
+     * between two entries (replaces `entryChrome`) and what every entry adds inside its own box.
+     */
+    entryChrome?: number;
+    entryPad?: number;
+    /** A career bullet of the plain PDF: wrapped exactly at this width and font, its line pitch where it differs, the space between two. */
+    bullet?: { w: number; font: number; pitch?: number; gap: number };
+    /** The plain closing line (Ort, Datum) with the space above it, where measured (else CLOSING_MM.plain). */
+    closing?: number;
     /** Height factor of the compact / dense CSS modes in the plain layout (see `density`). */
     density: { compact: number; dense: number };
   };
@@ -370,7 +385,7 @@ const geometry: Record<string, PaginationGeometry> = {
     items: {strengths: {w: 61.5, font: 2.963, pitch: 3.85, pad: 1, cw: 0.53, cols: 1, head: 7.6, gap: 3}, knowledge: {w: 61.5, font: 2.963, pitch: 3.76, pad: 0.24, cw: 0.45, cols: 1, head: 15.9, gap: 2}},
     certs: {home: "first", zone: "sidebar", base: 3.7, perItem: 8.05, w: 67.0, font: 3.25, pitch: 4.06},
     derivedStrengths: {visual: "never", ats: "single"},
-    ats: {exp: 1.0, edu: 1.0, sectionGap: 5, head: 6.9, knowledge: {head: 6.9, title: 7.01, gap: 3.24, pitch: 3.9, font: 3.25, w: 180, tail: 0}, languages: [6.55, 4.25], certs: {base: 6.6, perItem: 4.23}, density: {compact: 1, dense: 1}},
+    ats: {summary: {w: 180, font: 3.246, line: 3.895, head: 6.9}, bullet: {w: 176, font: 3.246, pitch: 3.895, gap: 0.35}, closing: 11, exp: 1.0, edu: 1.04, sectionGap: 5, head: 6.9, knowledge: {head: 6.9, title: 7.01, gap: 3.24, pitch: 3.9, font: 3.25, w: 180, tail: 0}, languages: [6.25, 4.55], certs: {base: 6.3, perItem: 4.53}, density: {compact: 1, dense: 1}},
     density: {compact: 0.99, dense: 0.96},
   },
   "elegant": {
@@ -436,7 +451,7 @@ const geometry: Record<string, PaginationGeometry> = {
     items: {strengths: {w: zweispaltigSideWidth - 9, font: 3.35, pitch: zweispaltigLineMm, pad: 1, cw: 0.53, cols: 1, head: 9, gap: 3.5}, knowledge: {w: zweispaltigSideWidth - 9, font: zweispaltigBodyMm, pitch: zweispaltigLineMm, pad: 0.89, cw: 0.45, cols: 1, head: 18.6, gap: 2}},
     certs: {home: "first", zone: "sidebar", base: 8.6, perItem: 3.6, w: 61.2, font: 2.96, pitch: 3.11},
     derivedStrengths: {visual: "first", ats: "single"},
-    ats: {exp: 1.0, edu: 1.0, knowledge: {head: 9.03, title: 6.07, gap: 3, pitch: 3.11, font: 2.96, w: 184, tail: 0}, header: {base: 39.83, perContact: 8}, languages: [7, 5.1], certs: {base: 8.5, perItem: 3.6}, density: {compact: 0.98, dense: 0.97}},
+    ats: {summary: {w: 180, font: 3.528, line: 4.657, head: 9.03}, bullet: {w: 175.5, font: 3.528, pitch: 4.657, gap: 0.5}, closing: 11, exp: 1.0, edu: 1.04, entryChrome: 0, entryPad: 2.5, knowledge: {head: 9.03, title: 6.07, gap: 3.53, pitch: 4.657, font: 3.528, w: 180, tail: 0}, header: {base: 39.83, perContact: 8}, languages: [8.37, 5.33], certs: {base: 9.87, perItem: 3.83}, density: {compact: 0.98, dense: 0.97}},
     density: {compact: 0.99, dense: 0.98},
   },
   "zeitgenoessisch": {
@@ -467,7 +482,7 @@ const geometry: Record<string, PaginationGeometry> = {
     items: {strengths: {w: 41.86, font: 3.704, pitch: 4.67, pad: 1, cw: 0.57, cols: 1, head: 10.5, gap: 3.5, descPitch: 4.67}, knowledge: {w: 41.86, font: 3.704, pitch: 4.67, pad: 0.05, cw: 0.53, cols: 1, head: 17, gap: 2}},
     certs: {home: "first", zone: "sidebar", base: 10, perItem: 4.67, w: 42, font: 3.704, pitch: 4.67},
     derivedStrengths: {visual: "first", ats: "single"},
-    ats: {exp: 1.0, edu: 1.0, head: 10.5, knowledge: {head: 10.5, title: 8.49, gap: 3, pitch: 4.67, font: 3.704, w: 165, tail: 0}, languages: [9, 4.67], certs: {base: 9, perItem: 4.67}, density: {compact: 1, dense: 1}},
+    ats: {summary: {w: 165, font: 3.704, line: 4.667, head: 9.2}, bullet: {w: 160.5, font: 3.704, gap: 0.5}, closing: 11, exp: 1.0, edu: 1.0, sectionGap: 4.5, head: 9.2, knowledge: {head: 10.5, title: 8.49, gap: 3, pitch: 4.67, font: 3.704, w: 165, tail: 0}, languages: [8.53, 5.34], certs: {base: 8.53, perItem: 5.34}, density: {compact: 1, dense: 1}},
     density: {compact: 1, dense: 1},
   },
   "kreativ": {
@@ -496,7 +511,7 @@ const geometry: Record<string, PaginationGeometry> = {
     items: {strengths: {w: 52.5, font: 3.704, pitch: 4.67, pad: 0.5, cw: 0.55, cols: 1, head: 10.8, gap: 2.5}, knowledge: {w: 54.2, font: 3.704, pitch: 4.67, pad: 0.5, cw: 0.53, cols: 1, head: 19.8, gap: 2}},
     certs: {home: "first", zone: "sidebar", base: 10.5, perItem: 4.67, w: 54.2, font: 3.704, pitch: 4.67},
     derivedStrengths: {visual: "first", ats: "single"},
-    ats: {exp: 1.0, edu: 1.0, knowledge: {head: 10.8, title: 7.2, gap: 3, pitch: 4.67, font: 3.704, w: 165, tail: 0}, languages: [10.5, 4.67], certs: {base: 10.5, perItem: 4.67}, density: {compact: 1, dense: 1}},
+    ats: {summary: {w: 165, font: 3.704, line: 4.667, head: 10.43}, bullet: {w: 160.5, font: 3.704, gap: 0.5}, closing: 11, exp: 1.0, edu: 1.0, knowledge: {head: 10.8, title: 7.2, gap: 3, pitch: 4.67, font: 3.704, w: 165, tail: 0}, languages: [9.5, 5.37], certs: {base: 9.5, perItem: 5.37}, density: {compact: 1, dense: 1}},
     density: {compact: 1, dense: 0.99},
   },
   // Re-measured 2026-10-06 on the real PDF at the 11 pt / 1.3 defaults (340 career entries, sidebar and language probes).
@@ -566,7 +581,7 @@ const geometry: Record<string, PaginationGeometry> = {
     items: {strengths: {w: 55.5, font: 3.634, pitch: 4.36, pad: 1, cw: 0.53, cols: 1, head: 8.5, gap: 3.2}, knowledge: {w: 55.5, font: 3.634, pitch: 4.36, pad: 1.04, cw: 0.45, cols: 1, head: 12, gap: 3.2}},
     certs: {home: "first", zone: "sidebar", base: 12, perItem: 4.5, w: 55.5, font: 3.634, pitch: 4.36, limit: 2},
     derivedStrengths: {visual: "first", ats: "single"},
-    ats: {exp: 1.0, edu: 1.0, knowledge: {head: 7.2, title: 5.92, gap: 3, pitch: 2.96, font: 2.96, w: 184, tail: 0}, languages: [7, 3.2], certs: {base: 6.96, perItem: 3.2}, density: {compact: 0.99, dense: 0.99}},
+    ats: {summary: {w: 160, font: 3.634, line: 4.36, head: 8.85}, bullet: {w: 156, font: 3.634, gap: 0.25}, closing: 11, exp: 1.0, edu: 1.0, knowledge: {head: 7.2, title: 5.92, gap: 3, pitch: 3.556, font: 2.963, w: 160, tail: 0}, languages: [8.15, 4.27], certs: {base: 8.11, perItem: 4.27}, density: {compact: 0.99, dense: 0.99}},
     density: {compact: 1, dense: 1},
   },
   "stilvoll": {
@@ -594,7 +609,7 @@ const geometry: Record<string, PaginationGeometry> = {
     items: {strengths: {w: 40, font: 3.70, pitch: 4.63, pad: 1, cw: 0.53, cols: 1, head: 9.5, gap: 4}, knowledge: {w: 45, font: 3.70, pitch: 4.63, pad: 0.89, cw: 0.45, cols: 1, head: 12.2, gap: 2}},
     certs: {home: "none", zone: "sidebar", base: 0, perItem: 0, w: 45, font: 3.70, pitch: 4.63},
     derivedStrengths: {visual: "first", ats: "single"},
-    ats: {exp: 1.0, edu: 1.0, knowledge: {head: 7.54, title: 6.08, gap: 3, pitch: 3.11, font: 2.96, w: 180, tail: 0}, languages: [7.3, 3.4], certs: {base: 7.3, perItem: 3.4}, density: {compact: 0.99, dense: 0.96}},
+    ats: {summary: {w: 170, font: 3.704, line: 4.63, head: 9.05}, bullet: {w: 166, font: 3.704, gap: 0.3}, closing: 11, exp: 1.0, edu: 1.0, knowledge: {head: 7.54, title: 6.08, gap: 3, pitch: 3.704, font: 2.963, w: 170, tail: 0}, languages: [8.27, 4.43], certs: {base: 8.27, perItem: 4.43}, density: {compact: 0.99, dense: 0.96}},
     density: {compact: 1, dense: 0.98},
   },
   // Einspaltig (DIN-oriented, one column): every line box and gap follows from einspaltigDefaults and the stylesheet both
@@ -645,7 +660,7 @@ const geometry: Record<string, PaginationGeometry> = {
     derivedStrengths: {visual: "first", ats: "single"},
     // Plain layout: the same type scale in Arial; knowledge = category title (+1.5 mm) and a comma-separated paragraph per
     // category; languages and certificates are list lines.
-    ats: {exp: 1.0, edu: 1.0, head: einspaltigSectionHead, sectionGap: einspaltigDefaults.layout.sectionGapMm,
+    ats: {summary: {w: 168.4, font: 3.881, line: 4.851, head: 9.62}, closing: 12, exp: 1.0, edu: 1.0, head: einspaltigSectionHead, sectionGap: einspaltigDefaults.layout.sectionGapMm,
       knowledge: {head: einspaltigSectionHead, title: einspaltigBodyLine + 1.5, gap: 3, pitch: einspaltigBodyLine, font: einspaltigBodyMm, w: einspaltigGeometry.contentWidth, tail: 0},
       languages: [einspaltigSectionHead - einspaltigDefaults.layout.bulletGapMm, einspaltigBodyLine + einspaltigDefaults.layout.bulletGapMm],
       certs: {base: einspaltigSectionHead - einspaltigDefaults.layout.bulletGapMm, perItem: einspaltigBodyLine + einspaltigDefaults.layout.bulletGapMm},
@@ -702,7 +717,7 @@ const geometry: Record<string, PaginationGeometry> = {
     derivedStrengths: {visual: "first", ats: "single"},
     // Plain layout: the same type scale in Arial; knowledge = category title (+1.5 mm) and a comma-separated paragraph per
     // category (3 mm apart); languages and certificates are list lines (the list margin hides in the title gap).
-    ats: {exp: 1.0, edu: 1.0, head: klassischSectionHead, sectionGap: klassischDefaults.layout.sectionGapMm,
+    ats: {summary: {w: 168.4, font: 3.881, line: 4.657, head: 8.43}, closing: 12, exp: 1.0, edu: 1.0, head: klassischSectionHead, sectionGap: klassischDefaults.layout.sectionGapMm,
       knowledge: {head: klassischSectionHead, title: klassischBodyLine + 1.5, gap: 3, pitch: klassischBodyLine, font: klassischBodyMm, w: klassischGeometry.contentWidth, tail: 0},
       languages: [klassischSectionHead - klassischDefaults.layout.bulletGapMm, klassischBodyLine + klassischDefaults.layout.bulletGapMm],
       certs: {base: klassischSectionHead - klassischDefaults.layout.bulletGapMm, perItem: klassischBodyLine + klassischDefaults.layout.bulletGapMm},
@@ -802,7 +817,7 @@ const geometry: Record<string, PaginationGeometry> = {
     items: {strengths: {w: 87, font: 4.233, pitch: 5.5, pad: 1, cw: 0.53, cols: 2, head: 9.2, gap: 3}, knowledge: {w: 87, font: 4.233, pitch: 5.08, pad: 0.45, cw: 0.45, cols: 2, head: 16.2, gap: 2}},
     certs: {home: "last", zone: "main", base: 8.9, perItem: 3.45, w: 188.0, font: 4.76, pitch: 5.0},
     derivedStrengths: {visual: "first", ats: "first"},
-    ats: {exp: 1.0, edu: 1.0, head: 8.3, knowledge: {head: 8.27, title: 7.9, gap: 3, pitch: 3.11, font: 2.96, w: 166, tail: 0}, languages: [7.9, 3.5], certs: {base: 8, perItem: 3.47}, density: {compact: 0.95, dense: 0.94}},
+    ats: {summary: {w: 188, font: 2.963, line: 3.111, head: 8.27}, bullet: {w: 183.5, font: 2.963, gap: 0.35}, closing: 11, exp: 1.0, edu: 1.26, head: 8.3, knowledge: {head: 8.27, title: 7.9, gap: 3, pitch: 3.11, font: 2.96, w: 188, tail: 0}, languages: [7.47, 3.83], certs: {base: 7.57, perItem: 3.8}, density: {compact: 0.95, dense: 0.94}},
     density: {compact: 0.95, dense: 0.93},
   },
 };
@@ -834,6 +849,11 @@ geometry["tuerkis-profil"] = {
   entryHead: sideBySideEntryHead({ "entry-title": 1.18, organization: 1.18, period: 1.2, location: 1.2 }),
   // The plain layout is Zweispaltig's: title, organisation, then period and place in one line.
   atsEntryHead: geometry.zweispaltig.entryHead,
+  // Its Kurzprofil is set in the template's own type scale (measured in the plain PDF).
+  ats: { ...geometry.zweispaltig.ats, summary: { w: 165, font: 3.881, line: 4.851, head: 9.33 }, exp: 1.0, edu: 1.0, entryPad: 3.4,
+    bullet: { w: 160.5, font: 3.881, gap: 0.5 },
+    knowledge: { head: 9.03, title: 6.35, gap: 3.53, pitch: 4.851, font: 3.881, w: 165, tail: 0 },
+    languages: [8.37, 5.53], certs: { base: 9.87, perItem: 4.03 } },
   // Career entries are 3.5 mm apart; their 2 mm padding is part of every entry (no divider): no chrome between them. The
   // entries of a special section keep Zweispaltig's rule (3 mm padding + dashed divider). Section title 6.33 mm + 2.5 mm
   // margin (14 pt, measured).

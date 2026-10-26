@@ -25,6 +25,7 @@ import { ModernSummarySection } from "./ModernSummarySection";
 import { ResumeSpecialSections } from "../../ResumeSpecialSections";
 import "./modern.css";
 import { resolveResumeFooterWebsite } from "../../../../shared/resumeFooter";
+import { sectionOnPage } from "../../../../shared/documentPagination";
 import { modernAtsColors, modernTemplateDefaults } from "../../../../shared/cvTemplateDefaults/modern.defaults";
 
 export function ModernResume({
@@ -120,7 +121,9 @@ export function ModernResume({
         <ModernLanguagesSection profile={pageProfile} accentColor={accentColor} atsMode={variant === "ats"} />
       ) : null;
     }
-    if (!isLastPage) return null;
+    // The plain layout draws Sprachen and Zertifikate on the page the plan names (the PDF too); the rest on the last page.
+    const planned = variant === "ats" && (type === "languages" || type === "certifications");
+    if (planned ? !sectionOnPage(plan, type, isLastPage) : !isLastPage) return null;
     if (type === "knowledge") {
       return sections.skills && knowledge.length ? (
         <section className={`modern-section ${variant === "visual" ? "modern-knowledge" : ""}`}>
@@ -211,7 +214,7 @@ export function ModernResume({
                 <p className="modern-summary-text">{knowledge.join(" · ")}</p>
               </section>
             ) : null}
-            {!hasCustomLayout && isLastPage && sections.languages ? (
+            {!hasCustomLayout && sectionOnPage(plan, "languages", isLastPage) && sections.languages ? (
               <ModernLanguagesSection
                 profile={pageProfile}
                 accentColor={accentColor}
@@ -221,7 +224,7 @@ export function ModernResume({
             {!hasCustomLayout && isLastPage && sections.strengths && strengths.length ? (
               <ModernStrengthsSection profile={pageProfile} />
             ) : null}
-            {!hasCustomLayout && isLastPage && sections.certifications && certifications.length ? (
+            {!hasCustomLayout && sectionOnPage(plan, "certifications", isLastPage) && sections.certifications && certifications.length ? (
               <section className="modern-section">
                 <h2 className="modern-section__title">{getResumeSectionTitle(profile, "certifications")}</h2>
                 <ul className="modern-ats-list">

@@ -133,7 +133,8 @@ describe("stilvoll: a long Kurzprofil flows like a word processor in the sidebar
   });
 
   it("keeps the rule with other page margins, the sidebar on the right and in the plain (ATS) layout", () => {
-    const profile = withSummary(20);
+    // The plain layout sets the Kurzprofil across the page width: it needs more text to go on at the next page.
+    const sentences: Record<string, number> = { ats: 40 };
     const cases: Array<[string, Record<string, unknown>]> = [
       ["margin 25 mm", { cvOverrides: { spacing: { pageMarginMm: 25 } } }],
       ["margin 10 mm", { cvOverrides: { spacing: { pageMarginMm: 10 } } }],
@@ -141,6 +142,7 @@ describe("stilvoll: a long Kurzprofil flows like a word processor in the sidebar
       ["ats", { resumeOutputMode: "ats" }],
     ];
     for (const [label, settings] of cases) {
+      const profile = withSummary(sentences[label] ?? 20);
       const pages = resolveCvDocument({ profile, templateId, settings: { ...getTemplateDocumentDesignDefaults(templateId), ...settings } }).pagePlan;
       const on = expectSummaryFlows(pages, profile.summary);
       expect(on.length, label).toBeGreaterThanOrEqual(2);

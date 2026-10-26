@@ -116,6 +116,54 @@ const headerModels: Record<string, Partial<Record<"main" | "side" | "mainPhoto" 
   },
 };
 
+/**
+ * The plain (ATS) layout's header: where the first section starts on page one (`first`) and on a later page (`cont`).
+ * Same model form, fitted on the plain PDFs (2026-10-27, 123 profiles per template: titles of 0–150 characters, two name
+ * lengths, 0–12 contacts, every field switched off at random); `margin` is the largest under-estimate and always added.
+ */
+const atsHeaderModels: Record<string, { first: HeaderModel; cont: HeaderModel }> = {
+  "einspaltig": {
+    first: { layout: "flow", a: 100, b: 6, titleChars: 80, nameChars: 18, base: 58.93, row: 3.93, line: 0, title: 4.8, hasTitle: 6.58, name: 3.05, margin: 2.64 },
+    cont: { layout: "flow", a: 140, b: 2, titleChars: 80, nameChars: 14, base: 45.65, row: 0, line: 0, title: 3.69, hasTitle: 5.32, name: 0.09, margin: 1.25 },
+  },
+  "ivy-league": {
+    first: { layout: "flow", a: 60, b: 6, titleChars: 44, nameChars: 14, base: 26.22, row: 1.62, line: 0, title: 0.53, hasTitle: 6.51, name: 3.5, margin: 2.63 },
+    cont: { layout: "grid", a: 2, b: 16, titleChars: 52, nameChars: 26, base: 26.86, row: 0, line: 0, title: 0.73, hasTitle: 6.78, name: 6.82, margin: 3.1 },
+  },
+  "klassisch": {
+    first: { layout: "flow", a: 100, b: 6, titleChars: 70, nameChars: 18, base: 61.78, row: 3.82, line: 0, title: 5.96, hasTitle: 7.65, name: 4.47, margin: 2.55 },
+    cont: { layout: "flow", a: 140, b: 2, titleChars: 80, nameChars: 14, base: 48.26, row: 0, line: 0, title: 3.46, hasTitle: 5.22, name: 0.08, margin: 1.17 },
+  },
+  "kompakt": {
+    first: { layout: "flow", a: 120, b: 9, titleChars: 60, nameChars: 14, base: 56.64, row: 3.7, line: 0, title: 1.58, hasTitle: 1.28, name: 1.31, margin: 4.78 },
+    cont: { layout: "grid", a: 3, b: 32, titleChars: 60, nameChars: 18, base: 44.51, row: 0, line: 0, title: 1.28, hasTitle: 1.22, name: 1.45, margin: 3.99 },
+  },
+  "kreativ": {
+    first: { layout: "grid", a: 1, b: 50, titleChars: 60, nameChars: 26, base: 57.09, row: 0, line: 1.12, title: 3.36, hasTitle: 1.3, name: 3.46, margin: 8.43 },
+    cont: { layout: "flow", a: 200, b: 4, titleChars: 70, nameChars: 26, base: 43.36, row: 0, line: 0, title: 0.32, hasTitle: 0.05, name: 0.41, margin: 1.76 },
+  },
+  "modern": {
+    first: { layout: "flow", a: 240, b: 6, titleChars: 52, nameChars: 14, base: 44.46, row: 4.98, line: 0, title: 0.85, hasTitle: 0.48, name: 3.53, margin: 3.44 },
+    cont: { layout: "grid", a: 1, b: 16, titleChars: 52, nameChars: 18, base: 33.88, row: 0, line: 0, title: 1.06, hasTitle: 0, name: 3.4, margin: 2.2 },
+  },
+  "stilvoll": {
+    first: { layout: "flow", a: 120, b: 6, titleChars: 95, nameChars: 14, base: 77.62, row: 4.45, line: 0, title: 0.99, hasTitle: 0.25, name: 0.48, margin: 5.89 },
+    cont: { layout: "flow", a: 170, b: 4, titleChars: 80, nameChars: 14, base: 41.41, row: 0, line: 0, title: 4.07, hasTitle: 3.59, name: 2.23, margin: 0.73 },
+  },
+  "tuerkis-profil": {
+    first: { layout: "grid", a: 1, b: 50, titleChars: 80, nameChars: 26, base: 41.1, row: 2.5, line: 1.52, title: 4.9, hasTitle: 6.42, name: 8.62, margin: 0.3 },
+    cont: { layout: "flow", a: 140, b: 4, titleChars: 80, nameChars: 26, base: 39.85, row: 0, line: 0, title: 4.89, hasTitle: 6.37, name: 8.57, margin: 0.15 },
+  },
+  "zeitgenoessisch": {
+    first: { layout: "grid", a: 2, b: 32, titleChars: 70, nameChars: 14, base: 29.2, row: 3.68, line: 1.58, title: 4.37, hasTitle: 5.54, name: 3.58, margin: 4.46 },
+    cont: { layout: "grid", a: 1, b: 50, titleChars: 70, nameChars: 26, base: 35.48, row: 0, line: 0, title: 3.78, hasTitle: 5.81, name: 7.06, margin: 0.27 },
+  },
+  "zweispaltig": {
+    first: { layout: "grid", a: 1, b: 50, titleChars: 80, nameChars: 26, base: 36.24, row: 1.73, line: 2.28, title: 3.73, hasTitle: 6.21, name: 8.56, margin: 1.49 },
+    cont: { layout: "flow", a: 60, b: 6, titleChars: 80, nameChars: 18, base: 34.85, row: 0, line: 0, title: 3.79, hasTitle: 6.16, name: 4.29, margin: 1.4 },
+  },
+};
+
 /** Tabellarisch puts the address, e-mail and phone on a left-aligned line, then optional details below. */
 export type HeaderContact = TabellarischHeaderContact;
 
@@ -466,18 +514,36 @@ export const estimateResumeHeaderTop = (
     titleChars: measured.titleChars * widthRatio,
     nameChars: measured.nameChars * widthRatio,
   };
+  const estimate = modelHeaderTop(model, profile, showContacts);
+  if (estimate <= measuredTop) return measuredTop;
+  return estimate + model.margin * Math.min(1, (estimate - measuredTop) / 10);
+};
+
+/** A header model's estimate (without its margin) for this profile's contacts, Berufsbezeichnung and name. */
+const modelHeaderTop = (model: HeaderModel, profile: ApplicantProfile, showContacts: boolean) => {
   const texts = showContacts ? getResumeHeaderContactTexts(profile) : [];
   const contacts = contactBlock(texts.map((text) => text.length), model);
   const title = profile.title.trim().length;
   const titleLines = title ? Math.ceil(title / model.titleChars) : 0;
   const nameLines = Math.max(1, Math.ceil(getResumeFullName(profile).length / model.nameChars));
-  const estimate =
-    model.base +
+  return model.base +
     model.row * contacts.rows +
     model.line * contacts.lines +
     model.title * Math.max(0, titleLines - 1) +
     model.hasTitle * (title ? 1 : 0) +
     model.name * (nameLines - 1);
-  if (estimate <= measuredTop) return measuredTop;
-  return estimate + model.margin * Math.min(1, (estimate - measuredTop) / 10);
+};
+
+/**
+ * The plain (ATS) layout: where the first section starts on page one (`first`) or on a later page (`cont`), with the
+ * model's margin (`atsHeaderModels`). `undefined` for a template without a plain model.
+ */
+export const estimateAtsHeaderTop = (
+  templateId: string | undefined,
+  profile: ApplicantProfile | undefined,
+  page: "first" | "cont",
+  showContacts = true,
+): number | undefined => {
+  const model = templateId ? atsHeaderModels[templateId]?.[page] : undefined;
+  return model && profile ? modelHeaderTop(model, profile, showContacts) + model.margin : undefined;
 };

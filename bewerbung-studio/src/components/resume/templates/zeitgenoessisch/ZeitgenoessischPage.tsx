@@ -11,6 +11,7 @@ import { ZeitgenoessischLeftColumn } from "./ZeitgenoessischLeftColumn";
 import { ZeitgenoessischSectionHeading } from "./ZeitgenoessischSectionHeading";
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
 import { ResumeSpecialSections } from "../../ResumeSpecialSections";
+import { sectionOnPage } from "../../../../shared/documentPagination";
 
 export function ZeitgenoessischPage({
   profile,
@@ -69,12 +70,11 @@ export function ZeitgenoessischPage({
             atsMode
           />
         ) : null}
-        {isLastPage ? (
-          <ZeitgenoessischAdditionalSections
-            profile={profile}
-            sections={sections}
-          />
-        ) : null}
+        <ZeitgenoessischAdditionalSections
+          profile={profile}
+          sections={sections}
+          onPage={(id) => (id === "languages" || id === "certifications" ? sectionOnPage(plan, id, isLastPage) : isLastPage)}
+        />
         {isLastPage ? <ResumeSpecialSections profile={profile} sectionClassName="zeitgenoessisch-section" headingClassName="zeitgenoessisch-section__title" /> : null}
       </main>
     );

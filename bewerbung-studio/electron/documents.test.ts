@@ -1480,8 +1480,9 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body.indexOf("Kenntnisse")).toBeLessThan(
       body.indexOf("Sprachen"),
     );
-    expect(body.indexOf("Sprachen")).toBeLessThan(
-      body.indexOf("Stärken"),
+    // The plain layout follows the section list (Abschnitt-Manager): Stärken stand behind the Kurzprofil.
+    expect(body.indexOf("Stärken")).toBeLessThan(
+      body.indexOf("Beruflicher Werdegang"),
     );
   });
 
@@ -1623,8 +1624,9 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body.indexOf("Kenntnisse")).toBeLessThan(
       body.indexOf("Sprachen"),
     );
-    expect(body.indexOf("Sprachen")).toBeLessThan(
-      body.indexOf("Stärken"),
+    // The plain layout follows the section list (Abschnitt-Manager): Stärken stand behind the Kurzprofil.
+    expect(body.indexOf("Stärken")).toBeLessThan(
+      body.indexOf("Beruflicher Werdegang"),
     );
     expect(body.indexOf("Stärken")).toBeLessThan(
       body.indexOf("Zertifikate"),
@@ -2111,8 +2113,9 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body.indexOf("Kenntnisse")).toBeLessThan(
       body.indexOf("Sprachen"),
     );
-    expect(body.indexOf("Sprachen")).toBeLessThan(
-      body.indexOf("Stärken"),
+    // The plain layout follows the section list (Abschnitt-Manager): Stärken stand behind the Kurzprofil.
+    expect(body.indexOf("Stärken")).toBeLessThan(
+      body.indexOf("Beruflicher Werdegang"),
     );
   });
 
@@ -2647,8 +2650,9 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body.indexOf("Kenntnisse")).toBeLessThan(
       body.indexOf("Sprachen"),
     );
-    expect(body.indexOf("Sprachen")).toBeLessThan(
-      body.indexOf("Stärken"),
+    // The plain layout follows the section list (Abschnitt-Manager): Stärken stand behind the Kurzprofil.
+    expect(body.indexOf("Stärken")).toBeLessThan(
+      body.indexOf("Beruflicher Werdegang"),
     );
     expect(body.indexOf("Stärken")).toBeLessThan(
       body.indexOf("Zertifikate"),

@@ -9,9 +9,12 @@ import { getResumeSectionTitle } from "../../../../features/resume-sections/resu
 export function KreativAdditionalSections({
   profile,
   sections,
+  onPage,
 }: {
   profile: ApplicantProfile | undefined;
   sections: ApplicantProfile["resumeSections"];
+  /** Whether the section stands on this page (Sprachen, Stärken and Zertifikate where the page plan names them). */
+  onPage: (id: "knowledge" | "languages" | "strengths" | "certifications") => boolean;
 }) {
   const certifications = uniqueKreativValues(
     profile?.certifications ?? [],
@@ -19,16 +22,16 @@ export function KreativAdditionalSections({
 
   return (
     <>
-      {sections.skills ? (
+      {onPage("knowledge") && sections.skills ? (
         <KreativSkillsSection profile={profile} atsMode />
       ) : null}
-      {sections.languages ? (
+      {onPage("languages") && sections.languages ? (
         <KreativLanguagesSection profile={profile} atsMode />
       ) : null}
-      {sections.strengths ? (
+      {onPage("strengths") && sections.strengths ? (
         <KreativStrengthsSection profile={profile} atsMode />
       ) : null}
-      {sections.certifications && certifications.length ? (
+      {onPage("certifications") && sections.certifications && certifications.length ? (
         <section
           className="kreativ-section kreativ-certifications"
           data-element-id="kreativ.certifications"

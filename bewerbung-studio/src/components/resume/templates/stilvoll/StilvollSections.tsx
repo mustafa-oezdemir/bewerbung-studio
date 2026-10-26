@@ -144,9 +144,12 @@ export function StilvollLeftColumn({
 export function StilvollAtsExtras({
   profile,
   sections,
+  onPage,
 }: {
   profile: ApplicantProfile | undefined;
   sections: ApplicantProfile["resumeSections"];
+  /** Whether the section stands on this page (Sprachen and Zertifikate where the page plan names them). */
+  onPage: (id: "knowledge" | "languages" | "strengths" | "certifications") => boolean;
 }) {
   const knowledge = getTemplateKnowledge(profile);
   const languages = uniqueTemplateValues(profile?.languages ?? []);
@@ -156,13 +159,13 @@ export function StilvollAtsExtras({
   );
   return (
     <>
-      {sections.skills && knowledge.length ? (
+      {onPage("knowledge") && sections.skills && knowledge.length ? (
         <section className="stilvoll-section">
           <StilvollHeading>{getResumeSectionTitle(profile, "knowledge")}</StilvollHeading>
           <p>{knowledge.join(" · ")}</p>
         </section>
       ) : null}
-      {sections.languages && languages.length ? (
+      {onPage("languages") && sections.languages && languages.length ? (
         <section className="stilvoll-section">
           <StilvollHeading>{getResumeSectionTitle(profile, "languages")}</StilvollHeading>
           <ul>
@@ -172,7 +175,7 @@ export function StilvollAtsExtras({
           </ul>
         </section>
       ) : null}
-      {sections.strengths && strengths.length ? (
+      {onPage("strengths") && sections.strengths && strengths.length ? (
         <section className="stilvoll-section">
           <StilvollHeading>{getResumeSectionTitle(profile, "strengths")}</StilvollHeading>
           <ul>
@@ -187,7 +190,7 @@ export function StilvollAtsExtras({
           </ul>
         </section>
       ) : null}
-      {sections.certifications && certifications.length ? (
+      {onPage("certifications") && sections.certifications && certifications.length ? (
         <section className="stilvoll-section">
           <StilvollHeading>{getResumeSectionTitle(profile, "certifications")}</StilvollHeading>
           <ul>

@@ -13,6 +13,7 @@ import { KreativRightColumn } from "./KreativRightColumn";
 import { KreativSectionHeading } from "./KreativSectionHeading";
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
 import { ResumeSpecialSections } from "../../ResumeSpecialSections";
+import { sectionOnPage } from "../../../../shared/documentPagination";
 
 export function KreativPage({
   profile,
@@ -65,12 +66,11 @@ export function KreativPage({
             atsMode
           />
         ) : null}
-        {isLastPage ? (
-          <KreativAdditionalSections
-            profile={profile}
-            sections={sections}
-          />
-        ) : null}
+        <KreativAdditionalSections
+          profile={profile}
+          sections={sections}
+          onPage={(id) => (id === "knowledge" ? isLastPage : sectionOnPage(plan, id, isLastPage))}
+        />
         {isLastPage ? <ResumeSpecialSections profile={profile} sectionClassName="kreativ-section" headingClassName="kreativ-section__title" /> : null}
       </main>
     );

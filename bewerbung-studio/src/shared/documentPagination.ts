@@ -46,7 +46,7 @@ import { formatPhoneForDisplay, getResumeHeaderContactTexts, getResumePersonalDe
 import { getResumePhotoGrowth, getResumePhotoScale, resumePhotoShown } from "./resumePhoto";
 import { formatCareerPeriod, resolveExperience } from "./resumeCareer";
 import { getResumeSectionTitle, savedTemplateSidebarOrder } from "../features/resume-sections/resume-sections";
-import { estimateElegantHeaderTop, estimateGepflegtHeaderTop, estimateKreativHeaderTop, estimateResumeHeaderTop, estimateStilvollHeaderTop, estimateTabellarischTop } from "./resumeHeaderGeometry";
+import { estimateAtsHeaderTop, estimateElegantHeaderTop, estimateGepflegtHeaderTop, estimateKreativHeaderTop, estimateResumeHeaderTop, estimateStilvollHeaderTop, estimateTabellarischTop } from "./resumeHeaderGeometry";
 import { resolveLanguagePresentation } from "../features/languages/language-levels";
 import { languageBlockHeight } from "./languageBlockHeight";
 import type { ResumeTextRole } from "./resumeTextRoles";
@@ -295,6 +295,10 @@ type Scale = {
   /** Measured entry height of the ATS layout relative to the visual model (1 outside ATS mode). */
   exp: number;
   edu: number;
+  /** What every career entry of the plain layout adds inside its box (`ats.entryPad`). */
+  entryPad?: number;
+  /** The plain layout's career bullets where they are wrapped exactly (`ats.bullet`). */
+  bullet?: { w: number; font: number; pitch?: number; gap: number };
   sectionGap?: number;
   entryGap?: number;
   /**
@@ -477,7 +481,9 @@ const experienceMetrics = (
   // A grid entry's bullets wrap at spaces and hyphens in the column less the item padding. (Hyphenated lines would be
   // tighter, but Chromium hyphenates fewer words than the German patterns allow: measured, they under-count 3 % of the
   // bullets, the plain wrap none.)
-  const lines = geometry.gridEntry && measured
+  const lines = scale.bullet
+    ? bullets.map((bullet) => wrappedLines(bullet, scale.bullet!.w * scale.mainRatio, scale.bullet!.font * scale.font))
+    : geometry.gridEntry && measured
     ? bullets.map((bullet) => wrappedLines(bullet, text.bulletW * widthScale - GRID_ITEM_PADDING_MM, text.bulletFont * scale.font, geometry.text.wrap!.bodyWeight))
     : measured?.details ?? bullets.map((bullet) => linesFor(bullet.length, text.bulletW * widthScale, text.bulletFont * scale.font, bulletCw));
   const titleLines = measured?.title ?? linesFor(resolved.role.length, text.titleW * widthScale, text.titleFont * scale.font, text.cw * 1.08);
@@ -503,10 +509,10 @@ const experienceMetrics = (
     return (
       (exp.base + scale.contentGapDelta +
         (shown.length ? exp.list : 0) +
-        exp.perBullet * shown.length +
-        exp.linePitch * scale.line * shown.reduce((total, value) => total + value, 0) +
+        (scale.bullet?.gap ?? exp.perBullet) * shown.length +
+        (scale.bullet?.pitch ?? exp.linePitch) * scale.line * shown.reduce((total, value) => total + value, 0) +
         exp.extraLine * (from > 0 ? continuedExtra : extra)) *
-      scale.exp * scale.textHeight + roleDelta
+      scale.exp * scale.textHeight + roleDelta + (scale.entryPad ?? 0)
     );
   };
   return { lines, height };
@@ -580,7 +586,8 @@ const educationMetrics = (
     const detailLines = details.reduce((sum, value) => sum + detailLinesOf(value), 0);
     const list = details.length ? edu.detailList ?? 0 : 0;
     return (edu.base + (details.length ? edu.detailBase ?? 0 : 0) + scale.contentGapDelta + list + (from > 0 ? continuedHeader : header)
-      + (edu.detailLine ?? edu.extraLine) * detailLines + (edu.detailItem ?? 0) * details.length) * scale.edu * scale.textHeight + roleDelta;
+      + (edu.detailLine ?? edu.extraLine) * detailLines + (edu.detailItem ?? 0) * details.length) * scale.edu * scale.textHeight + roleDelta
+      + (scale.entryPad ?? 0);
   };
   return { lines, height };
 };
@@ -916,6 +923,14 @@ const templateSidebarOrder = (profile: ApplicantProfile | undefined, templateId:
  */
 export const orderedOneColumnTemplates = new Set(["klassisch", "einspaltig", "ivy-league"]);
 
+/**
+ * Plain (ATS) layouts that draw every section behind the career on the page the plan names, on both surfaces: Sprachen
+ * and Zertifikate through `sectionOnPage` (the plan places them itself), the other blocks through the output, each at
+ * its place in the section list. They follow that list and start on page one while it has room. (Pehlione places its
+ * Sprachen as a plain list the output draws, isPlainListSection.)
+ */
+export const atsFlowTemplates = new Set(["zweispaltig", "tuerkis-profil", "zeitgenoessisch", "kreativ", "ivy-league", "stilvoll", "kompakt", "einspaltig", "klassisch", "modern"]);
+
 /** Whether a section stands on this page: where the plan placed it, else by the template's own rule (`fallback`). */
 export const sectionOnPage = (plan: Pick<ResumePagePlan, "blocks" | "placed">, id: string, fallback: boolean): boolean =>
   plan.placed?.includes(id) ? Boolean(plan.blocks?.includes(id)) : fallback;
@@ -929,7 +944,7 @@ export const createResumePagePlan = (
 ): ResumePagePlan[] => {
   const plan = planResumePages(profile, resumeProfile, options, templateId, context);
   if (!templateId || !orderedOneColumnTemplates.has(templateId)) return plan;
-  const placed = [...new Set(plan.flatMap((page) => page.blocks ?? []))];
+  const placed = [...new Set(plan.flatMap((page) => [...(page.blocks ?? []), ...(page.placed ?? [])]))];
   return plan.map((page) => ({ ...page, placed }));
 };
 
@@ -989,17 +1004,23 @@ const planResumePages = (
   };
   const careerRank = Math.min(managerRank("experience"), managerRank("education"));
   const ordered = Boolean(templateId && orderedOneColumnTemplates.has(templateId));
+  /** The plain layout of `atsFlowTemplates`: the blocks behind the career follow the section list (see the tail below). */
+  const atsFlow = Boolean(context.atsMode && templateId && atsFlowTemplates.has(templateId));
   /** A block's place in the user's order; the ordered one-column templates read every block from the list. */
   const rankOf = (block: FlowBlock) => (ordered ? managerRank(block.id) : block.rank ?? Number.MAX_SAFE_INTEGER);
   const byRank = (left: FlowBlock, right: FlowBlock) => rankOf(left) - rankOf(right);
-  /** Kurzprofil and Stärken stand on page one, unless the user's order puts them behind the career (ordered templates). */
-  const leadHome = (id: string): FlowBlock["home"] => (ordered && customLayout && managerRank(id) > careerRank ? "last" : "first");
+  /**
+   * Kurzprofil and Stärken stand on page one, unless the section list puts them behind the career: a hand-arranged one
+   * (ordered templates, plain layout) or a template's own (Türkis Profil's, plain layout).
+   */
+  const leadHome = (id: string): FlowBlock["home"] =>
+    ((ordered || atsFlow) && (customLayout || (atsFlow && zonesFromList)) && managerRank(id) > careerRank ? "last" : "first");
 
   const closingVisible = context.closing?.visible ?? Boolean(profile?.resumeClosing && (profile.resumeClosing.showPlace || profile.resumeClosing.showDate || profile.resumeClosing.showSignature));
   const closingHeight = closingVisible
     ? (context.closing?.signature ?? Boolean(profile?.signaturePath && profile.resumeClosing?.showSignature))
       ? CLOSING_MM.signature
-      : CLOSING_MM.plain
+      : (context.atsMode ? geometry.ats.closing : undefined) ?? CLOSING_MM.plain
     : 0;
   /**
    * Tabellarisch: the room the closing needs below the content of the last page, from its box (resumeClosingCss). Placed
@@ -1019,8 +1040,10 @@ const planResumePages = (
   const sectionGap = scale.sectionGap ?? nativeSectionGapOf(geometry, context.atsMode);
   /** The space between two blocks of the sidebar: the central Abschnittsabstand where the user chose one. */
   const sideGap = scale.sectionGap ?? geometry.blocks.sideGap;
-  const experienceGap = geometry.exp.gap > 0 ? (scale.entryGap ?? geometry.exp.gap) + (geometry.entryChrome ?? 0) : 0;
-  const educationGap = geometry.edu.gap > 0 ? (scale.entryGap ?? geometry.edu.gap) + (geometry.entryChrome ?? 0) : 0;
+  /** The frame between two career entries (the plain PDF may draw none: `ats.entryChrome`). */
+  const entryChrome = (context.atsMode ? geometry.ats.entryChrome : undefined) ?? geometry.entryChrome ?? 0;
+  const experienceGap = geometry.exp.gap > 0 ? (scale.entryGap ?? geometry.exp.gap) + entryChrome : 0;
+  const educationGap = geometry.edu.gap > 0 ? (scale.entryGap ?? geometry.edu.gap) + entryChrome : 0;
   /**
    * Türkis Profil draws the Bildungsweg in its left column where the section list puts it there (its default): on page
    * one those entries take room in that column, not in the main column beside it; the later pages have one column.
@@ -1361,7 +1384,11 @@ const planResumePages = (
      */
     const exactSummary = !context.atsMode && (context.overrides?.fontId ?? "source-sans") === "source-sans"
       && (context.settings?.fontId ?? "source-sans") === "source-sans";
-    const summaryLines = (value: string) => Math.max(1, tabellarischSummary
+    /** The plain layout's Kurzprofil where it was measured (`ats.summary`): wrapped like the visual one, in its own type. */
+    const atsSummary = context.atsMode ? geometry.ats.summary : undefined;
+    const measureSummaryLines = (value: string) => Math.max(1, atsSummary
+      ? hyphenatedSummaryLines(value, atsSummary.w * scale.mainRatio, atsSummary.font * scale.font, 400)
+      : tabellarischSummary
       ? wrappedLines(value, geometry.text.mainW * scale.mainRatio, geometry.text.sumFont * scale.font, geometry.text.wrap!.bodyWeight)
       : exactSummary
         ? hyphenatedSummaryLines(value, textWidth(zone), geometry.text.sumFont * scale.font, geometry.text.wrap?.bodyWeight ?? 400)
@@ -1371,11 +1398,22 @@ const planResumePages = (
           : linesFor(value.length, textWidth(zone), geometry.text.sumFont * scale.font, geometry.text.cw * 1.05)
         : summaryWrappedLines(value, textWidth(zone), geometry.text.sumFont * scale.font,
           geometry.text.wrap?.bodyWeight ?? 400));
+    // A page break is tried after every word of a long Kurzprofil: each part is wrapped once.
+    const summaryLineCache = new Map<string, number>();
+    const summaryLines = (value: string) => {
+      const cached = summaryLineCache.get(value);
+      if (cached !== undefined) return cached;
+      const lines = measureSummaryLines(value);
+      summaryLineCache.set(value, lines);
+      return lines;
+    };
     // Every plain section starts with the same heading block as the career sections.
     const summaryHead = context.atsMode ? geometry.ats.head ?? geometry.exp.head : blocks.summary[0];
     // The lines of a summary follow the body font exactly; only enlarged text keeps its reserve.
     const summaryScale = zoneFlow && scale.font < 1 ? scale.font : scale.textHeight;
-    const height = (value: string) => elegantSidebar && zone === "sidebar"
+    const height = (value: string) => atsSummary
+      ? (atsSummary.head + atsSummary.line * scale.line * summaryLines(value)) * scale.textHeight
+      : elegantSidebar && zone === "sidebar"
       // Justified, broken at the same soft hyphens the renderer inserts.
       ? elegantSideHeadFor(getResumeSectionTitle(profile, "summary")) + Math.max(1, hyphenatedSummaryLines(value, elegantSideWidth, elegantBodyMm, 400)) * elegantLine
       : exactSummary && !tabellarischSummary
@@ -1726,7 +1764,7 @@ const planResumePages = (
       ...(tabellarischList && tabellarischList.length > 1
         ? { split: { ends: tabellarischList.map((_, index) => index + 1), height: tabellarischListHeight, minRows: 1 } } : {}),
       // Türkis Profil's main column breaks the list between two certificates, like a word processor.
-      ...(templateId === "tuerkis-profil" && zone === "main" && shown.length > 1 ? { split: {
+      ...(templateId === "tuerkis-profil" && zone === "main" && !context.atsMode && shown.length > 1 ? { split: {
         ends: shown.map((_, index) => index + 1),
         height: (from: number, to: number) => plainListHeight("main", shown.slice(from, to), true),
         firstHeight: (items: number) => plainListHeight("main", shown.slice(0, items)),
@@ -1903,6 +1941,11 @@ const planResumePages = (
   // pushes the content down; every visual page repeats it (Pehlione's continuation header stays compact).
   const showContacts = find("personalData")?.visible !== false;
   const withPhoto = !context.atsMode && resumePhotoShown(profile, context.settings);
+  /**
+   * The plain layout's header where it was fitted (estimateAtsHeaderTop): the first section's top on page one and on a
+   * later page, from the contacts, the Berufsbezeichnung and the name it shows.
+   */
+  const atsHeaderTop = (page: "first" | "cont") => context.atsMode ? estimateAtsHeaderTop(templateId, profile, page, showContacts) : undefined;
   const grownTop = (top: number, continuation: boolean) =>
     context.atsMode || (continuation && templateId?.startsWith("pehlione_"))
       ? top
@@ -1981,7 +2024,7 @@ const planResumePages = (
       ats: context.atsMode,
     })
     : undefined;
-  const top1 = gepflegtHeaderTop(showContacts) ?? tabellarischHeaderTop(false) ?? klassischHeaderTop(false) ?? einspaltigHeaderTop(false) ?? (templateId === "kreativ" && profile && !context.atsMode
+  const top1 = atsHeaderTop("first") ?? gepflegtHeaderTop(showContacts) ?? tabellarischHeaderTop(false) ?? klassischHeaderTop(false) ?? einspaltigHeaderTop(false) ?? (templateId === "kreativ" && profile && !context.atsMode
     ? estimateKreativHeaderTop(profile, showContacts, withPhoto,
         geometry.text.bulletFont * scale.font * 72 / 25.4, geometry.text.lineRatio * scale.line, scale.marginInset)
     : templateId === "stilvoll" && profile && !context.atsMode
@@ -2004,7 +2047,7 @@ const planResumePages = (
     ? Math.max(0, Math.ceil(gepflegtName.length / (17 * scale.mainRatio)) - 1) * 9.14
       + Math.max(0, Math.ceil((profile?.title ?? "").length / (38 * scale.mainRatio)) - 1) * 5.73
     : 0;
-  const top2 = gepflegtHeaderTop(false) ?? tabellarischHeaderTop(true) ?? klassischHeaderTop(true) ?? einspaltigHeaderTop(true) ?? ((templateId === "kreativ" || templateId === "stilvoll" || templateId === "gepflegt") && !context.atsMode
+  const top2 = atsHeaderTop("cont") ?? gepflegtHeaderTop(false) ?? tabellarischHeaderTop(true) ?? klassischHeaderTop(true) ?? einspaltigHeaderTop(true) ?? ((templateId === "kreativ" || templateId === "stilvoll" || templateId === "gepflegt") && !context.atsMode
     ? geometry.top2 + gepflegtMainContinuationGrowth
     : templateId === "elegant" && !context.atsMode
     ? elegantDefaults.layout.mainTopMm + scale.marginInset + 18.2 + sectionGap
@@ -2111,6 +2154,10 @@ const planResumePages = (
    * the output follows the plan for them (`placed`, `sectionOnPage`).
    */
   const selfPlaced = new Set<string>();
+  // The plain layout of `atsFlowTemplates` (atsFlow) places its Sprachen and Zertifikate itself.
+  // (Kreativ's and Türkis Profil's outputs place their Stärken by the plan too, so the templates draw them there.)
+  if (atsFlow) for (const block of flow)
+    if (block.id === "languages" || block.id === "certifications" || ((templateId === "kreativ" || templateId === "tuerkis-profil") && block.id === "strengths")) selfPlaced.add(block.id);
   // Word-processor flow of the Seitenspalte: when its sections do not all fit beside page one, every one of them
   // (also those the template draws on page one) joins the lane in the order of the section list. A section never
   // starts while the one before it still goes on: a Kurzprofil that breaks at the page end continues at the top of
@@ -2355,13 +2402,16 @@ const planResumePages = (
       pageNumber: 1,
       items: items.map((item) => strip(item, "first")),
       density,
-      blocks: flow.filter((block) => block.home === "last" || block.hostable || ordered).map((block) => block.id),
+      blocks: flow.filter((block) => block.home === "last" || block.hostable || ordered || atsFlow).map((block) => block.id),
       sidebar: geometry.columns === 2 && !flat,
       fill: { main: wholeMain() / mainCap1, sidebar: sideCap1 ? wholeSide() / sideCap1 : 0 },
     },
   ]);
   const fitsOnePage = wholeMain() <= mainCap1 && (sideCap1 === 0 || wholeSide() <= sideCap1);
   if (fitsOnePage && forced === undefined) return onePage("standard");
+  // A block shown on a single page only (Stärken derived from the skills) that the plain layout leaves out of a longer
+  // résumé: it is placed nowhere, so neither surface draws it on its fallback page.
+  if (atsFlow) for (const block of singleOnlyBlocks) selfPlaced.add(block.id);
   // A slightly compacted single page beats a second page that would be nearly empty,
   // but only with a real margin: the estimate must not be trusted to the last millimetre.
   // The lists of a zone-flow sidebar keep their size in every density: compaction earns that column nothing.
@@ -2542,6 +2592,18 @@ const planResumePages = (
           ? byRank(left, right)
           : nativeRank(left.id) - nativeRank(right.id)),
     );
+  } else if (atsFlow) {
+    // Both outputs draw these blocks where the plan names them, in the order of the section list: the leading run of
+    // the ones they can place on any page starts on page one, the rest follows on the next pages.
+    const placeable = (block: FlowBlock) => ["knowledge", "languages", "certifications", "projects"].includes(block.id)
+      || block.id.startsWith("special:") || block.id.startsWith("group:")
+      // The ordered templates draw Kurzprofil and Stärken by the plan too; the output of a list that puts them behind the
+      // career places them (a hand-arranged one, Kreativ's and Türkis Profil's own).
+      || ((ordered || zonesFromList) && (block.id === "summary" || block.id === "strengths"));
+    for (const block of [...pageTwoFlow].sort((left, right) => managerRank(left.id) - managerRank(right.id))) {
+      if (!placeable(block)) break;
+      tail.push(block);
+    }
   } else if (!customLayout && atsLanguages) {
     // The output draws these blocks in the order of the section list (it inserts each by its rank): the leading run of the
     // ones it can place on any page may start on page one, up to the first block the template draws itself.
@@ -2684,7 +2746,7 @@ const planResumePages = (
         items: firstItems,
         density: densityOne,
         // An ordered one-column template also reads Kurzprofil and Stärken from the plan.
-        blocks: [...pageOneFlow.filter((block) => block.home === "last" || ordered), ...tail.slice(0, cut.tail + (broken ? 1 : 0))].map((block) => block.id),
+        blocks: [...pageOneFlow.filter((block) => block.home === "last" || ordered || atsFlow), ...tail.slice(0, cut.tail + (broken ? 1 : 0))].map((block) => block.id),
         ...(ranges ? { blockRanges: ranges.first } : {}),
         sidebar: geometry.columns === 2 && !flat,
         fill: { main: loadFirst(cut) / mainCap1, sidebar: educationBeside && sideCap1 ? sideLoadFirst / sideCap1 : sideFill },
@@ -2932,7 +2994,7 @@ const planResumePages = (
       const ends = block.split!.ends;
       return [block.id, { from: ends[from - 1], to: ends[ends.length - 1], total: ends[ends.length - 1] }];
     }));
-    const firstIds = [...new Set([...pageOneFlow.filter((block) => (block.home === "last" || ordered) && !moved.has(block.id)).map((block) => block.id), ...onFirst])];
+    const firstIds = [...new Set([...pageOneFlow.filter((block) => (block.home === "last" || ordered || atsFlow) && !moved.has(block.id)).map((block) => block.id), ...onFirst])];
     const pages: ResumePagePlan[] = [
       {
         pageNumber: 1, items: [], density: "standard", blocks: firstIds,

@@ -19,6 +19,7 @@ import {
   savedTemplateSidebarOrder,
   type ResumeSectionType,
 } from "../../../../features/resume-sections/resume-sections";
+import { sectionOnPage } from "../../../../shared/documentPagination";
 
 export function ZweispaltigPage({
   profile,
@@ -58,7 +59,9 @@ export function ZweispaltigPage({
     }
     if (type === "experience") return sections.experience ? <ZweispaltigCareerSection kind="experience" title={getResumeSectionTitle(profile, "experience")} items={experiences} continuation={experienceContinuation} /> : null;
     if (type === "education") return sections.education ? <ZweispaltigCareerSection kind="education" title={getResumeSectionTitle(profile, "education")} items={education} /> : null;
-    if (!isLastPage) return null;
+    // The plain layout draws Sprachen, Zertifikate and (Türkis Profil) Stärken on the page the plan names (the PDF too); the
+    // rest on the last page.
+    if (variant === "ats" && (type === "languages" || type === "certifications" || type === "strengths") ? !sectionOnPage(plan, type, isLastPage) : !isLastPage) return null;
     return (
       <ZweispaltigSupplementalSections
         order={[type]}
@@ -85,10 +88,11 @@ export function ZweispaltigPage({
         ) : null}
         {!hasCustomLayout && sections.experience ? <ZweispaltigCareerSection kind="experience" title={getResumeSectionTitle(profile, "experience")} items={experiences} continuation={experienceContinuation} /> : null}
         {!hasCustomLayout && sections.education ? <ZweispaltigCareerSection kind="education" title={getResumeSectionTitle(profile, "education")} items={education} /> : null}
-        {!hasCustomLayout && isLastPage ? (
+        {!hasCustomLayout ? (
           <ZweispaltigAdditionalSections
             profile={profile}
             sections={sections}
+            onPage={(id) => (id === "knowledge" ? isLastPage : sectionOnPage(plan, id, isLastPage))}
           />
         ) : null}
         {isLastPage ? <ResumeSpecialSections profile={profile} sectionClassName="zweispaltig-section" headingClassName="zweispaltig-section__title" /> : null}

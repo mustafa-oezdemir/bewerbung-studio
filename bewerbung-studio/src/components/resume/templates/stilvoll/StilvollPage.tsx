@@ -16,6 +16,7 @@ import { getResumeSectionTitle } from "../../../../features/resume-sections/resu
 import { getResumeSemanticTitle } from "../../../../features/resume-sections/resume-section-system";
 import { formatResumeContactLine } from "../../../../shared/resumePersonalData";
 import { resolveResumeFooterWebsite } from "../../../../shared/resumeFooter";
+import { sectionOnPage } from "../../../../shared/documentPagination";
 
 type Props = Omit<StilvollResumeProps, "accentColor" | "secondaryColor">;
 
@@ -68,9 +69,11 @@ export function StilvollPage({
         {sections.education ? (
           <StilvollCareer kind="education" title={getResumeSectionTitle(profile, "education")} items={education} />
         ) : null}
-        {isLastPage ? (
-          <StilvollAtsExtras profile={profile} sections={sections} />
-        ) : null}
+        <StilvollAtsExtras
+          profile={profile}
+          sections={sections}
+          onPage={(id) => (id === "languages" || id === "certifications" ? sectionOnPage(plan, id, isLastPage) : isLastPage)}
+        />
         {isLastPage ? <ResumeSpecialSections profile={profile} sectionClassName="stilvoll-section" headingClassName="stilvoll-section__title" /> : null}
       </main>
     );

@@ -6,7 +6,7 @@ import { applyResumeClosingOutput, resumeClosingCss } from "./resumeClosing";
 import { applyPehlioneAppearance, pehlioneAppearanceCss } from "./pehlioneAppearance";
 import { getPehlioneContacts } from "./pehlioneContacts";
 import { applyResumeSectionPresentation, isPlainListSection, isZoneFlowTemplate, plainListItemPrefix, resumeSectionPresentationCss } from "./resumeSectionPresentation";
-import { orderedOneColumnTemplates, sectionOnPage } from "./documentPagination";
+import { atsFlowTemplates, orderedOneColumnTemplates, sectionOnPage } from "./documentPagination";
 import {
   keepDatesOnOneLine,
   normalizeContinuationHeader,
@@ -73,6 +73,8 @@ const aliases: Record<string, string[]> = {
     "Weiterbildungen",
     "Weiterbildungen (Auswahl)",
     "Erfolge",
+    // Kompakt's plain PDF (renderManagedAtsPage)
+    "Erfolge und Zertifikate",
   ],
   languages: ["Sprachen"],
   projects: ["Projekt-Highlight"],
@@ -985,8 +987,11 @@ export const applyManagedResumeOutput = (
     const placementOrder = resolved.layout.mode === "two-column" && main === sidebar && profile.resumeManagerLayouts?.[templateId]?.length
       ? [...entries.filter((entry) => entry.zone === "main"), ...entries.filter((entry) => entry.zone === "sidebar")]
       : entries;
-    // The one-column templates that follow the section list draw its order on every page, arranged or not.
-    const listOrder = orderedOneColumnTemplates.has(resolved.templateId) && resolved.layout.mode === "single";
+    // The one-column templates that follow the section list draw its order on every page, arranged or not; so do the
+    // plain layouts whose sections behind the career stand where the plan names them (atsFlowTemplates).
+    const listOrder = (orderedOneColumnTemplates.has(resolved.templateId)
+      || ((designSettings.resumeOutputMode === "ats" || designSettings.columnLayout === "compact-ats") && atsFlowTemplates.has(resolved.templateId)))
+      && resolved.layout.mode === "single";
     for (const destination of (resolved.templateId === "kreativ" || resolved.templateId === "tabellarisch" || listOrder || profile.resumeManagerLayouts?.[templateId]?.length)
       ? new Set([main, sidebar])
       : []) {

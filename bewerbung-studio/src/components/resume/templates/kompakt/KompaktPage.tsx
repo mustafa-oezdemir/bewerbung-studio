@@ -17,6 +17,7 @@ import { getResumeSectionTitle } from "../../../../features/resume-sections/resu
 import { getResumeSemanticTitle } from "../../../../features/resume-sections/resume-section-system";
 import { formatResumeContactLine } from "../../../../shared/resumePersonalData";
 import { resolveResumeFooterWebsite } from "../../../../shared/resumeFooter";
+import { sectionOnPage } from "../../../../shared/documentPagination";
 
 type Props = Omit<KompaktResumeProps, "accentColor" | "secondaryColor">;
 
@@ -69,9 +70,11 @@ export function KompaktPage({
         {sections.education ? (
           <KompaktCareer kind="education" title={getResumeSectionTitle(profile, "education")} items={education} />
         ) : null}
-        {isLastPage ? (
-          <KompaktAtsExtras profile={profile} sections={sections} />
-        ) : null}
+        <KompaktAtsExtras
+          profile={profile}
+          sections={sections}
+          onPage={(id) => (id === "languages" || id === "certifications" ? sectionOnPage(plan, id, isLastPage) : isLastPage)}
+        />
         {isLastPage ? <ResumeSpecialSections profile={profile} sectionClassName="kompakt-section" headingClassName="kompakt-section__title" /> : null}
       </main>
     );

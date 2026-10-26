@@ -8,9 +8,12 @@ import { presentLanguage } from "../LanguageLevelText";
 export function ZweispaltigAdditionalSections({
   profile,
   sections,
+  onPage,
 }: {
   profile: ApplicantProfile | undefined;
   sections: ApplicantProfile["resumeSections"];
+  /** Whether the section stands on this page (Sprachen and Zertifikate where the page plan names them). */
+  onPage: (id: "knowledge" | "languages" | "strengths" | "certifications") => boolean;
 }) {
   const languages = uniqueZweispaltigValues(profile?.languages ?? []);
   const certifications = uniqueZweispaltigValues(
@@ -19,10 +22,10 @@ export function ZweispaltigAdditionalSections({
 
   return (
     <>
-      {sections.skills ? (
+      {onPage("knowledge") && sections.skills ? (
         <ZweispaltigKnowledge profile={profile} variant="ats" />
       ) : null}
-      {sections.languages && languages.length ? (
+      {onPage("languages") && sections.languages && languages.length ? (
         <section
           className="zweispaltig-section zweispaltig-ats-list"
           data-element-id="zweispaltig.languages"
@@ -35,10 +38,10 @@ export function ZweispaltigAdditionalSections({
           </ul>
         </section>
       ) : null}
-      {sections.strengths ? (
+      {onPage("strengths") && sections.strengths ? (
         <ZweispaltigStrengths profile={profile} variant="ats" />
       ) : null}
-      {sections.certifications && certifications.length ? (
+      {onPage("certifications") && sections.certifications && certifications.length ? (
         <section
           className="zweispaltig-section zweispaltig-ats-list"
           data-element-id="zweispaltig.certifications"

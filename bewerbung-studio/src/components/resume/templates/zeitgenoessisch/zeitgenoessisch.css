@@ -675,6 +675,12 @@
   background: #fff;
 }
 
+/* The plain PDF spaces its sections by the shared section gap (.zeit-pdf-ats > section), not the styled one. */
+.zeitgenoessisch-ats > section,
+.zeitgenoessisch-ats .knowledge-section {
+  margin-top: var(--section-gap, 4.5mm);
+}
+
 .zeitgenoessisch-ats .zeitgenoessisch-header {
   display: block;
   min-height: auto;

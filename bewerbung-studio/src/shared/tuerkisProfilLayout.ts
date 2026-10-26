@@ -69,15 +69,8 @@ export const arrangeTuerkisProfilPage = (
     return contacts;
   };
   for (const root of roots) {
-  if (root.getAttribute("data-ats-mode") === "true" || root.querySelector(".zweispaltig-pdf-ats,.zweispaltig-ats")) {
-    // When a long profile ends beside the first career entry, the ATS planner
-    // may place strengths on that page. Keep the plain reading order intact.
-    const strengths = root.querySelector('[data-managed-section="strengths"]');
-    const experience = root.querySelector('[data-managed-section="experience"]');
-    if (strengths && experience && strengths.parentElement === experience.parentElement)
-      experience.before(strengths);
-    continue;
-  }
+  // The plain page keeps the order of the section list (the managed output draws it, Stärken included).
+  if (root.getAttribute("data-ats-mode") === "true" || root.querySelector(".zweispaltig-pdf-ats,.zweispaltig-ats")) continue;
   const header = root.querySelector(".zweispaltig-header,.zweispaltig-pdf-header");
   const columns = root.querySelector(".zweispaltig-columns,.zweispaltig-pdf-columns");
   const main = columns?.querySelector(".zweispaltig-main,.zweispaltig-pdf-main");

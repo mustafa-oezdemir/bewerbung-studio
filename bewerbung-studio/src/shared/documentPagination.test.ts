@@ -731,8 +731,9 @@ describe("closing block and output modes", () => {
     it("stacks the contacts of Elegant and Zweispaltig, so their header grows with every contact", () => {
       const few = makeProfile(1, 2, 0);
       const many = makeProfile(1, 2, 0, contacts);
+      // (Zweispaltig's plain contacts take one line each: label and value side by side.)
       for (const id of ["zweispaltig", "elegant"]) {
-        expect(filled(resolve(many, id, ats).pagePlan, 0)).toBeGreaterThan(filled(resolve(few, id, ats).pagePlan, 0) + 0.05);
+        expect(filled(resolve(many, id, ats).pagePlan, 0)).toBeGreaterThan(filled(resolve(few, id, ats).pagePlan, 0) + 0.03);
       }
       // A hidden contact block leaves the header at its bare height.
       const hidden = makeProfile(1, 2, 0, {
@@ -741,8 +742,8 @@ describe("closing block and output modes", () => {
           section.semanticType === "personalData" ? { ...section, visible: false } : section),
       });
       expect(filled(resolve(hidden, "zweispaltig", ats).pagePlan, 0)).toBeLessThan(filled(resolve(makeProfile(1, 2, 0, contacts), "zweispaltig", ats).pagePlan, 0) - 0.05);
-      // The other plain layouts keep one measured header whatever the contacts are.
-      expect(filled(resolve(many, "ivy-league", ats).pagePlan, 0)).toBeCloseTo(filled(resolve(few, "ivy-league", ats).pagePlan, 0), 6);
+      // Ivy League's plain header lists its contacts too (estimateAtsHeaderTop): more contacts, a lower page one.
+      expect(filled(resolve(many, "ivy-league", ats).pagePlan, 0)).toBeGreaterThan(filled(resolve(few, "ivy-league", ats).pagePlan, 0));
       // Einspaltig computes its plain page one with the Persönliche Daten paragraph: more contacts, more lines.
       expect(filled(resolve(many, "einspaltig", ats).pagePlan, 0)).toBeGreaterThan(filled(resolve(few, "einspaltig", ats).pagePlan, 0));
     });
@@ -771,6 +772,10 @@ describe("closing block and output modes", () => {
       const none = makeProfile(1, 2, 0);
       const growth = (id: string, settings: Partial<typeof defaultDocumentDesign> = {}) =>
         filled(resolve(many, id, settings).pagePlan, 0) - filled(resolve(none, id, settings).pagePlan, 0);
+      // The plain layout places the certificates in the order of the section list: they may open the next page.
+      const total = (plan: ResumePagePlan[]) => plan.reduce((sum, page) => sum + (page.fill?.main ?? 0), 0);
+      const totalGrowth = (id: string, settings: Partial<typeof defaultDocumentDesign>) =>
+        total(resolve(many, id, settings).pagePlan) - total(resolve(none, id, settings).pagePlan);
       // Stilvoll draws every certificate once: whole on one page, or split across sidebar pages as the body consumes room.
       const stilvoll = resolve(many, "stilvoll").pagePlan;
       const ranges = stilvoll.flatMap(page => page.blockRanges?.certifications ? [page.blockRanges.certifications] : []);
@@ -779,7 +784,7 @@ describe("closing block and output modes", () => {
         expect(ranges.at(-1)?.to).toBe(8);
         for (let index = 1; index < ranges.length; index += 1) expect(ranges[index].from).toBe(ranges[index - 1].to);
       } else expect(stilvoll.filter((page) => page.blocks?.includes("certifications"))).toHaveLength(1);
-      expect(growth("stilvoll", ats)).toBeGreaterThan(0.08);
+      expect(totalGrowth("stilvoll", ats)).toBeGreaterThan(0.08);
       expect(growth("kompakt", ats)).toBeGreaterThan(growth("kompakt") + 0.05);
     });
 

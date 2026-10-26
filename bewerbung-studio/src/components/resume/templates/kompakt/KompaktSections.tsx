@@ -229,9 +229,12 @@ export function KompaktLanguages({
 export function KompaktAtsExtras({
   profile,
   sections,
+  onPage,
 }: {
   profile: ApplicantProfile | undefined;
   sections: ApplicantProfile["resumeSections"];
+  /** Whether the section stands on this page (Sprachen and Zertifikate where the page plan names them). */
+  onPage: (id: "knowledge" | "languages" | "strengths" | "certifications") => boolean;
 }) {
   const skills = getTemplateKnowledge(profile);
   const strengths = parseTemplateStrengths(profile, 4);
@@ -240,16 +243,16 @@ export function KompaktAtsExtras({
   );
   return (
     <>
-      {sections.skills && skills.length ? (
+      {onPage("knowledge") && sections.skills && skills.length ? (
         <section className="kompakt-section">
           <KompaktHeading>{getResumeSectionTitle(profile, "knowledge")}</KompaktHeading>
           <p>{skills.join(" · ")}</p>
         </section>
       ) : null}
-      {sections.languages ? (
+      {onPage("languages") && sections.languages ? (
         <KompaktLanguages profile={profile} atsMode />
       ) : null}
-      {sections.strengths && strengths.length ? (
+      {onPage("strengths") && sections.strengths && strengths.length ? (
         <section className="kompakt-section">
           <KompaktHeading>{getResumeSectionTitle(profile, "strengths")}</KompaktHeading>
           <ul>
@@ -264,7 +267,7 @@ export function KompaktAtsExtras({
           </ul>
         </section>
       ) : null}
-      {sections.certifications && achievements.length ? (
+      {onPage("certifications") && sections.certifications && achievements.length ? (
         <section className="kompakt-section">
           <KompaktHeading>{getResumeSectionTitle(profile, "certifications")}</KompaktHeading>
           <ul>

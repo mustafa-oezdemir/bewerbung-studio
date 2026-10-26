@@ -46,7 +46,8 @@ export function StilvollHeader({
         {compact ? <p>{resolveResumeHeading(profile).continuationKicker}</p> : null}
         <h1>{name}</h1>
         {profession ? <h2>{profession}</h2> : null}
-        {!compact && contacts.length ? (
+        {/* The plain layout lists the contacts under Persönliche Daten (StilvollPage, like the PDF), not in the header. */}
+        {!compact && !atsMode && contacts.length ? (
           <address>
             {contacts.map((contact, index) => (
               <span key={`${contact.value}-${index}`}>

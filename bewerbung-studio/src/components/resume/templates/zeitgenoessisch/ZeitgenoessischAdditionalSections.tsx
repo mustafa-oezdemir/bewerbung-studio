@@ -9,9 +9,12 @@ import { getResumeSectionTitle } from "../../../../features/resume-sections/resu
 export function ZeitgenoessischAdditionalSections({
   profile,
   sections,
+  onPage,
 }: {
   profile: ApplicantProfile | undefined;
   sections: ApplicantProfile["resumeSections"];
+  /** Whether the section stands on this page (Sprachen and Zertifikate where the page plan names them). */
+  onPage: (id: "knowledge" | "languages" | "strengths" | "certifications") => boolean;
 }) {
   const certifications = uniqueZeitgenoessischValues(
     profile?.certifications ?? [],
@@ -19,16 +22,16 @@ export function ZeitgenoessischAdditionalSections({
 
   return (
     <>
-      {sections.skills ? (
+      {onPage("knowledge") && sections.skills ? (
         <ZeitgenoessischKnowledge profile={profile} />
       ) : null}
-      {sections.languages ? (
+      {onPage("languages") && sections.languages ? (
         <ZeitgenoessischLanguagesSection profile={profile} atsMode />
       ) : null}
-      {sections.strengths ? (
+      {onPage("strengths") && sections.strengths ? (
         <ZeitgenoessischStrengthsSection profile={profile} atsMode />
       ) : null}
-      {sections.certifications && certifications.length ? (
+      {onPage("certifications") && sections.certifications && certifications.length ? (
         <section
           className="zeitgenoessisch-section zeitgenoessisch-certifications"
           data-element-id="zeitgenoessisch.certifications"

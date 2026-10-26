@@ -21,6 +21,7 @@
 }
 .tuerkis-profil-template .zweispaltig-career-entry h3 { color: #42484c; }
 .tuerkis-profil-template .zweispaltig-page__visual,
+.tuerkis-profil-template .zweispaltig-ats,
 .cv-sheet[data-template="tuerkis-profil"] .zweispaltig-pdf {
   --zweispaltig-margin-top: var(--tuerkis-margin-top, 25mm);
   --zweispaltig-margin-right: var(--tuerkis-margin-right, 20mm);
