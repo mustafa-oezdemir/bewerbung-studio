@@ -31,7 +31,7 @@ import { tabellarischDefaults } from "./cvTemplateDefaults/tabellarisch.defaults
 import { textWidthMm, wrappedLines } from "./textMetrics";
 import { hyphenatedSummaryLines, summaryWordEnds, summaryWrappedLines } from "./resumeSummaryHyphenation";
 import { resolveSectionColumns } from "./resumeSectionLayout";
-import { hasSidebarHero, isZoneFlowTemplate, sectionHeadingLineMetrics, sectionListMetrics, supportsEducationSplit, supportsSidebarContinuation } from "./resumeSectionPresentation";
+import { hasSidebarHero, isPlainListSection, isZoneFlowTemplate, sectionHeadingLineMetrics, sectionListMetrics, supportsEducationSplit, supportsSidebarContinuation } from "./resumeSectionPresentation";
 import { normalizeCustomSection, spacesEntriesLikeCareer } from "./resumeCustomSections";
 import { getPehlioneContacts } from "./pehlioneContacts";
 import { resolveKnowledgeGroups } from "../features/resume-sections/resume-section-system";
@@ -1551,7 +1551,7 @@ const planResumePages = (
     });
   }
   const projectVisible = find("projects")?.visible ?? true;
-  if (templateId?.startsWith("pehlione_") && projectVisible && !context.atsMode) {
+  if (templateId?.startsWith("pehlione_") && projectVisible) {
     const project = getPehlioneProjectHighlight(profile);
     if (project && !(templateId === "pehlione_white_blue" && hasPehlioneCustomProjectHighlight(profile))) {
       const lines = project.achievements.reduce(
@@ -1755,7 +1755,9 @@ const planResumePages = (
     const careerLike = spacesEntriesLikeCareer(special.kind);
     if (!special.isVisible || entry?.visible === false || !normalized.entries.length) continue;
     const zone = flat ? "main" : entry?.zone ?? "main";
-    const availableWidth = zone === "sidebar" ? geometry.text.sideW + scale.sideDelta : geometry.text.mainW * scale.mainRatio;
+    // The plain layout sets them across its own text width, like the Kurzprofil (not the visual main column).
+    const availableWidth = zone === "sidebar" ? geometry.text.sideW + scale.sideDelta
+      : (context.atsMode ? geometry.ats.summaryW ?? geometry.text.atsW : geometry.text.mainW) * scale.mainRatio;
     const font = geometry.text.bulletFont * scale.font;
     const pitch = font * geometry.text.lineRatio * scale.line;
     const lineCount = (value: string) => value.trim() ? linesFor(value.trim().length, availableWidth, font, SPECIAL_CW) : 0;
@@ -2495,6 +2497,8 @@ const planResumePages = (
     : templateId === "gepflegt" && flat
       ? ["languages", "knowledge"]
       : ["projects", "knowledge", "languages", "certifications"];
+  /** A plain layout that places its Sprachen section itself (a plain list the output draws, resumeManagedOutput). */
+  const atsLanguages = Boolean(context.atsMode) && isPlainListSection(templateId, "languages");
   const tail: FlowBlock[] = [];
   if (zoneFlow || templateId === "elegant") {
     // Every block of the main column can start on page one: the project highlight and the knowledge
@@ -2511,6 +2515,15 @@ const planResumePages = (
           ? byRank(left, right)
           : nativeRank(left.id) - nativeRank(right.id)),
     );
+  } else if (!customLayout && atsLanguages) {
+    // The output draws these blocks in the order of the section list (it inserts each by its rank): the leading run of the
+    // ones it can place on any page may start on page one, up to the first block the template draws itself.
+    const placeable = (block: FlowBlock) => ["projects", "knowledge", "languages"].includes(block.id)
+      || block.id.startsWith("special:") || block.id.startsWith("group:");
+    for (const block of [...pageTwoFlow].sort((left, right) => managerRank(left.id) - managerRank(right.id))) {
+      if (!placeable(block)) break;
+      tail.push(block);
+    }
   } else if (!customLayout) {
     for (const id of nativeTail) {
       const block = pageTwoFlow.find((candidate) => candidate.id === id);

@@ -6,6 +6,7 @@ For every page: tmp/entry-role-qa/visual/<name>-side-<page>.png (preview left, P
 right third) and the share of pixels that differ by more than a small anti-aliasing tolerance. HTML/DOM checks alone do not
 prove that both surfaces look alike; this does it on the pixels.
 """
+import os
 import sys
 from pathlib import Path
 
@@ -13,7 +14,7 @@ import fitz
 import numpy as np
 from PIL import Image
 
-out = Path("tmp/entry-role-qa/visual")
+out = Path(os.environ.get("QA_DIR", "tmp/entry-role-qa")) / "visual"
 for name in [arg for arg in sys.argv[1:] if not arg.startswith("-")]:
     pdf = fitz.open(out / f"{name}.pdf")
     for index, page in enumerate(pdf, start=1):

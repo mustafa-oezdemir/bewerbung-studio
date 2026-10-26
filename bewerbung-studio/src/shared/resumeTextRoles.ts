@@ -39,16 +39,20 @@ export const resumeTextRoleTokens: Record<ResumeTextRole, { color: keyof CvDesig
 };
 
 /**
- * The general value a role token follows while it has no value of its own (resolveEffectiveDesignTokens): a project's
- * description and technologies are drawn relative to the reading text (the Lesetext), dates and places are secondary
- * texts, which saved designs coloured through the Sekundärtext before they had colours of their own.
+ * The general value a role token follows while it has no value of its own (resolveEffectiveDesignTokens): the entry
+ * texts grow with a chosen Lesetext at their native ratio (the entry title keeps its size, it has a control of its own),
+ * dates and places are secondary texts, which saved designs coloured through the Sekundärtext before they had colours of
+ * their own.
  */
 export const resumeTextRoleFallbacks: {
   colors: Partial<Record<keyof CvDesignTokens["colors"], keyof CvDesignTokens["colors"]>>;
   typography: Partial<Record<keyof CvDesignTokens["typography"], keyof CvDesignTokens["typography"]>>;
 } = {
   colors: { date: "muted", location: "muted" },
-  typography: { projectTechnologiesSizePt: "bodySizePt", projectDescriptionSizePt: "bodySizePt" },
+  typography: {
+    dateSizePt: "bodySizePt", organizationSizePt: "bodySizePt", locationSizePt: "bodySizePt",
+    projectTechnologiesSizePt: "bodySizePt", projectDescriptionSizePt: "bodySizePt",
+  },
 };
 
 /**
@@ -75,6 +79,8 @@ export const applyResumeTextRoleStyles = (
   templateId: string,
   settings: DocumentDesignSettings,
   design: CvDesignTokens,
+  /** The template's native sizes: its tokens and the size it draws a role text in (per section and layout). */
+  native?: { typography: CvDesignTokens["typography"]; size: (role: ResumeTextRole, node: Element) => number },
 ): void => {
   // A project's technology line is drawn at its design size (the one the panel shows) on both surfaces; without it the
   // template's supporting rules decided its size by specificity, differently in the preview and the PDF. Like the other
@@ -100,11 +106,11 @@ export const applyResumeTextRoleStyles = (
   // Template accent variables also colour the organisations. Keep their native colour (in the plain layout its own
   // palette) when only the highlight colour changes; an explicit organisation (or legacy employer) choice still wins.
   const pinned = colors?.accent !== undefined && colors.organization === undefined;
-  const native = nativeOrganizationColors[resolveTemplateId(templateId)];
+  const nativeOrganization = nativeOrganizationColors[resolveTemplateId(templateId)];
   const organizationColor = (node: Element) => {
     if (!pinned) return design.colors.organization;
-    if (native?.education && node.closest('[data-managed-section="education"]')) return native.education;
-    return settings.resumeOutputMode === "ats" && native?.ats ? native.ats : design.colors.organization;
+    if (nativeOrganization?.education && node.closest('[data-managed-section="education"]')) return nativeOrganization.education;
+    return settings.resumeOutputMode === "ats" && nativeOrganization?.ats ? nativeOrganization.ats : design.colors.organization;
   };
   for (const role of resumeTextRoles) {
     const { color, size } = resumeTextRoleTokens[role];
@@ -112,12 +118,19 @@ export const applyResumeTextRoleStyles = (
     const sizeFrom = resumeTextRoleFallbacks.typography[size];
     const ownColor = colors?.[color] !== undefined || (role === "organization" && pinned)
       || (colorFrom !== undefined && colors?.[colorFrom] !== undefined);
-    const ownSize = typography?.[size] !== undefined || (sizeFrom !== undefined && typography?.[sizeFrom] !== undefined);
-    if (!ownColor && !ownSize) continue;
+    const chosenSize = typography?.[size] !== undefined;
+    const followsSize = !chosenSize && sizeFrom !== undefined && typography?.[sizeFrom] !== undefined;
+    // Each text grows from the size its template draws it in (Projekte / Hobbys and the plain layout have their own); an
+    // entry title keeps that size while the Lesetext changes, also where the template would scale it.
+    const ratio = followsSize && sizeFrom && native ? design.typography[sizeFrom] as number / (native.typography[sizeFrom] as number) : undefined;
+    const keepsSize = !chosenSize && role === "entry-title" && typography?.bodySizePt !== undefined && native !== undefined;
+    if (!ownColor && !chosenSize && !followsSize && !keepsSize) continue;
     for (const node of scope.querySelectorAll(cvRoleSelector(role))) {
       if (ownColor && !(role === "organization" && employerChain && node.hasAttribute("data-cv-employer")))
         set(node, "color", role === "organization" ? organizationColor(node) : design.colors[color]);
-      if (ownSize) set(node, "font-size", `${design.typography[size]}pt`);
+      if (chosenSize || (followsSize && !native)) set(node, "font-size", `${design.typography[size]}pt`);
+      else if (native && (ratio !== undefined || keepsSize))
+        set(node, "font-size", `${Math.round(native.size(role, node) * (ratio ?? 1) * 100) / 100}pt`);
     }
   }
 };

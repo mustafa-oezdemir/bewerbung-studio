@@ -253,7 +253,11 @@ const entrySizeFields = [
   ["projectTechnologiesSizePt", "Projekttechnologien"], ["projectDescriptionSizePt", "Projektbeschreibung"],
 ] as const;
 const sizeNotes: Partial<Record<string, string>> = {
-  entryHeadingSizePt: "Positionen, Abschlüsse, Projekt- und Hobbytitel.",
+  bodySizePt: "Datum, Unternehmen, Ort und die Projekttexte ohne eigene Größe wachsen im gleichen Verhältnis mit; Eintragstitel behalten ihre Größe.",
+  entryHeadingSizePt: "Positionen, Abschlüsse, Projekt- und Hobbytitel. Bleibt beim Lesetext unverändert.",
+  dateSizePt: "Ohne eigenen Wert wächst die Größe mit dem Lesetext.",
+  organizationSizePt: "Ohne eigenen Wert wächst die Größe mit dem Lesetext.",
+  locationSizePt: "Ohne eigenen Wert wächst die Größe mit dem Lesetext.",
   projectTechnologiesSizePt: "Die Technologiezeile unter einem Projekttitel. Ohne eigenen Wert folgt sie dem Lesetext.",
   projectDescriptionSizePt: "Der Beschreibungstext eines Projekts. Ohne eigenen Wert folgt er dem Lesetext.",
 };

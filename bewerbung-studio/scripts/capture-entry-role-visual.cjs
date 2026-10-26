@@ -6,7 +6,7 @@ const path = require('node:path');
 // export prints it) and screenshots of its preview pages, for scripts/compare-entry-role-visual.py to put side by side.
 //   node node_modules/electron/cli.js scripts/capture-entry-role-visual.cjs <fixture name>…
 //   e.g. zweispaltig-roles-vis tuerkis-profil-native-vis
-const dir = path.resolve('tmp/entry-role-qa');
+const dir = path.resolve(process.env.QA_DIR ?? 'tmp/entry-role-qa');
 const out = path.join(dir, 'visual');
 const names = process.argv.slice(2).filter((arg) => !arg.startsWith('-') && !arg.endsWith('.cjs'));
 

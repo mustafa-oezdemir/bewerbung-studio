@@ -132,7 +132,6 @@ export const pehlioneAppearanceCss = `
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-header{border-bottom-color:var(--pehlione-divider-color,var(--pehlione-primary))}
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-ats .pehlione-pdf-section-icon{display:none}
 .cv-sheet[data-template^="pehlione_"][data-resume-page]:not([data-resume-page='1']) .pehlione-pdf-ats{padding-top:10mm}
-.cv-sheet[data-template^="pehlione_"] .pehlione-pdf-ats [data-managed-section="languages"]{margin-bottom:0}
 .cv-sheet[data-template^="pehlione_"] .pehlione-pdf-ats [data-custom-template^="pehlione_"] [data-custom-role="supporting"]{margin:0}
 .pehlione-resume:is([data-template="pehlione_white_blue"],[data-template="pehlione_white"]):not([data-page="1"]):not([data-density="compact"]) .pehlione-header{margin-bottom:7mm;padding-bottom:4mm}
 .pehlione-resume:is([data-template="pehlione_white_blue"],[data-template="pehlione_white"]):not([data-page="1"]):not([data-density="compact"]) .pehlione-header h1{font-size:var(--pehlione-native-heading-size)}

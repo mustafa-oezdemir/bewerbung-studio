@@ -9,7 +9,7 @@ const path = require('node:path');
 //  - every page: no text beyond the sheet, no overlapping text lines (also with the large and small sizes), the same page
 //    count in the preview and the PDF
 //   node node_modules/electron/cli.js scripts/check-entry-role-qa.cjs [filter…]
-const dir = path.resolve('tmp/entry-role-qa');
+const dir = path.resolve(process.env.QA_DIR ?? 'tmp/entry-role-qa');
 const only = process.argv.slice(2).filter((arg) => !arg.startsWith('-') && !arg.includes('entry-role-qa'));
 const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')).filter((entry) => !only.length || only.some((filter) => entry.file.includes(filter)));
 
@@ -123,7 +123,7 @@ app.whenReady().then(async () => {
   const native = {};
   const roleToken = { 'entry-title': ['entryHeading', 'entryHeadingSizePt'], period: ['date', 'dateSizePt'], organization: ['organization', 'organizationSizePt'],
     location: ['location', 'locationSizePt'], technologies: ['accent', 'projectTechnologiesSizePt'], description: ['paragraph', 'projectDescriptionSizePt'] };
-  const fallback = { colors: { date: 'muted', location: 'muted' }, typography: { projectDescriptionSizePt: 'bodySizePt' } };
+  const fallback = { colors: { date: 'muted', location: 'muted' }, typography: { dateSizePt: 'bodySizePt', organizationSizePt: 'bodySizePt', locationSizePt: 'bodySizePt', projectTechnologiesSizePt: 'bodySizePt', projectDescriptionSizePt: 'bodySizePt' } };
   for (const entry of manifest) {
     const preview = measured[`${entry.file}|preview`];
     const pdf = measured[`${entry.file}|pdf`];
@@ -143,18 +143,27 @@ app.whenReady().then(async () => {
     }
     if (!entry.overrides) continue;
     // Every overridden role reaches every text of that role on both surfaces.
+    const nativeEntry = manifest.find((candidate) => candidate.file === entry.file.replace(entry.variant, 'native'));
     for (const surface of ['preview', 'pdf']) {
       const result = measured[`${entry.file}|${surface}`];
+      const base = measured[`${entry.file.replace(entry.variant, 'native')}|${surface}`];
+      // The native sizes as the PDF draws them (the reference of the native design) for both surfaces.
+      const nativePdf = measured[`${entry.file.replace(entry.variant, 'native')}|pdf`];
+      const nativeSize = new Map((nativePdf?.roles ?? []).map((item) => [`${key(item)}|${item.text}`, item.size]));
       for (const item of result.roles) {
         const [colorKey, sizeKey] = roleToken[item.role];
-        // A role without an own value follows its general value (resumeTextRoleFallbacks): the resolved design names it.
-        const chosen = (group, name) => entry.overrides[group]?.[name] !== undefined || entry.overrides[group]?.[fallback[group][name]] !== undefined;
-        const color = chosen('colors', colorKey) ? entry.colors[colorKey] : undefined;
-        const size = chosen('typography', sizeKey) ? entry.typography[sizeKey] : undefined;
+        // A role without an own value follows its general value (resumeTextRoleFallbacks): the resolved design names the
+        // colour; a size grows from what this text natively measures, and an entry title keeps that size.
+        const own = (group, name) => entry.overrides[group]?.[name] !== undefined;
+        const color = own('colors', colorKey) || own('colors', fallback.colors[colorKey]) ? entry.colors[colorKey] : undefined;
+        const from = fallback.typography[sizeKey];
+        const drawn = nativeSize.get(`${key(item)}|${item.text}`);
+        const size = own('typography', sizeKey) ? entry.typography[sizeKey]
+          : from && own('typography', from) && drawn !== undefined && nativeEntry ? drawn * entry.typography[from] / nativeEntry.typography[from]
+            : item.role === 'entry-title' && own('typography', 'bodySizePt') ? drawn : undefined;
         if (color) check(`${entry.file}|${surface}`, `${key(item)} colour`, item.color === color.toUpperCase(), { text: item.text, got: item.color, want: color });
         if (size !== undefined) check(`${entry.file}|${surface}`, `${key(item)} size`, Math.abs(item.size - size) <= 0.05, { text: item.text, got: item.size, want: size });
       }
-      const base = measured[`${entry.file.replace(entry.variant, 'native')}|${surface}`];
       // Changing Hervorhebungsfarbe leaves every organisation at the colour it has natively (in this mode and section).
       if (entry.variant === 'accent' && base) {
         const nativeColor = new Map(base.roles.map((item) => [`${key(item)}|${item.text}`, item.color]));

@@ -79,7 +79,7 @@ export function PehlioneResume({
   const continuation = plan.pageNumber > 1;
   const lastPage = plan.pageNumber === totalPages;
   // The page plan decides which page draws the project highlight (it follows the education entries).
-  const projectHere = atsMode || !plan.blocks ? lastPage : plan.blocks.includes("projects");
+  const projectHere = !plan.blocks ? lastPage : plan.blocks.includes("projects");
   const experienceIds = new Set(plan.items.filter((item) => item.kind === "experience").map((item) => item.id));
   const educationIds = new Set(plan.items.filter((item) => item.kind === "education").map((item) => item.id));
   const experiences = (profile?.experiences ?? []).filter((item) => experienceIds.has(item.id));

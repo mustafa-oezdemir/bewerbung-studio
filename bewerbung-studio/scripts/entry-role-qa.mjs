@@ -6,8 +6,8 @@ import { createServer } from 'vite';
 // Projektbeschreibung): every active template as preview and as PDF, visual and plain (ATS), natively and with the
 // Lebenslauf-Design overrides of scripts/check-entry-role-qa.cjs. The checker measures the computed colour and size of every
 // `[data-cv-role]` text in Chromium, preview against PDF, and the pages for text beyond the sheet and overlapping lines.
-//   [ONLY=<id,id>] [VARIANTS=native,roles,accent,date,organization,location,technologies,description,body,general,large,small] node scripts/entry-role-qa.mjs && node node_modules/electron/cli.js scripts/check-entry-role-qa.cjs
-const out = resolve('tmp/entry-role-qa');
+//   [QA_DIR=tmp/entry-role-qa] [ONLY=<id,id>] [VARIANTS=native,roles,accent,date,organization,location,technologies,description,body,general,large,small] node scripts/entry-role-qa.mjs && node node_modules/electron/cli.js scripts/check-entry-role-qa.cjs
+const out = resolve(process.env.QA_DIR ?? 'tmp/entry-role-qa');
 await mkdir(out, { recursive: true });
 const vite = await createServer({ configFile: false, root: process.cwd(), appType: 'custom', logLevel: 'error', esbuild: { jsx: 'automatic' }, server: { middlewareMode: true } });
 try {

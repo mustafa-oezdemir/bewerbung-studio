@@ -34,9 +34,9 @@ import { getThemedTechnologyIconMarkup } from "./technologyBrand";
 import { defaultDocumentDesign, type DocumentDesignSettings } from "./documentDesign";
 import { resolveCvDocument, type ResolvedCvDocument } from "./resolveCvDocument";
 import { resolveResumeHeading } from "./resumeHeading";
-import { getPaginationGeometry } from "./resumePaginationGeometry";
+import { getPaginationGeometry, nativeEntryRolePt } from "./resumePaginationGeometry";
 import { resolveSectionColumns } from "./resumeSectionLayout";
-import { getCvDesignVariables } from "./cvDesign";
+import { getCvDesignVariables, resolveTemplateCvDesign } from "./cvDesign";
 import type { CvDesignTokens } from "./cvDesignSchema";
 import { resumeColorSurfaceSelector, resolveResumeSurfaceText } from "./resumeColorSurfaces";
 import { ensureKnowledgeSection } from "../features/knowledge/knowledge.service";
@@ -493,11 +493,14 @@ export const applyManagedResumeOutput = (
     );
     // Zone-flow templates draw every section in the column the user gave it, on the page the plan names.
     const zoneFlow = isZoneFlowTemplate(resolved.templateId) && !isAts;
+    // The plain layout places a Sprachen section it draws as a plain list on the page the plan names (as the planner does).
+    const atsLanguages = isAts && isPlainListSection(resolved.templateId, "languages");
     const orderedSingle = resolved.layout.mode === "single" && Boolean(profile.resumeManagerLayouts?.[templateId]?.length);
     const surface = root.matches(".cv-sheet") ? "pdf" : "preview";
     const headingTag = surface === "pdf" ? "h3" : "h2";
     const hosts = (id: string) => {
       const movable = id === "knowledge" || id.startsWith("group:") || id.startsWith("special:") || (zoneFlow && id === "certifications")
+        || (atsLanguages && id === "languages")
         || (resolved.templateId === "elegant" && (id === "languages" || id === "certifications" || id === "strengths"))
         || resolved.templateId === "tabellarisch"
         || orderedSingle
@@ -695,6 +698,7 @@ export const applyManagedResumeOutput = (
       // (page one's sidebar, behind the career entries, or the last page) and one markup serves
       // every column; the languages stay where the template draws them and follow their column.
       if ((zoneFlow && (entry.id === "certifications" || entry.id === "languages") && isPlainListSection(resolved.templateId, entry.id) && !items.length)
+        || (atsLanguages && entry.id === "languages" && !items.length)
         || resolved.templateId === "elegant" && (entry.id === "languages" || entry.id === "certifications")) {
         // Languages go through the shared resolver (Lebenslauf → Sprachen: Punkte, Niveau, Beschreibung), never as stored.
         const allListed = (entry.id === "certifications" ? profile.certifications : profile.languages)
@@ -702,7 +706,7 @@ export const applyManagedResumeOutput = (
           .map((value) => (entry.id === "languages" ? resolveLanguagePresentation(value, profile.resumeLanguageDisplay, { ats: isAts }).primaryText : value));
         // The part of a certificate list that stands on this page when the list breaks between two pages.
         const listed = blockRange ? allListed.slice(blockRange.from, blockRange.to) : allListed;
-        const drawn = entry.id === "languages" && resolved.templateId !== "elegant" && !orderedSingle
+        const drawn = entry.id === "languages" && resolved.templateId !== "elegant" && !orderedSingle && !atsLanguages
           ? existing.length > 0 && (followsPlan("languages") || number === 1) : hosts(entry.id);
         const certificateRange = entry.id === "certifications" ? blockRange : undefined;
         // The PDF markup of the certificates leaves its section open, so the closing is written inside it.
@@ -715,10 +719,13 @@ export const applyManagedResumeOutput = (
         }
         const node = existing[0] ?? document.createElement("section");
         node.setAttribute("data-managed-section", entry.id);
+        // In the plain layout the section gets the template's section heading like the other sections it places.
+        if (atsLanguages && entry.id === "languages") node.classList.add("managed-extra");
         const prefix = entry.id === "certifications" ? plainListItemPrefix(resolved.templateId) : "";
         node.innerHTML = `<${headingTag}>${escape(certificateRange && certificateRange.from > 0 && !(entry.zone === "sidebar" && planned[number - 1]?.sidebar) ? `${entry.title} · Fortsetzung` : entry.title)}</${headingTag}><ul data-cv-list>${listed.map((value) => `<li>${prefix ? `<i aria-hidden="true">${escape(prefix)}</i>` : ""}${escape(value)}</li>`).join("")}</ul>`;
         existing.slice(1).forEach((duplicate) => duplicate.remove());
-        if (!existing.length) appendSection(entry, node);
+        // The plain layout keeps it at its place in the section list on every page, also where the template drew it.
+        if (!existing.length || (atsLanguages && entry.id === "languages")) appendSection(entry, node);
         nodes.set(entry.id, [node]);
         continue;
       }
@@ -1163,7 +1170,12 @@ export const applyManagedResumeOutput = (
     }
     applyResumeMetadataLayout(root, profile, templateId, root.matches(".cv-sheet") ? "pdf" : "preview", designSettings);
     // The entry roles last: their own colour and size beat the template's and the generic overrides of the same text.
-    applyResumeTextRoleStyles(root, templateId, designSettings, resolved.design);
+    const nativeTypography = resolveTemplateCvDesign(resolved.templateId).typography;
+    const plain = designSettings.resumeOutputMode === "ats";
+    applyResumeTextRoleStyles(root, templateId, designSettings, resolved.design, {
+      typography: nativeTypography,
+      size: (role, node) => nativeEntryRolePt(resolved.templateId, plain, role, Boolean(node.closest("[data-custom-template]")), nativeTypography),
+    });
     // A footer closing must stay inside the main column when a sidebar shares the page.
     const geometry = getPaginationGeometry(resolved.templateId);
     const hasSidebar =

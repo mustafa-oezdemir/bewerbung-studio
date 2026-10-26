@@ -28,7 +28,8 @@ import { einspaltigDefaults } from "./cvTemplateDefaults/einfach.defaults";
 import { tabellarischDefaults } from "./cvTemplateDefaults/tabellarisch.defaults";
 import { resolveTabellarischGeometry, tabellarischLines } from "./tabellarischDesign";
 import { einspaltigSectionTitleMm, resolveEinspaltigGeometry } from "./einspaltigDesign";
-import type { ResumeTextRole } from "./resumeTextRoles";
+import { resumeTextRoleTokens, type ResumeTextRole } from "./resumeTextRoles";
+import type { CvDesignTokens } from "./cvDesignSchema";
 import { sideBySideEntryHead, type EntryHeadModel } from "./resumeEntryRoleMetrics";
 
 const einspaltigGeometry = resolveEinspaltigGeometry();
@@ -306,8 +307,9 @@ const geometry: Record<string, PaginationGeometry> = {
     items: {strengths: {w: 43.5, font: 3.104, pitch: 4.04, pad: 0.99, cw: 0.53, cols: 1, head: 11, gap: 3}, knowledge: {w: 43.5, font: 3.104, pitch: 4.04, pad: -0.01, cw: 0.45, cols: 1, head: 16.7, gap: 2}},
     certs: {home: "last", zone: "main", base: 11.5, perItem: 4.38, w: 123.0, font: 3.25, pitch: 3.9},
     derivedStrengths: {visual: "first", ats: "never"},
-    // The plain layout draws its section titles without the icon box: 9.44 mm from the section top to its content (measured).
-    ats: {exp: 1.0, edu: 1.0, head: 9.45, knowledge: {head: 9.45, title: 5.53, gap: 3, pitch: 3.9, font: 3.25, w: 178, tail: 0}, languages: [9, 4.4], certs: {base: 9, perItem: 4.4}, summaryW: 178, density: {compact: 0.93, dense: 0.93}},
+    // The plain layout draws its section titles without the icon box: 9.44 mm from the section top to its content. Its
+    // compact density shrinks the content to 0.79–0.84 (measured); a one-column page never falls back to dense.
+    ats: {exp: 1.0, edu: 1.0, head: 9.45, knowledge: {head: 9.45, title: 5.53, gap: 3, pitch: 3.9, font: 3.25, w: 178, tail: 0}, languages: [9, 4.4], certs: {base: 9, perItem: 4.4}, summaryW: 178, density: {compact: 0.84, dense: 0.84}},
     density: {compact: 0.89, dense: 0.89},
   },
   "pehlione_white": {
@@ -337,8 +339,9 @@ const geometry: Record<string, PaginationGeometry> = {
     items: {strengths: {w: 43.3, font: 3.104, pitch: 4.04, pad: 0.99, cw: 0.53, cols: 1, head: 10, gap: 3}, knowledge: {w: 43.3, font: 3.104, pitch: 4.04, pad: -0.01, cw: 0.48, cols: 1, head: 16.4, gap: 2}},
     certs: {home: "last", zone: "main", base: 11.5, perItem: 4.38, w: 123.0, font: 3.25, pitch: 3.9},
     derivedStrengths: {visual: "first", ats: "never"},
-    // The plain layout draws its section titles without the icon box: 9.44 mm from the section top to its content (measured).
-    ats: {exp: 1.0, edu: 1.0, head: 9.45, knowledge: {head: 9.45, title: 5.53, gap: 3, pitch: 3.9, font: 3.25, w: 178, tail: 0}, languages: [9, 4.4], certs: {base: 9, perItem: 4.4}, summaryW: 178, density: {compact: 0.93, dense: 0.93}},
+    // The plain layout draws its section titles without the icon box: 9.44 mm from the section top to its content. Its
+    // compact density shrinks the content to 0.79–0.84 (measured); a one-column page never falls back to dense.
+    ats: {exp: 1.0, edu: 1.0, head: 9.45, knowledge: {head: 9.45, title: 5.53, gap: 3, pitch: 3.9, font: 3.25, w: 178, tail: 0}, languages: [9, 4.4], certs: {base: 9, perItem: 4.4}, summaryW: 178, density: {compact: 0.84, dense: 0.84}},
     density: {compact: 0.89, dense: 0.89},
   },
   "modern": {
@@ -878,3 +881,19 @@ export const genericPaginationGeometry: PaginationGeometry = geometry.einspaltig
 
 export const getPaginationGeometry = (templateId?: string): PaginationGeometry =>
   (templateId ? geometry[templateId] : undefined) ?? genericPaginationGeometry;
+
+/**
+ * The size (pt) a template draws an entry role in, as the planner reads it: Projekte / Hobbys (`custom`) their own drawn
+ * sizes, the plain layout its own, else the template's native token. Measured for every role of every template.
+ */
+export const nativeEntryRolePt = (
+  templateId: string,
+  ats: boolean,
+  role: ResumeTextRole,
+  custom: boolean,
+  native: CvDesignTokens["typography"],
+): number => {
+  const model = ats && templateId === "tabellarisch" ? tabellarischAtsPaginationGeometry : getPaginationGeometry(templateId);
+  const base = (ats ? model.atsRolePt?.[role] : undefined) ?? native[resumeTextRoleTokens[role].size] as number;
+  return custom ? model.customRolePt?.[role] ?? base : base;
+};

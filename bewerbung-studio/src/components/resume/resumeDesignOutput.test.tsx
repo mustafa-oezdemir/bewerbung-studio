@@ -10,6 +10,7 @@ import { klassischDefaults } from "../../shared/cvTemplateDefaults/klassisch.def
 import { modernAtsColors } from "../../shared/cvTemplateDefaults/modern.defaults";
 import { tabellarischAtsColor } from "../../shared/cvTemplateDefaults/tabellarisch.defaults";
 import { createResumePagePlan } from "../../shared/documentPagination";
+import { nativeEntryRolePt } from "../../shared/resumePaginationGeometry";
 import { applyGlobalResumeDesign } from "../../shared/resumeDesignSystem";
 import { createDocumentDesignDraft } from "../../shared/documentEditorState";
 import { applyResumeSpacingPreset } from "../../shared/resumeSpacing";
@@ -586,19 +587,20 @@ describe("entry roles of the Lebenslauf-Design (Werdegang, Bildungsweg, Projekte
       expect(renderCv(id, roleProfile).resolved.design.typography.projectTechnologiesSizePt).toBe(resolveTemplateCvDesign(id).typography.projectTechnologiesSizePt);
     });
 
-    it("lets dates and places follow a chosen Sekundärtext and project texts a chosen Lesetext until they have values of their own", () => {
+    it("lets dates and places follow a chosen Sekundärtext and the entry texts a chosen Lesetext until they have values of their own", () => {
       const native = resolveTemplateCvDesign(id).typography;
-      const follows = (size: number) => `${Math.round(size * 12 / native.bodySizePt * 100) / 100}pt`;
+      // Every text grows from the size the template draws it in (Projekte / Hobbys have their own), the title keeps it.
+      const drawn = (role: ResumeTextRole, node: Element) => nativeEntryRolePt(id, false, role, Boolean(node.closest("[data-custom-template]")), native);
+      const pt = (value: number) => `${Math.round(value * 100) / 100}pt`;
       const inherited = renderCv(id, roleProfile, { overrides: { cvOverrides: { colors: { muted: "#178EDE" }, typography: { bodySizePt: 12 } } } as never });
       for (const pages of [inherited.previewPages, inherited.pdfPages]) {
         for (const node of [...roleNodes(pages, "period"), ...roleNodes(pages, "location")]) expect(declared(node, "color"), node.outerHTML).toBe("#178EDE");
-        const descriptions = roleNodes(pages, "description");
-        expect(descriptions.length).toBeGreaterThan(0);
-        for (const node of descriptions) expect(declared(node, "font-size"), node.outerHTML).toBe(follows(native.projectDescriptionSizePt));
-        for (const node of roleNodes(pages, "technologies")) expect(declared(node, "font-size"), node.outerHTML).toBe(follows(native.projectTechnologiesSizePt));
-        // Titles and organisations keep what the template draws.
-        for (const role of ["entry-title", "organization"] as const)
-          for (const node of roleNodes(pages, role)) expect(node.getAttribute("style") ?? "", node.outerHTML).not.toContain("!important");
+        expect(roleNodes(pages, "description").length).toBeGreaterThan(0);
+        for (const role of ["period", "location", "organization", "description", "technologies"] as const)
+          for (const node of roleNodes(pages, role)) expect(declared(node, "font-size"), `${role}: ${node.outerHTML}`).toBe(pt(drawn(role, node) * 12 / native.bodySizePt));
+        for (const node of roleNodes(pages, "entry-title")) expect(declared(node, "font-size"), node.outerHTML).toBe(pt(drawn("entry-title", node)));
+        // The organisation keeps its colour.
+        for (const node of roleNodes(pages, "organization")) expect(declared(node, "color"), node.outerHTML).toBeUndefined();
       }
       const own = renderCv(id, roleProfile, { overrides: { cvOverrides: {
         colors: { muted: "#178EDE", date: "#B4232C" }, typography: { bodySizePt: 12, projectDescriptionSizePt: 9 },
