@@ -6,7 +6,7 @@ import { createServer } from 'vite';
 // Projektbeschreibung): every active template as preview and as PDF, visual and plain (ATS), natively and with the
 // Lebenslauf-Design overrides of scripts/check-entry-role-qa.cjs. The checker measures the computed colour and size of every
 // `[data-cv-role]` text in Chromium, preview against PDF, and the pages for text beyond the sheet and overlapping lines.
-//   [ONLY=<id,id>] [VARIANTS=native,roles,accent,date,organization,location,technologies,description,large,small] node scripts/entry-role-qa.mjs && node node_modules/electron/cli.js scripts/check-entry-role-qa.cjs
+//   [ONLY=<id,id>] [VARIANTS=native,roles,accent,date,organization,location,technologies,description,body,general,large,small] node scripts/entry-role-qa.mjs && node node_modules/electron/cli.js scripts/check-entry-role-qa.cjs
 const out = resolve('tmp/entry-role-qa');
 await mkdir(out, { recursive: true });
 const vite = await createServer({ configFile: false, root: process.cwd(), appType: 'custom', logLevel: 'error', esbuild: { jsx: 'automatic' }, server: { middlewareMode: true } });
@@ -77,6 +77,10 @@ try {
     location: { colors: { location: '#2347A8' }, typography: { locationSizePt: 11 } },
     technologies: { typography: { projectTechnologiesSizePt: 11 } },
     description: { typography: { projectDescriptionSizePt: 11.5 } },
+    // The existing Lesetext and Zeilenhöhe reach the role texts alike on both surfaces; a description follows the Lesetext.
+    body: { typography: { bodySizePt: 12, lineHeight: 1.4 } },
+    // The general colours (visual and ATS alike): dates and places follow the Sekundärtext, descriptions the Absatztext.
+    general: { colors: { text: '#5A1E1E', muted: '#178EDE', paragraph: '#202020' } },
     large: { typography: { entryHeadingSizePt: 15, dateSizePt: 12, organizationSizePt: 13, locationSizePt: 12, projectTechnologiesSizePt: 12, projectDescriptionSizePt: 12 } },
     small: { typography: { entryHeadingSizePt: 8, dateSizePt: 6.5, organizationSizePt: 7, locationSizePt: 6.5, projectTechnologiesSizePt: 6.5, projectDescriptionSizePt: 7 } },
   };
@@ -101,7 +105,7 @@ try {
       const file = `${id}-${variant}${dense ? '-dense' : ''}-${ats ? 'ats' : 'vis'}`;
       await writeFile(resolve(out, `${file}-preview.html`), `<!doctype html><html><head><meta charset="utf-8"><style>${preflight}${appCss}${resumeTemplateStyleSources[id]} body{margin:0;background:white}</style></head><body>${pages.map(paper).join('')}</body></html>`);
       await writeFile(resolve(out, `${file}-pdf.html`), buildDocumentHtml(application, profile, 'lebenslauf'));
-      manifest.push({ file, id, variant, dense, ats, pages: resolved.pagePlan.length, overrides: cvOverrides ?? null, colors: resolved.design.colors,
+      manifest.push({ file, id, variant, dense, ats, pages: resolved.pagePlan.length, overrides: cvOverrides ?? null, colors: resolved.design.colors, typography: resolved.design.typography, employer: resolved.zweispaltigVariables?.['--zweispaltig-employer'] ?? null,
         planned: resolved.pagePlan.flatMap((page) => page.items.map((item) => ({ page: page.pageNumber, kind: item.kind, id: item.id, weight: item.weight }))) });
     }
   }

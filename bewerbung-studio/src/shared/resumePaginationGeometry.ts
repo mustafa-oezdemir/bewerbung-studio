@@ -292,8 +292,9 @@ const geometry: Record<string, PaginationGeometry> = {
     limit: 287,
     sideTop1: 120.2,
     sideLimit: 285,
-    atsTop1: 57.9,
-    atsTop2: 45.1,
+    // The plain layout starts its first section 3.2 mm lower (stacked header) and later pages 4 mm higher (10 mm top padding).
+    atsTop1: 61.1,
+    atsTop2: 41.1,
     mainLeft: 63,
     mainRight: 210,
     contentLeft: 73,
@@ -305,7 +306,8 @@ const geometry: Record<string, PaginationGeometry> = {
     items: {strengths: {w: 43.5, font: 3.104, pitch: 4.04, pad: 0.99, cw: 0.53, cols: 1, head: 11, gap: 3}, knowledge: {w: 43.5, font: 3.104, pitch: 4.04, pad: -0.01, cw: 0.45, cols: 1, head: 16.7, gap: 2}},
     certs: {home: "last", zone: "main", base: 11.5, perItem: 4.38, w: 123.0, font: 3.25, pitch: 3.9},
     derivedStrengths: {visual: "first", ats: "never"},
-    ats: {exp: 1.0, edu: 1.0, head: 17.5, knowledge: {head: 12, title: 5.53, gap: 3, pitch: 3.9, font: 3.25, w: 178, tail: 0}, languages: [17, 4.4], certs: {base: 17, perItem: 4.4}, summaryW: 178, density: {compact: 0.93, dense: 0.93}},
+    // The plain layout draws its section titles without the icon box: 9.44 mm from the section top to its content (measured).
+    ats: {exp: 1.0, edu: 1.0, head: 9.45, knowledge: {head: 9.45, title: 5.53, gap: 3, pitch: 3.9, font: 3.25, w: 178, tail: 0}, languages: [9, 4.4], certs: {base: 9, perItem: 4.4}, summaryW: 178, density: {compact: 0.93, dense: 0.93}},
     density: {compact: 0.89, dense: 0.89},
   },
   "pehlione_white": {
@@ -321,8 +323,9 @@ const geometry: Record<string, PaginationGeometry> = {
     limit: 287,
     sideTop1: 120.2,
     sideLimit: 285,
-    atsTop1: 57.9,
-    atsTop2: 45.1,
+    // The plain layout starts its first section 3.2 mm lower (stacked header) and later pages 4 mm higher (10 mm top padding).
+    atsTop1: 61.1,
+    atsTop2: 41.1,
     mainLeft: 63,
     mainRight: 210,
     contentLeft: 73,
@@ -334,7 +337,8 @@ const geometry: Record<string, PaginationGeometry> = {
     items: {strengths: {w: 43.3, font: 3.104, pitch: 4.04, pad: 0.99, cw: 0.53, cols: 1, head: 10, gap: 3}, knowledge: {w: 43.3, font: 3.104, pitch: 4.04, pad: -0.01, cw: 0.48, cols: 1, head: 16.4, gap: 2}},
     certs: {home: "last", zone: "main", base: 11.5, perItem: 4.38, w: 123.0, font: 3.25, pitch: 3.9},
     derivedStrengths: {visual: "first", ats: "never"},
-    ats: {exp: 1.0, edu: 1.0, head: 17.5, knowledge: {head: 12, title: 5.53, gap: 3, pitch: 3.9, font: 3.25, w: 178, tail: 0}, languages: [17, 4.4], certs: {base: 17, perItem: 4.4}, summaryW: 178, density: {compact: 0.93, dense: 0.93}},
+    // The plain layout draws its section titles without the icon box: 9.44 mm from the section top to its content (measured).
+    ats: {exp: 1.0, edu: 1.0, head: 9.45, knowledge: {head: 9.45, title: 5.53, gap: 3, pitch: 3.9, font: 3.25, w: 178, tail: 0}, languages: [9, 4.4], certs: {base: 9, perItem: 4.4}, summaryW: 178, density: {compact: 0.93, dense: 0.93}},
     density: {compact: 0.89, dense: 0.89},
   },
   "modern": {
@@ -372,7 +376,6 @@ const geometry: Record<string, PaginationGeometry> = {
     atsEntryHead: { rows: [[["entry-title"]], [["organization"]], [[["period", "location"]]]], lineRatio: { "entry-title": 1.2, organization: 1.2, period: 1.2, location: 1.2 }, inline: ["period", "location"] },
     // The head of a career entry (rows, cells, lines) for the entry-role sizes, measured line heights.
     entryHead: { rows: [[["entry-title", "organization"], ["period", "location"]]], lineRatio: { "entry-title": 1.2, organization: 1.2, period: 1.2, location: 1.2 } },
-    customRolePt: { period: 10.5, location: 10.5 },
     sidebarLeft: false,
     zones: {summary: "sidebar", strengths: "sidebar", knowledge: "sidebar", languages: "sidebar"},
     top1: 57,
@@ -468,7 +471,7 @@ const geometry: Record<string, PaginationGeometry> = {
     columns: 2,
     // The head of a career entry (rows, cells, lines) for the entry-role sizes, measured line heights.
     entryHead: sideBySideEntryHead({ "entry-title": 1.26, organization: 1.26, period: 1.26, location: 1.26 }),
-    customRolePt: { organization: 9.5, period: 7.8, location: 7.8 },
+    customRolePt: { organization: 9.5 },
     customEntryChrome: kreativDefaults.layout.entryDividerGapMm + 0.25,
     sidebarLeft: false,
     zones: {summary: "sidebar", strengths: "sidebar", knowledge: "sidebar", languages: "sidebar"},
@@ -501,7 +504,7 @@ const geometry: Record<string, PaginationGeometry> = {
     atsRolePt: { "entry-title": 11.5, organization: 9.8, period: 8.8, location: 8.8 },
     // The head of a career entry (rows, cells, lines) for the entry-role sizes, measured line heights.
     entryHead: sideBySideEntryHead({ "entry-title": 1.3, organization: 1.3, period: 1.3, location: 1.3 }),
-    customRolePt: { organization: 9.8 },
+    customRolePt: { "entry-title": 12, organization: 9.8, period: 8.8, location: 8.8 },
     safety: 1,
     sidebarLeft: true,
     zones: {summary: "sidebar", strengths: "sidebar", knowledge: "sidebar", languages: "sidebar"},
@@ -828,7 +831,6 @@ geometry["tuerkis-profil"] = {
   entryHead: sideBySideEntryHead({ "entry-title": 1.18, organization: 1.18, period: 1.2, location: 1.2 }),
   // The plain layout is Zweispaltig's: title, organisation, then period and place in one line.
   atsEntryHead: geometry.zweispaltig.entryHead,
-  customRolePt: { "entry-title": 11.5, organization: 9.5, period: 7.8, location: 7.8 },
   // Career entries are 3.5 mm apart; their 2 mm padding is part of every entry (no divider): no chrome between them. The
   // entries of a special section keep Zweispaltig's rule (3 mm padding + dashed divider). Section title 6.33 mm + 2.5 mm
   // margin (14 pt, measured).
@@ -864,7 +866,9 @@ export const tabellarischAtsPaginationGeometry: PaginationGeometry = {
   safety: undefined,
   reserveMm: undefined,
   timeline: undefined,
-  atsRolePt: { "entry-title": 11, period: 8.3, location: 8.3 },
+  // The plain titles keep the visual size (12 pt, preview = PDF); period and place are 8.3 pt, in Projekte / Hobbys too.
+  atsRolePt: { period: 8.3, location: 8.3 },
+  customRolePt: { period: 8.3, location: 8.3 },
   // Title, organisation, then period and place in one line.
   entryHead: { rows: [[["entry-title"]], [["organization"]], [[["period", "location"]]]], lineRatio: { "entry-title": 1.15, organization: 1.2, period: 1.2, location: 1.2 }, inline: ["period", "location"] },
 };

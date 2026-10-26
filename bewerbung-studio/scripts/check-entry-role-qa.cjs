@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 // Measures the fixtures of scripts/entry-role-qa.mjs in Chromium (the PDF HTML is the markup printToPDF prints):
-//  - native: every role text of a template looks the same in the preview and the PDF (colour, size, weight), and the typed
+//  - native: every role text of a template looks the same in the preview and the PDF (colour, size, weight, font), and the typed
 //    native design names what the PDF draws (tmp/entry-role-qa/native.json lists the measured values)
 //  - roles: every overridden role reaches every one of its texts on both surfaces, and nothing else changes colour or size
 //  - every page: no text beyond the sheet, no overlapping text lines (also with the large and small sizes), the same page
@@ -40,8 +40,8 @@ const probe = () => {
       const text = (node.textContent || '').replace(/\s+/g, ' ').trim();
       if (!text) continue;
       const link = node.querySelector('a');
-      roles.push({ page: index + 1, role: node.getAttribute('data-cv-role'), kind: kindOf(node), text: text.slice(0, 48),
-        color: hex(style.color), size: pt(style.fontSize), weight: Number(style.fontWeight),
+      roles.push({ page: index + 1, role: node.getAttribute('data-cv-role'), kind: kindOf(node), text: text.slice(0, 48), employer: node.hasAttribute('data-cv-employer'),
+        color: hex(style.color), size: pt(style.fontSize), weight: Number(style.fontWeight), family: style.fontFamily,
         lineRatio: style.lineHeight === 'normal' ? 'normal' : Math.round(parseFloat(style.lineHeight) / parseFloat(style.fontSize) * 100) / 100,
         ...(link ? { linkColor: hex(getComputedStyle(link).color) } : {}) });
     }
@@ -123,6 +123,7 @@ app.whenReady().then(async () => {
   const native = {};
   const roleToken = { 'entry-title': ['entryHeading', 'entryHeadingSizePt'], period: ['date', 'dateSizePt'], organization: ['organization', 'organizationSizePt'],
     location: ['location', 'locationSizePt'], technologies: ['accent', 'projectTechnologiesSizePt'], description: ['paragraph', 'projectDescriptionSizePt'] };
+  const fallback = { colors: { date: 'muted', location: 'muted' }, typography: { projectDescriptionSizePt: 'bodySizePt' } };
   for (const entry of manifest) {
     const preview = measured[`${entry.file}|preview`];
     const pdf = measured[`${entry.file}|pdf`];
@@ -137,8 +138,8 @@ app.whenReady().then(async () => {
     for (const item of preview.roles) {
       const twin = pdfByText.get(`${key(item)}|${item.text}`);
       if (!twin) continue;
-      check(entry.file, `preview = pdf ${key(item)}`, twin.color === item.color && Math.abs(twin.size - item.size) <= 0.1 && twin.weight === item.weight,
-        { text: item.text, preview: [item.color, item.size, item.weight], pdf: [twin.color, twin.size, twin.weight] });
+      check(entry.file, `preview = pdf ${key(item)}`, twin.color === item.color && Math.abs(twin.size - item.size) <= 0.1 && twin.weight === item.weight && twin.family === item.family,
+        { text: item.text, preview: [item.color, item.size, item.weight, item.family], pdf: [twin.color, twin.size, twin.weight, twin.family] });
     }
     if (!entry.overrides) continue;
     // Every overridden role reaches every text of that role on both surfaces.
@@ -146,17 +147,24 @@ app.whenReady().then(async () => {
       const result = measured[`${entry.file}|${surface}`];
       for (const item of result.roles) {
         const [colorKey, sizeKey] = roleToken[item.role];
-        const color = entry.overrides.colors?.[colorKey];
-        const size = entry.overrides.typography?.[sizeKey];
+        // A role without an own value follows its general value (resumeTextRoleFallbacks): the resolved design names it.
+        const chosen = (group, name) => entry.overrides[group]?.[name] !== undefined || entry.overrides[group]?.[fallback[group][name]] !== undefined;
+        const color = chosen('colors', colorKey) ? entry.colors[colorKey] : undefined;
+        const size = chosen('typography', sizeKey) ? entry.typography[sizeKey] : undefined;
         if (color) check(`${entry.file}|${surface}`, `${key(item)} colour`, item.color === color.toUpperCase(), { text: item.text, got: item.color, want: color });
         if (size !== undefined) check(`${entry.file}|${surface}`, `${key(item)} size`, Math.abs(item.size - size) <= 0.05, { text: item.text, got: item.size, want: size });
       }
-      // Changing Hervorhebungsfarbe leaves every organisation at its own resolved native colour.
-      if (entry.variant === 'accent') for (const item of result.roles) {
-        if (item.role !== 'organization' || !['experience', 'education'].includes(item.kind)) continue;
-        check(`${entry.file}|${surface}`, `${key(item)} independent colour`, item.color === entry.colors.organization.toUpperCase(), { text: item.text, got: item.color, want: entry.colors.organization });
-      }
       const base = measured[`${entry.file.replace(entry.variant, 'native')}|${surface}`];
+      // Changing Hervorhebungsfarbe leaves every organisation at the colour it has natively (in this mode and section).
+      if (entry.variant === 'accent' && base) {
+        const nativeColor = new Map(base.roles.map((item) => [`${key(item)}|${item.text}`, item.color]));
+        for (const item of result.roles) {
+          if (item.role !== 'organization' || !['experience', 'education'].includes(item.kind)) continue;
+          // Zweispaltig's Arbeitgebernamen keep their own chain (the card above the panel shows its colour).
+          const want = entry.id === 'zweispaltig' && item.employer ? entry.employer : nativeColor.get(`${key(item)}|${item.text}`);
+          if (want) check(`${entry.file}|${surface}`, `${key(item)} independent colour`, item.color === want.toUpperCase(), { text: item.text, got: item.color, want });
+        }
+      }
       // One role changed: every other role keeps its native colour and size.
       const single = { date: 'period', organization: 'organization', location: 'location', technologies: 'technologies', description: 'description' }[entry.variant];
       if (single && base && base.pages === result.pages) {
@@ -180,7 +188,7 @@ app.whenReady().then(async () => {
   }
   fs.writeFileSync(path.join(dir, 'native.json'), JSON.stringify(native, null, 2));
   fs.writeFileSync(path.join(dir, 'failures.json'), JSON.stringify(failures, null, 2));
-  fs.writeFileSync(path.join(dir, 'measured.json'), JSON.stringify(Object.fromEntries(Object.entries(measured).map(([name, value]) => [name, { pages: value.pages, heads: value.heads }]))));
+  fs.writeFileSync(path.join(dir, 'measured.json'), JSON.stringify(Object.fromEntries(Object.entries(measured).map(([name, value]) => [name, { pages: value.pages, heads: value.heads, roles: value.roles.map(({ role, kind, size, color }) => ({ role, kind, size, color })) }]))));
   const grouped = {};
   for (const failure of failures) (grouped[`${failure.name}`] ??= []).push(failure);
   console.log(JSON.stringify({ fixtures: manifest.length, checks, failures: failures.length,

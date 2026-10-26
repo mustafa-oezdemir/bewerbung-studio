@@ -235,8 +235,10 @@ export const gepflegtResolvedCss = [
   // Special sections (projects, interests): the shared renderer uses h3 in the preview and h4 in the PDF; both take the
   // central entry title and small text sizes.
   `.gepflegt-page .resume-special-output__entry :is(h3,h4),.gepflegt-pdf .resume-special-output__entry :is(h3,h4){font-size:var(--gepflegt-entry-title-size);line-height:1.15}`,
-  `.gepflegt-page [data-custom-template="gepflegt"] .resume-special-output__meta,.gepflegt-pdf [data-custom-template="gepflegt"] .resume-special-output__meta{font-size:8.8pt;line-height:var(--gepflegt-line-height)}`,
+  `.gepflegt-page [data-custom-template="gepflegt"] .resume-special-output__meta,.gepflegt-pdf [data-custom-template="gepflegt"] .resume-special-output__meta{font-size:calc(var(--gepflegt-body-size, 11pt) * .8);line-height:var(--gepflegt-line-height)}`,
   `.gepflegt-page--ats .gepflegt-entry__heading h3{font-size:11.5pt}`,
+  // The plain sheet sets its text and entry titles in Arial like the PDF; section titles and the name keep their font.
+  `.gepflegt-page--ats{font-family:Arial,sans-serif}.gepflegt-page--ats [data-cv-role="entry-title"]{font-family:inherit}`,
   `.gepflegt-page--ats :is(.gepflegt-entry__heading,.gepflegt-entry__subheading) span{font-size:8.8pt}`,
   // The preview stacks the special sections in a wrapper of their own; they keep the column's section gap like in the PDF.
   `.gepflegt-page:not(.gepflegt-page--ats) .gepflegt-main>.resume-special-output-list{gap:var(--gepflegt-section-gap)}`,

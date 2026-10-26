@@ -642,6 +642,8 @@
   --tabellarisch-primary: #222b30;
   --tabellarisch-accent: #222b30;
   --tabellarisch-line: #cfd4d7;
+  /* The plain text is set in Arial like the PDF; the headings keep their own font. */
+  font-family: Arial, sans-serif;
 }
 
 .tabellarisch-template[data-ats-mode="true"] .tabellarisch-page__content {

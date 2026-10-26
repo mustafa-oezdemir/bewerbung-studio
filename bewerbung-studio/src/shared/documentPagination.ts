@@ -2018,10 +2018,8 @@ const planResumePages = (
     : templateId === "stilvoll" && !context.atsMode
       ? Math.max(0, scale.marginInset) : 2 * scale.marginInset;
 
-  // Electron's full ATS font load leaves less usable height in Pehlione than the visual density estimate.
-  const mainSafety = context.atsMode && templateId?.startsWith("pehlione_") ? 0.9 : (geometry.safety ?? SAFETY);
-  const mainCap1 = (geometry.limit - top1 - verticalInset - (geometry.reserveMm ?? 0)) * mainSafety;
-  const mainCap2 = (geometry.limit - top2 - verticalInset - (geometry.reserveMm ?? 0)) * mainSafety;
+  const mainCap1 = (geometry.limit - top1 - verticalInset - (geometry.reserveMm ?? 0)) * (geometry.safety ?? SAFETY);
+  const mainCap2 = (geometry.limit - top2 - verticalInset - (geometry.reserveMm ?? 0)) * (geometry.safety ?? SAFETY);
   // Where the first sidebar block starts depends on how many contact entries (and wrapped values) precede it.
   const sidebarHero = zoneFlow && hasSidebarHero(templateId);
   const contactItems = sidebarHero && find("personalData")?.visible !== false ? getPehlioneContacts(profile) : [];
