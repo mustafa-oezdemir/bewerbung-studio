@@ -6000,6 +6000,36 @@ body.is-resizing-split-view * {
 .custom-design-panel > p { margin: 0; padding: 0 12px 12px; color: var(--muted); font-size: .66rem; }
 @container (max-width: 520px) { .custom-design-library { grid-template-columns: 1fr; } }
 
+.design-template-section,
+.design-detail-section {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+}
+.design-template-section > summary,
+.design-detail-section > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.design-template-section > summary::-webkit-details-marker,
+.design-detail-section > summary::-webkit-details-marker { display: none; }
+.design-template-section > summary > svg,
+.design-detail-section > summary > svg { flex: 0 0 auto; color: var(--brand); transition: transform .15s ease; }
+.design-template-section[open] > summary > svg,
+.design-detail-section[open] > summary > svg { transform: rotate(90deg); }
+.design-template-section > summary > span,
+.design-detail-section > summary > span { display: grid; gap: 2px; }
+.design-template-section > summary strong,
+.design-detail-section > summary strong { color: var(--ink); font-size: .7rem; }
+.design-template-section > summary small { color: var(--muted); font-size: .58rem; }
+.design-template-section > .compact-template-grid { padding: 0 12px 12px; }
+.design-detail-section__body { display: grid; gap: 12px; padding: 0 12px 12px; }
+
 /* ToDo and actionable notifications */
 .notification-menu { position: relative; }
 .notification-menu .icon-button { position: relative; }

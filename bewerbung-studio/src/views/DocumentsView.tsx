@@ -473,7 +473,7 @@ export function DocumentsView({
   const saveCustomCvDesign = useAppStore((state) => state.saveCustomCvDesign);
   const removeCustomCvDesign = useAppStore((state) => state.removeCustomCvDesign);
   const [tab, setTab] = useState<Tab>(initialTab);
-  const [designPanelOpen, setDesignPanelOpen] = useState(false);
+  const [designPanelOpen, setDesignPanelOpen] = useState(true);
   const [documentSaveStatus, setDocumentSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [documentSaveError, setDocumentSaveError] = useState("");
   const [customDesignId, setCustomDesignId] = useState<string>();
@@ -615,7 +615,7 @@ export function DocumentsView({
   useEffect(() => {
     setDocumentSaveStatus("idle");
     setDocumentSaveError("");
-    setDesignPanelOpen(false);
+    setDesignPanelOpen(true);
   }, [application?.id]);
   useEffect(() => {
     if (!application || application.id === designDraft.applicationId) return;
@@ -2086,7 +2086,12 @@ export function DocumentsView({
                       </div>
                       <p>Gespeichert werden Layout, Farben, Schriften, Abstände, Sichtbarkeit, Reihenfolge sowie Foto- und Kopfbereich.</p>
                     </details>
-                    <div className="compact-template-grid">
+                    <details className="design-template-section">
+                      <summary>
+                        <ChevronRight size={15} aria-hidden="true" />
+                        <span><strong>Muster auswählen</strong><small>Aktuell: {template.name}</small></span>
+                      </summary>
+                      <div className="compact-template-grid">
                       {templates.map((item) => (
                         <button
                           className={item.id === template.id ? "selected" : ""}
@@ -2113,7 +2118,8 @@ export function DocumentsView({
                           <span>{item.name}</span>
                         </button>
                       ))}
-                    </div>
+                      </div>
+                    </details>
                     <div className="color-preset-row design-preset-row">
                         {colorPresets.map((preset) => (
                           <button
@@ -2137,6 +2143,12 @@ export function DocumentsView({
                           />
                         ))}
                     </div>
+                    <details className="design-detail-section">
+                      <summary>
+                        <ChevronRight size={15} aria-hidden="true" />
+                        <span><strong>Farben, Abstände, Schrift, Spalten und Hintergrund</strong></span>
+                      </summary>
+                      <div className="design-detail-section__body">
                     <div className="color-card-grid">
                       <ColorCard label={template.id === "zweispaltig" ? "Primärfarbe" : "Akzent"}
                         value={resolvedCv.zweispaltigVariables?.["--zweispaltig-primary"] ?? design.accentColor} contextKey={`${application.id}:${template.id}`}
@@ -2547,6 +2559,8 @@ export function DocumentsView({
                       onClick={resetAllDesignSettings}>
                       Auf Standard zurücksetzen
                     </button>
+                      </div>
+                    </details>
                   </section>
                   {profile ? (
                     <div className="resume-profile-context" role="status">

@@ -98,15 +98,20 @@
 .tuerkis-profil-template .tuerkis-profil-hero [data-managed-section="summary"] [data-cv-heading],
 .cv-sheet[data-template="tuerkis-profil"] .tuerkis-profil-hero [data-managed-section="summary"] [data-cv-heading] {
   margin: 0 0 2mm !important;
-  padding: 0 0 1.5mm !important;
+  padding: 0 !important;
   padding-block-start: 0 !important;
-  padding-block-end: 1.5mm !important;
+  padding-block-end: 0 !important;
   border: 0 !important;
-  border-bottom: .35mm solid #fff !important;
   color: #fff !important;
   font-size: 9pt !important;
   line-height: 1 !important;
   letter-spacing: .16em;
+}
+.tuerkis-profil-template .tuerkis-profil-hero [data-managed-section="summary"] .cv-heading__label,
+.cv-sheet[data-template="tuerkis-profil"] .tuerkis-profil-hero [data-managed-section="summary"] .cv-heading__label {
+  padding-bottom: 1.5mm !important;
+  border-bottom-color: #fff !important;
+  border-bottom-width: .35mm !important;
 }
 .tuerkis-profil-template .tuerkis-profil-hero p,
 .cv-sheet[data-template="tuerkis-profil"] .tuerkis-profil-hero p {

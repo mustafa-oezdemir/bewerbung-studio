@@ -85,7 +85,15 @@ describe("Zweispaltig Lebenslauf preview and PDF", () => {
           events: [], attachments: [], todos: [], customCvDesigns: [], settings: defaultSettings, updatedAt: now } };
         const previewDocument = parseHTML(renderToStaticMarkup(createElement(DocumentsView, { initialTab: "lebenslauf" }))).document;
         const preview = previewDocument.querySelector<HTMLElement>(".zweispaltig-template");
-        expect(previewDocument.querySelector('.design-panel-trigger')?.getAttribute('aria-expanded')).toBe('false');
+        expect(previewDocument.querySelector('.design-panel-trigger')?.getAttribute('aria-expanded')).toBe('true');
+        expect(previewDocument.querySelector('.document-design-panel.collapsed')).toBeNull();
+        expect(previewDocument.querySelector('.design-template-section')?.hasAttribute('open')).toBe(false);
+        expect(previewDocument.querySelector('.design-template-section summary')?.textContent).toContain('Aktuell: Zweispaltig');
+        expect(previewDocument.querySelector('.design-template-section .compact-template-grid')).not.toBeNull();
+        expect(previewDocument.querySelector('.design-detail-section')?.hasAttribute('open')).toBe(false);
+        expect(previewDocument.querySelector('.design-detail-section summary')?.textContent).toContain('Farben, Abstände, Schrift, Spalten und Hintergrund');
+        expect(previewDocument.querySelector('.design-detail-section .rds')).not.toBeNull();
+        expect(previewDocument.querySelector('.document-design-panel > .color-preset-row')).not.toBeNull();
         expect(previewDocument.querySelector('details[open]')).toBeNull();
         expect(previewDocument.querySelector('input[aria-label="Primärfarbe"]')?.getAttribute('value')).toBe(primary);
         expect(previewDocument.querySelector('input[aria-label="Arbeitgebernamen"]')?.getAttribute('value')).toBe(secondary);
