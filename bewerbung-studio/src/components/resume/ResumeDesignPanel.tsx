@@ -254,14 +254,14 @@ const entrySizeFields = [
 ] as const;
 const sizeNotes: Partial<Record<string, string>> = {
   entryHeadingSizePt: "Positionen, Abschlüsse, Projekt- und Hobbytitel.",
-  projectTechnologiesSizePt: "Die Technologiezeile unter einem Projekttitel.",
-  projectDescriptionSizePt: "Der Beschreibungstext eines Projekts.",
+  projectTechnologiesSizePt: "Die Technologiezeile unter einem Projekttitel. Ohne eigenen Wert folgt sie dem Lesetext.",
+  projectDescriptionSizePt: "Der Beschreibungstext eines Projekts. Ohne eigenen Wert folgt er dem Lesetext.",
 };
 const colorNotes: Partial<Record<string, string>> = {
   entryHeading: "Positionen, Abschlüsse, Projekt- und Hobbytitel; ein Projektlink folgt dieser Farbe.",
-  date: "Zeiträume im Werdegang, im Bildungsweg und bei Hobbys. Ohne eigenen Wert zeichnet die Vorlage sie selbst; eine gewählte Sekundärtextfarbe kann sie mitfärben.",
-  organization: "Unternehmen und Einrichtungen in Werdegang, Bildungsweg und Hobbys. Ohne eigenen Wert zeichnet die Vorlage sie selbst, auch in einer gewählten Hervorhebungsfarbe.",
-  location: "Orte im Werdegang, im Bildungsweg und bei Hobbys. Ohne eigenen Wert zeichnet die Vorlage sie selbst; eine gewählte Sekundärtextfarbe kann sie mitfärben.",
+  date: "Zeiträume im Werdegang, im Bildungsweg und bei Hobbys. Ohne eigenen Wert folgen sie einer gewählten Sekundärtextfarbe, sonst zeichnet die Vorlage sie selbst.",
+  organization: "Unternehmen und Einrichtungen in Werdegang, Bildungsweg und Hobbys. Ohne eigenen Wert behalten sie die Farbe der Vorlage, auch wenn sich die Hervorhebungsfarbe ändert.",
+  location: "Orte im Werdegang, im Bildungsweg und bei Hobbys. Ohne eigenen Wert folgen sie einer gewählten Sekundärtextfarbe, sonst zeichnet die Vorlage sie selbst.",
   accent: "Färbt auch die Technologiezeile der Projekte.",
 };
 const weightFields = [
@@ -385,7 +385,7 @@ export function ResumeDesignPanel({ documentId = "", templateId, templateName, s
                 ? <small className="resume-sections-warning" role="status">Diese Textfarbe erreicht zum Seitenhintergrund weniger als 4,5:1 Kontrast. Ihre Auswahl bleibt erhalten.</small> : null}
               {key === "surface" ? <small className="rds-field__note">Färbt einzelne Projektkarten und Inhaltskarten, nicht die Arbeitgebernamen. Ohne eigene Textfarbe wird die Schrift für mindestens 4,5:1 Kontrast angepasst.</small> : null}
               {colorNotes[key] ? <small className="rds-field__note">{colorNotes[key]}{key === "organization" && templateId === "zweispaltig"
-                ? " Die Arbeitgebernamen oben gelten zuerst für den beruflichen Werdegang." : ""}</small> : null}
+                ? " Die Arbeitgebernamen im beruflichen Werdegang folgen zuerst der Arbeitgeberfarbe oben; die Hervorhebungsfarbe färbt sie nicht." : ""}</small> : null}
             </ColorCard>;
           })}
         </div>

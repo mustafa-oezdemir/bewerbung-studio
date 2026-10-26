@@ -5,6 +5,10 @@ import { describe, expect, it } from "vitest";
 import { buildDocumentHtml } from "../../../electron/documents";
 import { getTemplateDocumentDesignDefaults, resolveTemplateCvDesign } from "../../shared/cvDesign";
 import type { ResumeDesignLayer } from "../../shared/cvDesignSchema";
+import { ivyLeagueAtsColors } from "../../shared/cvTemplateDefaults/ivy-league.defaults";
+import { klassischDefaults } from "../../shared/cvTemplateDefaults/klassisch.defaults";
+import { modernAtsColors } from "../../shared/cvTemplateDefaults/modern.defaults";
+import { tabellarischAtsColor } from "../../shared/cvTemplateDefaults/tabellarisch.defaults";
 import { createResumePagePlan } from "../../shared/documentPagination";
 import { applyGlobalResumeDesign } from "../../shared/resumeDesignSystem";
 import { createDocumentDesignDraft } from "../../shared/documentEditorState";
@@ -551,11 +555,58 @@ describe("entry roles of the Lebenslauf-Design (Werdegang, Bildungsweg, Projekte
         for (const other of resumeTextRoles.filter((candidate) => candidate !== role))
           for (const node of roleNodes(pages, other)) {
             if (role === "technologies" && other === "organization") {
-              expect(declared(node, "color"), node.outerHTML).toBe(resolveTemplateCvDesign(id).colors.organization);
+              // Zweispaltig's (and Türkis Profil's) Arbeitgebernamen keep their own chain; every other organisation keeps its
+              // colour (Klassisch draws the Bildungsweg's in its text colour).
+              expect(declared(node, "color"), node.outerHTML).toBe(["zweispaltig", "tuerkis-profil"].includes(id) && node.hasAttribute("data-cv-employer")
+                ? undefined : id === "klassisch" && kindOf(node) === "education" ? klassischDefaults.colors.text : resolveTemplateCvDesign(id).colors.organization);
               continue;
             }
             expect(node.getAttribute("style") ?? "", `${other}: ${node.outerHTML}`).not.toContain("!important");
           }
+      }
+    });
+
+    it("gives the project technologies their design size on both surfaces, also while nothing is chosen", () => {
+      const sizeOf = (node: Element) => {
+        for (let current: Element | null = node; current; current = current.parentElement) {
+          const value = (current as HTMLElement).style?.getPropertyValue("--resume-technologies-size");
+          if (value) return value;
+        }
+        return undefined;
+      };
+      for (const cvOverrides of [undefined, { typography: { bodySizePt: 12 } }, { typography: { projectTechnologiesSizePt: 9.5 } }]) {
+        const result = renderCv(id, roleProfile, cvOverrides ? { overrides: { cvOverrides } as never } : {});
+        const want = `${result.resolved.design.typography.projectTechnologiesSizePt}pt`;
+        for (const pages of [result.previewPages, result.pdfPages]) {
+          const nodes = roleNodes(pages, "technologies").filter((node) => kindOf(node) === "projects");
+          expect(nodes.length).toBeGreaterThan(0);
+          for (const node of nodes) expect(sizeOf(node), node.outerHTML).toBe(want);
+        }
+      }
+      expect(renderCv(id, roleProfile).resolved.design.typography.projectTechnologiesSizePt).toBe(resolveTemplateCvDesign(id).typography.projectTechnologiesSizePt);
+    });
+
+    it("lets dates and places follow a chosen Sekundärtext and project texts a chosen Lesetext until they have values of their own", () => {
+      const native = resolveTemplateCvDesign(id).typography;
+      const follows = (size: number) => `${Math.round(size * 12 / native.bodySizePt * 100) / 100}pt`;
+      const inherited = renderCv(id, roleProfile, { overrides: { cvOverrides: { colors: { muted: "#178EDE" }, typography: { bodySizePt: 12 } } } as never });
+      for (const pages of [inherited.previewPages, inherited.pdfPages]) {
+        for (const node of [...roleNodes(pages, "period"), ...roleNodes(pages, "location")]) expect(declared(node, "color"), node.outerHTML).toBe("#178EDE");
+        const descriptions = roleNodes(pages, "description");
+        expect(descriptions.length).toBeGreaterThan(0);
+        for (const node of descriptions) expect(declared(node, "font-size"), node.outerHTML).toBe(follows(native.projectDescriptionSizePt));
+        for (const node of roleNodes(pages, "technologies")) expect(declared(node, "font-size"), node.outerHTML).toBe(follows(native.projectTechnologiesSizePt));
+        // Titles and organisations keep what the template draws.
+        for (const role of ["entry-title", "organization"] as const)
+          for (const node of roleNodes(pages, role)) expect(node.getAttribute("style") ?? "", node.outerHTML).not.toContain("!important");
+      }
+      const own = renderCv(id, roleProfile, { overrides: { cvOverrides: {
+        colors: { muted: "#178EDE", date: "#B4232C" }, typography: { bodySizePt: 12, projectDescriptionSizePt: 9 },
+      } } as never });
+      for (const pages of [own.previewPages, own.pdfPages]) {
+        expect(new Set(roleNodes(pages, "period").map((node) => declared(node, "color")))).toEqual(new Set(["#B4232C"]));
+        expect(new Set(roleNodes(pages, "location").map((node) => declared(node, "color")))).toEqual(new Set(["#178EDE"]));
+        expect(new Set(roleNodes(pages, "description").map((node) => declared(node, "font-size")))).toEqual(new Set(["9pt"]));
       }
     });
 
@@ -599,6 +650,33 @@ describe("entry roles of the Lebenslauf-Design (Werdegang, Bildungsweg, Projekte
     const general = renderCv("zweispaltig", roleProfile, { overrides: { cvOverrides: { colors: { organization: "#1F6F43" } } } as never });
     expect(general.resolved.zweispaltigVariables?.["--zweispaltig-employer"]).toBe("#1F6F43");
     expect(roleNodes(general.pdfPages, "organization").map((node) => declared(node, "color"))).toEqual(["#1F6F43", "#1F6F43", "#1F6F43"]);
+  });
+
+  it.each([["ivy-league", ivyLeagueAtsColors.primary], ["modern", modernAtsColors.primary], ["tabellarisch", tabellarischAtsColor]])(
+    "keeps %s's plain organisations in their own palette when only the Hervorhebungsfarbe changes", (id, color) => {
+      const result = renderCv(id, roleProfile, { ats: true, overrides: { cvOverrides: { colors: { accent: "#A04A00" } } } as never });
+      for (const pages of [result.previewPages, result.pdfPages]) {
+        const organizations = roleNodes(pages, "organization").filter((node) => ["experience", "education"].includes(kindOf(node)));
+        expect(organizations.length).toBeGreaterThan(0);
+        for (const node of organizations) expect(declared(node, "color"), node.outerHTML).toBe(color);
+      }
+      // The visual layout keeps the organisation token, and an own Unternehmen / Einrichtung wins in both.
+      const visual = renderCv(id, roleProfile, { overrides: { cvOverrides: { colors: { accent: "#A04A00" } } } as never });
+      expect(new Set(roleNodes(visual.pdfPages, "organization").map((node) => declared(node, "color")))).toEqual(new Set([resolveTemplateCvDesign(id).colors.organization]));
+      const own = renderCv(id, roleProfile, { ats: true, overrides: { cvOverrides: { colors: { accent: "#A04A00", organization: "#1F6F43" } } } as never });
+      expect(new Set(roleNodes(own.pdfPages, "organization").map((node) => declared(node, "color")))).toEqual(new Set(["#1F6F43"]));
+    });
+
+  it("keeps Zweispaltig's employers and the other organisations at their colour when only the Hervorhebungsfarbe changes", () => {
+    const result = renderCv("zweispaltig", roleProfile, { overrides: { cvOverrides: { colors: { accent: "#A04A00" } } } as never });
+    // The card above the panel and the employers of the Werdegang show the same colour, which the accent does not reach.
+    expect(result.resolved.zweispaltigVariables?.["--zweispaltig-employer"]).toBe("#58B5F7");
+    for (const pages of [result.previewPages, result.pdfPages]) {
+      const organizations = roleNodes(pages, "organization");
+      for (const node of organizations.filter((item) => item.hasAttribute("data-cv-employer"))) expect(declared(node, "color"), node.outerHTML).toBeUndefined();
+      expect(organizations.filter((node) => !node.hasAttribute("data-cv-employer")).map((node) => declared(node, "color")))
+        .toEqual(["#58B5F7", "#58B5F7"]);
+    }
   });
 
   it("lets a Bewerbung's own Arbeitgeberfarbe win over an inherited global Unternehmen / Einrichtung, and its own one over a global Arbeitgeberfarbe", () => {

@@ -9,6 +9,7 @@ import {
 import {
   defaultSectionDividerWidthMm, resumeAppearanceSchema, type ResolvedResumeAppearance, type ResumeAppearance,
 } from "./resumeAppearance";
+import { resumeTextRoleFallbacks } from "./resumeTextRoles";
 import { resolveTemplateId } from "./templates";
 
 /**
@@ -149,7 +150,16 @@ export const resolveEffectiveDesignTokens = (templateId: string, settings: Docum
     typography.bodySizePt = roundTenth(typography.bodySizePt + fontSizeToPt[settings.fontSize] - fontSizeToPt[defaults.fontSize]);
   if (semantic?.spacing?.sectionTitleGapMm === undefined && settings.resumeAppearance?.sectionHeadingMarginAfterMm !== undefined)
     spacing.sectionTitleGapMm = settings.resumeAppearance.sectionHeadingMarginAfterMm;
-  return { ...design, spacing, typography };
+  // An entry text without a value of its own follows a chosen general value (resumeTextRoleFallbacks); a size keeps
+  // its native ratio to that value, as the template draws it (em).
+  const native = resolveTemplateCvDesign(templateId).typography;
+  for (const [key, from] of Object.entries(resumeTextRoleFallbacks.typography) as [keyof typeof typography, keyof typeof typography][])
+    if (semantic?.typography?.[key] === undefined && semantic?.typography?.[from] !== undefined)
+      (typography[key] as number) = Math.round((native[key] as number) * (typography[from] as number) / (native[from] as number) * 100) / 100;
+  const colors = { ...design.colors };
+  for (const [key, from] of Object.entries(resumeTextRoleFallbacks.colors) as [keyof typeof colors, keyof typeof colors][])
+    if (semantic?.colors?.[key] === undefined && semantic?.colors?.[from] !== undefined) colors[key] = design.colors[from];
+  return { ...design, colors, spacing, typography };
 };
 
 /** Native appearance with the given sparse layers on top; "template" choices and no value both mean native. */

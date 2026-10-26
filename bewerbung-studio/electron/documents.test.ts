@@ -1381,8 +1381,10 @@ describe("Lebenslauf-Dokumente", () => {
     expect(page?.getAttribute("style")).toContain("--zweispaltig-accent:#1DBF2F");
     expect(html).toContain("--zweispaltig-heading:#0B3D86");
     expect(page?.querySelector(".zweispaltig-pdf-entry h4")).toBeTruthy();
-    // Hervorhebungsfarbe must not silently replace the template's employer colour.
-    expect(page?.querySelector(".zweispaltig-pdf-entry-organization")?.getAttribute("style")).toContain("color:#58B5F7");
+    // Hervorhebungsfarbe must not silently replace the template's employer colour: the employer variable (which the
+    // Arbeitgeberfarbe card shows) keeps it, and nothing inline overrides it.
+    expect(page?.getAttribute("style")).toContain("--zweispaltig-employer:#58B5F7");
+    expect(page?.querySelector(".zweispaltig-pdf-entry-organization[data-cv-employer]")?.getAttribute("style") ?? "").not.toContain("color");
   });
 
   it("keeps a sidebar summary in the right Zweispaltig PDF column", () => {

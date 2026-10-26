@@ -117,6 +117,28 @@ describe("Lebenslauf design layers", () => {
     expect(resolveEffectiveDesignTokens("modern", { ...legacy, cvOverrides: { spacing: { pageMarginMm: 9 } } }).spacing.pageMarginMm).toBe(9);
   });
 
+  it.each(templates.map(({ id }) => id))("lets %s's dates and places follow a chosen Sekundärtext and its project texts a chosen Lesetext", (id) => {
+    const native = resolveTemplateCvDesign(id);
+    const tokens = (cvOverrides: Record<string, unknown> | undefined, global?: ResumeDesignLayer) =>
+      resolveResumeDesignView(id, { ...settingsOf(id), cvOverrides } as never, global).effective.tokens;
+    // Without a general value they keep the template's own values.
+    expect(tokens(undefined).colors.date).toBe(native.colors.date);
+    expect(tokens(undefined).typography.projectDescriptionSizePt).toBe(native.typography.projectDescriptionSizePt);
+    const inherited = tokens({ colors: { muted: "#178EDE" }, typography: { bodySizePt: 12 } });
+    expect([inherited.colors.date, inherited.colors.location]).toEqual(["#178EDE", "#178EDE"]);
+    // Description and technologies keep their native ratio to the Lesetext.
+    const ratio = 12 / native.typography.bodySizePt;
+    expect(inherited.typography.projectDescriptionSizePt).toBeCloseTo(native.typography.projectDescriptionSizePt * ratio, 2);
+    expect(inherited.typography.projectTechnologiesSizePt).toBeCloseTo(native.typography.projectTechnologiesSizePt * ratio, 2);
+    // The other entry roles keep their own values.
+    expect(inherited.colors.organization).toBe(native.colors.organization);
+    expect(inherited.typography.dateSizePt).toBe(native.typography.dateSizePt);
+    // An own value wins on any layer, and a shared Sekundärtext reaches a Bewerbung without its own date colour.
+    const own = tokens({ colors: { muted: "#178EDE", date: "#B4232C" }, typography: { bodySizePt: 12, projectDescriptionSizePt: 9 } });
+    expect([own.colors.date, own.colors.location, own.typography.projectDescriptionSizePt]).toEqual(["#B4232C", "#178EDE", 9]);
+    expect(tokens({ colors: { date: "#B4232C" } }, { cvOverrides: { colors: { muted: "#178EDE" } } }).colors).toMatchObject({ date: "#B4232C", location: "#178EDE" });
+  });
+
   it("separates editable global values from own colour, font and appearance overrides", () => {
     const own = {
       ...settingsOf("zweispaltig"),

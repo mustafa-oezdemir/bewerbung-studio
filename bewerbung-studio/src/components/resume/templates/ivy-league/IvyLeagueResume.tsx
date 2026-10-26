@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { ivyLeagueDefaults } from "./ivy-league.defaults";
+import { ivyLeagueAtsColors, ivyLeagueDefaults } from "./ivy-league.defaults";
 import type { IvyLeagueResumeProps } from "./ivy-league.types";
 import { IvyLeaguePage } from "./IvyLeaguePage";
 import "./ivy-league.css";
@@ -20,7 +20,7 @@ export function IvyLeagueResume({
     "--ivy-primary": accentColor || ivyLeagueDefaults.colors.primary,
     "--ivy-accent": secondaryColor || ivyLeagueDefaults.colors.accent,
     // Managed projects and interests are siblings of the inner ATS block; they need its native text palette too.
-    ...(atsMode ? { "--ivy-text": "#303B42" } : {}),
+    ...(atsMode ? { "--ivy-text": ivyLeagueAtsColors.text } : {}),
   } as CSSProperties;
 
   return (

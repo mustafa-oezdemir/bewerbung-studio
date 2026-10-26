@@ -1,5 +1,12 @@
 import type { NativeResumeDesign } from "../cvDesignSchema";
 
+/** The plain (ATS) palette of the React page and the Electron print page. */
+export const ivyLeagueAtsColors = {
+  primary: "#173B63",
+  text: "#303B42",
+  divider: "#AEB8BF",
+} as const;
+
 export const ivyLeagueDefaults = {
   page: {
     widthMm: 210,

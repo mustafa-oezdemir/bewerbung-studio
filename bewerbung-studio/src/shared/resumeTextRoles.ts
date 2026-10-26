@@ -1,4 +1,8 @@
 import type { CvDesignTokens } from "./cvDesignSchema";
+import { ivyLeagueAtsColors } from "./cvTemplateDefaults/ivy-league.defaults";
+import { klassischDefaults } from "./cvTemplateDefaults/klassisch.defaults";
+import { modernAtsColors } from "./cvTemplateDefaults/modern.defaults";
+import { tabellarischAtsColor } from "./cvTemplateDefaults/tabellarisch.defaults";
 import type { DocumentDesignSettings } from "./documentDesign";
 import { resolveTemplateId } from "./templates";
 
@@ -34,6 +38,30 @@ export const resumeTextRoleTokens: Record<ResumeTextRole, { color: keyof CvDesig
   description: { color: "paragraph", size: "projectDescriptionSizePt" },
 };
 
+/**
+ * The general value a role token follows while it has no value of its own (resolveEffectiveDesignTokens): a project's
+ * description and technologies are drawn relative to the reading text (the Lesetext), dates and places are secondary
+ * texts, which saved designs coloured through the Sekundärtext before they had colours of their own.
+ */
+export const resumeTextRoleFallbacks: {
+  colors: Partial<Record<keyof CvDesignTokens["colors"], keyof CvDesignTokens["colors"]>>;
+  typography: Partial<Record<keyof CvDesignTokens["typography"], keyof CvDesignTokens["typography"]>>;
+} = {
+  colors: { date: "muted", location: "muted" },
+  typography: { projectTechnologiesSizePt: "bodySizePt", projectDescriptionSizePt: "bodySizePt" },
+};
+
+/**
+ * Where a template draws its organisations in another colour than the organisation token (measured): the plain (ATS)
+ * layouts with their own palette, Klassisch's Bildungsweg in the text colour. A changed Hervorhebungsfarbe keeps them.
+ */
+const nativeOrganizationColors: Record<string, { ats?: string; education?: string }> = {
+  "ivy-league": { ats: ivyLeagueAtsColors.primary },
+  modern: { ats: modernAtsColors.primary },
+  tabellarisch: { ats: tabellarischAtsColor },
+  klassisch: { education: klassischDefaults.colors.text },
+};
+
 /** Templates whose experience entries carry Zweispaltig's own Arbeitgebernamen colour (`data-cv-employer`). */
 const employerTemplates = new Set(["zweispaltig", "tuerkis-profil"]);
 
@@ -48,10 +76,20 @@ export const applyResumeTextRoleStyles = (
   settings: DocumentDesignSettings,
   design: CvDesignTokens,
 ): void => {
+  // A project's technology line is drawn at its design size (the one the panel shows) on both surfaces; without it the
+  // template's supporting rules decided its size by specificity, differently in the preview and the PDF. Like the other
+  // design variables it goes on the page and on its content (the preview keeps only the page's inner markup).
+  const content = scope.matches(".cv-sheet") ? scope.querySelector(".page-content") : scope.firstElementChild;
+  for (const element of [scope, content])
+    (element as HTMLElement | null)?.style.setProperty("--resume-technologies-size", `${design.typography.projectTechnologiesSizePt}pt`);
   const colors = settings.cvOverrides?.colors;
   const typography = settings.cvOverrides?.typography;
   if (!colors && !typography) return;
-  const employer = employerTemplates.has(resolveTemplateId(templateId)) && colors?.employer !== undefined;
+  // Zweispaltig's Arbeitgebernamen keep their own precedence (Arbeitgeberfarbe, Unternehmen / Einrichtung, then the older
+  // Hervorhebungsfarbe chain of getZweispaltigDesignVariables, which the card above the panel shows): an employer line is
+  // written only for an own Unternehmen / Einrichtung without an own Arbeitgeberfarbe.
+  const employerChain = employerTemplates.has(resolveTemplateId(templateId))
+    && (colors?.employer !== undefined || colors?.organization === undefined);
   // Written into the attribute: linkedom drops the priority of `style.setProperty`, and a template rule with !important on
   // the same text (Elegant's and Stilvoll's body paragraphs) would win over a plain inline value.
   const set = (element: Element, property: string, value: string) => {
@@ -59,16 +97,26 @@ export const applyResumeTextRoleStyles = (
       .filter((declaration) => declaration && declaration.split(":")[0].trim().toLowerCase() !== property);
     element.setAttribute("style", [...kept, `${property}:${value}!important`].join(";"));
   };
+  // Template accent variables also colour the organisations. Keep their native colour (in the plain layout its own
+  // palette) when only the highlight colour changes; an explicit organisation (or legacy employer) choice still wins.
+  const pinned = colors?.accent !== undefined && colors.organization === undefined;
+  const native = nativeOrganizationColors[resolveTemplateId(templateId)];
+  const organizationColor = (node: Element) => {
+    if (!pinned) return design.colors.organization;
+    if (native?.education && node.closest('[data-managed-section="education"]')) return native.education;
+    return settings.resumeOutputMode === "ats" && native?.ats ? native.ats : design.colors.organization;
+  };
   for (const role of resumeTextRoles) {
     const { color, size } = resumeTextRoleTokens[role];
-    // Template accent variables also colour some employer lines. Keep their native organisation colour when only the
-    // highlight colour changes; an explicit organisation (or legacy employer) choice still wins.
-    const ownColor = colors?.[color] !== undefined || (role === "organization" && colors?.accent !== undefined);
-    const ownSize = typography?.[size] !== undefined;
+    const colorFrom = resumeTextRoleFallbacks.colors[color];
+    const sizeFrom = resumeTextRoleFallbacks.typography[size];
+    const ownColor = colors?.[color] !== undefined || (role === "organization" && pinned)
+      || (colorFrom !== undefined && colors?.[colorFrom] !== undefined);
+    const ownSize = typography?.[size] !== undefined || (sizeFrom !== undefined && typography?.[sizeFrom] !== undefined);
     if (!ownColor && !ownSize) continue;
     for (const node of scope.querySelectorAll(cvRoleSelector(role))) {
-      if (ownColor && !(role === "organization" && employer && node.hasAttribute("data-cv-employer")))
-        set(node, "color", design.colors[color]);
+      if (ownColor && !(role === "organization" && employerChain && node.hasAttribute("data-cv-employer")))
+        set(node, "color", role === "organization" ? organizationColor(node) : design.colors[color]);
       if (ownSize) set(node, "font-size", `${design.typography[size]}pt`);
     }
   }
