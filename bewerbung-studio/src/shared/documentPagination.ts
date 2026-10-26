@@ -34,7 +34,7 @@ import { resolveSectionColumns } from "./resumeSectionLayout";
 import { hasSidebarHero, isPlainListSection, isZoneFlowTemplate, sectionHeadingLineMetrics, sectionListMetrics, supportsEducationSplit, supportsSidebarContinuation } from "./resumeSectionPresentation";
 import { normalizeCustomSection, spacesEntriesLikeCareer } from "./resumeCustomSections";
 import { getPehlioneContacts } from "./pehlioneContacts";
-import { resolveKnowledgeGroups } from "../features/resume-sections/resume-section-system";
+import { getPersonalDataTitle, resolveKnowledgeGroups } from "../features/resume-sections/resume-section-system";
 import {
   getPaginationGeometry,
   tabellarischAtsPaginationGeometry,
@@ -42,7 +42,7 @@ import {
   type PaginationGeometry,
   type PaginationZone,
 } from "./resumePaginationGeometry";
-import { formatPhoneForDisplay, getResumeHeaderContactTexts, getResumePersonalDetails } from "./resumePersonalData";
+import { formatPhoneForDisplay, getResumeHeaderContactTexts, getResumePersonalDetails, getZweispaltigContactTexts } from "./resumePersonalData";
 import { getResumePhotoGrowth, getResumePhotoScale, resumePhotoShown } from "./resumePhoto";
 import { formatCareerPeriod, resolveExperience } from "./resumeCareer";
 import { getResumeSectionTitle, savedTemplateSidebarOrder } from "../features/resume-sections/resume-sections";
@@ -2043,12 +2043,12 @@ const planResumePages = (
    * 1.2 mm apart), then the sections of the column from 4 mm below it: the Kurzprofil first, which may go on at the
    * next page like any section of the column.
    */
-  const tuerkisSideTop = (() => {
+  const tuerkisHead = (() => {
     if (templateId !== "tuerkis-profil" || context.atsMode || flat || !profile) return undefined;
     const type = tuerkisProfilDefaults.typography;
     const name = `${profile.firstName ?? ""} ${profile.lastName ?? ""}`.trim().toLocaleUpperCase("de-DE");
     const title = (profile.title ?? "").trim();
-    const contacts = showContacts ? getResumeHeaderContactTexts(profile) : [];
+    const contacts = showContacts ? getZweispaltigContactTexts(profile) : [];
     const inner = geometry.text.sideW + scale.sideDelta - 13;
     const nameMm = (context.overrides?.headingSizePt ?? type.nameSizePt) * PT_TO_MM;
     const titleMm = (context.overrides?.subheadingSizePt ?? type.professionSizePt) * PT_TO_MM;
@@ -2057,11 +2057,26 @@ const planResumePages = (
     const photo = withPhoto ? tuerkisProfilDefaults.layout.photoGapMm + tuerkisProfilDefaults.layout.photoHeightMm : 0;
     const rowLine = type.contactSizePt * PT_TO_MM * 1.2;
     const rowWidth = geometry.text.sideW + scale.sideDelta - 4.7;
-    const rows = contacts.reduce((total, value) =>
-      total + 2.2 + Math.max(1, wrappedLines(value, rowWidth, type.contactSizePt * PT_TO_MM)) * rowLine, 0);
-    const list = contacts.length ? 6 + 9.32 + rows + 1.2 * (contacts.length - 1) : 0;
-    return geometry.top1 + hero + photo + 4 + list;
+    const rows = contacts.map((value) => 2.2 + Math.max(1, wrappedLines(value, rowWidth, type.contactSizePt * PT_TO_MM)) * rowLine);
+    // The list's title (14 pt capitals): every further line adds its line box. A part that goes on at a later page says
+    // "· Fortsetzung" and stands across the page width there.
+    const listTitle = getPersonalDataTitle(profile.resumeSemanticSections, templateId).toLocaleUpperCase("de-DE");
+    const sectionTitleMm = 14 * PT_TO_MM;
+    const titleExtra = (continued: boolean) => (Math.max(1, wrappedLines(continued ? `${listTitle} · FORTSETZUNG` : listTitle,
+      continued ? geometry.text.fullW * (scale.fullRatio ?? 1) : geometry.text.sideW + scale.sideDelta, sectionTitleMm, 750, 0.16)) - 1) * sectionTitleMm;
+    /** The rows `from`..`to` of the list with its title (and, opening it below the photo, its 6 mm). */
+    const list = (from: number, to: number) => (from === 0 ? 6 : 0) + 9.32 + titleExtra(from > 0) + sumHeights(rows.slice(from, to), 1.2);
+    return { top: geometry.top1 + hero + photo, rows, list };
   })();
+  /**
+   * A Kontakt list that does not fit below the hero and the photo of page one breaks between two rows like a section of
+   * the column: it opens the Seitenspalte lane (`contactsLane`), its rest and the column's sections go on at the next page.
+   */
+  const tuerkisContactsBreak = Boolean(tuerkisHead?.rows.length)
+    && tuerkisHead!.top + tuerkisHead!.list(0, tuerkisHead!.rows.length) > geometry.sideLimit - verticalInset;
+  const tuerkisSideTop = !tuerkisHead ? undefined
+    : tuerkisContactsBreak ? tuerkisHead.top
+    : tuerkisHead.top + 4 + (tuerkisHead.rows.length ? tuerkisHead.list(0, tuerkisHead.rows.length) : 0);
   const sideTop1 = tuerkisSideTop !== undefined ? tuerkisSideTop
     : (templateId === "kreativ" || templateId === "stilvoll") && !context.atsMode
     ? top1
@@ -2111,7 +2126,16 @@ const planResumePages = (
     height: besideHeight(besideList),
     sideSplit: { ends: besideList.map((_, index) => index + 1), height: (from, to) => besideHeight(besideList.slice(from, to)) },
   } : undefined;
-  if (sidebarLane && sumHeights([...sidebarStream, ...(educationLane ? [educationLane] : [])]
+  /**
+   * Türkis Profil's Kontakt list where it breaks (`tuerkisContactsBreak`): the first block of the lane, its rows the
+   * contacts. The output draws the rows of each page in the list's place (tuerkisProfilLayout).
+   */
+  const contactsLane: FlowBlock | undefined = sidebarLane && tuerkisContactsBreak && tuerkisHead ? {
+    id: "personalData", zone: "sidebar", home: "last", hostable: true,
+    height: tuerkisHead.list(0, tuerkisHead.rows.length),
+    sideSplit: { ends: tuerkisHead.rows.map((_, index) => index + 1), height: (from, to) => tuerkisHead.list(from, to) },
+  } : undefined;
+  if (sidebarLane && sumHeights([...(contactsLane ? [contactsLane] : []), ...sidebarStream, ...(educationLane ? [educationLane] : [])]
     .map((block) => block.height + (block === educationLane ? 0 : sideTitleExtra(block.id))), sideGap) > sideCap1) {
     for (const block of sidebarStream) {
       if (block.home !== "first") continue;
@@ -2309,6 +2333,8 @@ const planResumePages = (
   if (educationLane) hostable.push(educationLane);
   if (sidebarLane) hostable.sort((left, right) => laneRank(left.id) - laneRank(right.id));
   else if (zoneFlow && customLayout) hostable.sort((left, right) => (left.rank ?? 0) - (right.rank ?? 0));
+  // (the Kontakt list stands above every section of the column)
+  if (contactsLane) hostable.unshift(contactsLane);
 
   const stack = (fixed: number, run: number) => fixed + run + (fixed > 0 && run > 0 ? sectionGap : 0);
   const wholeMain = () =>
@@ -2425,8 +2451,9 @@ const planResumePages = (
           continue;
         }
         // Not even the start fits below what the page already holds: the block starts on the next page. A block
-        // that does not fit an empty page either is drawn there whole rather than looping.
-        if (used === 0) {
+        // that does not fit an empty page either is drawn there whole rather than looping. Türkis Profil's first
+        // page is never empty (hero, photo and maybe Kontakt above the column): the next one has its full room.
+        if (used === 0 && !(page === 0 && templateId === "tuerkis-profil")) {
           lanePages[page].push(whole);
           used = segmentHeight(whole, page);
           break;

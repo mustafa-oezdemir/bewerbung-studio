@@ -52,8 +52,25 @@ export const wrappedLines = (text: string, widthMm: number, fontMm: number, weig
       if (next <= widthMm + 0.01) { used = next; continue; }
       lines += 1;
     }
-    // A word wider than the line is cut anywhere.
-    while (width > widthMm + 0.01) { lines += 1; width -= widthMm; }
+    // A word wider than the line is cut anywhere: a line takes the characters that fit on it (Chromium never cuts a
+    // character), the rest goes on at the next one.
+    if (width > widthMm + 0.01) {
+      const trailing = width - textWidthMm(word.part, fontMm, weight, letterSpacingEm);
+      let rest = [...word.part];
+      while (width > widthMm + 0.01 && rest.length > 1) {
+        let taken = 0;
+        let fit = 0;
+        while (fit < rest.length) {
+          const next = textWidthMm(rest[fit], fontMm, weight, letterSpacingEm);
+          if (taken + next > widthMm + 0.01) break;
+          taken += next;
+          fit += 1;
+        }
+        rest = rest.slice(Math.max(1, fit));
+        width = textWidthMm(rest.join(""), fontMm, weight, letterSpacingEm) + trailing;
+        lines += 1;
+      }
+    }
     used = width;
   }
   return lines;

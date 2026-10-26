@@ -19,6 +19,12 @@ describe("measured text wrapping", () => {
     expect(wrappedLines("Konzeption und Implementierung zentraler Funktionen wie Authentifizierung, Logging und Monitoring, um eine stabile und sichere Nutzung der Schnittstelle zu gewährleisten", 107.2, body)).toBe(3);
     const hyphenated = "Grafana-Datasource-Plugin-Entwicklung";
     expect(wrappedLines(hyphenated, textWidthMm("Grafana-Datasource-", body) + 1, body)).toBe(2);
-    expect(wrappedLines("x".repeat(80), 20, body)).toBe(Math.ceil(textWidthMm("x".repeat(80), body) / 20));
+    expect(wrappedLines("x".repeat(80), 20, body)).toBe(Math.ceil(80 / Math.floor(20 / textWidthMm("x", body))));
+  });
+
+  it("cuts a word wider than the line after the last character that fits, like Chromium", () => {
+    // Türkis Profil's hero (24 pt capitals, 0.025 em apart, 49.8 mm) in the PDF: "MUSTAFA-" | "ALEXANDE" | "R " | "ÖZDEMIR-" |
+    // "SCHMIDT-" | "WOLKENST" | "EIN". The cut-off "R" leaves no room for "ÖZDEMIR-" behind it.
+    expect(wrappedLines("MUSTAFA-ALEXANDER ÖZDEMIR-SCHMIDT-WOLKENSTEIN", 49.8, 24 * 0.3528, 750, 0.025)).toBe(7);
   });
 });

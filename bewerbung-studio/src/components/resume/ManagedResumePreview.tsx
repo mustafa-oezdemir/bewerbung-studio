@@ -67,7 +67,7 @@ export function ManagedResumePreview({
     rawFirstPageHtml,
   );
   const arrangedHtml = templateId === "tuerkis-profil"
-    ? arrangeTuerkisProfilPage(html, resolvedCv?.managerSections ?? [], resolvedCv?.pagePlan, pageNumber) : html;
+    ? arrangeTuerkisProfilPage(html, resolvedCv?.managerSections ?? [], resolvedCv?.pagePlan, pageNumber, firstPageHtml) : html;
   return (
     <>
       <style>{managedResumeCss + templateStyles(templateId) + (templateId === "elegant" ? elegantManagedCss

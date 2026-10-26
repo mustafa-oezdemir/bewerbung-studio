@@ -265,6 +265,26 @@ export const getResumeHeaderContactTexts = (
   ].filter(Boolean);
 
 /**
+ * The rows of the contact list Zweispaltig and Türkis Profil draw (ZweispaltigHeader, zweispaltigContactMarkup in
+ * electron/documents.ts), in their order and wording: phone, e-mail, LinkedIn, Wohnort with PLZ, birth, GitHub and
+ * Portfolio as entered, then the voluntary details with their label and the online profiles. Türkis Profil's planner
+ * breaks this list between two rows (a row range of the plan names the same rows in the output).
+ */
+export const getZweispaltigContactTexts = (
+  profile: (ResumePersonalSource & { linkedin?: string; github?: string; portfolio?: string }) | undefined,
+) =>
+  [
+    formatPhoneForDisplay(profile?.phone),
+    profile?.email,
+    profile?.linkedin,
+    formatResumeAddress(profile, { postalCode: true }),
+    formatResumeBirth(profile),
+    profile?.github,
+    profile?.portfolio,
+    ...getResumePersonalDetails(profile).map((detail) => (detail.href ? detail.value : detail.text)),
+  ].map((value) => value?.trim() ?? "").filter(Boolean);
+
+/**
  * The plain (ATS) "Persönliche Daten" paragraph: phone, e-mail, LinkedIn, location, birth and the voluntary
  * details on one line. Only filled values are listed, so there is never a separator or label for nothing.
  */
