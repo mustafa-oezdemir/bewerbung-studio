@@ -98,11 +98,12 @@ describe("Zweispaltig Lebenslauf preview and PDF", () => {
         expect(previewDocument.querySelector('input[aria-label="Primärfarbe"]')?.getAttribute('value')).toBe(primary);
         expect(previewDocument.querySelector('input[aria-label="Arbeitgebernamen"]')?.getAttribute('value')).toBe(secondary);
         expect(previewDocument.querySelector('input[aria-label="Fläche"]')).toBeNull();
-        const save = previewDocument.querySelector<HTMLButtonElement>('.resume-editor-actions button[type="submit"]')!;
+        // The bottom bar: Nach oben (left), „Änderungen speichern“ for the editor form, Nach unten (right).
+        const save = previewDocument.querySelector<HTMLButtonElement>('.document-editor > .scroll-jump button[type="submit"]')!;
         expect(save.textContent).toContain('Änderungen speichern');
         expect(save.getAttribute('form')).toBe(previewDocument.querySelector('.document-editor form')?.id);
-        expect(previewDocument.querySelector('button[aria-label="Nach oben"]')?.getAttribute('type')).toBe('button');
-        expect(previewDocument.querySelector('button[aria-label="Nach unten"]')?.getAttribute('type')).toBe('button');
+        const jump = Array.from(previewDocument.querySelectorAll('.document-editor > .scroll-jump > button'), (button) => [button.getAttribute('aria-label'), button.getAttribute('type')]);
+        expect(jump).toEqual([['Nach oben', 'button'], ['Nach unten', 'button']]);
         const pdf = parseHTML(buildDocumentHtml(application, profile, "lebenslauf"))
           .document.querySelector<HTMLElement>(".zweispaltig-pdf");
         expect(preview).not.toBeNull();

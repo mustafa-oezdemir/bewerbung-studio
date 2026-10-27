@@ -27,6 +27,8 @@ import {
 import { templates } from "../shared/templates";
 import { showsInterviewPreparation } from "../shared/interviewQuestions";
 import { InterviewPreparationPanel } from "../components/interview/InterviewPreparationPanel";
+import { ScrollJumpButtons } from "../components/ScrollJumpButtons";
+import { useSaveShortcut } from "../components/useSaveShortcut";
 import { applicationMatchesQuery } from "../lib/applicationSearch";
 import {
   formatDate,
@@ -66,6 +68,12 @@ export function ApplicationsView({
   const [query, setQuery] = useState("");
   /** The Bewerbung whose interview panel is open; it closes when another Bewerbung is selected. */
   const [interviewPanelFor, setInterviewPanelFor] = useState<string | null>(null);
+  const detailRef = useRef<HTMLElement>(null);
+  // Strg+S saves the Bereich being edited, as its „Bereich speichern“ does.
+  useSaveShortcut(() => {
+    const form = document.activeElement?.closest("form");
+    return form && detailRef.current?.contains(form) ? form : null;
+  });
 
   const filtered = useMemo(() => {
     return workspace.applications.filter((application) => {
@@ -238,7 +246,7 @@ export function ApplicationsView({
         </div>
       </aside>
       {selected ? (
-        <main className="detail-surface surface" key={selected.id}>
+        <main className="detail-surface surface" key={selected.id} ref={detailRef}>
           <header className="detail-title">
             <div className="company-identity">
               <span>{selected.company.name.slice(0, 2).toUpperCase()}</span>
@@ -607,6 +615,7 @@ export function ApplicationsView({
               ))}
             </div>
           </section>
+          <ScrollJumpButtons panel={detailRef} />
           {interviewPanelFor === selected.id ? (
             <InterviewPreparationPanel
               application={selected}

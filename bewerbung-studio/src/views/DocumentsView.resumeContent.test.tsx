@@ -58,6 +58,9 @@ const mount = async (profiles: ApplicantProfile[], options: { failSave?: () => b
     matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
     getComputedStyle: () => ({ getPropertyValue: () => "", paddingTop: "0px", paddingBottom: "0px", fontSize: "16px" }) });
   Object.assign(window.HTMLElement.prototype, { scrollTo() {}, scrollIntoView() {} });
+  Object.assign(Object.getPrototypeOf(window.document.createElement("form")), { requestSubmit(this: Element) {
+    this.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  } });
   // A textarea's default value is its text, as in a browser (React writes the first value there).
   Object.defineProperty(window.HTMLTextAreaElement.prototype, "defaultValue", { configurable: true,
     get(this: Element) { return this.textContent ?? ""; }, set(this: Element, value: string) { this.textContent = value; } });
@@ -86,7 +89,7 @@ const mount = async (profiles: ApplicantProfile[], options: { failSave?: () => b
     query,
     rerender: render,
     status: () => query(".resume-save-status")?.textContent?.trim(),
-    stickyStatus: () => query(".resume-editor-actions__status strong")?.textContent?.trim(),
+    stickyStatus: () => query(".scroll-jump__status")?.textContent?.trim(),
     summaryField: () => query<HTMLTextAreaElement>(".summary-editor textarea"),
     open: (title: string) => fire(Array.from(window.document.querySelectorAll(".manager-card-title")).find((node) => node.textContent?.trim() === title)!, "click"),
     type: async (element: HTMLTextAreaElement, value: string) => {
@@ -94,8 +97,10 @@ const mount = async (profiles: ApplicantProfile[], options: { failSave?: () => b
       await act(async () => { element.dispatchEvent(new window.Event("input", { bubbles: true })); });
     },
     press: (text: string, scope?: string) => fire(button(text, scope), "click"),
-    /** „Änderungen speichern“ submits the editor form it names. */
-    save: () => fire(query(`form[id="${button("Änderungen speichern", ".resume-editor-actions").getAttribute("form")}"]`)!, "submit"),
+    /** Strg+S saves the Lebenslauf: it submits the editor form. */
+    save: () => act(async () => {
+      window.dispatchEvent(Object.assign(new window.Event("keydown", { bubbles: true, cancelable: true }), { key: "s", ctrlKey: true }));
+    }),
     unmount: () => act(async () => root.unmount()),
   };
 };
@@ -167,6 +172,7 @@ describe("Lebenslauf content edits the profile of the Bewerbung", () => {
     expect(view.summaryField()!.value).toBe("Gespeicherter Text.");
     expect(view.status()).toBe("Profil verbunden");
     expect(view.stickyStatus()).toBe("Keine ungespeicherten Änderungen");
+    expect(view.query(".scroll-jump .button.is-dirty")).toBeNull();
     expect(view.saveProfile).not.toHaveBeenCalled();
     await view.unmount();
   });

@@ -29,11 +29,10 @@ import { normalizeApplicantProfileForSave, rebaseApplicantProfileDraft, validate
 import { ManagedResumePreview } from "../components/resume/ManagedResumePreview";
 import { ResumeDesignPanel } from "../components/resume/ResumeDesignPanel";
 import { ColorCard } from "../components/document/ColorCard";
-import { scrollDocumentEditor } from "../components/document/documentEditorNavigation";
+import { ScrollJumpButtons } from "../components/ScrollJumpButtons";
+import { useSaveShortcut } from "../components/useSaveShortcut";
 import {
   ArrowLeft,
-  ArrowUp,
-  ArrowDown,
   ChevronRight,
   ChevronUp,
   Download,
@@ -523,13 +522,16 @@ export function DocumentsView({
   const formRef = useRef<HTMLFormElement>(null);
   const editorRef = useRef<HTMLElement>(null);
   const formId = useId();
+  // Strg+S saves like the save button in the bottom bar.
+  useSaveShortcut(() => formRef.current);
   const paperStageRef = useRef<HTMLElement>(null);
   const letterPaperRef = useRef<HTMLDivElement>(null);
   const [previewScale, setPreviewScale] = useState(1);
 
   useLayoutEffect(() => {
     const editor = editorRef.current;
-    if (!editor || tab !== "lebenslauf") return;
+    // Every tab: the editor ends inside the window, so its bottom bar (Nach oben / speichern / Nach unten) stays in view.
+    if (!editor) return;
     const measure = () => editor.style.setProperty("--document-editor-top", `${Math.max(0, editor.getBoundingClientRect().top)}px`);
     measure();
     const observer = new ResizeObserver(measure);
@@ -1364,6 +1366,7 @@ export function DocumentsView({
               id={formId}
               key={application.id}
               ref={formRef}
+              noValidate
               onInput={previewDocumentInput}
               onSubmit={(event) => void save(event)}>
               {profiles.length ? (
@@ -2677,26 +2680,19 @@ export function DocumentsView({
                   automatisch erfunden.
                 </p>
               </div>
-              {tab !== "lebenslauf" ? <button className="button primary full-button" type="submit" formNoValidate>
-                <Save size={17} />{" "}
-                {tab === "anschreiben"
-                  ? "Texte speichern & Word aktualisieren"
-                  : "Texte speichern"}
-              </button> : null}
             </form>
-            {tab === "lebenslauf" ? <div className="sticky-save resume-editor-actions" aria-label="Lebenslauf speichern und navigieren">
-              <div className="resume-editor-actions__status" role="status" aria-live="polite">
-                <strong>{editorSaveLabel}</strong>
+            <ScrollJumpButtons panel={editorRef}>
+              <div className="scroll-jump__save">
                 {documentSaveError ? <small role="alert">{documentSaveError}</small> : null}
-              </div>
-              <div className="resume-editor-actions__buttons">
-                <button type="button" className="button secondary" aria-label="Nach oben" onClick={() => scrollDocumentEditor(editorRef.current, "top")}><ArrowUp size={17} aria-hidden="true" /><span>Nach oben</span></button>
-                <button type="button" className="button secondary" aria-label="Nach unten" onClick={() => scrollDocumentEditor(editorRef.current, "bottom")}><ArrowDown size={17} aria-hidden="true" /><span>Nach unten</span></button>
-                <button className="button primary" type="submit" form={formId} formNoValidate disabled={editorSaving}>
-                  <Save size={17} aria-hidden="true" />{editorSaving ? "Speichert …" : "Änderungen speichern"}
+                <button className={`button primary${editorUnsaved && !editorSaving ? " is-dirty" : ""}`} type="submit"
+                  form={formId} formNoValidate disabled={editorSaving} title={`${editorSaveLabel} · Strg+S`}>
+                  <Save size={17} aria-hidden="true" />
+                  {editorSaving ? "Speichert …" : tab === "lebenslauf" ? "Änderungen speichern"
+                    : tab === "anschreiben" ? "Texte speichern & Word aktualisieren" : "Texte speichern"}
                 </button>
+                <span className="scroll-jump__status" role="status" aria-live="polite">{editorSaveLabel}</span>
               </div>
-            </div> : null}
+            </ScrollJumpButtons>
           </aside>
         }
         secondary={

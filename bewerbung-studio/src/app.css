@@ -1566,7 +1566,8 @@ h3 {
 .detail-surface {
   min-width: 0;
   padding: 0;
-  overflow: hidden;
+  /* clip, not hidden: the page stays the scroll container, so the Nach oben/unten row can stick to its bottom. */
+  overflow: clip;
 }
 
 .detail-title {
@@ -2248,7 +2249,7 @@ body.is-resizing-split-view * {
   align-self: start;
   position: sticky;
   top: 96px;
-  max-height: calc(100vh - 116px);
+  max-height: calc(100dvh - var(--document-editor-top, 96px) - 20px);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
@@ -2290,14 +2291,6 @@ body.is-resizing-split-view * {
   color: var(--muted);
   font-size: 0.66rem;
   line-height: 1.45;
-}
-
-.full-button {
-  width: 100%;
-}
-
-:root[data-theme="dark"] .document-editor form > .button.primary.full-button {
-  color: #0d1f1c;
 }
 
 .paper-stage {
@@ -5773,26 +5766,65 @@ body.is-resizing-split-view * {
 }
 
 .document-editor--resume form { padding-bottom: 18px; }
-.document-editor--resume { max-height: calc(100dvh - var(--document-editor-top, 96px) - 20px); }
-.resume-editor-actions {
-  bottom: 0;
-  margin-top: 12px;
-  background: var(--surface);
+/* ScrollJumpButtons: Nach oben / Nach unten stay on the bottom edge of the panel they end, its save in reach between. */
+.scroll-jump {
+  position: sticky;
+  bottom: 14px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  pointer-events: none;
+}
+.scroll-jump__middle { display: flex; flex: 1 1 auto; min-width: 0; justify-content: center; }
+.scroll-jump__button,
+.scroll-jump__middle > * { pointer-events: auto; }
+.scroll-jump__button {
   display: grid;
-  gap: 9px;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  background: #ea580c;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.24);
+  cursor: pointer;
+  transition: background 140ms ease, transform 140ms ease;
 }
-.resume-editor-actions__status { display: grid; gap: 4px; font-size: .7rem; }
-.resume-editor-actions__status small { overflow-wrap: anywhere; color: var(--danger, #b42318); }
-.resume-editor-actions__buttons { display: flex; flex-wrap: wrap; gap: 7px; }
-.resume-editor-actions__buttons .button { min-height: 40px; flex: 1 1 auto; }
-.resume-editor-actions__buttons .button.primary { flex-basis: 100%; }
-:root[data-theme="dark"] .resume-editor-actions__buttons .button.primary { color: #0d1f1c; }
-.resume-editor-actions__buttons .button:focus,
-.resume-editor-actions__buttons .button:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
-@media (max-width: 560px) {
-  .resume-editor-actions { padding: 10px; }
-  .resume-editor-actions__buttons .button { font-size: .7rem; padding-inline: 9px; }
+.scroll-jump__button:hover { background: #c2410c; transform: translateY(-1px); }
+.scroll-jump__button:focus-visible,
+.scroll-jump .button:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.scroll-jump .button { position: relative; min-width: 0; min-height: 40px; box-shadow: var(--shadow); }
+:root[data-theme="dark"] .scroll-jump .button.primary { color: #0d1f1c; }
+/* Unsaved changes: an orange dot on the save button. */
+.scroll-jump .button.is-dirty::after {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: #ea580c;
+  content: "";
 }
+.scroll-jump__save { display: grid; justify-items: center; gap: 6px; min-width: 0; }
+.scroll-jump__save small {
+  padding: 4px 10px;
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+  color: var(--danger, #b42318);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: .66rem;
+}
+/* Read out, not shown: the button's dot and label already show the state. */
+.scroll-jump__status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.detail-surface > .scroll-jump { margin: 0 18px 18px; }
 
 .modal-backdrop {
   position: fixed;
