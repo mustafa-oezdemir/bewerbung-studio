@@ -198,7 +198,7 @@ const samePath = async (left: string, right: string) => {
 export type GitCommandResult = { code: number; stdout: string; stderr: string };
 
 export type ApplicationGitSyncOptions = {
-  paths: Pick<ApplicationPaths, "root" | "dataRoot" | "applicationDraftPath" | "logsRoot" | "crashDumpsRoot" |
+  paths: Pick<ApplicationPaths, "root" | "dataRoot" | "applicationDraftPath" | "backupsRoot" | "logsRoot" | "crashDumpsRoot" |
     "electronSessionRoot" | "previewCache">;
   /** Defaults to {@link APPLICATION_DATA_REMOTE}; tests pass a local bare repository. */
   remoteUrl?: string;
@@ -270,6 +270,8 @@ export class ApplicationGitSync implements ApplicationGitCommitQueue {
     if (!dataRoot || dataRoot.startsWith("..") || path.isAbsolute(dataRoot))
       throw new Error("Der Datenordner liegt nicht im Bewerbungsordner.");
     this.excludedPaths = [
+      // Full recovery copies are local only and may contain nested repositories or older backups.
+      options.paths.backupsRoot,
       options.paths.logsRoot,
       options.paths.crashDumpsRoot,
       options.paths.electronSessionRoot,

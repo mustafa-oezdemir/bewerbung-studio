@@ -225,7 +225,8 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
     git(root, "config", "user.email", "test@example.invalid");
     git(root, "remote", "add", "origin", remote);
     await writeFile(path.join(root, "README.md"), "Bewerbungsordner\n");
-    git(root, "add", "README.md");
+    await writeFile(path.join(root, ".gitignore"), "data/Setting/Backups/\n");
+    git(root, "add", "README.md", ".gitignore");
     git(root, "commit", "--quiet", "-m", "Initial");
     git(root, "push", "--quiet", "-u", "origin", "main");
     paths = resolveApplicationPaths(root);
@@ -518,7 +519,7 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
   it("keeps repository copies inside the data tree out of the sync (full backup with .git, unborn repository)", async () => {
     await openStore();
     await create("Vorher GmbH");
-    // WorkspaceManager.fullBackup copies the whole Bewerbungsordner, its .git included, into data/Setting/Backups.
+    // A legacy recovery copy can contain an embedded repository.
     const backup = path.join(paths.backupsRoot, "Migration_2026-10-09_08-00-00_abcdef12");
     await cp(path.join(root, ".git"), path.join(backup, ".git"), { recursive: true });
     await writeFile(path.join(backup, "workspace.json"), "{}");
@@ -546,7 +547,7 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
     git(nested, "add", "a.txt");
     git(nested, "commit", "--quiet", "-m", "eins");
     const relative = path.relative(root, nested).split(path.sep).join("/");
-    git(root, "add", relative);
+    git(root, "add", "-f", relative);
     git(root, "commit", "--quiet", "-m", "Gitlink");
     git(root, "push", "--quiet", "origin", "main");
     const pinned = git(remote, "ls-tree", "main", relative);
@@ -604,7 +605,7 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
     await writeFile(path.join(paths.electronSessionRoot, "Preferences"), "{}");
     git(root, "add", "--", paths.electronSessionRoot);
     git(root, "commit", "--quiet", "-m", "Session (old sync)");
-    await writeFile(path.join(root, ".gitignore"), "*.bak\nElectronSession/\n");
+    await writeFile(path.join(root, ".gitignore"), "data/Setting/Backups/\n*.bak\nElectronSession/\n");
     git(root, "add", ".gitignore");
     git(root, "commit", "--quiet", "-m", "Ignore backups");
     await store.saveApplicationDraft({ company: { name: "Entwurf GmbH" } });
@@ -617,6 +618,19 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
     expect(remoteFiles()).not.toMatch(/new-application-draft/m);
     expect(git(root, "diff", "--name-only")).toContain("data/Setting/ElectronSession/Preferences");
     expect(git(root, "diff", "--cached", "--name-only")).toBe("");
+  });
+
+  it("syncs application changes when the user's .gitignore excludes full recovery backups", async () => {
+    await openStore();
+    await create("Erste GmbH");
+    const recoveryFile = path.join(paths.backupsRoot, "Migration_example", "workspace.json");
+    await mkdir(path.dirname(recoveryFile), { recursive: true });
+    await writeFile(recoveryFile, "{\"archived\":true}");
+
+    expect((await save((application) => { application.notes = "Nach der Sicherung"; })).gitSync)
+      .toEqual({ state: "synced", committed: true, pushed: true });
+    expect(remoteFiles()).not.toContain("Migration_example");
+    expect(await readFile(recoveryFile, "utf8")).toContain("archived");
   });
 
   it("leaves no difference behind when the app is opened again (no rewritten event timestamps)", async () => {
