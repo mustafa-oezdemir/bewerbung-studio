@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { defaultDocumentDesign } from "../src/shared/documentDesign";
 import type { ApplicationInput } from "../src/shared/schema";
 import { DataStore } from "./storage";
+import { addSyntheticProfile } from "./test-profile";
 import { detectImageType, fetchInterviewImage, readInterviewImage } from "./interview-images";
 
 const input = (company: string): ApplicationInput => ({
@@ -58,6 +59,7 @@ describe("Vorstellungsgespräch images", () => {
     root = await mkdtemp(path.join(tmpdir(), "bewerbung-interview-images-"));
     store = new DataStore(root);
     await store.initialize();
+    await addSyntheticProfile(store);
     requested = [];
     store.interviewImageFetcher = async (url) => {
       requested.push(url);

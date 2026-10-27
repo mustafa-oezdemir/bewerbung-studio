@@ -1,15 +1,14 @@
-import type { ApplicantProfile } from "./schema";
+import type { ApplicantProfile, Application } from "./schema";
 
 /**
- * The profile a Bewerbung is written with. `application.profileId` is the one persistent link; a missing or
- * deleted link falls back to the default profile. The app, the preview and every export (Anschreiben, Deckblatt,
- * Lebenslauf, Mappe, Word, e-mail) resolve the profile with this function, so they can never disagree.
+ * A saved Bewerbung owns its profile. The legacy id lookup is used only while an old workspace is upgraded.
  */
 export const resolveApplicationProfile = (
   profiles: ApplicantProfile[],
-  applicationProfileId?: string,
+  application: Pick<Application, "profileId" | "profileSnapshot"> | string | undefined,
 ) =>
-  profiles.find((profile) => profile.id === applicationProfileId) ??
+  (typeof application === "object" ? application.profileSnapshot : undefined) ??
+  profiles.find((profile) => profile.id === (typeof application === "object" ? application.profileId : application)) ??
   profiles.find((profile) => profile.isDefault) ??
   profiles[0];
 

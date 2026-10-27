@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ApplicationInput } from "../src/shared/schema";
 import { defaultDocumentDesign } from "../src/shared/documentDesign";
 import { DataStore } from "./storage";
+import { addSyntheticProfile } from "./test-profile";
 
 const applicationInput = (company: string): ApplicationInput => ({
   company: {
@@ -58,6 +59,7 @@ describe("legacy migration", () => {
     targetStore = new DataStore(path.join(base, "target"));
     await sourceStore.initialize();
     await targetStore.initialize();
+    await addSyntheticProfile(sourceStore);
   });
 
   afterEach(async () => {
@@ -103,6 +105,7 @@ describe("legacy migration", () => {
 
   it("refuses to merge legacy data into a non-empty target workspace", async () => {
     await sourceStore.createApplication(applicationInput("Source GmbH"));
+    await addSyntheticProfile(targetStore);
     await targetStore.createApplication(applicationInput("Target GmbH"));
     await expect(
       targetStore.migrateLegacyData(sourceStore.dataPath),

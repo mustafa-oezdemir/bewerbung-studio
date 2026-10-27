@@ -62,6 +62,8 @@ describe("DataStore backups", () => {
     root = await mkdtemp(path.join(tmpdir(), "bewerbungsmanager-"));
     store = new DataStore(root);
     await store.initialize();
+    await store.saveProfile(profileSchema.parse({ id: crypto.randomUUID(), isDefault: true,
+      firstName: "Fiktiv", lastName: "Person", updatedAt: new Date().toISOString() }));
   });
 
   afterEach(async () => {
@@ -114,6 +116,23 @@ describe("DataStore backups", () => {
     expect(restored.applications[0].company.name).toBe("Erste GmbH");
     const files = await readdir(store.files.paths.backupsRoot);
     expect(files.some((file) => file.startsWith("vor-import-"))).toBe(true);
+  });
+
+  it("keeps attachment references when a JSON backup cannot restore the PDF bytes", async () => {
+    const application = (await store.createApplication(applicationInput("Anlage GmbH"))).applications[0];
+    const source = path.join(root, "fiktiv.pdf");
+    await writeFile(source, "%PDF-fiktiv");
+    const attached = await store.addAttachment(application.id, "Zeugnisse", source);
+    const attachment = attached.attachments[0];
+    const backup = path.join(root, "mit-anlage.json");
+    await store.writeBackup(backup);
+    await rm(path.join(store.files.paths.zeugnisseArchive, attachment.archiveRelativePath!));
+    const imported = await store.importBackup(backup);
+    expect(imported.attachments.map((item) => item.id)).toContain(attachment.id);
+    expect(imported.applications[0].attachmentIds).toContain(attachment.id);
+    expect(store.getStorageWarnings()).toEqual(expect.arrayContaining([
+      expect.stringContaining("Anlage fehlt"),
+    ]));
   });
 
   it("rejects invalid settings imports without changing the workspace", async () => {
@@ -368,29 +387,29 @@ describe("DataStore backups", () => {
 
     expect(application.folderName).toBe("Muster_GmbH_2026-09-08/Softwareentwickler");
     expect(context.requestedBaseName).toBe(
-      "Anschreiben_Muster_GmbH",
+      "Anschreiben_Fiktiv_Person_Muster_GmbH",
     );
-    expect(context.requestedBaseNames.deckblatt).toBe("Deckblatt_Muster_GmbH");
+    expect(context.requestedBaseNames.deckblatt).toBe("Deckblatt_Fiktiv_Person_Muster_GmbH");
     expect(store.getExportDefaultName(application.id, "deckblatt")).toBe(
-      "Deckblatt_Muster_GmbH.pdf",
+      "Deckblatt_Fiktiv_Person_Muster_GmbH.pdf",
     );
     expect(store.getAutomaticExportPath(application.id, "lebenslauf")).toBe(
       path.join(context.targetDirectories.lebenslauf, store.getExportDefaultName(application.id, "lebenslauf")),
     );
     expect(application.documents).toMatchObject({ motivationEnabled: false, motivationHeading: "Meine Motivation", motivationEvidence: "" });
-    expect(store.getExportDefaultName(application.id, "motivation")).toBe("Motivation_Muster_GmbH.pdf");
+    expect(store.getExportDefaultName(application.id, "motivation")).toBe("Motivation_Fiktiv_Person_Muster_GmbH.pdf");
     // The two combined PDFs: both in Bewerbungsunterlagen, each with its own name.
-    expect(store.getExportDefaultName(application.id, "bewerbungsunterlagen")).toBe("Bewerbungsunterlagen_Muster_GmbH.pdf");
-    expect(store.getExportDefaultName(application.id, "mappe")).toBe("Mappe_Muster_GmbH.pdf");
+    expect(store.getExportDefaultName(application.id, "bewerbungsunterlagen")).toBe("Bewerbungsunterlagen_Fiktiv_Person_Muster_GmbH.pdf");
+    expect(store.getExportDefaultName(application.id, "mappe")).toBe("Mappe_Fiktiv_Person_Muster_GmbH.pdf");
     expect(store.getAutomaticExportPath(application.id, "bewerbungsunterlagen")).toBe(
-      path.join(store.files.documentDirectories(application).bewerbungsunterlagen, "Bewerbungsunterlagen_Muster_GmbH.pdf"),
+      path.join(store.files.documentDirectories(application).bewerbungsunterlagen, "Bewerbungsunterlagen_Fiktiv_Person_Muster_GmbH.pdf"),
     );
     expect(path.dirname(store.getAutomaticExportPath(application.id, "mappe")))
       .toBe(store.files.documentDirectories(application).bewerbungsunterlagen);
     // The e-mail's Gesamt-PDF is that Bewerbungsunterlagen file.
-    expect(emailMarkdown).toContain("Bewerbungsunterlagen_Muster_GmbH.pdf");
+    expect(emailMarkdown).toContain("Bewerbungsunterlagen_Fiktiv_Person_Muster_GmbH.pdf");
     expect(store.getAutomaticExportPath(application.id, "motivation")).toBe(
-      path.join(store.files.documentDirectories(application).motivation, "Motivation_Muster_GmbH.pdf"),
+      path.join(store.files.documentDirectories(application).motivation, "Motivation_Fiktiv_Person_Muster_GmbH.pdf"),
     );
     expect(context.data.BEWERBUNGSDATUM).toBe("08.09.2026");
     expect(context.data.DESIGN_FONT_SIZE).toBe(application.designSettings.fontSize);
@@ -812,23 +831,23 @@ describe("DataStore backups", () => {
 
     const afterPrimaryRemoval = await store.removeProfile(primary.id);
 
-    expect(afterPrimaryRemoval.profiles).toHaveLength(1);
-    expect(afterPrimaryRemoval.profiles[0]).toMatchObject({
+    expect(afterPrimaryRemoval.profiles).toHaveLength(2);
+    expect(afterPrimaryRemoval.profiles.find((item) => item.id === replacement.id)).toMatchObject({
       id: replacement.id,
-      isDefault: true,
+      isDefault: false,
     });
-    expect(afterPrimaryRemoval.applications[0].profileId).toBe(replacement.id);
+    expect(afterPrimaryRemoval.applications[0].profileId).toBe(primary.id);
     expect(
       store.getProfileForApplication(afterPrimaryRemoval.applications[0])?.id,
-    ).toBe(replacement.id);
+    ).toBe(primary.id);
 
     const afterLastRemoval = await store.removeProfile(replacement.id);
 
-    expect(afterLastRemoval.profiles).toHaveLength(0);
-    expect(afterLastRemoval.applications[0].profileId).toBeUndefined();
+    expect(afterLastRemoval.profiles).toHaveLength(1);
+    expect(afterLastRemoval.applications[0].profileId).toBe(primary.id);
     expect(
       store.getProfileForApplication(afterLastRemoval.applications[0]),
-    ).toBeUndefined();
+    ).toMatchObject({ id: primary.id });
     expect(created.applications[0].id).toBe(
       afterLastRemoval.applications[0].id,
     );
@@ -940,16 +959,10 @@ describe("DataStore backups", () => {
       cancelled: false,
     });
 
-    await writeFile(
-      path.join(store.files.paths.settingsRoot, "workspace.json"),
-      JSON.stringify({
-        ...rejected,
-        events: rejected.events.filter(
-          (event) => event.type !== "application-rejected",
-        ),
-      }),
-      "utf8",
-    );
+    const centralPath = path.join(store.files.paths.settingsRoot, "collections.json");
+    const central = JSON.parse(await readFile(centralPath, "utf8"));
+    central.events = central.events.filter((event: { type: string }) => event.type !== "application-rejected");
+    await writeFile(centralPath, JSON.stringify(central), "utf8");
     const reloadedStore = new DataStore(root);
     await reloadedStore.initialize();
     expect(
@@ -1201,6 +1214,8 @@ describe("DataStore: copied Bewerbung and its Anschreiben", () => {
     root = await mkdtemp(path.join(tmpdir(), "bewerbungsmanager-"));
     store = new DataStore(root);
     await store.initialize();
+    await store.saveProfile(profileSchema.parse({ id: crypto.randomUUID(), isDefault: true,
+      firstName: "Fiktiv", lastName: "Person", updatedAt: new Date().toISOString() }));
   });
 
   afterEach(async () => {

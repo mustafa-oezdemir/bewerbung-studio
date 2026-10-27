@@ -5,7 +5,7 @@ import { getTemplateDocumentDesignDefaults } from "./cvDesign";
 import { getTemplate, templates } from "./templates";
 
 const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: new Date().toISOString() });
-const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Firma", company: { name: "Firma", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" }, status: "Entwurf", templateId: "modern", accentColor: "#123456", secondaryColor: "#abcdef", documents: {}, profileId: profile.id, statusHistory: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Firma", company: { name: "Firma", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" }, status: "Entwurf", templateId: "modern", accentColor: "#123456", secondaryColor: "#abcdef", documents: {}, profileId: profile.id, profileSnapshot: profile, statusHistory: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
 
 describe("document editor persistence", () => {
   it("keeps application project selection through template changes and design reset", () => {
@@ -150,23 +150,17 @@ describe("document editor persistence", () => {
     expect(original.templateDesigns).toEqual({});
   });
 
-  it("saves the current profile draft before the application", async () => {
-    const calls: string[] = [];
+  it("saves the profile draft with the application in one operation", async () => {
     const changed = { ...profile, summary: "Neuer Profiltext" };
-    const saveProfile = vi.fn(async () => { calls.push("profile"); });
-    const saveApplication = vi.fn(async () => { calls.push("application"); });
-    await persistDocumentDraft(application, changed, saveProfile, saveApplication);
-    expect(saveProfile).toHaveBeenCalledWith(changed);
-    expect(calls).toEqual(["profile", "application"]);
+    const saveApplication = vi.fn(async () => {});
+    await persistDocumentDraft(application, changed, saveApplication);
+    expect(saveApplication).toHaveBeenCalledWith({ ...application, profileSnapshot: changed });
   });
 
-  it("does not save a different profile or continue after a failed profile save", async () => {
-    const saveProfile = vi.fn(async () => { throw new Error("Speichern fehlgeschlagen"); });
-    const saveApplication = vi.fn(async () => {});
-    await persistDocumentDraft(application, { ...profile, id: crypto.randomUUID() }, saveProfile, saveApplication);
-    expect(saveProfile).not.toHaveBeenCalled();
-    saveApplication.mockClear();
-    await expect(persistDocumentDraft(application, profile, saveProfile, saveApplication)).rejects.toThrow("Speichern fehlgeschlagen");
+  it("rejects another application's draft and reports a failed application save", async () => {
+    const saveApplication = vi.fn(async () => { throw new Error("Speichern fehlgeschlagen"); });
+    await expect(persistDocumentDraft(application, { ...profile, id: crypto.randomUUID() }, saveApplication)).rejects.toThrow("gehört nicht");
     expect(saveApplication).not.toHaveBeenCalled();
+    await expect(persistDocumentDraft(application, profile, saveApplication)).rejects.toThrow("Speichern fehlgeschlagen");
   });
 });

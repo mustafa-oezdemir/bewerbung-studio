@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { workspaceSchema } from "../../src/shared/schema";
+import { hydrateWorkspaceIndex } from "../workspace-index";
+import { workspaceIndexSchema, validateWorkspaceFile } from "../../src/shared/workspaceIndexSchema";
+import { resolveApplicationPaths } from "../../src/config/application-paths";
 import { EncryptionService, parseEncryptedWorkspace } from "./encryption-service";
 import {
   disableWorkspaceEncryption,
@@ -64,7 +66,10 @@ export class WorkspaceSecurity {
     const existing = await this.state();
     if (existing.mode !== "plaintext") throw new Error("Der Datenbestand ist bereits verschlüsselt.");
     const plaintext = await readFile(workspacePath(this.root), "utf8");
-    workspaceSchema.parse(JSON.parse(plaintext));
+    const raw: unknown = JSON.parse(plaintext);
+    validateWorkspaceFile(raw);
+    const index = workspaceIndexSchema.safeParse(raw);
+    if (index.success) await hydrateWorkspaceIndex(resolveApplicationPaths(this.root), index.data);
     const { service, recoveryKey } = await EncryptionService.create(password, plaintext);
     try {
       await enableWorkspaceEncryption(this.root, service);

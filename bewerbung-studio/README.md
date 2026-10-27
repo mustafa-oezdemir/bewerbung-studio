@@ -81,6 +81,7 @@ erhalten.
     ├── Bewerbungen
     │   └── Firma_JJJJ-MM-TT
     │       └── Stellenbezeichnung
+    │           ├── bewerbung.json
     │           ├── Anschreiben
     │           ├── Lebenslauf
     │           ├── Deckblatt
@@ -91,15 +92,17 @@ erhalten.
     ├── Zertifikate
     ├── Absagen
     └── Setting
-        ├── Settings        (workspace.json)
-        ├── Profile
+        ├── Settings        (workspace.json, collections.json)
+        ├── Profile         (ein JSON je Hauptprofil)
         ├── Backups
         └── Muster
 ```
 
-`data/Setting/Settings/workspace.json` ist der zentrale, versionierte Datensatz. Aktive
-Bewerbungen, Gespräche und Absagen sind gefilterte Ansichten dieses Datensatzes
-und keine separaten Kopien.
+`data/Setting/Settings/workspace.json` ist ein versionierter Index mit Einstellungen
+und relativen Dateiverweisen. Die jeweilige `bewerbung.json` ist die dauerhafte
+Quelle der Bewerbungsdaten einschließlich des eigenen Profils. Hauptprofile
+und zentrale Sammlungen werden getrennt gespeichert. Aktive Bewerbungen,
+Gespräche und Absagen sind Ansichten der geladenen Bewerbungsdateien.
 
 Das Feld `sentAt` ist die zentrale Quelle des Bewerbungsdatums; bei Entwürfen
 wird bis zur Auswahl eines Datums `createdAt` verwendet. Der Firmenordner heißt

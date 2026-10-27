@@ -12,6 +12,7 @@ import {
   type TodoSourceFilter,
 } from "../src/shared/todos";
 import { DataStore } from "./storage";
+import { addSyntheticProfile } from "./test-profile";
 
 const temmler = "Temmler Pharma GmbH";
 const machine = "Maschinen-Einrichter für die Produktion";
@@ -64,12 +65,13 @@ describe("application todos follow the status of their application", () => {
     store = new DataStore(root);
     await store.initialize();
   };
-  const readWorkspaceFile = async () => JSON.parse(await readFile(path.join(store.files.paths.settingsRoot, "workspace.json"), "utf8"));
+  const readWorkspaceFile = async () => JSON.parse(await readFile(path.join(store.files.paths.settingsRoot, "collections.json"), "utf8"));
 
   beforeEach(async () => {
     root = await mkdtemp(path.join(tmpdir(), "bewerbungsmanager-todo-status-"));
     store = new DataStore(root);
     await store.initialize();
+    await addSyntheticProfile(store);
   });
 
   afterEach(async () => {
@@ -264,7 +266,7 @@ describe("application todos follow the status of their application", () => {
     stored.todos = stored.todos
       .filter((todo: Todo) => todo.source !== "application-deadline")
       .map(({ source: _s, applicationId: _a, ...rest }: Todo) => rest);
-    await writeFile(path.join(store.files.paths.settingsRoot, "workspace.json"), JSON.stringify(stored), "utf8");
+    await writeFile(path.join(store.files.paths.settingsRoot, "collections.json"), JSON.stringify(stored), "utf8");
 
     await restart();
 
@@ -278,7 +280,7 @@ describe("application todos follow the status of their application", () => {
     const auto = autoTodos()[0];
     const stored = await readWorkspaceFile();
     stored.todos = stored.todos.map((todo: Todo) => todo.id === auto.id ? { ...todo, description: `Bewerbungsfrist für ${machine} bei ${temmler}` } : todo);
-    await writeFile(path.join(store.files.paths.settingsRoot, "workspace.json"), JSON.stringify(stored), "utf8");
+    await writeFile(path.join(store.files.paths.settingsRoot, "collections.json"), JSON.stringify(stored), "utf8");
 
     await restart();
     expect(autoTodos(application.id)[0].description).toBe("");

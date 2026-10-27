@@ -13,6 +13,8 @@ import { encodeForManagedWrite, activeEncryption, isManagedPath } from "./securi
 import { parseEncryptedWorkspace } from "./security/encryption-service";
 import { AppError } from "../src/shared/app-error";
 import { createHash } from "node:crypto";
+import { z } from "zod";
+import { assertNoDroppedKeys } from "../src/shared/workspaceIndexSchema";
 import os from "node:os";
 import { defaultDeckblattDesign } from "../src/shared/deckblattDesignIds";
 import { resolveJobAdvertisementText } from "../src/shared/jobAdvertisement";
@@ -26,8 +28,17 @@ import {
   terminalApplicationStatuses,
 } from "../src/shared/todos";
 import { getProfessionalTitle, resolveApplicationProfile } from "../src/shared/profileSelection";
-import { clearProfileDerivedDocumentFields, dropStaleProfileCopies } from "../src/shared/coverSender";
 import { migrateLegacyResumeProfiles } from "../src/shared/legacyResumeProfile";
+import { WorkspaceManager } from "./workspace-management";
+import {
+  centralDataSchema,
+  hydrateWorkspaceIndex,
+  relativeReference,
+  resolveReference,
+  safeApplicationFolderName,
+  workspaceIndexSchema,
+  type WorkspaceIndex,
+} from "./workspace-index";
 import path from "node:path";
 import type { ApplicationPaths } from "../src/config/application-paths";
 import { resolveApplicationPaths } from "../src/config/application-paths";
@@ -253,6 +264,14 @@ const emptyDeletedApplicationsArchive = (): DeletedApplicationsArchive => ({
 const timestamp = () =>
   new Date().toISOString().replace(/\D/g, "").slice(0, 14);
 
+const indexMigrationJournalSchema = z.object({
+  schemaVersion: z.literal(1),
+  sourceHash: z.string().nullable(),
+  backupPath: z.string().nullable(),
+  files: z.array(z.object({ path: z.string(), previousHash: z.string().nullable(), nextHash: z.string() })),
+});
+type IndexMigrationJournal = z.infer<typeof indexMigrationJournalSchema>;
+
 const addDaysAtNine = (value: string, days: number) => {
   const date = new Date(value);
   date.setDate(date.getDate() + days);
@@ -323,6 +342,14 @@ export class DataStore {
   readonly migration: LegacyMigrationService;
   private workspacePath: string;
   private loadedWorkspaceHash: string | null = null;
+  private loadedWorkspaceSourcePath: string | null = null;
+  private diskIndex: WorkspaceIndex | null = null;
+  private readonly loadedDataHashes = new Map<string, string>();
+  private persistRevision = 0;
+  private writeFaulted = false;
+  private indexMigrationBackup: string | null = null;
+  private readonly indexMigrationJournalPath: string;
+  private storageWarnings: string[] = [];
   private readonly applicationDraftPath: string;
   private readonly deletedApplicationsPath: string;
   private workspace: Workspace = emptyWorkspace();
@@ -342,6 +369,7 @@ export class DataStore {
     this.workspacePath = path.join(paths.settingsRoot, "workspace.json");
     this.applicationDraftPath = paths.applicationDraftPath;
     this.deletedApplicationsPath = path.join(paths.deletedRoot, "silinenler.json");
+    this.indexMigrationJournalPath = path.join(paths.backupsRoot, "index-migration-journal.json");
   }
 
   async initialize() {
@@ -353,13 +381,13 @@ export class DataStore {
          (await stat(`${legacyWorkspacePath}.bak`).catch(() => null)))) {
       this.workspacePath = legacyWorkspacePath;
     }
-    this.workspace = migrateLegacyResumeProfiles(await this.loadWorkspace());
+    const loaded = await this.loadWorkspace();
+    if (!this.diskIndex && this.loadedWorkspaceSourcePath)
+      await this.prepareIndexMigration(loaded);
+    if (loaded.applications.some((application) => !application.profileSnapshot))
+      await this.backupBeforeProfileMigration();
+    this.workspace = migrateLegacyResumeProfiles(loaded);
     for (const application of this.workspace.applications) {
-      application.documents = dropStaleProfileCopies(
-        application.documents,
-        this.getProfileForApplication(application),
-        this.workspace.profiles,
-      );
       application.folderName = await this.files.relocateApplicationFolders(
         application,
         getApplicationDate(application),
@@ -376,12 +404,15 @@ export class DataStore {
       this.syncEvents(application),
     );
     this.reconcileApplicationTodos();
+    if (!this.diskIndex) await this.migrateToIndex();
     await this.persist();
   }
 
   getWorkspace() {
     return structuredClone(this.workspace);
   }
+
+  getStorageWarnings() { return [...this.storageWarnings]; }
 
   /** Whether a Bewerbung with this id exists (without copying the workspace). */
   hasApplication(id: string) {
@@ -396,6 +427,9 @@ export class DataStore {
   clearForLock() {
     this.workspace = emptyWorkspace();
     this.loadedWorkspaceHash = null;
+    this.diskIndex = null;
+    this.loadedDataHashes.clear();
+    this.writeFaulted = false;
   }
 
   async getApplicationDraft() {
@@ -425,12 +459,17 @@ export class DataStore {
   private async loadWorkspace() {
     let foundExisting = false;
     for (const candidate of [this.workspacePath, `${this.workspacePath}.bak`]) {
+      let validSupportedWorkspace = false;
       try {
         const content = await readFile(candidate, "utf8");
         const parsed: unknown = JSON.parse(content);
         foundExisting = true;
-        const result = workspaceSchema.safeParse(parsed);
-        if (result.success) {
+        const legacy = workspaceSchema.safeParse(parsed);
+        const indexed = workspaceIndexSchema.safeParse(parsed);
+        validSupportedWorkspace = legacy.success || indexed.success;
+        if (legacy.success) assertNoDroppedKeys(parsed, legacy.data);
+        if (indexed.success) assertNoDroppedKeys(parsed, indexed.data);
+        if (legacy.success || indexed.success) {
           if (candidate !== this.workspacePath) {
             const recoveryRoot = this.files.paths.backupsRoot;
             await mkdir(recoveryRoot, { recursive: true });
@@ -445,9 +484,21 @@ export class DataStore {
             : await readFile(this.workspacePath, "utf8").catch(() => null);
           this.loadedWorkspaceHash = activeContent === null ? null
             : createHash("sha256").update(activeContent).digest("hex");
-          return result.data;
+          this.loadedWorkspaceSourcePath = candidate;
+          if (indexed.success) {
+            const repaired = await this.reconcileIndexedApplications(indexed.data);
+            const hydrated = await hydrateWorkspaceIndex(this.files.paths, repaired);
+            this.diskIndex = repaired;
+            await this.rememberIndexedHashes(repaired);
+            await rm(this.indexMigrationJournalPath, { force: true }).catch(() =>
+              this.storageWarnings.push("Ein altes Umstellungsjournal konnte nicht entfernt werden."));
+            return hydrated;
+          }
+          if (legacy.success) return legacy.data;
+          throw new Error("Ungültiger Datenbestand.");
         }
-      } catch {
+      } catch (error) {
+        if (validSupportedWorkspace) throw error;
         if (await stat(candidate).catch(() => null)) foundExisting = true;
       }
     }
@@ -455,6 +506,235 @@ export class DataStore {
       throw new Error("Die vorhandenen Bewerbungsdaten konnten nicht gelesen werden. Die Dateien wurden nicht überschrieben.");
     }
     return emptyWorkspace();
+  }
+
+  private hashContent(content: string) {
+    return createHash("sha256").update(content).digest("hex");
+  }
+
+  private async readIndexMigrationJournal(): Promise<IndexMigrationJournal | null> {
+    const content = await readFile(this.indexMigrationJournalPath, "utf8").catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    });
+    if (content === null) return null;
+    const journal = indexMigrationJournalSchema.parse(JSON.parse(content));
+    if (journal.sourceHash !== this.loadedWorkspaceHash)
+      throw new Error("Das Workspace wurde seit Beginn der Datenumstellung geändert. Die Umstellung wurde angehalten.");
+    return journal;
+  }
+
+  private async rememberIndexedHashes(index: WorkspaceIndex) {
+    this.loadedDataHashes.clear();
+    for (const [relative, area] of [
+      ...index.applications.map((item) => [item.path, "application"] as const),
+      ...index.profiles.map((item) => [item.path, "profile"] as const),
+      [index.centralPath, "central"] as const,
+    ]) {
+      const file = await resolveReference(this.files.paths, relative, area);
+      this.loadedDataHashes.set(file, this.hashContent(await readFile(file, "utf8")));
+    }
+  }
+
+  private async scanApplicationJson() {
+    const found: Array<{ path: string; id: string | null; application: Application | null }> = [];
+    const pending = [this.files.paths.applicationsData];
+    while (pending.length) {
+      const directory = pending.pop()!;
+      for (const entry of await readdir(directory, { withFileTypes: true }).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return [];
+        throw error;
+      })) {
+        const file = path.join(directory, entry.name);
+        if (entry.isSymbolicLink()) throw new Error("Eine Verknüpfung im Bewerbungsordner ist nicht zulässig.");
+        if (entry.isDirectory()) pending.push(file);
+        else if (entry.isFile() && entry.name === "bewerbung.json") {
+          const parsed = await readFile(file, "utf8").then((content) => {
+            const raw: unknown = JSON.parse(content);
+            const result = applicationSchema.safeParse(raw);
+            if (result.success) assertNoDroppedKeys(raw, result.data, `Bewerbungsdatei ${file}`);
+            return result;
+          }).catch(() => null);
+          found.push({ path: file, id: parsed?.success ? parsed.data.id : null,
+            application: parsed?.success ? parsed.data : null });
+        }
+      }
+    }
+    return found;
+  }
+
+  private async reconcileIndexedApplications(index: WorkspaceIndex) {
+    for (const references of [index.applications, index.profiles]) {
+      if (new Set(references.map((item) => item.id)).size !== references.length ||
+          new Set(references.map((item) => item.path.toLowerCase())).size !== references.length)
+        throw new Error("Doppelte Datei- oder ID-Referenz im Datenbestand. Keine Datei wurde geändert.");
+    }
+    const scanned = await this.scanApplicationJson();
+    const byId = new Map<string, typeof scanned>();
+    for (const item of scanned) {
+      if (!item.id) continue;
+      byId.set(item.id, [...(byId.get(item.id) ?? []), item]);
+    }
+    for (const [id, items] of byId)
+      if (items.length > 1) throw new Error(`Mehrere Bewerbungsdateien haben dieselbe ID ${id}. Keine Datei wurde geändert.`);
+    const registered = new Set(index.applications.map((item) => item.id));
+    this.storageWarnings = scanned.filter((item) => !item.id || !registered.has(item.id)).map((item) =>
+      `Nicht registrierte oder beschädigte Bewerbungsdatei: ${relativeReference(this.files.paths, item.path)}`);
+    const next = structuredClone(index);
+    let repaired = false;
+    for (const ref of next.applications) {
+      const file = await resolveReference(this.files.paths, ref.path, "application");
+      if (await stat(file).catch(() => null)) continue;
+      const match = byId.get(ref.id)?.[0];
+      if (!match?.application) throw new Error(`Bewerbungsdatei fehlt: ${ref.path}. Der Verweis wurde nicht gelöscht.`);
+      const candidate = relativeReference(this.files.paths, match.path);
+      if (!safeApplicationFolderName(match.application.folderName) || relativeReference(this.files.paths,
+        path.join(this.files.paths.applicationsData, match.application.folderName, "bewerbung.json")) !== candidate)
+        throw new Error(`Bewerbungsdatei wurde verschoben, enthält aber einen abweichenden Ordnernamen: ${candidate}`);
+      ref.path = candidate;
+      repaired = true;
+    }
+    if (repaired) {
+      await this.assertWorkspaceLockOwned();
+      await new WorkspaceManager(path.join(this.files.paths.root, ".migration-config"))
+        .fullBackup(this.files.paths.root, 2, 2, ["applicationReferences"]);
+      next.updatedAt = nowIso();
+      const content = JSON.stringify(next, null, 2);
+      await this.atomicWrite(this.workspacePath, content, this.loadedWorkspaceHash);
+      this.loadedWorkspaceHash = this.hashContent(content);
+    }
+    return next;
+  }
+
+  /** The old workspace stays readable until every independent file has been verified. */
+  private async prepareIndexMigration(legacy: Workspace) {
+    await this.assertWorkspaceLockOwned();
+    const journal = await this.readIndexMigrationJournal();
+    if (journal) {
+      if (!journal.backupPath || !(await stat(journal.backupPath).catch(() => null)))
+        throw new Error("Die Sicherung der begonnenen Datenumstellung fehlt. Die Umstellung wurde angehalten.");
+      this.indexMigrationBackup = journal.backupPath;
+    } else {
+      const manager = new WorkspaceManager(path.join(this.files.paths.root, ".migration-config"));
+      this.indexMigrationBackup = await manager.fullBackup(this.files.paths.root, 1, 2,
+        ["applications", "profiles", "events", "attachments", "todos", "customCvDesigns"]);
+    }
+    const migrated = migrateLegacyResumeProfiles(legacy);
+    const byId = new Map(legacy.applications.map((item) => [item.id, item]));
+    const migratedById = new Map(migrated.applications.map((item) => [item.id, item]));
+    const scanned = await this.scanApplicationJson();
+    const conflicts: string[] = [];
+    const seen = new Set<string>();
+    for (const item of scanned) {
+      const relative = relativeReference(this.files.paths, item.path);
+      if (!item.id || !item.application) { conflicts.push(`Beschädigte Bewerbungsdatei: ${relative}`); continue; }
+      if (seen.has(item.id)) conflicts.push(`Doppelte Bewerbungs-ID: ${item.id}`);
+      seen.add(item.id);
+      const original = byId.get(item.id);
+      const updated = migratedById.get(item.id);
+      if (!original || !updated) continue; // An unindexed file is never imported automatically.
+      const withoutFolder = (value: Application) => JSON.stringify({ ...value, folderName: "" });
+      if (withoutFolder(item.application) !== withoutFolder(original) &&
+          withoutFolder(item.application) !== withoutFolder(updated) &&
+          journal?.files.find((record) => record.path === relative)?.nextHash !==
+            this.hashContent(await readFile(item.path, "utf8")))
+        conflicts.push(`Abweichende Bewerbungsdatei: ${relative}`);
+    }
+    if (conflicts.length) {
+      const report = path.join(this.files.paths.backupsRoot, `migrationskonflikte-${timestamp()}-${createId()}.json`);
+      await writeFile(report, JSON.stringify({ backup: this.indexMigrationBackup, conflicts }, null, 2));
+      throw new Error(`Die Datenumstellung wurde wegen widersprüchlicher Dateien angehalten. Bericht: ${report}`);
+    }
+  }
+
+  private buildIndex(): WorkspaceIndex {
+    const paths = this.files.paths;
+    if (this.workspace.applications.some((item) => !safeApplicationFolderName(item.folderName)))
+      throw new Error("Ungültiger Bewerbungsordner im Datenbestand.");
+    return workspaceIndexSchema.parse({
+      schemaVersion: 2,
+      applications: this.workspace.applications.map((item) => ({ id: item.id,
+        path: relativeReference(paths, path.join(this.files.applicationDataPath(item.folderName), "bewerbung.json")) })),
+      profiles: this.workspace.profiles.map((item) => ({ id: item.id,
+        path: relativeReference(paths, path.join(paths.profileRoot, `profil-${item.id}.json`)) })),
+      centralPath: relativeReference(paths, path.join(paths.settingsRoot, "collections.json")),
+      settings: this.workspace.settings,
+      updatedAt: this.workspace.updatedAt,
+    });
+  }
+
+  private centralContent() {
+    return JSON.stringify(centralDataSchema.parse({ schemaVersion: 1,
+      events: this.workspace.events, attachments: this.workspace.attachments,
+      todos: this.workspace.todos, customCvDesigns: this.workspace.customCvDesigns }), null, 2);
+  }
+
+  private async migrateToIndex() {
+    const index = this.buildIndex();
+    const files = [
+      ...this.workspace.applications.map((item, i) => ({ relative: index.applications[i].path,
+        area: "application" as const, content: JSON.stringify(applicationSchema.parse(item), null, 2) })),
+      ...this.workspace.profiles.map((item, i) => ({ relative: index.profiles[i].path,
+        area: "profile" as const, content: JSON.stringify(profileSchema.parse(item), null, 2) })),
+      { relative: index.centralPath, area: "central" as const, content: this.centralContent() },
+    ];
+    const existingJournal = await this.readIndexMigrationJournal();
+    const records: IndexMigrationJournal["files"] = [];
+    for (const item of files) {
+      const file = await resolveReference(this.files.paths, item.relative, item.area);
+      const existing = await readFile(file, "utf8").catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return null;
+        throw error;
+      });
+      const currentHash = existing === null ? null : this.hashContent(existing);
+      const nextHash = this.hashContent(item.content);
+      const previous = existingJournal?.files.find((record) => record.path === item.relative);
+      if (existingJournal) {
+        if (!previous || previous.nextHash !== nextHash ||
+            (currentHash !== previous.previousHash && currentHash !== previous.nextHash))
+          throw new Error(`Die Datenumstellung wurde wegen einer geänderten Datei angehalten: ${item.relative}`);
+        records.push(previous);
+      } else {
+        if (existing !== null && currentHash !== nextHash && item.area !== "application")
+          throw new Error(`Vorhandene Datei weicht vom alten Workspace ab: ${item.relative}`);
+        records.push({ path: item.relative, previousHash: currentHash, nextHash });
+      }
+    }
+    if (!existingJournal)
+      await this.atomicWrite(this.indexMigrationJournalPath,
+        JSON.stringify(indexMigrationJournalSchema.parse({ schemaVersion: 1,
+          sourceHash: this.loadedWorkspaceHash, backupPath: this.indexMigrationBackup, files: records }), null, 2), null);
+    for (const item of files) {
+      const file = await resolveReference(this.files.paths, item.relative, item.area);
+      const existing = await readFile(file, "utf8").catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return null;
+        throw error;
+      });
+      if (existing !== item.content) await this.atomicWrite(file, item.content,
+        existing === null ? null : this.hashContent(existing));
+      const verified = await readFile(file, "utf8");
+      if (verified !== item.content) throw new Error(`Datei konnte nicht geprüft werden: ${item.relative}`);
+    }
+    const content = JSON.stringify(index, null, 2);
+    await this.atomicWrite(this.workspacePath, content, this.loadedWorkspaceHash);
+    this.loadedWorkspaceHash = this.hashContent(content);
+    this.diskIndex = index;
+    await this.rememberIndexedHashes(index);
+    await rm(this.indexMigrationJournalPath, { force: true });
+  }
+
+  private async backupBeforeProfileMigration() {
+    if (!this.loadedWorkspaceSourcePath) return;
+    await this.assertWorkspaceLockOwned();
+    const backupRoot = this.files.paths.backupsRoot;
+    await mkdir(backupRoot, { recursive: true });
+    const backupPath = path.join(backupRoot, `vor-profilumstellung-${timestamp()}-${createId()}.json`);
+    const original = await readFile(this.loadedWorkspaceSourcePath);
+    await copyFile(this.loadedWorkspaceSourcePath, backupPath);
+    const copy = await readFile(backupPath);
+    if (createHash("sha256").update(original).digest("hex") !==
+        createHash("sha256").update(copy).digest("hex"))
+      throw new Error("Die Sicherung vor der Profilumstellung konnte nicht bestätigt werden. Die Daten wurden nicht geändert.");
   }
 
   private async loadDeletedApplicationsArchive() {
@@ -597,9 +877,11 @@ export class DataStore {
   }
 
   private async persist(applicationsToPersist: readonly Application[] = []) {
-    // Application documents are snapshots. Unrelated workspace saves must not
-    // rewrite older application folders or their modification timestamps.
+    if (this.writeFaulted)
+      throw new Error("Eine vorherige Speicherung wurde nur teilweise abgeschlossen. Bitte starten Sie den Datenbestand neu und prüfen Sie die Sicherung.");
+    const revisionBefore = this.persistRevision;
     await this.assertWorkspaceLockOwned();
+    if (!this.diskIndex) throw new Error("Der Datenbestand wurde noch nicht vollständig vorbereitet.");
     const diskContent = await readFile(this.workspacePath, "utf8").catch((error: NodeJS.ErrnoException) => {
       if (error.code === "ENOENT") return null;
       throw error;
@@ -608,26 +890,70 @@ export class DataStore {
     if (diskHash !== this.loadedWorkspaceHash) {
       throw new Error("Der Datenbestand wurde seit dem Öffnen extern geändert. Bitte laden Sie ihn neu oder erstellen Sie zuerst eine Sicherung.");
     }
-    const validated = workspaceSchema.parse(this.workspace);
-    let content = JSON.stringify(validated, null, 2);
-    // An unchanged workspace is not rewritten: a new updatedAt alone would be a difference in the Bewerbungsordner
-    // (and its Git history) on every start of the app.
-    if (content !== diskContent) {
-      this.workspace.updatedAt = validated.updatedAt = nowIso();
-      content = JSON.stringify(validated, null, 2);
-      await this.atomicWrite(
-        this.workspacePath,
-        content,
-        this.loadedWorkspaceHash,
-      );
-      this.loadedWorkspaceHash = createHash("sha256").update(content).digest("hex");
+    workspaceSchema.parse(this.workspace);
+    const next = this.buildIndex();
+    const old = this.diskIndex;
+    const changedIds = new Set(applicationsToPersist.map((item) => item.id));
+    for (const ref of next.applications)
+      if (old.applications.find((item) => item.id === ref.id)?.path !== ref.path) changedIds.add(ref.id);
+    const writes: Array<{ file: string; content: string; expected: string | null }> = [];
+    const queue = async (relative: string, area: "application" | "profile" | "central", content: string,
+      previousPath?: string) => {
+      const file = await resolveReference(this.files.paths, relative, area);
+      const previousFile = previousPath ? await resolveReference(this.files.paths, previousPath, area) : null;
+      const expected = this.loadedDataHashes.get(previousFile ?? file) ?? null;
+      const current = await readFile(file, "utf8").catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return null;
+        throw error;
+      });
+      if (this.hashContent(current ?? "") !== this.hashContent(content)) {
+        if ((current === null ? null : this.hashContent(current)) !== expected)
+          throw new Error(`Datei wurde extern geändert. Bitte laden Sie den Datenbestand neu: ${relative}`);
+        writes.push({ file, content, expected });
+      }
+    };
+    for (const id of changedIds) {
+      const application = this.workspace.applications.find((item) => item.id === id);
+      const ref = next.applications.find((item) => item.id === id);
+      if (application && ref) await queue(ref.path, "application",
+        JSON.stringify(applicationSchema.parse(application), null, 2),
+        old.applications.find((item) => item.id === id)?.path);
     }
-    await Promise.all(
-      applicationsToPersist.map((application) =>
-        this.persistApplicationFiles(applicationSchema.parse(application)),
-      ),
-    );
-    await this.createAutomaticBackup();
+    for (const ref of next.profiles) {
+      const profile = this.workspace.profiles.find((item) => item.id === ref.id)!;
+      await queue(ref.path, "profile", JSON.stringify(profileSchema.parse(profile), null, 2),
+        old.profiles.find((item) => item.id === ref.id)?.path);
+    }
+    await queue(next.centralPath, "central", this.centralContent(), old.centralPath);
+    const sameIndex = JSON.stringify({ ...next, updatedAt: old.updatedAt }) === JSON.stringify(old);
+    if (!sameIndex) {
+      this.workspace.updatedAt = nowIso();
+      next.updatedAt = this.workspace.updatedAt;
+    } else {
+      next.updatedAt = old.updatedAt;
+      this.workspace.updatedAt = old.updatedAt;
+    }
+    // Check all targets before writing any of them; the index is committed last.
+    try {
+      for (const item of writes) {
+        await this.atomicWrite(item.file, item.content, item.expected);
+        this.persistRevision += 1;
+        this.loadedDataHashes.set(item.file, this.hashContent(item.content));
+      }
+      if (!sameIndex) {
+        const content = JSON.stringify(next, null, 2);
+        await this.atomicWrite(this.workspacePath, content, this.loadedWorkspaceHash);
+        this.persistRevision += 1;
+        this.loadedWorkspaceHash = this.hashContent(content);
+        this.diskIndex = next;
+      }
+      for (const application of applicationsToPersist)
+        await this.persistApplicationFiles(applicationSchema.parse(application));
+      await this.createAutomaticBackup();
+    } catch (error) {
+      if (this.persistRevision !== revisionBefore) this.writeFaulted = true;
+      throw error;
+    }
   }
 
   private async createAutomaticBackup() {
@@ -639,7 +965,7 @@ export class DataStore {
     try {
       await stat(backupPath);
     } catch {
-      await copyFile(this.workspacePath, backupPath);
+      await writeFile(backupPath, JSON.stringify(workspaceSchema.parse(this.workspace), null, 2));
     }
     const backups = (await readdir(backupRoot, { withFileTypes: true }))
       .filter(
@@ -729,10 +1055,6 @@ export class DataStore {
     );
     const email = getApplicationEmail(application, profile, emailAttachments);
     await Promise.all([
-      this.writeIfChanged(
-        path.join(dataRoot, "bewerbung.json"),
-        JSON.stringify(applicationSchema.parse(application), null, 2),
-      ),
       this.writeIfChanged(
         path.join(documents.stellenanzeige, "stellenanzeige.json"),
         JSON.stringify(application.job, null, 2),
@@ -994,6 +1316,9 @@ export class DataStore {
 
   async createApplication(rawInput: ApplicationInput) {
     const input = applicationInputSchema.parse(rawInput);
+    const sourceProfile = resolveApplicationProfile(this.workspace.profiles, input.profileId);
+    if (!sourceProfile || (input.profileId && sourceProfile.id !== input.profileId))
+      throw new Error("Für die neue Bewerbung ist das gewählte Hauptprofil nicht vorhanden.");
     const now = nowIso();
     const date = input.sentAt ? new Date(input.sentAt) : new Date();
     await this.nestLegacyApplicationAt(this.files.applicationRootFolderName(input.company.name, date));
@@ -1007,7 +1332,8 @@ export class DataStore {
       id: createId(),
       folderName,
       ...input,
-      profileId: resolveApplicationProfile(this.workspace.profiles, input.profileId)?.id,
+      profileId: sourceProfile.id,
+      profileSnapshot: structuredClone(sourceProfile),
       templateDesigns: {},
       additionalContacts: input.additionalContacts ?? [],
       status: input.sentAt ? "Beworben" : "Entwurf",
@@ -1068,10 +1394,18 @@ export class DataStore {
       createdAt: now,
       updatedAt: now,
     };
+    const previousWorkspace = structuredClone(this.workspace);
+    const previousHash = this.loadedWorkspaceHash;
+    const previousRevision = this.persistRevision;
     this.workspace.applications.unshift(applicationSchema.parse(application));
     this.syncEvents(application);
     this.syncApplicationTodo(application);
-    await this.persist([application]);
+    try { await this.persist([application]); }
+    catch (error) {
+      if (this.loadedWorkspaceHash === previousHash && this.persistRevision === previousRevision)
+        this.workspace = previousWorkspace;
+      throw error;
+    }
     this.queueGitCommit(application.id, "create", input.sentAt ? ["Versanddatum"] : []);
     return this.getWorkspace();
   }
@@ -1083,12 +1417,10 @@ export class DataStore {
     );
     if (index < 0) throw new Error("Bewerbung wurde nicht gefunden.");
     const current = this.workspace.applications[index];
-    if (
-      this.getProfileForApplication(current)?.id !==
-      this.getProfileForApplication(application)?.id
-    ) {
-      application.documents = clearProfileDerivedDocumentFields(application.documents);
-    }
+    // profileId records provenance. Changing that link never replaces saved application content.
+    if (!application.profileSnapshot) application.profileSnapshot = structuredClone(current.profileSnapshot);
+    if (!application.profileSnapshot)
+      throw new Error("Das Bewerbungsprofil fehlt. Die Bewerbung wurde nicht gespeichert.");
     const shouldCommitUpdate = applicationContentChanged(current, application);
     // Documents still in a legacy folder move into the Bewerbung's folder (only when such a folder exists).
     await this.files.consolidateLegacyDocumentDirectories(current);
@@ -1123,10 +1455,18 @@ export class DataStore {
     }
     await this.files.syncInterviewFolder(current, application, this.interviewFolderMove(current, application));
     application.updatedAt = nowIso();
+    const previousWorkspace = structuredClone(this.workspace);
+    const previousHash = this.loadedWorkspaceHash;
+    const previousRevision = this.persistRevision;
     this.workspace.applications[index] = application;
     this.syncEvents(application);
     this.syncApplicationTodo(application);
-    await this.persist([application]);
+    try { await this.persist([application]); }
+    catch (error) {
+      if (this.loadedWorkspaceHash === previousHash && this.persistRevision === previousRevision)
+        this.workspace = previousWorkspace;
+      throw error;
+    }
     const changes = describeApplicationChange(current, application);
     if (!changes.length) this.queueGitCommit(application.id, "update", ["Weitere Angaben"]);
     else for (const change of changes) this.queueGitCommit(application.id, change.action, change.details);
@@ -1173,7 +1513,8 @@ export class DataStore {
     if (!application) throw new Error("Bewerbung wurde nicht gefunden.");
 
     await this.archiveDeletedApplication(application);
-    await this.files.removeApplicationArtifacts(application);
+    const previousWorkspace = structuredClone(this.workspace);
+    const previousRevision = this.persistRevision;
     this.workspace.applications = this.workspace.applications.filter(
       (application) => application.id !== id,
     );
@@ -1186,7 +1527,9 @@ export class DataStore {
     this.workspace.todos = this.workspace.todos.filter(
       (todo) => !(isApplicationTodo(todo) && todo.applicationId === id),
     );
-    await this.persist();
+    try { await this.persist(); }
+    catch (error) { if (this.persistRevision === previousRevision) this.workspace = previousWorkspace; throw error; }
+    await this.files.removeApplicationArtifacts(application);
     this.queueApplicationGitCommit(application, "delete", { position: application.job.title });
     return this.getWorkspace();
   }
@@ -1224,8 +1567,6 @@ export class DataStore {
 
   async saveProfile(rawProfile: ApplicantProfile) {
     const profile = profileSchema.parse(rawProfile);
-    const previous = this.workspace.profiles.find((item) => item.id === profile.id);
-    const changed = !previous || JSON.stringify(previous) !== JSON.stringify(profile);
     if (profile.isDefault) {
       this.workspace.profiles.forEach((item) => {
         item.isDefault = false;
@@ -1237,9 +1578,6 @@ export class DataStore {
     if (index >= 0) this.workspace.profiles[index] = profile;
     else this.workspace.profiles.push(profile);
     await this.persist();
-    if (changed) for (const application of this.workspace.applications)
-      if (this.getProfileForApplication(application)?.id === profile.id)
-        this.queueGitCommit(application.id, "lebenslauf", ["Profil"]);
     return this.getWorkspace();
   }
 
@@ -1256,22 +1594,7 @@ export class DataStore {
     ) {
       this.workspace.profiles[0].isDefault = true;
     }
-    const replacement =
-      this.workspace.profiles.find((profile) => profile.isDefault) ??
-      this.workspace.profiles[0];
-    const now = nowIso();
-    const reassignedApplications = this.workspace.applications.filter(
-      (application) => application.profileId === id,
-    );
-    reassignedApplications.forEach((application) => {
-      application.profileId = replacement?.id;
-      application.documents = clearProfileDerivedDocumentFields(application.documents);
-      application.updatedAt = now;
-    });
-
-    await this.persist(reassignedApplications);
-    for (const application of reassignedApplications)
-      this.queueGitCommit(application.id, "lebenslauf", ["Profil"]);
+    await this.persist();
     return this.getWorkspace();
   }
 
@@ -1493,8 +1816,8 @@ export class DataStore {
     };
   }
 
-  getProfileForApplication(application: Pick<Application, "profileId">) {
-    return resolveApplicationProfile(this.workspace.profiles, application.profileId);
+  getProfileForApplication(application: Pick<Application, "profileId" | "profileSnapshot">) {
+    return resolveApplicationProfile(this.workspace.profiles, application);
   }
 
   getApplication(id: string) {
@@ -2240,13 +2563,13 @@ export class DataStore {
         "Eine Migration ist nur möglich, solange der neue Datenbestand leer ist.",
       );
     }
-    const emergencyPath = path.join(
-      this.files.paths.backupsRoot,
-      `vor-migration-${timestamp()}-${createId()}.json`,
-    );
-    await copyFile(this.workspacePath, emergencyPath);
+    await new WorkspaceManager(path.join(this.files.paths.root, ".migration-config"))
+      .fullBackup(this.files.paths.root, 2, 2, ["legacyImport"]);
+    await copyFile(this.workspacePath, path.join(this.files.paths.backupsRoot,
+      `vor-migration-${timestamp()}-${createId()}.json`));
     const preview = await this.migration.preview(sourcePath);
     const previous = this.workspace;
+    const previousRevision = this.persistRevision;
     try {
       this.workspace = migrateLegacyResumeProfiles(await this.migration.migrate(sourcePath));
       await this.persist(this.workspace.applications);
@@ -2273,7 +2596,7 @@ export class DataStore {
       );
       return this.getWorkspace();
     } catch (error) {
-      this.workspace = previous;
+      if (this.persistRevision === previousRevision) this.workspace = previous;
       throw error;
     }
   }
@@ -2284,42 +2607,26 @@ export class DataStore {
     const imported = workspaceSchema.parse(envelope
       ? JSON.parse(activeEncryption()?.decryptWorkspace(envelope) ?? "null")
       : parsed);
-    const emergencyPath = path.join(
-      this.files.paths.backupsRoot,
-      `vor-import-${timestamp()}.json`,
-    );
-    await copyFile(this.workspacePath, emergencyPath);
+    await new WorkspaceManager(path.join(this.files.paths.root, ".migration-config"))
+      .fullBackup(this.files.paths.root, 2, 2, ["jsonImport"]);
+    await copyFile(this.workspacePath, path.join(this.files.paths.backupsRoot,
+      `vor-import-${timestamp()}.json`));
     const previous = this.workspace;
+    const previousRevision = this.persistRevision;
     try {
       this.workspace = migrateLegacyResumeProfiles(imported);
-      const availableAttachments = [];
       for (const attachment of this.workspace.attachments) {
         try {
           await stat(this.getAttachmentPath(attachment));
-          availableAttachments.push(attachment);
         } catch {
-          // A JSON backup cannot recreate a missing binary attachment.
+          this.storageWarnings.push(`Anlage fehlt nach der JSON-Wiederherstellung: ${attachment.fileName}`);
         }
       }
-      this.workspace.attachments = availableAttachments;
-      const availableIds = new Set(
-        availableAttachments.map((attachment) => attachment.id),
-      );
-      this.workspace.applications.forEach((application) => {
-        application.attachmentIds = application.attachmentIds.filter((id) =>
-          availableIds.has(id),
-        );
-      });
       this.reconcileApplicationTodos();
       await this.persist(this.workspace.applications);
       return this.getWorkspace();
     } catch (error) {
-      this.workspace = previous;
-      try {
-        await this.persist();
-      } catch {
-        // Preserve and report the original import error.
-      }
+      if (this.persistRevision === previousRevision) this.workspace = previous;
       throw error;
     }
   }

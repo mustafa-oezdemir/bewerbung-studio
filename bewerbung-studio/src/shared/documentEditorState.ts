@@ -188,14 +188,15 @@ export const resetResumeDesign = (state: DesignEditState, scope: DesignScope): D
   };
 };
 
-/** Save profile content before publishing the application snapshot or exporting. */
+/** Publish profile content and document edits in the same application save. */
 export const persistDocumentDraft = async (
   application: Application,
   profile: ApplicantProfile | undefined,
-  saveProfile: (profile: ApplicantProfile) => Promise<void>,
   saveApplication: (application: Application) => Promise<void>,
 ) => {
-  if (profile && profile.id === application.profileId)
-    await saveProfile(profile);
-  await saveApplication(application);
+  if (profile && profile.id !== application.profileSnapshot?.id)
+    throw new Error("Der Profilentwurf gehört nicht zu dieser Bewerbung.");
+  await saveApplication(profile
+    ? { ...application, profileSnapshot: structuredClone(profile) }
+    : application);
 };

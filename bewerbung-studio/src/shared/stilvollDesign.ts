@@ -124,6 +124,8 @@ export const stilvollResolvedCss = `
 `;
 
 export const stilvollLetterCss = `
+.document-paper.stilvoll-letter{background:#fff!important;background-image:none!important}
+.document-paper.stilvoll-letter .document-background-layer{display:none!important}
 .stilvoll-letter :is(.letter-preview,.letter-content){padding:var(--stilvoll-margin-top) var(--stilvoll-margin-right) var(--stilvoll-margin-bottom) var(--stilvoll-margin-left)!important;color:var(--stilvoll-text);font-family:var(--doc-font)!important}
 .stilvoll-letter .letter-header{display:flex;align-items:flex-start;justify-content:flex-start;min-height:24mm;padding:0 0 1mm;text-align:left}
 .stilvoll-letter :is(.sender,.sender-line){margin:0;color:var(--stilvoll-text);text-align:left}

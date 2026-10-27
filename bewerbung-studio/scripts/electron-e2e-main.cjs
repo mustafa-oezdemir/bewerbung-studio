@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = process.env.BM_E2E_ROOT;
 const phase = process.env.BM_E2E_PHASE;
-if (!root || !['create', 'reopen', 'hold', 'second', 'interview', 'interview-reopen'].includes(phase))
+if (!root || !['create', 'reopen', 'hold', 'second', 'interview', 'interview-reopen', 'profiles', 'profiles-reopen'].includes(phase))
   throw new Error('Isolated E2E fixture is required');
 app.setPath('userData', path.join(root, 'userData'));
 process.env.BEWERBUNG_ROOT_PATH = path.join(root, 'workspace');
@@ -21,6 +21,8 @@ const fail = (error) => {
 process.on('uncaughtException', fail);
 process.on('unhandledRejection', fail);
 dialog.showErrorBox = (title, content) => fail(new Error(`${title}: ${content}`));
+if (phase === 'profiles-reopen')
+  dialog.showSaveDialog = async (_window, options) => ({ canceled: false, filePath: options.defaultPath });
 setTimeout(() => fail(new Error(`Electron E2E ${phase} timed out`)), 60_000).unref();
 
 const createScenario = `(async () => {
@@ -144,6 +146,52 @@ const verifyReloadScenario = `(async () => {
       workspace.todos[0].title !== 'E2E Nachverfolgung')
     throw new Error('status or todo was lost after renderer reload');
   return true;
+})()`;
+
+const createApplicationProfilesScenario = `(async () => {
+  const api = window.bewerbungsManager;
+  const workspace = await api.workspace.get();
+  const source = workspace.profiles[0];
+  const alpha = workspace.applications.find((item) => item.company.name === 'E2E Beispiel GmbH');
+  if (!source || !alpha?.profileSnapshot) throw new Error('profile source or initial application missing');
+  await api.applications.save({ ...alpha, profileSnapshot: { ...alpha.profileSnapshot,
+    title: 'Java Backend', summary: 'Java Backend', skills: ['Java', 'Spring Boot'] } });
+  const created = await api.applications.create({
+    company: { name: 'E2E Zweite GmbH', city: 'Berlin' }, contact: {}, job: { title: 'Golang Backend' },
+    templateId: 'classic-professional', accentColor: '#155e58', profileId: source.id, notes: '',
+  });
+  const beta = created.workspace.applications.find((item) => item.company.name === 'E2E Zweite GmbH');
+  await api.applications.save({ ...beta, profileSnapshot: { ...beta.profileSnapshot,
+    title: 'Golang Backend', summary: 'Golang Backend', skills: ['Go', 'Docker'] } });
+  await api.profiles.save({ ...source, title: 'Zentrale Version', summary: 'Zentrale Version' });
+  return true;
+})()`;
+
+const verifyApplicationProfilesScenario = `(async () => {
+  const api = window.bewerbungsManager;
+  const workspace = await api.workspace.get();
+  const alpha = workspace.applications.find((item) => item.company.name === 'E2E Beispiel GmbH');
+  const beta = workspace.applications.find((item) => item.company.name === 'E2E Zweite GmbH');
+  if (alpha?.profileSnapshot?.summary !== 'Java Backend' || beta?.profileSnapshot?.summary !== 'Golang Backend' ||
+      workspace.profiles[0]?.summary !== 'Zentrale Version') throw new Error('application profiles did not survive restart');
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const checkPreview = async (company, own, other) => {
+    document.querySelector('button.nav-item[title="Aktive Bewerbungen"]').click();
+    await wait(150);
+    const item = [...document.querySelectorAll('.application-item')].find((entry) => entry.textContent.includes(company));
+    if (!item) throw new Error('application missing in UI: ' + company);
+    item.click();
+    document.querySelector('button.nav-item[title="Lebenslauf"]').click();
+    await wait(250);
+    const preview = [...document.querySelectorAll('.resume-preview')].map((node) => node.textContent).join(' ');
+    if (!preview.includes(own) || preview.includes(other)) throw new Error('wrong preview for ' + company + ': ' + preview);
+  };
+  await checkPreview('E2E Beispiel GmbH', 'Java Backend', 'Golang Backend');
+  await checkPreview('E2E Zweite GmbH', 'Golang Backend', 'Java Backend');
+  const first = await api.export.pdf(alpha.id, 'lebenslauf');
+  const second = await api.export.pdf(beta.id, 'lebenslauf');
+  if (!first.path || !second.path) throw new Error('PDF export was cancelled');
+  return { alpha: first.path, beta: second.path };
 })()`;
 
 // Vorstellungsgespräch – Fragen & Antworten, driven through the real panel (renderer helpers shared by the phases).
@@ -345,8 +393,11 @@ const runInterviewKeyboardCheck = async (window) => {
 
 let interviewStep = 0;
 let reloadPending = false;
+let primaryWindow;
 app.on('browser-window-created', (_, window) => {
   if (phase === 'second') { fail(new Error('Second Electron instance opened a window')); return; }
+  if (phase === 'profiles-reopen' && primaryWindow) return;
+  primaryWindow = window;
   window.webContents.on('console-message', (event) => {
     if (event.level === 'error') fail(new Error(event.message));
   });
@@ -392,6 +443,13 @@ app.on('browser-window-created', (_, window) => {
       } else if (phase === 'interview-reopen') {
         await window.webContents.executeJavaScript(interviewReopenScenario);
         console.log('Electron E2E: interview notes reloaded, edited in place and kept across a date change');
+      } else if (phase === 'profiles') {
+        await window.webContents.executeJavaScript(createApplicationProfilesScenario);
+        console.log('Electron E2E: independent application profiles saved');
+      } else if (phase === 'profiles-reopen') {
+        const pdfs = await window.webContents.executeJavaScript(verifyApplicationProfilesScenario);
+        fs.writeFileSync(path.join(root, 'profile-pdfs.json'), JSON.stringify(pdfs));
+        console.log('Electron E2E: independent previews, restart and PDFs passed');
       } else if (phase === 'create') {
         await window.webContents.executeJavaScript(createScenario);
         console.log('Electron E2E: create, validation, settings and todo passed');

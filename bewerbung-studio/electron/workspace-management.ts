@@ -6,6 +6,8 @@ import os from "node:os";
 import { z } from "zod";
 import { resolveApplicationPaths, DEFAULT_BEWERBUNG_ROOT_PATH, BEWERBUNG_ROOT_PATH_ENV } from "../src/config/application-paths";
 import { workspaceSchema } from "../src/shared/schema";
+import { hydrateWorkspaceIndex, workspaceIndexSchema } from "./workspace-index";
+import { assertNoDroppedKeys } from "../src/shared/workspaceIndexSchema";
 import { parseEncryptedWorkspace } from "./security/encryption-service";
 import { encodeForManagedWrite } from "./security/secure-fs";
 import { FileManagementService, isPathInside } from "./file-management";
@@ -82,7 +84,7 @@ const existingWorkspacePath = async (root: string) => {
   return workspacePaths(root)[0];
 };
 
-const listFiles = async (root: string, excluded?: string): Promise<string[]> => {
+const listFiles = async (root: string, excluded?: string, skipGit = false): Promise<string[]> => {
   const files: string[] = [];
   const pending = [root];
   while (pending.length) {
@@ -90,6 +92,7 @@ const listFiles = async (root: string, excluded?: string): Promise<string[]> => 
     for (const entry of await readdir(current, { withFileTypes: true })) {
       const candidate = path.join(current, entry.name);
       if (excluded && isPathInside(excluded, candidate)) continue;
+      if (skipGit && entry.name === ".git") continue;
       if (entry.name === ".workspace.lock") continue;
       if (entry.isSymbolicLink()) throw new Error("Verknüpfungen im Bewerbungsordner können nicht sicher kopiert werden.");
       if (entry.isDirectory()) pending.push(candidate);
@@ -163,13 +166,24 @@ export class WorkspaceManager {
       throw new Error("Die Workspace-Datei wurde erkannt, aber der zugehörige Bewerbungsordner konnte nicht vollständig gefunden werden.");
     }
     const parse = async (candidate: string) => {
+      let validSupportedWorkspace = false;
       try {
         const raw = JSON.parse(await readFile(candidate, "utf8")) as unknown;
         const envelope = parseEncryptedWorkspace(raw);
-        return envelope ? { encrypted: true as const, workspace: null } :
-          { encrypted: false as const, workspace: workspaceSchema.parse(raw) };
+        if (envelope) return { encrypted: true as const, workspace: null };
+        const index = workspaceIndexSchema.safeParse(raw);
+        const legacy = workspaceSchema.safeParse(raw);
+        validSupportedWorkspace = index.success || legacy.success;
+        if (index.success) {
+          assertNoDroppedKeys(raw, index.data);
+          return { encrypted: false as const, workspace: await hydrateWorkspaceIndex(paths, index.data) };
+        }
+        const workspace = workspaceSchema.parse(raw);
+        assertNoDroppedKeys(raw, workspace);
+        return { encrypted: false as const, workspace };
       } catch (error) {
         if (error instanceof Error && error.message.includes("neueren Version")) throw error;
+        if (validSupportedWorkspace) throw error;
         return null;
       }
     };
@@ -330,7 +344,15 @@ export class WorkspaceManager {
     const workspacePath = await existingWorkspacePath(root);
     if (!(await exists(workspacePath))) return null;
     try {
-      return workspaceSchema.parse(JSON.parse(await readFile(workspacePath, "utf8")));
+      const raw: unknown = JSON.parse(await readFile(workspacePath, "utf8"));
+      const index = workspaceIndexSchema.safeParse(raw);
+      if (index.success) {
+        assertNoDroppedKeys(raw, index.data);
+        return await hydrateWorkspaceIndex(resolveApplicationPaths(root), index.data);
+      }
+      const workspace = workspaceSchema.parse(raw);
+      assertNoDroppedKeys(raw, workspace);
+      return workspace;
     } catch {
       throw new Error("Der Bewerbungsordner enthält ungültige Daten.");
     }
@@ -438,8 +460,9 @@ export class WorkspaceManager {
     const workspacePath = await existingWorkspacePath(root);
     if (await exists(workspacePath)) {
       try {
-        const parsed = workspaceSchema.safeParse(JSON.parse(await readFile(workspacePath, "utf8")));
-        if (!parsed.success) throw new Error("invalid");
+        const raw: unknown = JSON.parse(await readFile(workspacePath, "utf8"));
+        if (!workspaceSchema.safeParse(raw).success && !workspaceIndexSchema.safeParse(raw).success)
+          throw new Error("invalid");
       } catch {
         throw new Error("Der vorhandene Bewerbungsordner enthält ungültige Daten.");
       }
@@ -479,7 +502,7 @@ export class WorkspaceManager {
     await mkdir(backupRoot, { recursive: true });
     const entries: Array<{ path: string; size: number; sha256: string }> = [];
     try {
-      for (const source of await listFiles(root, backupRoot)) {
+      for (const source of await listFiles(root, backupRoot, true)) {
         const relative = path.relative(root, source);
         const target = path.join(backupRoot, relative);
         const verified = await copyAndVerify(source, target, this.copyOperation);
@@ -527,8 +550,8 @@ export class WorkspaceManager {
         if (await exists(workspacePath)) {
           try {
             const raw = JSON.parse(await readFile(workspacePath, "utf8")) as unknown;
-            const parsed = workspaceSchema.safeParse(raw);
-            if (!parsed.success && !parseEncryptedWorkspace(raw)) throw new Error("invalid");
+            if (!workspaceSchema.safeParse(raw).success && !workspaceIndexSchema.safeParse(raw).success &&
+                !parseEncryptedWorkspace(raw)) throw new Error("invalid");
           } catch {
             throw new Error("Die Daten im neuen Bewerbungsordner sind ungültig.");
           }
@@ -540,8 +563,9 @@ export class WorkspaceManager {
       const workspacePath = await existingWorkspacePath(target);
       if (await exists(workspacePath)) {
         try {
-          const parsed = workspaceSchema.safeParse(JSON.parse(await readFile(workspacePath, "utf8")));
-          if (!parsed.success) throw new Error("invalid");
+          const raw: unknown = JSON.parse(await readFile(workspacePath, "utf8"));
+          if (!workspaceSchema.safeParse(raw).success && !workspaceIndexSchema.safeParse(raw).success)
+            throw new Error("invalid");
         } catch {
           throw new Error("Der neue Bewerbungsordner enthält ungültige Daten.");
         }

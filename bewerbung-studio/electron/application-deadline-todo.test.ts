@@ -6,6 +6,7 @@ import type { Application, ApplicationInput, Todo } from "../src/shared/schema";
 import { defaultDocumentDesign } from "../src/shared/documentDesign";
 import { filterTodos } from "../src/shared/todos";
 import { DataStore } from "./storage";
+import { addSyntheticProfile } from "./test-profile";
 
 const temmler = "Temmler Pharma GmbH";
 const machine = "Maschinen-Einrichter für die Produktion";
@@ -53,6 +54,7 @@ describe("Bewerbungsfrist → Kalender + ToDo", () => {
     root = await mkdtemp(path.join(tmpdir(), "bewerbungsmanager-deadline-todo-"));
     store = new DataStore(root);
     await store.initialize();
+    await addSyntheticProfile(store);
   });
 
   afterEach(async () => {
@@ -229,7 +231,7 @@ describe("Bewerbungsfrist → Kalender + ToDo", () => {
     const manual = manualTodo("Unterlagen prüfen");
     await store.saveTodo(manual);
     // Write the workspace as an older version left it: no link fields and no todo for the deadline.
-    const workspacePath = path.join(store.files.paths.settingsRoot, "workspace.json");
+    const workspacePath = path.join(store.files.paths.settingsRoot, "collections.json");
     const stored = JSON.parse(await readFile(workspacePath, "utf8"));
     stored.todos = stored.todos
       .filter((todo: Todo) => todo.source !== "application-deadline")
@@ -251,7 +253,7 @@ describe("Bewerbungsfrist → Kalender + ToDo", () => {
     const auto = autoTodos()[0];
     const manual = manualTodo("Unterlagen prüfen");
     await store.saveTodo(manual);
-    const workspacePath = path.join(store.files.paths.settingsRoot, "workspace.json");
+    const workspacePath = path.join(store.files.paths.settingsRoot, "collections.json");
     const stored = JSON.parse(await readFile(workspacePath, "utf8"));
     stored.todos.push(
       { ...auto, id: crypto.randomUUID(), createdAt: "2030-01-01T00:00:00.000Z" },

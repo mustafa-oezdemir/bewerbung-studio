@@ -790,6 +790,8 @@ export const buildDocumentHtml = (
   attachments: readonly Attachment[] = [],
   resumeDesign?: ResumeDesignLayer,
 ): string => {
+  // The saved Bewerbung owns the profile used by every exported document, including the Deckblatt.
+  profile = application.profileSnapshot ?? profile;
   if (target === "deckblatt" || target === "mappe") {
     validateDeckblattData(application, profile);
   }
@@ -916,7 +918,7 @@ export const buildDocumentHtml = (
       ],
       signature: { greeting: "Mit freundlichen Grüßen", source: signatureSource, name },
       attachments: docs.showCoverLetterAttachments ? coverLetterAttachments : null,
-    }, backgroundLayer)}</section>`;
+    }, template.id === "stilvoll" ? "" : backgroundLayer)}</section>`;
   const experienceById = new Map(
     (profile?.experiences ?? []).map((item) => [item.id, item]),
   );

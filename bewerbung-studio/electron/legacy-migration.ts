@@ -6,6 +6,8 @@ import {
   stat,
 } from "./security/secure-fs";
 import path from "node:path";
+import { resolveApplicationPaths } from "../src/config/application-paths";
+import { hydrateWorkspaceIndex, workspaceIndexSchema } from "./workspace-index";
 import type { ApplicationPaths } from "../src/config/application-paths";
 import type { LegacyMigrationPreview } from "../src/shared/ipc";
 import {
@@ -157,7 +159,9 @@ export class LegacyMigrationService {
     const parsed: unknown = JSON.parse(await readFile(workspacePath, "utf8"));
     return {
       sourcePath: resolvedSource,
-      workspace: workspaceSchema.parse(parsed),
+      workspace: workspaceIndexSchema.safeParse(parsed).success
+        ? await hydrateWorkspaceIndex(resolveApplicationPaths(path.dirname(resolvedSource)), workspaceIndexSchema.parse(parsed))
+        : workspaceSchema.parse(parsed),
     };
   }
 

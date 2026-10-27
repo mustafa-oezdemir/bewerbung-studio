@@ -215,9 +215,9 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
     const consequence =
       profiles.length > 1
         ? linkedApplications
-          ? ` ${linkedApplications} verbundene Bewerbung(en) werden auf das nächste verfügbare Profil umgestellt.`
+          ? ` ${linkedApplications} bestehende Bewerbung(en) behalten ihre gespeicherte Profilkopie.`
           : ""
-        : " Danach ist kein Profil mehr vorhanden.";
+        : " Danach ist kein Hauptprofil mehr vorhanden. Bestehende Bewerbungen behalten ihre Profilkopien.";
     if (!window.confirm(`Profil „${name}“ wirklich löschen?${consequence}`)) {
       return;
     }

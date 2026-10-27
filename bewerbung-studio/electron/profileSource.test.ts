@@ -130,7 +130,7 @@ describe("the views and the store resolve the profile in one place", () => {
 
   it("takes the profile of the documents from the application, not from what the profile editor selected", () => {
     const view = read("../src/views/DocumentsView.tsx");
-    expect(view).toContain("resolveApplicationProfile(profiles, application.profileId)");
+    expect(view).toContain("resolveApplicationProfile(profiles, application)");
     expect(view).not.toContain("resolveSelectedProfile");
     expect(view).toContain("resolveCoverSender(");
     expect(view).toContain("keepCoverSenderOverrides(");
@@ -138,7 +138,7 @@ describe("the views and the store resolve the profile in one place", () => {
 
   it("lets the data store resolve the profile with the shared function", () => {
     const storage = read("./storage.ts");
-    expect(storage).toContain("resolveApplicationProfile(this.workspace.profiles, application.profileId)");
+    expect(storage).toContain("resolveApplicationProfile(this.workspace.profiles, application)");
     expect(storage).not.toContain("profile.id === application.profileId");
   });
 });

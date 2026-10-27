@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { lstat, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import { workspaceSchema } from "../../src/shared/schema";
+import { validateWorkspaceFile } from "../../src/shared/workspaceIndexSchema";
 import { EncryptionService, encryptedWorkspaceSchema, isEncryptedFileBytes, parseEncryptedWorkspace } from "./encryption-service";
 
 const journalSchema = z.object({
@@ -100,7 +100,7 @@ const convertFile = (relative: string, raw: Buffer, journal: MigrationJournal, s
   // The active workspace is committed last and keeps the portable key envelope.
   if (journal.direction === "enable") {
     if (relative === activeWorkspaceRelative || relative === `${activeWorkspaceRelative}.bak`) {
-      workspaceSchema.parse(JSON.parse(raw.toString("utf8")));
+      validateWorkspaceFile(JSON.parse(raw.toString("utf8")));
       return Buffer.from(service.encryptWorkspace(raw.toString("utf8")), "utf8");
     }
     return service.encryptFile(raw);

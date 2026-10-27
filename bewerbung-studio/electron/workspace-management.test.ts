@@ -6,6 +6,7 @@ import { WorkspaceManager, resolveWorkspaceRootFromFile } from "./workspace-mana
 import { defaultSettings, profileSchema } from "../src/shared/schema";
 import { defaultDocumentDesign } from "../src/shared/documentDesign";
 import { DataStore } from "./storage";
+import { addSyntheticProfile } from "./test-profile";
 
 const roots: string[] = [];
 const temporary = async () => {
@@ -162,6 +163,7 @@ describe("workspace management", () => {
     const root = path.join(base, "target");
     const store = new DataStore(root);
     await store.initialize();
+    await addSyntheticProfile(store);
     const created = await store.createApplication({
       company: { name: "Firma", street: "", postalCode: "", city: "Berlin", country: "Deutschland", website: "" },
       contact: { salutation: "", firstName: "", lastName: "", position: "", email: "", phone: "" },

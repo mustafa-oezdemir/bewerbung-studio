@@ -7,6 +7,7 @@ import { resolveApplicationPaths } from "../src/config/application-paths";
 import { defaultDocumentDesign } from "../src/shared/documentDesign";
 import { wordMusterTemplateConfig } from "../src/features/templates/template.constants";
 import { DataStore } from "./storage";
+import { addSyntheticProfile } from "./test-profile";
 import { TemplateService } from "./templates/template.service";
 
 const createCoverLetterTemplate = async (filePath: string) => {
@@ -87,6 +88,7 @@ describe("central application-date workflow", () => {
     await templates.initialize();
     const store = new DataStore(paths);
     await store.initialize();
+    await addSyntheticProfile(store);
 
     const created = await store.createApplication({
       company: {
@@ -132,7 +134,7 @@ describe("central application-date workflow", () => {
     );
     expect(initial.folderName).toMatch(/^Muster_GmbH_2026-09-08\/[^/]+$/);
     expect(path.basename(initialResult.filePath)).toBe(
-      "Anschreiben_Muster_GmbH.docx",
+      "Anschreiben_Fiktiv_Person_Muster_GmbH.docx",
     );
     expect(new PizZip(await readFile(initialResult.filePath)).file("word/document.xml")?.asText()).toContain(
       "Bewerbungsdatum: 08.09.2026",
@@ -159,7 +161,7 @@ describe("central application-date workflow", () => {
       `Muster_GmbH_2026-09-15/${initial.folderName.split("/")[1]}`,
     );
     expect(path.basename(updatedResult.filePath)).toBe(
-      "Anschreiben_Muster_GmbH.docx",
+      "Anschreiben_Fiktiv_Person_Muster_GmbH.docx",
     );
     const updatedXml = new PizZip(await readFile(updatedResult.filePath))
       .file("word/document.xml")

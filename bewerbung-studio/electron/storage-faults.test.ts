@@ -2,6 +2,8 @@ import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { defaultDocumentDesign } from "../src/shared/documentDesign";
+import { addSyntheticProfile } from "./test-profile";
 
 const faults = vi.hoisted(() => ({
   copy: null as null | ((source: string, target: string) => void),
@@ -117,7 +119,7 @@ describe("DataStore filesystem failure recovery", () => {
   it("does not begin a restore when its emergency copy fails", async () => {
     const { root, store, workspacePath, before } = await fixture();
     const exportPath = path.join(root, "backup.json");
-    await writeFile(exportPath, before);
+    await store.writeBackup(exportPath);
     faults.copy = (_source, target) => {
       if (path.basename(target).startsWith("vor-import-")) throw failure("EACCES");
     };
@@ -129,7 +131,8 @@ describe("DataStore filesystem failure recovery", () => {
   it("keeps the original workspace when the restore rename fails", async () => {
     const { root, store, workspacePath, before } = await fixture();
     const exportPath = path.join(root, "different-backup.json");
-    const imported = JSON.parse(before.toString("utf8"));
+    await store.writeBackup(exportPath);
+    const imported = JSON.parse(await readFile(exportPath, "utf8"));
     imported.settings.theme = "dark";
     await writeFile(exportPath, JSON.stringify(imported));
     faults.rename = (source, target) => {
@@ -141,5 +144,55 @@ describe("DataStore filesystem failure recovery", () => {
     expect((await readdir(store.files.paths.backupsRoot)).some((name) => name.startsWith("vor-import-")))
       .toBe(true);
     await assertOldPrimary(workspacePath, before);
+  });
+
+  it("resumes an interrupted index migration without losing a changed central record", async () => {
+    const { root, store, workspacePath } = await fixture();
+    const now = "2026-10-01T10:00:00.000Z";
+    await store.saveTodo({ id: crypto.randomUUID(), title: "Fiktive Aufgabe", description: "",
+      priority: "medium", completed: false, createdAt: now, updatedAt: now });
+    const legacy = store.getWorkspace();
+    legacy.todos[0].description = "Nur in der alten Workspace-Datei";
+    await writeFile(workspacePath, JSON.stringify(legacy));
+    const centralPath = path.join(root, "data", "Setting", "Settings", "collections.json");
+    await rm(centralPath);
+    faults.rename = (source, target) => {
+      if (source.endsWith(".tmp") && target === workspacePath) throw failure("ENOSPC");
+    };
+    await expect(new DataStore(root).initialize()).rejects.toMatchObject({ code: "ENOSPC" });
+    faults.rename = null;
+    expect(JSON.parse(await readFile(workspacePath, "utf8")).schemaVersion).toBe(1);
+    expect(JSON.parse(await readFile(centralPath, "utf8")).todos[0].description)
+      .toBe("Nur in der alten Workspace-Datei");
+    const reopened = new DataStore(root);
+    await reopened.initialize();
+    expect(reopened.getWorkspace().todos[0].description).toBe("Nur in der alten Workspace-Datei");
+    expect(JSON.parse(await readFile(workspacePath, "utf8")).schemaVersion).toBe(2);
+  });
+
+  it("blocks another save after a partial application transaction and reloads the committed file", async () => {
+    const { root, store } = await fixture();
+    const profile = (await addSyntheticProfile(store)).profiles[0];
+    const application = (await store.createApplication({
+      company: { name: "Fiktiv GmbH", street: "", postalCode: "", city: "Berlin", country: "Deutschland", website: "" },
+      contact: { salutation: "", firstName: "", lastName: "", position: "", email: "", phone: "" },
+      job: { title: "Entwicklung", reference: "", source: "", url: "", fullText: "", workModel: "Hybrid",
+        contractType: "Unbefristet", salaryExpectation: "" },
+      templateId: "modern", accentColor: "#123456", secondaryColor: "#234567",
+      designSettings: defaultDocumentDesign, profileId: profile.id, notes: "",
+    })).applications[0];
+    const central = path.join(root, "data", "Setting", "Settings", "collections.json");
+    faults.write = (file) => {
+      if (file.startsWith(`${central}.`) && file.endsWith(".tmp")) throw failure("ENOSPC");
+    };
+    await expect(store.saveApplication({ ...application, notes: "Gespeicherte Notiz",
+      deadlineAt: "2026-11-01T00:00:00.000Z" })).rejects.toMatchObject({ code: "ENOSPC" });
+    faults.write = null;
+    expect(store.getApplication(application.id).notes).toBe("Gespeicherte Notiz");
+    await expect(store.saveApplication({ ...store.getApplication(application.id), notes: "Später" }))
+      .rejects.toThrow("nur teilweise abgeschlossen");
+    const reopened = new DataStore(root);
+    await reopened.initialize();
+    expect(reopened.getApplication(application.id).notes).toBe("Gespeicherte Notiz");
   });
 });

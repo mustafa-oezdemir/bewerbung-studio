@@ -324,8 +324,8 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
     expect((await sync.runOperation(() => store.changeStatus(id, "Absage"))).gitSync.state).toBe("synced");
     expect(remoteSubjects()[0]).toContain("Status geändert: Termine GmbH – Softwareentwickler – Absage");
     const stored = JSON.parse(git(remote, "show", "main:data/Setting/Settings/workspace.json"));
-    expect(stored.applications[0].status).toBe("Absage");
-    expect(stored.attachments).toHaveLength(0);
+    expect(JSON.parse(git(remote, "show", `main:${stored.applications[0].path}`)).status).toBe("Absage");
+    expect(JSON.parse(git(remote, "show", `main:${stored.centralPath}`)).attachments).toHaveLength(0);
   });
 
   it("synchronises a status change so the remote holds the final state", async () => {
@@ -341,7 +341,7 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
     expect(remoteSubjects()[0]).toBe("Status geändert: Status GmbH – Softwareentwickler – Zusage");
     expect(remoteSubjects()[1]).toBe("Bewerbung angelegt: Status GmbH – Softwareentwickler");
     const workspace = JSON.parse(git(remote, "show", "main:data/Setting/Settings/workspace.json"));
-    expect(workspace.applications[0].status).toBe("Zusage");
+    expect(JSON.parse(git(remote, "show", `main:${workspace.applications[0].path}`)).status).toBe("Zusage");
   });
 
   it("keeps the local Bewerbung when the push fails and pushes it with the next change", async () => {
@@ -570,7 +570,8 @@ describe("ApplicationGitSync with a local bare remote", { timeout: 30_000 }, () 
 
     await rm(path.join(root, ".git", "index.lock"));
     expect((await save((application) => { application.notes = "danach"; })).gitSync.state).toBe("synced");
-    expect(git(remote, "show", "main:data/Setting/Settings/workspace.json")).toContain("Lock GmbH");
+    const savedIndex = JSON.parse(git(remote, "show", "main:data/Setting/Settings/workspace.json"));
+    expect(git(remote, "show", `main:${savedIndex.applications[0].path}`)).toContain("Lock GmbH");
     // The commit that finally carries the new Bewerbung also names it; nothing is described as a mere note change.
     expect(remoteSubjects()).toEqual([
       "Bewerbung angelegt: Lock GmbH – Softwareentwickler (+1 weitere)",

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Application, ApplicationInput } from "../src/shared/schema";
 import { defaultDocumentDesign } from "../src/shared/documentDesign";
 import { DataStore } from "./storage";
+import { addSyntheticProfile } from "./test-profile";
 
 const applicationInput = (company: string, position: string, sentAt: string): ApplicationInput => ({
   company: { name: company, street: "", postalCode: "10115", city: "Berlin", country: "Deutschland", website: "" },
@@ -47,6 +48,7 @@ describe("one folder per company and day, one subfolder per position", () => {
     root = await mkdtemp(path.join(tmpdir(), "bewerbungsmanager-folders-"));
     store = new DataStore(root);
     await store.initialize();
+    await addSyntheticProfile(store);
   });
 
   afterEach(async () => {

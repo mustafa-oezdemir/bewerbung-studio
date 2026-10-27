@@ -6,6 +6,7 @@ import { defaultDocumentDesign } from "../src/shared/documentDesign";
 import type { ApplicationInput } from "../src/shared/schema";
 import { parseInterviewQuestions } from "../src/shared/interviewQuestions";
 import { DataStore } from "./storage";
+import { addSyntheticProfile } from "./test-profile";
 import { interviewFileNameSchema, interviewRevisionSchema } from "./interview-notes";
 import { clearActiveEncryption, setActiveEncryption } from "./security/secure-fs";
 import { WorkspaceSecurity } from "./security/workspace-security";
@@ -51,6 +52,7 @@ describe("Vorstellungsgespräch – Fragen & Antworten files", () => {
       queueCommit: (company, action, description) => queued.push(`${action}:${company}:${description?.details?.join(",") ?? ""}`),
     });
     await store.initialize();
+    await addSyntheticProfile(store);
   });
 
   afterEach(async () => {

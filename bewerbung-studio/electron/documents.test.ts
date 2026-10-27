@@ -346,6 +346,26 @@ describe("Lebenslauf-Dokumente", () => {
     expect(html).toContain("<li>Arbeitszeugnis.pdf</li>");
   });
 
+  it("uses the Bewerbung's saved profile for the Deckblatt even when a different profile is passed", () => {
+    const savedProfile = profileSchema.parse({
+      ...profile,
+      firstName: "Elif",
+      lastName: "Arslan",
+      title: "Datenanalystin",
+      email: "elif@example.com",
+      skills: ["SQL", "Python", "Power BI"],
+    });
+    const withProfile = applicationSchema.parse({ ...application, profileSnapshot: savedProfile });
+    for (const target of ["deckblatt", "mappe"] as const) {
+      const page = parseHTML(buildDocumentHtml(withProfile, profile, target)).document.querySelector(".deckblatt");
+      expect(page?.textContent).toContain("Elif Arslan");
+      expect(page?.textContent).toContain("Datenanalystin");
+      expect(page?.textContent).toContain("elif@example.com");
+      expect(page?.textContent).not.toContain("Mina Kaya");
+      expect(page?.textContent).not.toContain("mina@example.com");
+    }
+  });
+
   it("prints the chosen Deckblatt design with the very markup and stylesheet of the preview", () => {
     const attachments = [{
       id: "50f9a46a-f5f6-4101-9eb0-bbef5b9dc557", applicationId: application.id, category: "Zeugnisse" as const, fileName: "Arbeitszeugnis.pdf",

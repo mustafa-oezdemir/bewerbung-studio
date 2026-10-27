@@ -37,15 +37,21 @@ afterEach(() => {
 });
 
 /** DocumentsView on the Lebenslauf tab in a real React tree, with a store whose saves can fail. */
-const mount = async (profiles: ApplicantProfile[], options: { failSave?: () => boolean } = {}) => {
+const mount = async (profiles: ApplicantProfile[], options: { failSave?: () => boolean; application?: Application } = {}) => {
   const saveProfile = vi.fn(async (profile: ApplicantProfile) => {
     if (options.failSave?.()) throw new Error("Datenträger nicht erreichbar");
     const workspace = testStore.state!.workspace as { profiles: ApplicantProfile[] };
     testStore.state = { ...testStore.state, workspace: { ...workspace, profiles: workspace.profiles.map((item) => (item.id === profile.id ? profile : item)) } };
   });
-  const saveApplication = vi.fn(async (_application: Application) => undefined);
+  const saveApplication = vi.fn(async (application: Application) => {
+    if (options.failSave?.()) throw new Error("Datenträger nicht erreichbar");
+    const workspace = testStore.state!.workspace as { applications: Application[] };
+    testStore.state = { ...testStore.state, workspace: { ...workspace,
+      applications: workspace.applications.map((item) => item.id === application.id ? application : item) } };
+  });
+  const application = options.application ?? applicationSchema.parse({ ...makeApplication(profiles[0]!.id), profileSnapshot: structuredClone(profiles[0]!) });
   testStore.state = {
-    workspace: { schemaVersion: 1, applications: [makeApplication(profiles[0]!.id)], profiles, events: [], attachments: [], todos: [],
+    workspace: { schemaVersion: 1, applications: [application], profiles, events: [], attachments: [], todos: [],
       customCvDesigns: [], settings: defaultSettings, updatedAt: now },
     saveProfile, saveApplication, saveResumeDesign: vi.fn(async () => undefined), syncCoverLetter: vi.fn(async () => undefined),
     selectProfile: vi.fn(), exportPdf: vi.fn(), openFolder: vi.fn(), saveCustomCvDesign: vi.fn(), removeCustomCvDesign: vi.fn(),
@@ -125,6 +131,11 @@ describe("Lebenslauf content edits the profile of the Bewerbung", () => {
       ],
     } };
     await view.rerender();
+    expect(view.query(".match-analysis")?.textContent).toContain("50%");
+    const current = (testStore.state!.workspace as { applications: Application[] }).applications[0];
+    testStore.state = { ...testStore.state, workspace: { ...(testStore.state!.workspace as object),
+      applications: [{ ...current, profileSnapshot: { ...current.profileSnapshot!, skills: ["TypeScript", "SQL"], updatedAt: "2026-10-14T11:00:00.000Z" } }] } };
+    await view.rerender();
     expect(view.query(".match-analysis")?.textContent).toContain("100%");
     await view.unmount();
   });
@@ -136,14 +147,15 @@ describe("Lebenslauf content edits the profile of the Bewerbung", () => {
     expect(view.status()).toBe("Ungespeicherte Änderungen");
     expect(view.stickyStatus()).toBe("Ungespeicherte Änderungen");
     await view.save();
-    expect(view.saveProfile).toHaveBeenCalledTimes(1);
-    expect(view.saveProfile.mock.calls[0]![0]).toMatchObject({ id: uid(1), summary: "Neuer fiktiver Text." });
+    expect(view.saveProfile).not.toHaveBeenCalled();
+    expect(view.saveApplication.mock.calls.at(-1)![0].profileSnapshot).toMatchObject({ id: uid(1), summary: "Neuer fiktiver Text." });
     const profiles = (testStore.state!.workspace as { profiles: ApplicantProfile[] }).profiles;
     expect(profiles.find((item) => item.id === uid(2))!.summary).toBe("Anderes Profil.");
     expect(view.status()).toBe("Gespeichert");
     await view.unmount();
     // Reopened from the saved workspace (as after a restart): the Lebenslauf shows the saved text.
-    const reopened = await mount((testStore.state!.workspace as { profiles: ApplicantProfile[] }).profiles);
+    const savedApplication = (testStore.state!.workspace as { applications: Application[] }).applications[0];
+    const reopened = await mount(profiles, { application: savedApplication });
     await reopened.open("Kurzprofil");
     expect(reopened.summaryField()!.value).toBe("Neuer fiktiver Text.");
     await reopened.unmount();
@@ -160,7 +172,7 @@ describe("Lebenslauf content edits the profile of the Bewerbung", () => {
     expect(view.summaryField()!.value).toBe("Nicht verlieren.");
     fail = false;
     await view.save();
-    expect(view.saveProfile.mock.calls.at(-1)![0]).toMatchObject({ summary: "Nicht verlieren." });
+    expect(view.saveApplication.mock.calls.at(-1)![0].profileSnapshot).toMatchObject({ summary: "Nicht verlieren." });
     await view.unmount();
   });
 
@@ -189,10 +201,10 @@ describe("Lebenslauf content edits the profile of the Bewerbung", () => {
     await view.rerender();
     expect(view.summaryField()!.value).toBe("Entwurf im Lebenslauf.");
     await view.save();
-    const saved = view.saveProfile.mock.calls.at(-1)![0];
+    const saved = view.saveApplication.mock.calls.at(-1)![0].profileSnapshot!;
     expect(saved.summary).toBe("Entwurf im Lebenslauf.");
     // The station saved in the Profil is not overwritten by the older draft.
-    expect(saved.experiences.map((item) => item.company)).toEqual(["Muster GmbH", "Neue GmbH"]);
+    expect(saved.experiences.map((item) => item.company)).toEqual(["Muster GmbH"]);
     await view.unmount();
   });
 });

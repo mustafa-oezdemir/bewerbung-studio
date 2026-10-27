@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:crypto";
 import { argon2idAsync } from "@noble/hashes/argon2.js";
 import { z } from "zod";
-import { workspaceSchema } from "../../src/shared/schema";
+import { validateWorkspaceFile } from "../../src/shared/workspaceIndexSchema";
 
 const FORMAT = "bewerbungsmanager-encrypted-workspace";
 const VERSION = 1;
@@ -120,7 +120,7 @@ export class EncryptionService {
 
   static async create(password: string, plaintextWorkspace: string) {
     validateNewPassword(password);
-    workspaceSchema.parse(JSON.parse(plaintextWorkspace));
+    validateWorkspaceFile(JSON.parse(plaintextWorkspace));
     const dek = randomBytes(32);
     const salt = randomBytes(16);
     const recovery = randomBytes(32);
@@ -168,7 +168,7 @@ export class EncryptionService {
   private verifyDek(candidate: Buffer) {
     try {
       const plaintext = open(candidate, this.envelope.payload, WORKSPACE_AAD);
-      workspaceSchema.parse(JSON.parse(plaintext.toString("utf8")));
+      validateWorkspaceFile(JSON.parse(plaintext.toString("utf8")));
       this.dek?.fill(0);
       this.dek = candidate;
       this.failedAttempts = 0;
@@ -203,12 +203,12 @@ export class EncryptionService {
 
   decryptWorkspace(envelope: EncryptedWorkspace = this.envelope) {
     const plaintext = open(this.assertKey(), envelope.payload, WORKSPACE_AAD).toString("utf8");
-    workspaceSchema.parse(JSON.parse(plaintext));
+    validateWorkspaceFile(JSON.parse(plaintext));
     return plaintext;
   }
 
   encryptWorkspace(plaintext: string) {
-    workspaceSchema.parse(JSON.parse(plaintext));
+    validateWorkspaceFile(JSON.parse(plaintext));
     this.envelope = { ...this.envelope, payload: seal(this.assertKey(), Buffer.from(plaintext, "utf8"), WORKSPACE_AAD) };
     return JSON.stringify(this.envelope, null, 2);
   }

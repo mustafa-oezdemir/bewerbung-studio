@@ -40,13 +40,15 @@ type StoreState = {
   workspace: Workspace;
   selectedApplicationId?: string;
   selectedProfileId?: string;
+  documentEditorDirtyApplicationId?: string;
   /** A local save (or another data operation) is running; the GitHub synchronisation is `gitSync`. */
   loading: boolean;
   gitSync: GitSyncStatus;
   error?: string;
   notice?: string;
   hydrate: () => Promise<void>;
-  selectApplication: (id?: string) => void;
+  selectApplication: (id?: string) => boolean;
+  setDocumentEditorDirty: (applicationId?: string) => void;
   selectProfile: (id?: string) => void;
   createApplication: (input: ApplicationInput) => Promise<void>;
   saveApplication: (application: Application) => Promise<void>;
@@ -212,8 +214,14 @@ export const useAppStore = create<StoreState>((set, get) => {
         });
       }
     },
-    selectApplication: (id) =>
-      set({ selectedApplicationId: id, selectedProfileId: undefined }),
+    selectApplication: (id) => {
+      const state = get();
+      if (id !== state.selectedApplicationId && state.documentEditorDirtyApplicationId === state.selectedApplicationId &&
+          !window.confirm("Ungespeicherte Änderungen dieser Bewerbung verwerfen und eine andere Bewerbung öffnen?")) return false;
+      set({ selectedApplicationId: id, selectedProfileId: undefined, documentEditorDirtyApplicationId: undefined });
+      return true;
+    },
+    setDocumentEditorDirty: (applicationId) => set({ documentEditorDirtyApplicationId: applicationId }),
     selectProfile: (id) => set({ selectedProfileId: id }),
     async createApplication(input) {
       if (!apiAvailable()) return;

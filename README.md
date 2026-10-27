@@ -43,7 +43,7 @@ also außerhalb des Installationsordners.
 ## Warum BewerbungsManager?
 
 - **Alles an einem Ort:** Firma, Stelle, Status, Termine, Dokumente und Aufgaben jeder Bewerbung.
-- **Profil einmal pflegen:** Anschreiben, Deckblatt und Lebenslauf verwenden dieselben Profildaten.
+- **Hauptprofil als Vorlage:** Neue Bewerbungen übernehmen eine eigene Kopie des gewählten Hauptprofils.
 - **Fertige Unterlagen:** Anschreiben als Word-Datei, Deckblatt und Lebenslauf als PDF, dazu eine komplette
   Bewerbungsmappe als ein PDF.
 - **Fristen im Blick:** Bewerbungsfristen erscheinen automatisch im Kalender und in der Aufgabenliste.
@@ -92,7 +92,7 @@ Mitgelieferte Word-Muster für den Lebenslauf (Beispieldaten) liegen in
 
 ### Datenverwaltung
 
-- Mehrere Profile; jede Bewerbung verwendet genau ein Profil für alle ihre Dokumente
+- Mehrere Hauptprofile; jede Bewerbung behält eine eigene Profilkopie für ihre Dokumente
 - Frei wählbarer Bewerbungsordner (Workspace) und Computerwechsel
 - Automatische tägliche Sicherung, vollständige Sicherung und JSON-Export
 - Optionale Verschlüsselung mit Master-Passwort
@@ -136,9 +136,10 @@ Die vollständige [Datenschutzerklärung](PRIVACY.md) beschreibt auch Exporte, S
 
 ## Workspace & Computerwechsel
 
-BewerbungsManager führt den gesamten Datenbestand zentral in der Datei `workspace.json`. Diese Datei enthält
-Bewerbungen, Profile, Aufgaben und Einstellungen, aber **nicht** die Dokumente selbst. Anschreiben, Zeugnisse und
-andere Dateien liegen als eigene Dateien im Bewerbungsordner.
+`workspace.json` enthält Einstellungen und relative Verweise. Jede Bewerbung liegt mit ihrem eigenen Profil und
+ihren Dokumentangaben in `bewerbung.json`. Hauptprofile liegen als einzelne JSON-Dateien unter `Setting/Profile`;
+Termine, Aufgaben, Anlagenverweise und eigene Lebenslaufdesigns liegen in `Setting/Settings/collections.json`.
+Anschreiben, Zeugnisse und andere Dokumentdateien bleiben eigene Dateien im Bewerbungsordner.
 
 ### Auf einem anderen Computer weiterarbeiten
 
@@ -160,14 +161,15 @@ kopieren Sie den Datenbestand stattdessen und öffnen die Kopie über **Workspac
 ```text
 <Bewerbungsordner>/
 └── data/
-    ├── Bewerbungen/            eine Stelle pro Unterordner: Anschreiben, Lebenslauf, Deckblatt, E-Mail, ...
+    ├── Bewerbungen/            je Stelle bewerbung.json sowie Anschreiben, Lebenslauf, Deckblatt, E-Mail, ...
     ├── Zeugnisse/
     ├── Zertifikate/
     ├── Absagen/
     └── Setting/
         ├── Settings/
-        │   └── workspace.json  zentraler Datensatz
-        ├── Profile/
+        │   ├── workspace.json  Einstellungen und relative Dateiverweise
+        │   └── collections.json  Termine, Aufgaben und zentrale Verweise
+        ├── Profile/           Hauptprofile als einzelne JSON-Dateien
         ├── Backups/
         └── Muster/             Vorlagen
 ```

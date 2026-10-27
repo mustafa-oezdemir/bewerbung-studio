@@ -404,6 +404,8 @@ export const applicationSchema = z.object({
     )
     .default({}),
   profileId: z.uuid().optional(),
+  // Older workspaces are upgraded on load. New applications keep their own editable copy.
+  profileSnapshot: z.lazy(() => profileSchema).optional(),
   notes: optionalText,
   sentAt: optionalIsoDate,
   deadlineAt: optionalIsoDate,

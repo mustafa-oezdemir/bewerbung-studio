@@ -130,7 +130,9 @@ const verifyInterviewNotes = async (root, local, remote) => {
     git(local, 'push', '--quiet', '-u', 'origin', 'main');
     await run(root, 'create');
     const afterCreate = JSON.parse(git(remote, 'show', 'main:data/Setting/Settings/workspace.json'));
-    if (afterCreate.applications.length !== 1 || !afterCreate.applications[0].documents.coverMainBody)
+    const createdApplication = afterCreate.applications[0] &&
+      JSON.parse(git(remote, 'show', `main:${afterCreate.applications[0].path}`));
+    if (afterCreate.applications.length !== 1 || !createdApplication?.documents.coverMainBody)
       throw new Error('Electron application and document changes were not pushed');
     const message = git(remote, 'log', '-1', '--format=%B', 'main');
     const history = git(remote, 'log', '--format=%B', 'main');
@@ -142,7 +144,8 @@ const verifyInterviewNotes = async (root, local, remote) => {
       throw new Error('the unsaved application draft was pushed');
     await run(root, 'reopen');
     const afterStatus = JSON.parse(git(remote, 'show', 'main:data/Setting/Settings/workspace.json'));
-    if (afterStatus.applications[0].status !== 'Beworben' ||
+    const statusApplication = JSON.parse(git(remote, 'show', `main:${afterStatus.applications[0].path}`));
+    if (statusApplication.status !== 'Beworben' ||
         git(local, 'rev-parse', 'HEAD') !== git(remote, 'rev-parse', 'main'))
       throw new Error('Electron status change did not reach the bare remote');
     const workspaceFile = path.join(settings, 'workspace.json');
@@ -153,17 +156,27 @@ const verifyInterviewNotes = async (root, local, remote) => {
       .filter((line) => line && !/new-application-draft\.json|Setting\/(Logs|CrashDumps|ElectronSession|cache)\//.test(line));
     if (leftovers.length) throw new Error(`Electron left unsynchronised changes: ${leftovers.join(', ')}`);
     const saved = JSON.parse(await fs.readFile(workspaceFile, 'utf8'));
-    if (saved.applications[0]?.status !== 'Beworben' || saved.settings.theme !== 'dark')
+    const savedApplication = JSON.parse(await fs.readFile(path.join(local, saved.applications[0].path), 'utf8'));
+    if (savedApplication.status !== 'Beworben' || saved.settings.theme !== 'dark')
       throw new Error('on-disk state disagrees with Electron E2E');
     await verifyInterviewNotes(root, local, remote);
+    await run(root, 'profiles');
+    await run(root, 'profiles-reopen');
+    const profilePdfs = JSON.parse(await fs.readFile(path.join(root, 'profile-pdfs.json'), 'utf8'));
+    for (const file of [profilePdfs.alpha, profilePdfs.beta]) {
+      const bytes = await fs.readFile(file);
+      if (bytes.length < 1000 || bytes.subarray(0, 4).toString() !== '%PDF')
+        throw new Error('Application profile PDF was not generated');
+    }
+    console.log('Electron E2E: two real Chromium PDFs verified');
     passed = true;
   } finally {
     const resolved = path.resolve(root);
     if (!resolved.startsWith(`${path.resolve(os.tmpdir())}${path.sep}`) ||
         !path.basename(resolved).startsWith('bm-electron-e2e-'))
       throw new Error('Unexpected Electron E2E test directory');
-    if (passed || process.env.BM_E2E_KEEP !== '1')
+    if (process.env.BM_E2E_KEEP !== '1')
       await fs.rm(resolved, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-    else console.error(`E2E diagnostic fixture: ${root}`);
+    else console.log(`E2E diagnostic fixture: ${root}`);
   }
 })().catch((error) => { console.error(error); process.exitCode = 1; });

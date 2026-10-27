@@ -1,27 +1,23 @@
 import type { Workspace } from "./schema";
 import { resolveApplicationProfile } from "./profileSelection";
 
-/** One-time, lossless migration from application Kurzprofil copies to the linked ApplicantProfile. */
+/** One-time, lossless migration of old application content into independent profile copies. */
 export function migrateLegacyResumeProfiles(workspace: Workspace): Workspace {
-  const profiles = workspace.profiles.map((profile) => ({ ...profile }));
-  const applications = workspace.applications.map((application) => ({
-    ...application, documents: { ...application.documents },
-  }));
-  const promoted = new Map<string, string>();
-  for (const application of [...applications].sort((left, right) => left.id.localeCompare(right.id))) {
-    const oldText = application.documents.resumeProfile.trim();
-    if (!oldText) continue;
-    const linked = resolveApplicationProfile(profiles, application.profileId);
-    if (linked && !linked.summary.trim() && !promoted.has(linked.id)) promoted.set(linked.id, oldText);
-    application.documents.legacyResumeProfile ||= application.documents.resumeProfile;
-    application.documents.resumeProfile = "";
-  }
-  for (const profile of profiles) {
-    const oldText = promoted.get(profile.id);
-    if (oldText && !profile.summary.trim()) {
-      profile.summary = oldText;
-      profile.updatedAt = new Date().toISOString();
-    }
-  }
-  return { ...workspace, profiles, applications };
+  const applications = workspace.applications.map((application) => {
+    if (application.profileSnapshot) return application;
+    const source = resolveApplicationProfile(workspace.profiles, application.profileId);
+    if (!source || (application.profileId && source.id !== application.profileId))
+      throw new Error(`Für die Bewerbung ${application.id} fehlt das verknüpfte Profil. Die Daten wurden nicht geändert.`);
+    const profileSnapshot = structuredClone(source);
+    const oldText = application.documents.resumeProfile;
+    if (oldText.trim()) profileSnapshot.summary = oldText;
+    return {
+      ...application,
+      profileSnapshot,
+      documents: oldText.trim()
+        ? { ...application.documents, legacyResumeProfile: application.documents.legacyResumeProfile || oldText, resumeProfile: "" }
+        : application.documents,
+    };
+  });
+  return { ...workspace, applications };
 }

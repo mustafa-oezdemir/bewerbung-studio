@@ -76,7 +76,7 @@ export default function App() {
   const [unlockCredential, setUnlockCredential] = useState("");
   const [unlockKind, setUnlockKind] = useState<"password" | "recovery">("password");
   const [unlockBusy, setUnlockBusy] = useState(false);
-  const [view, setView] = useState<View>("home");
+  const [view, setViewState] = useState<View>("home");
   const [wizardOpen, setWizardOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const hydrate = useAppStore((state) => state.hydrate);
@@ -88,6 +88,11 @@ export default function App() {
   const notice = useAppStore((state) => state.notice);
   const clearMessage = useAppStore((state) => state.clearMessage);
   const selectApplication = useAppStore((state) => state.selectApplication);
+  const setView = (next: View) => {
+    if (next !== view && useAppStore.getState().documentEditorDirtyApplicationId &&
+        !window.confirm("Ungespeicherte Änderungen dieser Bewerbung verwerfen und die Ansicht wechseln?")) return;
+    setViewState(next);
+  };
   const selectedApplicationId = useAppStore(
     (state) => state.selectedApplicationId,
   );
@@ -212,8 +217,7 @@ export default function App() {
   );
 
   const goToApplication = (id?: string) => {
-    selectApplication(id);
-    setView("active");
+    if (selectApplication(id)) setViewState("active");
   };
 
   const unlockWorkspace = async (event: React.FormEvent<HTMLFormElement>) => {

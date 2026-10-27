@@ -65,7 +65,7 @@ describe("the profile of a Bewerbung in the data store", () => {
     expect(store.getProfileForApplication({ profileId: undefined })?.id).toBe(profileA.id);
   });
 
-  it("E. keeps the chosen profile across a restart and exports every document with it", async () => {
+  it("keeps the application copy across a restart even when the source link changes", async () => {
     const application = await createLinked();
     await store.saveApplication({ ...application, profileId: profileB.id });
 
@@ -75,23 +75,23 @@ describe("the profile of a Bewerbung in the data store", () => {
     expect(reloaded.profileId).toBe(profileB.id);
     for (const target of targets) {
       const html = restarted.getExportHtml(reloaded.id, target);
-      expect(html, target).toContain("Mina Kaya");
-      expect(html, target).toContain(titleB);
-      expect(html, target).not.toContain("Mustafa");
-      expect(html, target).not.toContain(titleA);
+      expect(html, target).toContain("Mustafa Özdemir");
+      expect(html, target).toContain(titleA);
+      expect(html, target).not.toContain("Mina Kaya");
+      expect(html, target).not.toContain(titleB);
     }
   });
 
-  it("an export snapshot is resolved like the stored Bewerbung: by its own profile link", async () => {
+  it("an export snapshot uses its own profile copy", async () => {
     const application = await createLinked();
-    const snapshot = { ...application, profileId: profileB.id };
+    const snapshot = { ...application, profileSnapshot: structuredClone(profileB) };
     for (const target of targets) {
       expect(store.getExportHtml(application.id, target, snapshot), target).toContain(titleB);
       expect(store.getExportHtml(application.id, target), target).toContain(titleA);
     }
   });
 
-  it("B. a new profile starts without the sender and title copies of the old one", async () => {
+  it("changing the source link leaves profile and document content untouched", async () => {
     const application = await createLinked();
     await store.saveApplication({
       ...application,
@@ -102,14 +102,13 @@ describe("the profile of a Bewerbung in the data store", () => {
 
     await store.saveApplication({ ...linkedToA, profileId: profileB.id });
     const moved = store.getWorkspace().applications[0];
-    expect(moved.documents).toMatchObject({ coverSenderName: "", coverSenderTitle: "", coverSenderContact: "", coverSheetProfessionalTitle: "" });
+    expect(moved.documents).toMatchObject({ coverSenderName: "Mustafa Özdemir", coverSenderTitle: titleA, coverSenderContact: "Gartenweg 7", coverSheetProfessionalTitle: titleA });
     // Other wording of the Bewerbung stays.
     expect(moved.documents.coverSubject).toBe("Bewerbung als Entwickler");
     for (const target of targets) {
       const html = store.getExportHtml(moved.id, target);
-      expect(html, target).toContain(titleB);
-      expect(html, target).not.toContain(titleA);
-      expect(html, target).not.toContain("Mustafa");
+      expect(html, target).toContain(titleA);
+      expect(html, target).not.toContain(titleB);
     }
   });
 
@@ -124,7 +123,7 @@ describe("the profile of a Bewerbung in the data store", () => {
     expect(store.getExportHtml(saved.id, "anschreiben")).toContain('<span class="sender-title">Leitung IT</span>');
   });
 
-  it("drops a title copy of another profile that an earlier choice left in the saved data", async () => {
+  it("preserves authored document fields after a restart", async () => {
     const application = await createLinked(profileB.id);
     await store.saveApplication({ ...application, documents: { ...application.documents, coverSenderTitle: titleA, coverSheetProfessionalTitle: titleA, coverSenderName: "Dr. Kaya" } });
     expect(store.getWorkspace().applications[0].documents.coverSenderTitle).toBe(titleA);
@@ -132,20 +131,21 @@ describe("the profile of a Bewerbung in the data store", () => {
     const restarted = new DataStore(root);
     await restarted.initialize();
     const cleaned = restarted.getWorkspace().applications[0];
-    expect(cleaned.documents.coverSenderTitle).toBe("");
-    expect(cleaned.documents.coverSheetProfessionalTitle).toBe("");
+    expect(cleaned.documents.coverSenderTitle).toBe(titleA);
+    expect(cleaned.documents.coverSheetProfessionalTitle).toBe(titleA);
     expect(cleaned.documents.coverSenderName).toBe("Dr. Kaya");
     expect(restarted.getExportHtml(cleaned.id, "deckblatt")).toContain(titleB);
     expect(restarted.getExportHtml(cleaned.id, "deckblatt")).not.toContain(titleA);
   });
 
-  it("moves a Bewerbung to the next profile when its profile is deleted, without the old copies", async () => {
+  it("keeps the application profile when its main profile is deleted", async () => {
     const application = await createLinked(profileB.id);
     await store.saveApplication({ ...application, documents: { ...application.documents, coverSenderTitle: "Leitung IT" } });
     await store.removeProfile(profileB.id);
     const moved = store.getWorkspace().applications[0];
-    expect(moved.profileId).toBe(profileA.id);
-    expect(moved.documents.coverSenderTitle).toBe("");
-    expect(store.getExportHtml(moved.id, "deckblatt")).toContain(titleA);
+    expect(moved.profileId).toBe(profileB.id);
+    expect(moved.profileSnapshot).toEqual(application.profileSnapshot);
+    expect(moved.documents.coverSenderTitle).toBe("Leitung IT");
+    expect(store.getExportHtml(moved.id, "deckblatt")).toContain(titleB);
   });
 });

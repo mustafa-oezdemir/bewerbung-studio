@@ -524,25 +524,10 @@ const registerIpc = () => {
   });
   handle("profiles:save", async (_event, value: unknown) => {
     const profile = profileSchema.parse(value);
-    return runApplicationChange(async () => {
-      // Bewerbungen of this profile, and those without one of their own: they follow the default profile, which this
-      // save may change. Only documents whose content changes are generated again.
-      const affected = () => store.getApplicationIds((application) =>
-        !application.profileId || store.getProfileForApplication(application)?.id === profile.id);
-      const before = await captureDocumentStamps(affected());
-      const workspace = await store.saveProfile(profile);
-      await regenerateChangedDocuments([...new Set([...before.stamps.keys(), ...affected()])], before, { onlyWithProfile: true });
-      return workspace;
-    });
+    return runApplicationChange(() => store.saveProfile(profile));
   });
   handle("profiles:remove", async (_event, id: unknown) => {
-    return runApplicationChange(async () => {
-      const ids = store.getApplicationIds();
-      const before = await captureDocumentStamps(ids);
-      const workspace = await store.removeProfile(String(id));
-      await regenerateChangedDocuments(ids, before, { onlyWithProfile: true });
-      return workspace;
-    });
+    return runApplicationChange(() => store.removeProfile(String(id)));
   });
   handle("templates:scan", () =>
     templateService.scanAllTemplates(),
@@ -972,6 +957,12 @@ const initializeRuntime = async (root: string) => {
   });
   store = new DataStore(applicationPaths, applicationGitSync, workspaceManager.lockToken(root));
   await store.initialize();
+  const storageWarnings = store.getStorageWarnings();
+  if (storageWarnings.length) void dialog.showMessageBox({
+    type: "warning",
+    message: `${storageWarnings.length} nicht zugeordnete Bewerbungsdatei(en) wurden gefunden. Sie wurden nicht verändert oder automatisch hinzugefügt.`,
+    detail: storageWarnings.slice(0, 10).join("\n"),
+  });
   templateService = new TemplateService(applicationPaths);
   await templateService.initialize();
   await createMissingExistingDeckblatts();

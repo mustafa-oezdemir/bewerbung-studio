@@ -459,10 +459,9 @@ export function DocumentsView({
 }) {
   const application = useAppStore(selectCurrentApplication);
   const profiles = useAppStore((state) => state.workspace.profiles);
-  const selectActiveProfile = useAppStore((state) => state.selectProfile);
   const saveApplication = useAppStore((state) => state.saveApplication);
+  const setDocumentEditorDirty = useAppStore((state) => state.setDocumentEditorDirty);
   const syncCoverLetter = useAppStore((state) => state.syncCoverLetter);
-  const saveProfile = useAppStore((state) => state.saveProfile);
   const saveResumeDesign = useAppStore((state) => state.saveResumeDesign);
   const savedResumeDesign = useAppStore((state) => state.workspace.settings.resumeDesign);
   const exportPdf = useAppStore((state) => state.exportPdf);
@@ -478,7 +477,9 @@ export function DocumentsView({
   const [customDesignId, setCustomDesignId] = useState<string>();
   const [customDesignName, setCustomDesignName] = useState("");
   const [resumeContentDraft, setResumeContentDraft] = useState<ApplicantProfile | null>(null);
+  const [resumeDraftApplicationId, setResumeDraftApplicationId] = useState<string | null>(null);
   const resumeBaselineRef = useRef<ApplicantProfile | null>(null);
+  const resumeBaselineApplicationIdRef = useRef<string | null>(null);
   const [profileSaveStatus, setProfileSaveStatus] = useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
   const [resumeEditorRevision, setResumeEditorRevision] = useState(0);
   /** Pages the Motivationsschreiben needs in the preview (more than one: the editor says so, nothing is cut). */
@@ -489,14 +490,15 @@ export function DocumentsView({
   } | null>(null);
   const handleResumeSectionPreview = useCallback(
     (_templateId: string, previewProfile: ApplicantProfile | null) => {
-      if (!previewProfile) return;
-      const original = useAppStore.getState().workspace.profiles.find((item) => item.id === previewProfile.id);
+      if (!previewProfile || !application) return;
+      const original = useAppStore.getState().workspace.applications.find((item) => item.id === application.id)?.profileSnapshot;
       if (!original) return;
       const dirty = JSON.stringify(previewProfile) !== JSON.stringify(original);
+      setResumeDraftApplicationId(dirty ? application.id : null);
       setResumeContentDraft(dirty ? previewProfile : null);
       setProfileSaveStatus((current) => dirty ? "dirty" : current === "saved" ? "saved" : "idle");
     },
-    [],
+    [application?.id],
   );
   const [designDraft, setDesign] = useState<DocumentDesignDraft>(() =>
     application
@@ -618,6 +620,7 @@ export function DocumentsView({
     setDocumentSaveStatus("idle");
     setDocumentSaveError("");
     setDesignPanelOpen(true);
+    setResumeDesignDraft(null);
   }, [application?.id]);
   useEffect(() => {
     if (!application || application.id === designDraft.applicationId) return;
@@ -634,19 +637,37 @@ export function DocumentsView({
     });
   }, [application?.id, persistedDocuments]);
 
-  const boundProfile = application ? resolveApplicationProfile(profiles, application.profileId) : undefined;
+  const boundProfile = application ? resolveApplicationProfile(profiles, application) : undefined;
+  const navigationDirty = Boolean(application && (
+    JSON.stringify(design) !== JSON.stringify(createDocumentDesignDraft(application)) ||
+    (documentPreview?.applicationId === application.id && JSON.stringify(documentPreview.documents) !== JSON.stringify(application.documents)) ||
+    (resumeContentDraft && resumeDraftApplicationId === application.id) ||
+    (resumeDesignDraft && JSON.stringify(resumeDesignDraft.layer ?? null) !== JSON.stringify(savedResumeDesign ?? null))
+  ));
+  useEffect(() => {
+    setDocumentEditorDirty?.(navigationDirty ? application?.id : undefined);
+    return () => setDocumentEditorDirty?.(undefined);
+  }, [application?.id, navigationDirty, setDocumentEditorDirty]);
+  useEffect(() => {
+    if (!navigationDirty) return;
+    const guard = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", guard);
+    return () => window.removeEventListener("beforeunload", guard);
+  }, [navigationDirty]);
   useEffect(() => {
     if (!boundProfile) { resumeBaselineRef.current = null; setResumeContentDraft(null); return; }
     const baseline = resumeBaselineRef.current;
-    if (!baseline || baseline.id !== boundProfile.id) {
+    if (!baseline || baseline.id !== boundProfile.id || resumeBaselineApplicationIdRef.current !== application?.id) {
+      resumeBaselineApplicationIdRef.current = application?.id ?? null;
       resumeBaselineRef.current = boundProfile;
       setResumeContentDraft(null);
+      setResumeDraftApplicationId(null);
       setProfileSaveStatus("idle");
     } else if (baseline.updatedAt !== boundProfile.updatedAt) {
       setResumeContentDraft((current) => current ? rebaseApplicantProfileDraft(baseline, current, boundProfile) : null);
       resumeBaselineRef.current = boundProfile;
     }
-  }, [boundProfile?.id, boundProfile?.updatedAt]);
+  }, [application?.id, boundProfile?.id, boundProfile?.updatedAt]);
 
   if (!application) {
     return (
@@ -689,7 +710,7 @@ export function DocumentsView({
     docs.motivationEnabled,
   );
   const template = getTemplate(design.templateId);
-  const contentProfile = resumeContentDraft && profile && resumeContentDraft.id === profile.id ? resumeContentDraft : profile;
+  const contentProfile = resumeContentDraft && resumeDraftApplicationId === application.id && profile && resumeContentDraft.id === profile.id ? resumeContentDraft : profile;
   const editorProfile = resolveResumePresentation(contentProfile, template.id, design.settings.resumePresentation);
   const renderProfile = editorProfile;
   const resolvedCv = resolveCvDocument({
@@ -739,7 +760,7 @@ export function DocumentsView({
   const sideMargins = resolveDocumentSideMargins(resolvedCv.templateId, resolvedCv.design.spacing);
   const deckblattModel = buildDeckblattModel({
     application,
-    profile: renderProfile,
+    profile: contentProfile,
     documents: docs,
     attachments,
     accentColor: design.accentColor,
@@ -831,7 +852,7 @@ export function DocumentsView({
   const documentDesignUnsaved = JSON.stringify(design) !== JSON.stringify(createDocumentDesignDraft(application));
   // Compared as printed: a letter head that only follows the Bewerbung's data again is no unsaved change.
   const documentTextUnsaved = JSON.stringify(docs) !== JSON.stringify(resolveCoverLetterDocuments(application, application.documents));
-  const editorUnsaved = documentDesignUnsaved || documentTextUnsaved || resumeDesignUnsaved || Boolean(resumeContentDraft);
+  const editorUnsaved = documentDesignUnsaved || documentTextUnsaved || resumeDesignUnsaved || Boolean(resumeContentDraft && resumeDraftApplicationId === application.id);
   const editorSaving = documentSaveStatus === "saving" || profileSaveStatus === "saving";
   const editorSaveLabel = editorSaving ? "Speichert …"
     : documentSaveStatus === "error" || profileSaveStatus === "error" ? "Fehler beim Speichern"
@@ -1100,7 +1121,7 @@ export function DocumentsView({
   const saveResumeSections = async (changedProfile: ApplicantProfile) => {
     if (!profile) return;
     const submittedDraft = resumeContentDraft;
-    const latest = useAppStore.getState().workspace.profiles.find((item) => item.id === profile.id) ?? profile;
+    const latest = useAppStore.getState().workspace.applications.find((item) => item.id === application.id)?.profileSnapshot ?? profile;
     const savedProfile = normalizeApplicantProfileForSave(rebaseApplicantProfileDraft(resumeBaselineRef.current ?? profile, changedProfile, latest));
     const issue = validateApplicantProfile(savedProfile)[0];
     if (issue) {
@@ -1110,9 +1131,10 @@ export function DocumentsView({
     const snapshot = applicationSnapshot(formRef.current);
     setProfileSaveStatus("saving");
     try {
-      await persistDocumentDraft(snapshot, savedProfile, saveProfile, saveApplication);
+      await persistDocumentDraft(snapshot, savedProfile, saveApplication);
       resumeBaselineRef.current = savedProfile;
       setResumeContentDraft((current) => current === submittedDraft ? null : current);
+      setResumeDraftApplicationId((current) => current === application.id ? null : current);
       setProfileSaveStatus("saved");
     } catch (error) { setProfileSaveStatus("error"); throw error; }
   };
@@ -1146,7 +1168,7 @@ export function DocumentsView({
     };
     return {
       ...application,
-      profileId: profile?.id,
+      profileId: application.profileId,
       templateId: design.templateId,
       accentColor: design.accentColor,
       secondaryColor: design.secondaryColor,
@@ -1216,14 +1238,20 @@ export function DocumentsView({
   };
 
   const changeDocumentProfile = async (profileId: string) => {
-    selectActiveProfile(profileId);
-    setResumeContentDraft(null);
-    setDocumentPreview(null);
-    await saveApplication({
-      ...applicationSnapshot(formRef.current),
-      profileId,
-      updatedAt: new Date().toISOString(),
-    });
+    if (profileId === application.profileId) return;
+    if (editorUnsaved) {
+      setDocumentSaveError("Bitte speichern oder verwerfen Sie zuerst die ungespeicherten Änderungen.");
+      setDocumentSaveStatus("error");
+      return;
+    }
+    if (!window.confirm("Die Verknüpfung zum Hauptprofil ändern? Das gespeicherte Bewerbungsprofil und alle Dokumenttexte bleiben erhalten.")) return;
+    try {
+      await saveApplication({ ...applicationSnapshot(formRef.current), profileId });
+      setDocumentPreview(null);
+    } catch (error) {
+      setDocumentSaveStatus("error");
+      setDocumentSaveError(error instanceof Error ? error.message : "Profilverknüpfung konnte nicht gespeichert werden.");
+    }
   };
 
   const previewDocumentInput = (event: React.FormEvent<HTMLFormElement>) => {
@@ -1251,7 +1279,7 @@ export function DocumentsView({
       const snapshot = applicationSnapshot(event.currentTarget);
       await persistResumeDesignDraft();
       if (currentProfileDraft()) await saveResumeSections(currentProfileDraft()!);
-      else await persistDocumentDraft(snapshot, undefined, saveProfile, saveApplication);
+      else await persistDocumentDraft(snapshot, undefined, saveApplication);
       if (tab === "anschreiben") await syncCoverLetter(snapshot.id);
       setDocumentSaveStatus("saved");
     } catch (error) {
@@ -1261,7 +1289,7 @@ export function DocumentsView({
   };
 
   const currentProfileDraft = () =>
-    resumeContentDraft?.id === profile?.id && resumeContentDraft
+    resumeDraftApplicationId === application.id && resumeContentDraft?.id === profile?.id && resumeContentDraft
       ? resumeContentDraft
       : undefined;
 
@@ -1269,7 +1297,7 @@ export function DocumentsView({
     const snapshot = applicationSnapshot(formRef.current);
     await persistResumeDesignDraft();
     if (currentProfileDraft()) await saveResumeSections(currentProfileDraft()!);
-    else await persistDocumentDraft(snapshot, undefined, saveProfile, saveApplication);
+    else await persistDocumentDraft(snapshot, undefined, saveApplication);
     await exportPdf(snapshot.id, target, snapshot);
   };
 
@@ -1371,9 +1399,9 @@ export function DocumentsView({
               onSubmit={(event) => void save(event)}>
               {profiles.length ? (
                 <label className="field document-profile-selector">
-                  <span>Profil dieser Bewerbung</span>
+                  <span>Hauptprofil-Verknüpfung</span>
                   <select
-                    value={profile?.id ?? ""}
+                    value={application.profileId ?? ""}
                     onChange={(event) =>
                       void changeDocumentProfile(event.target.value)
                     }>
@@ -1383,11 +1411,12 @@ export function DocumentsView({
                         {item.title ? ` · ${item.title}` : ""}
                       </option>
                     ))}
+                    {application.profileId && !profiles.some((item) => item.id === application.profileId) ? (
+                      <option value={application.profileId}>Gelöschtes Hauptprofil · Bewerbungsprofil bleibt erhalten</option>
+                    ) : null}
                   </select>
                   <small>
-                    Die Auswahl gilt für Anschreiben, Deckblatt, Lebenslauf und
-                    Mappe – in Vorschau und PDF – und wird bei der Bewerbung
-                    gespeichert.
+                    Diese Verknüpfung dokumentiert das Hauptprofil. Gespeicherte Inhalte dieser Bewerbung bleiben bei einer Änderung erhalten.
                   </small>
                 </label>
               ) : null}
@@ -1417,9 +1446,7 @@ export function DocumentsView({
                       {getProfessionalTitle(renderProfile) || "Im Profil nicht angegeben"}
                     </output>
                     <small>
-                      Kommt aus dem gewählten Profil und gilt für alle
-                      Unterlagen dieser Bewerbung; Änderungen erfolgen im
-                      Profil.
+                      Kommt aus dem Bewerbungsprofil und gilt für alle Unterlagen dieser Bewerbung.
                     </small>
                   </div>
                   <label className="field">
@@ -2567,8 +2594,8 @@ export function DocumentsView({
                   </section>
                   {profile ? (
                     <div className="resume-profile-context" role="status">
-                      <div><strong>Gemeinsames Profil</strong><span>{profile.firstName} {profile.lastName}</span></div>
-                      <small>Änderungen an Profildaten gelten für alle Bewerbungen mit diesem Profil.</small>
+                      <div><strong>Bewerbungsspezifisches Profil</strong><span>{profile.firstName} {profile.lastName}</span></div>
+                      <small>Änderungen gelten ausschließlich für diese Bewerbung. Ihr Hauptprofil und andere Bewerbungen bleiben unverändert.</small>
                       <span className={`resume-save-status is-${currentProfileDraft() && profileSaveStatus !== "saving" && profileSaveStatus !== "error" ? "dirty" : profileSaveStatus}`}>
                         {profileSaveStatus === "saving" ? "Speichert …" :
                           profileSaveStatus === "error" ? "Fehler beim Speichern" :
@@ -2582,7 +2609,10 @@ export function DocumentsView({
                       key={`${application.id}:${profile.id}:${template.id}:${resumeEditorRevision}`}
                       profile={profile}
                       controlledDraft={contentProfile ?? profile}
-                      onDraftChange={(value) => setResumeContentDraft((current) => typeof value === "function" ? value(current ?? profile) : value)}
+                      onDraftChange={(value) => {
+                        setResumeDraftApplicationId(application.id);
+                        setResumeContentDraft((current) => typeof value === "function" ? value(current ?? profile) : value);
+                      }}
                       singlePageExceeded={false}
                       templateId={template.id}
                       languagesColumns={design.settings.languagesColumns}
@@ -2721,7 +2751,7 @@ export function DocumentsView({
               <AnschreibenPage
                 ref={letterPaperRef}
                 model={anschreibenModel}
-                background={<DocumentBackgroundLayer backgroundId={design.settings.backgroundId} atsMode={isAtsMode} />}
+                background={template.id === "stilvoll" ? undefined : <DocumentBackgroundLayer backgroundId={design.settings.backgroundId} atsMode={isAtsMode} />}
               />
             )}
             {tab === "motivation" && (

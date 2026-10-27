@@ -143,11 +143,14 @@ export const buildAnschreibenFrame = ({
   secondaryColor: string;
   sideMargins: DocumentSideMargins;
 }) => {
+  const letterSettings = templateId === "stilvoll"
+    ? { ...settings, backgroundId: "white" as const, backgroundColor: "#ffffff", backgroundScope: "page" as const, showBackgroundInPrint: false }
+    : settings;
   const paper: Record<string, string> = {
     "--doc-accent": accentColor,
     "--doc-secondary": secondaryColor,
     "--doc-on-secondary": getReadableTextColor(secondaryColor),
-    ...getDocumentDesignVariables(settings),
+    ...getDocumentDesignVariables(letterSettings),
   };
   const identity: Record<string, string> | undefined = templateId === "zweispaltig"
     ? getZweispaltigLetterVariables(resolvedCv.design, resolvedCv.settings, accentColor, secondaryColor)
@@ -159,7 +162,7 @@ export const buildAnschreibenFrame = ({
     : templateId === "kompakt" ? resolvedCv.kompaktVariables : undefined;
   const templateCss = anschreibenTemplateCss(templateId);
   return {
-    className: `document-paper document-anschreiben letter-${density} letter-gap-${gapReduction} layout-${layout} ${documentDesignClassName(settings)}${
+    className: `document-paper document-anschreiben letter-${density} letter-gap-${gapReduction} layout-${layout} ${documentDesignClassName(letterSettings)}${
       identityTemplates.includes(templateId) ? ` ${templateId}-letter` : " letter-cv-colors"}`,
     style: {
       ...paper,

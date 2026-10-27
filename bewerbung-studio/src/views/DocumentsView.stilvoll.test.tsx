@@ -29,6 +29,7 @@ describe("Stilvoll Anschreiben and Lebenslauf", () => {
       cvOverrides: { typography: { bodySizePt: 11, lineHeight: 1.4 }, spacing: { pageMarginMm: 10, columnGapMm: 8 },
         colors: { accent: "#2457A6", entryHeading: "#173A6B" } },
     };
+    expect(settings.backgroundId).toBe("geometric");
     const application = applicationSchema.parse({
       schemaVersion: 1, id: "a1000000-0000-4000-8000-000000000002", profileId: profile.id,
       folderName: "Beispiel", company: { name: "Beispielwerke GmbH", city: "Beispielstadt" }, contact: { name: "Frau Beispiel" },
@@ -55,6 +56,14 @@ describe("Stilvoll Anschreiben and Lebenslauf", () => {
       expect(preview).not.toBeNull();
       expect(pdfLetter).not.toBeNull();
       expect(pdfCv).not.toBeNull();
+      expect(preview?.classList.contains("background-white")).toBe(true);
+      expect(pdfLetter?.classList.contains("background-white")).toBe(true);
+      expect(preview?.classList.contains("background-geometric")).toBe(false);
+      expect(pdfLetter?.classList.contains("background-geometric")).toBe(false);
+      expect(preview?.style.getPropertyValue("--doc-background-color")).toBe("#ffffff");
+      expect(pdfLetter?.style.getPropertyValue("--doc-background-color")).toBe("#ffffff");
+      expect(stilvollLetterCss).toContain(".document-paper.stilvoll-letter{background:#fff!important;background-image:none!important}");
+      expect(parseHTML(pdfCvHtml).document.querySelector(".cv-sheet.background-geometric")).not.toBeNull();
       for (const property of ["--stilvoll-primary", "--stilvoll-primary-dark", "--stilvoll-text", "--stilvoll-muted",
         "--stilvoll-section-heading", "--stilvoll-divider", "--stilvoll-pattern", "--stilvoll-inactive",
         "--stilvoll-margin-left", "--stilvoll-margin-right", "--stilvoll-column-gap", "--doc-font", "--doc-heading-font",
@@ -88,6 +97,20 @@ describe("Stilvoll Anschreiben and Lebenslauf", () => {
       const paragraphs = (letter: HTMLElement | null) => Array.from(letter?.querySelectorAll(".letter-body") ?? [])
         .map(node => node.textContent?.trim());
       expect(paragraphs(preview)).toEqual(paragraphs(pdfLetter));
+
+      const patternedSettings = { ...settings, backgroundId: "programming-languages-bg" as const, backgroundColor: "#123456" };
+      const patternedApplication = applicationSchema.parse({ ...application, designSettings: patternedSettings });
+      testStore.state = { workspace: { schemaVersion: 1, applications: [patternedApplication], profiles: [profile],
+        events: [], attachments: [], todos: [], customCvDesigns: [], settings: defaultSettings, updatedAt: now } };
+      const patternedPreview = parseHTML(renderToStaticMarkup(createElement(DocumentsView))).document
+        .querySelector<HTMLElement>(".document-anschreiben.stilvoll-letter");
+      const patternedPdf = parseHTML(buildDocumentHtml(patternedApplication, profile, "anschreiben")).document
+        .querySelector<HTMLElement>(".letter-page .document-anschreiben.stilvoll-letter");
+      for (const letter of [patternedPreview, patternedPdf]) {
+        expect(letter?.classList.contains("background-white")).toBe(true);
+        expect(letter?.style.getPropertyValue("--doc-background-color")).toBe("#ffffff");
+        expect(letter?.querySelector(".document-background-layer")).toBeNull();
+      }
     } finally {
       testStore.state = previous;
     }

@@ -66,27 +66,26 @@ describe("one ApplicantProfile for Profil and Lebenslauf", () => {
     expect(merged.updatedAt).toBe(latest.updatedAt);
   });
 
-  it("saves once to the linked profile and all its applications see the edit", async () => {
+  it("saves once to one application and leaves the linked main profile unchanged", async () => {
     const mina = makeProfile(minaId);
     const max = makeProfile(maxId, { firstName: "Max", summary: "Maxtext" });
-    const a = makeApplication(aId, minaId);
-    const b = makeApplication(bId, minaId);
+    const a = applicationSchema.parse({ ...makeApplication(aId, minaId), profileSnapshot: mina });
+    const b = applicationSchema.parse({ ...makeApplication(bId, minaId), profileSnapshot: structuredClone(mina) });
     const c = makeApplication(cId, maxId);
     const profiles = [mina, max];
     const saved = normalizeApplicantProfileForSave({ ...mina, summary: "Neuer Lebenslauftext", phone: "222" });
-    const saveProfile = vi.fn(async (value: typeof mina) => { profiles[0] = value; });
-    const saveApplication = vi.fn(async () => {});
-    await persistDocumentDraft(a, saved, saveProfile, saveApplication);
-    expect(saveProfile).toHaveBeenCalledWith(saved);
-    expect(saveApplication).toHaveBeenCalledWith(a);
-    expect(resolveCvDocument({ profile: resolveApplicationProfile(profiles, b.profileId), templateId: b.templateId }).summary).toBe("Neuer Lebenslauftext");
-    expect(resolveApplicationProfile(profiles, b.profileId)?.phone).toBe("222");
+    const saveApplication = vi.fn(async (value: typeof a) => { expect(value.profileSnapshot?.summary).toBe("Neuer Lebenslauftext"); });
+    await persistDocumentDraft(a, saved, saveApplication);
+    expect(saveApplication).toHaveBeenCalledTimes(1);
+    expect(resolveCvDocument({ profile: resolveApplicationProfile(profiles, b), templateId: b.templateId }).summary).toBe("Profiltext");
+    expect(resolveApplicationProfile(profiles, b)?.phone).not.toBe("222");
+    expect(profiles[0].summary).toBe("Profiltext");
     expect(resolveCvDocument({ profile: resolveApplicationProfile(profiles, c.profileId), templateId: c.templateId }).summary).toBe("Maxtext");
   });
 
   it("persists career, education, knowledge, interests, media and closing in the shared profile", async () => {
     const mina = makeProfile(minaId);
-    const application = makeApplication(aId, minaId);
+    const application = applicationSchema.parse({ ...makeApplication(aId, minaId), profileSnapshot: mina });
     const edited = profileSchema.parse({
       ...mina,
       experiences: [{ id: "20000000-0000-4000-8000-000000000001", role: "Entwicklerin", company: "Studio", from: "2022", to: "Heute", achievements: ["Produkt gebaut"] }],
@@ -97,7 +96,7 @@ describe("one ApplicantProfile for Profil and Lebenslauf", () => {
       resumeClosing: { ...mina.resumeClosing, showDate: false },
     });
     let persisted = mina;
-    await persistDocumentDraft(application, normalizeApplicantProfileForSave(edited), async (value) => { persisted = value; }, async () => {});
+    await persistDocumentDraft(application, normalizeApplicantProfileForSave(edited), async (value) => { persisted = value.profileSnapshot!; });
     const cv = resolveCvDocument({ profile: persisted, templateId: application.templateId });
     expect(cv.profile?.experiences[0].company).toBe("Studio");
     expect(cv.profile?.education[0].degree).toBe("B.Sc.");
@@ -108,15 +107,16 @@ describe("one ApplicantProfile for Profil and Lebenslauf", () => {
     expect(persisted.resumeClosing.showDate).toBe(false);
   });
 
-  it("archives conflicting legacy texts, promotes one deterministically, and migrates only once", () => {
+  it("archives each legacy text in its own snapshot and migrates only once", () => {
     const workspace = workspaceSchema.parse({
       schemaVersion: 1, profiles: [makeProfile(minaId, { summary: "" }), makeProfile(maxId, { summary: "Maxtext" })],
       applications: [makeApplication(bId, minaId, "Zweiter Text"), makeApplication(aId, minaId, "Erster Text"), makeApplication(cId, maxId, "Max alt")],
       events: [], attachments: [], settings: defaultSettings, updatedAt: now,
     });
     const migrated = migrateLegacyResumeProfiles(workspace);
-    expect(migrated.profiles[0].summary).toBe("Erster Text");
+    expect(migrated.profiles[0].summary).toBe("");
     expect(migrated.profiles[1].summary).toBe("Maxtext");
+    expect(migrated.applications.map((item) => item.profileSnapshot?.summary)).toEqual(["Zweiter Text", "Erster Text", "Max alt"]);
     expect(migrated.applications.map((item) => item.documents.resumeProfile)).toEqual(["", "", ""]);
     expect(migrated.applications.map((item) => item.documents.legacyResumeProfile)).toEqual(["Zweiter Text", "Erster Text", "Max alt"]);
     expect(migrateLegacyResumeProfiles(migrated)).toEqual(migrated);
