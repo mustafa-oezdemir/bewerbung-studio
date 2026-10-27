@@ -526,6 +526,9 @@ const registerIpc = () => {
     const profile = profileSchema.parse(value);
     return runApplicationChange(() => store.saveProfile(profile));
   });
+  handle("profiles:duplicate", async (_event, id: unknown) => {
+    return runApplicationChange(() => store.duplicateProfile(String(id)));
+  });
   handle("profiles:remove", async (_event, id: unknown) => {
     return runApplicationChange(() => store.removeProfile(String(id)));
   });

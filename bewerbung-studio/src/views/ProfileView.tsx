@@ -3,6 +3,7 @@ import {
   ArrowDown,
   ArrowUp,
   BriefcaseBusiness,
+  Copy,
   GraduationCap,
   Layers3,
   Plus,
@@ -80,6 +81,7 @@ const defaultSections: ApplicantProfile["resumeSections"] = {
 const newProfile = (): ApplicantProfile => ({
   id: crypto.randomUUID(),
   isDefault: true,
+  profileLabel: "",
   firstName: "",
   lastName: "",
   title: "",
@@ -148,6 +150,7 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
   const profiles = useAppStore((state) => state.workspace.profiles);
   const applications = useAppStore((state) => state.workspace.applications);
   const saveProfile = useAppStore((state) => state.saveProfile);
+  const duplicateProfile = useAppStore((state) => state.duplicateProfile);
   const removeProfile = useAppStore((state) => state.removeProfile);
   const selectedProfileId = useAppStore((state) => state.selectedProfileId);
   const applicationProfileId = useAppStore(
@@ -203,6 +206,18 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
     selectActiveProfile(profile.id);
     baselineRef.current = profile;
     setDraft(profile);
+  };
+
+  const copyProfile = async (profile: ApplicantProfile) => {
+    if (hasUnsavedChanges) {
+      window.alert("Bitte speichern Sie zuerst Ihre Änderungen, bevor Sie ein Profil duplizieren.");
+      return;
+    }
+    try {
+      await duplicateProfile(profile.id);
+      const copy = useAppStore.getState().workspace.profiles[0];
+      if (copy && copy.id !== profile.id) selectProfile(copy);
+    } catch { setSaveError(true); }
   };
 
   const deleteProfile = async (profile: ApplicantProfile) => {
@@ -373,7 +388,7 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
     const selection = window.prompt(
       `Kategorie in welches Profil kopieren?\n${targets
         .map((profile, index) =>
-          `${index + 1}. ${profile.firstName} ${profile.lastName}`.trim(),
+          `${index + 1}. ${profile.firstName} ${profile.lastName}${profile.profileLabel ? ` · ${profile.profileLabel}` : ""}`.trim(),
         )
         .join("\n")}`,
       "1",
@@ -450,10 +465,19 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
                   {profile.firstName} {profile.lastName}
                 </strong>
                 <small>
+                  {profile.profileLabel ? `${profile.profileLabel} · ` : ""}
                   {profile.title || "Kein Titel"}
                   {profile.isDefault ? " · Standard" : ""}
                 </small>
               </div>
+            </button>
+            <button
+              className="icon-button profile-copy-button"
+              type="button"
+              aria-label={`Profil ${profile.firstName} ${profile.lastName} duplizieren`}
+              title="Profil duplizieren"
+              onClick={() => void copyProfile(profile)}>
+              <Copy size={15} />
             </button>
             <button
               className="icon-button danger profile-delete-button"
@@ -505,6 +529,7 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
             action={<span className="profile-required-badge">Pflicht</span>}
             onSave={() =>
               void saveSection("personal", [
+                "profileLabel",
                 "firstName",
                 "lastName",
                 "title",
@@ -527,6 +552,17 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
             }
             saving={savingSection === "personal"}
             saved={savedSection === "personal"}>
+            <div className="field profile-label-field">
+              <label htmlFor="profile-label">Profilbezeichnung (nur intern)</label>
+              <input
+                id="profile-label"
+                type="text"
+                maxLength={100}
+                value={draft.profileLabel}
+                placeholder="z. B. Softwareentwicklung"
+                onChange={(event) => setDraft((current) => ({ ...current, profileLabel: event.target.value }))}
+              />
+            </div>
             <PersonalDataEditor
               profile={draft}
               onChange={setDraft}

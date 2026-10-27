@@ -59,6 +59,7 @@ const api: BewerbungsManagerApi = {
   },
   profiles: {
     save: (profile) => invoke("profiles:save", profile),
+    duplicate: (id) => invoke("profiles:duplicate", id),
     remove: (id) => invoke("profiles:remove", id),
   },
   templates: {

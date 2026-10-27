@@ -1581,6 +1581,28 @@ export class DataStore {
     return this.getWorkspace();
   }
 
+  async duplicateProfile(id: string) {
+    const source = this.workspace.profiles.find((profile) => profile.id === id);
+    if (!source) throw new Error("Profil wurde nicht gefunden.");
+    const baseLabel = source.profileLabel ? `${source.profileLabel} (Kopie)` : "Kopie";
+    const labels = new Set(this.workspace.profiles.map((profile) => profile.profileLabel));
+    let label = baseLabel.slice(0, 100);
+    for (let number = 2; labels.has(label); number += 1) {
+      const suffix = ` ${number}`;
+      label = `${baseLabel.slice(0, 100 - suffix.length)}${suffix}`;
+    }
+    const duplicate = profileSchema.parse({
+      ...structuredClone(source),
+      id: createId(),
+      isDefault: false,
+      profileLabel: label,
+      updatedAt: nowIso(),
+    });
+    this.workspace.profiles.unshift(duplicate);
+    await this.persist();
+    return this.getWorkspace();
+  }
+
   async removeProfile(id: string) {
     const index = this.workspace.profiles.findIndex(
       (profile) => profile.id === id,

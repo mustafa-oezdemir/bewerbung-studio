@@ -186,6 +186,7 @@ export interface BewerbungsManagerApi {
   };
   profiles: {
     save: (profile: ApplicantProfile) => Promise<ApplicationChangeResult>;
+    duplicate: (id: string) => Promise<ApplicationChangeResult>;
     remove: (id: string) => Promise<ApplicationChangeResult>;
   };
   templates: {

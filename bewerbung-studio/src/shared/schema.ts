@@ -504,6 +504,8 @@ export const applicationDraftSchema = z.object({
 export const profileSchema = z.object({
   id: z.uuid(),
   isDefault: z.boolean(),
+  /** Internal label for distinguishing profiles; never used as the applicant's name. */
+  profileLabel: z.string().trim().max(100).optional().default(""),
   firstName: z.string().trim().min(1),
   lastName: z.string().trim().min(1),
   title: optionalText,

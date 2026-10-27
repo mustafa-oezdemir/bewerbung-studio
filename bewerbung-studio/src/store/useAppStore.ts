@@ -66,6 +66,7 @@ type StoreState = {
     reason?: RejectionReason,
   ) => Promise<void>;
   saveProfile: (profile: ApplicantProfile) => Promise<void>;
+  duplicateProfile: (id: string) => Promise<void>;
   removeProfile: (id: string) => Promise<void>;
   saveSettings: (settings: AppSettings) => Promise<void>;
   /** Persist the shared Lebenslauf design (`settings.resumeDesign`); `undefined` removes it. */
@@ -318,6 +319,15 @@ export const useAppStore = create<StoreState>((set, get) => {
         "Profil wurde gespeichert.",
         "Profil wurde gespeichert und mit GitHub synchronisiert.",
       );
+    },
+    async duplicateProfile(id) {
+      if (!apiAvailable()) return;
+      await performApplicationChange(
+        () => window.bewerbungsManager.profiles.duplicate(id),
+        "Profil wurde dupliziert.",
+        "Profil wurde dupliziert und mit GitHub synchronisiert.",
+      );
+      set({ selectedProfileId: get().workspace.profiles[0]?.id });
     },
     async removeProfile(id) {
       if (!apiAvailable()) return;

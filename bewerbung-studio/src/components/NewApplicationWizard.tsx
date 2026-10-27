@@ -440,6 +440,7 @@ export function NewApplicationWizard({ onClose }: Props) {
                     {profiles.map((profile) => (
                       <option key={profile.id} value={profile.id}>
                         {profile.firstName} {profile.lastName}
+                        {profile.profileLabel ? ` · ${profile.profileLabel}` : ""}
                       </option>
                     ))}
                   </select>

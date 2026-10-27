@@ -4624,7 +4624,7 @@ body.is-resizing-split-view * {
 
 .profile-list-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   border: 1px solid transparent;
   border-radius: 10px;
@@ -4678,13 +4678,17 @@ body.is-resizing-split-view * {
   white-space: nowrap;
 }
 
+.profile-copy-button,
 .profile-delete-button {
   width: 32px;
   height: 32px;
-  margin-right: 7px;
   border-color: transparent;
   background: transparent;
 }
+
+.profile-delete-button { margin-right: 7px; }
+
+.profile-label-field { margin-bottom: 16px; }
 
 .profile-list > .button {
   width: 100%;

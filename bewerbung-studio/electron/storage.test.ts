@@ -807,6 +807,42 @@ describe("DataStore backups", () => {
     );
   });
 
+  it("duplicates a whole profile into an independent file without changing applications", async () => {
+    const source = profileSchema.parse({
+      id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya",
+      title: "Softwareentwicklerin", summary: "Fiktives Kurzprofil",
+      languages: ["Deutsch – C1", "Englisch – B2"],
+      updatedAt: new Date().toISOString(),
+    });
+    await store.saveProfile(source);
+    const application = (await store.createApplication({ ...applicationInput("Beispiel GmbH"), profileId: source.id })).applications[0];
+    const before = store.getWorkspace();
+
+    const copied = await store.duplicateProfile(source.id);
+    const duplicate = copied.profiles[0];
+    expect(duplicate).toMatchObject({ firstName: "Mina", lastName: "Kaya", title: source.title,
+      summary: source.summary, isDefault: false, profileLabel: "Kopie" });
+    expect(duplicate.id).not.toBe(source.id);
+    expect(duplicate.knowledgeSection).toEqual(source.knowledgeSection);
+    expect(copied.profiles.find((profile) => profile.id === source.id)).toEqual(source);
+    expect(copied.applications).toEqual(before.applications);
+    expect(copied.applications[0].id).toBe(application.id);
+    expect(copied.applications[0].profileId).toBe(source.id);
+    expect(await readFile(path.join(store.files.paths.profileRoot, `profil-${duplicate.id}.json`), "utf8"))
+      .toContain('"profileLabel": "Kopie"');
+
+    const secondCopy = (await store.duplicateProfile(source.id)).profiles[0];
+    expect(secondCopy.profileLabel).toBe("Kopie 2");
+    await store.saveProfile({ ...duplicate, summary: "Nur in der Kopie", updatedAt: new Date().toISOString() });
+    const reopened = new DataStore(root);
+    await reopened.initialize();
+    expect(reopened.getWorkspace().profiles.find((profile) => profile.id === source.id)).toEqual(source);
+    expect(reopened.getWorkspace().profiles.find((profile) => profile.id === duplicate.id)?.summary)
+      .toBe("Nur in der Kopie");
+    expect(reopened.getWorkspace().applications[0].profileId).toBe(source.id);
+    await expect(store.duplicateProfile(crypto.randomUUID())).rejects.toThrow("Profil wurde nicht gefunden.");
+  });
+
   it("deletes profiles and safely reassigns linked applications", async () => {
     const primary = profileSchema.parse({
       id: crypto.randomUUID(),
