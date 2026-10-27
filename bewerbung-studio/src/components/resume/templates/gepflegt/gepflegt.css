@@ -454,7 +454,11 @@
   display: block;
 }
 
+/* The plain (ATS) sheet mirrors the PDF's `.gepflegt-pdf-ats` (electron/documents.ts), the reference of the page planner:
+   one block flow (the main column does not stretch to the page bottom), header, Kurzprofil, main column (career, education,
+   special sections, closing), then the extra blocks of the last page. */
 .gepflegt-page--ats .gepflegt-content {
+  display: block;
   padding: 14mm 16mm 16mm;
 }
 
@@ -464,13 +468,43 @@
   border-bottom: 0.35mm solid var(--gepflegt-divider, #c7ced1);
 }
 
+/* Beats the app's `.document-paper h1` like the PDF's header rule beats `.page h1`. */
 .gepflegt-page--ats .gepflegt-header__name {
+  color: var(--gepflegt-heading, #354147);
   font-size: 20pt;
 }
 
 .gepflegt-page--ats .gepflegt-header__title {
   color: var(--gepflegt-heading, #354147);
+  font-family: var(--doc-heading-font, var(--gepflegt-heading-font));
   font-size: 10.5pt;
+}
+
+.gepflegt-page--ats .gepflegt-ats-summary {
+  margin-bottom: var(--gepflegt-section-gap, 7mm);
+}
+
+.gepflegt-page--ats .gepflegt-ats-summary p {
+  color: var(--gepflegt-text, #3f494e);
+}
+
+/* The template's own section titles keep the base sheet's size; managed and special sections take the central one. */
+.gepflegt-page--ats .gepflegt-section__title:not([data-custom-role]) {
+  font-size: 14.5pt;
+}
+
+/* The PDF's plain lists keep the browser's disc markers; the app's reset removed them. */
+.gepflegt-page--ats .gepflegt-entry ul {
+  list-style: disc;
+}
+
+.gepflegt-page--ats .gepflegt-entry li {
+  font-size: 8.8pt;
+}
+
+/* The special sections stand in a wrapper of their own in the main column; between them the column's section gap. */
+.gepflegt-page--ats .gepflegt-main > .resume-special-output-list {
+  gap: var(--gepflegt-section-gap, 7mm);
 }
 
 .gepflegt-page--ats .gepflegt-header__contacts {
@@ -483,34 +517,44 @@
   max-width: none;
 }
 
-.gepflegt-page--ats .gepflegt-sidebar--ats {
+.gepflegt-page--ats .gepflegt-ats-extra {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5mm 10mm;
-  height: auto;
   margin-top: var(--gepflegt-section-gap, 7mm);
-  padding: 0;
-  color: var(--gepflegt-text, #3f494e);
-  background: transparent;
 }
 
-.gepflegt-page--ats .gepflegt-sidebar__section {
+.gepflegt-page--ats .gepflegt-ats-extra section {
   margin: 0;
 }
 
-.gepflegt-page--ats .gepflegt-sidebar__title {
-  border-color: var(--gepflegt-divider, #c7ced1);
+.gepflegt-page--ats .gepflegt-ats-extra :is(h2, h3) {
+  margin: 0 0 2mm;
+  padding-bottom: 1.5mm;
+  border-bottom: 0.35mm solid var(--gepflegt-divider, #c7ced1);
   color: var(--gepflegt-heading, #354147);
   font-size: 10.5pt;
+  text-transform: uppercase;
 }
 
-.gepflegt-page--ats .gepflegt-strength h3,
-.gepflegt-page--ats .gepflegt-strength p,
-.gepflegt-page--ats .gepflegt-languages strong,
-.gepflegt-page--ats .gepflegt-languages span,
-.gepflegt-page--ats .gepflegt-knowledge,
-.gepflegt-page--ats .gepflegt-certifications li {
-  color: var(--gepflegt-text, #3f494e);
+.gepflegt-page--ats .gepflegt-ats-extra :is(p, li) {
+  font-size: 8.5pt;
+}
+
+/* The PDF keeps the browser's paragraph margins here (the planner's knowledge `tail`); the app's reset removed them. */
+.gepflegt-page--ats .gepflegt-ats-extra p {
+  margin: 1em 0;
+}
+
+.gepflegt-page--ats .gepflegt-ats-extra ul {
+  margin: 0;
+  padding-left: 4mm;
+}
+
+/* The browser's disc markers of the PDF, at the weight of the app's reset: a list with a class rule of its own (the
+   languages) keeps that rule on both surfaces. */
+:where(.gepflegt-page--ats .gepflegt-ats-extra) ul {
+  list-style: disc;
 }
 
 @media screen {

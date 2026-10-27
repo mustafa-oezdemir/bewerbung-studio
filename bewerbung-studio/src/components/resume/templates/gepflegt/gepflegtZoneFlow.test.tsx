@@ -30,9 +30,9 @@ const makeProfile = (count: number) => profileSchema.parse({
   updatedAt: now,
 });
 type Profile = ReturnType<typeof makeProfile>;
-const render = (profile: Profile) => {
+const render = (profile: Profile, ats = false) => {
   const template = getTemplate(templateId);
-  const designSettings = getTemplateDocumentDesignDefaults(templateId);
+  const designSettings = { ...getTemplateDocumentDesignDefaults(templateId), ...(ats ? { resumeOutputMode: "ats" as const } : {}) };
   const application = applicationSchema.parse({
     schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test", company: { name: "Firma", city: "Berlin" },
     contact: {}, job: { title: "Entwicklung" }, status: "Entwurf", templateId,
@@ -43,7 +43,7 @@ const render = (profile: Profile) => {
   const preview = resolved.pagePlan.map((plan) => parseHTML(renderToStaticMarkup(
     <ManagedResumePreview profile={resolved.profile} templateId={templateId} pageNumber={plan.pageNumber}
       totalPages={resolved.pagePlan.length} designSettings={designSettings} resolvedCv={resolved}>
-      <GepflegtResume profile={resolved.profile} name="Mina Kaya" atsMode={false} plan={plan}
+      <GepflegtResume profile={resolved.profile} name="Mina Kaya" atsMode={ats} plan={plan}
         totalPages={resolved.pagePlan.length} accentColor={template.accent} secondaryColor={template.secondary}
         photoSource={null} resumeProfile="" sections={resolved.sections} />
     </ManagedResumePreview>,
@@ -147,6 +147,34 @@ describe("Gepflegt: shared document flow", () => {
       expect(section(pages[0], "languages")?.querySelector("[role='img'],.gepflegt-pdf-dots"), surface).not.toBeNull();
       expect(pages[0].querySelector("[data-resume-closing]"), surface).toBeNull();
       expect(pages[pages.length - 1].querySelector("[data-resume-closing-line]")?.textContent, surface).toBe("Marburg, 26.09.2026");
+    }
+  });
+
+  it("draws the plain (ATS) sheet in the PDF's order: main column with special sections and closing, then the extra blocks", () => {
+    const profile = profileSchema.parse({
+      ...makeProfile(2),
+      specialSections: [{ id: crypto.randomUUID(), kind: "projects", title: "Projekte", isVisible: true, entries: [
+        { id: crypto.randomUUID(), title: "Go Microservice Plattform", technologies: ["Go", "Docker"], description: "Demoanwendung.", bullets: [] },
+      ] }],
+    });
+    const output = render(profile, true);
+    for (const surface of ["preview", "pdf"] as const) {
+      const pages = output.surfaces[surface];
+      const last = pages[pages.length - 1];
+      const main = last.querySelector("main");
+      const special = last.querySelector('[data-managed-section^="special:"]');
+      const closing = last.querySelector("[data-resume-closing]");
+      const languages = section(last, "languages");
+      const order = Array.from(last.querySelectorAll("*"));
+      expect(last.querySelector("aside"), surface).toBeNull();
+      expect(special?.closest("main"), surface).toBe(main);
+      expect(closing?.closest("main"), surface).toBe(main);
+      expect(order.indexOf(special!), surface).toBeLessThan(order.indexOf(closing!));
+      // Sprachen and the other extra blocks follow the main column and take the main column's heading colour.
+      expect(languages?.closest(".gepflegt-ats-extra,.gepflegt-pdf-ats-extra"), surface).not.toBeNull();
+      expect(order.indexOf(languages!), surface).toBeGreaterThan(order.indexOf(closing!));
+      expect(main!.contains(languages!), surface).toBe(false);
+      expect(languages?.querySelector("h2,h3")?.getAttribute("style"), surface).toContain("--gepflegt-section-heading");
     }
   });
 

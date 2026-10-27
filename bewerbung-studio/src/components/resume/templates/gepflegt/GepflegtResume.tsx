@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { getResumeSectionTitle } from "../../../../features/resume-sections/resume-sections";
 import { ResumeSpecialSections } from "../../ResumeSpecialSections";
 import { resolveTemplateSummary } from "../resume-template-data";
+import { GepflegtAtsExtra } from "./GepflegtAtsExtra";
 import { GepflegtFooter } from "./GepflegtFooter";
 import { GepflegtHeader } from "./GepflegtHeader";
 import { GepflegtMainContent } from "./GepflegtMainContent";
@@ -95,22 +96,10 @@ export function GepflegtResume({
             atsMode={atsMode}
             isContinuation={isContinuation}
           >
-            {!atsMode && plan.pageNumber === totalPages ? <ResumeSpecialSections profile={profile} sectionClassName="gepflegt-section" headingClassName="gepflegt-section__title" /> : null}
+            {plan.pageNumber === totalPages ? <ResumeSpecialSections profile={profile} sectionClassName="gepflegt-section" headingClassName="gepflegt-section__title" /> : null}
           </GepflegtMainContent>
-          {atsMode && plan.pageNumber === totalPages ? (
-            <GepflegtSidebar
-              profile={profile}
-              name={name}
-              summary=""
-              sections={sections}
-              atsMode
-              photoSource={null}
-              isContinuation={false}
-              pageNumber={plan.pageNumber}
-              totalPages={totalPages}
-            />
-          ) : null}
-          {atsMode && plan.pageNumber === totalPages ? <ResumeSpecialSections profile={profile} sectionClassName="gepflegt-section" headingClassName="gepflegt-section__title" /> : null}
+          {/* Like the PDF: the plain sheet's extra blocks follow the main column (its special sections and the closing). */}
+          {atsMode && plan.pageNumber === totalPages ? <GepflegtAtsExtra profile={profile} sections={sections} /> : null}
           <GepflegtFooter
             profile={profile}
             pageNumber={plan.pageNumber}

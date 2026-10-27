@@ -35,6 +35,11 @@ export interface GepflegtSidebarProps {
   totalPages: number;
 }
 
+export interface GepflegtAtsExtraProps {
+  profile: ApplicantProfile | undefined;
+  sections: ApplicantProfile["resumeSections"];
+}
+
 export interface GepflegtMainContentProps {
   profile: ApplicantProfile | undefined;
   atsMode: boolean;
