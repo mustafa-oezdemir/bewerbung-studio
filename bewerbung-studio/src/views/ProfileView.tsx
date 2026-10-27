@@ -474,7 +474,7 @@ export function ProfileView({ onSaved }: { onSaved: () => void }) {
             <button
               className="icon-button profile-copy-button"
               type="button"
-              aria-label={`Profil ${profile.firstName} ${profile.lastName} duplizieren`}
+              aria-label={`Profil ${profile.firstName} ${profile.lastName} (${profile.profileLabel || profile.title || "Kein Titel"}) duplizieren`}
               title="Profil duplizieren"
               onClick={() => void copyProfile(profile)}>
               <Copy size={15} />
