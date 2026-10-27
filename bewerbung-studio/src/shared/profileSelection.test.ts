@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { ApplicantProfile } from "./schema";
-import { getProfessionalTitle, resolveApplicationProfile, resolveSelectedProfile } from "./profileSelection";
+import { profileSchema, type ApplicantProfile } from "./schema";
+import { setResumeHeading } from "./resumeHeading";
+import { getMainProfileLinkLabel, getProfessionalTitle, resolveApplicationProfile, resolveSelectedProfile } from "./profileSelection";
 
 const profile = (
   id: string,
@@ -61,5 +62,25 @@ describe("getProfessionalTitle", () => {
     expect(getProfessionalTitle({ title: "  Softwareentwickler | Fachinformatiker  " })).toBe("Softwareentwickler | Fachinformatiker");
     expect(getProfessionalTitle({ title: "" })).toBe("");
     expect(getProfessionalTitle(undefined)).toBe("");
+  });
+});
+
+describe("getMainProfileLinkLabel", () => {
+  const source = profileSchema.parse({
+    id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya",
+    title: "Softwareentwicklerin", updatedAt: new Date().toISOString(),
+  });
+
+  it("shows the saved own heading ahead of the professional title, even when another mode is active", () => {
+    const custom = setResumeHeading(source, { mode: "default", customTitle: "  Basis Lebenslauf  " });
+    expect(getMainProfileLinkLabel(custom)).toBe("Mina Kaya · Basis Lebenslauf");
+    expect(getMainProfileLinkLabel({ ...custom, profileLabel: "Kopie" }))
+      .toBe("Mina Kaya · Basis Lebenslauf · Kopie");
+  });
+
+  it("keeps the profession as a fallback when there is no own heading", () => {
+    expect(getMainProfileLinkLabel(source)).toBe("Mina Kaya · Softwareentwicklerin");
+    expect(getMainProfileLinkLabel({ ...source, title: "" }))
+      .toBe("Mina Kaya · Keine eigene Überschrift");
   });
 });

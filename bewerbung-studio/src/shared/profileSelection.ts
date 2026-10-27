@@ -1,4 +1,5 @@
 import type { ApplicantProfile, Application } from "./schema";
+import { resolveResumeHeading } from "./resumeHeading";
 
 /**
  * A saved Bewerbung owns its profile. The legacy id lookup is used only while an old workspace is upgraded.
@@ -31,3 +32,11 @@ export const resolveSelectedProfile = (
  */
 export const getProfessionalTitle = (profile: Pick<ApplicantProfile, "title"> | undefined) =>
   profile?.title?.trim() ?? "";
+
+/** Show the profile's own CV heading in the main-profile link, not its professional title. */
+export const getMainProfileLinkLabel = (profile: ApplicantProfile) => {
+  const name = `${profile.firstName} ${profile.lastName}`.trim();
+  const ownHeading = resolveResumeHeading(profile).customTitle;
+  const detail = ownHeading || getProfessionalTitle(profile) || "Keine eigene Überschrift";
+  return [name, detail, profile.profileLabel?.trim()].filter(Boolean).join(" · ");
+};

@@ -142,7 +142,7 @@ import {
   defaultResumePersonalFieldVisibility,
   getResumeSemanticSection,
 } from "../features/resume-sections/resume-section-system";
-import { getProfessionalTitle, resolveApplicationProfile } from "../shared/profileSelection";
+import { getMainProfileLinkLabel, getProfessionalTitle, resolveApplicationProfile } from "../shared/profileSelection";
 import { coverSenderFromProfile, keepCoverSenderOverrides, resolveCoverSender } from "../shared/coverSender";
 import type {
   ApplicantProfile,
@@ -1407,8 +1407,7 @@ export function DocumentsView({
                     }>
                     {profiles.map((item) => (
                       <option key={item.id} value={item.id}>
-                        {item.firstName} {item.lastName}
-                        {item.title ? ` · ${item.title}` : ""}
+                        {getMainProfileLinkLabel(item)}
                       </option>
                     ))}
                     {application.profileId && !profiles.some((item) => item.id === application.profileId) ? (
