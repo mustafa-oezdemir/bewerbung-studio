@@ -643,7 +643,7 @@ export class DataStore {
     if (conflicts.length) {
       const report = path.join(this.files.paths.backupsRoot, `migrationskonflikte-${timestamp()}-${createId()}.json`);
       await writeFile(report, JSON.stringify({ backup: this.indexMigrationBackup, conflicts }, null, 2));
-      throw new Error(`Die Datenumstellung wurde wegen widersprüchlicher Dateien angehalten. Bericht: ${report}`);
+      throw new AppError("VALIDATION_FAILED", `Die Datenumstellung wurde wegen widersprüchlicher Dateien angehalten. Bericht: ${report}`, { expected: true });
     }
   }
 

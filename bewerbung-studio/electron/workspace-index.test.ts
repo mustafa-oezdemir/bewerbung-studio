@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { defaultDocumentDesign } from "../src/shared/documentDesign";
 import { type Application, type ApplicationInput } from "../src/shared/schema";
+import { AppError } from "../src/shared/app-error";
 import { DataStore } from "./storage";
 import { addSyntheticProfile } from "./test-profile";
 
@@ -95,7 +96,9 @@ describe("indexed Workspace files", () => {
     await writeFile(applicationPath(a), JSON.stringify(divergent));
     const workspaceBytes = await readFile(indexPath());
     const applicationBytes = await readFile(applicationPath(a));
-    await expect(new DataStore(root).initialize()).rejects.toThrow("widersprüchlicher Dateien");
+    const migration = new DataStore(root).initialize();
+    await expect(migration).rejects.toThrow("widersprüchlicher Dateien");
+    await expect(migration).rejects.toBeInstanceOf(AppError);
     expect(await readFile(indexPath())).toEqual(workspaceBytes);
     expect(await readFile(applicationPath(a))).toEqual(applicationBytes);
     expect((await readdir(store.files.paths.backupsRoot)).some((name) => name.startsWith("migrationskonflikte-")))
