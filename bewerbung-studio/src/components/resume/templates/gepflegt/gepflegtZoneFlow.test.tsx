@@ -30,9 +30,9 @@ const makeProfile = (count: number) => profileSchema.parse({
   updatedAt: now,
 });
 type Profile = ReturnType<typeof makeProfile>;
-const render = (profile: Profile, ats = false) => {
+const render = (profile: Profile, ats = false, cvOverrides?: { colors: Record<string, string> }) => {
   const template = getTemplate(templateId);
-  const designSettings = { ...getTemplateDocumentDesignDefaults(templateId), ...(ats ? { resumeOutputMode: "ats" as const } : {}) };
+  const designSettings = { ...getTemplateDocumentDesignDefaults(templateId), ...(ats ? { resumeOutputMode: "ats" as const } : {}), ...(cvOverrides ? { cvOverrides } : {}) };
   const application = applicationSchema.parse({
     schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test", company: { name: "Firma", city: "Berlin" },
     contact: {}, job: { title: "Entwicklung" }, status: "Entwurf", templateId,
@@ -175,6 +175,17 @@ describe("Gepflegt: shared document flow", () => {
       expect(order.indexOf(languages!), surface).toBeGreaterThan(order.indexOf(closing!));
       expect(main!.contains(languages!), surface).toBe(false);
       expect(languages?.querySelector("h2,h3")?.getAttribute("style"), surface).toContain("--gepflegt-section-heading");
+    }
+  });
+
+  it("keeps the Berufsbezeichnung a header heading: the Absatztext colour does not reach it on either surface", () => {
+    for (const ats of [false, true]) {
+      const output = render(makeProfile(2), ats, { colors: { paragraph: "#202020" } });
+      for (const surface of ["preview", "pdf"] as const) {
+        const title = output.surfaces[surface][0].querySelector("header h2");
+        expect(title?.textContent, `${surface} ${ats}`).toBe("Entwicklerin");
+        expect(title?.getAttribute("style") ?? "", `${surface} ${ats}`).not.toContain("#202020");
+      }
     }
   });
 

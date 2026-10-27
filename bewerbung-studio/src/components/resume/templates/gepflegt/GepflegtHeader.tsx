@@ -32,8 +32,9 @@ export function GepflegtHeader({
         <p className="gepflegt-header__kicker">{resolveResumeHeading(profile).continuationKicker}</p>
       ) : null}
       <h1 className="gepflegt-header__name">{name}</h1>
+      {/* A heading like the PDF's `h2`: the Unterüberschrift settings reach it, the Absatztext colour does not. */}
       {profile?.title ? (
-        <p className="gepflegt-header__title">{profile.title}</p>
+        <h2 className="gepflegt-header__title">{profile.title}</h2>
       ) : null}
 
       {!compact &&
