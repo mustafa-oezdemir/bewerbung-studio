@@ -179,6 +179,8 @@ describe("Gepflegt layout and central design", () => {
   it("styles both outputs from one rule set: bullets, footer, sidebar lists and section gaps", () => {
     expect(gepflegtResolvedCss).toContain(".gepflegt-page:not(.gepflegt-page--ats) .gepflegt-entry ul,.gepflegt-pdf:not(.gepflegt-pdf-ats) .gepflegt-pdf-entry ul{list-style:disc}");
     expect(gepflegtResolvedCss).toContain(".gepflegt-main>.resume-special-output-list{gap:var(--gepflegt-section-gap)}");
+    // A sidebar heading of the shared renderer (Kenntnisse on a later page) takes the sidebar title rule like the PDF's h3.
+    expect(gepflegtResolvedCss).toMatch(/\.gepflegt-page:not\(\.gepflegt-page--ats\) \.gepflegt-sidebar \[data-custom-role="heading"\],[^{]*\.gepflegt-pdf-sidebar h3\{[^}]*font-weight:var\(--gepflegt-section-weight\)/);
     // Certificates and every other sidebar block follow the central body size and section gap on every page.
     expect(resumeSectionPresentationCss).toContain('[data-cv-zone="sidebar"]{margin:0 0 var(--gepflegt-section-gap,6.5mm)}');
     expect(resumeSectionPresentationCss).toContain("font-size:var(--gepflegt-body-size,11pt);line-height:var(--gepflegt-line-height,1.3)");
