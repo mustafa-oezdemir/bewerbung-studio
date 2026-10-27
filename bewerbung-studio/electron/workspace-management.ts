@@ -502,7 +502,8 @@ export class WorkspaceManager {
     await mkdir(backupRoot, { recursive: true });
     const entries: Array<{ path: string; size: number; sha256: string }> = [];
     try {
-      for (const source of await listFiles(root, backupRoot, true)) {
+      // Backups can be larger than the live workspace. Never copy older backups into a new one.
+      for (const source of await listFiles(root, resolveApplicationPaths(root).backupsRoot, true)) {
         const relative = path.relative(root, source);
         const target = path.join(backupRoot, relative);
         const verified = await copyAndVerify(source, target, this.copyOperation);

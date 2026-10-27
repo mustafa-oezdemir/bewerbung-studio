@@ -353,6 +353,22 @@ describe("workspace management", () => {
     expect(manifest.files.some((file: { path: string }) => file.path.includes("Beispiel.docx"))).toBe(true);
   });
 
+  it("does not recursively copy older backups into a new full backup", async () => {
+    const base = await temporary();
+    const manager = new WorkspaceManager(path.join(base, "config"), {}, path.join(base, "legacy"));
+    const root = await manager.setup(path.join(base, "Bewerbungen"));
+    await writeWorkspace(root);
+    const older = path.join(root, "data", "Setting", "Backups", "Migration_older", "prior.pdf");
+    await mkdir(path.dirname(older), { recursive: true });
+    await writeFile(older, "older backup");
+    const backup = await manager.fullBackup(root);
+    const manifest = JSON.parse(await readFile(path.join(backup, "migration-manifest.json"), "utf8"));
+    expect(manifest.files.some((file: { path: string }) => file.path.includes("Migration_older"))).toBe(false);
+    await expect(readFile(path.join(backup, "data", "Setting", "Backups", "Migration_older", "prior.pdf")))
+      .rejects.toMatchObject({ code: "ENOENT" });
+    expect(await readFile(older, "utf8")).toBe("older backup");
+  });
+
   it("keeps the original bootstrap path if transfer cannot start", async () => {
     const base = await temporary();
     const manager = new WorkspaceManager(path.join(base, "config"), {}, path.join(base, "legacy"));
