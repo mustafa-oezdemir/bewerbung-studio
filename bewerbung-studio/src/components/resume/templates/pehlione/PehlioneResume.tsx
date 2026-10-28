@@ -16,7 +16,6 @@ import type { ResumePagePlan } from "../../../../shared/documentPagination";
 import { resolveResumeClosingLine } from "../../../../shared/resumeClosing";
 import { resolveResumeFooterWebsite } from "../../../../shared/resumeFooter";
 import { interestEntryText } from "../../../../shared/resumeCustomSections";
-import { resolveResumeHeading } from "../../../../shared/resumeHeading";
 import { resolveEducationPresentation } from "../../../../shared/resumeEducation";
 import { resolveExperience } from "../../../../shared/resumeCareer";
 
@@ -31,6 +30,7 @@ import {
   getResumeSemanticSection,
   getResumeSemanticTitle,
   resolveKnowledgeGroups,
+  defaultResumeHeadingTitle,
 } from "../../../../features/resume-sections/resume-section-system";
 import { getProfileMediaSource } from "../../../../shared/profileMedia";
 import { getPehlioneContacts, renderPehlioneContacts, pehlioneContactsCss } from "../../../../shared/pehlioneContacts";
@@ -183,7 +183,7 @@ export function PehlioneResume({
         continuation ? (
           <aside className="pehlione-sidebar pehlione-sidebar--continuation">
             <div className="pehlione-continuation-intro">
-              <p>{resolveResumeHeading(profile).kicker}</p>
+              <p>{defaultResumeHeadingTitle}</p>
               <h2>{name}</h2>
               {profile?.title ? <span>{profile.title}</span> : null}
               <i aria-hidden="true" />

@@ -44,6 +44,7 @@ const variants: Array<[string, ApplicantProfile, string]> = [
   ["with-name", setResumeHeading(base, { mode: "with-name" }), "Lebenslauf"],
   ["curriculum-vitae", setResumeHeading(base, { mode: "curriculum-vitae" }), "Curriculum Vitae"],
   ["custom", setResumeHeading(base, { mode: "custom", customTitle: "Mein Lebenslauf" }), "Mein Lebenslauf"],
+  ["custom Golang", setResumeHeading(base, { mode: "custom", customTitle: "Golang" }), "Golang"],
 ];
 
 type AnyComponent = ComponentType<Record<string, unknown>>;
@@ -67,14 +68,14 @@ const headers: Array<[string, AnyComponent]> = [
 const markup = (html: string) => parseHTML(`<html><body>${html}</body></html>`).document;
 const textOf = (html: string) => (parseHTML(`<html><body>${html}</body></html>`).document.body.textContent ?? "").replace(/\s+/g, " ").trim();
 
-describe.each(variants)("continuation heading of the %s mode", (_mode, profile, kicker) => {
+describe.each(variants)("continuation heading of the %s mode", (_mode, profile) => {
   it.each(headers)("is drawn by the %s header from the central resolver", (_id, Header) => {
     const text = textOf(renderToStaticMarkup(createElement(Header, props(profile))));
-    expect(text).toContain(`${kicker} · Fortsetzung`);
+    expect(text).toContain("Lebenslauf · Fortsetzung");
     expect(text).toContain("Mustafa Özdemir");
     // The name is printed once beside the heading, never as "Lebenslauf Mustafa Özdemir" + the name again.
     expect(text).not.toContain("Lebenslauf Mustafa Özdemir");
-    expect(resolveResumeHeading(profile).continuationKicker).toBe(`${kicker} · Fortsetzung`);
+    expect(resolveResumeHeading(profile).continuationKicker).toBe("Lebenslauf · Fortsetzung");
   });
 
   it("keeps the continuation sidebars of Elegant and Gepflegt free of the repeated identity", () => {
@@ -99,7 +100,7 @@ describe.each(variants)("continuation heading of the %s mode", (_mode, profile, 
         accentColor: template.accent, secondaryColor: template.secondary, photoSource: null, resumeProfile: resolved.summary, sections: resolved.sections,
       }));
       const intro = markup(html).querySelector(".pehlione-continuation-intro")!;
-      expect(intro.querySelector("p")?.textContent).toBe(kicker);
+      expect(intro.querySelector("p")?.textContent).toBe("Lebenslauf");
       expect(intro.querySelector("h2")?.textContent).toBe("Mustafa Özdemir");
     }
   });
@@ -118,12 +119,11 @@ describe("PDF of a template without a native header", () => {
     return pages.map((page) => page.querySelector(".cv-header .kicker")?.textContent?.trim());
   };
 
-  it.each(variants)("prints the %s heading on the first page and keeps it on the continuation page", (_mode, profile, kicker) => {
+  it.each(variants)("prints the %s heading on the first page and the standard heading later", (_mode, profile, kicker) => {
     const kickers = pdfKickers(profile);
     expect(kickers.length).toBeGreaterThan(1);
     expect(kickers[0]).toBe(kicker);
-    // The managed output repeats the first-page header on every later page, so the chosen heading is kept as is.
-    expect(kickers.every((value) => value === kicker)).toBe(true);
+    expect(kickers.slice(1).every((value) => value === "Lebenslauf · Fortsetzung")).toBe(true);
   });
 
   it("follows the profile name at once and never stores it", () => {
@@ -133,11 +133,25 @@ describe("PDF of a template without a native header", () => {
   });
 });
 
+it("prints the standard continuation heading in the Einspaltig PDF for a custom Golang profile", () => {
+  const templateId = "einspaltig";
+  const template = getTemplate(templateId);
+  const application = applicationSchema.parse({
+    schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test", company: { name: "Test", city: "Berlin" }, contact: {},
+    job: { title: "Entwicklung" }, status: "Entwurf", templateId, accentColor: template.accent, secondaryColor: template.secondary,
+    designSettings: getTemplateDocumentDesignDefaults(templateId), documents: {}, statusHistory: [], createdAt: now, updatedAt: now,
+  });
+  const profile = setResumeHeading(base, { mode: "custom", customTitle: "Golang" });
+  const pages = Array.from(parseHTML(buildDocumentHtml(application, profile, "lebenslauf")).document.querySelectorAll(".cv-sheet"));
+  expect(pages.length).toBeGreaterThan(1);
+  expect(pages[1].querySelector(".einfach-pdf-header .kicker")?.textContent).toBe("Lebenslauf · Fortsetzung");
+});
+
 describe("continuation page indicator", () => {
-  it("uses the chosen heading instead of a fixed Lebenslauf", () => {
+  it("uses the standard heading regardless of the profile's own title", () => {
     const page = parseHTML('<html><body><div id="r"><header class="modern-pdf-header compact"><div><p class="kicker">x</p><h1>Mina Kaya</h1></div></header></div></body></html>').document.getElementById("r")!;
-    normalizeContinuationHeader(page, 2, 3, undefined, resolveResumeHeading(setResumeHeading(base, { mode: "custom", customTitle: "Mein Lebenslauf" })).kicker);
-    expect(page.querySelector("[data-resume-continuation-meta]")?.textContent).toBe("Mein Lebenslauf · Seite 2 von 3");
+    normalizeContinuationHeader(page, 2, 3);
+    expect(page.querySelector("[data-resume-continuation-meta]")?.textContent).toBe("Lebenslauf · Seite 2 von 3");
   });
 });
 

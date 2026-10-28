@@ -33,7 +33,6 @@ import { getElegantDesignVariables } from "./elegantDesign";
 import { getThemedTechnologyIconMarkup } from "./technologyBrand";
 import { defaultDocumentDesign, type DocumentDesignSettings } from "./documentDesign";
 import { resolveCvDocument, type ResolvedCvDocument } from "./resolveCvDocument";
-import { resolveResumeHeading } from "./resumeHeading";
 import { getPaginationGeometry, nativeEntryRolePt } from "./resumePaginationGeometry";
 import { resolveSectionColumns } from "./resumeSectionLayout";
 import { getCvDesignVariables, resolveTemplateCvDesign } from "./cvDesign";
@@ -1096,7 +1095,7 @@ export const applyManagedResumeOutput = (
       } else if (number > 1) repeatResumeHeader(root, firstPageHeader, continuationContacts, { title: profile.title });
     }
     else if (number > 1 || !pehlioneContinuation) normalizeContinuationHeader(root, number, pages.length > 1 ? pages.length : totalPages,
-      number > 1 ? continuationContacts : enabled("personalData") ? profile : undefined, resolveResumeHeading(profile).kicker);
+      number > 1 ? continuationContacts : enabled("personalData") ? profile : undefined);
     if (pehlioneContinuation && number > 1) {
       const header = root.querySelector(".pehlione-header,.pehlione-pdf-header");
       if (header) {

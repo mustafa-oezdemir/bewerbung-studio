@@ -41,7 +41,7 @@ describe("resolveResumeHeading", () => {
     expect(resolveResumeHeading(withName)).toMatchObject({
       mode: "with-name",
       title: "Lebenslauf Mustafa Özdemir",
-      continuationTitle: "Lebenslauf Mustafa Özdemir · Fortsetzung",
+      continuationTitle: "Lebenslauf · Fortsetzung",
     });
     // The name changes later: the heading follows, no snapshot of the old name remains.
     const renamed = { ...withName, lastName: "Yılmaz" };
@@ -68,7 +68,7 @@ describe("resolveResumeHeading", () => {
     expect(resolveResumeHeading(cv)).toMatchObject({
       mode: "curriculum-vitae",
       title: "Curriculum Vitae",
-      continuationTitle: "Curriculum Vitae · Fortsetzung",
+      continuationTitle: "Lebenslauf · Fortsetzung",
     });
   });
 
@@ -77,7 +77,7 @@ describe("resolveResumeHeading", () => {
     expect(resolveResumeHeading(custom)).toMatchObject({
       mode: "custom",
       title: "Mein Lebenslauf",
-      continuationTitle: "Mein Lebenslauf · Fortsetzung",
+      continuationTitle: "Lebenslauf · Fortsetzung",
       customTitleMissing: false,
     });
     const other = setResumeHeading(custom, { mode: "curriculum-vitae" });
@@ -120,7 +120,7 @@ describe("legacy profiles", () => {
 
   it("keeps a custom heading a user already entered and reads it as custom", () => {
     const legacy = profile({ resumeSemanticSections: [{ semanticType: "heading", customTitle: "Mein CV", visible: true, enabled: true, order: 0 }] });
-    expect(resolveResumeHeading(legacy)).toMatchObject({ mode: "custom", title: "Mein CV", continuationTitle: "Mein CV · Fortsetzung" });
+    expect(resolveResumeHeading(legacy)).toMatchObject({ mode: "custom", title: "Mein CV", continuationTitle: "Lebenslauf · Fortsetzung" });
     // Switching to another mode and back never loses it.
     expect(resolveResumeHeading(setResumeHeading(setResumeHeading(legacy, { mode: "default" }), { mode: "custom" })).title).toBe("Mein CV");
   });

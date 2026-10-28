@@ -23,7 +23,7 @@ describe("continuation header", () => {
   });
 
   const firstHeader = () => root(
-    '<header class="sample-header"><div class="identity"><p class="kicker">Lebenslauf</p><h1>Mina Kaya</h1><p class="title">Entwicklerin</p>' +
+    '<header class="sample-header"><div class="identity"><p class="kicker">Golang</p><h1>Mina Kaya</h1><p class="title">Entwicklerin</p>' +
     '<address class="contacts"><a href="tel:+4930123456"><i></i><span>+49 30 123456</span></a><a href="mailto:mina@example.com"><i></i><span>mina@example.com</span></a>' +
     '<a href="https://linkedin.com/in/mina"><i></i><span>linkedin.com/in/mina</span></a><span><i></i><span>Musterstraße 12, 35037 Marburg, Deutschland</span></span>' +
     '<span><i></i><span>Geb. 17.05.1990 in Ankara</span></span><span><i></i><span>Staatsangehörigkeit: deutsch</span></span></address></div>' +
@@ -37,12 +37,12 @@ describe("continuation header", () => {
     const header = second.querySelector("header")!;
     expect(header.querySelector("h1")?.textContent).toBe("Mina Kaya");
     expect(header.querySelector(".title")?.textContent).toBe("Entwicklerin");
-    expect(header.querySelector(".kicker")?.textContent).toBe("Lebenslauf");
+    expect(header.querySelector(".kicker")?.textContent).toBe("Lebenslauf · Fortsetzung");
     expect(header.querySelector("img")?.getAttribute("src")).toBe("portrait.png");
     expect(header.querySelector("header.compact")).toBeNull();
     // nothing else: no contact block, no link, no address, no birth or nationality line, no empty icon shell
     expect(header.querySelector("address,a,i,.contacts")).toBeNull();
-    expect(header.textContent?.replace(/\s+/g, " ").trim()).toBe("LebenslaufMina KayaEntwicklerin");
+    expect(header.textContent?.replace(/\s+/g, " ").trim()).toBe("Lebenslauf · FortsetzungMina KayaEntwicklerin");
   });
 
   it("adds only the contacts the user chose for later pages", () => {

@@ -20,6 +20,7 @@ export type ResumeHeadingSource = Pick<
 
 export const curriculumVitaeHeadingTitle = "Curriculum Vitae";
 export const resumeContinuationSuffix = " · Fortsetzung";
+export const standardResumeContinuationHeading = `${defaultResumeHeadingTitle}${resumeContinuationSuffix}`;
 
 export type ResumeHeading = {
   mode: ResumeHeadingMode;
@@ -70,9 +71,9 @@ export const resolveResumeHeading = (
   return {
     mode,
     title,
-    continuationTitle: `${title}${resumeContinuationSuffix}`,
+    continuationTitle: standardResumeContinuationHeading,
     kicker,
-    continuationKicker: `${kicker}${resumeContinuationSuffix}`,
+    continuationKicker: standardResumeContinuationHeading,
     customTitle,
     customTitleMissing: mode === "custom" && !customTitle,
   };

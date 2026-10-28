@@ -109,6 +109,7 @@ import {
   getResumeSemanticSection,
   getResumeSemanticTitle,
   resolveKnowledgeGroups,
+  defaultResumeHeadingTitle,
 } from "../src/features/resume-sections/resume-section-system";
 import {
   externalUrl,
@@ -3096,7 +3097,7 @@ export const buildDocumentHtml = (
       const continuationKnowledge = lastPage && knowledgeSection.visible
         ? `${focus ? `<section class="pehlione-pdf-continuation-knowledge">${sidebarHeading(focusGroup?.title || "Technische Schwerpunkte", "training")}<ul>${focus}</ul></section>` : ""}${sidebarKnowledge}`
         : "";
-      const continuationSidebar = `<aside class="pehlione-pdf-sidebar pehlione-pdf-sidebar-continuation"><div class="pehlione-pdf-continuation-intro"><p>${escapeHtml(resumeHeading.kicker)}</p><h2>${escapeHtml(name)}</h2>${profile?.title ? `<span>${escapeHtml(profile.title)}</span>` : ""}<i aria-hidden="true"></i><small>Fortsetzung · Seite ${plan.pageNumber} von ${resumePlan.length}</small></div>${continuationKnowledge}</aside>`;
+      const continuationSidebar = `<aside class="pehlione-pdf-sidebar pehlione-pdf-sidebar-continuation"><div class="pehlione-pdf-continuation-intro"><p>${escapeHtml(defaultResumeHeadingTitle)}</p><h2>${escapeHtml(name)}</h2>${profile?.title ? `<span>${escapeHtml(profile.title)}</span>` : ""}<i aria-hidden="true"></i><small>Fortsetzung · Seite ${plan.pageNumber} von ${resumePlan.length}</small></div>${continuationKnowledge}</aside>`;
       return `<section class="page cv-sheet ${designClasses}" data-resume-page="${plan.pageNumber}" data-template="${escapeHtml(template.id)}" data-no-fit="true"><div class="page-content pehlione-pdf${template.id === "pehlione_white" ? " pehlione-pdf-white" : ""} pehlione-pdf-continuation" data-density="${density}" style="grid-template-columns:${sidebarWidth}mm minmax(0,1fr)">${continuationSidebar}<main class="pehlione-pdf-main">${pehlioneFooter}${header}${main}</main></div></section>`;
     }
     const languageHeading = template.id === "pehlione_white_blue"

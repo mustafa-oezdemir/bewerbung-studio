@@ -2,6 +2,7 @@
 // the React preview and the PDF produce, so a rule fixed here is fixed everywhere.
 
 import { defaultResumeHeadingTitle } from "../features/resume-sections/resume-section-system";
+import { standardResumeContinuationHeading } from "./resumeHeading";
 import { formatPhoneForDisplay, phoneHref } from "./contactPresentation";
 
 export const resumeContinuationCss = `
@@ -150,6 +151,9 @@ export const repeatResumeHeader = (
   if (!header) return;
   const copy = sourceHeader.cloneNode(true) as Element;
   sanitizeContinuationHeader(copy, identity);
+  copy.querySelectorAll("[class*='kicker' i]").forEach((kicker) => {
+    kicker.textContent = standardResumeContinuationHeading;
+  });
   header.replaceWith(copy);
   ensureResumeHeaderContacts(root, contacts);
 };
@@ -164,8 +168,6 @@ export const normalizeContinuationHeader = (
   pageNumber: number,
   totalPages: number,
   contact?: { email?: string; phone?: string },
-  /** The resolved Überschrift (`resolveResumeHeading(profile).kicker`); the name stays in the h1 beside it. */
-  headingLabel: string = defaultResumeHeadingTitle,
 ): void => {
   const header = root.querySelector(continuationHeaderSelector);
   if (!header || header.hasAttribute("data-resume-continuation")) return;
@@ -189,7 +191,7 @@ export const normalizeContinuationHeader = (
   if (!header.classList.contains("zweispaltig-header") && !header.classList.contains("zweispaltig-pdf-header")) {
     const meta = header.ownerDocument.createElement("p");
     meta.setAttribute("data-resume-continuation-meta", "");
-    meta.textContent = `${headingLabel} · Seite ${pageNumber} von ${totalPages}`;
+    meta.textContent = `${defaultResumeHeadingTitle} · Seite ${pageNumber} von ${totalPages}`;
     (container.querySelector("[data-resume-continuation-contact]") ?? name).after(meta);
   }
   header.setAttribute("data-resume-continuation", "");
