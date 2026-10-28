@@ -37,7 +37,11 @@ afterEach(() => {
 });
 
 /** DocumentsView on the Lebenslauf tab in a real React tree, with a store whose saves can fail. */
-const mount = async (profiles: ApplicantProfile[], options: { failSave?: () => boolean; application?: Application } = {}) => {
+const mount = async (profiles: ApplicantProfile[], options: {
+  failSave?: () => boolean;
+  beforeSaveApplication?: () => Promise<void>;
+  application?: Application;
+} = {}) => {
   const saveProfile = vi.fn(async (profile: ApplicantProfile) => {
     if (options.failSave?.()) throw new Error("Datenträger nicht erreichbar");
     const workspace = testStore.state!.workspace as { profiles: ApplicantProfile[] };
@@ -45,15 +49,18 @@ const mount = async (profiles: ApplicantProfile[], options: { failSave?: () => b
   });
   const saveApplication = vi.fn(async (application: Application) => {
     if (options.failSave?.()) throw new Error("Datenträger nicht erreichbar");
+    await options.beforeSaveApplication?.();
+    const stored = applicationSchema.parse(application);
     const workspace = testStore.state!.workspace as { applications: Application[] };
     testStore.state = { ...testStore.state, workspace: { ...workspace,
-      applications: workspace.applications.map((item) => item.id === application.id ? application : item) } };
+      applications: workspace.applications.map((item) => item.id === stored.id ? stored : item) } };
   });
   const application = options.application ?? applicationSchema.parse({ ...makeApplication(profiles[0]!.id), profileSnapshot: structuredClone(profiles[0]!) });
   testStore.state = {
     workspace: { schemaVersion: 1, applications: [application], profiles, events: [], attachments: [], todos: [],
       customCvDesigns: [], settings: defaultSettings, updatedAt: now },
     saveProfile, saveApplication, saveResumeDesign: vi.fn(async () => undefined), syncCoverLetter: vi.fn(async () => undefined),
+    setDocumentEditorDirty: vi.fn((id?: string) => { testStore.state = { ...testStore.state, documentEditorDirtyApplicationId: id }; }),
     selectProfile: vi.fn(), exportPdf: vi.fn(), openFolder: vi.fn(), saveCustomCvDesign: vi.fn(), removeCustomCvDesign: vi.fn(),
   };
   const { window } = parseHTML("<html><body><div id='root'></div></body></html>");
@@ -96,6 +103,7 @@ const mount = async (profiles: ApplicantProfile[], options: { failSave?: () => b
     rerender: render,
     status: () => query(".resume-save-status")?.textContent?.trim(),
     stickyStatus: () => query(".scroll-jump__status")?.textContent?.trim(),
+    navigationDirty: () => testStore.state?.documentEditorDirtyApplicationId,
     summaryField: () => query<HTMLTextAreaElement>(".summary-editor textarea"),
     open: (title: string) => fire(Array.from(window.document.querySelectorAll(".manager-card-title")).find((node) => node.textContent?.trim() === title)!, "click"),
     type: async (element: HTMLTextAreaElement, value: string) => {
@@ -107,6 +115,9 @@ const mount = async (profiles: ApplicantProfile[], options: { failSave?: () => b
     save: () => act(async () => {
       window.dispatchEvent(Object.assign(new window.Event("keydown", { bubbles: true, cancelable: true }), { key: "s", ctrlKey: true }));
     }),
+    startSave: () => {
+      window.dispatchEvent(Object.assign(new window.Event("keydown", { bubbles: true, cancelable: true }), { key: "s", ctrlKey: true }));
+    },
     unmount: () => act(async () => root.unmount()),
   };
 };
@@ -152,6 +163,8 @@ describe("Lebenslauf content edits the profile of the Bewerbung", () => {
     const profiles = (testStore.state!.workspace as { profiles: ApplicantProfile[] }).profiles;
     expect(profiles.find((item) => item.id === uid(2))!.summary).toBe("Anderes Profil.");
     expect(view.status()).toBe("Gespeichert");
+    expect(view.stickyStatus()).toBe("Gespeichert");
+    expect(view.navigationDirty()).toBeUndefined();
     await view.unmount();
     // Reopened from the saved workspace (as after a restart): the Lebenslauf shows the saved text.
     const savedApplication = (testStore.state!.workspace as { applications: Application[] }).applications[0];
@@ -159,6 +172,40 @@ describe("Lebenslauf content edits the profile of the Bewerbung", () => {
     await reopened.open("Kurzprofil");
     expect(reopened.summaryField()!.value).toBe("Neuer fiktiver Text.");
     await reopened.unmount();
+  });
+
+  it("clears the navigation guard after saving Lebenslauf layout settings", async () => {
+    const view = await mount([makeProfile(1, "Fiktives Profil.")]);
+    const layout = Array.from(document.querySelectorAll('[role="group"][aria-label="Lebenslauf-Layout"] button'))
+      .find((node) => node.textContent?.trim() === "Einspaltig")!;
+    await act(async () => { layout.dispatchEvent(new window.Event("click", { bubbles: true })); });
+    expect(view.navigationDirty()).toBe(uid(100));
+    await view.save();
+    expect(view.stickyStatus()).toBe("Gespeichert");
+    expect(view.navigationDirty()).toBeUndefined();
+    await view.unmount();
+  });
+
+  it("keeps a new Lebenslauf edit made while the previous save is pending", async () => {
+    let releaseSave!: () => void;
+    let saveStarted!: () => void;
+    const gate = new Promise<void>((resolve) => { releaseSave = resolve; });
+    const started = new Promise<void>((resolve) => { saveStarted = resolve; });
+    const view = await mount([makeProfile(1, "Erster Text.")], {
+      beforeSaveApplication: async () => { saveStarted(); await gate; },
+    });
+    await view.open("Kurzprofil");
+    await view.type(view.summaryField()!, "Zweiter Text.");
+    await act(async () => { view.startSave(); await started; });
+    await view.type(view.summaryField()!, "Dritter Text.");
+    await act(async () => { releaseSave(); await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(view.saveApplication.mock.calls.at(-1)![0].profileSnapshot?.summary).toBe("Zweiter Text.");
+    expect(view.summaryField()?.value).toBe("Dritter Text.");
+    expect(view.navigationDirty()).toBe(uid(100));
+    await view.save();
+    expect(view.saveApplication.mock.calls.at(-1)![0].profileSnapshot?.summary).toBe("Dritter Text.");
+    expect(view.navigationDirty()).toBeUndefined();
+    await view.unmount();
   });
 
   it("keeps the user's input when saving fails and says so", async () => {

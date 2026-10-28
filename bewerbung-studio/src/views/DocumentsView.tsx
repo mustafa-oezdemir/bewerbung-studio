@@ -520,6 +520,12 @@ export function DocumentsView({
   const resumeDesignLayer = resumeDesignDraft ? resumeDesignDraft.layer : savedResumeDesign;
   const resumeDesignUnsaved = resumeDesignDraft !== null
     && JSON.stringify(resumeDesignDraft.layer ?? null) !== JSON.stringify(savedResumeDesign ?? null);
+  const documentDesignUnsaved = Boolean(application && JSON.stringify(design) !== JSON.stringify(createDocumentDesignDraft(application)));
+  const documentTextUnsaved = Boolean(application && documentPreview?.applicationId === application.id &&
+    JSON.stringify(resolveCoverLetterDocuments(application, documentPreview.documents)) !==
+      JSON.stringify(resolveCoverLetterDocuments(application, application.documents)));
+  const editorUnsaved = documentDesignUnsaved || documentTextUnsaved || resumeDesignUnsaved ||
+    Boolean(application && resumeContentDraft && resumeDraftApplicationId === application.id);
   const persistedDocuments = JSON.stringify(application?.documents);
   const formRef = useRef<HTMLFormElement>(null);
   const editorRef = useRef<HTMLElement>(null);
@@ -638,12 +644,7 @@ export function DocumentsView({
   }, [application?.id, persistedDocuments]);
 
   const boundProfile = application ? resolveApplicationProfile(profiles, application) : undefined;
-  const navigationDirty = Boolean(application && (
-    JSON.stringify(design) !== JSON.stringify(createDocumentDesignDraft(application)) ||
-    (documentPreview?.applicationId === application.id && JSON.stringify(documentPreview.documents) !== JSON.stringify(application.documents)) ||
-    (resumeContentDraft && resumeDraftApplicationId === application.id) ||
-    (resumeDesignDraft && JSON.stringify(resumeDesignDraft.layer ?? null) !== JSON.stringify(savedResumeDesign ?? null))
-  ));
+  const navigationDirty = editorUnsaved;
   useEffect(() => {
     setDocumentEditorDirty?.(navigationDirty ? application?.id : undefined);
     return () => setDocumentEditorDirty?.(undefined);
@@ -849,10 +850,6 @@ export function DocumentsView({
   // The Motivationsschreiben is drawn in the Anschreiben's frame (its whole design), as in the PDF.
   const motivationModel = { ...motivationBaseModel, letter: anschreibenLetterFrame(anschreibenModel) };
   const legacyTextContrastReadable = hasReadableColorContrast(design.settings.textColor, design.settings.backgroundColor);
-  const documentDesignUnsaved = JSON.stringify(design) !== JSON.stringify(createDocumentDesignDraft(application));
-  // Compared as printed: a letter head that only follows the Bewerbung's data again is no unsaved change.
-  const documentTextUnsaved = JSON.stringify(docs) !== JSON.stringify(resolveCoverLetterDocuments(application, application.documents));
-  const editorUnsaved = documentDesignUnsaved || documentTextUnsaved || resumeDesignUnsaved || Boolean(resumeContentDraft && resumeDraftApplicationId === application.id);
   const editorSaving = documentSaveStatus === "saving" || profileSaveStatus === "saving";
   const editorSaveLabel = editorSaving ? "Speichert …"
     : documentSaveStatus === "error" || profileSaveStatus === "error" ? "Fehler beim Speichern"
@@ -1118,6 +1115,20 @@ export function DocumentsView({
     });
   };
 
+  const persistCurrentDocumentDraft = async (snapshot: Application, changedProfile?: ApplicantProfile) => {
+    const submittedDesign = design;
+    const submittedPreview = documentPreview;
+    await persistDocumentDraft(snapshot, changedProfile, saveApplication);
+    const stored = useAppStore.getState().workspace.applications.find((item) => item.id === snapshot.id);
+    if (!stored) return undefined;
+    // The storage schema may reorder or normalize fields. Adopt its saved revision only when no newer edit arrived.
+    setDesign((current) => current === submittedDesign ? createDocumentDesignDraft(stored) : current);
+    if (submittedPreview) setDocumentPreview((current) => current === submittedPreview
+      ? { applicationId: stored.id, documents: stored.documents }
+      : current);
+    return stored;
+  };
+
   const saveResumeSections = async (changedProfile: ApplicantProfile) => {
     if (!profile) return;
     const submittedDraft = resumeContentDraft;
@@ -1131,10 +1142,15 @@ export function DocumentsView({
     const snapshot = applicationSnapshot(formRef.current);
     setProfileSaveStatus("saving");
     try {
-      await persistDocumentDraft(snapshot, savedProfile, saveApplication);
-      resumeBaselineRef.current = savedProfile;
-      setResumeContentDraft((current) => current === submittedDraft ? null : current);
-      setResumeDraftApplicationId((current) => current === application.id ? null : current);
+      const stored = await persistCurrentDocumentDraft(snapshot, savedProfile);
+      const persistedProfile = stored?.profileSnapshot ?? savedProfile;
+      resumeBaselineRef.current = persistedProfile;
+      setResumeContentDraft((current) => {
+        if (!current || current.id !== persistedProfile.id) return current;
+        if (current === submittedDraft) return null;
+        const pending = rebaseApplicantProfileDraft(submittedDraft ?? profile, current, persistedProfile);
+        return JSON.stringify(pending) === JSON.stringify(persistedProfile) ? null : pending;
+      });
       setProfileSaveStatus("saved");
     } catch (error) { setProfileSaveStatus("error"); throw error; }
   };
@@ -1279,7 +1295,7 @@ export function DocumentsView({
       const snapshot = applicationSnapshot(event.currentTarget);
       await persistResumeDesignDraft();
       if (currentProfileDraft()) await saveResumeSections(currentProfileDraft()!);
-      else await persistDocumentDraft(snapshot, undefined, saveApplication);
+      else await persistCurrentDocumentDraft(snapshot);
       if (tab === "anschreiben") await syncCoverLetter(snapshot.id);
       setDocumentSaveStatus("saved");
     } catch (error) {
@@ -1297,7 +1313,7 @@ export function DocumentsView({
     const snapshot = applicationSnapshot(formRef.current);
     await persistResumeDesignDraft();
     if (currentProfileDraft()) await saveResumeSections(currentProfileDraft()!);
-    else await persistDocumentDraft(snapshot, undefined, saveApplication);
+    else await persistCurrentDocumentDraft(snapshot);
     await exportPdf(snapshot.id, target, snapshot);
   };
 
