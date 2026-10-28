@@ -65,7 +65,7 @@ for (const [path, markup] of Object.entries(originalIcons)) {
 
 // Use the published Devicon shapes in one colour so CV template icon colours apply.
 const themedDevicons = [
-  "blazor", "csharp", "dotnetcore", "entityframeworkcore",
+  "angular", "blazor", "csharp", "dotnetcore", "entityframeworkcore",
   "fsharp", "nuget", "visualbasic", "xamarin",
 ];
 for (const name of themedDevicons) {

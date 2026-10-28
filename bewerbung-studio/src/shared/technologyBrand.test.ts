@@ -129,6 +129,16 @@ describe("technology brand icons", () => {
     expect(resolveTechnologyIcon("ASP.NET").markup).toContain('fill="currentColor"');
   });
 
+  it("uses the central icon colour for Angular in automatic and manual selection", () => {
+    const automatic = resolveTechnologyIcon("Angular");
+    expect(automatic.source).toBe("auto");
+    expect(automatic.markup).toContain('data-brand="devicon:angular"');
+    expect(automatic.markup).toContain('fill="currentColor"');
+    expect(automatic.markup).not.toMatch(/<linearGradient|#[0-9a-f]{3,8}/i);
+    expect(resolveTechnologyIcon("Other", "angular")).toMatchObject({ source: "manual", markup: automatic.markup });
+    expect(getThemedTechnologyIconMarkup("Angular")).toBe(automatic.markup);
+  });
+
   it.each([
     ["Golang", "Go", "go"], ["Java", "Java", "java"], ["JS", "JavaScript", "javascript"],
     ["TypeScript (TS)", "TypeScript", "typescript"], ["ReactJS", "React", "react"],
