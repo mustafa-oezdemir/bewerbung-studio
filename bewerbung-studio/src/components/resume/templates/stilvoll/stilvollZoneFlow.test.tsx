@@ -226,4 +226,22 @@ describe("Stilvoll: sections follow their column", () => {
     const firstPart = (surface: "preview" | "pdf") => sidebarSection(rendered.surfaces[surface][0], "summary")?.querySelector("p")?.textContent?.replaceAll("\u00ad", "");
     expect(firstPart("preview")).toBe(firstPart("pdf"));
   });
+
+  it("K. keeps a two-column Stärken grid on page one when its rendered rows fit", () => {
+    const strengths = ["C#", "ASP.NET", "React", "TypeScript", "JavaScript", "Angular", "API", "Docker", "Golang"]
+      .map((title) => ({ id: crypto.randomUUID(), title, description: "" }));
+    const summary = Array.from({ length: 11 }, (_, index) =>
+      `Fiktive Erfahrung ${index + 1} mit Planung und Abstimmung in einem Team.`).join(" ");
+    const result = render(makeProfile(6, { summary, strengths, languages: [], certifications: [] }), { strengthsColumns: 2 });
+    expect(result.resolved.pagePlan).toHaveLength(2);
+    expect(result.resolved.pagePlan[0].sidebar).toBe(true);
+    expect(result.resolved.pagePlan[1].sidebar).toBe(false);
+    for (const surface of surfaces) {
+      const pages = result.surfaces[surface];
+      const first = sidebarSection(pages[0], "strengths");
+      expect(first?.querySelector(".managed-strengths-grid")?.getAttribute("data-columns"), surface).toBe("2");
+      expect(first?.querySelectorAll(".managed-strength-card"), surface).toHaveLength(strengths.length);
+      expect(sectionOn(pages[1], "strengths"), surface).toBeNull();
+    }
+  });
 });

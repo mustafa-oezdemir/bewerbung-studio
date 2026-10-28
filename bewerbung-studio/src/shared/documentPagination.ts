@@ -16,6 +16,7 @@ import {
 import { getTemplateDocumentDesignDefaults, resolveTemplateCvDesign } from "./cvDesign";
 import { zweispaltigDefaults } from "./cvTemplateDefaults/zweispaltig.defaults";
 import { tuerkisProfilDefaults } from "./cvTemplateDefaults/tuerkis-profil.defaults";
+import { stilvollDefaults } from "./cvTemplateDefaults/stilvoll.defaults";
 import { resolveTuerkisGeometry } from "./tuerkisProfilDesign";
 import { kompaktDefaults } from "./cvTemplateDefaults/kompakt.defaults";
 import { gepflegtDefaults } from "./cvTemplateDefaults/gepflegt.defaults";
@@ -1185,7 +1186,21 @@ const planResumePages = (
   const settings = context.settings ?? defaultDocumentDesign;
   const gridModel = (kind: "strengths" | "knowledge", entries: ListEntry[], zone: PaginationZone, page: "first" | "last"): ItemBlockModel => {
     const model = geometry.items[kind];
-    if (zone === "sidebar" && !flat && page === "first") return { ...model, w: model.w + scale.sideDelta };
+    if (zone === "sidebar" && !flat && page === "first") {
+      // Stilvoll can draw an explicit two- or three-column strengths grid inside its sidebar.
+      // Size the same grid here; treating every card as a row moves visible cards to page two too early.
+      if (templateId === "stilvoll" && kind === "strengths") {
+        const cols = resolveSectionColumns(settings.strengthsColumns, templateId, "sidebar", entries, settings, true);
+        if (cols > 1) {
+          const gap = (scale.entryGap ?? stilvollDefaults.layout.entryGapMm) * .5;
+          const textWidth = Math.max(4, (geometry.text.sideW + scale.sideDelta - gap * (cols - 1)) / cols - GRID_ICON_MM);
+          // The legacy character estimator clamps widths below 12 mm; scale its advance for narrow three-column cards.
+          const measuredWidth = Math.max(12, textWidth);
+          return { ...model, cols, gap, w: measuredWidth, cw: model.cw * measuredWidth / textWidth };
+        }
+      }
+      return { ...model, w: model.w + scale.sideDelta };
+    }
     // Klassisch draws up to three explicit strengths as its own cards: always three columns (resumeManagedOutput keeps them).
     if (templateId === "klassisch" && kind === "strengths" && !context.atsMode && explicitStrengths.length >= 1 && explicitStrengths.length <= 3) {
       const { layout } = klassischDefaults;

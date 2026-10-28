@@ -86,10 +86,11 @@ try {
       const to = Math.floor((knowledgeItems.length * (category + 1)) / categoryCount);
       return { id: uid(50 + category), title: ['IT-Kenntnisse', 'Fachliche Kenntnisse', 'Methoden'][category], type: ['it', 'engineering', 'business'][category], displayMode: 'comma-separated', showLevels: false, showYearsOfExperience: false, isVisible: true, sortOrder: category, subcategories: [], items: knowledgeItems.slice(from, to).map((item, order) => ({ ...item, sortOrder: order })) };
     }).filter((category) => category.items.length);
+    const technologyStrengths = (process.env.STRENGTHS_TITLES || '').split(',').map((title) => title.trim()).filter(Boolean);
     const strengths = Array.from({ length: counts.strengths }, (_, index) => {
       const token = `S${String(index).padStart(3, '0')}`;
-      const title = random ? text(int(10, 60), token) : `${strengthNames[index % strengthNames.length]} ${token}`;
-      tokens.strengths.push(token);
+      const title = technologyStrengths[index] ?? (random ? text(int(10, 60), token) : `${strengthNames[index % strengthNames.length]} ${token}`);
+      tokens.strengths.push(technologyStrengths[index] ? title : token);
       return { id: uid(10 + index), title, description: random && rnd() < 0.3 ? text(int(30, 110), `d${index}`) : '' };
     });
     const languageNames = ['Deutsch', 'Englisch', 'Türkisch', 'Französisch', 'Spanisch', 'Italienisch'];
@@ -178,7 +179,7 @@ try {
         ...(process.env.SIDEBAR_WIDTH ? { sidebarWidthPercent: Number(process.env.SIDEBAR_WIDTH) } : {}),
         ...(process.env.SIDE ? { sidebarSide: process.env.SIDE } : {}),
       };
-      const settings = { ...getTemplateDocumentDesignDefaults(id), resumeOutputMode: process.env.ATS ? 'ats' : 'visual', ...(Object.keys(qaPresentation).length ? { resumePresentation: qaPresentation } : {}), ...(Object.keys(qaSpacing).length || Object.keys(qaTypography).length ? { cvOverrides: { spacing: qaSpacing, typography: qaTypography } } : {}), ...(process.env.SURFACES ? { resumeAppearance: { sidebarBackgroundColor: '#cfe8d5', mainBackgroundColor: '#f1f6f2' } } : {}) };
+      const settings = { ...getTemplateDocumentDesignDefaults(id), resumeOutputMode: process.env.ATS ? 'ats' : 'visual', ...(process.env.STRENGTHS_COLUMNS ? { strengthsColumns: Number(process.env.STRENGTHS_COLUMNS) } : {}), ...(Object.keys(qaPresentation).length ? { resumePresentation: qaPresentation } : {}), ...(Object.keys(qaSpacing).length || Object.keys(qaTypography).length ? { cvOverrides: { spacing: qaSpacing, typography: qaTypography } } : {}), ...(process.env.SURFACES ? { resumeAppearance: { sidebarBackgroundColor: '#cfe8d5', mainBackgroundColor: '#f1f6f2' } } : {}) };
 
       const application = applicationSchema.parse({
         schemaVersion: 1, id: crypto.randomUUID(), folderName: 'QA', company: { name: 'QA', city: 'Berlin' }, contact: {}, job: { title: 'Entwicklung' },
