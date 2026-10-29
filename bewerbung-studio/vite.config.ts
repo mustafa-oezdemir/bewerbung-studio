@@ -14,9 +14,9 @@ const desktopPlugin =
             vite: {
               build: {
                 rollupOptions: {
-                  // PostCSS uses Node's CommonJS built-ins (path/url/fs).
-                  // Keep its package boundary so Node supplies require in ESM main.
-                  external: ["pdf-lib", "postcss"],
+                  // PostCSS and PizZip use Node CommonJS built-ins (path/url/fs).
+                  // Keep their package boundaries so Node supplies require in ESM main.
+                  external: ["pdf-lib", "postcss", "pizzip"],
                 },
               },
             },
