@@ -448,7 +448,8 @@ const geometry: Record<string, PaginationGeometry> = {
     // Measured on the PDF: 3.5 gap + 3 padding + 0.2 divider + 2 x 0.5 margin between entries; 0.5 margin at each end.
     specialSide: {between: 7.7, edge: 1},
     blocks: {summary: [9, 3.11], strengths: [6, 7.85], knowledge: [16.6, 6], languages: [6.5, 6.07], sectionGap: 6.5, sideGap: 6.5},
-    items: {strengths: {w: zweispaltigSideWidth - 9, font: 3.35, pitch: zweispaltigLineMm, pad: 1, cw: 0.53, cols: 1, head: 9, gap: 3.5}, knowledge: {w: zweispaltigSideWidth - 9, font: zweispaltigBodyMm, pitch: zweispaltigLineMm, pad: 0.89, cw: 0.45, cols: 1, head: 18.6, gap: 2}},
+    // The managed knowledge grid has no per-row padding; its 2 mm grid gap is counted separately.
+    items: {strengths: {w: zweispaltigSideWidth - 9, font: 3.35, pitch: zweispaltigLineMm, pad: 1, cw: 0.53, cols: 1, head: 9, gap: 3.5}, knowledge: {w: zweispaltigSideWidth - 9, font: zweispaltigBodyMm, pitch: zweispaltigLineMm, pad: 0, cw: 0.45, cols: 1, head: 18.6, gap: 2}},
     certs: {home: "first", zone: "sidebar", base: 8.6, perItem: 3.6, w: 61.2, font: 2.96, pitch: 3.11},
     derivedStrengths: {visual: "first", ats: "single"},
     ats: {summary: {w: 180, font: 3.528, line: 4.657, head: 9.03}, bullet: {w: 175.5, font: 3.528, pitch: 4.657, gap: 0.5}, closing: 11, exp: 1.0, edu: 1.04, entryChrome: 0, entryPad: 2.5, knowledge: {head: 9.03, title: 6.07, gap: 3.53, pitch: 4.657, font: 3.528, w: 180, tail: 0}, header: {base: 39.83, perContact: 8}, languages: [8.37, 5.33], certs: {base: 9.87, perItem: 3.83}, density: {compact: 0.98, dense: 0.97}},

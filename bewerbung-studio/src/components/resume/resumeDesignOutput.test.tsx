@@ -278,7 +278,7 @@ describe("Seitenränder and Innenabstand in preview and PDF", () => {
     }
   });
 
-  it("draws Zweispaltig's Kompakt with 10 mm and Standard with 15 mm Seitenränder, left and right only, in preview and PDF", () => {
+  it("draws Zweispaltig's Kompakt with 10 mm and Standard with 15 mm side margins, and 20 mm below, in preview and PDF", () => {
     const id = "zweispaltig";
     const preset = (name: "compact" | "standard") =>
       applyResumeSpacingPreset(createDocumentDesignDraft(applicationFor(id)), name).settings as ReturnType<typeof own>;
@@ -287,7 +287,7 @@ describe("Seitenränder and Innenabstand in preview and PDF", () => {
       for (const surface of ["pdf", "preview"] as const) {
         const style = styleOf(scopeOf(outputs(id, settings)[surface], surface));
         expect(only(style, ["--zweispaltig-margin-top", "--zweispaltig-margin-right", "--zweispaltig-margin-bottom", "--zweispaltig-margin-left"]), `${name} ${surface}`)
-          .toEqual({ "--zweispaltig-margin-top": "20mm", "--zweispaltig-margin-right": side, "--zweispaltig-margin-bottom": "15mm", "--zweispaltig-margin-left": side });
+          .toEqual({ "--zweispaltig-margin-top": "20mm", "--zweispaltig-margin-right": side, "--zweispaltig-margin-bottom": "20mm", "--zweispaltig-margin-left": side });
         expect(style["--resume-page-text-shift"]).toBeUndefined();
       }
     }

@@ -100,6 +100,45 @@ describe("Zweispaltig: sections follow their column", () => {
     }
   });
 
+  it("fills the first sidebar with all languages when the remaining rows fit above the 20 mm bottom edge", () => {
+    const names = [
+      "MS-Office (Excel, Word, PowerPoint)", "Grafana und Monitoring", "SQL und Datenbanken", "Python Grundlagen", "Sichtkontrolle und Qualitätssicherung",
+      "Prozessplanung und Produktionssteuerung", "Prozessanalyse und Digitalisierung", "Fertigungsplanung", "Lean Management", "Instandhaltungskoordination",
+    ];
+    const knowledgeItems = names.map((name, index) => ({
+      id: crypto.randomUUID(), name, level: "good", isVisible: true, sortOrder: index,
+    }));
+    const profile = makeProfile(3, {
+      title: "Industrieingenieurin | Prozessplanung & Produktionskoordination",
+      street: "Musterstraße 12", postalCode: "12345", linkedin: "https://example.com/profile",
+      github: "https://example.com/code", portfolio: "https://example.com/work",
+      summary: "Entwicklerin mit Erfahrung in Prozessanalyse, Produktionssteuerung und der strukturierten Bearbeitung technischer Aufgabenstellungen. Praxis in der Auswertung technischer Daten und der Optimierung von Prozessen im Monitoring-Umfeld.",
+      strengths: [],
+      languages: ["Deutsch – C1", "Englisch – B2", "Türkisch – C2"],
+      resumeLanguageDisplay: { dots: false, level: false, description: true },
+      certifications: [],
+      knowledgeSection: {
+        title: "Besondere Kenntnisse", isVisible: true,
+        categories: [0, 1].map((index) => ({
+          id: crypto.randomUUID(), title: index ? "Fachliche Kenntnisse" : "IT-Kenntnisse",
+          type: index ? "engineering" : "it", displayMode: "comma-separated", isVisible: true,
+          showLevels: false, showYearsOfExperience: false,
+          sortOrder: index, subcategories: [], items: knowledgeItems.slice(index * 5, index * 5 + 5),
+        })),
+      },
+    });
+    const rendered = render(profile);
+    expect(rendered.resolved.pagePlan[0].blockRanges?.languages).toBeUndefined();
+    for (const surface of surfaces) {
+      const first = sidebarSection(rendered.surfaces[surface][0], "languages");
+      expect(first, surface).not.toBeNull();
+      expect(first?.textContent, surface).toContain("Deutsch");
+      expect(first?.textContent, surface).toContain("Englisch");
+      expect(first?.textContent, surface).toContain("Türkisch");
+      expect(rendered.surfaces[surface].slice(1).some((page) => sectionOn(page, "languages")), surface).toBe(false);
+    }
+  });
+
   it("C. a section pushed to page two comes back to the sidebar of page one when the user moves it there", () => {
     const behind = move(makeProfile(5), "certifications", "main", 99);
     const back = move(behind, "certifications", "sidebar", 0);

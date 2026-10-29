@@ -1199,6 +1199,10 @@ const planResumePages = (
           return { ...model, cols, gap, w: measuredWidth, cw: model.cw * measuredWidth / textWidth };
         }
       }
+      if (templateId === "zweispaltig" && kind === "knowledge") {
+        // The managed row uses a 4 mm icon and a 1.5 mm gap; measure its text at that actual width.
+        return { ...model, w: geometry.text.sideW + scale.sideDelta - GRID_ICON_MM };
+      }
       return { ...model, w: model.w + scale.sideDelta };
     }
     // Klassisch draws up to three explicit strengths as its own cards: always three columns (resumeManagedOutput keeps them).
@@ -1642,7 +1646,8 @@ const planResumePages = (
         for (let start = 0; start < entries.length; start += cols) {
           const row = entries.slice(start, start + cols);
           shown += row.length;
-          rows.push({ end: shown, height: rowHeight(model, scale, row), list, gap: model.gap });
+          rows.push({ end: shown, height: rowHeight(model,
+            templateId === "zweispaltig" && !context.atsMode ? { ...scale, wrapText: true } : scale, row), list, gap: model.gap });
         }
       });
       return rows;
@@ -2502,7 +2507,9 @@ const planResumePages = (
           // at least two lines on each page (no widow, no orphan).
           const words = block.id === "summary" ? ELEGANT_SUMMARY_MIN_WORDS : 0;
           const { lines } = block.sideSplit;
-          for (let end = from + Math.max(LANE_MIN_ROWS_BEFORE, words); end <= rows - Math.max(LANE_MIN_ROWS_AFTER, words); end += 1) {
+          // Zweispaltig's languages and certificates are separate list entries: a single one may open the next page.
+          const minAfter = templateId === "zweispaltig" && (block.id === "languages" || block.id === "certifications") ? 1 : LANE_MIN_ROWS_AFTER;
+          for (let end = from + Math.max(LANE_MIN_ROWS_BEFORE, words); end <= rows - Math.max(minAfter, words); end += 1) {
             // The parts only grow with `end`: past the first one that is too tall none fits.
             if (used + gap + segmentHeight({ block, from, to: end }, page) > capacity(page)) break;
             if (paragraphBreakAllowed(lines, from, end, rows)) best = end;
