@@ -9,6 +9,7 @@ import { getTemplateDocumentDesignDefaults } from "../src/shared/cvDesign";
 import { createDocumentDesignDraft, resetDocumentDesign } from "../src/shared/documentEditorState";
 import { getStrengthSymbolMarkup, strengthSymbolOptions } from "../src/shared/strengthSymbols";
 import { parseHTML } from "linkedom";
+import postcss from "postcss";
 import { getZweispaltigLetterVariables, zweispaltigLetterCss } from "../src/shared/zweispaltigLetterIdentity";
 import { resolveCvDocument } from "../src/shared/resolveCvDocument";
 import { getDocumentFont } from "../src/shared/documentDesign";
@@ -290,7 +291,7 @@ describe("Lebenslauf-Dokumente", () => {
     for (const templateId of ["modern", "klassisch", "tabellarisch", "zweispaltig", "elegant", "gepflegt"]) {
       // Managed sections serialise through the DOM, which writes void tags as " />".
       const pdf = buildDocumentHtml({ ...application, templateId }, symbolProfile, "lebenslauf").replaceAll(" />", "/>");
-      expect(pdf, templateId).toContain(getStrengthSymbolMarkup("symbol:database"));
+      expect(pdf, templateId).toContain('data-brand="material:file:database"');
       expect(pdf, templateId).toContain(getStrengthSymbolMarkup("symbol:cloud"));
       expect(pdf, templateId).toContain('data-strength-symbol="symbol:check" style="color:inherit"');
       expect(pdf, templateId).not.toContain('data-strength-symbol="symbol:test"');
@@ -401,6 +402,49 @@ describe("Lebenslauf-Dokumente", () => {
     expect(withBackground("pastell")).not.toContain("document-background-layer");
     expect(withBackground("akzentband")).not.toContain("document-background-layer");
     expect(withBackground("farbbalken")).not.toContain("document-background-layer");
+  });
+
+  it("prints the Kopfband Tech-Stack logos in their own colours, whatever the theme, beside a Lebenslauf in the theme colour", () => {
+    const titles = ["Angular", "JavaScript", "React", "TypeScript", "Docker", "Git", "Go", "API", "Datenbank"];
+    const stackProfile = profileSchema.parse({ ...profile, strengths: titles.map((title) => ({ id: crypto.randomUUID(), title })) });
+    const print = (accentColor: string, secondaryColor: string, templateId: string) => {
+      const chosen = applicationSchema.parse({
+        ...application, templateId, accentColor, secondaryColor, documents: { ...application.documents, coverSheetDesign: "kopfband" },
+      });
+      const document = parseHTML(buildDocumentHtml(chosen, stackProfile, "mappe")).document;
+      return { document, stack: document.querySelector(".deckblatt .dk-stack")!.outerHTML };
+    };
+    const blue = print("#1d4ed8", "#e0e7ff", "modern-sidebar");
+    expect(print("#c2410c", "#ffedd5", "modern-sidebar").stack).toBe(blue.stack);
+    expect(print("#b91c1c", "#fee2e2", "gepflegt").stack).toBe(blue.stack);
+    const icons = Array.from(blue.document.querySelectorAll(".deckblatt .dk-stack-icon svg"));
+    expect(icons.map((svg) => svg.getAttribute("data-strength-symbol") ?? svg.getAttribute("data-brand"))).toEqual([
+      "material:file:angular", "material:file:javascript", "material:file:react", "material:file:typescript",
+      "material:file:docker", "material:file:git", "material:file:go", "material:folder:folder-api", "material:file:database",
+    ]);
+    // The Lebenslauf keeps the same artwork in the user's icon colour, without changing the Deckblatt source paints.
+    const cvAngular = blue.document.querySelector('.cv-sheet svg[data-brand="material:file:angular"]');
+    expect(cvAngular?.outerHTML).toContain("currentColor");
+    expect(icons[0]?.outerHTML).not.toBe(cvAngular?.outerHTML);
+    const ids = Array.from(blue.document.querySelectorAll("[id]"), (element) => element.id);
+    for (const id of Array.from(blue.document.querySelectorAll(".dk-stack [id]"), (element) => element.id))
+      expect(ids.filter((other) => other === id), id).toHaveLength(1);
+    // Every rule that colours a Tech-Stack svg in the PDF: the export's general accent rule, outranked by the fixed Deckblatt one.
+    const css = Array.from(blue.document.querySelectorAll("style"), (style) => style.textContent).join("\n");
+    const colourRules = (svg: Element) => {
+      const found: string[] = [];
+      postcss.parse(css).walkDecls(/^(color|fill|stroke)$/, (decl) => {
+        const rule = decl.parent as postcss.Rule;
+        if (rule.type !== "rule") return;
+        for (const selector of rule.selectors) {
+          try { if (svg.matches(selector)) found.push(`${selector} → ${decl.prop}:${decl.value}`); } catch { /* selector linkedom cannot match */ }
+        }
+      });
+      return found;
+    };
+    for (const svg of icons)
+      expect(colourRules(svg)).toEqual([".technology-brand-svg → color:var(--accent)", ".deckblatt--kopfband .dk-stack-icon svg → color:var(--muted)"]);
+    expect(blue.document.querySelector<HTMLElement>(".deckblatt")!.style.getPropertyValue("--muted")).toBe("#5c6870");
   });
 
   it("fits the contact rows of the Deckblatt inside the exported page, and only there", () => {
@@ -1161,8 +1205,8 @@ describe("Lebenslauf-Dokumente", () => {
     expect(html).toContain("programming-languages-layer");
     expect(html).toContain(">TypeScript<");
     expect(html).toContain(">Electron<");
-    expect(html).toContain('data-brand="go"');
-    expect(html).toContain(">php<");
+    expect(html).toContain('data-brand="material:file:go"');
+    expect(html).toContain('data-brand="material:file:php"');
     expect(html).toContain("print-background");
   });
 
@@ -2835,7 +2879,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(body).toContain("managed-strengths-grid");
     expect(body).toContain(">Java<");
     expect(body).toContain("Maven, Spring Boot");
-    expect(body).toContain(">php<");
+    expect(body).toContain('data-brand="material:file:php"');
   });
 
   it("renders Tabellarisch ATS without photo, geometry, or timeline rail", () => {

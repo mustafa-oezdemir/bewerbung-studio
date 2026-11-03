@@ -1,4 +1,5 @@
 import path from "node:path";
+import { preloadLocalSvgs } from "../src/shared/localSvgSources";
 import { createHash, randomUUID } from "node:crypto";
 import { access, lstat, mkdir, realpath, rm, stat } from "node:fs/promises";
 import { readFile, writeFile } from "./security/secure-fs";
@@ -823,6 +824,7 @@ const registerIpc = () => {
         },
       });
       try {
+        await preloadLocalSvgs();
         const html = store.getExportHtml(
           normalizedApplicationId,
           target,

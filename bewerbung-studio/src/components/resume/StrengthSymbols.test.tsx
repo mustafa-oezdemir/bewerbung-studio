@@ -26,8 +26,8 @@ describe("strength symbols", () => {
       expect(chosen).not.toContain('data-brand="react"');
     }
     const detected = render("Datenbank", "");
-    expect(detected).toContain('data-strength-symbol="symbol:database"');
+    expect(detected).toContain('data-brand="material:file:database"');
     expect(detected).not.toContain("color:inherit");
-    expect(render("Datenbank", "symbol:database")).toBe(detected);
+    expect(render("Datenbank", "symbol:database")).toContain('data-strength-symbol="symbol:database"');
   });
 });

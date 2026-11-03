@@ -5,7 +5,7 @@ import { resolveJobAdvertisementText } from "./jobAdvertisement";
 import { getResumeDisplayProfile } from "./resumeDisplayProfile";
 import { formatResumeBirth, getResumePersonalDetails } from "./resumePersonalData";
 import { isCurrentExperience, parseCareerDate, type CareerDate } from "./resumeCareer";
-import { getTechnologyBrandIconMarkup } from "./technologyBrand";
+import { getDeckblattTechnologyIconMarkup } from "./technologyBrand";
 
 export type DeckblattContact = {
   label: string;
@@ -197,9 +197,9 @@ export const getDeckblattQualifications = (profile: ApplicantProfile | undefined
   return [...degrees, ...(years >= 1 ? [`${years}+ ${years === 1 ? "Jahr" : "Jahre"} Berufserfahrung`] : [])];
 };
 
-/** The Stärken of the profile with the icon they have in the Lebenslauf. */
+/** The Stärken of the profile with the icon they have in the Lebenslauf, logos in their own brand colours. */
 export const getDeckblattTechStack = (profile: ApplicantProfile | undefined) =>
   (profile?.strengths ?? [])
     .filter((strength) => strength.title.trim())
     .slice(0, 12)
-    .map((strength) => ({ title: strength.title.trim(), icon: getTechnologyBrandIconMarkup(strength.title, strength.iconId) }));
+    .map((strength) => ({ title: strength.title.trim(), icon: getDeckblattTechnologyIconMarkup(strength.title, strength.iconId) }));

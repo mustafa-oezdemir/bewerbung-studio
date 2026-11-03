@@ -6,7 +6,6 @@ import { getTemplate } from "../../shared/templates";
 import { getTemplateDocumentDesignDefaults } from "../../shared/cvDesign";
 import { getDeckblattExperienceYears, getDeckblattQualifications } from "../../shared/deckblatt";
 import { buildDeckblattModel, deckblattCss, getDeckblattDesign, renderDeckblattMarkup } from "../../shared/deckblattDesigns";
-import { getStrengthSymbolMarkup } from "../../shared/strengthSymbols";
 import { DeckblattPreview } from "./DeckblattPreview";
 
 const now = "2026-09-26T09:00:00.000Z";
@@ -30,11 +29,15 @@ const profile = (extra: Record<string, unknown> = {}) =>
     ...extra,
   });
 
-const build = (options: { profile?: ReturnType<typeof profile>; job?: string; documents?: Record<string, unknown>; files?: string[] } = {}) => {
+const build = (options: {
+  profile?: ReturnType<typeof profile>; job?: string; documents?: Record<string, unknown>; files?: string[];
+  colors?: { accent: string; secondary: string; template: string };
+} = {}) => {
   const current = applicationSchema.parse({
     schemaVersion: 1, id: id(), folderName: "Test", company: { name: "Nordlicht AG", city: "Hamburg" }, contact: {},
-    job: { title: options.job ?? "Software Engineer" }, status: "Entwurf", templateId: "modern", accentColor: getTemplate("modern").accent,
-    secondaryColor: getTemplate("modern").secondary, designSettings: settings, documents: { coverSheetDesign: "kopfband", ...options.documents },
+    job: { title: options.job ?? "Software Engineer" }, status: "Entwurf", templateId: options.colors?.template ?? "modern",
+    accentColor: options.colors?.accent ?? getTemplate("modern").accent, secondaryColor: options.colors?.secondary ?? getTemplate("modern").secondary,
+    designSettings: settings, documents: { coverSheetDesign: "kopfband", ...options.documents },
     statusHistory: [], createdAt: now, updatedAt: now,
   });
   const attachments: Attachment[] = (options.files ?? []).map((fileName, order) => ({
@@ -120,15 +123,43 @@ describe("Deckblatt design Kopfband", () => {
     const symbols = Array.from(page.querySelectorAll(".dk-stack-icon svg"), (svg) =>
       svg.getAttribute("data-strength-symbol") ?? svg.getAttribute("data-brand"));
     expect(symbols).toEqual([
-      "symbol:api", "symbol:backend", "symbol:frontend", "symbol:check", "symbol:monitoring", "symbol:ci",
-      "symbol:cd", "symbol:test", "symbol:cloud", "symbol:cloud", "react", "devicon:docker",
+      "material:folder:folder-api", "symbol:backend", "symbol:frontend", "symbol:check", "symbol:monitoring", "symbol:ci",
+      "symbol:cd", "symbol:test", "symbol:cloud", "symbol:cloud", "material:file:react", "material:file:docker",
     ]);
-    expect(model.techStack[0]!.icon).toBe(getStrengthSymbolMarkup("symbol:api"));
-    // The preview prints the very markup of the PDF, icons included, and colours them like the export's
-    // `.technology-brand-svg{color:var(--accent)}`; Aufzählungszeichen keep their inline `color:inherit`.
+    expect(model.techStack[0]!.icon).toContain('data-brand="material:folder:folder-api"');
+    // The preview prints the very markup of the PDF, icons included. Unbranded marks take the fixed neutral `--muted`, which
+    // beats the export's `.technology-brand-svg{color:var(--accent)}`; Aufzählungszeichen keep their inline `color:inherit`.
     expect(renderToStaticMarkup(<DeckblattPreview model={model} />)).toContain(markup);
-    expect(deckblattCss).toContain(".deckblatt--kopfband .dk-stack-icon svg{color:var(--accent)}");
+    expect(deckblattCss).toContain(".deckblatt--kopfband .dk-stack-icon svg{color:var(--muted)}");
     expect(markup).toContain('data-strength-symbol="symbol:check" style="color:inherit"');
+  });
+
+  it("draws the Tech-Stack logos in their brand colours, untouched by Akzent, secondary colour and CV template", () => {
+    const titles = ["JavaScript", "React", "TypeScript", "Angular", "Docker", "Git", "Go", "API", "Datenbank", "Backend"];
+    const strengths = titles.map((title) => ({ id: id(), title, iconId: title === "Backend" ? "symbol:cloud" : "" }));
+    const stacks = [
+      { accent: "#1d4ed8", secondary: "#e0e7ff", template: "modern" }, { accent: "#c2410c", secondary: "#ffedd5", template: "modern" },
+      { accent: "#b91c1c", secondary: "#fee2e2", template: "gepflegt" },
+    ].map((colors) => build({ profile: profile({ strengths }), colors }));
+    expect(stacks[1]!.model.style["--accent"]).toBe("#c2410c");
+    for (const other of stacks.slice(1)) expect(other.model.techStack).toEqual(stacks[0]!.model.techStack);
+    const { page, text } = stacks[0]!;
+    expect(text(".dk-stack li span")).toEqual(titles);
+    const icons = Array.from(page.querySelectorAll(".dk-stack-icon svg"));
+    expect(icons.map((svg) => svg.getAttribute("data-strength-symbol") ?? svg.getAttribute("data-brand"))).toEqual([
+      "material:file:javascript", "material:file:react", "material:file:typescript", "material:file:angular", "material:file:docker", "material:file:git", "material:file:go", "material:folder:folder-api", "material:file:database", "symbol:cloud",
+    ]);
+    const paints = (svg: Element) => Array.from(svg.querySelectorAll("*"), (node) => [node.getAttribute("fill"), node.getAttribute("stroke"), node.getAttribute("stop-color")])
+      .flat().filter((paint): paint is string => Boolean(paint) && paint !== "none").map((paint) => paint.toLowerCase());
+    for (const logo of icons.slice(0, 9)) {
+      expect(paints(logo).some((paint) => paint.startsWith("#") || paint.startsWith("url(#"))).toBe(true);
+      expect(logo.outerHTML).not.toMatch(/currentColor|var\(--/);
+    }
+    // Unbranded marks keep their shapes in currentColor, drawn in the fixed neutral of the Deckblatt only.
+    expect(icons[9]!.getAttribute("stroke")).toBe("currentColor");
+    expect(stacks.map((stack) => stack.model.style["--muted"])).toEqual(["#5c6870", "#5c6870", "#5c6870"]);
+    const stackRules = deckblattCss.split("\n").filter((rule) => rule.includes(".dk-stack"));
+    expect(stackRules.join("\n")).not.toMatch(/var\(--(accent|secondary|on-accent|tint-[a-z]+)\)|fill:|stroke:/);
   });
 
   it("centres the Tech-Stack rows, however many Stärken there are (six per row)", () => {

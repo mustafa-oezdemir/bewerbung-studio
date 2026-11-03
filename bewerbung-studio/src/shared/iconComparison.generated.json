@@ -1,0 +1,6907 @@
+{
+  "source": {
+    "materialTag": "v5.40.0",
+    "materialCommit": "045291ff033062a25441dd297fd51546326866f2",
+    "vscodeCommit": "f0a0c40aeae5eba2917ada14ad59b7e7f729e396"
+  },
+  "counts": {
+    "material": 859,
+    "vscode": 1298,
+    "common": 423,
+    "materialOnly": 440,
+    "vscodeOnly": 875,
+    "selectableVscodeAlternatives": 42,
+    "unresolved": 1213,
+    "associationVerified": 226,
+    "aliasReviewed": 7,
+    "nameOnly": 190
+  },
+  "matches": [
+    {
+      "concept": "actionscript",
+      "kind": "file",
+      "materialId": "material:file:actionscript",
+      "vscodeId": "vscode:file:actionscript",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "ada",
+      "kind": "file",
+      "materialId": "material:file:ada",
+      "vscodeId": "vscode:file:ada",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "advpl",
+      "kind": "file",
+      "materialId": "material:file:advpl",
+      "vscodeId": "vscode:file:advpl",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "android",
+      "kind": "file",
+      "materialId": "material:file:android",
+      "vscodeId": "vscode:file:android",
+      "reason": "same icon kind and upstream association: apk",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "angular",
+      "kind": "file",
+      "materialId": "material:file:angular",
+      "vscodeId": "vscode:file:angular",
+      "reason": "same icon kind and upstream association: angular-cli.json, .angular-cli.json, angular.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "antlr",
+      "kind": "file",
+      "materialId": "material:file:antlr",
+      "vscodeId": "vscode:file:antlr",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "applescript",
+      "kind": "file",
+      "materialId": "material:file:applescript",
+      "vscodeId": "vscode:file:applescript",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "appveyor",
+      "kind": "file",
+      "materialId": "material:file:appveyor",
+      "vscodeId": "vscode:file:appveyor",
+      "reason": "same icon kind and upstream association: .appveyor.yml, appveyor.yml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "arduino",
+      "kind": "file",
+      "materialId": "material:file:arduino",
+      "vscodeId": "vscode:file:arduino",
+      "reason": "same icon kind and upstream association: ino",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "asciidoc",
+      "kind": "file",
+      "materialId": "material:file:asciidoc",
+      "vscodeId": "vscode:file:asciidoc",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "assembly",
+      "kind": "file",
+      "materialId": "material:file:assembly",
+      "vscodeId": "vscode:file:assembly",
+      "reason": "same icon kind and upstream association: asm, s",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "astro",
+      "kind": "file",
+      "materialId": "material:file:astro",
+      "vscodeId": "vscode:file:astro",
+      "reason": "same icon kind and upstream association: astro",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "audio",
+      "kind": "file",
+      "materialId": "material:file:audio",
+      "vscodeId": "vscode:file:audio",
+      "reason": "same icon kind and upstream association: aac, aiff, amr",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "aurelia",
+      "kind": "file",
+      "materialId": "material:file:aurelia",
+      "vscodeId": "vscode:file:aurelia",
+      "reason": "same icon kind and upstream association: aurelia.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "autohotkey",
+      "kind": "file",
+      "materialId": "material:file:autohotkey",
+      "vscodeId": "vscode:file:autohotkey",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "autoit",
+      "kind": "file",
+      "materialId": "material:file:autoit",
+      "vscodeId": "vscode:file:autoit",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "azure",
+      "kind": "file",
+      "materialId": "material:file:azure",
+      "vscodeId": "vscode:file:azure",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "babel",
+      "kind": "file",
+      "materialId": "material:file:babel",
+      "vscodeId": "vscode:file:babel",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "ballerina",
+      "kind": "file",
+      "materialId": "material:file:ballerina",
+      "vscodeId": "vscode:file:ballerina",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "bazel",
+      "kind": "file",
+      "materialId": "material:file:bazel",
+      "vscodeId": "vscode:file:bazel",
+      "reason": "same icon kind and upstream association: bazel, .bazelrc",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "bicep",
+      "kind": "file",
+      "materialId": "material:file:bicep",
+      "vscodeId": "vscode:file:bicep",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "biome",
+      "kind": "file",
+      "materialId": "material:file:biome",
+      "vscodeId": "vscode:file:biome",
+      "reason": "same icon kind and upstream association: biome.json, biome.jsonc, .biome.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "bithound",
+      "kind": "file",
+      "materialId": "material:file:bithound",
+      "vscodeId": "vscode:file:bithound",
+      "reason": "same icon kind and upstream association: .bithoundrc",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "blender",
+      "kind": "file",
+      "materialId": "material:file:blender",
+      "vscodeId": "vscode:file:blender",
+      "reason": "same icon kind and upstream association: blend",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "bower",
+      "kind": "file",
+      "materialId": "material:file:bower",
+      "vscodeId": "vscode:file:bower",
+      "reason": "same icon kind and upstream association: .bowerrc, bower.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "bruno",
+      "kind": "file",
+      "materialId": "material:file:bruno",
+      "vscodeId": "vscode:file:bruno",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "bun",
+      "kind": "file",
+      "materialId": "material:file:bun",
+      "vscodeId": "vscode:file:bun",
+      "reason": "same icon kind and upstream association: bun.lockb, .bun-version, bun.lock",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "c",
+      "kind": "file",
+      "materialId": "material:file:c",
+      "vscodeId": "vscode:file:c",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "c3",
+      "kind": "file",
+      "materialId": "material:file:c3",
+      "vscodeId": "vscode:file:c3",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "cabal",
+      "kind": "file",
+      "materialId": "material:file:cabal",
+      "vscodeId": "vscode:file:cabal",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "caddy",
+      "kind": "file",
+      "materialId": "material:file:caddy",
+      "vscodeId": "vscode:file:caddy",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "cadence",
+      "kind": "file",
+      "materialId": "material:file:cadence",
+      "vscodeId": "vscode:file:cadence",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "cairo",
+      "kind": "file",
+      "materialId": "material:file:cairo",
+      "vscodeId": "vscode:file:cairo",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "cake",
+      "kind": "file",
+      "materialId": "material:file:cake",
+      "vscodeId": "vscode:file:cake",
+      "reason": "same icon kind and upstream association: cake",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "capacitor",
+      "kind": "file",
+      "materialId": "material:file:capacitor",
+      "vscodeId": "vscode:file:capacitor",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "capnp",
+      "kind": "file",
+      "materialId": "material:file:capnp",
+      "vscodeId": "vscode:file:capnp",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "circleci",
+      "kind": "file",
+      "materialId": "material:file:circleci",
+      "vscodeId": "vscode:file:circleci",
+      "reason": "same icon kind and upstream association: circle.yml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "clangd",
+      "kind": "file",
+      "materialId": "material:file:clangd",
+      "vscodeId": "vscode:file:clangd",
+      "reason": "same icon kind and upstream association: .clangd",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "claude",
+      "kind": "file",
+      "materialId": "material:file:claude",
+      "vscodeId": "vscode:file:claude",
+      "reason": "same icon kind and upstream association: claude.md, claude.local.md",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "clojure",
+      "kind": "file",
+      "materialId": "material:file:clojure",
+      "vscodeId": "vscode:file:clojure",
+      "reason": "same icon kind and upstream association: cljc, clojure",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "cloudfoundry",
+      "kind": "file",
+      "materialId": "material:file:cloudfoundry",
+      "vscodeId": "vscode:file:cloudfoundry",
+      "reason": "same icon kind and upstream association: .cfignore",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "cmake",
+      "kind": "file",
+      "materialId": "material:file:cmake",
+      "vscodeId": "vscode:file:cmake",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "cobol",
+      "kind": "file",
+      "materialId": "material:file:cobol",
+      "vscodeId": "vscode:file:cobol",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "codecov",
+      "kind": "file",
+      "materialId": "material:file:codecov",
+      "vscodeId": "vscode:file:codecov",
+      "reason": "same icon kind and upstream association: .codecov.yml, codecov.yml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "codeowners",
+      "kind": "file",
+      "materialId": "material:file:codeowners",
+      "vscodeId": "vscode:file:codeowners",
+      "reason": "same icon kind and upstream association: codeowners",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "commitizen",
+      "kind": "file",
+      "materialId": "material:file:commitizen",
+      "vscodeId": "vscode:file:commitizen",
+      "reason": "same icon kind and upstream association: .czrc, .cz.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "commitlint",
+      "kind": "file",
+      "materialId": "material:file:commitlint",
+      "vscodeId": "vscode:file:commitlint",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "copilot",
+      "kind": "file",
+      "materialId": "material:file:copilot",
+      "vscodeId": "vscode:file:copilot",
+      "reason": "same icon kind and upstream association: copilot-instructions.md",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "cpp",
+      "kind": "file",
+      "materialId": "material:file:cpp",
+      "vscodeId": "vscode:file:cpp",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "craco",
+      "kind": "file",
+      "materialId": "material:file:craco",
+      "vscodeId": "vscode:file:craco",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "crystal",
+      "kind": "file",
+      "materialId": "material:file:crystal",
+      "vscodeId": "vscode:file:crystal",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "csharp",
+      "kind": "file",
+      "materialId": "material:file:csharp",
+      "vscodeId": "vscode:file:csharp",
+      "reason": "same icon kind and upstream association: csx, csharp",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "css",
+      "kind": "file",
+      "materialId": "material:file:css",
+      "vscodeId": "vscode:file:css",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "css",
+      "kind": "file",
+      "materialId": "material:file:css",
+      "vscodeId": "vscode:file:css2",
+      "reason": "reviewed alias css2 → css",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "cucumber",
+      "kind": "file",
+      "materialId": "material:file:cucumber",
+      "vscodeId": "vscode:file:cucumber",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "cuda",
+      "kind": "file",
+      "materialId": "material:file:cuda",
+      "vscodeId": "vscode:file:cuda",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "cue",
+      "kind": "file",
+      "materialId": "material:file:cue",
+      "vscodeId": "vscode:file:cue",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "cypress",
+      "kind": "file",
+      "materialId": "material:file:cypress",
+      "vscodeId": "vscode:file:cypress",
+      "reason": "same icon kind and upstream association: cypress.json, cypress.env.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "deepsource",
+      "kind": "file",
+      "materialId": "material:file:deepsource",
+      "vscodeId": "vscode:file:deepsource",
+      "reason": "same icon kind and upstream association: .deepsource.toml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "deno",
+      "kind": "file",
+      "materialId": "material:file:deno",
+      "vscodeId": "vscode:file:deno",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "dependabot",
+      "kind": "file",
+      "materialId": "material:file:dependabot",
+      "vscodeId": "vscode:file:dependabot",
+      "reason": "same icon kind and upstream association: dependabot.yml, dependabot.yaml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "dhall",
+      "kind": "file",
+      "materialId": "material:file:dhall",
+      "vscodeId": "vscode:file:dhall",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "diff",
+      "kind": "file",
+      "materialId": "material:file:diff",
+      "vscodeId": "vscode:file:diff",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "django",
+      "kind": "file",
+      "materialId": "material:file:django",
+      "vscodeId": "vscode:file:django",
+      "reason": "same icon kind and upstream association: djt",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "docker",
+      "kind": "file",
+      "materialId": "material:file:docker",
+      "vscodeId": "vscode:file:docker",
+      "reason": "same icon kind and upstream association: dockerfile, docker-compose.yml, docker-compose.yaml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "docker",
+      "kind": "file",
+      "materialId": "material:file:docker",
+      "vscodeId": "vscode:file:docker2",
+      "reason": "reviewed alias docker2 → docker",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "dotjs",
+      "kind": "file",
+      "materialId": "material:file:dotjs",
+      "vscodeId": "vscode:file:dotjs",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "drawio",
+      "kind": "file",
+      "materialId": "material:file:drawio",
+      "vscodeId": "vscode:file:drawio",
+      "reason": "same icon kind and upstream association: drawio",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "drone",
+      "kind": "file",
+      "materialId": "material:file:drone",
+      "vscodeId": "vscode:file:drone",
+      "reason": "same icon kind and upstream association: .drone.yml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "dune",
+      "kind": "file",
+      "materialId": "material:file:dune",
+      "vscodeId": "vscode:file:dune",
+      "reason": "same icon kind and upstream association: dune, dune-project, dune-workspace",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "edge",
+      "kind": "file",
+      "materialId": "material:file:edge",
+      "vscodeId": "vscode:file:edge",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "editorconfig",
+      "kind": "file",
+      "materialId": "material:file:editorconfig",
+      "vscodeId": "vscode:file:editorconfig",
+      "reason": "same icon kind and upstream association: .editorconfig",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "ejs",
+      "kind": "file",
+      "materialId": "material:file:ejs",
+      "vscodeId": "vscode:file:ejs",
+      "reason": "same icon kind and upstream association: ejs",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "elixir",
+      "kind": "file",
+      "materialId": "material:file:elixir",
+      "vscodeId": "vscode:file:elixir",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "elm",
+      "kind": "file",
+      "materialId": "material:file:elm",
+      "vscodeId": "vscode:file:elm",
+      "reason": "same icon kind and upstream association: elm",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "ember",
+      "kind": "file",
+      "materialId": "material:file:ember",
+      "vscodeId": "vscode:file:ember",
+      "reason": "same icon kind and upstream association: .ember-cli",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "epub",
+      "kind": "file",
+      "materialId": "material:file:epub",
+      "vscodeId": "vscode:file:epub",
+      "reason": "same icon kind and upstream association: epub",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "erlang",
+      "kind": "file",
+      "materialId": "material:file:erlang",
+      "vscodeId": "vscode:file:erlang",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "esbuild",
+      "kind": "file",
+      "materialId": "material:file:esbuild",
+      "vscodeId": "vscode:file:esbuild",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "eslint",
+      "kind": "file",
+      "materialId": "material:file:eslint",
+      "vscodeId": "vscode:file:eslint",
+      "reason": "same icon kind and upstream association: .eslintignore, .eslintcache",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "excalidraw",
+      "kind": "file",
+      "materialId": "material:file:excalidraw",
+      "vscodeId": "vscode:file:excalidraw",
+      "reason": "same icon kind and upstream association: excalidraw, excalidraw.json, excalidraw.svg",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "expo",
+      "kind": "file",
+      "materialId": "material:file:expo",
+      "vscodeId": "vscode:file:expo",
+      "reason": "same icon kind and upstream association: eas.json, .easignore",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "favicon",
+      "kind": "file",
+      "materialId": "material:file:favicon",
+      "vscodeId": "vscode:file:favicon",
+      "reason": "same icon kind and upstream association: favicon.ico",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "firebase",
+      "kind": "file",
+      "materialId": "material:file:firebase",
+      "vscodeId": "vscode:file:firebase",
+      "reason": "same icon kind and upstream association: .firebaserc",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "flash",
+      "kind": "file",
+      "materialId": "material:file:flash",
+      "vscodeId": "vscode:file:flash",
+      "reason": "same icon kind and upstream association: swf",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "flow",
+      "kind": "file",
+      "materialId": "material:file:flow",
+      "vscodeId": "vscode:file:flow",
+      "reason": "same icon kind and upstream association: .flowconfig",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "font",
+      "kind": "file",
+      "materialId": "material:file:font",
+      "vscodeId": "vscode:file:font",
+      "reason": "same icon kind and upstream association: woff, woff2, ttf",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "fortran",
+      "kind": "file",
+      "materialId": "material:file:fortran",
+      "vscodeId": "vscode:file:fortran",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "freemarker",
+      "kind": "file",
+      "materialId": "material:file:freemarker",
+      "vscodeId": "vscode:file:freemarker",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "fsharp",
+      "kind": "file",
+      "materialId": "material:file:fsharp",
+      "vscodeId": "vscode:file:fsharp",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "fusebox",
+      "kind": "file",
+      "materialId": "material:file:fusebox",
+      "vscodeId": "vscode:file:fusebox",
+      "reason": "same icon kind and upstream association: fuse.js",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "gamemaker",
+      "kind": "file",
+      "materialId": "material:file:gamemaker",
+      "vscodeId": "vscode:file:gamemaker",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "gatsby",
+      "kind": "file",
+      "materialId": "material:file:gatsby",
+      "vscodeId": "vscode:file:gatsby",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "gemini",
+      "kind": "file",
+      "materialId": "material:file:gemini",
+      "vscodeId": "vscode:file:gemini",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "git",
+      "kind": "file",
+      "materialId": "material:file:git",
+      "vscodeId": "vscode:file:git",
+      "reason": "same icon kind and upstream association: .git, .gitignore, .gitmessage",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "gitlab",
+      "kind": "file",
+      "materialId": "material:file:gitlab",
+      "vscodeId": "vscode:file:gitlab",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "gitpod",
+      "kind": "file",
+      "materialId": "material:file:gitpod",
+      "vscodeId": "vscode:file:gitpod",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "gleam",
+      "kind": "file",
+      "materialId": "material:file:gleam",
+      "vscodeId": "vscode:file:gleam",
+      "reason": "same icon kind and upstream association: gleam",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "gnuplot",
+      "kind": "file",
+      "materialId": "material:file:gnuplot",
+      "vscodeId": "vscode:file:gnuplot",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "go",
+      "kind": "file",
+      "materialId": "material:file:go",
+      "vscodeId": "vscode:file:go",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "godot",
+      "kind": "file",
+      "materialId": "material:file:godot",
+      "vscodeId": "vscode:file:godot",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "gradle",
+      "kind": "file",
+      "materialId": "material:file:gradle",
+      "vscodeId": "vscode:file:gradle",
+      "reason": "same icon kind and upstream association: gradle",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "grain",
+      "kind": "file",
+      "materialId": "material:file:grain",
+      "vscodeId": "vscode:file:grain",
+      "reason": "same icon kind and upstream association: gr",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "graphql",
+      "kind": "file",
+      "materialId": "material:file:graphql",
+      "vscodeId": "vscode:file:graphql",
+      "reason": "same icon kind and upstream association: graphql",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "gridsome",
+      "kind": "file",
+      "materialId": "material:file:gridsome",
+      "vscodeId": "vscode:file:gridsome",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "groovy",
+      "kind": "file",
+      "materialId": "material:file:groovy",
+      "vscodeId": "vscode:file:groovy",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "grunt",
+      "kind": "file",
+      "materialId": "material:file:grunt",
+      "vscodeId": "vscode:file:grunt",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "gulp",
+      "kind": "file",
+      "materialId": "material:file:gulp",
+      "vscodeId": "vscode:file:gulp",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "haml",
+      "kind": "file",
+      "materialId": "material:file:haml",
+      "vscodeId": "vscode:file:haml",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "handlebars",
+      "kind": "file",
+      "materialId": "material:file:handlebars",
+      "vscodeId": "vscode:file:handlebars",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "hardhat",
+      "kind": "file",
+      "materialId": "material:file:hardhat",
+      "vscodeId": "vscode:file:hardhat",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "haskell",
+      "kind": "file",
+      "materialId": "material:file:haskell",
+      "vscodeId": "vscode:file:haskell",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "haxe",
+      "kind": "file",
+      "materialId": "material:file:haxe",
+      "vscodeId": "vscode:file:haxe",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "helm",
+      "kind": "file",
+      "materialId": "material:file:helm",
+      "vscodeId": "vscode:file:helm",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "heroku",
+      "kind": "file",
+      "materialId": "material:file:heroku",
+      "vscodeId": "vscode:file:heroku",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "hip",
+      "kind": "file",
+      "materialId": "material:file:hip",
+      "vscodeId": "vscode:file:hip",
+      "reason": "same icon kind and upstream association: hip",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "histoire",
+      "kind": "file",
+      "materialId": "material:file:histoire",
+      "vscodeId": "vscode:file:histoire",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "hjson",
+      "kind": "file",
+      "materialId": "material:file:hjson",
+      "vscodeId": "vscode:file:hjson",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "horusec",
+      "kind": "file",
+      "materialId": "material:file:horusec",
+      "vscodeId": "vscode:file:horusec",
+      "reason": "same icon kind and upstream association: horusec-config.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "html",
+      "kind": "file",
+      "materialId": "material:file:html",
+      "vscodeId": "vscode:file:html",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "http",
+      "kind": "file",
+      "materialId": "material:file:http",
+      "vscodeId": "vscode:file:http",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "huff",
+      "kind": "file",
+      "materialId": "material:file:huff",
+      "vscodeId": "vscode:file:huff",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "hurl",
+      "kind": "file",
+      "materialId": "material:file:hurl",
+      "vscodeId": "vscode:file:hurl",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "husky",
+      "kind": "file",
+      "materialId": "material:file:husky",
+      "vscodeId": "vscode:file:husky",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "idris",
+      "kind": "file",
+      "materialId": "material:file:idris",
+      "vscodeId": "vscode:file:idris",
+      "reason": "same icon kind and upstream association: idr",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "image",
+      "kind": "file",
+      "materialId": "material:file:image",
+      "vscodeId": "vscode:file:image",
+      "reason": "same icon kind and upstream association: png, jpeg, jpg",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "imba",
+      "kind": "file",
+      "materialId": "material:file:imba",
+      "vscodeId": "vscode:file:imba",
+      "reason": "same icon kind and upstream association: imba",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "ionic",
+      "kind": "file",
+      "materialId": "material:file:ionic",
+      "vscodeId": "vscode:file:ionic",
+      "reason": "same icon kind and upstream association: ionic.config.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "jar",
+      "kind": "file",
+      "materialId": "material:file:jar",
+      "vscodeId": "vscode:file:jar",
+      "reason": "same icon kind and upstream association: jar",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "java",
+      "kind": "file",
+      "materialId": "material:file:java",
+      "vscodeId": "vscode:file:java",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "jenkins",
+      "kind": "file",
+      "materialId": "material:file:jenkins",
+      "vscodeId": "vscode:file:jenkins",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "jest",
+      "kind": "file",
+      "materialId": "material:file:jest",
+      "vscodeId": "vscode:file:jest",
+      "reason": "same icon kind and upstream association: jest.config.js, jest.config.cjs, jest.config.mjs",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "jinja",
+      "kind": "file",
+      "materialId": "material:file:jinja",
+      "vscodeId": "vscode:file:jinja",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "javascript",
+      "kind": "file",
+      "materialId": "material:file:javascript",
+      "vscodeId": "vscode:file:js",
+      "reason": "reviewed alias js → javascript",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "jsconfig",
+      "kind": "file",
+      "materialId": "material:file:jsconfig",
+      "vscodeId": "vscode:file:jsconfig",
+      "reason": "same icon kind and upstream association: jsconfig.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "json",
+      "kind": "file",
+      "materialId": "material:file:json",
+      "vscodeId": "vscode:file:json",
+      "reason": "same icon kind and upstream association: json, jsonc, jsonl",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "json_schema",
+      "kind": "file",
+      "materialId": "material:file:json_schema",
+      "vscodeId": "vscode:file:json_schema",
+      "reason": "same icon kind and upstream association: schema.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "jsr",
+      "kind": "file",
+      "materialId": "material:file:jsr",
+      "vscodeId": "vscode:file:jsr",
+      "reason": "same icon kind and upstream association: jsr.json, jsr.jsonc",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "julia",
+      "kind": "file",
+      "materialId": "material:file:julia",
+      "vscodeId": "vscode:file:julia",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "jupyter",
+      "kind": "file",
+      "materialId": "material:file:jupyter",
+      "vscodeId": "vscode:file:jupyter",
+      "reason": "same icon kind and upstream association: ipynb",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "just",
+      "kind": "file",
+      "materialId": "material:file:just",
+      "vscodeId": "vscode:file:just",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "karma",
+      "kind": "file",
+      "materialId": "material:file:karma",
+      "vscodeId": "vscode:file:karma",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "key",
+      "kind": "file",
+      "materialId": "material:file:key",
+      "vscodeId": "vscode:file:key",
+      "reason": "same icon kind and upstream association: key, pem",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "kivy",
+      "kind": "file",
+      "materialId": "material:file:kivy",
+      "vscodeId": "vscode:file:kivy",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "knip",
+      "kind": "file",
+      "materialId": "material:file:knip",
+      "vscodeId": "vscode:file:knip",
+      "reason": "same icon kind and upstream association: knip.json, knip.jsonc, .knip.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "kotlin",
+      "kind": "file",
+      "materialId": "material:file:kotlin",
+      "vscodeId": "vscode:file:kotlin",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "kusto",
+      "kind": "file",
+      "materialId": "material:file:kusto",
+      "vscodeId": "vscode:file:kusto",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "lean",
+      "kind": "file",
+      "materialId": "material:file:lean",
+      "vscodeId": "vscode:file:lean",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "lefthook",
+      "kind": "file",
+      "materialId": "material:file:lefthook",
+      "vscodeId": "vscode:file:lefthook",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "lerna",
+      "kind": "file",
+      "materialId": "material:file:lerna",
+      "vscodeId": "vscode:file:lerna",
+      "reason": "same icon kind and upstream association: lerna.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "less",
+      "kind": "file",
+      "materialId": "material:file:less",
+      "vscodeId": "vscode:file:less",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "liara",
+      "kind": "file",
+      "materialId": "material:file:liara",
+      "vscodeId": "vscode:file:liara",
+      "reason": "same icon kind and upstream association: liara.json, .liaraignore",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "license",
+      "kind": "file",
+      "materialId": "material:file:license",
+      "vscodeId": "vscode:file:license",
+      "reason": "same icon kind and upstream association: copying, copying.md, copying.rst",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "lighthouse",
+      "kind": "file",
+      "materialId": "material:file:lighthouse",
+      "vscodeId": "vscode:file:lighthouse",
+      "reason": "same icon kind and upstream association: .lighthouserc.js, .lighthouserc.cjs, .lighthouserc.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "lilypond",
+      "kind": "file",
+      "materialId": "material:file:lilypond",
+      "vscodeId": "vscode:file:lilypond",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "liquid",
+      "kind": "file",
+      "materialId": "material:file:liquid",
+      "vscodeId": "vscode:file:liquid",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "lisp",
+      "kind": "file",
+      "materialId": "material:file:lisp",
+      "vscodeId": "vscode:file:lisp",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "livescript",
+      "kind": "file",
+      "materialId": "material:file:livescript",
+      "vscodeId": "vscode:file:livescript",
+      "reason": "same icon kind and upstream association: ls",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "log",
+      "kind": "file",
+      "materialId": "material:file:log",
+      "vscodeId": "vscode:file:log",
+      "reason": "same icon kind and upstream association: log",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "lolcode",
+      "kind": "file",
+      "materialId": "material:file:lolcode",
+      "vscodeId": "vscode:file:lolcode",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "lua",
+      "kind": "file",
+      "materialId": "material:file:lua",
+      "vscodeId": "vscode:file:lua",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "luau",
+      "kind": "file",
+      "materialId": "material:file:luau",
+      "vscodeId": "vscode:file:luau",
+      "reason": "same icon kind and upstream association: luau",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "markdown",
+      "kind": "file",
+      "materialId": "material:file:markdown",
+      "vscodeId": "vscode:file:markdown",
+      "reason": "same icon kind and upstream association: markdown, mdown",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "markdownlint",
+      "kind": "file",
+      "materialId": "material:file:markdownlint",
+      "vscodeId": "vscode:file:markdownlint",
+      "reason": "same icon kind and upstream association: .markdownlint.json, .markdownlint.jsonc, .markdownlint.yaml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "markojs",
+      "kind": "file",
+      "materialId": "material:file:markojs",
+      "vscodeId": "vscode:file:markojs",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "matlab",
+      "kind": "file",
+      "materialId": "material:file:matlab",
+      "vscodeId": "vscode:file:matlab",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "maven",
+      "kind": "file",
+      "materialId": "material:file:maven",
+      "vscodeId": "vscode:file:maven",
+      "reason": "same icon kind and upstream association: maven.config, pom.xml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "mdx",
+      "kind": "file",
+      "materialId": "material:file:mdx",
+      "vscodeId": "vscode:file:mdx",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "mercurial",
+      "kind": "file",
+      "materialId": "material:file:mercurial",
+      "vscodeId": "vscode:file:mercurial",
+      "reason": "same icon kind and upstream association: .hgignore",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "mermaid",
+      "kind": "file",
+      "materialId": "material:file:mermaid",
+      "vscodeId": "vscode:file:mermaid",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "meson",
+      "kind": "file",
+      "materialId": "material:file:meson",
+      "vscodeId": "vscode:file:meson",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "metro",
+      "kind": "file",
+      "materialId": "material:file:metro",
+      "vscodeId": "vscode:file:metro",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "minecraft",
+      "kind": "file",
+      "materialId": "material:file:minecraft",
+      "vscodeId": "vscode:file:minecraft",
+      "reason": "same icon kind and upstream association: mcfunction, mcmeta, mca",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "mjml",
+      "kind": "file",
+      "materialId": "material:file:mjml",
+      "vscodeId": "vscode:file:mjml",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "mocha",
+      "kind": "file",
+      "materialId": "material:file:mocha",
+      "vscodeId": "vscode:file:mocha",
+      "reason": "same icon kind and upstream association: mocha.opts, .mocharc.yml, .mocharc.yaml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "modernizr",
+      "kind": "file",
+      "materialId": "material:file:modernizr",
+      "vscodeId": "vscode:file:modernizr",
+      "reason": "same icon kind and upstream association: .modernizrrc.js",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "mojo",
+      "kind": "file",
+      "materialId": "material:file:mojo",
+      "vscodeId": "vscode:file:mojo",
+      "reason": "same icon kind and upstream association: mojo",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "mxml",
+      "kind": "file",
+      "materialId": "material:file:mxml",
+      "vscodeId": "vscode:file:mxml",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "ndst",
+      "kind": "file",
+      "materialId": "material:file:ndst",
+      "vscodeId": "vscode:file:ndst",
+      "reason": "same icon kind and upstream association: ndst.yml, ndst.yaml, ndst.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "netlify",
+      "kind": "file",
+      "materialId": "material:file:netlify",
+      "vscodeId": "vscode:file:netlify",
+      "reason": "same icon kind and upstream association: netlify.toml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "next",
+      "kind": "file",
+      "materialId": "material:file:next",
+      "vscodeId": "vscode:file:next",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "nextflow",
+      "kind": "file",
+      "materialId": "material:file:nextflow",
+      "vscodeId": "vscode:file:nextflow",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "nginx",
+      "kind": "file",
+      "materialId": "material:file:nginx",
+      "vscodeId": "vscode:file:nginx",
+      "reason": "same icon kind and upstream association: nginx, nginx.conf",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "nim",
+      "kind": "file",
+      "materialId": "material:file:nim",
+      "vscodeId": "vscode:file:nim",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "nix",
+      "kind": "file",
+      "materialId": "material:file:nix",
+      "vscodeId": "vscode:file:nix",
+      "reason": "same icon kind and upstream association: nix",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "nodemon",
+      "kind": "file",
+      "materialId": "material:file:nodemon",
+      "vscodeId": "vscode:file:nodemon",
+      "reason": "same icon kind and upstream association: nodemon.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "npm",
+      "kind": "file",
+      "materialId": "material:file:npm",
+      "vscodeId": "vscode:file:npm",
+      "reason": "same icon kind and upstream association: .npmignore, .npmrc",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "nuget",
+      "kind": "file",
+      "materialId": "material:file:nuget",
+      "vscodeId": "vscode:file:nuget",
+      "reason": "same icon kind and upstream association: nupkg, nuspec",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "nunjucks",
+      "kind": "file",
+      "materialId": "material:file:nunjucks",
+      "vscodeId": "vscode:file:nunjucks",
+      "reason": "same icon kind and upstream association: nunjucks",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "nuxt",
+      "kind": "file",
+      "materialId": "material:file:nuxt",
+      "vscodeId": "vscode:file:nuxt",
+      "reason": "same icon kind and upstream association: nuxt.config.js, nuxt.config.ts, .nuxtignore",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "nx",
+      "kind": "file",
+      "materialId": "material:file:nx",
+      "vscodeId": "vscode:file:nx",
+      "reason": "same icon kind and upstream association: nx.json, .nxignore",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "ocaml",
+      "kind": "file",
+      "materialId": "material:file:ocaml",
+      "vscodeId": "vscode:file:ocaml",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "opam",
+      "kind": "file",
+      "materialId": "material:file:opam",
+      "vscodeId": "vscode:file:opam",
+      "reason": "same icon kind and upstream association: opam",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "opencode",
+      "kind": "file",
+      "materialId": "material:file:opencode",
+      "vscodeId": "vscode:file:opencode",
+      "reason": "same icon kind and upstream association: opencode.json, opencode.jsonc",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "opentofu",
+      "kind": "file",
+      "materialId": "material:file:opentofu",
+      "vscodeId": "vscode:file:opentofu",
+      "reason": "same icon kind and upstream association: tofu",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "oxc",
+      "kind": "file",
+      "materialId": "material:file:oxc",
+      "vscodeId": "vscode:file:oxc",
+      "reason": "same icon kind and upstream association: .oxlintrc.json, .oxlintrc.jsonc, .oxfmtrc.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "packship",
+      "kind": "file",
+      "materialId": "material:file:packship",
+      "vscodeId": "vscode:file:packship",
+      "reason": "same icon kind and upstream association: .packshiprc, .packshiprc.json, .packshiprc.js",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "parcel",
+      "kind": "file",
+      "materialId": "material:file:parcel",
+      "vscodeId": "vscode:file:parcel",
+      "reason": "same icon kind and upstream association: .parcelrc",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "pawn",
+      "kind": "file",
+      "materialId": "material:file:pawn",
+      "vscodeId": "vscode:file:pawn",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "pdf",
+      "kind": "file",
+      "materialId": "material:file:pdf",
+      "vscodeId": "vscode:file:pdf",
+      "reason": "same icon kind and upstream association: pdf",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "pdm",
+      "kind": "file",
+      "materialId": "material:file:pdm",
+      "vscodeId": "vscode:file:pdm",
+      "reason": "same icon kind and upstream association: pdm.lock, pdm.toml, .pdm-python",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "perl",
+      "kind": "file",
+      "materialId": "material:file:perl",
+      "vscodeId": "vscode:file:perl",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "php",
+      "kind": "file",
+      "materialId": "material:file:php",
+      "vscodeId": "vscode:file:php",
+      "reason": "same icon kind and upstream association: php, php4, php5",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "phpstan",
+      "kind": "file",
+      "materialId": "material:file:phpstan",
+      "vscodeId": "vscode:file:phpstan",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "phpunit",
+      "kind": "file",
+      "materialId": "material:file:phpunit",
+      "vscodeId": "vscode:file:phpunit",
+      "reason": "same icon kind and upstream association: phpunit.xml, phpunit.xml.dist",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "pipeline",
+      "kind": "file",
+      "materialId": "material:file:pipeline",
+      "vscodeId": "vscode:file:pipeline",
+      "reason": "same icon kind and upstream association: pipeline",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "playwright",
+      "kind": "file",
+      "materialId": "material:file:playwright",
+      "vscodeId": "vscode:file:playwright",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "pnpm",
+      "kind": "file",
+      "materialId": "material:file:pnpm",
+      "vscodeId": "vscode:file:pnpm",
+      "reason": "same icon kind and upstream association: pnpm-lock.yaml, pnpm-workspace.yaml, .pnpmfile.cjs",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "poetry",
+      "kind": "file",
+      "materialId": "material:file:poetry",
+      "vscodeId": "vscode:file:poetry",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "postcss",
+      "kind": "file",
+      "materialId": "material:file:postcss",
+      "vscodeId": "vscode:file:postcss",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "powerpoint",
+      "kind": "file",
+      "materialId": "material:file:powerpoint",
+      "vscodeId": "vscode:file:powerpoint",
+      "reason": "same icon kind and upstream association: pptx, ppt, pptm",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "powershell",
+      "kind": "file",
+      "materialId": "material:file:powershell",
+      "vscodeId": "vscode:file:powershell",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "prettier",
+      "kind": "file",
+      "materialId": "material:file:prettier",
+      "vscodeId": "vscode:file:prettier",
+      "reason": "same icon kind and upstream association: .prettierignore",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "prisma",
+      "kind": "file",
+      "materialId": "material:file:prisma",
+      "vscodeId": "vscode:file:prisma",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "prolog",
+      "kind": "file",
+      "materialId": "material:file:prolog",
+      "vscodeId": "vscode:file:prolog",
+      "reason": "same icon kind and upstream association: pro",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "protractor",
+      "kind": "file",
+      "materialId": "material:file:protractor",
+      "vscodeId": "vscode:file:protractor",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "pug",
+      "kind": "file",
+      "materialId": "material:file:pug",
+      "vscodeId": "vscode:file:pug",
+      "reason": "same icon kind and upstream association: jade, .pug-lintrc, .pug-lintrc.js",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "puppet",
+      "kind": "file",
+      "materialId": "material:file:puppet",
+      "vscodeId": "vscode:file:puppet",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "purescript",
+      "kind": "file",
+      "materialId": "material:file:purescript",
+      "vscodeId": "vscode:file:purescript",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "python",
+      "kind": "file",
+      "materialId": "material:file:python",
+      "vscodeId": "vscode:file:python",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "qsharp",
+      "kind": "file",
+      "materialId": "material:file:qsharp",
+      "vscodeId": "vscode:file:qsharp",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "quarto",
+      "kind": "file",
+      "materialId": "material:file:quarto",
+      "vscodeId": "vscode:file:quarto",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "quasar",
+      "kind": "file",
+      "materialId": "material:file:quasar",
+      "vscodeId": "vscode:file:quasar",
+      "reason": "same icon kind and upstream association: quasar.conf.js, quasar.config.js, quasar.config.ts",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "quokka",
+      "kind": "file",
+      "materialId": "material:file:quokka",
+      "vscodeId": "vscode:file:quokka",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "r",
+      "kind": "file",
+      "materialId": "material:file:r",
+      "vscodeId": "vscode:file:r",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "racket",
+      "kind": "file",
+      "materialId": "material:file:racket",
+      "vscodeId": "vscode:file:racket",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "raml",
+      "kind": "file",
+      "materialId": "material:file:raml",
+      "vscodeId": "vscode:file:raml",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "razor",
+      "kind": "file",
+      "materialId": "material:file:razor",
+      "vscodeId": "vscode:file:razor",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "react",
+      "kind": "file",
+      "materialId": "material:file:react",
+      "vscodeId": "vscode:file:reactjs",
+      "reason": "reviewed alias reactjs → react",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "react",
+      "kind": "file",
+      "materialId": "material:file:react",
+      "vscodeId": "vscode:file:reactts",
+      "reason": "reviewed alias reactts → react",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "readme",
+      "kind": "file",
+      "materialId": "material:file:readme",
+      "vscodeId": "vscode:file:readme",
+      "reason": "same icon kind and upstream association: readme.md, readme.rst, readme.txt",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "reason",
+      "kind": "file",
+      "materialId": "material:file:reason",
+      "vscodeId": "vscode:file:reason",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "red",
+      "kind": "file",
+      "materialId": "material:file:red",
+      "vscodeId": "vscode:file:red",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "remark",
+      "kind": "file",
+      "materialId": "material:file:remark",
+      "vscodeId": "vscode:file:remark",
+      "reason": "same icon kind and upstream association: .remarkrc, .remarkrc.cjs, .remarkrc.js",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "renovate",
+      "kind": "file",
+      "materialId": "material:file:renovate",
+      "vscodeId": "vscode:file:renovate",
+      "reason": "same icon kind and upstream association: .renovaterc, .renovaterc.json, renovate.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "replit",
+      "kind": "file",
+      "materialId": "material:file:replit",
+      "vscodeId": "vscode:file:replit",
+      "reason": "same icon kind and upstream association: .replit",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "rescript",
+      "kind": "file",
+      "materialId": "material:file:rescript",
+      "vscodeId": "vscode:file:rescript",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "riot",
+      "kind": "file",
+      "materialId": "material:file:riot",
+      "vscodeId": "vscode:file:riot",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "robots",
+      "kind": "file",
+      "materialId": "material:file:robots",
+      "vscodeId": "vscode:file:robots",
+      "reason": "same icon kind and upstream association: robots.txt",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "rolldown",
+      "kind": "file",
+      "materialId": "material:file:rolldown",
+      "vscodeId": "vscode:file:rolldown",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "rollup",
+      "kind": "file",
+      "materialId": "material:file:rollup",
+      "vscodeId": "vscode:file:rollup",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "rome",
+      "kind": "file",
+      "materialId": "material:file:rome",
+      "vscodeId": "vscode:file:rome",
+      "reason": "same icon kind and upstream association: rome.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "rspec",
+      "kind": "file",
+      "materialId": "material:file:rspec",
+      "vscodeId": "vscode:file:rspec",
+      "reason": "same icon kind and upstream association: .rspec",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "rubocop",
+      "kind": "file",
+      "materialId": "material:file:rubocop",
+      "vscodeId": "vscode:file:rubocop",
+      "reason": "same icon kind and upstream association: .rubocop.yml, .rubocop_todo.yml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "ruby",
+      "kind": "file",
+      "materialId": "material:file:ruby",
+      "vscodeId": "vscode:file:ruby",
+      "reason": "same icon kind and upstream association: rbs, .ruby-version",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "ruff",
+      "kind": "file",
+      "materialId": "material:file:ruff",
+      "vscodeId": "vscode:file:ruff",
+      "reason": "same icon kind and upstream association: ruff.toml, .ruff.toml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "rust",
+      "kind": "file",
+      "materialId": "material:file:rust",
+      "vscodeId": "vscode:file:rust",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "san",
+      "kind": "file",
+      "materialId": "material:file:san",
+      "vscodeId": "vscode:file:san",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "sas",
+      "kind": "file",
+      "materialId": "material:file:sas",
+      "vscodeId": "vscode:file:sas",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "sass",
+      "kind": "file",
+      "materialId": "material:file:sass",
+      "vscodeId": "vscode:file:sass",
+      "reason": "same icon kind and upstream association: sass",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "sbt",
+      "kind": "file",
+      "materialId": "material:file:sbt",
+      "vscodeId": "vscode:file:sbt",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "scala",
+      "kind": "file",
+      "materialId": "material:file:scala",
+      "vscodeId": "vscode:file:scala",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "sentry",
+      "kind": "file",
+      "materialId": "material:file:sentry",
+      "vscodeId": "vscode:file:sentry",
+      "reason": "same icon kind and upstream association: .sentryclirc",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "sequelize",
+      "kind": "file",
+      "materialId": "material:file:sequelize",
+      "vscodeId": "vscode:file:sequelize",
+      "reason": "same icon kind and upstream association: .sequelizerc",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "serverless",
+      "kind": "file",
+      "materialId": "material:file:serverless",
+      "vscodeId": "vscode:file:serverless",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "shellcheck",
+      "kind": "file",
+      "materialId": "material:file:shellcheck",
+      "vscodeId": "vscode:file:shellcheck",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "silverstripe",
+      "kind": "file",
+      "materialId": "material:file:silverstripe",
+      "vscodeId": "vscode:file:silverstripe",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "siyuan",
+      "kind": "file",
+      "materialId": "material:file:siyuan",
+      "vscodeId": "vscode:file:siyuan",
+      "reason": "same icon kind and upstream association: sy",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "sketch",
+      "kind": "file",
+      "materialId": "material:file:sketch",
+      "vscodeId": "vscode:file:sketch",
+      "reason": "same icon kind and upstream association: sketch",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "skill",
+      "kind": "file",
+      "materialId": "material:file:skill",
+      "vscodeId": "vscode:file:skill",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "slim",
+      "kind": "file",
+      "materialId": "material:file:slim",
+      "vscodeId": "vscode:file:slim",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "slint",
+      "kind": "file",
+      "materialId": "material:file:slint",
+      "vscodeId": "vscode:file:slint",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "smarty",
+      "kind": "file",
+      "materialId": "material:file:smarty",
+      "vscodeId": "vscode:file:smarty",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "snakemake",
+      "kind": "file",
+      "materialId": "material:file:snakemake",
+      "vscodeId": "vscode:file:snakemake",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "snapcraft",
+      "kind": "file",
+      "materialId": "material:file:snapcraft",
+      "vscodeId": "vscode:file:snapcraft",
+      "reason": "same icon kind and upstream association: snapcraft.yaml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "snyk",
+      "kind": "file",
+      "materialId": "material:file:snyk",
+      "vscodeId": "vscode:file:snyk",
+      "reason": "same icon kind and upstream association: .snyk",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "solidity",
+      "kind": "file",
+      "materialId": "material:file:solidity",
+      "vscodeId": "vscode:file:solidity",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "stackblitz",
+      "kind": "file",
+      "materialId": "material:file:stackblitz",
+      "vscodeId": "vscode:file:stackblitz",
+      "reason": "same icon kind and upstream association: .stackblitzrc",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "stan",
+      "kind": "file",
+      "materialId": "material:file:stan",
+      "vscodeId": "vscode:file:stan",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "stencil",
+      "kind": "file",
+      "materialId": "material:file:stencil",
+      "vscodeId": "vscode:file:stencil",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "storybook",
+      "kind": "file",
+      "materialId": "material:file:storybook",
+      "vscodeId": "vscode:file:storybook",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "stryker",
+      "kind": "file",
+      "materialId": "material:file:stryker",
+      "vscodeId": "vscode:file:stryker",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "stylable",
+      "kind": "file",
+      "materialId": "material:file:stylable",
+      "vscodeId": "vscode:file:stylable",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "stylelint",
+      "kind": "file",
+      "materialId": "material:file:stylelint",
+      "vscodeId": "vscode:file:stylelint",
+      "reason": "same icon kind and upstream association: .stylelintignore, .stylelintcache",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "stylus",
+      "kind": "file",
+      "materialId": "material:file:stylus",
+      "vscodeId": "vscode:file:stylus",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "sublime",
+      "kind": "file",
+      "materialId": "material:file:sublime",
+      "vscodeId": "vscode:file:sublime",
+      "reason": "same icon kind and upstream association: sublime-project",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "svelte",
+      "kind": "file",
+      "materialId": "material:file:svelte",
+      "vscodeId": "vscode:file:svelte",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "svg",
+      "kind": "file",
+      "materialId": "material:file:svg",
+      "vscodeId": "vscode:file:svg",
+      "reason": "same icon kind and upstream association: svg",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "svgo",
+      "kind": "file",
+      "materialId": "material:file:svgo",
+      "vscodeId": "vscode:file:svgo",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "swagger",
+      "kind": "file",
+      "materialId": "material:file:swagger",
+      "vscodeId": "vscode:file:swagger",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "swc",
+      "kind": "file",
+      "materialId": "material:file:swc",
+      "vscodeId": "vscode:file:swc",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "swift",
+      "kind": "file",
+      "materialId": "material:file:swift",
+      "vscodeId": "vscode:file:swift",
+      "reason": "same icon kind and upstream association: swift, .swift-version",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "syncpack",
+      "kind": "file",
+      "materialId": "material:file:syncpack",
+      "vscodeId": "vscode:file:syncpack",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "systemd",
+      "kind": "file",
+      "materialId": "material:file:systemd",
+      "vscodeId": "vscode:file:systemd",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "taskfile",
+      "kind": "file",
+      "materialId": "material:file:taskfile",
+      "vscodeId": "vscode:file:taskfile",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "tauri",
+      "kind": "file",
+      "materialId": "material:file:tauri",
+      "vscodeId": "vscode:file:tauri",
+      "reason": "same icon kind and upstream association: tauri.conf.json, .taurignore",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "tcl",
+      "kind": "file",
+      "materialId": "material:file:tcl",
+      "vscodeId": "vscode:file:tcl",
+      "reason": "same icon kind and upstream association: tcl",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "teal",
+      "kind": "file",
+      "materialId": "material:file:teal",
+      "vscodeId": "vscode:file:teal",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "templ",
+      "kind": "file",
+      "materialId": "material:file:templ",
+      "vscodeId": "vscode:file:templ",
+      "reason": "same icon kind and upstream association: templ",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "terraform",
+      "kind": "file",
+      "materialId": "material:file:terraform",
+      "vscodeId": "vscode:file:terraform",
+      "reason": "same icon kind and upstream association: tf, tf.json, tfvars",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "tex",
+      "kind": "file",
+      "materialId": "material:file:tex",
+      "vscodeId": "vscode:file:tex",
+      "reason": "same icon kind and upstream association: tex, latex, tikz",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "textlint",
+      "kind": "file",
+      "materialId": "material:file:textlint",
+      "vscodeId": "vscode:file:textlint",
+      "reason": "same icon kind and upstream association: .textlintrc, .textlintrc.js, .textlintrc.cjs",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "todo",
+      "kind": "file",
+      "materialId": "material:file:todo",
+      "vscodeId": "vscode:file:todo",
+      "reason": "same icon kind and upstream association: todo",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "toml",
+      "kind": "file",
+      "materialId": "material:file:toml",
+      "vscodeId": "vscode:file:toml",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "toon",
+      "kind": "file",
+      "materialId": "material:file:toon",
+      "vscodeId": "vscode:file:toon",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "travis",
+      "kind": "file",
+      "materialId": "material:file:travis",
+      "vscodeId": "vscode:file:travis",
+      "reason": "same icon kind and upstream association: .travis.yml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "tree",
+      "kind": "file",
+      "materialId": "material:file:tree",
+      "vscodeId": "vscode:file:tree",
+      "reason": "same icon kind and upstream association: tree",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "tsconfig",
+      "kind": "file",
+      "materialId": "material:file:tsconfig",
+      "vscodeId": "vscode:file:tsconfig",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "tsdoc",
+      "kind": "file",
+      "materialId": "material:file:tsdoc",
+      "vscodeId": "vscode:file:tsdoc",
+      "reason": "same icon kind and upstream association: tsdoc.json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "tsdown",
+      "kind": "file",
+      "materialId": "material:file:tsdown",
+      "vscodeId": "vscode:file:tsdown",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "twig",
+      "kind": "file",
+      "materialId": "material:file:twig",
+      "vscodeId": "vscode:file:twig",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "typedoc",
+      "kind": "file",
+      "materialId": "material:file:typedoc",
+      "vscodeId": "vscode:file:typedoc",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "typescript",
+      "kind": "file",
+      "materialId": "material:file:typescript",
+      "vscodeId": "vscode:file:typescript",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "uiua",
+      "kind": "file",
+      "materialId": "material:file:uiua",
+      "vscodeId": "vscode:file:uiua",
+      "reason": "same icon kind and upstream association: ua",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "unlicense",
+      "kind": "file",
+      "materialId": "material:file:unlicense",
+      "vscodeId": "vscode:file:unlicense",
+      "reason": "same icon kind and upstream association: unlicense, unlicense.txt",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "unocss",
+      "kind": "file",
+      "materialId": "material:file:unocss",
+      "vscodeId": "vscode:file:unocss",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "uv",
+      "kind": "file",
+      "materialId": "material:file:uv",
+      "vscodeId": "vscode:file:uv",
+      "reason": "same icon kind and upstream association: uv.toml, uv.lock",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "vagrant",
+      "kind": "file",
+      "materialId": "material:file:vagrant",
+      "vscodeId": "vscode:file:vagrant",
+      "reason": "same icon kind and upstream association: vagrantfile",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "vala",
+      "kind": "file",
+      "materialId": "material:file:vala",
+      "vscodeId": "vscode:file:vala",
+      "reason": "same icon kind and upstream association: vala",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "velocity",
+      "kind": "file",
+      "materialId": "material:file:velocity",
+      "vscodeId": "vscode:file:velocity",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "vercel",
+      "kind": "file",
+      "materialId": "material:file:vercel",
+      "vscodeId": "vscode:file:vercel",
+      "reason": "same icon kind and upstream association: vercel.json, vercel.ts, .vercelignore",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "verilog",
+      "kind": "file",
+      "materialId": "material:file:verilog",
+      "vscodeId": "vscode:file:verilog",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "video",
+      "kind": "file",
+      "materialId": "material:file:video",
+      "vscodeId": "vscode:file:video",
+      "reason": "same icon kind and upstream association: webm, mkv, flv",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "vim",
+      "kind": "file",
+      "materialId": "material:file:vim",
+      "vscodeId": "vscode:file:vim",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "vite",
+      "kind": "file",
+      "materialId": "material:file:vite",
+      "vscodeId": "vscode:file:vite",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "vitest",
+      "kind": "file",
+      "materialId": "material:file:vitest",
+      "vscodeId": "vscode:file:vitest",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "vlang",
+      "kind": "file",
+      "materialId": "material:file:vlang",
+      "vscodeId": "vscode:file:vlang",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "vscode",
+      "kind": "file",
+      "materialId": "material:file:vscode",
+      "vscodeId": "vscode:file:vscode",
+      "reason": "same icon kind and upstream association: code-workspace, code-snippets",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "vue",
+      "kind": "file",
+      "materialId": "material:file:vue",
+      "vscodeId": "vscode:file:vue",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "wallaby",
+      "kind": "file",
+      "materialId": "material:file:wallaby",
+      "vscodeId": "vscode:file:wallaby",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "wally",
+      "kind": "file",
+      "materialId": "material:file:wally",
+      "vscodeId": "vscode:file:wally",
+      "reason": "same icon kind and upstream association: wally.toml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "warp",
+      "kind": "file",
+      "materialId": "material:file:warp",
+      "vscodeId": "vscode:file:warp",
+      "reason": "same icon kind and upstream association: warp.md",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "webpack",
+      "kind": "file",
+      "materialId": "material:file:webpack",
+      "vscodeId": "vscode:file:webpack",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "werf",
+      "kind": "file",
+      "materialId": "material:file:werf",
+      "vscodeId": "vscode:file:werf",
+      "reason": "same icon kind and upstream association: werf.yaml, werf-giterminism.yaml, werf-includes.yaml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "word",
+      "kind": "file",
+      "materialId": "material:file:word",
+      "vscodeId": "vscode:file:word",
+      "reason": "same icon kind and upstream association: doc, docx",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "wxt",
+      "kind": "file",
+      "materialId": "material:file:wxt",
+      "vscodeId": "vscode:file:wxt",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "xaml",
+      "kind": "file",
+      "materialId": "material:file:xaml",
+      "vscodeId": "vscode:file:xaml",
+      "reason": "same icon kind and upstream association: xaml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "xmake",
+      "kind": "file",
+      "materialId": "material:file:xmake",
+      "vscodeId": "vscode:file:xmake",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "xml",
+      "kind": "file",
+      "materialId": "material:file:xml",
+      "vscodeId": "vscode:file:xml",
+      "reason": "same icon kind and upstream association: xml, tmlanguage",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "yaml",
+      "kind": "file",
+      "materialId": "material:file:yaml",
+      "vscodeId": "vscode:file:yaml",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "yang",
+      "kind": "file",
+      "materialId": "material:file:yang",
+      "vscodeId": "vscode:file:yang",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "yarn",
+      "kind": "file",
+      "materialId": "material:file:yarn",
+      "vscodeId": "vscode:file:yarn",
+      "reason": "same icon kind and upstream association: .yarnrc, yarn.lock, .yarnclean",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "zig",
+      "kind": "file",
+      "materialId": "material:file:zig",
+      "vscodeId": "vscode:file:zig",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "zip",
+      "kind": "file",
+      "materialId": "material:file:zip",
+      "vscodeId": "vscode:file:zip",
+      "reason": "same icon kind and upstream association: zip, tar, gz",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "zizmor",
+      "kind": "file",
+      "materialId": "material:file:zizmor",
+      "vscodeId": "vscode:file:zizmor",
+      "reason": "same icon kind and upstream association: zizmor.yml, zizmor.yaml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "android",
+      "kind": "folder",
+      "materialId": "material:folder:folder-android",
+      "vscodeId": "vscode:folder:android",
+      "reason": "same icon kind and upstream association: android",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "angular",
+      "kind": "folder",
+      "materialId": "material:folder:folder-angular",
+      "vscodeId": "vscode:folder:angular",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "api",
+      "kind": "folder",
+      "materialId": "material:folder:folder-api",
+      "vscodeId": "vscode:folder:api",
+      "reason": "same icon kind and upstream association: api, apis",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "app",
+      "kind": "folder",
+      "materialId": "material:folder:folder-app",
+      "vscodeId": "vscode:folder:app",
+      "reason": "same icon kind and upstream association: app, apps, application",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "astro",
+      "kind": "folder",
+      "materialId": "material:folder:folder-astro",
+      "vscodeId": "vscode:folder:astro",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "audio",
+      "kind": "folder",
+      "materialId": "material:folder:folder-audio",
+      "vscodeId": "vscode:folder:audio",
+      "reason": "same icon kind and upstream association: audio, audios, sound",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "aurelia",
+      "kind": "folder",
+      "materialId": "material:folder:folder-aurelia",
+      "vscodeId": "vscode:folder:aurelia",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "aws",
+      "kind": "folder",
+      "materialId": "material:folder:folder-aws",
+      "vscodeId": "vscode:folder:aws",
+      "reason": "same icon kind and upstream association: aws",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "bloc",
+      "kind": "folder",
+      "materialId": "material:folder:folder-bloc",
+      "vscodeId": "vscode:folder:bloc",
+      "reason": "same icon kind and upstream association: bloc, blocs",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "bower",
+      "kind": "folder",
+      "materialId": "material:folder:folder-bower",
+      "vscodeId": "vscode:folder:bower",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "buildkite",
+      "kind": "folder",
+      "materialId": "material:folder:folder-buildkite",
+      "vscodeId": "vscode:folder:buildkite",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "changesets",
+      "kind": "folder",
+      "materialId": "material:folder:folder-changesets",
+      "vscodeId": "vscode:folder:changesets",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "circleci",
+      "kind": "folder",
+      "materialId": "material:folder:folder-circleci",
+      "vscodeId": "vscode:folder:circleci",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "claude",
+      "kind": "folder",
+      "materialId": "material:folder:folder-claude",
+      "vscodeId": "vscode:folder:claude",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "client",
+      "kind": "folder",
+      "materialId": "material:folder:folder-client",
+      "vscodeId": "vscode:folder:client",
+      "reason": "same icon kind and upstream association: client, clients",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "cloudflare",
+      "kind": "folder",
+      "materialId": "material:folder:folder-cloudflare",
+      "vscodeId": "vscode:folder:cloudflare",
+      "reason": "same icon kind and upstream association: cloudflare",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "config",
+      "kind": "folder",
+      "materialId": "material:folder:folder-config",
+      "vscodeId": "vscode:folder:config",
+      "reason": "same icon kind and upstream association: cfg, cfgs, conf",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "controller",
+      "kind": "folder",
+      "materialId": "material:folder:folder-controller",
+      "vscodeId": "vscode:folder:controller",
+      "reason": "same icon kind and upstream association: controller, controllers, handler",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "coverage",
+      "kind": "folder",
+      "materialId": "material:folder:folder-coverage",
+      "vscodeId": "vscode:folder:coverage",
+      "reason": "same icon kind and upstream association: coverage",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "css",
+      "kind": "folder",
+      "materialId": "material:folder:folder-css",
+      "vscodeId": "vscode:folder:css",
+      "reason": "same icon kind and upstream association: css",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "css",
+      "kind": "folder",
+      "materialId": "material:folder:folder-css",
+      "vscodeId": "vscode:folder:css2",
+      "reason": "reviewed alias css2 → css",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "cursor",
+      "kind": "folder",
+      "materialId": "material:folder:folder-cursor",
+      "vscodeId": "vscode:folder:cursor",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "cypress",
+      "kind": "folder",
+      "materialId": "material:folder:folder-cypress",
+      "vscodeId": "vscode:folder:cypress",
+      "reason": "same icon kind and upstream association: cypress",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "dart",
+      "kind": "folder",
+      "materialId": "material:folder:folder-dart",
+      "vscodeId": "vscode:folder:dart",
+      "reason": "same icon kind and upstream association: dart",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "dist",
+      "kind": "folder",
+      "materialId": "material:folder:folder-dist",
+      "vscodeId": "vscode:folder:dist",
+      "reason": "same icon kind and upstream association: dist, out, output",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "docker",
+      "kind": "folder",
+      "materialId": "material:folder:folder-docker",
+      "vscodeId": "vscode:folder:docker",
+      "reason": "same icon kind and upstream association: docker",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "docs",
+      "kind": "folder",
+      "materialId": "material:folder:folder-docs",
+      "vscodeId": "vscode:folder:docs",
+      "reason": "same icon kind and upstream association: doc, docs, document",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "expo",
+      "kind": "folder",
+      "materialId": "material:folder:folder-expo",
+      "vscodeId": "vscode:folder:expo",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "favicon",
+      "kind": "folder",
+      "materialId": "material:folder:folder-favicon",
+      "vscodeId": "vscode:folder:favicon",
+      "reason": "same icon kind and upstream association: favicon, favicons",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "flow",
+      "kind": "folder",
+      "materialId": "material:folder:folder-flow",
+      "vscodeId": "vscode:folder:flow",
+      "reason": "same icon kind and upstream association: flow-typed",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "flutter",
+      "kind": "folder",
+      "materialId": "material:folder:folder-flutter",
+      "vscodeId": "vscode:folder:flutter",
+      "reason": "same icon kind and upstream association: flutter",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "git",
+      "kind": "folder",
+      "materialId": "material:folder:folder-git",
+      "vscodeId": "vscode:folder:git",
+      "reason": "same icon kind and upstream association: submodules",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "github",
+      "kind": "folder",
+      "materialId": "material:folder:folder-github",
+      "vscodeId": "vscode:folder:github",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "gitlab",
+      "kind": "folder",
+      "materialId": "material:folder:folder-gitlab",
+      "vscodeId": "vscode:folder:gitlab",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "godot",
+      "kind": "folder",
+      "materialId": "material:folder:folder-godot",
+      "vscodeId": "vscode:folder:godot",
+      "reason": "same icon kind and upstream association: godot",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "gradle",
+      "kind": "folder",
+      "materialId": "material:folder:folder-gradle",
+      "vscodeId": "vscode:folder:gradle",
+      "reason": "same icon kind and upstream association: gradle",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "graphql",
+      "kind": "folder",
+      "materialId": "material:folder:folder-graphql",
+      "vscodeId": "vscode:folder:graphql",
+      "reason": "same icon kind and upstream association: graphql",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "gulp",
+      "kind": "folder",
+      "materialId": "material:folder:folder-gulp",
+      "vscodeId": "vscode:folder:gulp",
+      "reason": "same icon kind and upstream association: gulp, gulpfile.js, gulpfile.ts",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "helper",
+      "kind": "folder",
+      "materialId": "material:folder:folder-helper",
+      "vscodeId": "vscode:folder:helper",
+      "reason": "same icon kind and upstream association: helpers, helper",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "hook",
+      "kind": "folder",
+      "materialId": "material:folder:folder-hook",
+      "vscodeId": "vscode:folder:hook",
+      "reason": "same icon kind and upstream association: hook, hooks",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "husky",
+      "kind": "folder",
+      "materialId": "material:folder:folder-husky",
+      "vscodeId": "vscode:folder:husky",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "images",
+      "kind": "folder",
+      "materialId": "material:folder:folder-images",
+      "vscodeId": "vscode:folder:images",
+      "reason": "same icon kind and upstream association: images, image, imgs",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "include",
+      "kind": "folder",
+      "materialId": "material:folder:folder-include",
+      "vscodeId": "vscode:folder:include",
+      "reason": "same icon kind and upstream association: inc, include, includes",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "ios",
+      "kind": "folder",
+      "materialId": "material:folder:folder-ios",
+      "vscodeId": "vscode:folder:ios",
+      "reason": "same icon kind and upstream association: ios",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "javascript",
+      "kind": "folder",
+      "materialId": "material:folder:folder-javascript",
+      "vscodeId": "vscode:folder:js",
+      "reason": "reviewed alias js → javascript",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "json",
+      "kind": "folder",
+      "materialId": "material:folder:folder-json",
+      "vscodeId": "vscode:folder:json",
+      "reason": "same icon kind and upstream association: json",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "kotlin",
+      "kind": "folder",
+      "materialId": "material:folder:folder-kotlin",
+      "vscodeId": "vscode:folder:kotlin",
+      "reason": "same icon kind and upstream association: kotlin",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "kubernetes",
+      "kind": "folder",
+      "materialId": "material:folder:folder-kubernetes",
+      "vscodeId": "vscode:folder:kubernetes",
+      "reason": "same icon kind and upstream association: kubernetes, k8s",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "less",
+      "kind": "folder",
+      "materialId": "material:folder:folder-less",
+      "vscodeId": "vscode:folder:less",
+      "reason": "same icon kind and upstream association: less",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "linux",
+      "kind": "folder",
+      "materialId": "material:folder:folder-linux",
+      "vscodeId": "vscode:folder:linux",
+      "reason": "same icon kind and upstream association: linux",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "log",
+      "kind": "folder",
+      "materialId": "material:folder:folder-log",
+      "vscodeId": "vscode:folder:log",
+      "reason": "same icon kind and upstream association: log, logs, logging",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "lua",
+      "kind": "folder",
+      "materialId": "material:folder:folder-lua",
+      "vscodeId": "vscode:folder:lua",
+      "reason": "same icon kind and upstream association: lua",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "macos",
+      "kind": "folder",
+      "materialId": "material:folder:folder-macos",
+      "vscodeId": "vscode:folder:macos",
+      "reason": "same icon kind and upstream association: macos",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "middleware",
+      "kind": "folder",
+      "materialId": "material:folder:folder-middleware",
+      "vscodeId": "vscode:folder:middleware",
+      "reason": "same icon kind and upstream association: middleware, middlewares",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "mjml",
+      "kind": "folder",
+      "materialId": "material:folder:folder-mjml",
+      "vscodeId": "vscode:folder:mjml",
+      "reason": "same icon kind and upstream association: mjml",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "mobile",
+      "kind": "folder",
+      "materialId": "material:folder:folder-mobile",
+      "vscodeId": "vscode:folder:mobile",
+      "reason": "same icon kind and upstream association: mobile, mobiles",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "mock",
+      "kind": "folder",
+      "materialId": "material:folder:folder-mock",
+      "vscodeId": "vscode:folder:mock",
+      "reason": "same icon kind and upstream association: mocks",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "mojo",
+      "kind": "folder",
+      "materialId": "material:folder:folder-mojo",
+      "vscodeId": "vscode:folder:mojo",
+      "reason": "same icon kind and upstream association: mojo",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "netlify",
+      "kind": "folder",
+      "materialId": "material:folder:folder-netlify",
+      "vscodeId": "vscode:folder:netlify",
+      "reason": "same icon kind and upstream association: netlify",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "next",
+      "kind": "folder",
+      "materialId": "material:folder:folder-next",
+      "vscodeId": "vscode:folder:next",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "nginx",
+      "kind": "folder",
+      "materialId": "material:folder:folder-nginx",
+      "vscodeId": "vscode:folder:nginx",
+      "reason": "same icon kind and upstream association: nginx",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "node",
+      "kind": "folder",
+      "materialId": "material:folder:folder-node",
+      "vscodeId": "vscode:folder:node",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "nuxt",
+      "kind": "folder",
+      "materialId": "material:folder:folder-nuxt",
+      "vscodeId": "vscode:folder:nuxt",
+      "reason": "same icon kind and upstream association: nuxt",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "php",
+      "kind": "folder",
+      "materialId": "material:folder:folder-php",
+      "vscodeId": "vscode:folder:php",
+      "reason": "same icon kind and upstream association: php",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "plugin",
+      "kind": "folder",
+      "materialId": "material:folder:folder-plugin",
+      "vscodeId": "vscode:folder:plugin",
+      "reason": "same icon kind and upstream association: plugin, plugins, extension",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "prisma",
+      "kind": "folder",
+      "materialId": "material:folder:folder-prisma",
+      "vscodeId": "vscode:folder:prisma",
+      "reason": "same icon kind and upstream association: prisma",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "private",
+      "kind": "folder",
+      "materialId": "material:folder:folder-private",
+      "vscodeId": "vscode:folder:private",
+      "reason": "same icon kind and upstream association: private",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "public",
+      "kind": "folder",
+      "materialId": "material:folder:folder-public",
+      "vscodeId": "vscode:folder:public",
+      "reason": "same icon kind and upstream association: public",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "python",
+      "kind": "folder",
+      "materialId": "material:folder:folder-python",
+      "vscodeId": "vscode:folder:python",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "sass",
+      "kind": "folder",
+      "materialId": "material:folder:folder-sass",
+      "vscodeId": "vscode:folder:sass",
+      "reason": "same icon kind and upstream association: sass, scss",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "server",
+      "kind": "folder",
+      "materialId": "material:folder:folder-server",
+      "vscodeId": "vscode:folder:server",
+      "reason": "same icon kind and upstream association: server, backend",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "shared",
+      "kind": "folder",
+      "materialId": "material:folder:folder-shared",
+      "vscodeId": "vscode:folder:shared",
+      "reason": "same icon kind and upstream association: shared",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "src",
+      "kind": "folder",
+      "materialId": "material:folder:folder-src",
+      "vscodeId": "vscode:folder:src",
+      "reason": "same icon kind and upstream association: src, source, sources",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "supabase",
+      "kind": "folder",
+      "materialId": "material:folder:folder-supabase",
+      "vscodeId": "vscode:folder:supabase",
+      "reason": "same icon kind and upstream association: supabase",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "svelte",
+      "kind": "folder",
+      "materialId": "material:folder:folder-svelte",
+      "vscodeId": "vscode:folder:svelte",
+      "reason": "same icon kind and upstream association: svelte",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "temp",
+      "kind": "folder",
+      "materialId": "material:folder:folder-temp",
+      "vscodeId": "vscode:folder:temp",
+      "reason": "same icon kind and upstream association: temp, tmp",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "template",
+      "kind": "folder",
+      "materialId": "material:folder:folder-template",
+      "vscodeId": "vscode:folder:template",
+      "reason": "same icon kind and upstream association: template, templates",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "test",
+      "kind": "folder",
+      "materialId": "material:folder:folder-test",
+      "vscodeId": "vscode:folder:test",
+      "reason": "same icon kind and upstream association: test, tests, spec",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "theme",
+      "kind": "folder",
+      "materialId": "material:folder:folder-theme",
+      "vscodeId": "vscode:folder:theme",
+      "reason": "same icon kind and upstream association: themes, theme",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "tools",
+      "kind": "folder",
+      "materialId": "material:folder:folder-tools",
+      "vscodeId": "vscode:folder:tools",
+      "reason": "same icon kind and upstream association: tools, tooling",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "typescript",
+      "kind": "folder",
+      "materialId": "material:folder:folder-typescript",
+      "vscodeId": "vscode:folder:typescript",
+      "reason": "same icon kind and upstream association: typescript, ts",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "vercel",
+      "kind": "folder",
+      "materialId": "material:folder:folder-vercel",
+      "vscodeId": "vscode:folder:vercel",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "video",
+      "kind": "folder",
+      "materialId": "material:folder:folder-video",
+      "vscodeId": "vscode:folder:video",
+      "reason": "same icon kind and upstream association: video, videos",
+      "alternativeAvailable": true
+    },
+    {
+      "concept": "vscode",
+      "kind": "folder",
+      "materialId": "material:folder:folder-vscode",
+      "vscodeId": "vscode:folder:vscode",
+      "reason": "same icon kind and upstream association: vscode",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "webpack",
+      "kind": "folder",
+      "materialId": "material:folder:folder-webpack",
+      "vscodeId": "vscode:folder:webpack",
+      "reason": "same icon kind and upstream association: webpack",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "windows",
+      "kind": "folder",
+      "materialId": "material:folder:folder-windows",
+      "vscodeId": "vscode:folder:windows",
+      "reason": "same icon kind and upstream association: windows, win32",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "yarn",
+      "kind": "folder",
+      "materialId": "material:folder:folder-yarn",
+      "vscodeId": "vscode:folder:yarn",
+      "reason": "same published concept and icon kind; no shared association recorded",
+      "alternativeAvailable": false
+    },
+    {
+      "concept": "zed",
+      "kind": "folder",
+      "materialId": "material:folder:folder-zed",
+      "vscodeId": "vscode:folder:zed",
+      "reason": "same icon kind and upstream association: zed",
+      "alternativeAvailable": false
+    }
+  ],
+  "unmatchedVscode": [
+    {
+      "id": "vscode:file:file",
+      "available": true
+    },
+    {
+      "id": "vscode:file:access",
+      "available": false
+    },
+    {
+      "id": "vscode:file:access2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:actionscript2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:affectscript",
+      "available": false
+    },
+    {
+      "id": "vscode:file:affinity",
+      "available": false
+    },
+    {
+      "id": "vscode:file:affinitydesigner",
+      "available": false
+    },
+    {
+      "id": "vscode:file:affinityphoto",
+      "available": false
+    },
+    {
+      "id": "vscode:file:affinitypublisher",
+      "available": false
+    },
+    {
+      "id": "vscode:file:agda",
+      "available": false
+    },
+    {
+      "id": "vscode:file:agents",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ai",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ai2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:aikido",
+      "available": false
+    },
+    {
+      "id": "vscode:file:al",
+      "available": false
+    },
+    {
+      "id": "vscode:file:al_dal",
+      "available": false
+    },
+    {
+      "id": "vscode:file:alchemy",
+      "available": false
+    },
+    {
+      "id": "vscode:file:allcontributors",
+      "available": false
+    },
+    {
+      "id": "vscode:file:alloy",
+      "available": false
+    },
+    {
+      "id": "vscode:file:allure",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ansible",
+      "available": false
+    },
+    {
+      "id": "vscode:file:antlers_html",
+      "available": false
+    },
+    {
+      "id": "vscode:file:anyscript",
+      "available": false
+    },
+    {
+      "id": "vscode:file:apache",
+      "available": false
+    },
+    {
+      "id": "vscode:file:apex",
+      "available": false
+    },
+    {
+      "id": "vscode:file:api_extractor",
+      "available": false
+    },
+    {
+      "id": "vscode:file:apib",
+      "available": false
+    },
+    {
+      "id": "vscode:file:apl",
+      "available": false
+    },
+    {
+      "id": "vscode:file:appscript",
+      "available": false
+    },
+    {
+      "id": "vscode:file:appsemble",
+      "available": false
+    },
+    {
+      "id": "vscode:file:aseprite",
+      "available": false
+    },
+    {
+      "id": "vscode:file:asp",
+      "available": false
+    },
+    {
+      "id": "vscode:file:aspire",
+      "available": false
+    },
+    {
+      "id": "vscode:file:aspx",
+      "available": false
+    },
+    {
+      "id": "vscode:file:assembly_script",
+      "available": false
+    },
+    {
+      "id": "vscode:file:astroconfig",
+      "available": false
+    },
+    {
+      "id": "vscode:file:asyncapi",
+      "available": false
+    },
+    {
+      "id": "vscode:file:atom",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ats",
+      "available": false
+    },
+    {
+      "id": "vscode:file:attw",
+      "available": false
+    },
+    {
+      "id": "vscode:file:aube",
+      "available": false
+    },
+    {
+      "id": "vscode:file:autohotkey2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:avif",
+      "available": false
+    },
+    {
+      "id": "vscode:file:avro",
+      "available": false
+    },
+    {
+      "id": "vscode:file:awk",
+      "available": false
+    },
+    {
+      "id": "vscode:file:aws",
+      "available": false
+    },
+    {
+      "id": "vscode:file:azurepipelines",
+      "available": false
+    },
+    {
+      "id": "vscode:file:azureresourcemanager",
+      "available": false
+    },
+    {
+      "id": "vscode:file:azurestreamanalytics",
+      "available": false
+    },
+    {
+      "id": "vscode:file:babel2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:bak",
+      "available": false
+    },
+    {
+      "id": "vscode:file:bat",
+      "available": false
+    },
+    {
+      "id": "vscode:file:bats",
+      "available": false
+    },
+    {
+      "id": "vscode:file:bazaar",
+      "available": false
+    },
+    {
+      "id": "vscode:file:bazel_ignore",
+      "available": false
+    },
+    {
+      "id": "vscode:file:bazel_version",
+      "available": false
+    },
+    {
+      "id": "vscode:file:befunge",
+      "available": false
+    },
+    {
+      "id": "vscode:file:behat",
+      "available": false
+    },
+    {
+      "id": "vscode:file:biml",
+      "available": false
+    },
+    {
+      "id": "vscode:file:binary",
+      "available": true
+    },
+    {
+      "id": "vscode:file:bitbucketpipeline",
+      "available": false
+    },
+    {
+      "id": "vscode:file:blade",
+      "available": false
+    },
+    {
+      "id": "vscode:file:blitzbasic",
+      "available": false
+    },
+    {
+      "id": "vscode:file:bolt",
+      "available": false
+    },
+    {
+      "id": "vscode:file:bosque",
+      "available": false
+    },
+    {
+      "id": "vscode:file:brakeman",
+      "available": false
+    },
+    {
+      "id": "vscode:file:brew",
+      "available": false
+    },
+    {
+      "id": "vscode:file:browserslist",
+      "available": false
+    },
+    {
+      "id": "vscode:file:buckbuild",
+      "available": false
+    },
+    {
+      "id": "vscode:file:buf",
+      "available": false
+    },
+    {
+      "id": "vscode:file:bundlemon",
+      "available": false
+    },
+    {
+      "id": "vscode:file:bundler",
+      "available": false
+    },
+    {
+      "id": "vscode:file:bunfig",
+      "available": false
+    },
+    {
+      "id": "vscode:file:c2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:c_al",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cakephp",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cangjie",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cargo",
+      "available": false
+    },
+    {
+      "id": "vscode:file:casc",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cddl",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cdp",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cert",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ceylon",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cf",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cf2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cfc",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cfc2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cfm",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cfm2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:changelogen",
+      "available": false
+    },
+    {
+      "id": "vscode:file:changie",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cheader",
+      "available": false
+    },
+    {
+      "id": "vscode:file:checkov",
+      "available": false
+    },
+    {
+      "id": "vscode:file:chef",
+      "available": false
+    },
+    {
+      "id": "vscode:file:chef_cookbook",
+      "available": false
+    },
+    {
+      "id": "vscode:file:circom",
+      "available": false
+    },
+    {
+      "id": "vscode:file:class",
+      "available": false
+    },
+    {
+      "id": "vscode:file:clojurescript",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cloudflare",
+      "available": false
+    },
+    {
+      "id": "vscode:file:codacy",
+      "available": false
+    },
+    {
+      "id": "vscode:file:codeclimate",
+      "available": false
+    },
+    {
+      "id": "vscode:file:codegen",
+      "available": false
+    },
+    {
+      "id": "vscode:file:codekit",
+      "available": false
+    },
+    {
+      "id": "vscode:file:codemagic",
+      "available": false
+    },
+    {
+      "id": "vscode:file:codeql",
+      "available": false
+    },
+    {
+      "id": "vscode:file:coderabbit",
+      "available": false
+    },
+    {
+      "id": "vscode:file:coffeelint",
+      "available": false
+    },
+    {
+      "id": "vscode:file:coffeescript",
+      "available": false
+    },
+    {
+      "id": "vscode:file:compass",
+      "available": false
+    },
+    {
+      "id": "vscode:file:composer",
+      "available": false
+    },
+    {
+      "id": "vscode:file:conan",
+      "available": false
+    },
+    {
+      "id": "vscode:file:conda",
+      "available": false
+    },
+    {
+      "id": "vscode:file:config",
+      "available": true
+    },
+    {
+      "id": "vscode:file:confluence",
+      "available": false
+    },
+    {
+      "id": "vscode:file:context7",
+      "available": false
+    },
+    {
+      "id": "vscode:file:convex",
+      "available": false
+    },
+    {
+      "id": "vscode:file:coverage",
+      "available": false
+    },
+    {
+      "id": "vscode:file:coveralls",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cpp2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cpp3",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cppheader",
+      "available": false
+    },
+    {
+      "id": "vscode:file:crowdin",
+      "available": false
+    },
+    {
+      "id": "vscode:file:csharp2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cspell",
+      "available": false
+    },
+    {
+      "id": "vscode:file:csproj",
+      "available": false
+    },
+    {
+      "id": "vscode:file:css2map",
+      "available": false
+    },
+    {
+      "id": "vscode:file:csscomb",
+      "available": false
+    },
+    {
+      "id": "vscode:file:csslint",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cssmap",
+      "available": false
+    },
+    {
+      "id": "vscode:file:csv",
+      "available": true
+    },
+    {
+      "id": "vscode:file:cucumberconfig",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cursorrules",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cvs",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cypress_spec",
+      "available": false
+    },
+    {
+      "id": "vscode:file:cython",
+      "available": false
+    },
+    {
+      "id": "vscode:file:dal",
+      "available": false
+    },
+    {
+      "id": "vscode:file:darcs",
+      "available": false
+    },
+    {
+      "id": "vscode:file:dartlang",
+      "available": false
+    },
+    {
+      "id": "vscode:file:dartlang_generated",
+      "available": false
+    },
+    {
+      "id": "vscode:file:dartlang_ignore",
+      "available": false
+    },
+    {
+      "id": "vscode:file:databricks",
+      "available": false
+    },
+    {
+      "id": "vscode:file:datadog",
+      "available": false
+    },
+    {
+      "id": "vscode:file:db",
+      "available": true
+    },
+    {
+      "id": "vscode:file:dbml",
+      "available": false
+    },
+    {
+      "id": "vscode:file:dbt",
+      "available": false
+    },
+    {
+      "id": "vscode:file:dbt_bouncer",
+      "available": false
+    },
+    {
+      "id": "vscode:file:debian",
+      "available": false
+    },
+    {
+      "id": "vscode:file:delphi",
+      "available": false
+    },
+    {
+      "id": "vscode:file:denoify",
+      "available": false
+    },
+    {
+      "id": "vscode:file:dependencies",
+      "available": false
+    },
+    {
+      "id": "vscode:file:design_tokens",
+      "available": false
+    },
+    {
+      "id": "vscode:file:devcontainer",
+      "available": false
+    },
+    {
+      "id": "vscode:file:devenv",
+      "available": false
+    },
+    {
+      "id": "vscode:file:devprune",
+      "available": false
+    },
+    {
+      "id": "vscode:file:devvit",
+      "available": false
+    },
+    {
+      "id": "vscode:file:direnv",
+      "available": false
+    },
+    {
+      "id": "vscode:file:dlang",
+      "available": false
+    },
+    {
+      "id": "vscode:file:dockertest",
+      "available": false
+    },
+    {
+      "id": "vscode:file:dockertest2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:docpad",
+      "available": false
+    },
+    {
+      "id": "vscode:file:docusaurus",
+      "available": false
+    },
+    {
+      "id": "vscode:file:docz",
+      "available": false
+    },
+    {
+      "id": "vscode:file:dojo",
+      "available": false
+    },
+    {
+      "id": "vscode:file:doppler",
+      "available": false
+    },
+    {
+      "id": "vscode:file:dotenv",
+      "available": false
+    },
+    {
+      "id": "vscode:file:doxyfile",
+      "available": false
+    },
+    {
+      "id": "vscode:file:doxygen",
+      "available": false
+    },
+    {
+      "id": "vscode:file:drizzle_orm",
+      "available": false
+    },
+    {
+      "id": "vscode:file:drools",
+      "available": false
+    },
+    {
+      "id": "vscode:file:dtd",
+      "available": false
+    },
+    {
+      "id": "vscode:file:duckdb",
+      "available": false
+    },
+    {
+      "id": "vscode:file:dustjs",
+      "available": false
+    },
+    {
+      "id": "vscode:file:dvc",
+      "available": false
+    },
+    {
+      "id": "vscode:file:dylan",
+      "available": false
+    },
+    {
+      "id": "vscode:file:earthly",
+      "available": false
+    },
+    {
+      "id": "vscode:file:eas-metadata",
+      "available": false
+    },
+    {
+      "id": "vscode:file:edge2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:eex",
+      "available": false
+    },
+    {
+      "id": "vscode:file:elastic",
+      "available": false
+    },
+    {
+      "id": "vscode:file:elasticbeanstalk",
+      "available": false
+    },
+    {
+      "id": "vscode:file:electron",
+      "available": false
+    },
+    {
+      "id": "vscode:file:eleventy",
+      "available": false
+    },
+    {
+      "id": "vscode:file:eleventy2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:elm2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:emacs",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ensime",
+      "available": false
+    },
+    {
+      "id": "vscode:file:eps",
+      "available": false
+    },
+    {
+      "id": "vscode:file:erb",
+      "available": false
+    },
+    {
+      "id": "vscode:file:erlang2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:eslint2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:esphome",
+      "available": false
+    },
+    {
+      "id": "vscode:file:excel",
+      "available": false
+    },
+    {
+      "id": "vscode:file:excel2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:falcon",
+      "available": false
+    },
+    {
+      "id": "vscode:file:fallow",
+      "available": false
+    },
+    {
+      "id": "vscode:file:fantasticon",
+      "available": false
+    },
+    {
+      "id": "vscode:file:fastly",
+      "available": false
+    },
+    {
+      "id": "vscode:file:fauna",
+      "available": false
+    },
+    {
+      "id": "vscode:file:fbx",
+      "available": false
+    },
+    {
+      "id": "vscode:file:firebasehosting",
+      "available": false
+    },
+    {
+      "id": "vscode:file:firebasestorage",
+      "available": false
+    },
+    {
+      "id": "vscode:file:firestore",
+      "available": false
+    },
+    {
+      "id": "vscode:file:fitbit",
+      "available": false
+    },
+    {
+      "id": "vscode:file:fla",
+      "available": false
+    },
+    {
+      "id": "vscode:file:flareact",
+      "available": false
+    },
+    {
+      "id": "vscode:file:flatbuffers",
+      "available": false
+    },
+    {
+      "id": "vscode:file:fleet",
+      "available": false
+    },
+    {
+      "id": "vscode:file:floobits",
+      "available": false
+    },
+    {
+      "id": "vscode:file:flowgorithm",
+      "available": false
+    },
+    {
+      "id": "vscode:file:flue",
+      "available": false
+    },
+    {
+      "id": "vscode:file:flutter",
+      "available": false
+    },
+    {
+      "id": "vscode:file:flutter_package",
+      "available": false
+    },
+    {
+      "id": "vscode:file:flyio",
+      "available": false
+    },
+    {
+      "id": "vscode:file:fnox",
+      "available": false
+    },
+    {
+      "id": "vscode:file:formkit",
+      "available": false
+    },
+    {
+      "id": "vscode:file:fossa",
+      "available": false
+    },
+    {
+      "id": "vscode:file:fossil",
+      "available": false
+    },
+    {
+      "id": "vscode:file:fresh",
+      "available": false
+    },
+    {
+      "id": "vscode:file:fritzing",
+      "available": false
+    },
+    {
+      "id": "vscode:file:frontcommerce",
+      "available": false
+    },
+    {
+      "id": "vscode:file:fsproj",
+      "available": false
+    },
+    {
+      "id": "vscode:file:fthtml",
+      "available": false
+    },
+    {
+      "id": "vscode:file:funding",
+      "available": false
+    },
+    {
+      "id": "vscode:file:galen",
+      "available": false
+    },
+    {
+      "id": "vscode:file:galen2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:gamemaker2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:gamemaker81",
+      "available": false
+    },
+    {
+      "id": "vscode:file:gcloud",
+      "available": false
+    },
+    {
+      "id": "vscode:file:gcode",
+      "available": false
+    },
+    {
+      "id": "vscode:file:gdscript",
+      "available": false
+    },
+    {
+      "id": "vscode:file:gduid",
+      "available": false
+    },
+    {
+      "id": "vscode:file:genstat",
+      "available": false
+    },
+    {
+      "id": "vscode:file:geojson",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ghidra",
+      "available": false
+    },
+    {
+      "id": "vscode:file:gimp",
+      "available": false
+    },
+    {
+      "id": "vscode:file:gleamconfig",
+      "available": false
+    },
+    {
+      "id": "vscode:file:glide",
+      "available": false
+    },
+    {
+      "id": "vscode:file:glimmer",
+      "available": false
+    },
+    {
+      "id": "vscode:file:glitter",
+      "available": false
+    },
+    {
+      "id": "vscode:file:glsl",
+      "available": false
+    },
+    {
+      "id": "vscode:file:gltf",
+      "available": false
+    },
+    {
+      "id": "vscode:file:glyphs",
+      "available": false
+    },
+    {
+      "id": "vscode:file:gnu",
+      "available": false
+    },
+    {
+      "id": "vscode:file:go_package",
+      "available": false
+    },
+    {
+      "id": "vscode:file:go_work",
+      "available": false
+    },
+    {
+      "id": "vscode:file:goctl",
+      "available": false
+    },
+    {
+      "id": "vscode:file:golangci",
+      "available": false
+    },
+    {
+      "id": "vscode:file:gpg",
+      "available": false
+    },
+    {
+      "id": "vscode:file:gradle2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:graphql_config",
+      "available": false
+    },
+    {
+      "id": "vscode:file:graphviz",
+      "available": false
+    },
+    {
+      "id": "vscode:file:greenkeeper",
+      "available": false
+    },
+    {
+      "id": "vscode:file:grit",
+      "available": false
+    },
+    {
+      "id": "vscode:file:grok",
+      "available": false
+    },
+    {
+      "id": "vscode:file:groovy2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:handlebars2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:harbour",
+      "available": false
+    },
+    {
+      "id": "vscode:file:hashicorp",
+      "available": false
+    },
+    {
+      "id": "vscode:file:haskell2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:haxecheckstyle",
+      "available": false
+    },
+    {
+      "id": "vscode:file:haxedevelop",
+      "available": false
+    },
+    {
+      "id": "vscode:file:helix",
+      "available": false
+    },
+    {
+      "id": "vscode:file:hlsl",
+      "available": false
+    },
+    {
+      "id": "vscode:file:homeassistant",
+      "available": false
+    },
+    {
+      "id": "vscode:file:host",
+      "available": false
+    },
+    {
+      "id": "vscode:file:htmlhint",
+      "available": false
+    },
+    {
+      "id": "vscode:file:htmlvalidate",
+      "available": false
+    },
+    {
+      "id": "vscode:file:hugo",
+      "available": false
+    },
+    {
+      "id": "vscode:file:humanstxt",
+      "available": false
+    },
+    {
+      "id": "vscode:file:hunspell",
+      "available": false
+    },
+    {
+      "id": "vscode:file:hy",
+      "available": false
+    },
+    {
+      "id": "vscode:file:hygen",
+      "available": false
+    },
+    {
+      "id": "vscode:file:hypr",
+      "available": false
+    },
+    {
+      "id": "vscode:file:icl",
+      "available": false
+    },
+    {
+      "id": "vscode:file:idrisbin",
+      "available": false
+    },
+    {
+      "id": "vscode:file:idrispkg",
+      "available": false
+    },
+    {
+      "id": "vscode:file:imgbot",
+      "available": false
+    },
+    {
+      "id": "vscode:file:inc",
+      "available": false
+    },
+    {
+      "id": "vscode:file:infopath",
+      "available": false
+    },
+    {
+      "id": "vscode:file:informix",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ini",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ink",
+      "available": false
+    },
+    {
+      "id": "vscode:file:innosetup",
+      "available": false
+    },
+    {
+      "id": "vscode:file:io",
+      "available": false
+    },
+    {
+      "id": "vscode:file:iodine",
+      "available": false
+    },
+    {
+      "id": "vscode:file:jake",
+      "available": false
+    },
+    {
+      "id": "vscode:file:janet",
+      "available": false
+    },
+    {
+      "id": "vscode:file:jasmine",
+      "available": false
+    },
+    {
+      "id": "vscode:file:jbuilder",
+      "available": false
+    },
+    {
+      "id": "vscode:file:jekyll",
+      "available": false
+    },
+    {
+      "id": "vscode:file:jest_snapshot",
+      "available": false
+    },
+    {
+      "id": "vscode:file:jetbrains",
+      "available": false
+    },
+    {
+      "id": "vscode:file:jitpack",
+      "available": false
+    },
+    {
+      "id": "vscode:file:jpm",
+      "available": false
+    },
+    {
+      "id": "vscode:file:js_official",
+      "available": false
+    },
+    {
+      "id": "vscode:file:jsbeautify",
+      "available": false
+    },
+    {
+      "id": "vscode:file:jscpd",
+      "available": false
+    },
+    {
+      "id": "vscode:file:jshint",
+      "available": false
+    },
+    {
+      "id": "vscode:file:jsmap",
+      "available": false
+    },
+    {
+      "id": "vscode:file:json2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:json5",
+      "available": false
+    },
+    {
+      "id": "vscode:file:json_official",
+      "available": false
+    },
+    {
+      "id": "vscode:file:jsonld",
+      "available": false
+    },
+    {
+      "id": "vscode:file:jsonnet",
+      "available": false
+    },
+    {
+      "id": "vscode:file:jsp",
+      "available": false
+    },
+    {
+      "id": "vscode:file:jss",
+      "available": false
+    },
+    {
+      "id": "vscode:file:juice",
+      "available": false
+    },
+    {
+      "id": "vscode:file:julia2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:k",
+      "available": false
+    },
+    {
+      "id": "vscode:file:kitchenci",
+      "available": false
+    },
+    {
+      "id": "vscode:file:kite",
+      "available": false
+    },
+    {
+      "id": "vscode:file:knex",
+      "available": false
+    },
+    {
+      "id": "vscode:file:kodiak",
+      "available": false
+    },
+    {
+      "id": "vscode:file:kos",
+      "available": false
+    },
+    {
+      "id": "vscode:file:krita",
+      "available": false
+    },
+    {
+      "id": "vscode:file:kysely",
+      "available": false
+    },
+    {
+      "id": "vscode:file:language_configuration",
+      "available": false
+    },
+    {
+      "id": "vscode:file:lark",
+      "available": false
+    },
+    {
+      "id": "vscode:file:latino",
+      "available": false
+    },
+    {
+      "id": "vscode:file:layout",
+      "available": false
+    },
+    {
+      "id": "vscode:file:leanconfig",
+      "available": false
+    },
+    {
+      "id": "vscode:file:lemon",
+      "available": false
+    },
+    {
+      "id": "vscode:file:lex",
+      "available": false
+    },
+    {
+      "id": "vscode:file:libreoffice_base",
+      "available": false
+    },
+    {
+      "id": "vscode:file:libreoffice_calc",
+      "available": false
+    },
+    {
+      "id": "vscode:file:libreoffice_draw",
+      "available": false
+    },
+    {
+      "id": "vscode:file:libreoffice_impress",
+      "available": false
+    },
+    {
+      "id": "vscode:file:libreoffice_math",
+      "available": false
+    },
+    {
+      "id": "vscode:file:libreoffice_writer",
+      "available": false
+    },
+    {
+      "id": "vscode:file:licensebat",
+      "available": false
+    },
+    {
+      "id": "vscode:file:lime",
+      "available": false
+    },
+    {
+      "id": "vscode:file:lintstagedrc",
+      "available": false
+    },
+    {
+      "id": "vscode:file:livekit",
+      "available": false
+    },
+    {
+      "id": "vscode:file:lnk",
+      "available": false
+    },
+    {
+      "id": "vscode:file:locale",
+      "available": false
+    },
+    {
+      "id": "vscode:file:lsl",
+      "available": false
+    },
+    {
+      "id": "vscode:file:lychee",
+      "available": false
+    },
+    {
+      "id": "vscode:file:lync",
+      "available": false
+    },
+    {
+      "id": "vscode:file:madge",
+      "available": false
+    },
+    {
+      "id": "vscode:file:mailing",
+      "available": false
+    },
+    {
+      "id": "vscode:file:manifest",
+      "available": false
+    },
+    {
+      "id": "vscode:file:manifest_bak",
+      "available": false
+    },
+    {
+      "id": "vscode:file:manifest_skip",
+      "available": false
+    },
+    {
+      "id": "vscode:file:map",
+      "available": false
+    },
+    {
+      "id": "vscode:file:markdownlint_ignore",
+      "available": false
+    },
+    {
+      "id": "vscode:file:marko",
+      "available": false
+    },
+    {
+      "id": "vscode:file:markuplint",
+      "available": false
+    },
+    {
+      "id": "vscode:file:master-co",
+      "available": false
+    },
+    {
+      "id": "vscode:file:maxscript",
+      "available": false
+    },
+    {
+      "id": "vscode:file:maya",
+      "available": false
+    },
+    {
+      "id": "vscode:file:mcp",
+      "available": false
+    },
+    {
+      "id": "vscode:file:mdx-components",
+      "available": false
+    },
+    {
+      "id": "vscode:file:mdxlint",
+      "available": false
+    },
+    {
+      "id": "vscode:file:mediawiki",
+      "available": false
+    },
+    {
+      "id": "vscode:file:metal",
+      "available": false
+    },
+    {
+      "id": "vscode:file:meteor",
+      "available": false
+    },
+    {
+      "id": "vscode:file:mikro_orm",
+      "available": false
+    },
+    {
+      "id": "vscode:file:mise",
+      "available": false
+    },
+    {
+      "id": "vscode:file:mivascript",
+      "available": false
+    },
+    {
+      "id": "vscode:file:mlang",
+      "available": false
+    },
+    {
+      "id": "vscode:file:modernjs",
+      "available": false
+    },
+    {
+      "id": "vscode:file:mojolicious",
+      "available": false
+    },
+    {
+      "id": "vscode:file:moleculer",
+      "available": false
+    },
+    {
+      "id": "vscode:file:mondoo",
+      "available": false
+    },
+    {
+      "id": "vscode:file:mongo",
+      "available": false
+    },
+    {
+      "id": "vscode:file:moniq",
+      "available": false
+    },
+    {
+      "id": "vscode:file:monotone",
+      "available": false
+    },
+    {
+      "id": "vscode:file:motif",
+      "available": false
+    },
+    {
+      "id": "vscode:file:mson",
+      "available": false
+    },
+    {
+      "id": "vscode:file:msw",
+      "available": false
+    },
+    {
+      "id": "vscode:file:mustache",
+      "available": false
+    },
+    {
+      "id": "vscode:file:mvt",
+      "available": false
+    },
+    {
+      "id": "vscode:file:mvtcss",
+      "available": false
+    },
+    {
+      "id": "vscode:file:mvtjs",
+      "available": false
+    },
+    {
+      "id": "vscode:file:mypy",
+      "available": false
+    },
+    {
+      "id": "vscode:file:n64",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nanostaged",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nearly",
+      "available": false
+    },
+    {
+      "id": "vscode:file:neo4j",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_adapter_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_adapter_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_controller_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_controller_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_decorator_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_decorator_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_filter_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_filter_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_gateway_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_gateway_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_guard_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_guard_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_interceptor_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_interceptor_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_middleware_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_middleware_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_module_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_module_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_pipe_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_pipe_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_service_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nest_service_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nestjs",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nextest",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng-packagr",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_component_dart",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_component_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_component_js2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_component_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_component_ts2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_controller_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_controller_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_directive_dart",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_directive_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_directive_js2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_directive_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_directive_ts2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_guard_dart",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_guard_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_guard_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_interceptor_dart",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_interceptor_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_interceptor_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_module_dart",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_module_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_module_js2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_module_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_module_ts2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_pipe_dart",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_pipe_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_pipe_js2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_pipe_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_pipe_ts2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_routing_dart",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_routing_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_routing_js2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_routing_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_routing_ts2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_service_dart",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_service_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_service_js2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_service_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_service_ts2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_smart_component_dart",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_smart_component_js",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_smart_component_js2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_smart_component_ts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_smart_component_ts2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ng_tailwind",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nimble",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ninja",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nitro",
+      "available": false
+    },
+    {
+      "id": "vscode:file:njsproj",
+      "available": false
+    },
+    {
+      "id": "vscode:file:noc",
+      "available": false
+    },
+    {
+      "id": "vscode:file:node",
+      "available": false
+    },
+    {
+      "id": "vscode:file:node2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:noir",
+      "available": false
+    },
+    {
+      "id": "vscode:file:npmpackagejsonlint",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nsi",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nsri",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nsri-integrity",
+      "available": false
+    },
+    {
+      "id": "vscode:file:numpy",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nushell",
+      "available": false
+    },
+    {
+      "id": "vscode:file:nyc",
+      "available": false
+    },
+    {
+      "id": "vscode:file:objectivec",
+      "available": false
+    },
+    {
+      "id": "vscode:file:objectivecpp",
+      "available": false
+    },
+    {
+      "id": "vscode:file:objidconfig",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ocaml_intf",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ocx",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ogone",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ohpm",
+      "available": false
+    },
+    {
+      "id": "vscode:file:onenote",
+      "available": false
+    },
+    {
+      "id": "vscode:file:openHAB",
+      "available": false
+    },
+    {
+      "id": "vscode:file:opencl",
+      "available": false
+    },
+    {
+      "id": "vscode:file:openscad",
+      "available": false
+    },
+    {
+      "id": "vscode:file:org",
+      "available": false
+    },
+    {
+      "id": "vscode:file:orval",
+      "available": false
+    },
+    {
+      "id": "vscode:file:outlook",
+      "available": false
+    },
+    {
+      "id": "vscode:file:overcommit",
+      "available": false
+    },
+    {
+      "id": "vscode:file:overmind",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ovpn",
+      "available": false
+    },
+    {
+      "id": "vscode:file:package",
+      "available": true
+    },
+    {
+      "id": "vscode:file:packer",
+      "available": false
+    },
+    {
+      "id": "vscode:file:paket",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pandacss",
+      "available": false
+    },
+    {
+      "id": "vscode:file:parquet",
+      "available": false
+    },
+    {
+      "id": "vscode:file:patch",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pcl",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pddl",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pddl_happenings",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pddl_plan",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pdf2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:peeky",
+      "available": false
+    },
+    {
+      "id": "vscode:file:perl2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:perl6",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pgsql",
+      "available": false
+    },
+    {
+      "id": "vscode:file:photoshop",
+      "available": false
+    },
+    {
+      "id": "vscode:file:photoshop2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:php2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:php3",
+      "available": false
+    },
+    {
+      "id": "vscode:file:phpcsfixer",
+      "available": false
+    },
+    {
+      "id": "vscode:file:phraseapp",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pine",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pip",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pixi",
+      "available": false
+    },
+    {
+      "id": "vscode:file:plantuml",
+      "available": false
+    },
+    {
+      "id": "vscode:file:platformatic",
+      "available": false
+    },
+    {
+      "id": "vscode:file:platformio",
+      "available": false
+    },
+    {
+      "id": "vscode:file:plsql",
+      "available": false
+    },
+    {
+      "id": "vscode:file:plsql_package",
+      "available": false
+    },
+    {
+      "id": "vscode:file:plsql_package_body",
+      "available": false
+    },
+    {
+      "id": "vscode:file:plsql_package_header",
+      "available": false
+    },
+    {
+      "id": "vscode:file:plsql_package_spec",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pm2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:poedit",
+      "available": false
+    },
+    {
+      "id": "vscode:file:polyglot",
+      "available": false
+    },
+    {
+      "id": "vscode:file:polymer",
+      "available": false
+    },
+    {
+      "id": "vscode:file:poml",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pony",
+      "available": false
+    },
+    {
+      "id": "vscode:file:postcssconfig",
+      "available": false
+    },
+    {
+      "id": "vscode:file:postman",
+      "available": false
+    },
+    {
+      "id": "vscode:file:postscript",
+      "available": false
+    },
+    {
+      "id": "vscode:file:powerbi",
+      "available": false
+    },
+    {
+      "id": "vscode:file:powerpoint2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:powershell2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:powershell_format",
+      "available": false
+    },
+    {
+      "id": "vscode:file:powershell_psd",
+      "available": false
+    },
+    {
+      "id": "vscode:file:powershell_psd2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:powershell_psm",
+      "available": false
+    },
+    {
+      "id": "vscode:file:powershell_psm2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:powershell_types",
+      "available": false
+    },
+    {
+      "id": "vscode:file:preact",
+      "available": false
+    },
+    {
+      "id": "vscode:file:precommit",
+      "available": false
+    },
+    {
+      "id": "vscode:file:prefect",
+      "available": false
+    },
+    {
+      "id": "vscode:file:prismaconfig",
+      "available": false
+    },
+    {
+      "id": "vscode:file:processinglang",
+      "available": false
+    },
+    {
+      "id": "vscode:file:procfile",
+      "available": false
+    },
+    {
+      "id": "vscode:file:progress",
+      "available": false
+    },
+    {
+      "id": "vscode:file:prometheus",
+      "available": false
+    },
+    {
+      "id": "vscode:file:proteus",
+      "available": false
+    },
+    {
+      "id": "vscode:file:protobuf",
+      "available": false
+    },
+    {
+      "id": "vscode:file:publiccode",
+      "available": false
+    },
+    {
+      "id": "vscode:file:publisher",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pulumi",
+      "available": false
+    },
+    {
+      "id": "vscode:file:purgecss",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pyenv",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pyinstaller",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pypi",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pyrefly",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pyret",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pyscript",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pytest",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pythonconfig",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pythowo",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pytyped",
+      "available": false
+    },
+    {
+      "id": "vscode:file:pyup",
+      "available": false
+    },
+    {
+      "id": "vscode:file:q",
+      "available": false
+    },
+    {
+      "id": "vscode:file:qbs",
+      "available": false
+    },
+    {
+      "id": "vscode:file:qlikview",
+      "available": false
+    },
+    {
+      "id": "vscode:file:qml",
+      "available": false
+    },
+    {
+      "id": "vscode:file:qmldir",
+      "available": false
+    },
+    {
+      "id": "vscode:file:qrc",
+      "available": false
+    },
+    {
+      "id": "vscode:file:quarkdown",
+      "available": false
+    },
+    {
+      "id": "vscode:file:quartoconfig",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ra_syntax_tree",
+      "available": false
+    },
+    {
+      "id": "vscode:file:rails",
+      "available": false
+    },
+    {
+      "id": "vscode:file:railway",
+      "available": false
+    },
+    {
+      "id": "vscode:file:rake",
+      "available": false
+    },
+    {
+      "id": "vscode:file:raku",
+      "available": false
+    },
+    {
+      "id": "vscode:file:razzle",
+      "available": false
+    },
+    {
+      "id": "vscode:file:reactjs_official",
+      "available": false
+    },
+    {
+      "id": "vscode:file:reactrouter",
+      "available": false
+    },
+    {
+      "id": "vscode:file:reacttemplate",
+      "available": false
+    },
+    {
+      "id": "vscode:file:reactts_official",
+      "available": false
+    },
+    {
+      "id": "vscode:file:readthedocs",
+      "available": false
+    },
+    {
+      "id": "vscode:file:rector",
+      "available": false
+    },
+    {
+      "id": "vscode:file:registry",
+      "available": false
+    },
+    {
+      "id": "vscode:file:rego",
+      "available": false
+    },
+    {
+      "id": "vscode:file:rehype",
+      "available": false
+    },
+    {
+      "id": "vscode:file:relay",
+      "available": false
+    },
+    {
+      "id": "vscode:file:render",
+      "available": false
+    },
+    {
+      "id": "vscode:file:rest",
+      "available": false
+    },
+    {
+      "id": "vscode:file:retext",
+      "available": false
+    },
+    {
+      "id": "vscode:file:reuse",
+      "available": false
+    },
+    {
+      "id": "vscode:file:rexx",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ripple",
+      "available": false
+    },
+    {
+      "id": "vscode:file:rmd",
+      "available": false
+    },
+    {
+      "id": "vscode:file:rnc",
+      "available": false
+    },
+    {
+      "id": "vscode:file:robocop",
+      "available": false
+    },
+    {
+      "id": "vscode:file:robotcode",
+      "available": false
+    },
+    {
+      "id": "vscode:file:robotframework",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ron",
+      "available": false
+    },
+    {
+      "id": "vscode:file:rproj",
+      "available": false
+    },
+    {
+      "id": "vscode:file:rspack",
+      "available": false
+    },
+    {
+      "id": "vscode:file:rss",
+      "available": false
+    },
+    {
+      "id": "vscode:file:rust_toolchain",
+      "available": false
+    },
+    {
+      "id": "vscode:file:s-lang",
+      "available": false
+    },
+    {
+      "id": "vscode:file:safetensors",
+      "available": false
+    },
+    {
+      "id": "vscode:file:sails",
+      "available": false
+    },
+    {
+      "id": "vscode:file:saltstack",
+      "available": false
+    },
+    {
+      "id": "vscode:file:sapphire_framework_cli",
+      "available": false
+    },
+    {
+      "id": "vscode:file:scilab",
+      "available": false
+    },
+    {
+      "id": "vscode:file:script",
+      "available": true
+    },
+    {
+      "id": "vscode:file:scss",
+      "available": false
+    },
+    {
+      "id": "vscode:file:sdlang",
+      "available": false
+    },
+    {
+      "id": "vscode:file:search_result",
+      "available": false
+    },
+    {
+      "id": "vscode:file:seedkit",
+      "available": false
+    },
+    {
+      "id": "vscode:file:semanticrelease",
+      "available": false
+    },
+    {
+      "id": "vscode:file:shadcn",
+      "available": false
+    },
+    {
+      "id": "vscode:file:shaderlab",
+      "available": false
+    },
+    {
+      "id": "vscode:file:shaderslang",
+      "available": false
+    },
+    {
+      "id": "vscode:file:shell",
+      "available": true
+    },
+    {
+      "id": "vscode:file:shuttle",
+      "available": false
+    },
+    {
+      "id": "vscode:file:sino",
+      "available": false
+    },
+    {
+      "id": "vscode:file:sitemap",
+      "available": false
+    },
+    {
+      "id": "vscode:file:skipper",
+      "available": false
+    },
+    {
+      "id": "vscode:file:slangacademic",
+      "available": false
+    },
+    {
+      "id": "vscode:file:slashup",
+      "available": false
+    },
+    {
+      "id": "vscode:file:slice",
+      "available": false
+    },
+    {
+      "id": "vscode:file:sln",
+      "available": false
+    },
+    {
+      "id": "vscode:file:sln2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:smithery",
+      "available": false
+    },
+    {
+      "id": "vscode:file:smolmachine",
+      "available": false
+    },
+    {
+      "id": "vscode:file:snaplet",
+      "available": false
+    },
+    {
+      "id": "vscode:file:snort",
+      "available": false
+    },
+    {
+      "id": "vscode:file:solidarity",
+      "available": false
+    },
+    {
+      "id": "vscode:file:source",
+      "available": true
+    },
+    {
+      "id": "vscode:file:spacengine",
+      "available": false
+    },
+    {
+      "id": "vscode:file:sparql",
+      "available": false
+    },
+    {
+      "id": "vscode:file:spin",
+      "available": false
+    },
+    {
+      "id": "vscode:file:sqf",
+      "available": false
+    },
+    {
+      "id": "vscode:file:sql",
+      "available": false
+    },
+    {
+      "id": "vscode:file:sqlite",
+      "available": false
+    },
+    {
+      "id": "vscode:file:sqlproj",
+      "available": false
+    },
+    {
+      "id": "vscode:file:squirrel",
+      "available": false
+    },
+    {
+      "id": "vscode:file:sss",
+      "available": false
+    },
+    {
+      "id": "vscode:file:sst",
+      "available": false
+    },
+    {
+      "id": "vscode:file:stata",
+      "available": false
+    },
+    {
+      "id": "vscode:file:storyboard",
+      "available": false
+    },
+    {
+      "id": "vscode:file:style",
+      "available": false
+    },
+    {
+      "id": "vscode:file:styleci",
+      "available": false
+    },
+    {
+      "id": "vscode:file:styled",
+      "available": false
+    },
+    {
+      "id": "vscode:file:stylish_haskell",
+      "available": false
+    },
+    {
+      "id": "vscode:file:subversion",
+      "available": false
+    },
+    {
+      "id": "vscode:file:svelteconfig",
+      "available": false
+    },
+    {
+      "id": "vscode:file:svglint",
+      "available": false
+    },
+    {
+      "id": "vscode:file:swig",
+      "available": false
+    },
+    {
+      "id": "vscode:file:symfony",
+      "available": false
+    },
+    {
+      "id": "vscode:file:systemverilog",
+      "available": false
+    },
+    {
+      "id": "vscode:file:t4tt",
+      "available": false
+    },
+    {
+      "id": "vscode:file:tablegen",
+      "available": false
+    },
+    {
+      "id": "vscode:file:tailwind",
+      "available": false
+    },
+    {
+      "id": "vscode:file:tamagui",
+      "available": false
+    },
+    {
+      "id": "vscode:file:taplo",
+      "available": false
+    },
+    {
+      "id": "vscode:file:tasks_json",
+      "available": false
+    },
+    {
+      "id": "vscode:file:tera",
+      "available": false
+    },
+    {
+      "id": "vscode:file:test",
+      "available": true
+    },
+    {
+      "id": "vscode:file:testcafe",
+      "available": false
+    },
+    {
+      "id": "vscode:file:testjs",
+      "available": false
+    },
+    {
+      "id": "vscode:file:testplane",
+      "available": false
+    },
+    {
+      "id": "vscode:file:testts",
+      "available": false
+    },
+    {
+      "id": "vscode:file:text",
+      "available": true
+    },
+    {
+      "id": "vscode:file:textile",
+      "available": false
+    },
+    {
+      "id": "vscode:file:tfs",
+      "available": false
+    },
+    {
+      "id": "vscode:file:thinkscript",
+      "available": false
+    },
+    {
+      "id": "vscode:file:tiltfile",
+      "available": false
+    },
+    {
+      "id": "vscode:file:tm",
+      "available": false
+    },
+    {
+      "id": "vscode:file:tmux",
+      "available": false
+    },
+    {
+      "id": "vscode:file:toit",
+      "available": false
+    },
+    {
+      "id": "vscode:file:tombi",
+      "available": false
+    },
+    {
+      "id": "vscode:file:tox",
+      "available": false
+    },
+    {
+      "id": "vscode:file:tres",
+      "available": false
+    },
+    {
+      "id": "vscode:file:trivy",
+      "available": false
+    },
+    {
+      "id": "vscode:file:truffle",
+      "available": false
+    },
+    {
+      "id": "vscode:file:trunk",
+      "available": false
+    },
+    {
+      "id": "vscode:file:tsbuildinfo",
+      "available": false
+    },
+    {
+      "id": "vscode:file:tscn",
+      "available": false
+    },
+    {
+      "id": "vscode:file:tsconfig_official",
+      "available": false
+    },
+    {
+      "id": "vscode:file:tslint",
+      "available": false
+    },
+    {
+      "id": "vscode:file:tt",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ttcn",
+      "available": false
+    },
+    {
+      "id": "vscode:file:tuc",
+      "available": false
+    },
+    {
+      "id": "vscode:file:turbo",
+      "available": false
+    },
+    {
+      "id": "vscode:file:ty",
+      "available": false
+    },
+    {
+      "id": "vscode:file:typescript_official",
+      "available": false
+    },
+    {
+      "id": "vscode:file:typescriptdef",
+      "available": false
+    },
+    {
+      "id": "vscode:file:typescriptdef_official",
+      "available": false
+    },
+    {
+      "id": "vscode:file:typo3",
+      "available": false
+    },
+    {
+      "id": "vscode:file:unibeautify",
+      "available": false
+    },
+    {
+      "id": "vscode:file:unison",
+      "available": false
+    },
+    {
+      "id": "vscode:file:uvue",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vale",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vanilla_extract",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vapi",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vapor",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vash",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vb",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vba",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vbhtml",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vbproj",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vcxproj",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vento",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vhdl",
+      "available": false
+    },
+    {
+      "id": "vscode:file:view",
+      "available": false
+    },
+    {
+      "id": "vscode:file:viteplus",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vlt",
+      "available": false
+    },
+    {
+      "id": "vscode:file:volt",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vroom",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vscode-insiders",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vscode2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vscode3",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vscode_test",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vsix",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vsixmanifest",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vueconfig",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vvvvvv",
+      "available": false
+    },
+    {
+      "id": "vscode:file:vyper",
+      "available": false
+    },
+    {
+      "id": "vscode:file:wasm",
+      "available": false
+    },
+    {
+      "id": "vscode:file:wasp",
+      "available": false
+    },
+    {
+      "id": "vscode:file:watchmanconfig",
+      "available": false
+    },
+    {
+      "id": "vscode:file:wdio",
+      "available": false
+    },
+    {
+      "id": "vscode:file:weblate",
+      "available": false
+    },
+    {
+      "id": "vscode:file:wenyan",
+      "available": false
+    },
+    {
+      "id": "vscode:file:wercker",
+      "available": false
+    },
+    {
+      "id": "vscode:file:wesl",
+      "available": false
+    },
+    {
+      "id": "vscode:file:wgsl",
+      "available": false
+    },
+    {
+      "id": "vscode:file:wikitext",
+      "available": false
+    },
+    {
+      "id": "vscode:file:windi",
+      "available": false
+    },
+    {
+      "id": "vscode:file:wit",
+      "available": false
+    },
+    {
+      "id": "vscode:file:woke",
+      "available": false
+    },
+    {
+      "id": "vscode:file:wolfram",
+      "available": false
+    },
+    {
+      "id": "vscode:file:word2",
+      "available": false
+    },
+    {
+      "id": "vscode:file:wpml",
+      "available": false
+    },
+    {
+      "id": "vscode:file:wurst",
+      "available": false
+    },
+    {
+      "id": "vscode:file:wxml",
+      "available": false
+    },
+    {
+      "id": "vscode:file:wxss",
+      "available": false
+    },
+    {
+      "id": "vscode:file:xcode",
+      "available": false
+    },
+    {
+      "id": "vscode:file:xfl",
+      "available": false
+    },
+    {
+      "id": "vscode:file:xib",
+      "available": false
+    },
+    {
+      "id": "vscode:file:xliff",
+      "available": false
+    },
+    {
+      "id": "vscode:file:xo",
+      "available": false
+    },
+    {
+      "id": "vscode:file:xorg",
+      "available": false
+    },
+    {
+      "id": "vscode:file:xposed",
+      "available": false
+    },
+    {
+      "id": "vscode:file:xquery",
+      "available": false
+    },
+    {
+      "id": "vscode:file:xsl",
+      "available": false
+    },
+    {
+      "id": "vscode:file:yacc",
+      "available": false
+    },
+    {
+      "id": "vscode:file:yaml_official",
+      "available": false
+    },
+    {
+      "id": "vscode:file:yamllint",
+      "available": false
+    },
+    {
+      "id": "vscode:file:yandex",
+      "available": false
+    },
+    {
+      "id": "vscode:file:yeoman",
+      "available": false
+    },
+    {
+      "id": "vscode:file:zed",
+      "available": false
+    },
+    {
+      "id": "vscode:file:zensical",
+      "available": false
+    },
+    {
+      "id": "vscode:file:zip2",
+      "available": true
+    },
+    {
+      "id": "vscode:file:zsh",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:folder",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:root_folder",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:alpine",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:apache",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:arangodb",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:arch",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:asset",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:auth",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:azure",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:azurepipelines",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:binary",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:blueprint",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:bot",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:buck",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:cake",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:cargo",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:certificate",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:chef",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:cli",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:cmake",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:common",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:component",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:composer",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:cubit",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:dapr",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:databricks",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:datadog",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:db",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:debian",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:dependabot",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:devcontainer",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:devenv",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:discord",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:domain",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:drizzle_orm",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:e2e",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:elasticbeanstalk",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:electron",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:environments",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:fedora",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:fonts",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:frontcommerce",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:frontend",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:gcp",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:gemini",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:gentoo",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:grok",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:grunt",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:haxelib",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:histoire",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:idea",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:interfaces",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:json_official",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:junie",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:kadence",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:kiro",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:library",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:locale",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:mariadb",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:maven",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:mediawiki",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:memcached",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:meteor",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:minecraft",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:minikube",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:model",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:module",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:mongodb",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:mypy",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:mysql",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:nix",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:notebooks",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:notification",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:nuget",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:ocx",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:ohpm",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:package",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:paket",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:platformio",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:protobuf",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:pytest",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:ravendb",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:redhat",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:redis",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:redux",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:route",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:schema",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:script",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:seedkit",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:services",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:skill",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:slackware",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:snaplet",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:spin",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:sso",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:story",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:style",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:suse",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:swagger",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:tauri",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:telegram",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:travis",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:trunk",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:turbo",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:typings",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:typings2",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:vagrant",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:view",
+      "available": true
+    },
+    {
+      "id": "vscode:folder:vitepress",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:void",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:vs",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:vs2",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:vscode2",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:vscode3",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:vscode_test",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:vscode_test2",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:vscode_test3",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:wasm",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:wasp",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:windsurf",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:wit",
+      "available": false
+    },
+    {
+      "id": "vscode:folder:www",
+      "available": true
+    }
+  ]
+}

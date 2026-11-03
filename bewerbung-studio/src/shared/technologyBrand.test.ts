@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { categorySymbolOptions, getStrengthSymbolMarkup } from "./strengthSymbols";
-import { getTechnologyBrandIconMarkup, getThemedTechnologyIconMarkup, resolveTechnologyIcon } from "./technologyBrand";
+import {
+  getDeckblattTechnologyIconMarkup, getTechnologyBrandIconMarkup, getThemedTechnologyIconMarkup, normalizeTechnologyName, resolveDeckblattTechnologyIcon, resolveTechnologyIcon,
+} from "./technologyBrand";
 import { goFrameworkIconOptions } from "./goFrameworkIcons";
+import { deviconOptions, getOriginalDeviconMarkup } from "./deviconCatalog";
+import { getAutomaticMaterialIconId, getMaterialIconMarkup } from "./materialIconCatalog";
+
+const automaticBrand = (name: string, oldBrand: string) => getAutomaticMaterialIconId(normalizeTechnologyName(name)) ?? oldBrand;
 
 describe("technology brand icons", () => {
   it("recognizes the five Go frameworks and keeps their marks in the PDF and preview resolver", () => {
@@ -52,12 +58,9 @@ describe("technology brand icons", () => {
     const javascript = getTechnologyBrandIconMarkup("JavaScript");
     const php = getTechnologyBrandIconMarkup("PHP");
 
-    expect(go).toContain('data-brand="go"');
-    expect(go).toContain("#00add8");
-    expect(javascript).toContain('data-brand="javascript"');
-    expect(javascript).toContain("#ffd92f");
-    expect(php).toContain('data-brand="php"');
-    expect(php).toContain("<ellipse");
+    expect(go).toContain('data-brand="material:file:go"');
+    expect(javascript).toContain('data-brand="material:file:javascript"');
+    expect(php).toContain('data-brand="material:file:php"');
     expect(new Set([go, javascript, php]).size).toBe(3);
   });
 
@@ -73,7 +76,7 @@ describe("technology brand icons", () => {
 
     for (const [technology, brand] of Object.entries(expectedBrands)) {
       expect(getTechnologyBrandIconMarkup(technology)).toContain(
-        `data-brand="${brand}"`,
+        `data-brand="${automaticBrand(technology, brand)}"`,
       );
     }
   });
@@ -115,10 +118,9 @@ describe("technology brand icons", () => {
   ])("uses the sourced .NET family logo for %s", (name, brand) => {
     const result = resolveTechnologyIcon(name);
     expect(result.source).toBe("auto");
-    expect(result.markup).toContain(`data-brand="${brand}"`);
+    expect(result.markup).toContain(`data-brand="${automaticBrand(name, brand)}"`);
     expect(result.markup).not.toContain("<text ");
-    expect(result.markup).toContain("currentColor");
-    expect(result.markup).not.toMatch(/#[0-9a-f]{3,8}/i);
+    expect(getThemedTechnologyIconMarkup(name)).toContain("currentColor");
     expect(result.markup).not.toContain("<image");
   });
 
@@ -126,17 +128,15 @@ describe("technology brand icons", () => {
     const chosen = resolveTechnologyIcon("ASP.NET", "blazor");
     expect(chosen.source).toBe("manual");
     expect(chosen.markup).toContain('data-brand="devicon:blazor"');
-    expect(resolveTechnologyIcon("ASP.NET").markup).toContain('fill="currentColor"');
+    expect(getThemedTechnologyIconMarkup("ASP.NET")).toContain("currentColor");
   });
 
   it("uses the central icon colour for Angular in automatic and manual selection", () => {
     const automatic = resolveTechnologyIcon("Angular");
     expect(automatic.source).toBe("auto");
-    expect(automatic.markup).toContain('data-brand="devicon:angular"');
-    expect(automatic.markup).toContain('fill="currentColor"');
-    expect(automatic.markup).not.toMatch(/<linearGradient|#[0-9a-f]{3,8}/i);
-    expect(resolveTechnologyIcon("Other", "angular")).toMatchObject({ source: "manual", markup: automatic.markup });
-    expect(getThemedTechnologyIconMarkup("Angular")).toBe(automatic.markup);
+    expect(automatic.markup).toContain('data-brand="material:file:angular"');
+    expect(resolveTechnologyIcon("Other", "angular").markup).toContain('data-brand="devicon:angular"');
+    expect(getThemedTechnologyIconMarkup("Angular")).toContain("currentColor");
   });
 
   it.each([
@@ -148,7 +148,7 @@ describe("technology brand icons", () => {
   ])("resolves %s through the shared alias map", (alias, canonical, brand) => {
     expect(resolveTechnologyIcon(alias).source).toBe("auto");
     expect(getTechnologyBrandIconMarkup(alias)).toBe(getTechnologyBrandIconMarkup(canonical));
-    expect(getTechnologyBrandIconMarkup(alias)).toContain(`data-brand="${brand}"`);
+    expect(getTechnologyBrandIconMarkup(alias)).toContain(`data-brand="${automaticBrand(canonical, brand)}"`);
   });
 
   it("keeps a valid manual icon ahead of automatic detection and falls back safely", () => {
@@ -205,7 +205,8 @@ describe("technology brand icons", () => {
     ["Active Directory", "symbol:active-directory"], ["Active Directory (AD)", "symbol:active-directory"], ["AD", "symbol:active-directory"],
     ["AD DS", "symbol:active-directory"], ["Verzeichnisdienst", "symbol:active-directory"],
   ])("detects the category of %s without a saved icon", (title, symbol) => {
-    expect(resolveTechnologyIcon(title)).toEqual({ source: "auto", markup: getStrengthSymbolMarkup(symbol) });
+    const materialId = getAutomaticMaterialIconId(normalizeTechnologyName(title));
+    expect(resolveTechnologyIcon(title)).toEqual({ source: "auto", markup: materialId ? getMaterialIconMarkup(materialId) : getStrengthSymbolMarkup(symbol) });
     expect(resolveTechnologyIcon(title, "")).toEqual(resolveTechnologyIcon(title));
   });
 
@@ -217,7 +218,7 @@ describe("technology brand icons", () => {
     };
     for (const [technology, brand] of Object.entries(brands)) {
       const markup = getTechnologyBrandIconMarkup(technology);
-      expect(markup, technology).toContain(`data-brand="${brand}"`);
+      expect(markup, technology).toContain(`data-brand="${automaticBrand(technology, brand)}"`);
       expect(markup, technology).not.toContain("data-strength-symbol");
     }
     for (const title of ["React Testing Library", "Cloudflare Workers", "Datenbankadministrator mit Go", "Continuous Learning", "Linux-Administration", "Azure AD Connect"])
@@ -229,5 +230,78 @@ describe("technology brand icons", () => {
     expect(resolveTechnologyIcon("Cloud", "react").markup).toContain('data-brand="devicon:react"');
     expect(resolveTechnologyIcon("Go", "symbol:cloud")).toEqual({ source: "manual", markup: getStrengthSymbolMarkup("symbol:cloud") });
     expect(resolveTechnologyIcon("Monitoring", "symbol:unbekannt")).toEqual({ source: "auto", markup: getStrengthSymbolMarkup("symbol:monitoring") });
+  });
+});
+
+describe("Deckblatt technology icons in their brand colours", () => {
+  const unsafe = /<script|<foreignObject|<image|\son\w+=|javascript:/i;
+
+  it("defaults to Material Angular while an old manual Devicon keeps its published colours", () => {
+    const deckblatt = resolveDeckblattTechnologyIcon("Angular");
+    expect(deckblatt.source).toBe("auto");
+    expect(deckblatt.markup).toContain('data-brand="material:file:angular"');
+    expect(deckblatt.markup).not.toContain("currentColor");
+    const legacy = resolveDeckblattTechnologyIcon("Frontend-Framework", "angular");
+    expect(legacy.source).toBe("manual");
+    expect(legacy.markup).toContain('data-brand="devicon:angular"');
+    expect(legacy.markup).toContain('<stop offset="0" stop-color="#e40035"/>');
+    expect(legacy.markup).toContain('<path fill="url(#devicon-original-angular-a)"');
+    expect(getThemedTechnologyIconMarkup("Angular")).toContain("currentColor");
+  });
+
+  it.each([
+    ["JavaScript", "javascript", "#ffd92f"], ["React", "react", "#61dafb"], ["TypeScript", "typescript", "#3178c6"],
+    ["Golang", "go", "#00add8"], ["Java", "java", "#e76f00"], ["HTML", "html", "#e44d26"],
+  ])("keeps the already coloured mark of %s", (name, brand, color) => {
+    const markup = getDeckblattTechnologyIconMarkup(name);
+    expect(markup).toBe(getTechnologyBrandIconMarkup(name));
+    expect(markup).toContain(`data-brand="${automaticBrand(name, brand)}"`);
+    if (getAutomaticMaterialIconId(normalizeTechnologyName(name))) expect(markup).toBe(getMaterialIconMarkup(automaticBrand(name, brand)));
+    else expect(markup).toContain(color);
+    expect(markup).not.toContain("currentColor");
+  });
+
+  it.each([
+    ["Docker", "devicon:docker", "#019BC6"], ["Git", "devicon:git", "#F34F29"], ["Spring Boot", "devicon:spring", "#77bc1f"],
+    ["Python", "devicon:python", "#FFD43B"], ["Electron", "devicon:electron", "#47848f"], ["C++", "devicon:cplusplus", "#00599c"],
+    ["Kotlin", "devicon:kotlin", "#7f52ff"], ["C#", "devicon:csharp", "#9B4F96"], ["Blazor", "devicon:blazor", "#5c2d91"],
+    [".NET Core", "devicon:dotnetcore", "#623697"], ["F#", "devicon:fsharp", "#378BBA"], ["VB.NET", "devicon:visualbasic", "#004e8c"],
+    ["EF Core", "devicon:entityframeworkcore", "#512bd4"], ["Xamarin", "devicon:xamarin", "#3498DB"], [".NET", "dotnet", "#512bd4"],
+  ])("draws %s in its published colours", (name, brand, color) => {
+    const result = resolveDeckblattTechnologyIcon(name, brand.startsWith("devicon:") ? brand.slice(8) : brand);
+    expect(result.source).toBe("manual");
+    expect(result.markup).toMatch(/^<svg class="technology-brand-svg" data-brand="/);
+    expect(result.markup).toContain(`data-brand="${brand}"`);
+    expect(result.markup).toContain(color);
+    expect(result.markup).not.toContain("currentColor");
+    expect(result.markup).not.toMatch(unsafe);
+    for (const id of result.markup.match(/\bid="([^"]+)"/g) ?? []) expect(id).toMatch(/^id="devicon-original-/);
+  });
+
+  it("leaves category symbols, Aufzählungszeichen, unbranded marks and the fallback exactly as in the Lebenslauf", () => {
+    for (const [name, icon] of [
+      ["API", ""], ["Datenbank", ""], ["Backend", ""], ["CI/CD", ""], ["Bash", ""], ["PowerShell", ""], ["Go", "symbol:cloud"],
+      ["Docker", "symbol:check"], ["SQL", ""], ["ASP.NET", ""], ["Go kit", ""], ["Objective-C", ""], ["Unbekannt", ""], ["<b>", "invalid"],
+    ]) {
+      expect(resolveDeckblattTechnologyIcon(name!, icon), name).toEqual(resolveTechnologyIcon(name!, icon));
+    }
+    expect(getDeckblattTechnologyIconMarkup("Go", "symbol:cloud")).toBe(getStrengthSymbolMarkup("symbol:cloud"));
+    expect(getDeckblattTechnologyIconMarkup("Docker", "symbol:check")).toContain('style="color:inherit"');
+  });
+
+  it("prepares every original Devicon logo safely, with its own ids", () => {
+    const originals = deviconOptions.map(({ id }) => [id, getOriginalDeviconMarkup(id)] as const).filter(([, markup]) => markup);
+    expect(originals.length).toBeGreaterThan(400);
+    for (const [id, markup] of originals) {
+      expect(markup, id).toMatch(/^<svg class="technology-brand-svg" data-brand="/);
+      expect(markup, id).not.toMatch(/<\?xml|<!--/);
+      expect(markup, id).not.toMatch(unsafe);
+      for (const [, name] of markup!.matchAll(/\bid="([^"]+)"/g)) {
+        expect(name, id).toMatch(new RegExp(`^devicon-original-${id}-`));
+        expect(markup, id).not.toMatch(new RegExp(`url\\(#${name!.slice(`devicon-original-${id}-`.length)}\\)`));
+      }
+    }
+    expect(getOriginalDeviconMarkup("aspnet")).toBeUndefined();
+    expect(getOriginalDeviconMarkup(" Angular ")).toBe(getOriginalDeviconMarkup("angular"));
   });
 });

@@ -25,8 +25,7 @@ const readableIconName = (name: string) =>
     .replace(/[-_]+/g, " ")
     .replace(/\b\w/g, (letter) => letter.toLocaleUpperCase("en-US"));
 
-const namespaceSvgIds = (markup: string, iconName: string) => {
-  const prefix = `devicon-${iconName}-`;
+const namespaceSvgIds = (markup: string, prefix: string) => {
   const ids = Array.from(
     markup.matchAll(/\bid="([^"]+)"/g),
     (match) => match[1],
@@ -41,8 +40,8 @@ const namespaceSvgIds = (markup: string, iconName: string) => {
   );
 };
 
-const prepareSvg = (markup: string, iconName: string, brand = `devicon:${iconName}`) =>
-  namespaceSvgIds(markup, iconName)
+const prepareSvg = (markup: string, iconName: string, brand = `devicon:${iconName}`, idPrefix = `devicon-${iconName}-`) =>
+  namespaceSvgIds(markup, idPrefix)
     .replace(/<\?xml[^>]*>/g, "")
     .replace(/<!--[^]*?-->/g, "")
     .trim()
@@ -100,3 +99,20 @@ export const getDeviconMarkup = (iconId: string) =>
   iconMarkup.get(iconId.trim().toLocaleLowerCase("en-US"));
 
 export const hasDevicon = (iconId: string) => Boolean(getDeviconMarkup(iconId));
+
+// The Deckblatt shows logos in their published colours: the `-original` files, prepared on first use under their own
+// id prefix, so a recoloured copy of the same logo in the Lebenslauf (both in one Mappe) never shares a gradient or mask.
+const originalColorSources = new Map(
+  Object.entries(originalIcons).map(([path, markup]) => [iconNameFromPath(path), markup] as const),
+);
+// The .NET square in the colour of its source (dotnet/brand): .NET purple.
+originalColorSources.set("dotnet", dotnetSvg.replaceAll('fill="currentColor"', 'fill="#512bd4"'));
+const originalColorMarkup = new Map<string, string>();
+
+export const getOriginalDeviconMarkup = (iconId: string) => {
+  const name = iconId.trim().toLocaleLowerCase("en-US");
+  const source = originalColorSources.get(name);
+  if (source && !originalColorMarkup.has(name))
+    originalColorMarkup.set(name, prepareSvg(source, name, name === "dotnet" ? "dotnet" : `devicon:${name}`, `devicon-original-${name}-`));
+  return originalColorMarkup.get(name);
+};

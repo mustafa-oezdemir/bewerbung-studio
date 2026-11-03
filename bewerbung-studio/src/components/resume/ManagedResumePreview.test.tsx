@@ -148,10 +148,10 @@ describe("managed template previews", () => {
         for (const output of [document, pdf]) {
           const cards = Array.from(output.querySelectorAll(".managed-strength-card"));
           const icon = (title: string) => cards.find(card => card.querySelector("strong")?.textContent === title)?.querySelector("svg");
-          expect(icon("Go")?.getAttribute("data-brand"), templateId).toBe("go");
+          expect(icon("Go")?.getAttribute("data-brand"), templateId).toBe("material:file:go");
           expect(icon("Spring Boot")?.getAttribute("data-brand"), templateId).toBe("devicon:spring");
-          expect(icon("Docker")?.getAttribute("data-brand"), templateId).toBe("devicon:docker");
-          expect(icon("Git")?.getAttribute("data-brand"), templateId).toBe("devicon:git");
+          expect(icon("Docker")?.getAttribute("data-brand"), templateId).toBe("material:file:docker");
+          expect(icon("Git")?.getAttribute("data-brand"), templateId).toBe("material:file:git");
           expect(icon("ASP.NET")?.getAttribute("data-brand"), templateId).toBe("aspnet");
           expect(icon("ASP.NET")?.getAttribute("fill"), templateId).toBe("currentColor");
           aspNetMarkup.push(icon("ASP.NET")?.outerHTML ?? "");
