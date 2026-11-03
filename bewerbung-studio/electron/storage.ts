@@ -901,11 +901,15 @@ export class DataStore {
       previousPath?: string) => {
       const file = await resolveReference(this.files.paths, relative, area);
       const previousFile = previousPath ? await resolveReference(this.files.paths, previousPath, area) : null;
-      const expected = this.loadedDataHashes.get(previousFile ?? file) ?? null;
+      let expected = this.loadedDataHashes.get(previousFile ?? file) ?? null;
       const current = await readFile(file, "utf8").catch((error: NodeJS.ErrnoException) => {
         if (error.code === "ENOENT") return null;
         throw error;
       });
+      // A loaded application is recoverable from memory if its managed file was
+      // renamed/deleted outside the app. Still require absence at atomic commit;
+      // existing files (and profile/index data) retain their conflict checks.
+      if (area === "application" && current === null) expected = null;
       if (this.hashContent(current ?? "") !== this.hashContent(content)) {
         if ((current === null ? null : this.hashContent(current)) !== expected)
           throw new Error(`Datei wurde extern geändert. Bitte laden Sie den Datenbestand neu: ${relative}`);
@@ -1424,8 +1428,19 @@ export class DataStore {
     const shouldCommitUpdate = applicationContentChanged(current, application);
     // Documents still in a legacy folder move into the Bewerbung's folder (only when such a folder exists).
     await this.files.consolidateLegacyDocumentDirectories(current);
-    // Saving without a change touches nothing else: no new updatedAt, no rename, no file and no Git commit.
-    if (!shouldCommitUpdate) return this.getWorkspace();
+    // An unchanged save only repairs a missing managed record; otherwise it writes nothing.
+    if (!shouldCommitUpdate) {
+      const reference = this.diskIndex?.applications.find((item) => item.id === current.id);
+      if (reference) {
+        const file = await resolveReference(this.files.paths, reference.path, "application");
+        const missing = await stat(file).then(() => false).catch((error: NodeJS.ErrnoException) => {
+          if (error.code === "ENOENT") return true;
+          throw error;
+        });
+        if (missing) await this.persist([current]);
+      }
+      return this.getWorkspace();
+    }
     const applicationDate = new Date(application.sentAt ?? current.createdAt);
     if (isNestedFolderName(current.folderName)) {
       await this.nestLegacyApplicationAt(

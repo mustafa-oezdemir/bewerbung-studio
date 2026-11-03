@@ -4,6 +4,7 @@ import {
   mkdtemp,
   readFile,
   readdir,
+  rename,
   rm,
   stat,
   writeFile,
@@ -84,6 +85,54 @@ describe("DataStore backups", () => {
     await writeFile(file, JSON.stringify(changed));
     await expect(store.createApplication(applicationInput("Concurrent GmbH"))).rejects.toThrow("extern geändert");
     expect(await readFile(file, "utf8")).toBe(JSON.stringify(changed));
+  });
+
+  it("recreates an externally renamed application file on an unchanged save", async () => {
+    const application = (await store.createApplication(applicationInput("Datei GmbH"))).applications[0];
+    const file = path.join(store.files.applicationDataPath(application.folderName), "bewerbung.json");
+    const renamed = `${file}.manually-renamed`;
+    const before = await readFile(file, "utf8");
+    await rename(file, renamed);
+    await store.saveApplication(structuredClone(application));
+    expect(JSON.parse(await readFile(file, "utf8"))).toEqual(application);
+    expect(await readFile(renamed, "utf8")).toBe(before);
+    const reopened = new DataStore(root);
+    await reopened.initialize();
+    expect(reopened.getApplication(application.id)).toEqual(application);
+  });
+
+  it("recreates a missing application directory from the loaded application", async () => {
+    const application = (await store.createApplication(applicationInput("Ordner GmbH"))).applications[0];
+    const directory = store.files.applicationDataPath(application.folderName);
+    expect(path.resolve(directory).startsWith(`${path.resolve(root)}${path.sep}`)).toBe(true);
+    await rm(directory, { recursive: true });
+    await store.saveApplication({ ...application, notes: "Fiktive Änderung" });
+    expect(JSON.parse(await readFile(path.join(directory, "bewerbung.json"), "utf8")).notes).toBe("Fiktive Änderung");
+    const reopened = new DataStore(root);
+    await reopened.initialize();
+    expect(reopened.getApplication(application.id).notes).toBe("Fiktive Änderung");
+  });
+
+  it("still refuses overwriting an externally edited application file", async () => {
+    const application = (await store.createApplication(applicationInput("Konflikt GmbH"))).applications[0];
+    const file = path.join(store.files.applicationDataPath(application.folderName), "bewerbung.json");
+    const edited = JSON.stringify({ ...application, notes: "Externe Änderung" });
+    await writeFile(file, edited);
+    await expect(store.saveApplication({ ...application, notes: "Interne Änderung" })).rejects.toThrow("extern geändert");
+    expect(await readFile(file, "utf8")).toBe(edited);
+  });
+
+  it("saves a renamed company even when its application file is missing", async () => {
+    const application = (await store.createApplication(applicationInput("Alter Name GmbH"))).applications[0];
+    const file = path.join(store.files.applicationDataPath(application.folderName), "bewerbung.json");
+    await rename(file, `${file}.manuell`);
+    await store.saveApplication({ ...application, company: { ...application.company, name: "Neuer Name GmbH" } });
+    const saved = store.getApplication(application.id);
+    const target = path.join(store.files.applicationDataPath(saved.folderName), "bewerbung.json");
+    expect(JSON.parse(await readFile(target, "utf8")).company.name).toBe("Neuer Name GmbH");
+    const reopened = new DataStore(root);
+    await reopened.initialize();
+    expect(reopened.getApplication(application.id).company.name).toBe("Neuer Name GmbH");
   });
 
   it("does not save after another instance takes the workspace lock", async () => {
