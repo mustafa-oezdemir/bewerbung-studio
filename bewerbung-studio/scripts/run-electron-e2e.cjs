@@ -163,12 +163,12 @@ const verifyInterviewNotes = async (root, local, remote) => {
     await run(root, 'profiles');
     await run(root, 'profiles-reopen');
     const profilePdfs = JSON.parse(await fs.readFile(path.join(root, 'profile-pdfs.json'), 'utf8'));
-    for (const file of [profilePdfs.alpha, profilePdfs.beta]) {
+    for (const file of [profilePdfs.alpha, profilePdfs.beta, profilePdfs.alphaMappe, profilePdfs.betaMappe]) {
       const bytes = await fs.readFile(file);
       if (bytes.length < 1000 || bytes.subarray(0, 4).toString() !== '%PDF')
         throw new Error('Application profile PDF was not generated');
     }
-    console.log('Electron E2E: two real Chromium PDFs verified');
+    console.log('Electron E2E: four real Chromium PDFs verified');
     passed = true;
   } finally {
     const resolved = path.resolve(root);

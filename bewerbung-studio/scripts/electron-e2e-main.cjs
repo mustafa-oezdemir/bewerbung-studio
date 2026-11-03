@@ -155,14 +155,18 @@ const createApplicationProfilesScenario = `(async () => {
   const alpha = workspace.applications.find((item) => item.company.name === 'E2E Beispiel GmbH');
   if (!source || !alpha?.profileSnapshot) throw new Error('profile source or initial application missing');
   await api.applications.save({ ...alpha, profileSnapshot: { ...alpha.profileSnapshot,
-    title: 'Java Backend', summary: 'Java Backend', skills: ['Java', 'Spring Boot'] } });
+    title: 'Java Backend', summary: 'Java Backend', skills: ['Java', 'Spring Boot'],
+    strengths: [{ id: crypto.randomUUID(), title: 'API', iconId: 'material:folder:folder-api', description: 'Fiktives API-Projekt' }] },
+    documents: { ...alpha.documents, coverSheetDesign: 'kopfband' } });
   const created = await api.applications.create({
     company: { name: 'E2E Zweite GmbH', city: 'Berlin' }, contact: {}, job: { title: 'Golang Backend' },
     templateId: 'classic-professional', accentColor: '#155e58', profileId: source.id, notes: '',
   });
   const beta = created.workspace.applications.find((item) => item.company.name === 'E2E Zweite GmbH');
   await api.applications.save({ ...beta, profileSnapshot: { ...beta.profileSnapshot,
-    title: 'Golang Backend', summary: 'Golang Backend', skills: ['Go', 'Docker'] } });
+    title: 'Golang Backend', summary: 'Golang Backend', skills: ['Go', 'Docker'],
+    strengths: [{ id: crypto.randomUUID(), title: 'API', iconId: 'vscode:folder:api', description: 'Fiktives API-Projekt' }] },
+    documents: { ...beta.documents, coverSheetDesign: 'kopfband' } });
   await api.profiles.save({ ...source, title: 'Zentrale Version', summary: 'Zentrale Version' });
   return true;
 })()`;
@@ -173,9 +177,11 @@ const verifyApplicationProfilesScenario = `(async () => {
   const alpha = workspace.applications.find((item) => item.company.name === 'E2E Beispiel GmbH');
   const beta = workspace.applications.find((item) => item.company.name === 'E2E Zweite GmbH');
   if (alpha?.profileSnapshot?.summary !== 'Java Backend' || beta?.profileSnapshot?.summary !== 'Golang Backend' ||
+      alpha.profileSnapshot.strengths?.[0]?.iconId !== 'material:folder:folder-api' ||
+      beta.profileSnapshot.strengths?.[0]?.iconId !== 'vscode:folder:api' ||
       workspace.profiles[0]?.summary !== 'Zentrale Version') throw new Error('application profiles did not survive restart');
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  const checkPreview = async (company, own, other) => {
+  const checkPreview = async (company, own, other, brand) => {
     document.querySelector('button.nav-item[title="Aktive Bewerbungen"]').click();
     await wait(150);
     const item = [...document.querySelectorAll('.application-item')].find((entry) => entry.textContent.includes(company));
@@ -185,13 +191,19 @@ const verifyApplicationProfilesScenario = `(async () => {
     await wait(250);
     const preview = [...document.querySelectorAll('.resume-preview')].map((node) => node.textContent).join(' ');
     if (!preview.includes(own) || preview.includes(other)) throw new Error('wrong preview for ' + company + ': ' + preview);
+    const icon = document.querySelector('.document-lebenslauf svg[data-brand="' + brand + '"]');
+    if (!icon || !icon.outerHTML.includes('currentColor')) throw new Error('wrong icon in CV preview for ' + company);
+    return { brand: icon.getAttribute('data-brand'), color: getComputedStyle(icon).color };
   };
-  await checkPreview('E2E Beispiel GmbH', 'Java Backend', 'Golang Backend');
-  await checkPreview('E2E Zweite GmbH', 'Golang Backend', 'Java Backend');
+  const alphaPreview = await checkPreview('E2E Beispiel GmbH', 'Java Backend', 'Golang Backend', 'material:folder:folder-api');
+  const betaPreview = await checkPreview('E2E Zweite GmbH', 'Golang Backend', 'Java Backend', 'vscode:folder:api');
   const first = await api.export.pdf(alpha.id, 'lebenslauf');
   const second = await api.export.pdf(beta.id, 'lebenslauf');
-  if (!first.path || !second.path) throw new Error('PDF export was cancelled');
-  return { alpha: first.path, beta: second.path };
+  const firstMappe = await api.export.pdf(alpha.id, 'mappe');
+  const secondMappe = await api.export.pdf(beta.id, 'mappe');
+  if (!first.path || !second.path || !firstMappe.path || !secondMappe.path) throw new Error('PDF export was cancelled');
+  return { alpha: first.path, beta: second.path, alphaMappe: firstMappe.path, betaMappe: secondMappe.path,
+    previews: { alpha: alphaPreview, beta: betaPreview } };
 })()`;
 
 // Vorstellungsgespräch – Fragen & Antworten, driven through the real panel (renderer helpers shared by the phases).

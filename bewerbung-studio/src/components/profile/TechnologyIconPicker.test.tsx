@@ -7,7 +7,7 @@ import { categorySymbolOptions, getStrengthSymbolMarkup } from "../../shared/str
 import { getTechnologyBrandIconMarkup } from "../../shared/technologyBrand";
 import { dotnetIconOptions } from "../../shared/deviconCatalog";
 import { goFrameworkIconOptions } from "../../shared/goFrameworkIcons";
-import { TechnologyIconPicker } from "./TechnologyIconPicker";
+import { filterCatalogIcons, TechnologyIconPicker } from "./TechnologyIconPicker";
 
 const categoryLabels = [
   "API", "Backend", "Frontend", "Datenbank", "Monitoring", "CI (Continuous Integration)", "CD (Continuous Deployment)", "Test", "Cloud", "DevOps",
@@ -77,6 +77,56 @@ afterEach(() => {
 });
 
 describe("TechnologyIconPicker in a real React tree", () => {
+  it("combines source, kind and search filters without replacing a saved choice", async () => {
+    const { window } = parseHTML("<html><body><div id='root'></div></body></html>");
+    Object.assign(globalThis, { window, document: window.document, IS_REACT_ACT_ENVIRONMENT: true });
+    const { createRoot } = await import("react-dom/client");
+    const root = createRoot(window.document.getElementById("root")!);
+    const saved: string[] = [];
+    function Harness() {
+      const [value, setValue] = useState("vscode:folder:api");
+      return <TechnologyIconPicker technologyTitle="API" value={value} onChange={(next) => { saved.push(next); setValue(next); }} />;
+    }
+    await act(async () => { root.render(<Harness />); });
+    const groupButton = (group: string, label: string) => Array.from(window.document.querySelectorAll<HTMLButtonElement>(`[aria-label="${group}"] button`))
+      .find((button) => button.textContent === label)!;
+    await act(async () => { groupButton("Icon-Quelle", "Material Icon Theme").click(); });
+    expect(saved).toEqual([]);
+    expect(preview(window.document)?.getAttribute("data-brand")).toBe("vscode:folder:api");
+    await act(async () => { groupButton("Icon-Typ", "Ordner-Icons").click(); });
+    const materialApi = window.document.querySelector<HTMLButtonElement>('[aria-label="folder-api, Material Icon Theme, Ordner-Icon"]');
+    expect(materialApi).not.toBeNull();
+    await act(async () => { materialApi?.click(); });
+    expect(saved).toEqual(["material:folder:folder-api"]);
+    await act(async () => { groupButton("Icon-Quelle", "vscode-icons").click(); });
+    const vscodeApi = window.document.querySelector<HTMLButtonElement>('[aria-label="api, vscode-icons, Ordner-Icon"]');
+    expect(vscodeApi?.disabled).toBe(false);
+    expect(saved).toEqual(["material:folder:folder-api"]);
+    await act(async () => { vscodeApi?.click(); });
+    expect(saved).toEqual(["material:folder:folder-api", "vscode:folder:api"]);
+    expect(Array.from(window.document.querySelectorAll(".technology-icon-picker__preview svg"), (svg) => svg.getAttribute("data-brand")))
+      .toEqual(["vscode:folder:api", "vscode:folder:api"]);
+    for (const iconId of saved) {
+      const reopened = profileSchema.parse(JSON.parse(JSON.stringify(profileSchema.parse({
+        id: crypto.randomUUID(), firstName: "Mina", lastName: "Kaya", isDefault: true, updatedAt: new Date().toISOString(),
+        strengths: [{ id: crypto.randomUUID(), title: "API", iconId }],
+      }))));
+      expect(reopened.strengths[0]!.iconId).toBe(iconId);
+      expect(getTechnologyBrandIconMarkup("API", iconId)).toContain(`data-brand="${iconId}"`);
+    }
+    await act(async () => root.unmount());
+  });
+
+  it("finds both original JavaScript catalog names when source, kind and search are combined", () => {
+    expect(filterCatalogIcons("javascript", "all", "file").filter((entry) => entry.available)
+      .map((entry) => entry.id)).toContain("material:file:javascript");
+    expect(filterCatalogIcons("javascript", "all", "file").filter((entry) => entry.available)
+      .map((entry) => entry.id)).toContain("vscode:file:js");
+    expect(filterCatalogIcons("javascript", "material", "folder").map((entry) => entry.id))
+      .toEqual(["material:folder:folder-javascript"]);
+    expect(filterCatalogIcons("not-existing-icon", "all", "all")).toEqual([]);
+  });
+
   it("updates the preview at once and keeps the choice in the saved Stärke", async () => {
     const { window } = parseHTML("<html><body><div id='root'></div></body></html>");
     Object.assign(globalThis, { window, document: window.document, IS_REACT_ACT_ENVIRONMENT: true });
@@ -88,7 +138,7 @@ describe("TechnologyIconPicker in a real React tree", () => {
       return <TechnologyIconPicker technologyTitle="Go" value={value} onChange={(next) => { saved.push(next); setValue(next); }} />;
     }
     await act(async () => { root.render(<Harness />); });
-    expect(preview(window.document)?.getAttribute("data-brand")).toBe("go");
+    expect(preview(window.document)?.getAttribute("data-brand")).toBe("material:file:go");
     const button = (label: string) => categoryButtons(window.document).find((entry) => entry.getAttribute("aria-label") === label)!;
     await act(async () => { button("Monitoring").dispatchEvent(new window.Event("click", { bubbles: true, cancelable: true })); });
     expect(saved).toEqual(["symbol:monitoring"]);

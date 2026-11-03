@@ -27,10 +27,11 @@ const desktopPlugin =
         }),
       ];
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss(), ...desktopPlugin],
   resolve: {
     alias: {
+      ...(mode === "test" ? { "./localSvgTestSources": path.resolve(__dirname, "src/shared/localSvgTestSources.test-support.ts") } : {}),
       "@": path.resolve(__dirname, "src"),
       "@shared": path.resolve(__dirname, "src/shared"),
     },
@@ -39,4 +40,4 @@ export default defineConfig({
     outDir: "dist",
     emptyOutDir: true,
   },
-});
+}));

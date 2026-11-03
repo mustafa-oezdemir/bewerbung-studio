@@ -1,4 +1,5 @@
 import { resolveResumePresentation } from "../shared/resumePresentation";
+import { useLocalSvgCatalog } from "../components/useLocalSvgCatalog";
 import { applyResumeSpacingPreset } from "../shared/resumeSpacing";
 import { resolveCvDocument } from "../shared/resolveCvDocument";
 import { resolveCoverLetterDocuments, storeCoverLetterDocuments } from "../shared/coverLetterHeader";
@@ -457,6 +458,7 @@ export function DocumentsView({
   initialTab?: Tab;
   onOpenApplications?: () => void;
 }) {
+  useLocalSvgCatalog();
   const application = useAppStore(selectCurrentApplication);
   const profiles = useAppStore((state) => state.workspace.profiles);
   const saveApplication = useAppStore((state) => state.saveApplication);
@@ -784,6 +786,7 @@ export function DocumentsView({
     "--doc-accent": design.accentColor,
     "--doc-secondary": design.secondaryColor,
     "--doc-on-secondary": getReadableTextColor(design.secondaryColor),
+    "--cv-tech-icon": resolvedCv.design.colors.icon,
     ...getDocumentDesignVariables(design.settings),
   } as CSSProperties;
   const letterPaperStyle = template.id === "zweispaltig"
@@ -2620,6 +2623,7 @@ export function DocumentsView({
                     </div>
                   ) : null}
                   {profile ? (
+                    <div style={{ "--picker-icon-color": resolvedCv.design.colors.icon } as CSSProperties}>
                     <ResumeSectionsPanel
                       key={`${application.id}:${profile.id}:${template.id}:${resumeEditorRevision}`}
                       profile={profile}
@@ -2653,6 +2657,7 @@ export function DocumentsView({
                       onDiscard={() => { setResumeContentDraft(null); setProfileSaveStatus("idle"); }}
                       onPreview={handleResumeSectionPreview}
                     />
+                    </div>
                   ) : null}
                   <section className="match-analysis">
                     <header>

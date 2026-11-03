@@ -1,5 +1,7 @@
 import { getStrengthSymbolMarkup } from "./strengthSymbols";
 import { getAutomaticGoFrameworkIconMarkup, getGoFrameworkIconMarkup } from "./goFrameworkIcons";
+import { getThemedVscodeIconMarkup, getVscodeIconMarkup } from "./vscodeIconCatalog";
+import { getAutomaticMaterialIconId, getMaterialIconMarkup } from "./materialIconCatalog";
 
 const technologyAliases: Record<string, string> = {
   golang: "go", "go language": "go", "go-lang": "go",
@@ -109,6 +111,8 @@ const categoryKey = (normalized: string) =>
 
 const getAutomaticTechnologyIconMarkup = (technology: string): string | undefined => {
   const normalized = normalizeTechnologyName(technology);
+  const materialId = getAutomaticMaterialIconId(normalized);
+  if (materialId) return getMaterialIconMarkup(materialId);
   const category = categorySymbolByName.get(categoryKey(normalized));
   if (category) return getStrengthSymbolMarkup(category);
   const goFramework = getAutomaticGoFrameworkIconMarkup(normalized);
@@ -221,7 +225,8 @@ export type ResolvedTechnologyIcon = { source: "manual" | "auto" | "fallback"; m
 
 /** Manual choice wins; known names use their brand; unknown names get a safe mark. */
 export const resolveTechnologyIcon = (technology: string, manualIcon = ""): ResolvedTechnologyIcon => {
-  const manual = getStrengthSymbolMarkup(manualIcon) || getGoFrameworkIconMarkup(manualIcon) || getDeviconMarkup(manualIcon);
+  const manual = getStrengthSymbolMarkup(manualIcon) || getGoFrameworkIconMarkup(manualIcon) || getDeviconMarkup(manualIcon)
+    || getMaterialIconMarkup(manualIcon) || getVscodeIconMarkup(manualIcon);
   if (manual) return { source: "manual", markup: manual };
   const automatic = getAutomaticTechnologyIconMarkup(technology);
   if (automatic) return { source: "auto", markup: automatic };
@@ -231,10 +236,48 @@ export const resolveTechnologyIcon = (technology: string, manualIcon = ""): Reso
 
 export const getTechnologyBrandIconMarkup = (technology: string, iconId = "") =>
   resolveTechnologyIcon(technology, iconId).markup;
-import { getDeviconMarkup } from "./deviconCatalog";
+import { getDeviconMarkup, getOriginalDeviconMarkup } from "./deviconCatalog";
+
+/** The one-colour hand-drawn marks above and the Devicon logo that shows their brand colours on the Deckblatt. */
+const originalLogoByTechnology: Record<string, string> = {
+  python: "python", electron: "electron", rust: "rust", c: "c", "c++": "cplusplus", kotlin: "kotlin", kt: "kotlin",
+  swift: "swift", ruby: "ruby", dart: "dart", scala: "scala", r: "r", solidity: "solidity", elixir: "elixir",
+  erlang: "erlang", haskell: "haskell", lua: "lua", perl: "perl", matlab: "matlab", groovy: "groovy", cobol: "cobol",
+};
+
+/**
+ * The Deckblatt's Tech-Stack: the icon the Lebenslauf resolves (manual choice, automatic match, fallback), but a logo in
+ * its published colours where Devicon has one. Category symbols, Aufzählungszeichen and the fallback stay as they are.
+ */
+export const resolveDeckblattTechnologyIcon = (technology: string, manualIcon = ""): ResolvedTechnologyIcon => {
+  const vscodeOriginal = getVscodeIconMarkup(manualIcon, "light");
+  if (vscodeOriginal) return { source: "manual", markup: vscodeOriginal };
+  const resolved = resolveTechnologyIcon(technology, manualIcon);
+  if (resolved.source === "fallback" || resolved.markup.includes("data-strength-symbol=")) return resolved;
+  const brand = /^<svg\b[^>]*\bdata-brand="([^"]+)"/.exec(resolved.markup)?.[1] ?? "";
+  const logo = brand.startsWith("devicon:")
+    ? brand.slice("devicon:".length)
+    : brand === "dotnet"
+      ? "dotnet"
+      : resolved.source === "auto" && resolved.markup.includes("currentColor")
+        ? originalLogoByTechnology[normalizeTechnologyName(technology)]
+        : undefined;
+  const original = logo ? getOriginalDeviconMarkup(logo) : undefined;
+  return original ? { source: resolved.source, markup: original } : resolved;
+};
+
+export const getDeckblattTechnologyIconMarkup = (technology: string, iconId = "") =>
+  resolveDeckblattTechnologyIcon(technology, iconId).markup;
 
 /** Preserve the existing icon catalogue and manual priority, with CV theme colors. */
-export const getThemedTechnologyIconMarkup = (title: string, iconId = "") =>
-  getTechnologyBrandIconMarkup(title, iconId)
+export const getThemedTechnologyIconMarkup = (title: string, iconId = "") => {
+  const resolved = resolveTechnologyIcon(title, iconId);
+  const brand = /^<svg\b[^>]*\bdata-brand="([^"]+)"/.exec(resolved.markup)?.[1] ?? "";
+  const material = getMaterialIconMarkup(brand, "light", "themed");
+  if (material) return material;
+  const vscode = getThemedVscodeIconMarkup(brand);
+  if (vscode) return vscode;
+  return resolved.markup
     .replace(/(fill|stroke|stop-color)="(?!none"|currentColor"|white"|#fff"|#ffffff"|url\()[^"]+"/gi, '$1="currentColor"')
     .replace(/(fill|stroke|stop-color):\s*(#[0-9a-f]{3,8}|rgb\([^)]*\))/gi, "$1:currentColor");
+};

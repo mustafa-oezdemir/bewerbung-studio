@@ -1,4 +1,5 @@
 import type { DocumentDesignSettings } from "../../shared/documentDesign";
+import { useLocalSvgCatalog } from "../useLocalSvgCatalog";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Children, cloneElement, isValidElement, type ReactElement, type ReactNode } from "react";
 import { inheritResumeSectionStyles } from "../../shared/resumeSectionStyleInheritance";
@@ -43,6 +44,7 @@ export function ManagedResumePreview({
   designSettings?: DocumentDesignSettings;
   resolvedCv?: ResolvedCvDocument;
 }) {
+  useLocalSvgCatalog();
   const firstPlan = resolvedCv?.pagePlan[0];
   // Page one as the template draws it: later pages take their header and the sections the plan moves there from it.
   const rawFirstPageHtml = pageNumber > 1 && firstPlan

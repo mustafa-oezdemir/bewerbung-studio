@@ -1,0 +1,46 @@
+import { describe, expect, it } from "vitest";
+import { parseHTML } from "linkedom";
+import { applicationSchema, profileSchema } from "../src/shared/schema";
+import { buildDocumentHtml } from "./documents";
+
+const now = "2026-11-02T12:00:00.000Z";
+const profile = profileSchema.parse({
+  id: "2fe09038-f9ba-45d6-af84-6d2ac90f5c74", isDefault: true,
+  firstName: "Mina", lastName: "Kaya", email: "mina@example.com", updatedAt: now,
+  strengths: [{ id: "e7b44770-0be7-46e6-89fb-3cf8c7a5cc7f", title: "API", iconId: "vscode:folder:api" }],
+});
+const application = applicationSchema.parse({
+  schemaVersion: 1,
+  id: "9493aafb-0773-4b82-a38a-68798afcd931", folderName: "Beispiel", company: { name: "Beispiel GmbH", city: "Berlin" },
+  contact: {}, job: { title: "Softwareentwicklerin" }, status: "Entwurf", templateId: "modern-sidebar",
+  accentColor: "#ee7b24", secondaryColor: "#1d4ed8",
+  documents: { coverSheetDesign: "kopfband" }, statusHistory: [], createdAt: now, updatedAt: now,
+});
+
+describe("vscode-icons in document HTML", () => {
+  it("keeps one selected ID with original Deckblatt paint and themed Lebenslauf paint", () => {
+    const document = parseHTML(buildDocumentHtml(application, profile, "mappe")).document;
+    const cover = document.querySelector('.deckblatt svg[data-brand="vscode:folder:api"]');
+    const cv = document.querySelector('.cv-sheet svg[data-brand="vscode:folder:api"]');
+    expect(cover?.outerHTML).toContain('fill="#a0bf55"');
+    expect(cover?.outerHTML).toContain('fill="#fff"');
+    expect(cv?.outerHTML).toContain("currentColor");
+    expect(cv?.outerHTML).not.toContain("#a0bf55");
+    expect(cover?.outerHTML).not.toBe(cv?.outerHTML);
+  });
+
+  it("applies either selected CV icon colour without changing the original Deckblatt SVG", () => {
+    const render = (icon: string) => parseHTML(buildDocumentHtml(application, profile, "mappe", [],
+      { cvOverrides: { colors: { icon } } })).document;
+    const orange = render("#c2410c");
+    const blue = render("#1d4ed8");
+    const cover = (document: Document) => document.querySelector('.deckblatt svg[data-brand="vscode:folder:api"]')?.outerHTML;
+    const cv = (document: Document) => document.querySelector('.cv-sheet svg[data-brand="vscode:folder:api"]')?.outerHTML;
+    expect(cover(orange)).toBe(cover(blue));
+    expect(cv(orange)).toContain("#c2410c");
+    expect(cv(blue)).toContain("#1d4ed8");
+    expect(cv(orange)).not.toBe(cv(blue));
+    expect(orange.querySelector("style")?.textContent).toContain('svg[data-brand^="vscode:"]{color:#c2410c!important}');
+    expect(blue.querySelector("style")?.textContent).toContain('svg[data-brand^="vscode:"]{color:#1d4ed8!important}');
+  });
+});
