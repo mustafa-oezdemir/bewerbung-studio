@@ -159,6 +159,7 @@ export const resolveCvDocument = ({
     education: sections.education ? profile.education : [],
   };
   const closingSection = managerSections.find((entry) => entry.id === "closing");
+  const closingName = profile ? [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim() : "";
   const overrides = settings.cvOverrides;
   const planContext: ResumePlanContext = {
     atsMode,
@@ -173,8 +174,11 @@ export const resolveCvDocument = ({
     closing: profile && {
       visible:
         closingSection?.visible !== false &&
-        Boolean(closingLine || (!atsMode && profile.resumeClosing.showSignature && getProfileMediaSource(profile.signaturePath))),
+        Boolean(closingLine || (profile.resumeClosing.showSignature && closingName)),
       signature: !atsMode && profile.resumeClosing.showSignature && Boolean(getProfileMediaSource(profile.signaturePath)),
+      name: profile.resumeClosing.showSignature ? closingName : "",
+      line: Boolean(closingLine),
+      typography: { bodySizePt: design.typography.bodySizePt, lineHeight: design.typography.lineHeight },
       placement: resolveResumeClosingLayout(templateId, settings.resumePresentation?.closing).placement,
     },
     overrides: {
@@ -194,6 +198,8 @@ export const resolveCvDocument = ({
       columnGapMm: ["elegant", "kompakt", "gepflegt"].includes(templateId) ? design.spacing.columnGapMm : overrides?.spacing?.columnGapMm,
       // The entry roles' own sizes (Typografie → Eintragstitel, Größen in Einträgen): the planner measures their lines.
       entryRoleSizes: chosenEntryRoleSizes(overrides?.typography),
+      // Kompakt sizes the sections of its right column from their titles.
+      sideHeadingPt: templateId === "kompakt" ? design.typography.sectionHeadingSizePt : undefined,
     },
     settings,
   };
@@ -228,6 +234,8 @@ export const resolveCvDocument = ({
     zweispaltigVariables,
     summary,
     pagePlan,
+    /** The application's colour scheme: what the template's own accent colours are drawn in. */
+    applicationColors: { accent: application?.accentColor, secondary: application?.secondaryColor },
   };
 };
 

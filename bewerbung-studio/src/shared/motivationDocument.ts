@@ -170,6 +170,7 @@ export const buildMotivationModel = ({
     "--mv-font": getDocumentFont(typography.fontId).family,
     "--mv-heading-font": getDocumentFont(typography.headingFontId).family,
     "--mv-body-size": `${bodySize}pt`,
+    "--cv-body-line-height": String(typography.lineHeight),
     "--mv-line-height": String(lineHeight),
     "--mv-text": readableColor(colors.paragraph, colors.text),
     "--mv-name-color": readableColor(colors.heading, colors.sectionHeading, colors.text),
@@ -341,5 +342,6 @@ export const motivationCss = `
 .motivation .mv-paragraph+.mv-paragraph{margin-top:var(--mv-paragraph-gap)}
 .motivation .mv-closing{display:flex;align-items:flex-end;justify-content:space-between;gap:8mm;margin-top:var(--mv-paragraph-gap);break-inside:avoid}
 .motivation .mv-signature{display:block;max-width:55mm;max-height:16mm;margin:2mm 0 1mm;object-fit:contain;object-position:left center}
+.motivation .mv-signer{font-family:var(--mv-font);font-size:var(--mv-body-size);font-weight:400;line-height:var(--cv-body-line-height);color:var(--mv-text)}
 .motivation .mv-place-date{text-align:right;white-space:nowrap}
 `;

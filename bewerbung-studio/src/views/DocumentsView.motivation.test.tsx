@@ -56,6 +56,18 @@ const tree = (node: Element): unknown => ({
 });
 
 describe("DocumentsView Motivation tab", () => {
+  it("prints the same comma-separated sender address in Anschreiben and Motivation previews and PDFs", () => {
+    const application = applicationWith({});
+    const expected = "Gartenweg 7, 34117 Kassel | mina@example.test | +49 170 1234567";
+    for (const kind of ["anschreiben", "motivation"] as const) {
+      const preview = renderTab(application, kind).querySelector(".sender-contact")?.textContent;
+      const pdf = parseHTML(buildDocumentHtml(application, profile, kind)).document
+        .querySelector(".sender-contact")?.textContent;
+      expect(preview).toBe(expected);
+      expect(pdf).toBe(expected);
+    }
+  });
+
   it("shows the CV name and reading font and size on all three previews and their PDF pages", () => {
     const application = applicationWith({}, { typography: {
       headingFontId: "montserrat", headingSizePt: 23, fontId: "georgia", bodySizePt: 12.2,
@@ -85,6 +97,26 @@ describe("DocumentsView Motivation tab", () => {
       }
     }
   });
+
+  it.each([["georgia", 8.5, 1.15], ["montserrat", 12.5, 1.5]] as const)(
+    "uses the CV Fließtext for the Anschreiben and Motivation signature names (%s, %s pt)",
+    (fontId, bodySizePt, lineHeight) => {
+      const application = applicationWith({}, { typography: { fontId, bodySizePt, lineHeight } });
+      for (const kind of ["anschreiben", "motivation"] as const) {
+        const preview = renderTab(application, kind);
+        const pdf = parseHTML(buildDocumentHtml(application, profile, kind)).document;
+        for (const page of [preview, pdf]) {
+          const frame = page.querySelector<HTMLElement>(".document-anschreiben")!;
+          expect(frame.style.getPropertyValue("--cv-body-font")).toBe(getDocumentFont(fontId).family);
+          expect(frame.style.getPropertyValue("--cv-body-size")).toBe(`${bodySizePt}pt`);
+          expect(frame.style.getPropertyValue("--cv-body-line-height")).toBe(String(lineHeight));
+          expect([...frame.querySelectorAll(".signature-name")].map((node) => node.textContent)).toEqual(["Mina Kaya"]);
+          expect(frame.querySelector(".signature-image")).toBeNull();
+          expect(frame.textContent).toContain("Mit freundlichen Grüßen");
+        }
+      }
+    },
+  );
 
   it("shows the automatic Anrede read-only in the editor and on the page, and follows the Ansprechpartner", () => {
     const frau = renderMotivationTab(applicationWith({ salutation: "Frau", firstName: "Anna", lastName: "Schulz" }));

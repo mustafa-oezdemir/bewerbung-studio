@@ -3,7 +3,7 @@ import { cvDesignOverridesSchema, type CvDesignOverrides, type CvDesignTokens, t
 import { legacyGenericDesign } from "./cvTemplateDefaults/legacyGeneric.defaults";
 import { nativeResumeDesigns } from "./cvTemplateTokens";
 import type { NativeResumeAppearance } from "./resumeAppearance";
-import { getTemplate } from "./templates";
+import { getTemplate, resolveTemplateId } from "./templates";
 
 /** Fresh values on every call: callers must never mutate registry defaults. */
 export const getTemplateDocumentDesignDefaults = (templateId: string): DocumentDesignSettings => ({
@@ -30,7 +30,18 @@ export const getNativeResumeDesign = (templateId: string): NativeResumeDesign =>
     getTemplateDocumentDesignDefaults(template.id), template.accent, template.secondary, template.layout === "centered"));
 };
 
-export const resolveTemplateCvDesign = (templateId: string): CvDesignTokens => getNativeResumeDesign(templateId).tokens;
+/**
+ * A template's design tokens. The controls no template file names come from its own colours, here and nowhere else: a
+ * project's technology line is drawn like the organisations (Türkis Profil: in its accent), Stärken like the catalogue icons.
+ */
+export const resolveTemplateCvDesign = (templateId: string): CvDesignTokens => {
+  const { tokens } = getNativeResumeDesign(templateId);
+  return { ...tokens, colors: {
+    ...tokens.colors,
+    projectTechnologies: resolveTemplateId(templateId) === "tuerkis-profil" ? tokens.colors.accent : tokens.colors.organization,
+    strengthIcon: tokens.colors.icon,
+  } };
+};
 
 /** The appearance controls' native values of a template (alignment, dividers, sidebar colours, photo shape ...). */
 export const resolveTemplateResumeAppearance = (templateId: string): NativeResumeAppearance =>

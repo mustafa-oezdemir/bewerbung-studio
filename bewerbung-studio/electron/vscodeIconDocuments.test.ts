@@ -29,9 +29,9 @@ describe("vscode-icons in document HTML", () => {
     expect(cover?.outerHTML).not.toBe(cv?.outerHTML);
   });
 
-  it("applies either selected CV icon colour without changing the original Deckblatt SVG", () => {
-    const render = (icon: string) => parseHTML(buildDocumentHtml(application, profile, "mappe", [],
-      { cvOverrides: { colors: { icon } } })).document;
+  it("applies either selected Stärken-Symbole colour without changing the original Deckblatt SVG", () => {
+    const render = (strengthIcon: string) => parseHTML(buildDocumentHtml(application, profile, "mappe", [],
+      { cvOverrides: { colors: { strengthIcon } } })).document;
     const orange = render("#c2410c");
     const blue = render("#1d4ed8");
     const cover = (document: Document) => document.querySelector('.deckblatt svg[data-brand="vscode:folder:api"]')?.outerHTML;
@@ -40,7 +40,19 @@ describe("vscode-icons in document HTML", () => {
     expect(cv(orange)).toContain("#c2410c");
     expect(cv(blue)).toContain("#1d4ed8");
     expect(cv(orange)).not.toBe(cv(blue));
-    expect(orange.querySelector("style")?.textContent).toContain('svg[data-brand^="vscode:"]{color:#c2410c!important}');
-    expect(blue.querySelector("style")?.textContent).toContain('svg[data-brand^="vscode:"]{color:#1d4ed8!important}');
+    // The catalogue rule keeps the template's colour; the Stärken icon carries the chosen one inline.
+    expect(orange.querySelector("style")?.textContent).not.toContain('{color:#c2410c!important}');
+  });
+
+  it("keeps Stärken and Deckblatt icons out of Symbole", () => {
+    const render = (icon?: string) => parseHTML(buildDocumentHtml(application, profile, "mappe", [],
+      icon ? { cvOverrides: { colors: { icon } } } : undefined)).document;
+    const native = render();
+    const chosen = render("#2856b6");
+    const cover = (document: Document) => document.querySelector('.deckblatt svg[data-brand="vscode:folder:api"]')?.outerHTML;
+    const cv = (document: Document) => document.querySelector('.cv-sheet svg[data-brand="vscode:folder:api"]')?.outerHTML;
+    expect(cover(chosen)).toBe(cover(native));
+    expect(cv(chosen)).toBe(cv(native));
+    expect(chosen.querySelector("style")?.textContent).not.toContain("#2856b6!important");
   });
 });

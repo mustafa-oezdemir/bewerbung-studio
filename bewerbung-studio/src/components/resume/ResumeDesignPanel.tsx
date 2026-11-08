@@ -231,9 +231,10 @@ function Sub({ title, children }: { title: string; children: ReactNode }) {
 }
 
 const colorGroups = [
-  ["Textfarben", [["text", "Fließtext"], ["paragraph", "Absatztext"], ["muted", "Sekundärtext"]]],
+  ["Textfarben", [["text", "Fließtext"], ["paragraph", "Absatztext"], ["muted", "Sekundärtext"], ["projectTechnologies", "Projekttechnologien"]]],
   ["Überschriftenfarben", [["heading", "Name"], ["subheading", "Berufsbezeichnung"], ["sectionHeading", "Abschnittsüberschriften"], ["entryHeading", "Eintragstitel"]]],
   ["Einträge", [["date", "Datum / Zeitraum"], ["organization", "Unternehmen / Einrichtung"], ["location", "Ort / Standort"]]],
+  ["Stärken", [["strengthIcon", "Stärken-Symbole"]]],
   ["Design", [["accent", "Hervorhebungsfarbe"], ["divider", "Trennlinien"], ["background", "Seitenhintergrund"], ["surface", "Karten- und Flächenhintergrund"], ["icon", "Symbole"]]],
 ] as const;
 
@@ -266,7 +267,10 @@ const colorNotes: Partial<Record<string, string>> = {
   date: "Zeiträume im Werdegang, im Bildungsweg und bei Hobbys. Ohne eigenen Wert folgen sie einer gewählten Sekundärtextfarbe, sonst zeichnet die Vorlage sie selbst.",
   organization: "Unternehmen und Einrichtungen in Werdegang, Bildungsweg und Hobbys. Ohne eigenen Wert behalten sie die Farbe der Vorlage, auch wenn sich die Hervorhebungsfarbe ändert.",
   location: "Orte im Werdegang, im Bildungsweg und bei Hobbys. Ohne eigenen Wert folgen sie einer gewählten Sekundärtextfarbe, sonst zeichnet die Vorlage sie selbst.",
-  accent: "Färbt auch die Technologiezeile der Projekte.",
+  accent: "Projekttechnologien, Stärken-Symbole und Symbole haben eigene Farben und ändern sich dadurch nicht.",
+  projectTechnologies: "Nur die Technologiezeile unter einem Projekttitel.",
+  strengthIcon: "Nur die Symbole im Bereich Stärken, automatisch zugeordnete und manuell gewählte.",
+  icon: "Nur die Symbole der Kontaktdaten, zum Beispiel Telefon, E-Mail, Adresse und Links.",
 };
 const weightFields = [
   ["headingWeight", "Name – Gewicht"], ["subheadingWeight", "Untertitel – Gewicht"], ["sectionHeadingWeight", "Abschnittstitel – Gewicht"],
@@ -384,7 +388,7 @@ export function ResumeDesignPanel({ documentId = "", templateId, templateName, s
               ? zweispaltigVariables["--zweispaltig-subheading"] : displayed.tokens.colors[key];
             return <ColorCard key={key} label={label} value={value} contextKey={contextKey} onChange={(color) => onEditToken(scope, "colors", key, color)}>
               <ColorHint {...token("colors", key)} templateText={native.tokens.colors[key].toUpperCase()} />
-              {explicitColors?.[key] !== undefined && ["text", "paragraph", "muted", "heading", "subheading", "sectionHeading", "entryHeading", "date", "organization", "location", "accent"].includes(key)
+              {explicitColors?.[key] !== undefined && ["text", "paragraph", "muted", "heading", "subheading", "sectionHeading", "entryHeading", "date", "organization", "location", "accent", "projectTechnologies"].includes(key)
                 && !hasReadableColorContrast(value, displayed.tokens.colors.background)
                 ? <small className="resume-sections-warning" role="status">Diese Textfarbe erreicht zum Seitenhintergrund weniger als 4,5:1 Kontrast. Ihre Auswahl bleibt erhalten.</small> : null}
               {key === "surface" ? <small className="rds-field__note">Färbt einzelne Projektkarten und Inhaltskarten, nicht die Arbeitgebernamen. Ohne eigene Textfarbe wird die Schrift für mindestens 4,5:1 Kontrast angepasst.</small> : null}

@@ -210,7 +210,8 @@ describe("Lebenslauf-Dokumente", () => {
     expect(header?.querySelector("h1")?.textContent).toBe("Mina Kaya");
     expect(header?.querySelector("h2")?.textContent).toBe("Softwareentwicklerin");
     expect(header?.querySelector(".tabellarisch-pdf-primary-contacts")?.textContent?.replace(/\s+/g, " ").trim())
-      .toBe("Musterweg 20 | 35039 Marburg | mina@example.com | +49 176 12345678");
+      .toBe("Musterweg 20, 35039 Marburg | mina@example.com | +49 176 12345678");
+    expect(header?.querySelectorAll(".tabellarisch-pdf-separator[aria-hidden]")).toHaveLength(0);
   });
 
   it.each(["visual", "ats"])("exports separate Tabellarisch social links in %s mode", (mode) => {
@@ -1078,12 +1079,13 @@ describe("Lebenslauf-Dokumente", () => {
     });
     const html = buildDocumentHtml(pehlioneApplication, signedProfile, "lebenslauf");
     const body = html.slice(html.indexOf("<body>"));
+    const closing = parseHTML(html).document.querySelector(".pehlione-pdf-closing");
 
     // The closing prints the date of the application, not the date typed into the profile.
-    expect(body).toContain('<footer class="pehlione-pdf-closing"><p>Marburg, 26.09.2026</p>');
+    expect(closing?.querySelector("p")?.textContent).toBe("Marburg, 26.09.2026");
     expect(body).not.toContain("22.09.2026");
-    expect(body).toContain('<div class="pehlione-pdf-signer"><img');
-    expect(body).toContain('<strong>Mina Kaya</strong></div></footer>');
+    expect(closing?.querySelector(".pehlione-pdf-signer img")).not.toBeNull();
+    expect(closing?.querySelector(".pehlione-pdf-signer strong")?.textContent).toBe("Mina Kaya");
   });
 
   it("reduces the date-to-subject gap in the PDF with each requested step", () => {

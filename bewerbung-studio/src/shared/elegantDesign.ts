@@ -49,7 +49,8 @@ export const getElegantDesignVariables = (
   return {
     "--elegant-accent": accent,
     "--elegant-subheading": selectedColors?.subheading ? design.colors.subheading : accent,
-    "--elegant-icon": selectedColors?.icon ? design.colors.icon : accent,
+    // The markers of the career lists; "Symbole" is the Kontaktdaten's colour (applyResumeIconColors).
+    "--elegant-icon": accent,
     "--elegant-sidebar": sidebar,
     "--elegant-sidebar-text": sidebarText,
     "--elegant-sidebar-muted": sidebarMuted,

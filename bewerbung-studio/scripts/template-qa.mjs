@@ -20,6 +20,7 @@ try {
   const { ManagedResumePreview } = await vite.ssrLoadModule('/src/components/resume/ManagedResumePreview.tsx');
   const { resumeTemplateStyleSources } = await vite.ssrLoadModule('/src/components/resume/resumeTemplateStyleSources.ts');
   const { resolveCvDocument } = await vite.ssrLoadModule('/src/shared/resolveCvDocument.ts');
+  const { applyMainProfileToApplication } = await vite.ssrLoadModule('/src/shared/profileSelection.ts');
   const preflight = await readFile('node_modules/tailwindcss/preflight.css', 'utf8');
   const appCss = (await readFile('src/app.css', 'utf8')).replace('@import "tailwindcss";', '');
   const { getReadableTextColor } = await vite.ssrLoadModule('/src/shared/templates.ts');
@@ -96,24 +97,31 @@ try {
         ...(process.env.LANGUAGE_COLUMNS ? { languagesColumns: process.env.LANGUAGE_COLUMNS === 'auto' ? 'auto' : Number(process.env.LANGUAGE_COLUMNS) } : {}),
         // PAGE_MARGIN=<mm>: Lebenslauf-Design → Seitenränder as a user override (geometry QA).
         ...(process.env.PAGE_MARGIN ? { cvOverrides: { spacing: { pageMarginMm: Number(process.env.PAGE_MARGIN) } } } : {}) };
-      const application = applicationSchema.parse({
+      let application = applicationSchema.parse({
         schemaVersion: 1, id: crypto.randomUUID(), folderName: 'QA', company: { name: 'QA', city: 'Berlin' }, contact: {}, job: { title: 'Entwicklung' },
         status: 'Entwurf', templateId: id, accentColor: template.accent, secondaryColor: template.secondary, designSettings: settings, documents: {}, statusHistory: [], createdAt: now, updatedAt: now,
       });
-      const file = `${name}-${id}-${atsMode ? 'ats' : 'vis'}${process.env.PAGE_MARGIN ? `-m${process.env.PAGE_MARGIN}` : ''}`;
-      await writeFile(resolve(out, file + '.html'), buildDocumentHtml(application, profile, 'lebenslauf'));
-      if (!atsMode) {
-        const resolved = resolveCvDocument({ profile, templateId: id, settings, application });
-        if (id === 'tuerkis-profil') await writeFile(resolve(out, file + '-plan.json'), JSON.stringify({ sections: resolved.managerSections, pages: resolved.pagePlan }, null, 2));
-        const component = await componentOf(id);
-        const pages = resolved.pagePlan.map((plan, index) => renderToStaticMarkup(h(ManagedResumePreview, { designSettings: settings, resolvedCv: resolved, profile: resolved.profile, templateId: id, pageNumber: index + 1, totalPages: resolved.pagePlan.length },
-          h(component, { profile: resolved.profile, templateId: id, name: `${profile.firstName} ${profile.lastName}`, atsMode: false, plan, totalPages: resolved.pagePlan.length, accentColor: template.accent, secondaryColor: template.secondary,
-            photoSource: profile.photoPath && resolved.profile.photoPath ? resolved.profile.photoPath : null, resumeProfile: resolved.summary, sections: resolved.sections, backgroundId: settings.backgroundId, closingDate: resolved.closingDate }))));
-        const paperStyle = Object.entries({ '--doc-accent': template.accent, '--doc-secondary': template.secondary, '--doc-on-secondary': getReadableTextColor(template.secondary), ...getDocumentDesignVariables(settings) })
-          .map(([key, value]) => `${key}:${value}`).join(';').replaceAll('"', '&quot;');
-        const paper = (page) => `<div class="document-paper document-lebenslauf layout-${template.layout} column-${settings.columnLayout} background-${settings.backgroundId} background-scope-${settings.backgroundScope} print-background" style="${paperStyle}">${page}</div>`;
-        await writeFile(resolve(out, file + '-preview.html'), `<!doctype html><html><head><meta charset="utf-8"><style>${preflight}${appCss}${resumeTemplateStyleSources[id]} body{margin:0;background:white}</style></head><body>${pages.map(paper).join('')}</body></html>`);
+      const sourceProfile = process.env.TRANSFER === '1'
+        ? profileSchema.parse({ ...profile, id: crypto.randomUUID(), firstName: 'Altes', lastName: 'Testprofil',
+          title: 'Java', summary: 'Veralteter Lebenslauftext', skills: ['Java'] })
+        : profile;
+      if (process.env.TRANSFER === '1') {
+        application = applyMainProfileToApplication({ ...application, profileId: sourceProfile.id,
+          profileSnapshot: sourceProfile }, [sourceProfile, profile], profile.id);
       }
+      const activeSettings = application.designSettings;
+      const file = `${name}-${id}-${atsMode ? 'ats' : 'vis'}${process.env.PAGE_MARGIN ? `-m${process.env.PAGE_MARGIN}` : ''}`;
+      await writeFile(resolve(out, file + '.html'), buildDocumentHtml(application, sourceProfile, 'lebenslauf'));
+      const resolved = resolveCvDocument({ profile: application.profileSnapshot ?? sourceProfile, templateId: id, settings: activeSettings, application });
+      if (id === 'tuerkis-profil') await writeFile(resolve(out, file + '-plan.json'), JSON.stringify({ sections: resolved.managerSections, pages: resolved.pagePlan }, null, 2));
+      const component = await componentOf(id);
+      const pages = resolved.pagePlan.map((plan, index) => renderToStaticMarkup(h(ManagedResumePreview, { designSettings: activeSettings, resolvedCv: resolved, profile: resolved.profile, templateId: id, pageNumber: index + 1, totalPages: resolved.pagePlan.length },
+        h(component, { profile: resolved.profile, templateId: id, name: `${profile.firstName} ${profile.lastName}`, atsMode, plan, totalPages: resolved.pagePlan.length, accentColor: template.accent, secondaryColor: template.secondary,
+          photoSource: profile.photoPath && resolved.profile.photoPath ? resolved.profile.photoPath : null, resumeProfile: resolved.summary, sections: resolved.sections, backgroundId: activeSettings.backgroundId, closingDate: resolved.closingDate }))));
+      const paperStyle = Object.entries({ '--doc-accent': template.accent, '--doc-secondary': template.secondary, '--doc-on-secondary': getReadableTextColor(template.secondary), ...getDocumentDesignVariables(activeSettings) })
+        .map(([key, value]) => `${key}:${value}`).join(';').replaceAll('"', '&quot;');
+      const paper = (page) => `<div class="document-paper document-lebenslauf layout-${template.layout} column-${activeSettings.columnLayout} background-${activeSettings.backgroundId} background-scope-${activeSettings.backgroundScope} print-background" style="${paperStyle}">${page}</div>`;
+      await writeFile(resolve(out, file + '-preview.html'), `<!doctype html><html><head><meta charset="utf-8"><style>${preflight}${appCss}${resumeTemplateStyleSources[id]} body{margin:0;background:white}</style></head><body>${pages.map(paper).join('')}</body></html>`);
       manifest.push({ file, scenario: name, id, ats: atsMode });
     }
   }

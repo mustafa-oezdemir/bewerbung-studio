@@ -2952,28 +2952,6 @@ body.is-resizing-split-view * {
   margin-top: 24px;
 }
 
-.email-attachments-preview {
-  margin: 18px 0;
-  padding: 12px 14px;
-  border-left: 3px solid var(--doc-accent);
-  background: color-mix(in srgb, var(--doc-accent), white 94%);
-}
-
-.email-attachments-preview strong {
-  display: block;
-  color: var(--doc-accent);
-  font-size: 0.86em;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.email-attachments-preview ul {
-  display: grid;
-  gap: 3px;
-  margin: 7px 0 0;
-  padding-left: 18px;
-}
-
 .email-preview section h3 {
   margin: 0 0 8px;
   color: #000;
@@ -2991,6 +2969,21 @@ body.is-resizing-split-view * {
 .email-preview .email-message-preview p {
   margin: 0 0 5mm;
   white-space: pre-wrap;
+}
+
+/* Anlagen as in a plain Gmail message: the word „Anlagen“, then a bulleted list of the file names, no box. */
+.email-preview .email-attachments-preview p {
+  margin: 0;
+}
+
+.email-preview .email-attachments-preview ul {
+  margin: 0;
+  padding-left: 1.6em;
+  list-style: disc;
+}
+
+.email-preview .email-attachments-preview li {
+  overflow-wrap: anywhere;
 }
 
 .letter-preview .sender-line {
@@ -8438,14 +8431,18 @@ body.is-resizing-split-view * {
   padding-top: 3mm;
   border-top: 0;
   background: transparent;
-  font-size: 8pt;
+  font-family: var(--cv-closing-font, var(--doc-font));
+  font-size: var(--cv-closing-size, var(--doc-body-size));
+  line-height: var(--cv-closing-line-height, var(--doc-line-height));
+  color: var(--cv-closing-color, var(--doc-text-color));
+  font-weight: 400;
   break-inside: avoid;
 }
 
 .pehlione-closing p { margin: 0 0 1mm; }
 .pehlione-closing__signer { display: flex; grid-column: 2; flex-direction: column; align-items: center; width: 42mm; background: transparent; }
 .pehlione-closing__signer img { display: block; width: 100%; height: 12mm; object-fit: contain; background: transparent; }
-.pehlione-closing__signer strong { margin-top: 1mm; font-size: 8pt; font-weight: 600; white-space: nowrap; }
+.pehlione-closing__signer strong { margin-top: 1mm; font: inherit; font-weight: 400; overflow-wrap: anywhere; }
 
 .template-thumbnail:has(.pehlione-thumbnail-hero) {
   position: relative;

@@ -35,6 +35,7 @@ import { ZeitgenoessischResume } from "./templates/zeitgenoessisch";
 import { ZweispaltigResume } from "./templates/zweispaltig";
 import { TuerkisProfilResume } from "./templates/tuerkis-profil";
 import { renderCv } from "./__parityHarness";
+import { maximalProfileInput } from "./__parityFixture";
 import { resumeTextRoles, type ResumeTextRole } from "../../shared/resumeTextRoles";
 
 const components: Record<string, unknown> = {
@@ -537,7 +538,7 @@ describe("entry roles of the Lebenslauf-Design (Werdegang, Bildungsweg, Projekte
       ["Unternehmen / Einrichtung", { colors: { organization: "#1F6F43" }, typography: { organizationSizePt: 12 } }, "organization", "#1F6F43", "12pt"],
       ["Ort / Standort", { colors: { location: "#2347A8" }, typography: { locationSizePt: 10.5 } }, "location", "#2347A8", "10.5pt"],
       ["Eintragstitel", { colors: { entryHeading: "#7A1F5C" }, typography: { entryHeadingSizePt: 13 } }, "entry-title", "#7A1F5C", "13pt"],
-      ["Projekttechnologien / Hervorhebungsfarbe", { colors: { accent: "#A04A00" }, typography: { projectTechnologiesSizePt: 9.5 } }, "technologies", "#A04A00", "9.5pt"],
+      ["Projekttechnologien", { colors: { projectTechnologies: "#A04A00" }, typography: { projectTechnologiesSizePt: 9.5 } }, "technologies", "#A04A00", "9.5pt"],
       ["Projektbeschreibung / Absatztext", { colors: { paragraph: "#2B2B2B" }, typography: { projectDescriptionSizePt: 10.25 } }, "description", "#2B2B2B", "10.25pt"],
     ];
     it.each(single)("applies %s to all of its texts on both surfaces and to no other role", (_label, cvOverrides, role, color, size) => {
@@ -555,13 +556,6 @@ describe("entry roles of the Lebenslauf-Design (Werdegang, Bildungsweg, Projekte
         }
         for (const other of resumeTextRoles.filter((candidate) => candidate !== role))
           for (const node of roleNodes(pages, other)) {
-            if (role === "technologies" && other === "organization") {
-              // Zweispaltig's (and Türkis Profil's) Arbeitgebernamen keep their own chain; every other organisation keeps its
-              // colour (Klassisch draws the Bildungsweg's in its text colour).
-              expect(declared(node, "color"), node.outerHTML).toBe(["zweispaltig", "tuerkis-profil"].includes(id) && node.hasAttribute("data-cv-employer")
-                ? undefined : id === "klassisch" && kindOf(node) === "education" ? klassischDefaults.colors.text : resolveTemplateCvDesign(id).colors.organization);
-              continue;
-            }
             expect(node.getAttribute("style") ?? "", `${other}: ${node.outerHTML}`).not.toContain("!important");
           }
       }
@@ -688,5 +682,101 @@ describe("entry roles of the Lebenslauf-Design (Werdegang, Bildungsweg, Projekte
     const ownOrganization = applyGlobalResumeDesign({ ...getTemplateDocumentDesignDefaults("zweispaltig"), cvOverrides: { colors: { organization: "#1F6F43" } } },
       { cvOverrides: { colors: { employer: "#12E203" } } });
     expect(ownOrganization.cvOverrides?.colors).toEqual({ organization: "#1F6F43" });
+  });
+});
+
+describe("Projekttechnologien, Stärken-Symbole and Symbole", () => {
+  const chosen = { projectTechnologies: "#BA3B44", strengthIcon: "#0C8C74", icon: "#2856B6" };
+  const accent = "#A04A00";
+  const colorProfile = profileSchema.parse(maximalProfileInput({
+    strengths: [
+      ["Go", ""], ["TypeScript", ""], ["API", ""], ["Eigene Auswahl", "symbol:check"], ["Datenbank", "symbol:database"], ["Unbekannte Technik", ""],
+    ].map(([title, iconId]) => ({ id: crypto.randomUUID(), title, iconId, description: "Beschreibung" })),
+    specialSections: [{
+      id: crypto.randomUUID(), kind: "projects", title: "Projekte", isVisible: true,
+      entries: [{ id: crypto.randomUUID(), title: "Plattform", url: "", technologies: ["Go", "Chi", "PostgreSQL", "sqlc", "Next.js"], description: "Beschreibung", bullets: [] }],
+    }],
+  }));
+  const contactIcons = (pages: Element[]) => pages.flatMap((page) => Array.from(page.querySelectorAll("svg[data-contact-icon]")))
+    .filter((svg) => !svg.closest("h1,h2,h3,h4,h5,.cv-heading,[data-cv-heading],[data-custom-role='heading'],[data-cv-role]"));
+  const strengthIcons = (pages: Element[]) => pages.flatMap((page) => Array.from(page.querySelectorAll('[data-managed-section="strengths"] svg.technology-brand-svg')));
+  const render = (id: string, ats: boolean, colors?: Record<string, string>) =>
+    renderCv(id, colorProfile, { ats, overrides: colors ? { cvOverrides: { colors } } as never : {} });
+
+  describe.each(templates)("$name", ({ id }) => {
+    it.each([false, true])("draws each chosen colour on exactly its own elements on both surfaces (ATS: %s)", (ats) => {
+      const result = render(id, ats, chosen);
+      for (const pages of [result.previewPages, result.pdfPages]) {
+        const technologies = roleNodes(pages, "technologies");
+        expect(technologies.length).toBeGreaterThan(0);
+        for (const node of technologies) {
+          expect(declared(node, "color"), node.outerHTML).toBe(chosen.projectTechnologies);
+          expect(declared(node, "opacity"), node.outerHTML).toBe("1");
+        }
+        for (const svg of contactIcons(pages)) {
+          expect(declared(svg, "color"), svg.outerHTML).toBe(chosen.icon);
+          expect(declared(svg, "stroke"), svg.outerHTML).toBe(chosen.icon);
+        }
+        const strengths = strengthIcons(pages);
+        if (ats) expect(strengths).toHaveLength(0);
+        else expect(strengths.length).toBeGreaterThan(0);
+        for (const svg of strengths) expect(declared(svg, "color"), svg.outerHTML).toBe(chosen.strengthIcon);
+        for (const other of resumeTextRoles.filter((role) => role !== "technologies"))
+          for (const node of roleNodes(pages, other)) expect(node.getAttribute("style") ?? "", node.outerHTML).not.toContain(chosen.projectTechnologies);
+        for (const svg of pages.flatMap((page) => Array.from(page.querySelectorAll("h1 svg,h2 svg,h3 svg,h4 svg,[data-cv-role] svg")))) {
+          expect(svg.getAttribute("style") ?? "", svg.outerHTML).not.toContain(chosen.icon);
+          expect(svg.getAttribute("style") ?? "", svg.outerHTML).not.toContain(chosen.strengthIcon);
+        }
+      }
+    });
+
+    it("keeps one control from reaching the others", () => {
+      const onlyContacts = render(id, false, { icon: chosen.icon });
+      const onlyStrengths = render(id, false, { strengthIcon: chosen.strengthIcon });
+      const onlyTechnologies = render(id, false, { projectTechnologies: chosen.projectTechnologies });
+      for (const pages of [onlyContacts.previewPages, onlyContacts.pdfPages]) {
+        for (const svg of strengthIcons(pages)) expect(svg.getAttribute("style") ?? "", svg.outerHTML).not.toContain(chosen.icon);
+        for (const node of roleNodes(pages, "technologies")) expect(declared(node, "color"), node.outerHTML).toBeUndefined();
+      }
+      for (const pages of [onlyStrengths.previewPages, onlyStrengths.pdfPages]) {
+        for (const svg of contactIcons(pages)) expect(svg.getAttribute("style") ?? "", svg.outerHTML).not.toContain(chosen.strengthIcon);
+        for (const node of roleNodes(pages, "technologies")) expect(declared(node, "color"), node.outerHTML).toBeUndefined();
+      }
+      for (const pages of [onlyTechnologies.previewPages, onlyTechnologies.pdfPages])
+        for (const svg of [...contactIcons(pages), ...strengthIcons(pages)]) expect(svg.getAttribute("style") ?? "", svg.outerHTML).not.toContain("!important");
+    });
+
+    it("keeps chosen colours, and the template's own without a choice, when the Hervorhebungsfarbe changes", () => {
+      const withChoice = render(id, false, { ...chosen, accent });
+      for (const pages of [withChoice.previewPages, withChoice.pdfPages]) {
+        for (const node of roleNodes(pages, "technologies")) expect(declared(node, "color")).toBe(chosen.projectTechnologies);
+        for (const svg of contactIcons(pages)) expect(declared(svg, "color"), svg.outerHTML).toBe(chosen.icon);
+        for (const svg of strengthIcons(pages)) expect(declared(svg, "color"), svg.outerHTML).toBe(chosen.strengthIcon);
+      }
+      const accentOnly = render(id, false, { accent });
+      for (const pages of [accentOnly.previewPages, accentOnly.pdfPages]) {
+        for (const node of roleNodes(pages, "technologies")) {
+          expect(declared(node, "color"), node.outerHTML).not.toBe(accent);
+          expect(declared(node, "opacity"), node.outerHTML).toBeUndefined();
+        }
+        for (const svg of [...contactIcons(pages), ...strengthIcons(pages)]) expect(svg.getAttribute("style") ?? "", svg.outerHTML).not.toContain(accent);
+      }
+    });
+
+    it("writes nothing for a Bewerbung without the new colours", () => {
+      const result = render(id, false);
+      for (const pages of [result.previewPages, result.pdfPages])
+        for (const node of [...roleNodes(pages, "technologies"), ...contactIcons(pages), ...strengthIcons(pages)])
+          expect(node.getAttribute("style") ?? "", node.outerHTML).not.toContain("!important");
+    });
+  });
+
+  it.each(templates)("leaves the page plan and the section order of $name untouched", ({ id }) => {
+    const native = render(id, false);
+    const colored = render(id, false, { ...chosen, accent });
+    expect(colored.resolved.pagePlan).toEqual(native.resolved.pagePlan);
+    const shape = (pages: Element[]) => pages.map((page) => Array.from(page.querySelectorAll("[data-managed-section]")).map((node) => node.getAttribute("data-managed-section")));
+    expect(shape(colored.pdfPages)).toEqual(shape(native.pdfPages));
+    expect(shape(colored.previewPages)).toEqual(shape(native.previewPages));
   });
 });

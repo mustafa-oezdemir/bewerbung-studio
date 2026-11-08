@@ -27,7 +27,7 @@ import {
   localDateKey,
   terminalApplicationStatuses,
 } from "../src/shared/todos";
-import { getProfessionalTitle, resolveApplicationProfile } from "../src/shared/profileSelection";
+import { applyMainProfileToApplication, getProfessionalTitle, resolveApplicationProfile } from "../src/shared/profileSelection";
 import { migrateLegacyResumeProfiles } from "../src/shared/legacyResumeProfile";
 import { WorkspaceManager } from "./workspace-management";
 import {
@@ -1415,13 +1415,15 @@ export class DataStore {
   }
 
   async saveApplication(rawApplication: Application) {
-    const application = applicationSchema.parse(rawApplication);
+    let application = applicationSchema.parse(rawApplication);
     const index = this.workspace.applications.findIndex(
       (item) => item.id === application.id,
     );
     if (index < 0) throw new Error("Bewerbung wurde nicht gefunden.");
     const current = this.workspace.applications[index];
-    // profileId records provenance. Changing that link never replaces saved application content.
+    // A changed link must never be persisted with the previous profile's snapshot.
+    if (application.profileId && application.profileId !== current.profileId)
+      application = applyMainProfileToApplication(application, this.workspace.profiles, application.profileId);
     if (!application.profileSnapshot) application.profileSnapshot = structuredClone(current.profileSnapshot);
     if (!application.profileSnapshot)
       throw new Error("Das Bewerbungsprofil fehlt. Die Bewerbung wurde nicht gespeichert.");

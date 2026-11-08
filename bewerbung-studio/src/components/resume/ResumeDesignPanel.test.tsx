@@ -257,9 +257,9 @@ describe("entry roles in the panel (Werdegang, Bildungsweg, Projekte, Hobbys)", 
       expect(frameOf(document, label).textContent, label).toContain(`Vorlage: ${german(native.typography[key])} pt`);
       expect(frameOf(document, label).closest(".rds-sub")?.getAttribute("aria-label")).toBe("Größen in Einträgen");
     }
-    // The entry title keeps its one control; the technologies follow the Hervorhebungsfarbe (Zweispaltig edits it above the panel).
+    // The entry title keeps its one control; the technologies have their own colour (Zweispaltig edits the accent above the panel).
     expect(labels.filter((label) => label === "Eintragstitel (pt)")).toHaveLength(1);
-    if (id !== "zweispaltig") expect(document.querySelector(".rds")?.textContent).toContain("Färbt auch die Technologiezeile der Projekte.");
+    if (id !== "zweispaltig") expect(document.querySelector(".rds")?.textContent).toContain("Projekttechnologien, Stärken-Symbole und Symbole haben eigene Farben");
   });
 
   it("changes one role at a time and drops the value again on its reset", () => {
@@ -315,5 +315,53 @@ describe("entry roles in the panel (Werdegang, Bildungsweg, Projekte, Hobbys)", 
     expect(valueOf(panel(state), "Projekttechnologien (pt)")).toBe(german(resolveTemplateCvDesign("stilvoll").typography.projectTechnologiesSizePt));
     state = { ...state, draft: selectDocumentTemplate(state.draft, "kompakt") };
     expect(valueOf(panel(state), "Projekttechnologien (pt)")).toBe("10");
+  });
+});
+
+describe("the three colour controls of the panel", () => {
+  const group = (document: Document, label: string) => field(document, label).closest(".rds-sub")?.getAttribute("aria-label");
+  const hexOf = (document: Document, label: string) => field(document, `${label} HEX`).getAttribute("value")?.toUpperCase();
+
+  it.each([["Projekttechnologien", "Textfarben"], ["Stärken-Symbole", "Stärken"], ["Symbole", "Design"]])("offers %s under %s", (label, section) => {
+    const document = panel(stateFor("klassisch"));
+    expect(group(document, label)).toBe(section);
+    expect(controls(document).filter((name) => name === label)).toHaveLength(1);
+  });
+
+  it("names the template's own colour under each control", () => {
+    for (const { id } of templates) {
+      const native = resolveTemplateCvDesign(id).colors;
+      const document = panel(stateFor(id));
+      expect(hexOf(document, "Projekttechnologien"), id).toBe(native.projectTechnologies.toUpperCase());
+      expect(hexOf(document, "Stärken-Symbole"), id).toBe(native.strengthIcon.toUpperCase());
+      expect(hexOf(document, "Symbole"), id).toBe(native.icon.toUpperCase());
+    }
+  });
+
+  it("resets one colour and keeps the others, in both scopes", () => {
+    const keys = { projectTechnologies: "#BA3B44", strengthIcon: "#0C8C74", icon: "#2856B6" } as const;
+    for (const scope of ["document", "global"] as const) {
+      let state = stateFor("klassisch");
+      for (const [key, value] of Object.entries(keys)) state = editCvDesignField(state, scope, "colors", key as keyof typeof keys, value);
+      state = editCvDesignField(state, scope, "colors", "strengthIcon", undefined);
+      const colors = scope === "document" ? state.draft.settings.cvOverrides?.colors : state.global?.cvOverrides?.colors;
+      expect(colors, scope).toEqual({ projectTechnologies: keys.projectTechnologies, icon: keys.icon });
+    }
+  });
+
+  it("does not move them when the Hervorhebungsfarbe changes", () => {
+    let state = editCvDesignField(stateFor("klassisch"), "document", "colors", "projectTechnologies", "#BA3B44");
+    state = editCvDesignField(state, "document", "colors", "accent", "#A04A00");
+    const view = resolveResumeDesignView("klassisch", state.draft.settings);
+    expect(view.effective.tokens.colors.projectTechnologies).toBe("#BA3B44");
+    expect(view.effective.tokens.colors.strengthIcon).toBe(resolveTemplateCvDesign("klassisch").colors.strengthIcon);
+  });
+
+  it("keeps a template's colours when the Bewerbung switches templates and back", () => {
+    let state = editCvDesignField(stateFor("kompakt"), "document", "colors", "strengthIcon", "#0C8C74");
+    state = { ...state, draft: selectDocumentTemplate(state.draft, "stilvoll") };
+    expect(state.draft.settings.cvOverrides?.colors?.strengthIcon).toBeUndefined();
+    state = { ...state, draft: selectDocumentTemplate(state.draft, "kompakt") };
+    expect(state.draft.settings.cvOverrides?.colors?.strengthIcon).toBe("#0C8C74");
   });
 });

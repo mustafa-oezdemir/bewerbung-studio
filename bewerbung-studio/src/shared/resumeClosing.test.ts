@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { parseHTML } from "linkedom";
 import { profileSchema } from "./schema";
 import { defaultDocumentDesign } from "./documentDesign";
-import { applyResumeClosingOutput, resolveResumeClosingLayout, resolveResumeClosingLine } from "./resumeClosing";
+import { getDocumentFont } from "./documentDesign";
+import { resolveEffectiveDesignTokens } from "./resumeDesignSystem";
+import { applyResumeClosingOutput, applyResumeClosingTypography, resolveResumeClosingLayout, resolveResumeClosingLine } from "./resumeClosing";
 
 const profile = profileSchema.parse({ id: crypto.randomUUID(), isDefault: true, firstName: "Mina", lastName: "Kaya", updatedAt: new Date().toISOString(),
   applicationPlace: "Marburg", applicationDate: "2026-09-28", signaturePath: "data:image/png;base64,AA==" });
@@ -21,14 +23,15 @@ describe("shared resume closing", () => {
     applyResumeClosingOutput(root, main, profile, "modern", defaultDocumentDesign, true, true);
     expect(root.querySelector("[data-resume-closing]")).not.toBeNull();
   });
-  it("uses only checked fields and a validated profile image", () => {
+  it("uses only checked fields and shows the name without an invalid image", () => {
     const document = page();
     const root = document.querySelector(".cv-sheet")!;
     const changed = { ...profile, signaturePath: "javascript:alert(1)", resumeClosing: { showPlace: false, showDate: true, showSignature: true } };
     applyResumeClosingOutput(root, root.querySelector("main")!, changed, "modern", defaultDocumentDesign, true, true);
     expect(root.querySelector("[data-resume-closing-place]")).toBeNull();
     expect(root.querySelector("[data-resume-closing-date]")?.textContent).toBe("28.09.2026");
-    expect(root.querySelector("[data-resume-closing-signature]")).toBeNull();
+    expect(root.querySelector("[data-resume-closing-signature] strong")?.textContent).toBe("Mina Kaya");
+    expect(root.querySelector("[data-resume-closing-signature] img")).toBeNull();
   });
   it("places the closing in the main column, right-aligned, unless the user chose otherwise", () => {
     expect(resolveResumeClosingLayout("modern")).toEqual({ placement: "main", alignment: "right" });
@@ -88,7 +91,29 @@ describe("shared resume closing", () => {
     expect(root.querySelector("[data-resume-closing]")).toBeNull();
     applyResumeClosingOutput(root, root.querySelector("main")!, profile, "modern",
       { ...defaultDocumentDesign, resumeOutputMode: "ats" }, true, true, undefined, "02.10.2026");
-    expect(root.querySelector("[data-resume-closing-signature]")).toBeNull();
+    expect(root.querySelector("[data-resume-closing-signature] strong")?.textContent).toBe("Mina Kaya");
+    expect(root.querySelector("[data-resume-closing-signature] img")).toBeNull();
     expect(root.querySelector("[data-resume-closing-date]")?.textContent).toBe("02.10.2026");
+  });
+  it.each([
+    ["georgia", 8.5, 1.15, "#123456"],
+    ["montserrat", 12.5, 1.5, "#345678"],
+  ] as const)("takes closing typography from the effective Fließtext (%s, %s pt)", (fontId, bodySizePt, lineHeight, paragraph) => {
+    const document = page();
+    const root = document.querySelector(".cv-sheet")!;
+    const withoutImage = { ...profile, signaturePath: "" };
+    applyResumeClosingOutput(root, root.querySelector("main")!, withoutImage, "modern", defaultDocumentDesign, true, true, undefined, "05.11.2026");
+    const native = resolveEffectiveDesignTokens("modern", defaultDocumentDesign);
+    const design = { ...native, typography: { ...native.typography, fontId, bodySizePt, lineHeight }, colors: { ...native.colors, paragraph } };
+    applyResumeClosingTypography(root, design);
+    const family = getDocumentFont(fontId).family;
+    for (const node of root.querySelectorAll('[data-resume-closing-line], [data-resume-closing-signature] strong')) {
+      const style = (node as HTMLElement).style;
+      expect(style.getPropertyValue("font-family")).toBe(family);
+      expect(style.getPropertyValue("font-size")).toBe(`${bodySizePt}pt`);
+      expect(style.getPropertyValue("line-height")).toBe(String(lineHeight));
+      expect(style.getPropertyValue("font-weight")).toBe("400");
+      expect(style.getPropertyValue("color")).toBe(paragraph);
+    }
   });
 });

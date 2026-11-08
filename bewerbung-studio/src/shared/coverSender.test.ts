@@ -24,13 +24,26 @@ describe("the sender of the Anschreiben", () => {
     expect(resolveCoverSender(profileA, drafts())).toEqual({
       name: "Mustafa Özdemir",
       title: "Softwareentwickler | Fachinformatiker für Anwendungsentwicklung",
-      contact: "Gartenweg 7 | 34117 Kassel | m@example.test | 0561 123",
+      contact: "Gartenweg 7, 34117 Kassel | m@example.test | 0561 123",
     });
     expect(resolveCoverSender(profileB, drafts()).title).toBe(profileB.title);
   });
 
   it("prints what the user typed on purpose instead", () => {
     expect(resolveCoverSender(profileA, drafts({ coverSenderTitle: "Leitung IT" })).title).toBe("Leitung IT");
+    expect(resolveCoverSender(profileA, drafts({ coverSenderContact: "Privates Postfach | m@example.test" })).contact)
+      .toBe("Privates Postfach | m@example.test");
+  });
+
+  it("joins the street and city with a comma and updates a saved copy of the old automatic line", () => {
+    const marburg = profile({ street: "Am Richtsberg 20", postalCode: "35039", city: "Marburg" });
+    const oldContact = "Am Richtsberg 20 | 35039 Marburg | m@example.test | 0561 123";
+    const newContact = "Am Richtsberg 20, 35039 Marburg | m@example.test | 0561 123";
+    expect(coverSenderFromProfile(marburg).contact).toBe(newContact);
+    expect(resolveCoverSender(marburg, drafts({ coverSenderContact: oldContact })).contact).toBe(newContact);
+    expect(keepCoverSenderOverrides({ ...coverSenderFromProfile(marburg), contact: oldContact }, marburg).coverSenderContact).toBe("");
+    expect(coverSenderFromProfile(profile({ street: "", postalCode: "35039", city: "Marburg" })).contact)
+      .toBe("35039 Marburg | m@example.test | 0561 123");
   });
 
   it("never holds a copy of the profile: a typed value that equals the profile's own is no override", () => {

@@ -116,7 +116,7 @@ export type ResumePlanContext = {
   sections?: ReadonlyArray<{ id: string; visible: boolean; zone: PaginationZone }>;
   atsMode?: boolean;
   layout?: { mode: "single" | "two-column"; sidebarWidthPercent: number; overridden?: boolean; nativeSidebarWidthPercent?: number };
-  closing?: { visible: boolean; signature: boolean; placement?: "footer" | "main" };
+  closing?: { visible: boolean; signature: boolean; name?: string; line?: boolean; typography?: { bodySizePt: number; lineHeight: number }; placement?: "footer" | "main" };
   /** Explicit user design overrides that change text or spacing metrics. */
   overrides?: {
     bodySizePt?: number; headingSizePt?: number; subheadingSizePt?: number;
@@ -133,6 +133,8 @@ export type ResumePlanContext = {
      * Unternehmen / Einrichtung, Ort / Standort, Projekttechnologien, Projektbeschreibung); only the chosen ones.
      */
     entryRoleSizes?: Partial<Record<ResumeTextRole, number>>;
+    /** Kompakt: the section title size (pt) of its design, for the titles of its right column (`kompaktSideHeadMm`). */
+    sideHeadingPt?: number;
   };
   /** Design settings: they decide how many columns a strengths or knowledge grid gets. */
   settings?: DocumentDesignSettings;
@@ -225,6 +227,23 @@ const minLinesBefore = (kind: string) => (kind === "education" ? 1 : MIN_SPLIT_L
  */
 const LANE_MIN_ROWS_BEFORE = 1;
 const LANE_MIN_ROWS_AFTER = 2;
+/**
+ * Kompakt's right column as kompaktResolvedCss, resumeLanguageCss and managedResumeCss draw it (measured in the PDF and the
+ * preview): below a section title line its 1 mm padding and 1 px rule; Kenntnisse rows 2 mm apart beside a 4 mm icon, a
+ * list title 1.5 mm above and below, categories 3 mm apart, a level bar 1 + 1 mm; Sprachen rows 2 mm apart, the dots
+ * (six of 0.8 × the body size, 0.6 mm apart) 20 px from the text and 20 px from the column's edge, a second flex line
+ * 0.6 mm below the first.
+ */
+const KOMPAKT_SIDE_RULE_MM = 1 + 25.4 / 96;
+const KOMPAKT_SIDE_ROW_GAP_MM = 2;
+const KOMPAKT_KNOWLEDGE_ICON_MM = 4;
+const KOMPAKT_KNOWLEDGE_TITLE_MARGIN_MM = 1.5;
+const KOMPAKT_KNOWLEDGE_CATEGORY_GAP_MM = 3;
+const KOMPAKT_KNOWLEDGE_LEVEL_BAR_MM = 2;
+const KOMPAKT_LANGUAGE_EDGE_MM = 20 * 25.4 / 96;
+const KOMPAKT_LANGUAGE_FLEX_GAP_MM = 0.6;
+/** A list entry of a special section in Kompakt's right column stands 4 mm in (its text is 56 of the column's 60 mm). */
+const KOMPAKT_SPECIAL_LIST_INDENT_MM = 4;
 const CLOSING_MM = { signature: 22, plain: 10 };
 /** Elegant's sidebar title: 1.6 mm padding, the rule (one CSS pixel) and 2.4 mm gap below its text line (elegantManagedCss). */
 const ELEGANT_SIDE_HEADING_CHROME_MM = 1.6 + 25.4 / 96 + 2.4;
@@ -245,11 +264,8 @@ const ELEGANT_SUMMARY_MIN_WORDS = 10;
 const ELEGANT_SIDE_LIST_INDENT_MM = 4;
 /** What Tabellarisch's page-one header estimate keeps in reserve (its model never fell short on real headers). */
 const TABELLARISCH_HEADER_RESERVE_MM = 0.3;
-/**
- * The shared closing block (resumeClosingCss): 2 mm padding above a 9 pt line (line height 1.25) or the signature (an image
- * of at most 14 mm and the 8 pt name); in the footer 12 mm above the sheet edge, in the main column 5 mm below the text.
- */
-const CLOSING_BOX = { bottomMm: 12, paddingMm: 2, lineMm: 9 * (25.4 / 72) * 1.25, signatureMm: 14 + 8 * (25.4 / 72) * 1.25, mainGapMm: 5, clearanceMm: 2 };
+/** Placement of the shared closing; its text height comes from the effective Fließtext. */
+const CLOSING_BOX = { bottomMm: 12, paddingMm: 2, imageMm: 14, mainGapMm: 5, clearanceMm: 2 };
 /** Comma-separated lists break at every comma: they wrap a little less than running text. */
 const ATS_LIST_WRAP = 0.92;
 /** The managed item grids: 3 mm between columns and a 4 mm icon plus 1.5 mm gap in front of each text. */
@@ -1018,10 +1034,20 @@ const planResumePages = (
     ((ordered || atsFlow) && (customLayout || (atsFlow && zonesFromList)) && managerRank(id) > careerRank ? "last" : "first");
 
   const closingVisible = context.closing?.visible ?? Boolean(profile?.resumeClosing && (profile.resumeClosing.showPlace || profile.resumeClosing.showDate || profile.resumeClosing.showSignature));
+  const closingImage = context.closing?.signature ?? Boolean(profile?.signaturePath && profile.resumeClosing?.showSignature);
+  const closingName = context.closing?.name ?? (profile?.resumeClosing.showSignature
+    ? [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim() : "");
+  const closingFontMm = context.closing?.typography?.bodySizePt !== undefined
+    ? context.closing.typography.bodySizePt * PT_TO_MM : geometry.text.bulletFont * scale.font;
+  const closingLineHeight = context.closing?.typography?.lineHeight ?? geometry.text.lineRatio * scale.line;
+  const closingTextLineMm = closingFontMm * closingLineHeight;
+  const closingNameMm = closingName ? Math.max(1, wrappedLines(closingName, 48, closingFontMm, 400)) * closingTextLineMm : 0;
+  const closingLineMm = context.closing?.line === false ? 0 : closingTextLineMm;
+  const closingContentMm = Math.max(closingLineMm, (closingImage ? CLOSING_BOX.imageMm : 0) + closingNameMm);
+  // Keep the established reserve at its native size and grow it only when the chosen Fließtext needs more room.
   const closingHeight = closingVisible
-    ? (context.closing?.signature ?? Boolean(profile?.signaturePath && profile.resumeClosing?.showSignature))
-      ? CLOSING_MM.signature
-      : (context.atsMode ? geometry.ats.closing : undefined) ?? CLOSING_MM.plain
+    ? Math.max(closingImage ? CLOSING_MM.signature : (context.atsMode ? geometry.ats.closing : undefined) ?? CLOSING_MM.plain,
+      closingContentMm + CLOSING_BOX.paddingMm + CLOSING_BOX.clearanceMm)
     : 0;
   /**
    * Tabellarisch: the room the closing needs below the content of the last page, from its box (resumeClosingCss). Placed
@@ -1030,8 +1056,7 @@ const planResumePages = (
    */
   const tabellarischClosingRoom = (() => {
     if (!closingVisible) return 0;
-    const signature = context.closing?.signature ?? Boolean(profile?.signaturePath && profile.resumeClosing?.showSignature);
-    const box = CLOSING_BOX.paddingMm + (signature ? CLOSING_BOX.signatureMm : CLOSING_BOX.lineMm);
+    const box = CLOSING_BOX.paddingMm + closingContentMm;
     if (context.closing?.placement === "main") return CLOSING_BOX.mainGapMm + box;
     return Math.max(0, geometry.limit - (tabellarischDefaults.page.heightMm - CLOSING_BOX.bottomMm - box - CLOSING_BOX.clearanceMm));
   })();
@@ -1245,6 +1270,21 @@ const planResumePages = (
     const body = lines.reduce((total, count) => total + count * lineMm, 0);
     return metrics.headingMm + body + metrics.gapMm * (texts.length - 1);
   };
+  /** Kompakt's right column (visual layout): its Kenntnisse, Sprachen and special sections are sized from the geometry both outputs draw. */
+  const kompaktSide = templateId === "kompakt" && !context.atsMode && !flat;
+  /**
+   * A section title of Kompakt's right column: its lines at the section title size of the design (the title keeps the line
+   * height 1.2 whatever the design's line height is; a special section's title is one line box), the padding and rule
+   * below them, then the template's Abstand nach Abschnittstitel (a chosen one is added to every block:
+   * `titleGapDelta`). Measured: 5.92 + 3 mm.
+   */
+  const kompaktSideHeadMm = (title: string, lineHeight = geometry.text.lineRatio) => {
+    const design = resolveTemplateCvDesign("kompakt");
+    const fontMm = (context.overrides?.sideHeadingPt ?? context.overrides?.sectionHeadingPt ?? design.typography.sectionHeadingSizePt) * PT_TO_MM;
+    const lines = Math.max(1, wrappedLines(design.typography.sectionHeadingUppercase ? title.toLocaleUpperCase("de-DE") : title,
+      geometry.text.sideW + scale.sideDelta, fontMm, design.typography.sectionHeadingWeight));
+    return lines * fontMm * lineHeight + KOMPAKT_SIDE_RULE_MM + design.spacing.sectionTitleGapMm;
+  };
   /**
    * Projekte and Hobbys & Interessen space their entries like the career entries (resumeManagedOutput): the Eintragsabstand
    * plus the padding and divider the template's entry rule draws below every entry but the last, and the Abstand nach
@@ -1292,10 +1332,22 @@ const planResumePages = (
       : fullWidth ? geometry.text.fullW * (scale.fullRatio ?? 1) : geometry.text.mainW * scale.mainRatio;
     const font = geometry.text.bulletFont * scale.font;
     const pitch = font * geometry.text.lineRatio * scale.line;
-    const lines = (text: string, indent = 0) => (text.trim() ? linesFor(text.trim().length, column - indent, font, SPECIAL_CW) : 0);
+    /**
+     * Kompakt's right column (measured in the PDF and the preview): its entries wrap with the measured font advances, a list
+     * entry stands 4 mm in, and a headed entry's title is set at the entry title size (weight 550) on the design's line
+     * height. The character model counted a 67-character Beschreibung in three lines where the column sets two, and the
+     * title 0.5 mm taller: the next entry went to the next page although it fitted.
+     */
+    const kompaktSideEntries = kompaktSide && zone === "sidebar";
+    const lines = (text: string, indent = 0) => (!text.trim() ? 0 : kompaktSideEntries
+      ? Math.max(1, wrappedLines(text.trim(), column - indent, font, 400)) : linesFor(text.trim().length, column - indent, font, SPECIAL_CW));
+    const kompaktTitleMm = (geometry.customRolePt?.["entry-title"] ?? 10.5) * PT_TO_MM * Math.max(1, scale.font);
+    const titleHeight = (title: string, indent: number) => kompaktSideEntries
+      ? (title.trim() ? Math.max(1, wrappedLines(title.trim(), column - indent, kompaktTitleMm, 550)) : 0) * kompaktTitleMm * geometry.text.lineRatio * scale.line
+      : lines(title, indent) * pitch * 1.13;
     const headed = normalized.contentType === "entries" || normalized.contentType === "timeline";
     const entries = normalized.entries.slice(range?.[0] ?? 0, range?.[1]).map((entry) => {
-      const indent = listed ? metrics.indentMm : 0;
+      const indent = listed ? (kompaktSideEntries ? KOMPAKT_SPECIAL_LIST_INDENT_MM : metrics.indentMm) : 0;
       if (section.kind === "projects") return lines(entry.title, indent) * pitch * 1.13
         + (entry.title.trim() && (entry.technologies.some((value) => value.trim()) || entry.description.trim()) ? careerLikeContentGap : 0)
         + lines(entry.technologies.join(" · "), indent) * pitch * .88
@@ -1303,7 +1355,7 @@ const planResumePages = (
         + customRoleDelta(section.kind, entry, column - indent);
       const meta = [entry.location, entry.date.trim() || [entry.from, entry.to].filter((value) => value.trim()).join(" – ")].filter((value) => value.trim()).join(" · ");
       const head = headed
-        ? lines(entry.title, indent) * pitch * 1.13 + (entry.subtitle.trim() ? 6.7 : 0) + (meta ? 4.1 : 0)
+        ? titleHeight(entry.title, indent) + (entry.subtitle.trim() ? 6.7 : 0) + (meta ? 4.1 : 0)
         : lines(entry.title, indent) * pitch + lines(entry.subtitle, indent) * pitch + lines(meta, indent) * pitch;
       const titleGap = careerLike && headed && entry.title.trim()
         && [entry.subtitle, meta, entry.description, entry.url, ...entry.bullets].some((value) => value.trim()) ? careerLikeContentGap : 0;
@@ -1319,7 +1371,9 @@ const planResumePages = (
       ? side ? side.between + careerLikeEntryGapDelta : careerLikeEntryGap
       : side?.between ?? (templateId === "modern" && listed
         ? metrics.gapMm : geometry.exp.gap + (zone === "sidebar" && listed ? metrics.gapMm : 3));
-    return metrics.headingMm + (side?.edge ?? 0) + entries.reduce((total, value) => total + value, 0) + between * Math.max(0, entries.length - 1);
+    // (In Kompakt's right column the title is one line box at the section title size, its padding and rule: 5.14 + 3 mm.)
+    const headingMm = kompaktSideEntries ? kompaktSideHeadMm(section.title, 1) : metrics.headingMm;
+    return headingMm + (side?.edge ?? 0) + entries.reduce((total, value) => total + value, 0) + between * Math.max(0, entries.length - 1);
   };
   /**
    * The project highlight in the sidebar: the title, the company line and the bullets keep their body sizes,
@@ -1549,7 +1603,34 @@ const planResumePages = (
     const languageRows = languages.map((entry) =>
       resolveLanguagePresentation(entry, profile?.resumeLanguageDisplay, { dots: true, ats: context.atsMode }));
     /** The block's height when it stands in `at`: from the printed rows, measured per template (languageBlockHeight). */
+    /**
+     * Kompakt's Sprachen in its right column: the section title, then per language one flex row of the bold name with its
+     * level (0.88 of the body size) on a body line, the dots right-aligned beside it while they fit (else on a line of
+     * their own below it), and the Beschreibung at 0.88 of the body size on a line of its own; languages 2 mm apart. The
+     * shared row model (title 3.7 mm, rows of 5.96 + 3.51 mm) left out the title's gap and the row gap: three languages
+     * stood 7 mm taller on the page than planned.
+     */
+    const kompaktSideLanguagesHeight = (rows: typeof languageRows) => {
+      if (!rows.length) return 0;
+      const bodyMm = geometry.text.bulletFont * scale.font;
+      const smallMm = bodyMm * 0.88;
+      const lineHeight = geometry.text.lineRatio * scale.line;
+      const room = geometry.text.sideW + scale.sideDelta - KOMPAKT_LANGUAGE_EDGE_MM;
+      const dotMm = 0.8 * bodyMm;
+      const dotsMm = 6 * dotMm + 5 * KOMPAKT_LANGUAGE_FLEX_GAP_MM;
+      return kompaktSideHeadMm(getResumeSectionTitle(profile, "languages")) + rows.reduce((total, row) => {
+        const level = row.detail ? ` – ${row.detail}` : "";
+        const nameMm = textWidthMm(row.name, bodyMm, 700) + textWidthMm(level, smallMm, 400);
+        const nameLines = nameMm <= room ? 1 : Math.max(1, wrappedLines(`${row.name}${level}`, room, bodyMm, 700));
+        const dots = row.showDots && (nameLines > 1 || nameMm + KOMPAKT_LANGUAGE_EDGE_MM + dotsMm > room)
+          ? KOMPAKT_LANGUAGE_FLEX_GAP_MM + dotMm : 0;
+        const description = row.secondaryText
+          ? KOMPAKT_LANGUAGE_FLEX_GAP_MM + Math.max(1, wrappedLines(row.secondaryText, room, smallMm, 400)) * smallMm * lineHeight : 0;
+        return total + nameLines * bodyMm * lineHeight + dots + description;
+      }, 0) + KOMPAKT_SIDE_ROW_GAP_MM * (rows.length - 1);
+    };
     const languageHeightIn = (at: PaginationZone, fullWidth = false, rows = languageRows) => {
+      if (kompaktSide && at === "sidebar") return kompaktSideLanguagesHeight(rows);
       const beside = !flat && (!fullWidth || templateId === "gepflegt") && geometry.columns === 2;
       const columns = resolveSectionColumns(settings.languagesColumns, templateId ?? "", at === "sidebar" ? "sidebar" : "main",
         rows.map((language) => ({ title: language.primaryText, description: language.secondaryText })), settings, beside);
@@ -1689,6 +1770,52 @@ const planResumePages = (
       // The heading and the first category title lead every part; each further category adds a title.
       return (geometry.items.knowledge.head + 8 * (lists - 1) + part.reduce((total, row) => total + row.height, 0) + part[0].gap * (part.length - lists)) * scale.textHeight;
     };
+    /**
+     * Kompakt's Kenntnisse in its right column, as resumeManagedOutput draws them: the section title, per list its title (a
+     * bold body line 1.5 mm above and below: h4 for a category, h5 for a subcategory; a title that goes on from the page
+     * before carries the "· Fortsetzung" marker) and its items one per row beside the icon, 2 mm apart; a further category
+     * starts 3 mm below the last row of the one before. The item grid's model (1.04 mm padding and the 3.2 mm entry gap
+     * per row) counted every row 2.2 mm too tall: a long list filled the column on paper while its last third stayed
+     * empty, and the sections behind it went to the next page.
+     */
+    const kompaktKnowledgeItems = knowledgeGroups.flatMap((group, list) => group.items.map((item) => {
+      const mode = group.subcategory?.displayMode ?? group.category.displayMode;
+      return { list, text: formatKnowledgeItem(item, group.category.showLevels, group.category.showYearsOfExperience, mode),
+        bar: group.category.showLevels && mode === "level-bars" };
+    }));
+    const kompaktSideKnowledgeHeight = (rows: ReturnType<typeof knowledgeRows>, from: number, to: number) => {
+      const part = rows.slice(from, to);
+      if (!part.length) return 0;
+      const first = from > 0 ? rows[from - 1].end : 0;
+      const items = kompaktKnowledgeItems.slice(first, part[part.length - 1].end);
+      const bodyMm = geometry.text.bulletFont * scale.font;
+      const lineMm = bodyMm * geometry.text.lineRatio * scale.line;
+      const column = geometry.text.sideW + scale.sideDelta;
+      const marker = 0.45 * bodyMm + textWidthMm("· Fortsetzung", 0.72 * bodyMm, 500, 0.02);
+      const title = (value: string, continued: boolean) => KOMPAKT_KNOWLEDGE_TITLE_MARGIN_MM
+        + Math.max(1, wrappedLines(value, column, bodyMm, 700, 0, continued ? marker : 0)) * lineMm;
+      const before = first > 0 ? knowledgeGroups[kompaktKnowledgeItems[first - 1].list] : undefined;
+      let height = kompaktSideHeadMm(knowledgeSection?.title || getResumeSectionTitle(profile, "knowledge"));
+      let list = -1;
+      items.forEach((item, index) => {
+        if (item.list !== list) {
+          const group = knowledgeGroups[item.list];
+          const previous = list >= 0 ? knowledgeGroups[list] : undefined;
+          if (!previous || previous.category !== group.category) {
+            // A category opens with its title (its 1.5 mm top margin falls into the gap above it).
+            height += (previous ? KOMPAKT_KNOWLEDGE_CATEGORY_GAP_MM : 0)
+              + title(group.category.title, index === 0 && before?.category === group.category);
+          }
+          // A subcategory adds its own title, 1.5 mm below the rows (or the title) above it.
+          if (group.subcategory) height += KOMPAKT_KNOWLEDGE_TITLE_MARGIN_MM
+            + title(group.subcategory.title, index === 0 && before === group);
+          list = item.list;
+        } else height += KOMPAKT_SIDE_ROW_GAP_MM;
+        height += Math.max(KOMPAKT_KNOWLEDGE_ICON_MM, Math.max(1, wrappedLines(item.text, column - GRID_ICON_MM, bodyMm, 400)) * lineMm)
+          + (item.bar ? KOMPAKT_KNOWLEDGE_LEVEL_BAR_MM : 0);
+      });
+      return height;
+    };
     if (context.atsMode) {
       // Plain text: one comma-separated paragraph per category and subcategory. It stays whole.
       const model = geometry.ats.knowledge;
@@ -1708,7 +1835,8 @@ const planResumePages = (
       flow.push({
         id: "knowledge",
         zone: knowledgeZone,
-        height: rowsHeight(firstRows, 0, firstRows.length),
+        height: kompaktSide && knowledgeZone === "sidebar"
+          ? kompaktSideKnowledgeHeight(firstRows, 0, firstRows.length) : rowsHeight(firstRows, 0, firstRows.length),
         // On the last page there is no sidebar: the list spreads over the page width.
         contHeight: rowsHeight(lastRows, 0, lastRows.length),
         home: "last",
@@ -1733,7 +1861,8 @@ const planResumePages = (
         // In the sidebar the rows are those of the narrow column; a sidebar lane may break the list at any row.
         sideSplit: knowledgeZone === "sidebar" && !flat
           ? { ends: firstRows.map((row) => row.end), height: (from, to) => elegantKnowledge
-            ? elegantKnowledgeHeight(firstRows, from, to) : rowsHeight(firstRows, from, to) }
+            ? elegantKnowledgeHeight(firstRows, from, to)
+            : kompaktSide ? kompaktSideKnowledgeHeight(firstRows, from, to) : rowsHeight(firstRows, from, to) }
           : undefined,
       });
     }
@@ -2091,9 +2220,11 @@ const planResumePages = (
   const contactValueWidth = geometry.text.sideW + scale.sideDelta - CONTACT_ICON_MM;
   const kompaktContacts = templateId === "kompakt" && !context.atsMode && showContacts
     ? getResumeHeaderContactTexts(profile) : [];
-  // Kompakt prints contacts above the first managed sidebar block; account for their line boxes and gaps.
+  // Kompakt prints contacts above the first managed sidebar block; account for their title (as both outputs draw it), their
+  // line boxes and gaps, and the gap to the next block of the column.
   const kompaktSidebarStart = kompaktContacts.length
-    ? geometry.sideTop1! + photoGrowth.side + 13
+    ? geometry.sideTop1! + photoGrowth.side + kompaktSideHeadMm(getPersonalDataTitle(profile?.resumeSemanticSections, templateId))
+      + scale.titleGapDelta + sideGap
       + kompaktContacts.reduce((height, value) => height + Math.max(1,
         wrappedLines(value, geometry.text.sideW + scale.sideDelta - 6.5, geometry.text.bulletFont * scale.font * .92, 400))
         * geometry.text.bulletFont * scale.font * geometry.text.lineRatio * scale.line, 0)
@@ -2507,8 +2638,11 @@ const planResumePages = (
           // at least two lines on each page (no widow, no orphan).
           const words = block.id === "summary" ? ELEGANT_SUMMARY_MIN_WORDS : 0;
           const { lines } = block.sideSplit;
-          // Zweispaltig's languages and certificates are separate list entries: a single one may open the next page.
-          const minAfter = templateId === "zweispaltig" && (block.id === "languages" || block.id === "certifications") ? 1 : LANE_MIN_ROWS_AFTER;
+          // Zweispaltig's languages and certificates are separate list entries: a single one may open the next page. So may
+          // one entry of a section in Kompakt's right column whose rows are whole entries (not the lines of a paragraph):
+          // the column fills to its bottom like a word processor instead of keeping two entries back for the next page.
+          const minAfter = (templateId === "zweispaltig" && (block.id === "languages" || block.id === "certifications"))
+            || (templateId === "kompakt" && !lines && !words) ? 1 : LANE_MIN_ROWS_AFTER;
           for (let end = from + Math.max(LANE_MIN_ROWS_BEFORE, words); end <= rows - Math.max(minAfter, words); end += 1) {
             // The parts only grow with `end`: past the first one that is too tall none fits.
             if (used + gap + segmentHeight({ block, from, to: end }, page) > capacity(page)) break;

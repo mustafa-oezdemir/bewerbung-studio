@@ -33,8 +33,9 @@ describe("Tabellarisch: the Website checkbox", () => {
       expect(name.nextElementSibling).toBe(title);
       return header.querySelector(".tabellarisch-header__primary-contacts,.tabellarisch-pdf-primary-contacts")?.textContent?.replace(/\s+/g, " ").trim();
     };
-    expect(line(on.previewPages[0])).toBe("Beispielallee 20 | 35039 Marburg, Deutschland | mina.beispiel1408@example.com | +49 176 12345678");
+    expect(line(on.previewPages[0])).toBe("Beispielallee 20, 35039 Marburg, Deutschland | mina.beispiel1408@example.com | +49 176 12345678");
     expect(line(on.pdfPages[0])).toBe(line(on.previewPages[0]));
+    expect(on.previewPages[0].querySelectorAll(".tabellarisch-header__separator[aria-hidden]")).toHaveLength(0);
   });
 
   it("shows the Website only when its checkbox is on, in the header and in the footer, on every page", () => {

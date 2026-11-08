@@ -1,6 +1,6 @@
 // Every selectable template's native design, complete and typed. Each entry is defined next to the template's other
 // constants (cvTemplateDefaults/*.defaults.ts); this file only registers them, so a template's number exists once.
-import type { CvDesignTokens, NativeResumeDesign } from "./cvDesignSchema";
+import type { NativeResumeDesign } from "./cvDesignSchema";
 import { einspaltigDesign } from "./cvTemplateDefaults/einfach.defaults";
 import { elegantDesign } from "./cvTemplateDefaults/elegant.defaults";
 import { gepflegtDesign } from "./cvTemplateDefaults/gepflegt.defaults";
@@ -36,6 +36,6 @@ export const nativeResumeDesigns: Record<string, NativeResumeDesign> = {
 };
 
 /** The semantic tokens alone, for callers that need no appearance. */
-export const cvTemplateTokens: Record<string, CvDesignTokens> = Object.fromEntries(
+export const cvTemplateTokens: Record<string, NativeResumeDesign["tokens"]> = Object.fromEntries(
   Object.entries(nativeResumeDesigns).map(([id, design]) => [id, design.tokens]),
 );

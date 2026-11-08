@@ -38,7 +38,8 @@ export const getStilvollDesignVariables = (
     "--stilvoll-primary": primary,
     "--stilvoll-primary-dark": dark,
     "--stilvoll-title": derived("subheading", stilvollDefaults.colors.primary, primary),
-    "--stilvoll-icon": derived("icon", stilvollDefaults.colors.primary, primary),
+    // The Stärken icons of the managed cards; "Symbole" is the Kontaktdaten's colour.
+    "--stilvoll-icon": derived("strengthIcon", stilvollDefaults.colors.primary, primary),
     "--stilvoll-text": text,
     "--stilvoll-paragraph": derived("paragraph", stilvollDefaults.colors.text, text),
     "--stilvoll-muted": muted,
