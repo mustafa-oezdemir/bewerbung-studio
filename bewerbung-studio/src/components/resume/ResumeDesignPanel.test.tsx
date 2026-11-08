@@ -6,7 +6,8 @@ import { getTemplateDocumentDesignDefaults, resolveTemplateCvDesign } from "../.
 import {
   createDocumentDesignDraft, editCvDesignField, editResumeAppearanceField, resetResumeDesign, selectDocumentTemplate, type DesignEditState,
 } from "../../shared/documentEditorState";
-import { resolveResumeDesignView } from "../../shared/resumeDesignSystem";
+import { resolveResumeDesignView, resolveStrengthIconColorMode } from "../../shared/resumeDesignSystem";
+import { resolveCvDocument } from "../../shared/resolveCvDocument";
 import { applicationSchema } from "../../shared/schema";
 import { getTemplate, templates } from "../../shared/templates";
 import { ResumeDesignPanel } from "./ResumeDesignPanel";
@@ -39,6 +40,7 @@ const valueOf = (document: Document, label: string) => {
   return node.tagName === "SELECT" ? node.querySelector("option[selected]")?.textContent ?? "" : node.getAttribute("value") ?? "";
 };
 const frameOf = (document: Document, label: string) => field(document, label).closest(".rds-field")!;
+const frameText = (document: Document) => field(document, "Stärken-Symbole").closest(".rds-sub")?.textContent ?? "";
 
 describe("Lebenslauf design panel", () => {
   it("shows Elegant's 8 mm native Spaltenabstand when the settings are opened", () => {
@@ -363,5 +365,33 @@ describe("the three colour controls of the panel", () => {
     expect(state.draft.settings.cvOverrides?.colors?.strengthIcon).toBeUndefined();
     state = { ...state, draft: selectDocumentTemplate(state.draft, "kompakt") };
     expect(state.draft.settings.cvOverrides?.colors?.strengthIcon).toBe("#0C8C74");
+  });
+});
+
+describe("the Stärken-Symbole colour", () => {
+  it("stays explicit even when it equals the value derived from the template, also after another edit", () => {
+    const native = resolveTemplateCvDesign("klassisch").colors.strengthIcon;
+    let state = editCvDesignField(stateFor("klassisch"), "document", "colors", "strengthIcon", native);
+    expect(state.draft.settings.cvOverrides?.colors?.strengthIcon).toBe(native);
+    state = editCvDesignField(state, "document", "colors", "accent", "#A04A00");
+    expect(state.draft.settings.cvOverrides?.colors?.strengthIcon).toBe(native);
+    expect(resolveStrengthIconColorMode(state.draft.settings)).toBe("themed");
+    state = editCvDesignField(state, "document", "colors", "strengthIcon", undefined);
+    expect(resolveStrengthIconColorMode(state.draft.settings)).toBe("original");
+    expect(state.draft.settings.cvOverrides?.colors).toEqual({ accent: "#A04A00" });
+  });
+
+  it("removes the Bewerbung's colour first, then the shared one, and names the original colours", () => {
+    let state = editCvDesignField(stateFor("kompakt"), "global", "colors", "strengthIcon", "#2856B6");
+    state = editCvDesignField(state, "document", "colors", "strengthIcon", "#0C8C74");
+    const mode = (current: DesignEditState) => resolveCvDocument({ profile: undefined, templateId: "kompakt", settings: current.draft.settings, globalDesign: current.global });
+    expect(mode(state).design.colors.strengthIcon).toBe("#0C8C74");
+    state = editCvDesignField(state, "document", "colors", "strengthIcon", undefined);
+    expect(mode(state).design.colors.strengthIcon).toBe("#2856B6");
+    expect(mode(state).strengthIconColorMode).toBe("themed");
+    state = editCvDesignField(state, "global", "colors", "strengthIcon", undefined);
+    expect(mode(state).strengthIconColorMode).toBe("original");
+    expect(frameText(panel(state))).toContain("Vorlage: Originalfarben");
+    expect(frameText(panel(state))).toContain("Logos ihre Originalfarben");
   });
 });

@@ -4,7 +4,7 @@ import { resolveTemplateId } from "./templates";
 import { resolveResumePresentation } from "./resumePresentation";
 import { getResumeDisplayProfile } from "./resumeDisplayProfile";
 import { resolveResumeLayout } from "./resumeLayoutEngine";
-import { applyGlobalResumeDesign, resolveEffectiveDesignTokens, resolveResumeAppearance } from "./resumeDesignSystem";
+import { applyGlobalResumeDesign, resolveEffectiveDesignTokens, resolveResumeAppearance, resolveStrengthIconColorMode } from "./resumeDesignSystem";
 import type { ResumeDesignLayer } from "./cvDesignSchema";
 import { getProfileMediaSource } from "./profileMedia";
 import { effectiveManagerZone, getManagerSections } from "../features/resume-sections/resume-manager";
@@ -236,6 +236,8 @@ export const resolveCvDocument = ({
     pagePlan,
     /** The application's colour scheme: what the template's own accent colours are drawn in. */
     applicationColors: { accent: application?.accentColor, secondary: application?.secondaryColor },
+    /** Stärken icons: their own colours, or the one chosen colour. The preview and the PDF read this decision. */
+    strengthIconColorMode: resolveStrengthIconColorMode(settings),
   };
 };
 

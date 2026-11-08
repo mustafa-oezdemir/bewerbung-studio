@@ -780,3 +780,97 @@ describe("Projekttechnologien, Stärken-Symbole and Symbole", () => {
     expect(shape(colored.previewPages)).toEqual(shape(native.previewPages));
   });
 });
+
+describe("Stärken icons keep their own colours until a colour is chosen", () => {
+  const chosen = "#0C8C74";
+  const shared = "#2856B6";
+  const strengthProfile = profileSchema.parse(maximalProfileInput({
+    strengths: [["React", ""], ["TypeScript", ""], ["Manuell", "material:file:angular"], ["Eigene Auswahl", "symbol:check"], ["Datenbank", "symbol:database"], ["Unbekannte Technik", ""]]
+      .map(([title, iconId]) => ({ id: crypto.randomUUID(), title, iconId, description: "Beschreibung" })),
+  }));
+  const fewStrengths = profileSchema.parse(maximalProfileInput({
+    strengths: [["React", ""], ["Manuell", "material:file:angular"]].map(([title, iconId]) => ({ id: crypto.randomUUID(), title, iconId, description: "Beschreibung" })),
+  }));
+  const strengthIcons = (pages: Element[]) => pages.flatMap((page) => Array.from(page.querySelectorAll('[data-strength-icon-mode] svg.technology-brand-svg')));
+  const brandOf = (svg: Element) => svg.getAttribute("data-brand") ?? "";
+
+  describe.each(templates)("$name", ({ id }) => {
+    it.each([["many", strengthProfile], ["few", fewStrengths]] as const)("shows logos in their source colours by default (%s)", (_label, source) => {
+      const result = renderCv(id, source);
+      for (const pages of [result.previewPages, result.pdfPages]) {
+        const logos = strengthIcons(pages).filter((svg) => brandOf(svg).startsWith("material:"));
+        expect(logos.length).toBeGreaterThan(0);
+        for (const svg of logos) {
+          expect(svg.outerHTML, svg.outerHTML).toMatch(/="#[0-9a-f]{3,8}"/i);
+          expect(svg.outerHTML, svg.outerHTML).not.toContain("currentColor");
+          expect(svg.getAttribute("style") ?? "").not.toContain("!important");
+        }
+      }
+    });
+
+    it("draws every icon in a chosen colour and only those", () => {
+      const result = renderCv(id, strengthProfile, { overrides: { cvOverrides: { colors: { strengthIcon: chosen } } } as never });
+      for (const pages of [result.previewPages, result.pdfPages]) {
+        for (const svg of strengthIcons(pages)) expect(declared(svg, "color"), svg.outerHTML).toBe(chosen);
+        for (const svg of pages.flatMap((page) => Array.from(page.querySelectorAll("svg[data-contact-icon]")))) expect(svg.getAttribute("style") ?? "").not.toContain(chosen);
+        for (const node of roleNodes(pages, "technologies")) expect(declared(node, "color")).toBeUndefined();
+      }
+    });
+
+    it("keeps the template's symbol colour without a choice and a safe mark for an unknown technology", () => {
+      const result = renderCv(id, strengthProfile);
+      for (const pages of [result.previewPages, result.pdfPages]) {
+        const icons = strengthIcons(pages);
+        const check = icons.find((svg) => svg.getAttribute("data-strength-symbol") === "symbol:check");
+        const database = icons.find((svg) => svg.getAttribute("data-strength-symbol") === "symbol:database");
+        expect(check?.getAttribute("style")).toBe("color:inherit");
+        expect(database?.getAttribute("style") ?? "").toBe("");
+        expect(icons.find((svg) => svg.getAttribute("data-brand") === "generic")?.outerHTML).toContain("currentColor");
+      }
+    });
+
+    it("hides the icons in the ATS output as before", () => {
+      const result = renderCv(id, strengthProfile, { ats: true });
+      for (const pages of [result.previewPages, result.pdfPages]) expect(strengthIcons(pages)).toEqual([]);
+    });
+
+    it("leaves the icons alone when only other colours change", () => {
+      const original = renderCv(id, strengthProfile);
+      const other = renderCv(id, strengthProfile, { overrides: { cvOverrides: { colors: { accent: "#A04A00", icon: shared, projectTechnologies: "#BA3B44" } } } as never });
+      const logos = (pages: Element[]) => strengthIcons(pages).filter((svg) => brandOf(svg).startsWith("material:")).map((svg) => svg.innerHTML);
+      expect(logos(other.pdfPages)).toEqual(logos(original.pdfPages));
+      expect(logos(other.previewPages)).toEqual(logos(original.previewPages));
+    });
+  });
+
+  it("follows Bewerbung > Alle Lebensläufe > Originalfarben, one layer at a time", () => {
+    const logo = (pages: Element[]) => strengthIcons(pages).find((svg) => brandOf(svg) === "material:file:react")!;
+    const outputs = (settings: ReturnType<typeof getTemplateDocumentDesignDefaults>, global?: ResumeDesignLayer) => {
+      const application = applicationSchema.parse({ ...applicationFor("modern", settings), profileSnapshot: strengthProfile });
+      const previewResolved = resolveCvDocument({ profile: strengthProfile, templateId: "modern", settings, globalDesign: global, application });
+      return { mode: previewResolved.strengthIconColorMode, pdf: pdfPages(buildDocumentHtml(application, strengthProfile, "lebenslauf", [], global)) as unknown as Element[] };
+    };
+    const base = getTemplateDocumentDesignDefaults("modern");
+    const own = { ...base, cvOverrides: { colors: { strengthIcon: chosen } } };
+    const layer: ResumeDesignLayer = { cvOverrides: { colors: { strengthIcon: shared } } };
+
+    const both = outputs(own, layer);
+    expect(both.mode).toBe("themed");
+    expect(declared(logo(both.pdf), "color")).toBe(chosen);
+    const globalOnly = outputs(base, layer);
+    expect(globalOnly.mode).toBe("themed");
+    expect(declared(logo(globalOnly.pdf), "color")).toBe(shared);
+    const none = outputs(base);
+    expect(none.mode).toBe("original");
+    expect(declared(logo(none.pdf), "color")).toBeUndefined();
+    expect(logo(none.pdf).outerHTML).not.toContain("currentColor");
+  });
+
+  it("limits the catalogue colour rule to icons outside Stärken", () => {
+    const application = applicationSchema.parse({ ...applicationFor("modern"), profileSnapshot: strengthProfile });
+    const html = buildDocumentHtml(application, strengthProfile, "lebenslauf");
+    expect(html).toContain('.cv-sheet svg[data-brand^="material:"]:not([data-strength-icon-mode] svg)');
+    expect(html).toContain('.cv-sheet svg[data-brand^="vscode:"]:not([data-strength-icon-mode] svg)');
+    expect(html).toContain('[data-managed-section="strengths"][data-strength-icon-mode="themed"] .managed-strength-card svg [fill^="#"]');
+  });
+});

@@ -222,3 +222,17 @@ describe.each(resumeTemplateIds)("entry roles of the Lebenslauf-Design in %s", (
     });
   }
 });
+
+it.each(resumeTemplateIds)("draws the same Stärken icons in %s preview and PDF, with and without a chosen colour", (templateId) => {
+  const strengths = [["React", ""], ["Eigene Auswahl", "symbol:check"], ["Sprache", "python"]]
+    .map(([title, iconId]) => ({ id: crypto.randomUUID(), title, iconId, description: "Beschreibung" }));
+  const profile = maximalProfile({ strengths });
+  const icons = (pages: Element[]) => pages.flatMap((page) => Array.from(page.querySelectorAll('[data-strength-icon-mode] svg.technology-brand-svg')))
+    .map((svg) => ({ markup: svg.innerHTML, style: svg.getAttribute("style") ?? "", brand: svg.getAttribute("data-brand") ?? svg.getAttribute("data-strength-symbol") }));
+  for (const overrides of [{}, { cvOverrides: { colors: { strengthIcon: "#0C8C74" } } }]) {
+    const result = renderCv(templateId, profile, { overrides });
+    expect(icons(result.previewPages).length).toBeGreaterThan(0);
+    expect(icons(result.previewPages)).toEqual(icons(result.pdfPages));
+  }
+  expect(icons(renderCv(templateId, profile, { ats: true }).pdfPages)).toEqual([]);
+});

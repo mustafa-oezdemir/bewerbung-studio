@@ -18,15 +18,16 @@ const application = applicationSchema.parse({
 });
 
 describe("vscode-icons in document HTML", () => {
-  it("keeps one selected ID with original Deckblatt paint and themed Lebenslauf paint", () => {
+  it("keeps one selected ID with original paint in the Deckblatt and, without a chosen colour, in the Lebenslauf", () => {
     const document = parseHTML(buildDocumentHtml(application, profile, "mappe")).document;
     const cover = document.querySelector('.deckblatt svg[data-brand="vscode:folder:api"]');
     const cv = document.querySelector('.cv-sheet svg[data-brand="vscode:folder:api"]');
     expect(cover?.outerHTML).toContain('fill="#a0bf55"');
     expect(cover?.outerHTML).toContain('fill="#fff"');
-    expect(cv?.outerHTML).toContain("currentColor");
-    expect(cv?.outerHTML).not.toContain("#a0bf55");
-    expect(cover?.outerHTML).not.toBe(cv?.outerHTML);
+    expect(cv?.outerHTML).toContain('fill="#a0bf55"');
+    expect(cv?.outerHTML).not.toContain("currentColor");
+    expect(cv?.closest("[data-strength-icon-mode]")?.getAttribute("data-strength-icon-mode")).toBe("original");
+    expect(document.querySelector("style")?.textContent).toContain(':not([data-strength-icon-mode] svg)');
   });
 
   it("applies either selected Stärken-Symbole colour without changing the original Deckblatt SVG", () => {

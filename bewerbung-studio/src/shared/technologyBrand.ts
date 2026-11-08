@@ -236,7 +236,7 @@ export const resolveTechnologyIcon = (technology: string, manualIcon = ""): Reso
 
 export const getTechnologyBrandIconMarkup = (technology: string, iconId = "") =>
   resolveTechnologyIcon(technology, iconId).markup;
-import { getDeviconMarkup, getOriginalDeviconMarkup } from "./deviconCatalog";
+import { getDeviconMarkup, getOriginalDeviconMarkup, namespaceSvgIds } from "./deviconCatalog";
 
 /** The one-colour hand-drawn marks above and the Devicon logo that shows their brand colours on the Deckblatt. */
 const originalLogoByTechnology: Record<string, string> = {
@@ -268,6 +268,24 @@ export const resolveDeckblattTechnologyIcon = (technology: string, manualIcon = 
 
 export const getDeckblattTechnologyIconMarkup = (technology: string, iconId = "") =>
   resolveDeckblattTechnologyIcon(technology, iconId).markup;
+
+export type StrengthIconColorMode = "original" | "themed";
+
+/**
+ * A Stärken icon of the Lebenslauf: in its own colours while no Stärken-Symbole colour is chosen (the logo the Deckblatt
+ * shows; in a dark column the catalogue's variant for dark backgrounds), else in the one chosen colour. Symbols and the
+ * fallback mark have no colours of their own and keep the template's in both modes.
+ */
+export const getStrengthIconMarkup = (
+  title: string, iconId: string | undefined, mode: StrengthIconColorMode, background: "light" | "dark" = "light",
+) => {
+  if (mode === "themed") return getThemedTechnologyIconMarkup(title, iconId);
+  const markup = getDeckblattTechnologyIconMarkup(title, iconId);
+  const brand = /^<svg\b[^>]*\bdata-brand="([^"]+)"/.exec(markup)?.[1] ?? "";
+  const drawn = background === "dark" ? getMaterialIconMarkup(brand, "dark") ?? getVscodeIconMarkup(brand, "dark") ?? markup : markup;
+  // A Mappe prints the same logo on the Deckblatt too: its gradients keep their own ids.
+  return namespaceSvgIds(drawn, "strength-");
+};
 
 /** Preserve the existing icon catalogue and manual priority, with CV theme colors. */
 export const getThemedTechnologyIconMarkup = (title: string, iconId = "") => {

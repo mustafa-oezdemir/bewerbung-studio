@@ -10,6 +10,7 @@ import {
   defaultSectionDividerWidthMm, resumeAppearanceSchema, type ResolvedResumeAppearance, type ResumeAppearance,
 } from "./resumeAppearance";
 import { resumeTextRoleFallbacks } from "./resumeTextRoles";
+import type { StrengthIconColorMode } from "./technologyBrand";
 import { resolveTemplateId } from "./templates";
 
 /**
@@ -106,6 +107,13 @@ export const applyGlobalResumeDesign = <Settings extends DocumentDesignSettings>
     ...(Object.keys(resumeAppearance).length ? { resumeAppearance } : {}),
   } as Settings;
 };
+
+/**
+ * How a Lebenslauf draws its Stärken icons, decided once from the effective settings (the shared layer folded in): an
+ * explicit colour themes them, otherwise they keep their own. The value derived from the template is no choice.
+ */
+export const resolveStrengthIconColorMode = (settings: DocumentDesignSettings): StrengthIconColorMode =>
+  settings.cvOverrides?.colors?.strengthIcon !== undefined ? "themed" : "original";
 
 const roundTenth = (value: number) => Math.round(value * 10) / 10;
 

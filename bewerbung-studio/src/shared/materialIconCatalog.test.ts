@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import comparison from "./iconComparison.generated.json";
 import { getMaterialIconEntry, getMaterialIconMarkup, materialIcons } from "./materialIconCatalog";
 import { renderLocalSvg } from "./localSvgRender";
-import { getDeckblattTechnologyIconMarkup, getThemedTechnologyIconMarkup, resolveTechnologyIcon } from "./technologyBrand";
+import { getDeckblattTechnologyIconMarkup, getStrengthIconMarkup, getThemedTechnologyIconMarkup, resolveTechnologyIcon } from "./technologyBrand";
 
 describe("Material Icon Theme catalog", () => {
   it("keeps every source name and resolves every selectable ID to a local SVG", () => {
@@ -52,5 +52,13 @@ describe("Material Icon Theme catalog", () => {
 
   it("records common, source-only, available alternative and unresolved counts", () => {
     expect(comparison.counts).toMatchObject({ material: 859, vscode: 1298, common: 423, materialOnly: 440, vscodeOnly: 875, selectableVscodeAlternatives: 42, unresolved: 1213 });
+  });
+});
+
+describe("Material icons in Stärken", () => {
+  it("keeps source paints by default and takes the theme with a chosen colour", () => {
+    expect(getStrengthIconMarkup("Kotlin", "", "original")).toContain("#7c4dff");
+    expect(getStrengthIconMarkup("Kotlin", "", "themed")).not.toContain("#7c4dff");
+    expect(getStrengthIconMarkup("Kotlin", "material:file:angular", "original")).toContain('data-brand="material:file:angular"');
   });
 });

@@ -52,6 +52,12 @@ export const resolveCvDesign = (templateId: string, overrides: CvDesignOverrides
   mergeTokens(resolveTemplateCvDesign(templateId), cvDesignOverridesSchema.parse(overrides));
 
 /**
+ * The Stärken colour also selects the mode (resolveStrengthIconColorMode): a stored one stays stored even where it equals
+ * the value derived from the template, whose icons are not drawn in that one colour.
+ */
+export const explicitCvColors = ["strengthIcon"] as const;
+
+/**
  * Remove inherited values before persistence; an empty result is a complete reset. `inherited` is what the document
  * inherits when it has no override of its own: the template's native design, or that design with the shared
  * Lebenslauf layer on top.
@@ -60,6 +66,7 @@ export const compactCvDesignOverrides = (
   templateId: string,
   overrides: CvDesignOverrides,
   inherited?: CvDesignTokens,
+  keepColors: readonly string[] = [],
 ): CvDesignOverrides => {
   const parsed = cvDesignOverridesSchema.parse(overrides);
   const defaults = inherited ?? resolveTemplateCvDesign(templateId);
@@ -68,6 +75,7 @@ export const compactCvDesignOverrides = (
     const base = defaults[group as keyof CvDesignTokens];
     const changed = Object.fromEntries(Object.entries(fields).filter(([key, value]) => {
       const current = base[key as keyof typeof base];
+      if (group === "colors" && keepColors.includes(key)) return value !== undefined;
       return value !== undefined && (group === "colors"
         ? String(value).toLowerCase() !== String(current).toLowerCase()
         : value !== current);

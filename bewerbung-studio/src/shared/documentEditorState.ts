@@ -1,6 +1,6 @@
 import type { ApplicantProfile, Application } from "./schema";
 import { getTemplate, resolveTemplateId } from "./templates";
-import { compactCvDesignOverrides, getTemplateDocumentDesignDefaults } from "./cvDesign";
+import { compactCvDesignOverrides, explicitCvColors, getTemplateDocumentDesignDefaults } from "./cvDesign";
 import type { CvDesignTokens, ResumeDesignLayer } from "./cvDesignSchema";
 import type { ResumeAppearance } from "./resumeAppearance";
 import {
@@ -116,7 +116,7 @@ export const updateCvDesignField = <Group extends keyof CvDesignTokens, Key exte
   const compact = compactCvDesignOverrides(current.templateId, {
     ...cvOverrides,
     [group]: { ...cvOverrides?.[group], [key]: value },
-  }, inherited);
+  }, inherited, explicitCvColors);
   // The old appearance field "Abstand danach" is the same CSS margin as the title gap: an explicit edit replaces it.
   const titleGap = group === "spacing" && key === "sectionTitleGapMm";
   const { sectionHeadingMarginAfterMm: _legacy, ...appearanceRest } = resumeAppearance ?? {};

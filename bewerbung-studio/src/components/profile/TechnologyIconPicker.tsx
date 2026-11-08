@@ -50,11 +50,11 @@ export function TechnologyIconPicker({ technologyTitle, value, onChange }: {
     <div className="technology-icon-picker__examples">
       <div className="technology-icon-picker__example">
         <span className="technology-icon-picker__preview"><TechnologyBrandIcon technology={technologyTitle || "Technologie"} iconId={value} mode="original" /></span>
-        <small>Deckblatt – Originalfarben</small>
+        <small>Deckblatt und Lebenslauf – Originalfarben</small>
       </div>
       <div className="technology-icon-picker__example technology-icon-picker__example--themed">
         <span className="technology-icon-picker__preview"><TechnologyBrandIcon technology={technologyTitle || "Technologie"} iconId={value} /></span>
-        <small>Lebenslauf – Designfarbe</small>
+        <small>Lebenslauf – mit gewählter Farbe</small>
       </div>
     </div>
     {(value.startsWith("vscode:") || value.startsWith("material:")) && !selectedAvailable ? <small role="status">Dieses Icon ist nicht enthalten: Lizenz oder SVG-Verfügbarkeit ungeklärt. Die automatische Auswahl bleibt sichtbar.</small> : null}

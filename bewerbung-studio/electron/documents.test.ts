@@ -423,10 +423,10 @@ describe("Lebenslauf-Dokumente", () => {
       "material:file:angular", "material:file:javascript", "material:file:react", "material:file:typescript",
       "material:file:docker", "material:file:git", "material:file:go", "material:folder:folder-api", "material:file:database",
     ]);
-    // The Lebenslauf keeps the same artwork in the user's icon colour, without changing the Deckblatt source paints.
+    // Stärken show the same artwork in its own colours; the gradients of the two copies do not share ids.
     const cvAngular = blue.document.querySelector('.cv-sheet svg[data-brand="material:file:angular"]');
-    expect(cvAngular?.outerHTML).toContain("currentColor");
-    expect(icons[0]?.outerHTML).not.toBe(cvAngular?.outerHTML);
+    expect(cvAngular?.outerHTML).not.toContain("currentColor");
+    expect(cvAngular?.outerHTML.replaceAll("strength-", "")).toBe(icons[0]?.outerHTML);
     const ids = Array.from(blue.document.querySelectorAll("[id]"), (element) => element.id);
     for (const id of Array.from(blue.document.querySelectorAll(".dk-stack [id]"), (element) => element.id))
       expect(ids.filter((other) => other === id), id).toHaveLength(1);

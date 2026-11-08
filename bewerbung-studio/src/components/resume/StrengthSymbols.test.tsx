@@ -2,7 +2,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { ModernStrengthsSection } from "./templates/modern/ModernStrengthsSection";
 import { profileSchema } from "../../shared/schema";
-import { categorySymbolOptions, strengthSymbolOptions } from "../../shared/strengthSymbols";
+import { categorySymbolOptions, getStrengthSymbolMarkup, strengthSymbolOptions } from "../../shared/strengthSymbols";
+import { getStrengthIconMarkup } from "../../shared/technologyBrand";
 
 describe("strength symbols", () => {
   it("renders saved symbols instead of automatic technology logos", () => {
@@ -29,5 +30,15 @@ describe("strength symbols", () => {
     expect(detected).toContain('data-brand="material:file:database"');
     expect(detected).not.toContain("color:inherit");
     expect(render("Datenbank", "symbol:database")).toContain('data-strength-symbol="symbol:database"');
+  });
+});
+
+describe("strength symbols without a chosen colour", () => {
+  it("keeps the template's own symbol colour: no symbol receives a brand colour", () => {
+    for (const { id } of [...strengthSymbolOptions, ...categorySymbolOptions]) {
+      const markup = getStrengthIconMarkup("React", id, "original");
+      expect(markup, id).toBe(getStrengthSymbolMarkup(id));
+      expect(markup, id).not.toMatch(/="#[0-9a-f]{3,8}"/i);
+    }
   });
 });

@@ -19,7 +19,7 @@ import {
   resumeContinuationCss,
 } from "./resumeContinuation";
 import { applyGeneralResumeAppearance, resumeAppearanceSchema } from "./resumeAppearance";
-import { getTemplate, resolveTemplateId } from "./templates";
+import { getReadableTextColor, getTemplate, resolveTemplateId } from "./templates";
 import { resumeSectionStyleSources } from "./resumeSectionStyleInheritance";
 import { applyEducationBreaks, applyEntryBreaks, resumeEntrySplitCss } from "./resumeEntrySplit";
 import type { KnowledgeRange } from "./resumeKnowledgeRange";
@@ -30,7 +30,8 @@ import {
 } from "../features/resume-sections/resume-manager";
 import { getProfileMediaSource } from "./profileMedia";
 import { getElegantDesignVariables } from "./elegantDesign";
-import { getThemedTechnologyIconMarkup } from "./technologyBrand";
+import { getStrengthIconMarkup, getThemedTechnologyIconMarkup } from "./technologyBrand";
+import { resolveResumeAppearance, resolveStrengthIconColorMode } from "./resumeDesignSystem";
 import { defaultDocumentDesign, type DocumentDesignSettings } from "./documentDesign";
 import { resolveCvDocument, type ResolvedCvDocument } from "./resolveCvDocument";
 import { getPaginationGeometry, nativeEntryRolePt } from "./resumePaginationGeometry";
@@ -174,9 +175,9 @@ ${tabellarischSectionTitleCss}
 [data-managed-section="strengths"] .managed-strengths-grid{display:grid;grid-template-columns:repeat(var(--section-columns,1),minmax(0,1fr));gap:3mm;list-style:none;margin:0;padding:0}
 [data-managed-section="strengths"] .managed-strength-card{display:grid;grid-template-columns:4mm minmax(0,1fr);align-items:start;gap:1mm 1.5mm;min-width:0;margin:0;padding:0;border:0;break-inside:avoid;overflow-wrap:anywhere}
 [data-managed-section="strengths"] .managed-strength-card>svg{width:4mm;height:4mm;grid-column:1;grid-row:1 / span 2;color:var(--doc-accent,var(--accent,currentColor))}
-/* A brand mark may arrive with SVG presentation colours; Stärken always follows the template's icon colour. */
-[data-managed-section="strengths"] .managed-strength-card svg [fill^="#"]:not([fill="#fff" i]):not([fill="#ffffff" i]){fill:currentColor}
-[data-managed-section="strengths"] .managed-strength-card svg [stroke^="#"]:not([stroke="#fff" i]):not([stroke="#ffffff" i]){stroke:currentColor}
+/* A chosen Stärken-Symbole colour reaches every part of a mark; without one the marks keep their own colours. */
+[data-managed-section="strengths"][data-strength-icon-mode="themed"] .managed-strength-card svg [fill^="#"]:not([fill="#fff" i]):not([fill="#ffffff" i]){fill:currentColor}
+[data-managed-section="strengths"][data-strength-icon-mode="themed"] .managed-strength-card svg [stroke^="#"]:not([stroke="#fff" i]):not([stroke="#ffffff" i]){stroke:currentColor}
 [data-managed-section="strengths"] .managed-strength-card strong{grid-column:2;min-width:0;font-size:1em;line-height:1.3}
 [data-managed-section="strengths"] .managed-strength-card p{grid-column:2;min-width:0;margin:0;white-space:pre-line;font-size:.92em;line-height:1.4;color:inherit}
 .zeitgenoessisch-template [data-managed-section="strengths"] .managed-strengths-grid,.zeit-pdf [data-managed-section="strengths"] .managed-strengths-grid{gap:calc(var(--zeit-entry-gap) * .4)}
@@ -384,6 +385,8 @@ export const applyResumeIconColors = (
     set(svg, "color", value);
     // Line icons only: a stroke on a filled brand mark would draw an outline around it.
     if ((svg.getAttribute("stroke") ?? "none") !== "none") set(svg, "stroke", value);
+    // Shapes without a paint of their own (some Devicon marks) would stay black; a line icon says fill="none".
+    if (svg.getAttribute("fill") !== "none") set(svg, "fill", value);
   };
   const accentChanged = colors.accent !== undefined && id !== "elegant";
 
@@ -398,7 +401,7 @@ export const applyResumeIconColors = (
   }
 
   const strengthIcons = root.querySelectorAll('[data-managed-section="strengths"] svg.technology-brand-svg,[class*="strength"] svg.technology-brand-svg');
-  if (colors.strengthIcon !== undefined) for (const svg of strengthIcons) paint(svg, design.colors.strengthIcon);
+  if (resolveStrengthIconColorMode(settings) === "themed") for (const svg of strengthIcons) paint(svg, design.colors.strengthIcon);
   else if (accentChanged) for (const svg of strengthIcons) {
     if (svg.getAttribute("style")?.includes("color:inherit")) {
       if (accentDrivenTextPalette.has(id)) paint(svg, design.colors.text);
@@ -430,6 +433,13 @@ export const applyManagedResumeOutput = (
   });
   // The resolver already folded the shared Lebenslauf layer in: all design adapters below read that one result.
   const designSettings = resolved.settings;
+  // A template colour in the application's colour scheme: the accent colours of the template are drawn in the chosen ones.
+  const schemeColor = (color: string) => {
+    const template = getTemplate(resolved.templateId);
+    const scheme = resolved.applicationColors;
+    if (scheme.accent && color.toLowerCase() === template.accent.toLowerCase()) return scheme.accent;
+    return scheme.secondary && color.toLowerCase() === template.secondary.toLowerCase() ? scheme.secondary : color;
+  };
   const { document } = parseHTML(`<html><body>${html}</body></html>`);
   const entries = resolved.managerSections;
   const groups = resolved.knowledgeGroups;
@@ -802,6 +812,12 @@ export const applyManagedResumeOutput = (
           const heading = existing[0].querySelector("h2,h3");
           if (heading) setHeadingText(heading, entry.title);
           existing.slice(1).forEach((node) => node.remove());
+          existing[0].setAttribute("data-strength-icon-mode", resolved.strengthIconColorMode);
+          // The template draws its cards with themed icons: the one colour decision of this document applies to them too.
+          if (resolved.strengthIconColorMode === "original") for (const svg of Array.from(existing[0].querySelectorAll("svg.technology-brand-svg"))) {
+            const title = svg.closest("article")?.querySelector("h3,h4")?.textContent?.trim() ?? "";
+            svg.outerHTML = getStrengthIconMarkup(title, profile.strengths.find((item) => item.title.trim() === title)?.iconId, "original");
+          }
           nodes.set(entry.id, [existing[0]]);
           continue;
         }
@@ -838,9 +854,13 @@ export const applyManagedResumeOutput = (
             node.querySelector("h2,h3")?.outerHTML ??
             `<h3>${escape(entry.title)}</h3>`;
           node.setAttribute("data-managed-section", "strengths");
+          node.setAttribute("data-strength-icon-mode", resolved.strengthIconColorMode);
+          // Catalogue icons come in a variant for dark backgrounds, which a coloured side column is.
+          const sideSurface = schemeColor(resolveResumeAppearance(resolved.templateId, designSettings.resumeAppearance).sidebarBackgroundColor);
+          const iconBackground = entry.zone === "sidebar" && getReadableTextColor(sideSurface).toLowerCase() === "#ffffff" ? "dark" : "light";
           if (!existing.length) node.className = "managed-extra";
           if (isAts) node.classList.add("managed-ats");
-          node.innerHTML = `${heading}${grid(entry, strengths, strengths.map((item) => `<article class="managed-strength-card">${isAts ? "" : getThemedTechnologyIconMarkup(item.title, item.iconId)}<strong>${escape(item.title)}</strong>${item.description ? `<p>${escape(item.description)}</p>` : ""}</article>`).join(""), true)}`;
+          node.innerHTML = `${heading}${grid(entry, strengths, strengths.map((item) => `<article class="managed-strength-card">${isAts ? "" : getStrengthIconMarkup(item.title, item.iconId, resolved.strengthIconColorMode, iconBackground)}<strong>${escape(item.title)}</strong>${item.description ? `<p>${escape(item.description)}</p>` : ""}</article>`).join(""), true)}`;
           setHeadingText(node.querySelector("h2,h3")!, entry.title);
           existing.slice(1).forEach((duplicate) => duplicate.remove());
           if (!existing.length) appendSection(entry, node);
@@ -1228,13 +1248,6 @@ export const applyManagedResumeOutput = (
     // The entry roles last: their own colour and size beat the template's and the generic overrides of the same text.
     const nativeTypography = resolveTemplateCvDesign(resolved.templateId).typography;
     const plain = designSettings.resumeOutputMode === "ats";
-    // A template colour in the application's colour scheme: the accent colours of the template are drawn in the chosen ones.
-    const schemeColor = (color: string) => {
-      const template = getTemplate(resolved.templateId);
-      const scheme = resolved.applicationColors;
-      if (scheme.accent && color.toLowerCase() === template.accent.toLowerCase()) return scheme.accent;
-      return scheme.secondary && color.toLowerCase() === template.secondary.toLowerCase() ? scheme.secondary : color;
-    };
     applyResumeTextRoleStyles(root, templateId, designSettings, resolved.design, {
       typography: nativeTypography,
       size: (role, node) => nativeEntryRolePt(resolved.templateId, plain, role, Boolean(node.closest("[data-custom-template]")), nativeTypography),

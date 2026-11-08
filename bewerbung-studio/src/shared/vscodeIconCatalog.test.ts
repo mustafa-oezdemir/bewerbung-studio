@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getDeckblattTechnologyIconMarkup, getThemedTechnologyIconMarkup, resolveTechnologyIcon } from "./technologyBrand";
+import { getDeckblattTechnologyIconMarkup, getStrengthIconMarkup, getThemedTechnologyIconMarkup, resolveTechnologyIcon } from "./technologyBrand";
 import { availableVscodeIcons, getVscodeIconEntry, getVscodeIconMarkup, vscodeIcons } from "./vscodeIconCatalog";
 
 describe("vscode-icons catalog", () => {
@@ -39,5 +39,13 @@ describe("vscode-icons catalog", () => {
     expect(themed).not.toContain("#a0bf55");
     expect(getVscodeIconMarkup("vscode:folder:api", "dark", true)).not.toBe(original);
     expect(resolveTechnologyIcon("Anything", id).source).toBe("manual");
+  });
+});
+
+describe("vscode-icons in Stärken", () => {
+  it("keeps source paints by default and takes the theme with a chosen colour", () => {
+    const id = "vscode:folder:api";
+    expect(getStrengthIconMarkup("API", id, "original")).toContain('fill="#a0bf55"');
+    expect(getStrengthIconMarkup("API", id, "themed")).toBe(getThemedTechnologyIconMarkup("API", id));
   });
 });

@@ -25,7 +25,7 @@ const readableIconName = (name: string) =>
     .replace(/[-_]+/g, " ")
     .replace(/\b\w/g, (letter) => letter.toLocaleUpperCase("en-US"));
 
-const namespaceSvgIds = (markup: string, prefix: string) => {
+export const namespaceSvgIds = (markup: string, prefix: string) => {
   const ids = Array.from(
     markup.matchAll(/\bid="([^"]+)"/g),
     (match) => match[1],

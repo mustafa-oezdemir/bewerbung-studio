@@ -1,4 +1,4 @@
-import { compactCvDesignOverrides, getCvDesignVariables, getTemplateDocumentDesignDefaults, resolveCvDesign, resolveTemplateCvDesign } from "./cvDesign";
+import { compactCvDesignOverrides, explicitCvColors, getCvDesignVariables, getTemplateDocumentDesignDefaults, resolveCvDesign, resolveTemplateCvDesign } from "./cvDesign";
 import { cvDesignLimits, type CvDesignTokens, type ResumeDesignLayer } from "./cvDesignSchema";
 import { fontSizeToPt, lineHeightLevelToValue, marginLevelToMm, sectionSpacingLevelToMm, type DocumentDesignSettings } from "./documentDesign";
 import type { DocumentDesignDraft } from "./documentEditorState";
@@ -75,7 +75,7 @@ export const applyResumeSpacingPreset = (
     const values = getResumeSpacingPresetValues(draft.templateId, preset, base);
     return { ...current, spacing: values.spacing, typography: { ...typography, lineHeight: values.lineHeight } };
   })();
-  const compact = compactCvDesignOverrides(draft.templateId, next, base);
+  const compact = compactCvDesignOverrides(draft.templateId, next, base, explicitCvColors);
   return { ...draft, settings: {
     ...draft.settings,
     ...(preset === "standard" ? {

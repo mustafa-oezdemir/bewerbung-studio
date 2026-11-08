@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { categorySymbolOptions, getStrengthSymbolMarkup } from "./strengthSymbols";
 import {
-  getDeckblattTechnologyIconMarkup, getTechnologyBrandIconMarkup, getThemedTechnologyIconMarkup, normalizeTechnologyName, resolveDeckblattTechnologyIcon, resolveTechnologyIcon,
+  getStrengthIconMarkup, getDeckblattTechnologyIconMarkup, getTechnologyBrandIconMarkup, getThemedTechnologyIconMarkup, normalizeTechnologyName, resolveDeckblattTechnologyIcon, resolveTechnologyIcon,
 } from "./technologyBrand";
 import { goFrameworkIconOptions } from "./goFrameworkIcons";
 import { deviconOptions, getOriginalDeviconMarkup } from "./deviconCatalog";
@@ -310,5 +310,53 @@ describe("Deckblatt technology icons in their brand colours", () => {
     }
     expect(getOriginalDeviconMarkup("aspnet")).toBeUndefined();
     expect(getOriginalDeviconMarkup(" Angular ")).toBe(getOriginalDeviconMarkup("angular"));
+  });
+});
+
+describe("Stärken icons by colour mode", () => {
+  const own = (markup: string) => markup.replaceAll('id="strength-', 'id="').replaceAll("#strength-", "#");
+
+  it.each(["Kotlin", "React", "TypeScript", "Go", "Docker"])("keeps the source paints of %s without a chosen colour", (name) => {
+    const original = getStrengthIconMarkup(name, "", "original");
+    expect(own(original)).toBe(getDeckblattTechnologyIconMarkup(name));
+    expect(original).toMatch(/(?:fill|stroke|stop-color)="#[0-9a-f]{3,8}"/i);
+    expect(original).not.toContain("currentColor");
+  });
+
+  it("keeps gradients, under ids of their own beside the Deckblatt", () => {
+    const original = getStrengthIconMarkup("Sprache", "python", "original");
+    expect(original).toMatch(/<linearGradient\b[^>]*\bid="strength-/);
+    expect(original).toMatch(/url\(#strength-/);
+    expect(original).not.toMatch(/url\(#(?!strength-)/);
+  });
+
+  it("draws every icon in the chosen colour once one is set, as the themed output always did", () => {
+    for (const [name, iconId] of [["Kotlin", ""], ["Go", ""], ["API", "vscode:folder:api"], ["Sprache", "python"]] as const)
+      expect(getStrengthIconMarkup(name, iconId, "themed")).toBe(getThemedTechnologyIconMarkup(name, iconId));
+  });
+
+  it("keeps the automatic match and the manual priority in both modes", () => {
+    const brand = (markup: string) => /data-brand="([^"]+)"/.exec(markup)?.[1];
+    for (const mode of ["original", "themed"] as const) {
+      expect(brand(getStrengthIconMarkup("Go", "", mode))).toBe(brand(resolveTechnologyIcon("Go").markup));
+      expect(brand(getStrengthIconMarkup("Go", "material:file:angular", mode))).toBe("material:file:angular");
+      expect(brand(getStrengthIconMarkup("Go", "vscode:folder:api", mode))).toBe("vscode:folder:api");
+    }
+  });
+
+  it("gives symbols and unknown technologies no brand colours", () => {
+    for (const iconId of ["symbol:check", "symbol:database"]) expect(own(getStrengthIconMarkup("Java", iconId, "original"))).toBe(getStrengthSymbolMarkup(iconId));
+    const fallback = getStrengthIconMarkup("Unbekannte Technik", "", "original");
+    expect(fallback).toContain("currentColor");
+    expect(fallback).not.toMatch(/="#[0-9a-f]{3,8}"/i);
+    expect(getStrengthIconMarkup("<script>", "", "original")).not.toContain("<script>");
+  });
+
+  it("takes the catalogue's dark variant on a dark column and leaves other icons alone", () => {
+    const light = getStrengthIconMarkup("Next", "material:file:next", "original", "light");
+    const dark = getStrengthIconMarkup("Next", "material:file:next", "original", "dark");
+    expect(dark).toContain('data-brand="material:file:next"');
+    expect(dark).not.toBe(light);
+    expect(getStrengthIconMarkup("React", "", "original", "dark")).toBe(getStrengthIconMarkup("React", "", "original", "light"));
   });
 });

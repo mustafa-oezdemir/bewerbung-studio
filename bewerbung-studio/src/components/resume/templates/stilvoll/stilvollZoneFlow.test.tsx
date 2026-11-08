@@ -244,8 +244,9 @@ describe("Stilvoll: sections follow their column", () => {
       const angular = Array.from(first?.querySelectorAll(".managed-strength-card") ?? [])
         .find((card) => card.querySelector("strong")?.textContent === "Angular")?.querySelector("svg");
       expect(angular?.getAttribute("data-brand"), surface).toBe("material:file:angular");
-      expect(angular?.querySelector("path")?.getAttribute("fill"), surface).toBe("currentColor");
-      expect(angular?.outerHTML, surface).not.toMatch(/<linearGradient|#[0-9a-f]{3,8}/i);
+      // Without a Stärken-Symbole colour the logo keeps its own colours.
+      expect(angular?.outerHTML, surface).not.toContain("currentColor");
+      expect(angular?.outerHTML, surface).toMatch(/fill="#[0-9a-f]{3,8}"/i);
       expect(sectionOn(pages[1], "strengths"), surface).toBeNull();
     }
   });

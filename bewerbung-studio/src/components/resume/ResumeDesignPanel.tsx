@@ -269,7 +269,7 @@ const colorNotes: Partial<Record<string, string>> = {
   location: "Orte im Werdegang, im Bildungsweg und bei Hobbys. Ohne eigenen Wert folgen sie einer gewählten Sekundärtextfarbe, sonst zeichnet die Vorlage sie selbst.",
   accent: "Projekttechnologien, Stärken-Symbole und Symbole haben eigene Farben und ändern sich dadurch nicht.",
   projectTechnologies: "Nur die Technologiezeile unter einem Projekttitel.",
-  strengthIcon: "Nur die Symbole im Bereich Stärken, automatisch zugeordnete und manuell gewählte.",
+  strengthIcon: "Ohne eigene Farbe behalten Logos ihre Originalfarben, einfache Symbole die Farbe der Vorlage. Eine gewählte Farbe gilt für alle Symbole im Bereich Stärken.",
   icon: "Nur die Symbole der Kontaktdaten, zum Beispiel Telefon, E-Mail, Adresse und Links.",
 };
 const weightFields = [
@@ -387,7 +387,7 @@ export function ResumeDesignPanel({ documentId = "", templateId, templateName, s
             const value = scope === "document" && key === "subheading" && zweispaltigVariables
               ? zweispaltigVariables["--zweispaltig-subheading"] : displayed.tokens.colors[key];
             return <ColorCard key={key} label={label} value={value} contextKey={contextKey} onChange={(color) => onEditToken(scope, "colors", key, color)}>
-              <ColorHint {...token("colors", key)} templateText={native.tokens.colors[key].toUpperCase()} />
+              <ColorHint {...token("colors", key)} templateText={key === "strengthIcon" ? "Originalfarben" : native.tokens.colors[key].toUpperCase()} />
               {explicitColors?.[key] !== undefined && ["text", "paragraph", "muted", "heading", "subheading", "sectionHeading", "entryHeading", "date", "organization", "location", "accent", "projectTechnologies"].includes(key)
                 && !hasReadableColorContrast(value, displayed.tokens.colors.background)
                 ? <small className="resume-sections-warning" role="status">Diese Textfarbe erreicht zum Seitenhintergrund weniger als 4,5:1 Kontrast. Ihre Auswahl bleibt erhalten.</small> : null}

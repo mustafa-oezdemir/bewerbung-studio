@@ -7965,8 +7965,8 @@ body.is-resizing-split-view * {
   height: 100%;
   overflow: visible;
 }
-.document-lebenslauf svg[data-brand^="material:"],
-.document-lebenslauf svg[data-brand^="vscode:"] { color:var(--cv-tech-icon,var(--accent)) !important }
+.document-lebenslauf svg[data-brand^="material:"]:not([data-strength-icon-mode] svg),
+.document-lebenslauf svg[data-brand^="vscode:"]:not([data-strength-icon-mode] svg) { color:var(--cv-tech-icon,var(--accent)) !important }
 
 .design-pdf-note {
   margin: -4px 2px 0;
@@ -8583,8 +8583,8 @@ body.is-resizing-split-view * {
 }
 
 .kompakt-strengths article > .technology-brand-icon {
-  width: 4.5mm;
-  height: 4.5mm;
+  width: 5.5mm;
+  height: 5.5mm;
   color: var(--kompakt-accent);
 }
 

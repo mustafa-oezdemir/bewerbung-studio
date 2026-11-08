@@ -194,7 +194,7 @@ describe("Symbole and Stärken-Symbole", () => {
 
   it("colours the Stärken icons, bullets included, with Stärken-Symbole and gives a brand mark no outline", () => {
     const root = render({ strengthIcon: "#0C8C74" });
-    expect(style(root, '[data-brand="material:file:go"]')).toBe("color:#0C8C74!important");
+    expect(style(root, '[data-brand="material:file:go"]')).toBe("color:#0C8C74!important;fill:#0C8C74!important");
     expect(style(root, "[data-strength-symbol]")).toContain("color:#0C8C74!important");
     expect(style(root, "[data-strength-symbol]")).toContain("stroke:#0C8C74!important");
     expect(style(root, "[data-strength-symbol]")).not.toContain("inherit");
