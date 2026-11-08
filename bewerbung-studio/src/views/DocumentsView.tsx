@@ -2850,7 +2850,7 @@ export function DocumentsView({
                     <p>{email.senderName || "Absender im Profil ergänzen"}</p>
                     {email.attachments.length > 0 && (
                       <div className="email-attachments-preview">
-                        <strong>Anlagen</strong>
+                        <p>Anlagen</p>
 
                         <ul>
                           {email.attachments.map((attachment) => (

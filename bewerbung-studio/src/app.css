@@ -2952,28 +2952,6 @@ body.is-resizing-split-view * {
   margin-top: 24px;
 }
 
-.email-attachments-preview {
-  margin: 18px 0;
-  padding: 12px 14px;
-  border-left: 3px solid var(--doc-accent);
-  background: color-mix(in srgb, var(--doc-accent), white 94%);
-}
-
-.email-attachments-preview strong {
-  display: block;
-  color: var(--doc-accent);
-  font-size: 0.86em;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.email-attachments-preview ul {
-  display: grid;
-  gap: 3px;
-  margin: 7px 0 0;
-  padding-left: 18px;
-}
-
 .email-preview section h3 {
   margin: 0 0 8px;
   color: #000;
@@ -2991,6 +2969,21 @@ body.is-resizing-split-view * {
 .email-preview .email-message-preview p {
   margin: 0 0 5mm;
   white-space: pre-wrap;
+}
+
+/* Anlagen as in a plain Gmail message: the word „Anlagen“, then a bulleted list of the file names, no box. */
+.email-preview .email-attachments-preview p {
+  margin: 0;
+}
+
+.email-preview .email-attachments-preview ul {
+  margin: 0;
+  padding-left: 1.6em;
+  list-style: disc;
+}
+
+.email-preview .email-attachments-preview li {
+  overflow-wrap: anywhere;
 }
 
 .letter-preview .sender-line {
