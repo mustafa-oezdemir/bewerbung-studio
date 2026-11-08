@@ -29,6 +29,7 @@ import { isDocumentPackage, packageDocumentOrder } from "../src/shared/applicati
 import type { ExportTarget } from "../src/shared/ipc";
 import { getApplicationDocumentItems } from "../src/shared/applicationDocuments";
 import { resolveCvDocument } from "../src/shared/resolveCvDocument";
+import { resolveTemplateCvDesign } from "../src/shared/cvDesign";
 import type { ResumeDesignLayer } from "../src/shared/cvDesignSchema";
 import { resolveEducationPresentation, toTemplateEducationItem, sliceEducationDetails } from "../src/shared/resumeEducation";
 import { getResumeIdentityVisibilityCss } from "../src/shared/resumeIdentityVisibility";
@@ -3553,7 +3554,7 @@ export const buildDocumentHtml = (
     : template.id === "gepflegt" ? gepflegtResolvedCss + gepflegtLetterCss
     : template.id === "kompakt" ? kompaktResolvedCss + kompaktLetterCss
     : template.id === "tuerkis-profil" ? tuerkisProfilCss : "";
-  const catalogIconCss = `.cv-sheet svg[data-brand^="material:"],.cv-sheet svg[data-brand^="vscode:"]{color:${escapeHtml(resolvedCv.design.colors.icon)}!important}`;
+  const catalogIconCss = `.cv-sheet svg[data-brand^="material:"],.cv-sheet svg[data-brand^="vscode:"]{color:${escapeHtml(resolveTemplateCvDesign(resolvedCv.templateId).colors.strengthIcon)}!important}`;
   return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(company)} – ${escapeHtml(role)}</title><style>${documentCss(accent, secondary, onSecondary, designSettings)}${elegantDocumentCss}${template.id === "elegant" ? elegantLetterCss : ""}${zweispaltigDocumentCss}${template.id === "zweispaltig" ? zweispaltigLetterCss : ""}${zeitgenoessischDocumentCss}${template.id === "zeitgenoessisch" ? zeitgenoessischLetterCss : ""}${kreativDocumentCss}${ivyLeagueDocumentCss}${extendedResumeDocumentCss}${klassischDocumentCss}${modernDocumentCss}${pehlioneDocumentCss}${pehlionePdfLayoutFixes}${pehlioneContactsCss}${gepflegtDocumentCss}${tabellarischDocumentCss}${getResumeIdentityVisibilityCss(profile?.resumeSemanticSections)}${managedResumeCss}${getInheritedPdfSectionStyles(template.id)}${templateSpecificCss}${catalogIconCss}${withMotivation ? `${motivationCss}.page.motivation-sheet{height:auto;min-height:297mm;max-height:none;overflow:visible}` : ""}${letterSideMarginCss}${letterTopMarginCss}${target === "anschreiben" || isDocumentPackage(target) || withMotivation ? anschreibenPrintCss() : ""}</style></head><body>${selected.join("")}${pageFitScript}${target === "deckblatt" || target === "mappe" ? deckblattFitScript : ""}</body></html>`;
 };
 

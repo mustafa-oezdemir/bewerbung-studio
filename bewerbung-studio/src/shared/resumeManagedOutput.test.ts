@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseHTML } from "linkedom";
 import { profileSchema } from "./schema";
-import { applyManagedResumeOutput, applyResumeDesignOverrides, applyResumeSectionHeadingColors } from "./resumeManagedOutput";
+import { applyManagedResumeOutput, applyResumeDesignOverrides, applyResumeIconColors, applyResumeSectionHeadingColors } from "./resumeManagedOutput";
 import { defaultDocumentDesign } from "./documentDesign";
 import { resolveCvDesign } from "./cvDesign";
 import { createKnowledgeCategory, createKnowledgeItem } from "../features/knowledge/knowledge.utils";
@@ -66,7 +66,8 @@ describe("shared strengths output", () => {
     expect(root.querySelector("article h3")?.getAttribute("style")).toContain("#445566");
     expect(root.querySelector("article p")?.getAttribute("style")).toContain("#112233");
     expect(root.querySelector("article small")?.getAttribute("style")).toContain("#8899aa");
-    expect(root.querySelector("article svg")?.getAttribute("style")).toContain("#99aabb");
+    // "Symbole" is the Kontaktdaten's colour (applyResumeIconColors): an icon elsewhere is not this adapter's business.
+    expect(root.querySelector("article svg")?.getAttribute("style") ?? "").not.toContain("#99aabb");
     expect(root.querySelector(".project-card")?.getAttribute("style")).toContain("#778899");
     expect((surface === "pdf" ? root.querySelector(".page-content") : root.firstElementChild)?.getAttribute("style")).toContain("--accent:#667788");
   });
@@ -162,5 +163,47 @@ describe("shared strengths output", () => {
   it("honors section visibility", () => {
     const hidden = { ...profile, resumeSections: { ...profile.resumeSections, strengths: false } };
     expect(applyManagedResumeOutput(page, hidden, "klassisch")).not.toContain("Stärken");
+  });
+});
+
+describe("Symbole and Stärken-Symbole", () => {
+  const markup = `<section class="cv-sheet"><header><address>
+    <svg data-contact-icon="phone" stroke="currentColor"></svg><svg data-contact-icon="github" stroke="currentColor"></svg></address></header>
+    <section class="pehlione-contacts"><h3><svg data-contact-icon="person"></svg><span>Kontakt</span></h3></section>
+    <section data-managed-section="experience"><article><span data-cv-role="period"><svg data-contact-icon="calendar"></svg>2024</span></article></section>
+    <section data-managed-section="strengths"><h3><svg class="heading"></svg>Stärken</h3>
+      <article class="managed-strength-card"><svg class="technology-brand-svg" data-brand="material:file:go"></svg></article>
+      <article class="managed-strength-card"><svg class="technology-brand-svg" data-strength-symbol="symbol:check" style="color:inherit" stroke="currentColor"></svg></article></section>
+    <section data-managed-section="knowledge"><div class="managed-item"><svg class="technology-brand-svg" data-brand="material:file:java"></svg></div></section>
+  </section>`;
+  const render = (colors: Record<string, string>) => {
+    const { document } = parseHTML(markup);
+    const root = document.querySelector("section")!;
+    applyResumeIconColors(root, "klassisch", { ...defaultDocumentDesign, cvOverrides: { colors } }, resolveCvDesign("klassisch", { colors }), (color) => color);
+    return root;
+  };
+  const style = (root: Element, selector: string) => root.querySelector(selector)?.getAttribute("style") ?? "";
+
+  it("colours only the contact icons with Symbole", () => {
+    const root = render({ icon: "#2856B6" });
+    expect(style(root, '[data-contact-icon="phone"]')).toContain("color:#2856B6!important");
+    expect(style(root, '[data-contact-icon="github"]')).toContain("stroke:#2856B6!important");
+    for (const other of ['[data-contact-icon="person"]', '[data-contact-icon="calendar"]', ".heading", '[data-brand="material:file:go"]', "[data-strength-symbol]", '[data-brand="material:file:java"]'])
+      expect(style(root, other), other).not.toContain("#2856B6");
+  });
+
+  it("colours the Stärken icons, bullets included, with Stärken-Symbole and gives a brand mark no outline", () => {
+    const root = render({ strengthIcon: "#0C8C74" });
+    expect(style(root, '[data-brand="material:file:go"]')).toBe("color:#0C8C74!important");
+    expect(style(root, "[data-strength-symbol]")).toContain("color:#0C8C74!important");
+    expect(style(root, "[data-strength-symbol]")).toContain("stroke:#0C8C74!important");
+    expect(style(root, "[data-strength-symbol]")).not.toContain("inherit");
+    for (const other of ['[data-contact-icon="phone"]', ".heading", '[data-brand="material:file:java"]']) expect(style(root, other), other).not.toContain("#0C8C74");
+  });
+
+  it("holds icons without a colour of their own at the template's colours when only the Hervorhebungsfarbe changes", () => {
+    const root = render({ accent: "#A04A00" });
+    for (const selector of ['[data-contact-icon="phone"]', '[data-brand="material:file:go"]', "[data-strength-symbol]"]) expect(style(root, selector), selector).not.toContain("#A04A00");
+    expect(style(root, '[data-contact-icon="phone"]')).toContain("!important");
   });
 });

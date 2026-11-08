@@ -228,6 +228,8 @@ export const resolveCvDocument = ({
     zweispaltigVariables,
     summary,
     pagePlan,
+    /** The application's colour scheme: what the template's own accent colours are drawn in. */
+    applicationColors: { accent: application?.accentColor, secondary: application?.secondaryColor },
   };
 };
 

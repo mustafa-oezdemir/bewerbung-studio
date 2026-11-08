@@ -110,7 +110,7 @@ export const getGepflegtDesignVariables = (
     "--gepflegt-section-heading": semantic("sectionHeading", native.heading, heading),
     "--gepflegt-entry-heading": semantic("entryHeading", native.heading, heading),
     "--gepflegt-subheading": semantic("subheading", native.accent, accent),
-    "--gepflegt-organization": semantic("icon", native.accent, accent),
+    "--gepflegt-organization": semantic("organization", native.accent, accent),
     "--gepflegt-icon": semantic("icon", native.accent, accent),
     "--gepflegt-text": text,
     "--gepflegt-paragraph": semantic("paragraph", native.text, text),

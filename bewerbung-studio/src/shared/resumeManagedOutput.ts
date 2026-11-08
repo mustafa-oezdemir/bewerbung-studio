@@ -19,7 +19,7 @@ import {
   resumeContinuationCss,
 } from "./resumeContinuation";
 import { applyGeneralResumeAppearance, resumeAppearanceSchema } from "./resumeAppearance";
-import { resolveTemplateId } from "./templates";
+import { getTemplate, resolveTemplateId } from "./templates";
 import { resumeSectionStyleSources } from "./resumeSectionStyleInheritance";
 import { applyEducationBreaks, applyEntryBreaks, resumeEntrySplitCss } from "./resumeEntrySplit";
 import type { KnowledgeRange } from "./resumeKnowledgeRange";
@@ -48,7 +48,7 @@ import { applyResumeLanguageOutput } from "./resumeLanguageOutput";
 import { resumeSummaryTextCss } from "./resumeSummary";
 import { hyphenateResumeSummary } from "./resumeSummaryHyphenation";
 import { tabellarischContinuationCss, tabellarischSectionTitleCss } from "./tabellarischDesign";
-import { applyResumeTextRoleStyles } from "./resumeTextRoles";
+import { applyResumeTextRoleStyles, setImportantStyle } from "./resumeTextRoles";
 
 const escape = (value: string) =>
   value
@@ -290,10 +290,6 @@ export const applyResumeDesignOverrides = (
     if (!isRoleText(node)) set(node, "color", design.colors.paragraph);
   if (colors?.muted) for (const node of scope.querySelectorAll("small,time,[class*='meta'],[class*='date']"))
     if (!isRoleText(node)) set(node, "color", design.colors.muted);
-  if (colors?.icon) for (const node of scope.querySelectorAll("svg")) {
-    set(node, "color", design.colors.icon);
-    set(node, "stroke", design.colors.icon);
-  }
 
   const header = scope.querySelector("header,[class*='header']");
   const name = header?.querySelector("h1");
@@ -356,6 +352,59 @@ export const applyResumeDesignOverrides = (
     for (const node of entryHeadings) set(node, "font-size", `${design.typography.entryHeadingSizePt}pt`);
   if (typography.headingFontId !== undefined)
     for (const node of entryHeadings) set(node, "font-family", variables["--doc-heading-font"]);
+};
+
+/** The contact icons a template draws from its accent variables (measured), and the colour it draws them in natively. */
+const accentDrivenContactIcons: Partial<Record<string, "icon" | "muted">> = {
+  einspaltig: "icon", gepflegt: "icon", kompakt: "icon", klassisch: "icon", pehlione_white: "icon", tabellarisch: "icon",
+  "tuerkis-profil": "icon", zeitgenoessisch: "icon", zweispaltig: "icon", stilvoll: "muted",
+};
+/** Their palette follows the Hervorhebungsfarbe, the text colour of the bullet symbols with it. */
+const accentDrivenTextPalette = new Set(["kompakt", "stilvoll"]);
+
+/**
+ * Symbole and Stärken-Symbole, each on exactly its own icons and in preview and PDF alike. A chosen colour wins over every
+ * template rule; a changed Hervorhebungsfarbe leaves icons without a colour of their own as the template draws them.
+ */
+export const applyResumeIconColors = (
+  root: Element,
+  templateId: string,
+  settings: DocumentDesignSettings,
+  design: CvDesignTokens,
+  schemeColor: (color: string) => string,
+): void => {
+  const colors = settings.cvOverrides?.colors;
+  if (!colors) return;
+  const id = resolveTemplateId(templateId);
+  const set = setImportantStyle;
+  const paint = (svg: Element, value: string) => {
+    set(svg, "color", value);
+    // Line icons only: a stroke on a filled brand mark would draw an outline around it.
+    if ((svg.getAttribute("stroke") ?? "none") !== "none") set(svg, "stroke", value);
+  };
+  const accentChanged = colors.accent !== undefined && id !== "elegant";
+
+  const contactToken = accentDrivenContactIcons[id];
+  const contactColor = colors.icon !== undefined ? design.colors.icon
+    : accentChanged && contactToken ? schemeColor(design.colors[contactToken]) : undefined;
+  if (contactColor) for (const svg of root.querySelectorAll("svg[data-contact-icon]")) {
+    // The same icons mark a section heading (Pehlione) and an entry's date and place (Modern, Türkis Profil).
+    if (svg.closest("h1,h2,h3,h4,h5,.cv-heading,[data-cv-heading],[data-custom-role='heading'],[data-cv-role]")) continue;
+    set(svg, "color", contactColor);
+    set(svg, "stroke", contactColor);
+  }
+
+  const strengthIcons = root.querySelectorAll('[data-managed-section="strengths"] svg.technology-brand-svg,[class*="strength"] svg.technology-brand-svg');
+  if (colors.strengthIcon !== undefined) for (const svg of strengthIcons) paint(svg, design.colors.strengthIcon);
+  else if (accentChanged) for (const svg of strengthIcons) {
+    if (svg.getAttribute("style")?.includes("color:inherit")) {
+      if (accentDrivenTextPalette.has(id)) paint(svg, design.colors.text);
+      continue;
+    }
+    // The shared card rule (Stilvoll: its own) reads the accent variables; a template rule that does not keeps its colour.
+    const nativeAccent = schemeColor(getTemplate(templateId).accent);
+    for (const name of ["--doc-accent", "--stilvoll-icon"]) (svg as HTMLElement).style.setProperty(name, nativeAccent);
+  }
 };
 
 // Both the React preview and the PDF use this pure HTML projection. It only
@@ -1176,10 +1225,19 @@ export const applyManagedResumeOutput = (
     // The entry roles last: their own colour and size beat the template's and the generic overrides of the same text.
     const nativeTypography = resolveTemplateCvDesign(resolved.templateId).typography;
     const plain = designSettings.resumeOutputMode === "ats";
+    // A template colour in the application's colour scheme: the accent colours of the template are drawn in the chosen ones.
+    const schemeColor = (color: string) => {
+      const template = getTemplate(resolved.templateId);
+      const scheme = resolved.applicationColors;
+      if (scheme.accent && color.toLowerCase() === template.accent.toLowerCase()) return scheme.accent;
+      return scheme.secondary && color.toLowerCase() === template.secondary.toLowerCase() ? scheme.secondary : color;
+    };
     applyResumeTextRoleStyles(root, templateId, designSettings, resolved.design, {
       typography: nativeTypography,
       size: (role, node) => nativeEntryRolePt(resolved.templateId, plain, role, Boolean(node.closest("[data-custom-template]")), nativeTypography),
+      schemeColor,
     });
+    applyResumeIconColors(root, templateId, designSettings, resolved.design, schemeColor);
     // A footer closing must stay inside the main column when a sidebar shares the page.
     const geometry = getPaginationGeometry(resolved.templateId);
     const hasSidebar =

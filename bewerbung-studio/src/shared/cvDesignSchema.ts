@@ -3,7 +3,8 @@ import { documentFontIds } from "./documentDesign";
 import { nativeResumeAppearanceSchema, resumeAppearanceSchema } from "./resumeAppearance";
 
 const color = z.string().regex(/^#[0-9a-f]{6}$/i);
-export const cvColorsSchema = z.object({
+/** The colours every template names itself. */
+const cvTemplateColorsSchema = z.object({
   text: color,
   paragraph: color,
   heading: color,
@@ -19,7 +20,17 @@ export const cvColorsSchema = z.object({
   accent: color,
   surface: color,
   muted: color,
+  /** "Symbole": the icons of the Kontaktdaten and nothing else. */
   icon: color,
+});
+
+/**
+ * The colours of a Lebenslauf. Two controls have no field in the template files; their native value is derived once
+ * (resolveTemplateCvDesign): Projekttechnologien (the technology line of a project) and Stärken-Symbole.
+ */
+export const cvColorsSchema = cvTemplateColorsSchema.extend({
+  projectTechnologies: color,
+  strengthIcon: color,
 });
 
 /** Physical units are shared by controls, validation and both output adapters. */
@@ -102,7 +113,7 @@ export const cvDesignOverridesSchema = z.object({
  * place where a template's design numbers live for the resolver, the design panel and the override adapters.
  */
 export const nativeResumeDesignSchema = z.object({
-  tokens: cvDesignTokensSchema,
+  tokens: cvDesignTokensSchema.extend({ colors: cvTemplateColorsSchema }),
   appearance: nativeResumeAppearanceSchema,
 });
 

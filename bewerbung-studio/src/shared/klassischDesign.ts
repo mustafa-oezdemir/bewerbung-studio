@@ -1,4 +1,4 @@
-import type { CvDesignTokens } from "./cvDesignSchema";
+import type { NativeResumeDesign } from "./cvDesignSchema";
 import { getDocumentFont } from "./documentDesign";
 import { klassischDefaults } from "./cvTemplateDefaults/klassisch.defaults";
 import type { ApplicantProfile } from "./schema";
@@ -34,7 +34,7 @@ export const resolveKlassischGeometry = (pageMarginMm?: number) => {
  * `klassischDocumentCss` only reference them): geometry, typography, spacing and the neutral palette. The two
  * application colours (`--klassisch-primary`, `--klassisch-accent`) stay with the template's colour handling.
  */
-export const getKlassischDesignVariables = (design: CvDesignTokens): Record<string, string> => {
+export const getKlassischDesignVariables = (design: NativeResumeDesign["tokens"]): Record<string, string> => {
   const { typography: type, layout } = klassischDefaults;
   const geometry = resolveKlassischGeometry(design.spacing.pageMarginMm);
   return {

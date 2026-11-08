@@ -5,6 +5,7 @@ import { resolveCvDocument } from "../shared/resolveCvDocument";
 import { resolveCoverLetterDocuments, storeCoverLetterDocuments } from "../shared/coverLetterHeader";
 import { getZweispaltigLetterVariables } from "../shared/zweispaltigLetterIdentity";
 import { getElegantDesignVariables } from "../shared/elegantDesign";
+import { resolveTemplateCvDesign } from "../shared/cvDesign";
 import { getResumeSectionTitle } from "../features/resume-sections/resume-sections";
 import type { CvDesignTokens, ResumeDesignLayer } from "../shared/cvDesignSchema";
 import type { ResumeAppearance } from "../shared/resumeAppearance";
@@ -786,7 +787,7 @@ export function DocumentsView({
     "--doc-accent": design.accentColor,
     "--doc-secondary": design.secondaryColor,
     "--doc-on-secondary": getReadableTextColor(design.secondaryColor),
-    "--cv-tech-icon": resolvedCv.design.colors.icon,
+    "--cv-tech-icon": resolveTemplateCvDesign(template.id).colors.strengthIcon,
     ...getDocumentDesignVariables(design.settings),
   } as CSSProperties;
   const letterPaperStyle = template.id === "zweispaltig"
@@ -2623,7 +2624,7 @@ export function DocumentsView({
                     </div>
                   ) : null}
                   {profile ? (
-                    <div style={{ "--picker-icon-color": resolvedCv.design.colors.icon } as CSSProperties}>
+                    <div style={{ "--picker-icon-color": resolvedCv.design.colors.strengthIcon } as CSSProperties}>
                     <ResumeSectionsPanel
                       key={`${application.id}:${profile.id}:${template.id}:${resumeEditorRevision}`}
                       profile={profile}

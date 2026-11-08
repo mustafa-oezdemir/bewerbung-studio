@@ -1,4 +1,4 @@
-import type { CvDesignTokens } from "./cvDesignSchema";
+import type { CvDesignTokens, NativeResumeDesign } from "./cvDesignSchema";
 import { getDocumentFont } from "./documentDesign";
 import { einspaltigDefaults } from "./cvTemplateDefaults/einfach.defaults";
 import type { ApplicantProfile } from "./schema";
@@ -42,7 +42,7 @@ export const resolveEinspaltigGeometry = (pageMarginMm?: number) => {
  * the accent follows it, the neutral ones stay unless the user sets them.
  */
 export const getEinspaltigDesignVariables = (
-  design: CvDesignTokens,
+  design: NativeResumeDesign["tokens"],
   changedColors?: Partial<CvDesignTokens["colors"]>,
   applicationAccent?: string,
 ): Record<string, string> => {
@@ -51,7 +51,7 @@ export const getEinspaltigDesignVariables = (
   const native = colors.primary.toLowerCase();
   const accent = changedColors?.accent
     ?? (applicationAccent && applicationAccent.toLowerCase() !== native ? applicationAccent : design.colors.accent);
-  const color = (key: keyof CvDesignTokens["colors"]) =>
+  const color = (key: keyof NativeResumeDesign["tokens"]["colors"]) =>
     changedColors?.[key] ?? (design.colors[key].toLowerCase() === native ? accent : design.colors[key]);
   return {
     "--einfach-margin-left": mm(geometry.left),

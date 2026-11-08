@@ -42,6 +42,24 @@ describe("global and document Lebenslauf design storage", () => {
     await rm(root, { recursive: true, force: true });
   });
 
+  it("keeps the three icon and technology colours of a Bewerbung and of all Lebensläufe through a restart", async () => {
+    await store.createApplication(applicationInput("kompakt"));
+    const application = store.getWorkspace().applications[0];
+    const own = { projectTechnologies: "#BA3B44", icon: "#2856B6" };
+    const shared: ResumeDesignLayer = { cvOverrides: { colors: { strengthIcon: "#0C8C74", icon: "#111111" } } };
+    await store.saveApplication({ ...application, designSettings: { ...application.designSettings, cvOverrides: { colors: own } } });
+    await store.saveSettings({ ...store.getWorkspace().settings, resumeDesign: shared });
+    const reopened = new DataStore(root);
+    await reopened.initialize();
+    expect(reopened.getWorkspace().applications[0].designSettings.cvOverrides?.colors).toEqual(own);
+    expect(reopened.getWorkspace().settings.resumeDesign).toEqual(shared);
+    const html = reopened.getExportHtml(application.id, "lebenslauf");
+    expect(html).toContain("--doc-project-technologies-color:#BA3B44");
+    expect(html).toContain("--doc-icon-color:#2856B6");
+    expect(html).toContain("--doc-strength-icon-color:#0C8C74");
+    expect(html).not.toContain("--doc-icon-color:#111111");
+  });
+
   it("starts without a shared layer and writes nothing into the applications", async () => {
     await store.createApplication(applicationInput("klassisch"));
     const workspace = store.getWorkspace();

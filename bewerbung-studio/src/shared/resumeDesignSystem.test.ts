@@ -230,3 +230,49 @@ describe("Lebenslauf design layers", () => {
     expect(application.designSettings.resumeAppearance).toBeUndefined();
   });
 });
+
+describe("Projekttechnologien, Stärken-Symbole and Symbole in the design layers", () => {
+  const keys = ["projectTechnologies", "strengthIcon", "icon"] as const;
+  const blue = "#2856B6";
+  const red = "#BA3B44";
+
+  it("derives the two new native colours once, from each template's own colours", () => {
+    for (const { id } of templates) {
+      const native = resolveTemplateCvDesign(id).colors;
+      expect(native.strengthIcon, id).toBe(native.icon);
+      expect(native.projectTechnologies, id).toBe(id === "tuerkis-profil" ? native.accent : native.organization);
+    }
+  });
+
+  it("opens a Bewerbung saved before these colours existed and writes no default into it", () => {
+    const application = applicationSchema.parse({
+      schemaVersion: 1, id: crypto.randomUUID(), folderName: "Alt", company: { name: "Firma", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" },
+      status: "Entwurf", templateId: "klassisch", accentColor: "#2B2F32", secondaryColor: "#00AFC5",
+      designSettings: { ...settingsOf("klassisch"), cvOverrides: { colors: { accent: "#A04A00", icon: blue } } },
+      documents: {}, statusHistory: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    });
+    expect(application.designSettings.cvOverrides?.colors).toEqual({ accent: "#A04A00", icon: blue });
+    const view = resolveResumeDesignView("klassisch", application.designSettings);
+    expect(view.effective.tokens.colors.projectTechnologies).toBe(resolveTemplateCvDesign("klassisch").colors.projectTechnologies);
+    expect(view.effective.tokens.colors.strengthIcon).toBe(resolveTemplateCvDesign("klassisch").colors.strengthIcon);
+  });
+
+  it("keeps the colours through a save and reload", () => {
+    const colors = { projectTechnologies: red, strengthIcon: "#0C8C74", icon: blue };
+    expect(cvDesignOverridesSchema.parse(JSON.parse(JSON.stringify({ colors }))).colors).toEqual(colors);
+    expect(() => cvDesignOverridesSchema.parse({ colors: { strengthIcon: "url(#x)" } })).toThrow();
+  });
+
+  it.each(keys)("resolves %s as Bewerbung > Alle Lebensläufe > Vorlage", (key) => {
+    const native = resolveTemplateCvDesign("kompakt").colors[key];
+    const global: ResumeDesignLayer = { cvOverrides: { colors: { [key]: blue } } };
+    const inherited = resolveResumeDesignView("kompakt", settingsOf("kompakt"), global);
+    expect(resolveResumeDesignView("kompakt", settingsOf("kompakt")).effective.tokens.colors[key]).toBe(native);
+    expect(inherited.effective.tokens.colors[key]).toBe(blue);
+    expect(inherited.sourceOfToken("colors", key)).toBe("global");
+    const own = resolveResumeDesignView("kompakt", { ...settingsOf("kompakt"), cvOverrides: { colors: { [key]: red } } }, global);
+    expect(own.effective.tokens.colors[key]).toBe(red);
+    expect(own.sourceOfToken("colors", key)).toBe("document");
+    expect(own.editableGlobal.tokens.colors[key]).toBe(blue);
+  });
+});

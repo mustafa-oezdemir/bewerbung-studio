@@ -26,15 +26,25 @@ export const cvRole = (role: ResumeTextRole) => ({ "data-cv-role": role });
 export const cvRoleSelector = (role: ResumeTextRole) => `[data-cv-role="${role}"]`;
 
 /**
- * The design tokens of every role. A project's technologies take the Hervorhebungsfarbe, its description the Absatztext;
- * Werdegang, Bildungsweg, Projekte and Hobbys share the other roles.
+ * Writes `property:value!important` into the style attribute: linkedom drops the priority of `style.setProperty`, and a
+ * template rule with !important on the same element would win over a plain inline value.
+ */
+export const setImportantStyle = (element: Element, property: string, value: string) => {
+  const kept = (element.getAttribute("style") ?? "").split(";").map((declaration) => declaration.trim())
+    .filter((declaration) => declaration && declaration.split(":")[0].trim().toLowerCase() !== property);
+  element.setAttribute("style", [...kept, `${property}:${value}!important`].join(";"));
+};
+
+/**
+ * The design tokens of every role. A project's technologies have their own colour (Projekttechnologien), its description
+ * takes the Absatztext; Werdegang, Bildungsweg, Projekte and Hobbys share the other roles.
  */
 export const resumeTextRoleTokens: Record<ResumeTextRole, { color: keyof CvDesignTokens["colors"]; size: keyof CvDesignTokens["typography"] }> = {
   "entry-title": { color: "entryHeading", size: "entryHeadingSizePt" },
   organization: { color: "organization", size: "organizationSizePt" },
   period: { color: "date", size: "dateSizePt" },
   location: { color: "location", size: "locationSizePt" },
-  technologies: { color: "accent", size: "projectTechnologiesSizePt" },
+  technologies: { color: "projectTechnologies", size: "projectTechnologiesSizePt" },
   description: { color: "paragraph", size: "projectDescriptionSizePt" },
 };
 
@@ -79,8 +89,11 @@ export const applyResumeTextRoleStyles = (
   templateId: string,
   settings: DocumentDesignSettings,
   design: CvDesignTokens,
-  /** The template's native sizes: its tokens and the size it draws a role text in (per section and layout). */
-  native?: { typography: CvDesignTokens["typography"]; size: (role: ResumeTextRole, node: Element) => number },
+  /**
+   * The template's native sizes (its tokens and the size it draws a role text in, per section and layout) and how a native
+   * colour looks with the application's colour scheme.
+   */
+  native?: { typography: CvDesignTokens["typography"]; size: (role: ResumeTextRole, node: Element) => number; schemeColor?: (color: string) => string },
 ): void => {
   // A project's technology line is drawn at its design size (the one the panel shows) on both surfaces; without it the
   // template's supporting rules decided its size by specificity, differently in the preview and the PDF. Like the other
@@ -96,13 +109,7 @@ export const applyResumeTextRoleStyles = (
   // written only for an own Unternehmen / Einrichtung without an own Arbeitgeberfarbe.
   const employerChain = employerTemplates.has(resolveTemplateId(templateId))
     && (colors?.employer !== undefined || colors?.organization === undefined);
-  // Written into the attribute: linkedom drops the priority of `style.setProperty`, and a template rule with !important on
-  // the same text (Elegant's and Stilvoll's body paragraphs) would win over a plain inline value.
-  const set = (element: Element, property: string, value: string) => {
-    const kept = (element.getAttribute("style") ?? "").split(";").map((declaration) => declaration.trim())
-      .filter((declaration) => declaration && declaration.split(":")[0].trim().toLowerCase() !== property);
-    element.setAttribute("style", [...kept, `${property}:${value}!important`].join(";"));
-  };
+  const set = setImportantStyle;
   // Template accent variables also colour the organisations. Keep their native colour (in the plain layout its own
   // palette) when only the highlight colour changes; an explicit organisation (or legacy employer) choice still wins.
   const pinned = colors?.accent !== undefined && colors.organization === undefined;
@@ -112,11 +119,18 @@ export const applyResumeTextRoleStyles = (
     if (nativeOrganization?.education && node.closest('[data-managed-section="education"]')) return nativeOrganization.education;
     return settings.resumeOutputMode === "ats" && nativeOrganization?.ats ? nativeOrganization.ats : design.colors.organization;
   };
+  // Projekttechnologien is a colour of its own: a changed Hervorhebungsfarbe leaves the line as the template draws it.
+  const technologiesPinned = colors?.accent !== undefined && colors.projectTechnologies === undefined;
+  const technologiesColor = () => {
+    if (!technologiesPinned) return design.colors.projectTechnologies;
+    if (settings.resumeOutputMode === "ats" && nativeOrganization?.ats) return nativeOrganization.ats;
+    return native?.schemeColor?.(design.colors.projectTechnologies) ?? design.colors.projectTechnologies;
+  };
   for (const role of resumeTextRoles) {
     const { color, size } = resumeTextRoleTokens[role];
     const colorFrom = resumeTextRoleFallbacks.colors[color];
     const sizeFrom = resumeTextRoleFallbacks.typography[size];
-    const ownColor = colors?.[color] !== undefined || (role === "organization" && pinned)
+    const ownColor = colors?.[color] !== undefined || (role === "organization" && pinned) || (role === "technologies" && technologiesPinned)
       || (colorFrom !== undefined && colors?.[colorFrom] !== undefined);
     const chosenSize = typography?.[size] !== undefined;
     const followsSize = !chosenSize && sizeFrom !== undefined && typography?.[sizeFrom] !== undefined;
@@ -127,7 +141,9 @@ export const applyResumeTextRoleStyles = (
     if (!ownColor && !chosenSize && !followsSize && !keepsSize) continue;
     for (const node of scope.querySelectorAll(cvRoleSelector(role))) {
       if (ownColor && !(role === "organization" && employerChain && node.hasAttribute("data-cv-employer")))
-        set(node, "color", role === "organization" ? organizationColor(node) : design.colors[color]);
+        set(node, "color", role === "organization" ? organizationColor(node) : role === "technologies" ? technologiesColor() : design.colors[color]);
+      // The technology line is drawn lighter by the templates; a chosen colour appears as chosen.
+      if (role === "technologies" && colors?.projectTechnologies !== undefined) set(node, "opacity", "1");
       if (chosenSize || (followsSize && !native)) set(node, "font-size", `${design.typography[size]}pt`);
       else if (native && (ratio !== undefined || keepsSize))
         set(node, "font-size", `${Math.round(native.size(role, node) * (ratio ?? 1) * 100) / 100}pt`);
