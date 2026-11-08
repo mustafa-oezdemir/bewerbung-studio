@@ -25,7 +25,8 @@ const measure = (rootSelector) => {
 app.whenReady().then(async () => {
   const w = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { sandbox: true } });
   const report = [];
-  for (const f of JSON.parse(fs.readFileSync(path.join(out, 'manifest.json'))).filter((f) => !f.ats && (!only.length || only.some((o) => f.file.includes(o))))) {
+  for (const f of JSON.parse(fs.readFileSync(path.join(out, 'manifest.json'))).filter((f) =>
+    (process.env.INCLUDE_ATS === '1' || !f.ats) && (!only.length || only.some((o) => f.file.includes(o))))) {
     await w.loadFile(path.join(out, f.file + '.html'));
     const pdf = await w.webContents.executeJavaScript(`(${measure.toString()})('.cv-sheet')`);
     await w.loadFile(path.join(out, f.file + '-preview.html'));

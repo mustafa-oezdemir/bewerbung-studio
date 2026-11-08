@@ -22,7 +22,7 @@ try {
     experiences: [{ id: uuid(), from: '2023', to: '2025', role: 'Softwareentwicklerin', company: 'Beispiel GmbH', city: 'Berlin', achievements: ['Anwendungen entwickelt.'] }],
     education: [{ id: uuid(), from: '2020', to: '2023', degree: 'Fachinformatikerin', institution: 'Bildungsinstitut' }],
     specialSections: [ { id: uuid(), kind: 'custom', title: 'Eigene Projekte', contentType: 'entries', entries: [{ id: uuid(), title: 'Fachinformatiker für Anwendungsentwicklung', subtitle: 'IAD GmbH', date: '07/2023 – 11/2025', description: 'Ein eigener Abschnitt mit denselben semantischen Stilen.' }] }, { id: uuid(), kind: 'custom', title: 'Hobbys & Interessen', contentType: 'text', entries: [{ id: uuid(), title: 'Wandern und Fotografie' }] } ] });
-  const names = { einspaltig: 'Einspaltig', 'ivy-league': 'IvyLeague', zeitgenoessisch: 'Zeitgenoessisch' };
+  const names = { einspaltig: 'Einspaltig', 'ivy-league': 'IvyLeague', zeitgenoessisch: 'Zeitgenoessisch', 'tuerkis-profil': 'TuerkisProfil' };
   const manifest = [];
   for (const template of templates) {
     const id = template.id;
