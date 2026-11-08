@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import { ContactIcon } from "../ContactIcon";
 import type { TabellarischHeaderProps } from "./tabellarisch.types";
-import { getTabellarischHeaderContacts, type TabellarischHeaderContact } from "../../../../shared/tabellarischHeaderContacts";
+import { getTabellarischHeaderContacts, tabellarischPrimarySeparator, type TabellarischHeaderContact } from "../../../../shared/tabellarischHeaderContacts";
 
 export function TabellarischHeader({
   name,
@@ -34,7 +34,7 @@ export function TabellarischHeader({
         ) : null}
         {primaryContacts.length ? <address className="tabellarisch-header__primary-contacts">
           {primaryContacts.map((contact, index) => <Fragment key={contact.kind}>
-            {index ? <span className="tabellarisch-header__separator" aria-hidden="true"> | </span> : null}
+            {index ? <span className="tabellarisch-header__separator">{tabellarischPrimarySeparator(primaryContacts, index)}</span> : null}
             {renderContact(contact, false)}
           </Fragment>)}
         </address> : null}

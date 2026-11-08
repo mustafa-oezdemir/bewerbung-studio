@@ -210,7 +210,8 @@ describe("Lebenslauf-Dokumente", () => {
     expect(header?.querySelector("h1")?.textContent).toBe("Mina Kaya");
     expect(header?.querySelector("h2")?.textContent).toBe("Softwareentwicklerin");
     expect(header?.querySelector(".tabellarisch-pdf-primary-contacts")?.textContent?.replace(/\s+/g, " ").trim())
-      .toBe("Musterweg 20 | 35039 Marburg | mina@example.com | +49 176 12345678");
+      .toBe("Musterweg 20, 35039 Marburg | mina@example.com | +49 176 12345678");
+    expect(header?.querySelectorAll(".tabellarisch-pdf-separator[aria-hidden]")).toHaveLength(0);
   });
 
   it.each(["visual", "ats"])("exports separate Tabellarisch social links in %s mode", (mode) => {

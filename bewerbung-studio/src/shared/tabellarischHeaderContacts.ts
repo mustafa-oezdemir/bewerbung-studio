@@ -10,6 +10,10 @@ export type TabellarischHeaderContact = {
   primary: boolean;
 };
 
+/** Keep the address together while separating the remaining contact details. */
+export const tabellarischPrimarySeparator = (contacts: TabellarischHeaderContact[], index: number) =>
+  contacts[index - 1]?.kind === "street" && contacts[index]?.kind === "location" ? ", " : " | ";
+
 /** The visual header, PDF and page planner use the same contact order and visible values. */
 export const getTabellarischHeaderContacts = (profile: ApplicantProfile | undefined): TabellarischHeaderContact[] => {
   const address = resumeAddressLines(profile);

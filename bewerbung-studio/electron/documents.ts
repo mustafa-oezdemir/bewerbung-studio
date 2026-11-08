@@ -73,7 +73,7 @@ import {
   renderDeckblattMarkup,
 } from "../src/shared/deckblattDesigns";
 import { getThemedTechnologyIconMarkup } from "../src/shared/technologyBrand";
-import { getTabellarischHeaderContacts } from "../src/shared/tabellarischHeaderContacts";
+import { getTabellarischHeaderContacts, tabellarischPrimarySeparator } from "../src/shared/tabellarischHeaderContacts";
 import { getReadableTextColor, getTemplate } from "../src/shared/templates";
 import {
   applicationGreeting,
@@ -3119,7 +3119,7 @@ export const buildDocumentHtml = (
   const renderTabellarischContacts = (ats = false) => {
     const primary = tabellarischContacts.filter((contact) => contact.primary);
     const extra = tabellarischContacts.filter((contact) => !contact.primary);
-    return `${primary.length ? `<address class="tabellarisch-pdf-primary-contacts">${primary.map((contact, index) => `${index ? `<span class="tabellarisch-pdf-separator" aria-hidden="true"> | </span>` : ""}${renderTabellarischContact(contact, ats, false)}`).join("")}</address>` : ""}${extra.length ? `<address class="tabellarisch-pdf-contacts">${extra.map((contact) => renderTabellarischContact(contact, ats, true)).join("")}</address>` : ""}`;
+    return `${primary.length ? `<address class="tabellarisch-pdf-primary-contacts">${primary.map((contact, index) => `${index ? `<span class="tabellarisch-pdf-separator">${tabellarischPrimarySeparator(primary, index)}</span>` : ""}${renderTabellarischContact(contact, ats, false)}`).join("")}</address>` : ""}${extra.length ? `<address class="tabellarisch-pdf-contacts">${extra.map((contact) => renderTabellarischContact(contact, ats, true)).join("")}</address>` : ""}`;
   };  const tabellarischBackground = `<svg class="tabellarisch-pdf-background" viewBox="0 0 1000 260" preserveAspectRatio="xMidYMin slice" aria-hidden="true"><defs><pattern id="tabellarisch-pdf-cubes" width="144" height="84" patternUnits="userSpaceOnUse"><path d="M72 0 144 42 72 84 0 42 72 0v84M0 42l72 42 72-42"/></pattern><linearGradient id="tabellarisch-pdf-fade" x1="0" x2="1"><stop offset="0" stop-color="white" stop-opacity="0"/><stop offset=".25" stop-color="white" stop-opacity=".45"/><stop offset=".48" stop-color="white" stop-opacity="1"/></linearGradient><mask id="tabellarisch-pdf-mask"><rect width="1000" height="260" fill="url(#tabellarisch-pdf-fade)"/></mask></defs><rect x="210" y="-44" width="850" height="310" fill="url(#tabellarisch-pdf-cubes)" mask="url(#tabellarisch-pdf-mask)"/></svg>`;
   const tabellarischSection = (
     title: string,

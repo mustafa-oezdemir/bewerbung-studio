@@ -7,12 +7,22 @@ import { getProfessionalTitle } from "./profileSelection";
  */
 export type CoverSender = { name: string; title: string; contact: string };
 
-export const senderContactLine = (profile: ApplicantProfile | undefined) =>
-  profile
-    ? [profile.street, `${profile.postalCode} ${profile.city}`.trim(), profile.email, profile.phone]
-        .filter(Boolean)
-        .join(" | ")
-    : "";
+const senderContactParts = (profile: ApplicantProfile) => {
+  const city = [profile.postalCode.trim(), profile.city.trim()].filter(Boolean).join(" ");
+  return { street: profile.street.trim(), city, email: profile.email.trim(), phone: profile.phone.trim() };
+};
+
+const legacySenderContactLine = (profile: ApplicantProfile) => {
+  const { street, city, email, phone } = senderContactParts(profile);
+  return [street, city, email, phone].filter(Boolean).join(" | ");
+};
+
+export const senderContactLine = (profile: ApplicantProfile | undefined) => {
+  if (!profile) return "";
+  const { street, city, email, phone } = senderContactParts(profile);
+  const address = [street, city].filter(Boolean).join(", ");
+  return [address, email, phone].filter(Boolean).join(" | ");
+};
 
 /** What the profile alone yields for the sender block. */
 export const coverSenderFromProfile = (profile: ApplicantProfile | undefined): CoverSender => ({
@@ -28,10 +38,11 @@ export const resolveCoverSender = (
   documents: SenderOverrides,
 ): CoverSender => {
   const derived = coverSenderFromProfile(profile);
+  const storedContact = documents.coverSenderContact.trim();
   return {
     name: documents.coverSenderName.trim() || derived.name,
     title: documents.coverSenderTitle.trim() || derived.title,
-    contact: documents.coverSenderContact.trim() || derived.contact,
+    contact: storedContact && (!profile || storedContact !== legacySenderContactLine(profile)) ? storedContact : derived.contact,
   };
 };
 
@@ -45,7 +56,8 @@ export const keepCoverSenderOverrides = (
   return {
     coverSenderName: keep(typed.name, derived.name),
     coverSenderTitle: keep(typed.title, derived.title),
-    coverSenderContact: keep(typed.contact, derived.contact),
+    coverSenderContact: profile && typed.contact.trim() === legacySenderContactLine(profile)
+      ? "" : keep(typed.contact, derived.contact),
   };
 };
 
