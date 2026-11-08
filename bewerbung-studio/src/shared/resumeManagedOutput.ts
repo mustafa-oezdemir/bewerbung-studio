@@ -2,7 +2,7 @@ import { renderCustomSectionContent, spacesEntriesLikeCareer } from "./resumeCus
 import { applyResumeColumnSurfaces, applyResumePageLayout, getResumeLayoutHost, resumeColumnSurfaceCss } from "./resumeLayoutEngine";
 import { applyResumeSpacingOutput, resumeSpacingCss } from "./resumeSpacing";
 import { applyResumeMetadataLayout, resumeMetadataCss } from "./resumeMetadataLayout";
-import { applyResumeClosingOutput, resumeClosingCss } from "./resumeClosing";
+import { applyResumeClosingOutput, applyResumeClosingTypography, resumeClosingCss } from "./resumeClosing";
 import { applyPehlioneAppearance, pehlioneAppearanceCss } from "./pehlioneAppearance";
 import { getPehlioneContacts } from "./pehlioneContacts";
 import { applyResumeSectionPresentation, isPlainListSection, isZoneFlowTemplate, plainListItemPrefix, resumeSectionPresentationCss } from "./resumeSectionPresentation";
@@ -1254,10 +1254,7 @@ export const applyManagedResumeOutput = (
     applyResumeClosingOutput(root, main, profile, templateId, designSettings, last, enabled("closing"), closingInset, resolved.closingDate);
     applyGeneralResumeAppearance(root, resolved.templateId, designSettings, main, sidebar, resolved.design.colors.divider);
     applyPehlioneAppearance(root, resolved.templateId, designSettings);
-    // Place/date and the printed signature name follow the resolved Lesetext size,
-    // including Pehlione's native closing and both preview/PDF adapters.
-    root.querySelectorAll('[data-resume-closing], [data-resume-closing] span, [data-resume-closing] time, [data-resume-closing] strong, footer.pehlione-closing p, footer.pehlione-closing strong, footer.pehlione-pdf-closing p, footer.pehlione-pdf-closing strong')
-      .forEach((node) => (node as HTMLElement).style.setProperty("font-size", `${resolved.design.typography.bodySizePt}pt`, "important"));
+    applyResumeClosingTypography(root, resolved.design);
     // The Fotogröße of the profile: one scale for the template's own photo (a photo the user hides gets none).
     if (resumeAppearanceSchema.parse(designSettings.resumeAppearance ?? {}).photoLayout !== "hidden")
       applyResumePhotoOutput(root, root.matches(".cv-sheet") ? "pdf" : "preview", profile);

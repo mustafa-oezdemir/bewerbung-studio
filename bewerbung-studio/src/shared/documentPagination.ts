@@ -116,7 +116,7 @@ export type ResumePlanContext = {
   sections?: ReadonlyArray<{ id: string; visible: boolean; zone: PaginationZone }>;
   atsMode?: boolean;
   layout?: { mode: "single" | "two-column"; sidebarWidthPercent: number; overridden?: boolean; nativeSidebarWidthPercent?: number };
-  closing?: { visible: boolean; signature: boolean; placement?: "footer" | "main" };
+  closing?: { visible: boolean; signature: boolean; name?: string; line?: boolean; typography?: { bodySizePt: number; lineHeight: number }; placement?: "footer" | "main" };
   /** Explicit user design overrides that change text or spacing metrics. */
   overrides?: {
     bodySizePt?: number; headingSizePt?: number; subheadingSizePt?: number;
@@ -245,11 +245,8 @@ const ELEGANT_SUMMARY_MIN_WORDS = 10;
 const ELEGANT_SIDE_LIST_INDENT_MM = 4;
 /** What Tabellarisch's page-one header estimate keeps in reserve (its model never fell short on real headers). */
 const TABELLARISCH_HEADER_RESERVE_MM = 0.3;
-/**
- * The shared closing block (resumeClosingCss): 2 mm padding above a 9 pt line (line height 1.25) or the signature (an image
- * of at most 14 mm and the 8 pt name); in the footer 12 mm above the sheet edge, in the main column 5 mm below the text.
- */
-const CLOSING_BOX = { bottomMm: 12, paddingMm: 2, lineMm: 9 * (25.4 / 72) * 1.25, signatureMm: 14 + 8 * (25.4 / 72) * 1.25, mainGapMm: 5, clearanceMm: 2 };
+/** Placement of the shared closing; its text height comes from the effective Fließtext. */
+const CLOSING_BOX = { bottomMm: 12, paddingMm: 2, imageMm: 14, mainGapMm: 5, clearanceMm: 2 };
 /** Comma-separated lists break at every comma: they wrap a little less than running text. */
 const ATS_LIST_WRAP = 0.92;
 /** The managed item grids: 3 mm between columns and a 4 mm icon plus 1.5 mm gap in front of each text. */
@@ -1018,10 +1015,20 @@ const planResumePages = (
     ((ordered || atsFlow) && (customLayout || (atsFlow && zonesFromList)) && managerRank(id) > careerRank ? "last" : "first");
 
   const closingVisible = context.closing?.visible ?? Boolean(profile?.resumeClosing && (profile.resumeClosing.showPlace || profile.resumeClosing.showDate || profile.resumeClosing.showSignature));
+  const closingImage = context.closing?.signature ?? Boolean(profile?.signaturePath && profile.resumeClosing?.showSignature);
+  const closingName = context.closing?.name ?? (profile?.resumeClosing.showSignature
+    ? [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim() : "");
+  const closingFontMm = context.closing?.typography?.bodySizePt !== undefined
+    ? context.closing.typography.bodySizePt * PT_TO_MM : geometry.text.bulletFont * scale.font;
+  const closingLineHeight = context.closing?.typography?.lineHeight ?? geometry.text.lineRatio * scale.line;
+  const closingTextLineMm = closingFontMm * closingLineHeight;
+  const closingNameMm = closingName ? Math.max(1, wrappedLines(closingName, 48, closingFontMm, 400)) * closingTextLineMm : 0;
+  const closingLineMm = context.closing?.line === false ? 0 : closingTextLineMm;
+  const closingContentMm = Math.max(closingLineMm, (closingImage ? CLOSING_BOX.imageMm : 0) + closingNameMm);
+  // Keep the established reserve at its native size and grow it only when the chosen Fließtext needs more room.
   const closingHeight = closingVisible
-    ? (context.closing?.signature ?? Boolean(profile?.signaturePath && profile.resumeClosing?.showSignature))
-      ? CLOSING_MM.signature
-      : (context.atsMode ? geometry.ats.closing : undefined) ?? CLOSING_MM.plain
+    ? Math.max(closingImage ? CLOSING_MM.signature : (context.atsMode ? geometry.ats.closing : undefined) ?? CLOSING_MM.plain,
+      closingContentMm + CLOSING_BOX.paddingMm + CLOSING_BOX.clearanceMm)
     : 0;
   /**
    * Tabellarisch: the room the closing needs below the content of the last page, from its box (resumeClosingCss). Placed
@@ -1030,8 +1037,7 @@ const planResumePages = (
    */
   const tabellarischClosingRoom = (() => {
     if (!closingVisible) return 0;
-    const signature = context.closing?.signature ?? Boolean(profile?.signaturePath && profile.resumeClosing?.showSignature);
-    const box = CLOSING_BOX.paddingMm + (signature ? CLOSING_BOX.signatureMm : CLOSING_BOX.lineMm);
+    const box = CLOSING_BOX.paddingMm + closingContentMm;
     if (context.closing?.placement === "main") return CLOSING_BOX.mainGapMm + box;
     return Math.max(0, geometry.limit - (tabellarischDefaults.page.heightMm - CLOSING_BOX.bottomMm - box - CLOSING_BOX.clearanceMm));
   })();

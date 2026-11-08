@@ -1,9 +1,11 @@
 import type { ApplicantProfile } from "./schema";
 import type { DocumentDesignSettings } from "./documentDesign";
+import { getDocumentFont } from "./documentDesign";
+import type { CvDesignTokens } from "./cvDesignSchema";
 import { getProfileMediaSource } from "./profileMedia";
 
 export const resumeClosingCss = `
-[data-resume-closing]{display:flex;flex-wrap:wrap;align-items:end;gap:2mm 6mm;grid-column:1/-1;min-width:0;margin-top:5mm;padding-top:2mm;border-top:0;background:transparent;break-inside:avoid;font-size:9pt;line-height:1.25}
+[data-resume-closing]{display:flex;flex-wrap:wrap;align-items:end;gap:2mm 6mm;grid-column:1/-1;min-width:0;margin-top:5mm;padding-top:2mm;border-top:0;background:transparent;break-inside:avoid;font-family:var(--cv-closing-font,var(--doc-font));font-size:var(--cv-closing-size,var(--doc-body-size));line-height:var(--cv-closing-line-height,var(--doc-line-height));color:var(--cv-closing-color,var(--doc-text-color));font-weight:400}
 [data-resume-closing-placement="footer"]{position:absolute;z-index:3;right:12mm;bottom:12mm;left:12mm;margin-top:0;background:transparent}
 [data-resume-closing]>*{min-width:0;overflow-wrap:anywhere}
 [data-resume-closing][data-resume-closing-align="left"]{justify-content:flex-start;text-align:left}
@@ -12,8 +14,29 @@ export const resumeClosingCss = `
 [data-resume-closing][data-resume-closing-align="distributed"]{justify-content:space-between;text-align:left}
 [data-resume-closing-signature]{display:flex;flex-direction:column;align-items:inherit;max-width:48mm;background:transparent}
 [data-resume-closing-signature] img{display:block;max-width:48mm;max-height:14mm;width:auto;height:auto;object-fit:contain;background:transparent}
-[data-resume-closing-signature] strong{font-size:8pt;font-weight:600}
+[data-resume-closing-signature] strong{font:inherit;color:inherit;font-weight:400}
 `;
+
+/** Apply the effective Fließtext to both closing adapters after template styles have loaded. */
+export const applyResumeClosingTypography = (root: Element, design: CvDesignTokens) => {
+  const values = {
+    "font-family": getDocumentFont(design.typography.fontId).family,
+    "font-size": `${design.typography.bodySizePt}pt`,
+    "line-height": String(design.typography.lineHeight),
+    color: design.colors.paragraph,
+    "font-weight": "400",
+  };
+  const host = root as HTMLElement;
+  host.style.setProperty("--cv-closing-font", values["font-family"]);
+  host.style.setProperty("--cv-closing-size", values["font-size"]);
+  host.style.setProperty("--cv-closing-line-height", values["line-height"]);
+  host.style.setProperty("--cv-closing-color", values.color);
+  root.querySelectorAll('[data-resume-closing], [data-resume-closing] span, [data-resume-closing] time, [data-resume-closing] strong, footer.pehlione-closing p, footer.pehlione-closing strong, footer.pehlione-pdf-closing p, footer.pehlione-pdf-closing strong')
+    .forEach((node) => {
+      const style = (node as HTMLElement).style;
+      for (const [property, value] of Object.entries(values)) style.setProperty(property, value, "important");
+    });
+};
 
 export type ResumeClosingPlacement = "footer" | "main";
 export type ResumeClosingAlignment = "left" | "center" | "right" | "distributed";
@@ -81,11 +104,13 @@ export const applyResumeClosingOutput = (
   if (pehlione && !choice?.placement && !choice?.alignment) return;
   const atsMode = settings.resumeOutputMode === "ats" || settings.columnLayout === "compact-ats";
   const signature = !atsMode && profile.resumeClosing.showSignature ? getProfileMediaSource(profile.signaturePath) : "";
+  const name = [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim();
+  const showName = profile.resumeClosing.showSignature && Boolean(name);
   // The date of the application is content of its own: a template that prints it always has a closing.
-  const hasExplicitContent = Boolean(profile.applicationPlace.trim() || profile.city.trim() || profile.applicationDate.trim() || signature || closingDate?.trim());
+  const hasExplicitContent = Boolean(profile.applicationPlace.trim() || profile.city.trim() || profile.applicationDate.trim() || showName || closingDate?.trim());
   if (!pehlione && !hasExplicitContent && !choice) return;
   const { place, date } = resolveResumeClosingLine(profile, closingDate, germanDate);
-  if (!place && !date && !signature) {
+  if (!place && !date && !signature && !showName) {
     native.forEach(node => node.remove());
     return;
   }
@@ -113,15 +138,16 @@ export const applyResumeClosingOutput = (
     (line ?? block).appendChild(element);
   }
   if (line) block.appendChild(line);
-  if (signature) {
+  if (signature || showName) {
     const holder = document.createElement("span");
     holder.setAttribute("data-resume-closing-signature", "");
-    const image = document.createElement("img");
-    image.setAttribute("src", signature);
-    image.setAttribute("alt", "Unterschrift");
-    holder.appendChild(image);
-    const name = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
-    if (name) {
+    if (signature) {
+      const image = document.createElement("img");
+      image.setAttribute("src", signature);
+      image.setAttribute("alt", "Unterschrift");
+      holder.appendChild(image);
+    }
+    if (showName) {
       const label = document.createElement("strong");
       label.textContent = name;
       holder.appendChild(label);

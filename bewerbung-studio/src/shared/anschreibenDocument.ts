@@ -48,6 +48,7 @@ export const anschreibenCvTypographyCss = `
 .document-anschreiben .letter-preview :is(.sender-title,.sender-contact){font-size:10pt!important;line-height:1.3!important}
 .document-anschreiben .letter-preview :is(address,address *,.paper-date,.letter-attachments,.letter-attachments *){font-size:var(--letter-body-size)!important;line-height:var(--letter-cv-line-height)!important}
 .document-anschreiben .letter-preview :is(.letter-salutation,.letter-body,.letter-signature,.letter-signature *){font-size:var(--letter-body-size)!important;line-height:var(--letter-line-height,var(--letter-cv-line-height))!important}
+.document-anschreiben .letter-preview .letter-signature .signature-name{font-family:var(--cv-body-font)!important;font-size:var(--cv-body-size)!important;line-height:var(--cv-body-line-height)!important;font-weight:400!important}
 .document-anschreiben .letter-preview .letter-rule{height:1.25pt!important;min-height:0!important;border:0!important;background:var(--doc-accent)!important}
 .document-anschreiben.letter-cv-colors .letter-preview .sender-name{color:var(--letter-name-color)!important}
 .document-anschreiben.letter-cv-colors .letter-preview .sender-title{color:var(--letter-subject-color)!important}
@@ -180,6 +181,7 @@ export const buildAnschreibenFrame = ({
       "--cv-name-size": `${resolvedCv.design.typography.headingSizePt}pt`,
       "--cv-body-font": getDocumentFont(resolvedCv.design.typography.fontId).family,
       "--cv-body-size": `${resolvedCv.design.typography.bodySizePt}pt`,
+      "--cv-body-line-height": String(resolvedCv.design.typography.lineHeight),
     } as Record<string, string>,
     stylesheets: [letterSideMarginCss, letterTopMarginCss, ...(templateCss ? [templateCss] : []), anschreibenCvTypographyCss, anschreibenSubjectCss],
   };

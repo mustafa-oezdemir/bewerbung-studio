@@ -112,6 +112,7 @@ export function PehlioneResume({
   const closing = profile?.resumeClosing ?? { showPlace: true, showDate: true, showSignature: true };
   const closingLine = profile ? resolveResumeClosingLine(profile, closingDate, (value) => value).text : "";
   const signatureSource = atsMode ? null : getProfileMediaSource(profile?.signaturePath);
+  const signerName = profile ? [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim() : "";
   const footerWebsite = resolveResumeFooterWebsite(profile, atsMode);
   const style = {
     ...getPehlioneNativeVariables(templateId),
@@ -260,13 +261,13 @@ export function PehlioneResume({
         {lastPage && profile?.specialSections.filter((section) => section.kind === "interests" && section.isVisible && section.entries.some(entry => interestEntryText(entry))).map((section) => (
           <section className="pehlione-main-section pehlione-training" data-element-id={`special.${section.id}`} key={section.id}>{heading(<Lightbulb />, section.title || interestsSection.customTitle || "Interessen und Hobbys")}<ul>{section.entries.filter(entry => interestEntryText(entry)).map((entry) => <li key={entry.id}>{interestEntryText(entry)}</li>)}</ul></section>
         ))}
-        {lastPage && closingSection.visible && (closingLine || (closing.showSignature && signatureSource)) ? (
+        {lastPage && closingSection.visible && (closingLine || (closing.showSignature && signerName)) ? (
           <footer className="pehlione-closing">
             {closingLine ? <p>{closingLine}</p> : null}
-            {closing.showSignature && signatureSource ? (
+            {closing.showSignature && signerName ? (
               <div className="pehlione-closing__signer">
                 {signatureSource ? <img src={signatureSource} alt="Unterschrift" /> : null}
-                <strong>{name}</strong>
+                <strong>{signerName}</strong>
               </div>
             ) : null}
           </footer>

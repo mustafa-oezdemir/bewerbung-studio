@@ -93,6 +93,7 @@ describe("Anschreiben typography (karrierebibel.de)", () => {
   it("sets 11 pt Fließtext with the Lebenslauf's line spacing, a 10 pt Briefkopf, a 15 pt name and a 13 pt bold Betreff in one font", () => {
     const css = anschreibenCvTypographyCss;
     expect(css).toContain(".document-anschreiben .letter-preview,.document-anschreiben .letter-preview *{font-family:var(--cv-body-font)!important}");
+    expect(css).toContain(".letter-signature .signature-name{font-family:var(--cv-body-font)!important;font-size:var(--cv-body-size)!important;line-height:var(--cv-body-line-height)!important;font-weight:400!important}");
     expect(css).toContain(".sender-name{font-size:15pt!important");
     expect(css).toContain(":is(.sender-title,.sender-contact){font-size:10pt!important");
     // The line spacing is the Lebenslauf's (its design's Zeilenabstand).

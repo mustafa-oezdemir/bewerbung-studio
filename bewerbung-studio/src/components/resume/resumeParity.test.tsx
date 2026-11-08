@@ -3,6 +3,7 @@ import { setResumeSectionTitle } from "../../features/resume-sections/resume-sec
 import { maximalProfile, minimalProfile } from "./__parityFixture";
 import { renderCv, resumeTemplateIds } from "./__parityHarness";
 import { normalizeApplicantProfileForSave } from "../../shared/profileEditor";
+import { getDocumentFont } from "../../shared/documentDesign";
 
 /** Every token of the profile that has to reach the Lebenslauf, by the field it comes from. */
 export const maximalTokens: Record<string, string[]> = {
@@ -41,6 +42,31 @@ describe.each(resumeTemplateIds)("maximal profile in %s", (templateId) => {
     expect([...new Set(result.pdfSemantic.sections)].sort()).toEqual([...new Set(result.previewSemantic.sections)].sort());
     expect(result.pdfPages.length).toBe(result.previewPages.length);
   });
+});
+
+it.each(resumeTemplateIds)("uses the chosen Fließtext for the last closing in %s preview and PDF", (templateId) => {
+  const profile = maximalProfile({ signaturePath: "", resumeClosing: { showPlace: true, showDate: true, showSignature: true, dateMode: "application" } });
+  for (const [fontId, bodySizePt, lineHeight] of [["georgia", 8.5, 1.15], ["montserrat", 12.5, 1.5]] as const) {
+    const result = renderCv(templateId, profile, { overrides: { cvOverrides: { typography: { fontId, bodySizePt, lineHeight }, colors: { paragraph: "#123456" } } } });
+    expect(result.previewPages.length).toBe(result.pdfPages.length);
+    for (const [surface, pages] of [["preview", result.previewPages], ["pdf", result.pdfPages]] as const) {
+      const closings = pages.flatMap((page) => Array.from(page.querySelectorAll('[data-resume-closing],footer.pehlione-closing,footer.pehlione-pdf-closing')));
+      expect(closings, `${surface} / ${fontId}`).toHaveLength(1);
+      const closing = closings[0]!;
+      const name = closing.querySelector<HTMLElement>('[data-resume-closing-signature] strong,.pehlione-closing__signer strong,.pehlione-pdf-signer strong');
+      expect(name?.textContent).toBe("Mustafa Özdemir");
+      expect(closing.querySelector("img")).toBeNull();
+      const date = closing.querySelector<HTMLElement>('[data-resume-closing-line],p');
+      for (const node of [date, name]) {
+        expect(node, `${surface} / ${fontId}`).not.toBeNull();
+        expect(node!.style.getPropertyValue("font-family")).toBe(getDocumentFont(fontId).family);
+        expect(node!.style.getPropertyValue("font-size")).toBe(`${bodySizePt}pt`);
+        expect(node!.style.getPropertyValue("line-height")).toBe(String(lineHeight));
+        expect(node!.style.getPropertyValue("font-weight")).toBe("400");
+        expect(node!.style.getPropertyValue("color")).toBe("#123456");
+      }
+    }
+  }
 });
 
 it.each(["modern", "elegant", "klassisch"])("renders selected project content and links equally in %s preview and PDF", templateId => {

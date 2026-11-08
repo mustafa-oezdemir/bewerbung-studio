@@ -8438,14 +8438,18 @@ body.is-resizing-split-view * {
   padding-top: 3mm;
   border-top: 0;
   background: transparent;
-  font-size: 8pt;
+  font-family: var(--cv-closing-font, var(--doc-font));
+  font-size: var(--cv-closing-size, var(--doc-body-size));
+  line-height: var(--cv-closing-line-height, var(--doc-line-height));
+  color: var(--cv-closing-color, var(--doc-text-color));
+  font-weight: 400;
   break-inside: avoid;
 }
 
 .pehlione-closing p { margin: 0 0 1mm; }
 .pehlione-closing__signer { display: flex; grid-column: 2; flex-direction: column; align-items: center; width: 42mm; background: transparent; }
 .pehlione-closing__signer img { display: block; width: 100%; height: 12mm; object-fit: contain; background: transparent; }
-.pehlione-closing__signer strong { margin-top: 1mm; font-size: 8pt; font-weight: 600; white-space: nowrap; }
+.pehlione-closing__signer strong { margin-top: 1mm; font: inherit; font-weight: 400; overflow-wrap: anywhere; }
 
 .template-thumbnail:has(.pehlione-thumbnail-hero) {
   position: relative;
