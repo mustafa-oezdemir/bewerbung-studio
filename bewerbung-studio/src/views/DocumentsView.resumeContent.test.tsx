@@ -41,6 +41,7 @@ const mount = async (profiles: ApplicantProfile[], options: {
   failSave?: () => boolean;
   beforeSaveApplication?: () => Promise<void>;
   application?: Application;
+  confirm?: () => boolean;
 } = {}) => {
   const saveProfile = vi.fn(async (profile: ApplicantProfile) => {
     if (options.failSave?.()) throw new Error("Datenträger nicht erreichbar");
@@ -68,6 +69,7 @@ const mount = async (profiles: ApplicantProfile[], options: {
   // What a browser has and linkedom lacks: the view measures its panes and the preview.
   class NoResize { observe() {} unobserve() {} disconnect() {} }
   Object.assign(window, { ResizeObserver: NoResize, requestAnimationFrame: (callback: () => void) => setTimeout(callback, 0), cancelAnimationFrame: clearTimeout,
+    confirm: options.confirm ?? (() => true),
     matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
     getComputedStyle: () => ({ getPropertyValue: () => "", paddingTop: "0px", paddingBottom: "0px", fontSize: "16px" }) });
   Object.assign(window.HTMLElement.prototype, { scrollTo() {}, scrollIntoView() {} });
@@ -111,6 +113,14 @@ const mount = async (profiles: ApplicantProfile[], options: {
       await act(async () => { element.dispatchEvent(new window.Event("input", { bubbles: true })); });
     },
     press: (text: string, scope?: string) => fire(button(text, scope), "click"),
+    selectProfile: async (profileId: string) => {
+      const select = query<HTMLSelectElement>(".document-profile-selector select")!;
+      for (const option of Array.from(select.querySelectorAll("option"))) {
+        if (option.getAttribute("value") === profileId) option.setAttribute("selected", "");
+        else option.removeAttribute("selected");
+      }
+      await fire(select, "change");
+    },
     /** Strg+S saves the Lebenslauf: it submits the editor form. */
     save: () => act(async () => {
       window.dispatchEvent(Object.assign(new window.Event("keydown", { bubbles: true, cancelable: true }), { key: "s", ctrlKey: true }));
@@ -123,6 +133,79 @@ const mount = async (profiles: ApplicantProfile[], options: {
 };
 
 describe("Lebenslauf content edits the profile of the Bewerbung", () => {
+  it("copies the chosen profile into this Bewerbung and refreshes its editor", async () => {
+    const first = profileSchema.parse({ ...makeProfile(1, "Altes Profil"), title: "Java", skills: ["Java"] });
+    const second = profileSchema.parse({ ...makeProfile(2, "Neues Profil"), title: "C#", skills: ["C#"] });
+    const view = await mount([first, second]);
+    await view.open("Kurzprofil");
+    await view.selectProfile(second.id);
+    const saved = view.saveApplication.mock.calls.at(-1)![0] as Application;
+    expect(saved.profileId).toBe(second.id);
+    expect(saved.profileSnapshot).toEqual(second);
+    await view.rerender();
+    await view.open("Kurzprofil");
+    expect(view.summaryField()?.value).toBe("Neues Profil");
+    expect(view.query(".document-paper")?.textContent).toContain("C#");
+    expect(view.query(".document-paper")?.textContent).not.toContain("Java");
+    expect((view.query(".document-profile-selector select") as HTMLSelectElement).value).toBe(second.id);
+    expect((testStore.state!.workspace as { profiles: ApplicantProfile[] }).profiles).toEqual([first, second]);
+    await view.unmount();
+  });
+
+  it("keeps the old snapshot when confirmation is declined or saving fails", async () => {
+    const first = makeProfile(1, "Altes Profil");
+    const second = makeProfile(2, "Neues Profil");
+    let confirm = false;
+    let fail = false;
+    const view = await mount([first, second], { confirm: () => confirm, failSave: () => fail });
+    await view.selectProfile(second.id);
+    expect(view.saveApplication).not.toHaveBeenCalled();
+    expect((testStore.state!.workspace as { applications: Application[] }).applications[0].profileSnapshot).toEqual(first);
+    confirm = true;
+    fail = true;
+    await view.selectProfile(second.id);
+    expect(view.query("[role=alert]")?.textContent).toContain("Datenträger nicht erreichbar");
+    expect((testStore.state!.workspace as { applications: Application[] }).applications[0].profileSnapshot).toEqual(first);
+    await view.unmount();
+  });
+
+  it("requires saving an open Lebenslauf edit before replacing its profile", async () => {
+    const first = makeProfile(1, "Altes Profil");
+    const second = makeProfile(2, "Neues Profil");
+    const view = await mount([first, second]);
+    await view.open("Kurzprofil");
+    await view.type(view.summaryField()!, "Noch nicht gespeichert");
+    await view.selectProfile(second.id);
+    expect(view.saveApplication).not.toHaveBeenCalled();
+    expect(view.query("[role=alert]")?.textContent).toContain("Bitte speichern oder verwerfen");
+    expect(view.summaryField()?.value).toBe("Noch nicht gespeichert");
+    await view.unmount();
+  });
+
+  it("takes later main-profile edits only when explicitly requested", async () => {
+    const first = makeProfile(1, "Altes Profil");
+    const view = await mount([first]);
+    const workspace = testStore.state!.workspace as { profiles: ApplicantProfile[]; applications: Application[] };
+    const updated = { ...first, summary: "Aktualisiertes Hauptprofil", updatedAt: "2026-10-15T10:00:00.000Z" };
+    testStore.state = { ...testStore.state, workspace: { ...workspace, profiles: [updated] } };
+    await view.rerender();
+    expect(workspace.applications[0].profileSnapshot?.summary).toBe("Altes Profil");
+    await view.press("Aktuelle Hauptprofildaten übernehmen");
+    expect(view.saveApplication.mock.calls.at(-1)![0].profileSnapshot?.summary).toBe("Aktualisiertes Hauptprofil");
+    await view.unmount();
+  });
+
+  it("keeps the saved Bewerbung when its linked main profile is missing", async () => {
+    const missing = makeProfile(1, "Gespeicherter Bewerbungstext");
+    const other = makeProfile(2, "Anderes Hauptprofil");
+    const application = applicationSchema.parse({ ...makeApplication(missing.id), profileSnapshot: missing });
+    const view = await mount([other], { application });
+    await view.press("Aktuelle Hauptprofildaten übernehmen");
+    expect(view.query("[role=alert]")?.textContent).toContain("nicht mehr vorhanden");
+    expect(view.saveApplication).not.toHaveBeenCalled();
+    expect((testStore.state!.workspace as { applications: Application[] }).applications[0].profileSnapshot).toEqual(missing);
+    await view.unmount();
+  });
   it("recalculates the requirement score after saved application and bound profile changes", async () => {
     const first = profileSchema.parse({ ...makeProfile(1, "Fiktives Profil"), skills: ["TypeScript"] });
     const second = profileSchema.parse({ ...makeProfile(2, "Anderes Profil"), skills: ["SQL"] });

@@ -144,7 +144,7 @@ import {
   defaultResumePersonalFieldVisibility,
   getResumeSemanticSection,
 } from "../features/resume-sections/resume-section-system";
-import { getMainProfileLinkLabel, getProfessionalTitle, resolveApplicationProfile } from "../shared/profileSelection";
+import { applyMainProfileToApplication, getMainProfileLinkLabel, getProfessionalTitle, resolveApplicationProfile } from "../shared/profileSelection";
 import { coverSenderFromProfile, keepCoverSenderOverrides, resolveCoverSender } from "../shared/coverSender";
 import type {
   ApplicantProfile,
@@ -1257,20 +1257,36 @@ export function DocumentsView({
     };
   };
 
-  const changeDocumentProfile = async (profileId: string) => {
-    if (profileId === application.profileId) return;
+  const applyDocumentProfile = async (profileId: string) => {
+    if (editorSaving) {
+      setDocumentSaveError("Bitte warten Sie, bis der aktuelle Speichervorgang abgeschlossen ist.");
+      return;
+    }
     if (editorUnsaved) {
       setDocumentSaveError("Bitte speichern oder verwerfen Sie zuerst die ungespeicherten Änderungen.");
       setDocumentSaveStatus("error");
       return;
     }
-    if (!window.confirm("Die Verknüpfung zum Hauptprofil ändern? Das gespeicherte Bewerbungsprofil und alle Dokumenttexte bleiben erhalten.")) return;
     try {
-      await saveApplication({ ...applicationSnapshot(formRef.current), profileId });
+      const next = applyMainProfileToApplication(application, useAppStore.getState().workspace.profiles, profileId);
+      if (!window.confirm("Die gespeicherten Lebenslaufdaten dieser Bewerbung werden durch die aktuellen Daten des gewählten Hauptprofils ersetzt. Eigene Änderungen am Bewerbungsprofil gehen dabei verloren. Dokumenttexte und Gestaltung bleiben erhalten. Fortfahren?")) return;
+      setDocumentSaveStatus("saving");
+      setDocumentSaveError("");
+      await saveApplication(next);
+      const stored = useAppStore.getState().workspace.applications.find((item) => item.id === application.id) ?? next;
+      resumeBaselineRef.current = stored.profileSnapshot ?? null;
+      resumeBaselineApplicationIdRef.current = application.id;
+      setResumeContentDraft(null);
+      setResumeDraftApplicationId(null);
+      setProfileSaveStatus("idle");
+      setResumeEditorRevision((value) => value + 1);
+      setDesign(createDocumentDesignDraft(stored));
       setDocumentPreview(null);
+      setDocumentSaveStatus("saved");
+      setDocumentSaveError("");
     } catch (error) {
       setDocumentSaveStatus("error");
-      setDocumentSaveError(error instanceof Error ? error.message : "Profilverknüpfung konnte nicht gespeichert werden.");
+      setDocumentSaveError(error instanceof Error ? error.message : "Hauptprofildaten konnten nicht übernommen werden.");
     }
   };
 
@@ -1423,7 +1439,7 @@ export function DocumentsView({
                   <select
                     value={application.profileId ?? ""}
                     onChange={(event) =>
-                      void changeDocumentProfile(event.target.value)
+                      void applyDocumentProfile(event.target.value)
                     }>
                     {profiles.map((item) => (
                       <option key={item.id} value={item.id}>
@@ -1435,9 +1451,14 @@ export function DocumentsView({
                     ) : null}
                   </select>
                   <small>
-                    Diese Verknüpfung dokumentiert das Hauptprofil. Gespeicherte Inhalte dieser Bewerbung bleiben bei einer Änderung erhalten.
+                    Beim Wechsel werden die aktuellen Hauptprofildaten in diese Bewerbung kopiert.
                   </small>
                 </label>
+              ) : null}
+              {application.profileId ? (
+                <button className="button secondary" type="button" onClick={() => void applyDocumentProfile(application.profileId!)}>
+                  Aktuelle Hauptprofildaten übernehmen
+                </button>
               ) : null}
               {tab === "deckblatt" && (
                 <div className="cover-letter-editor-sections">

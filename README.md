@@ -43,7 +43,7 @@ also außerhalb des Installationsordners.
 ## Warum BewerbungsManager?
 
 - **Alles an einem Ort:** Firma, Stelle, Status, Termine, Dokumente und Aufgaben jeder Bewerbung.
-- **Hauptprofil als Vorlage:** Neue Bewerbungen übernehmen eine eigene Kopie des gewählten Hauptprofils.
+- **Hauptprofil als Vorlage:** Neue Bewerbungen übernehmen eine eigene Kopie des gewählten Hauptprofils. In den Dokumenten kann ein anderes Hauptprofil übernommen oder die Kopie mit dessen aktuellen Daten erneuert werden; andere Bewerbungen bleiben unverändert.
 - **Fertige Unterlagen:** Anschreiben als Word-Datei, Deckblatt und Lebenslauf als PDF, dazu eine komplette
   Bewerbungsmappe als ein PDF.
 - **Fristen im Blick:** Bewerbungsfristen erscheinen automatisch im Kalender und in der Aufgabenliste.

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { profileSchema, type ApplicantProfile } from "./schema";
+import { applicationSchema, profileSchema, type ApplicantProfile } from "./schema";
+import { defaultDocumentDesign } from "./documentDesign";
 import { setResumeHeading } from "./resumeHeading";
-import { getMainProfileLinkLabel, getProfessionalTitle, resolveApplicationProfile, resolveSelectedProfile } from "./profileSelection";
+import { applyMainProfileToApplication, getMainProfileLinkLabel, getProfessionalTitle, resolveApplicationProfile, resolveSelectedProfile } from "./profileSelection";
 
 const profile = (
   id: string,
@@ -82,5 +83,45 @@ describe("getMainProfileLinkLabel", () => {
     expect(getMainProfileLinkLabel(source)).toBe("Mina Kaya · Softwareentwicklerin");
     expect(getMainProfileLinkLabel({ ...source, title: "" }))
       .toBe("Mina Kaya · Keine eigene Überschrift");
+  });
+});
+
+describe("applyMainProfileToApplication", () => {
+  it("replaces profile content while preserving document data and clearing obsolete entry selections", () => {
+    const oldProject = crypto.randomUUID();
+    const newProject = crypto.randomUUID();
+    const oldSection = crypto.randomUUID();
+    const newSection = crypto.randomUUID();
+    const original = profileSchema.parse({ id: crypto.randomUUID(), isDefault: false, firstName: "Fiktiv", lastName: "Alt",
+      updatedAt: "2026-10-01T10:00:00.000Z", summary: "Alte Daten", certifications: ["Altes Zertifikat"],
+      specialSections: [{ id: oldSection, kind: "projects", title: "Alte Projekte", entries: [{ id: oldProject, title: "Alt" }] }] });
+    const selected = profileSchema.parse({ id: crypto.randomUUID(), isDefault: false, firstName: "Fiktiv", lastName: "Neu",
+      updatedAt: "2026-10-02T10:00:00.000Z", summary: "Neue Daten", skills: ["C#"], certifications: ["Neues Zertifikat"],
+      specialSections: [{ id: newSection, kind: "projects", title: "Neue Projekte", entries: [{ id: newProject, title: "Neu" }] }] });
+    const application = applicationSchema.parse({ schemaVersion: 1, id: crypto.randomUUID(), folderName: "Test",
+      company: { name: "Beispiel GmbH", city: "Berlin" }, contact: {}, job: { title: "Entwicklung" },
+      status: "Entwurf", templateId: "modern", accentColor: "#123456", secondaryColor: "#234567",
+      designSettings: { ...defaultDocumentDesign, resumePresentation: {
+        selectedProjectEntryIds: [oldProject], selectedCertificateIds: ["veraltetes-zertifikat"],
+        selectedSpecialEntryIds: { [oldSection]: [oldProject] },
+        sections: { [`special:${oldSection}`]: { visible: false }, summary: { title: "Alte Überschrift", visible: false, zone: "sidebar" } },
+        layoutMode: "single",
+      } },
+      templateDesigns: { kompakt: { settings: { resumePresentation: { selectedProjectEntryIds: [oldProject] } } } },
+      documents: { coverSubject: "Eigener Anschreibentext" }, profileId: original.id, profileSnapshot: original,
+      statusHistory: [], createdAt: "2026-10-01T10:00:00.000Z", updatedAt: "2026-10-01T10:00:00.000Z" });
+    const transferred = applyMainProfileToApplication(application, [original, selected], selected.id);
+    expect(transferred.profileSnapshot).toEqual(selected);
+    expect(transferred.profileSnapshot).not.toBe(selected);
+    expect(transferred.designSettings.resumePresentation).toMatchObject({ layoutMode: "single" });
+    expect(transferred.designSettings.resumePresentation?.selectedProjectEntryIds).toBeUndefined();
+    expect(transferred.designSettings.resumePresentation?.selectedCertificateIds).toBeUndefined();
+    expect(transferred.designSettings.resumePresentation?.selectedSpecialEntryIds).toBeUndefined();
+    expect(transferred.designSettings.resumePresentation?.sections?.summary).toEqual({ zone: "sidebar" });
+    expect(transferred.templateDesigns.kompakt.settings.resumePresentation?.selectedProjectEntryIds).toBeUndefined();
+    expect(transferred.documents).toEqual(application.documents);
+    expect(transferred.accentColor).toBe(application.accentColor);
+    expect(original.summary).toBe("Alte Daten");
+    expect(selected.summary).toBe("Neue Daten");
   });
 });
