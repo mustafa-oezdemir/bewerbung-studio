@@ -174,6 +174,9 @@ ${tabellarischSectionTitleCss}
 [data-managed-section="strengths"] .managed-strengths-grid{display:grid;grid-template-columns:repeat(var(--section-columns,1),minmax(0,1fr));gap:3mm;list-style:none;margin:0;padding:0}
 [data-managed-section="strengths"] .managed-strength-card{display:grid;grid-template-columns:4mm minmax(0,1fr);align-items:start;gap:1mm 1.5mm;min-width:0;margin:0;padding:0;border:0;break-inside:avoid;overflow-wrap:anywhere}
 [data-managed-section="strengths"] .managed-strength-card>svg{width:4mm;height:4mm;grid-column:1;grid-row:1 / span 2;color:var(--doc-accent,var(--accent,currentColor))}
+/* A brand mark may arrive with SVG presentation colours; Stärken always follows the template's icon colour. */
+[data-managed-section="strengths"] .managed-strength-card svg [fill^="#"]:not([fill="#fff" i]):not([fill="#ffffff" i]){fill:currentColor}
+[data-managed-section="strengths"] .managed-strength-card svg [stroke^="#"]:not([stroke="#fff" i]):not([stroke="#ffffff" i]){stroke:currentColor}
 [data-managed-section="strengths"] .managed-strength-card strong{grid-column:2;min-width:0;font-size:1em;line-height:1.3}
 [data-managed-section="strengths"] .managed-strength-card p{grid-column:2;min-width:0;margin:0;white-space:pre-line;font-size:.92em;line-height:1.4;color:inherit}
 .zeitgenoessisch-template [data-managed-section="strengths"] .managed-strengths-grid,.zeit-pdf [data-managed-section="strengths"] .managed-strengths-grid{gap:calc(var(--zeit-entry-gap) * .4)}

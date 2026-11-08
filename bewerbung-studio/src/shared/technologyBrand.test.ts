@@ -32,6 +32,13 @@ describe("technology brand icons", () => {
     expect(resolveTechnologyIcon("Go Framework").markup).toContain('data-brand="framework"');
   });
 
+  it.each(["Echo", "Gin"])("uses the template icon colour for %s in Stärken", (name) => {
+    const themed = getThemedTechnologyIconMarkup(name);
+    expect(themed).toContain('fill="currentColor"');
+    const fixedPaints = [...themed.matchAll(/\b(?:fill|stroke)="(#[0-9a-f]{3,8})"/gi)].map((match) => match[1]!.toLowerCase());
+    expect(fixedPaints.every((paint) => paint === "#fff" || paint === "#ffffff")).toBe(true);
+  });
+
   it("covers the remaining named Go tools without treating documentation pages as separate products", () => {
     const products = [
       ["Fyne", "fyne"], ["HUGO", "devicon:hugo"], ["Gorilla, the golang web toolkit", "gorilla"],
