@@ -50,7 +50,7 @@ describe("sidebar lane", () => {
       expect(pages[0].fill!.sidebar).toBeLessThanOrEqual(1);
     });
 
-    it("never leaves a heading alone and never a single stray row (heading + a row, a rest of two or more)", () => {
+    it("never leaves a heading alone and never a single stray row (heading + a row, a rest of two or more; Kompakt: one or more)", () => {
       for (let count = 4; count <= 40; count += 1) {
         const pages = plan(id, { knowledge: count });
         for (const page of pages) {
@@ -59,9 +59,10 @@ describe("sidebar lane", () => {
           expect(part.to - part.from, `${count} items`).toBeGreaterThanOrEqual(1);
           if (part.from > 0) expect(part.to - part.from, `${count} items, a later part`).toBeGreaterThanOrEqual(1);
         }
-        // when the list breaks, the part that goes on has two or more items
+        // when the list breaks, the part that goes on has two or more items; Kompakt's right column fills its page like a
+        // word processor, so a single item may go on there
         const first = range(pages[0], "knowledge");
-        if (first) expect(first.total - first.to, `${count} items`).toBeGreaterThanOrEqual(2);
+        if (first) expect(first.total - first.to, `${count} items`).toBeGreaterThanOrEqual(id === "kompakt" ? 1 : 2);
         expect(itemsOnPages(pages, "knowledge", count).reduce((sum, value) => sum + value, 0), `${count} items`).toBe(count);
       }
     });

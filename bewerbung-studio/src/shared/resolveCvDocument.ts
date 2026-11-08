@@ -198,6 +198,8 @@ export const resolveCvDocument = ({
       columnGapMm: ["elegant", "kompakt", "gepflegt"].includes(templateId) ? design.spacing.columnGapMm : overrides?.spacing?.columnGapMm,
       // The entry roles' own sizes (Typografie → Eintragstitel, Größen in Einträgen): the planner measures their lines.
       entryRoleSizes: chosenEntryRoleSizes(overrides?.typography),
+      // Kompakt sizes the sections of its right column from their titles.
+      sideHeadingPt: templateId === "kompakt" ? design.typography.sectionHeadingSizePt : undefined,
     },
     settings,
   };
