@@ -1164,7 +1164,15 @@ export const applyManagedResumeOutput = (
         // would repeat the large photo composition and waste the continuation page's upper area
         // (Klassisch: a running head, so the text of a later page fills it like a Word document).
         ensureResumeHeaderContacts(root, continuationContacts);
-      } else if (number > 1) repeatResumeHeader(root, firstPageHeader, continuationContacts, { title: profile.title });
+      } else if (number > 1) {
+        repeatResumeHeader(root, firstPageHeader, continuationContacts, { title: profile.title });
+        // Kompakt keeps the photo on the first page; the rest of the repeated header stays as it is.
+        if (resolved.templateId === "kompakt") {
+          const header = root.querySelector("header");
+          header?.querySelector(".kompakt-header__photo,.kompakt-pdf-photo")?.remove();
+          header?.classList.remove("kompakt-header--with-photo", "with-photo");
+        }
+      }
     }
     else if (number > 1 || !pehlioneContinuation) normalizeContinuationHeader(root, number, pages.length > 1 ? pages.length : totalPages,
       number > 1 ? continuationContacts : enabled("personalData") ? profile : undefined);
