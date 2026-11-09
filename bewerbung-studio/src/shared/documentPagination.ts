@@ -28,6 +28,7 @@ import { resolveGepflegtGeometry } from "./gepflegtDesign";
 import { estimateKlassischHeaderTop, resolveKlassischGeometry } from "./klassischDesign";
 import { einspaltigSectionTitleMm, estimateEinspaltigHeaderTop, resolveEinspaltigGeometry } from "./einspaltigDesign";
 import { estimateTabellarischContinuationTop, resolveTabellarischGeometry } from "./tabellarischDesign";
+import { getTabellarischHeaderContacts } from "./tabellarischHeaderContacts";
 import { tabellarischDefaults } from "./cvTemplateDefaults/tabellarisch.defaults";
 import { textWidthMm, wrappedLines } from "./textMetrics";
 import { hyphenatedSummaryLines, summaryWordEnds, summaryWrappedLines } from "./resumeSummaryHyphenation";
@@ -266,6 +267,10 @@ const ELEGANT_SIDE_LIST_INDENT_MM = 4;
 const TABELLARISCH_HEADER_RESERVE_MM = 0.3;
 /** Placement of the shared closing; its text height comes from the effective Fließtext. */
 const CLOSING_BOX = { bottomMm: 12, paddingMm: 2, imageMm: 14, mainGapMm: 5, clearanceMm: 2 };
+/** The plain Tabellarisch contacts are set in Arial, which runs about 2 % wider than the measured advances. */
+const ATS_HEADER_ARIAL_WIDTH = 0.98;
+/** A row of those contacts with their heavier labels: 1.04 × the measured advances of the widest ones, so 0.95 to stay on the safe side of a row break. */
+const ATS_HEADER_ROW_WIDTH = 0.95;
 /** Comma-separated lists break at every comma: they wrap a little less than running text. */
 const ATS_LIST_WRAP = 0.92;
 /** The managed item grids: 3 mm between columns and a 4 mm icon plus 1.5 mm gap in front of each text. */
@@ -439,6 +444,50 @@ const timelineMetrics = (
   return { lines, height };
 };
 
+/** What stands below the organisation of a plain Tabellarisch entry on the taller surface: gap, the line of period and place, gap. */
+const plainEntryMetaHeight = (geometry: PaginationGeometry, scale: Scale, metaText: string, column: number, chosenMeta: number) => {
+  const plain = geometry.plainEntry!;
+  return Math.max(...plain.surfaces.map((surface) => {
+    const metaMm = Math.max(surface.metaPt * PT_TO_MM * scale.font, chosenMeta);
+    const metaLines = metaText ? Math.max(1, wrappedLines(metaText, column * plain.arialWidth, metaMm)) : 0;
+    return surface.orgGap + metaLines * metaMm * (surface.metaLineHeight ?? geometry.text.lineRatio * scale.line) + surface.metaGap;
+  }));
+};
+
+/**
+ * A plain (ATS) entry of Tabellarisch (`geometry.plainEntry`) from its stylesheets: the title, the Abstand nach
+ * Eintragstitel, the organisation, then the line of period and place as the taller surface sets it, and the details
+ * `bulletGap` apart (the first one's margin hides in the gap above it, the last one's stays). Every part of a split entry
+ * repeats the head.
+ */
+const plainEntryMetrics = (
+  geometry: PaginationGeometry, scale: Scale, widthScale: number,
+  head: { title: string; organization: string; location: string; period: string },
+  details: readonly string[], shownTexts: (from: number, to: number) => string[],
+): EntryMetrics => {
+  const plain = geometry.plainEntry!;
+  const bulletWidth = geometry.text.bulletW * widthScale;
+  const column = bulletWidth + plain.listInset;
+  const bodyMm = geometry.text.bulletFont * scale.font;
+  const bodyLine = bodyMm * geometry.text.lineRatio * scale.line;
+  const titleMm = scale.titleFont ?? geometry.text.titleFont;
+  // (the organisation and the line below it follow the body size, the entry title keeps its own)
+  const orgMm = chosenRoleMm(scale, "organization", geometry.text.orgFont * scale.font);
+  const marker = 0.45 * titleMm + textWidthMm("· Fortsetzung", 0.72 * titleMm, 500, 0.02);
+  const titleHeight = (continued: boolean) => Math.max(1, wrappedLines(head.title, column, titleMm, plain.titleWeight, 0, continued ? marker : 0))
+    * titleMm * plain.titleLineHeight;
+  const contentGap = Math.max(0, resolveTemplateCvDesign("tabellarisch").spacing.entryContentGapMm + scale.contentGapDelta);
+  const organization = head.organization.trim()
+    ? Math.max(1, wrappedLines(head.organization, column * plain.arialWidth, orgMm, 700)) * orgMm * plain.orgLineHeight : 0;
+  const metaText = [head.period, head.location].filter((value) => value.trim()).join(" · ");
+  const chosenMeta = Math.max(chosenRoleMm(scale, "period", 0), chosenRoleMm(scale, "location", 0));
+  const belowOrganization = plainEntryMetaHeight(geometry, scale, metaText, column, chosenMeta);
+  const detailLines = (value: string) => wrappedLines(value, bulletWidth * plain.arialWidth, bodyMm);
+  const height = (from: number, to: number) => titleHeight(from > 0) + contentGap + organization + belowOrganization
+    + shownTexts(from, to).reduce((total, value) => total + detailLines(value) * bodyLine + plain.bulletGap, 0);
+  return { lines: details.map(detailLines), height };
+};
+
 /** The padding a list item of a grid entry takes off its text column (zweispaltig li: padding-left 0.3 mm). */
 const GRID_ITEM_PADDING_MM = 0.3;
 
@@ -490,6 +539,9 @@ const experienceMetrics = (
   const bullets = resolved.bullets;
   if (geometry.timeline && scale.wrapText)
     return timelineMetrics(geometry, scale, widthScale, { title: resolved.role, organization: resolved.organization, location: resolved.location, period: resolved.period },
+      bullets, (from, to) => bullets.slice(from, to));
+  if (geometry.plainEntry)
+    return plainEntryMetrics(geometry, scale, widthScale, { title: resolved.role, organization: resolved.organization, location: resolved.location, period: resolved.period },
       bullets, (from, to) => bullets.slice(from, to));
   const bulletCw = first
     ? (text.bulletCw ?? text.cw) * (1 + Math.max(0, 1 - widthScale) * (text.bulletNarrowSlack ?? 0))
@@ -569,6 +621,9 @@ const educationMetrics = (
       period: formatCareerPeriod(view.from, view.to) }, units.map((unit) => unit.text), paragraphs);
     return metrics;
   }
+  if (geometry.plainEntry)
+    return plainEntryMetrics(geometry, scale, widthScale, { title: view.title, organization: view.institution, location: view.location,
+      period: formatCareerPeriod(view.from, view.to) }, units.map((unit) => unit.text), paragraphs);
   const detailWidth = text.bulletW * widthScale;
   const detailFont = text.bulletFont * scale.font;
   /** Lines of a detail text: wrapped with the measured font where the template has one. */
@@ -727,6 +782,21 @@ const buildScale = (geometry: PaginationGeometry, context: ResumePlanContext, te
     return { font, textHeight, line, width: bullets, contWidth: bullets, mainRatio: ratio, sideDelta: 0,
       marginInset: padding, fullRatio: ratio, ...factors, ...spacing,
       titleFont: (overrides.entryHeadingPt ?? tabellarischDefaults.typography.entryTitleSizePt) * PT_TO_MM };
+  }
+  if (templateId === "tabellarisch" && geometry.plainEntry) {
+    // The plain page has the side edges of the visual one (Seitenränder moves only them, so no vertical inset); its entries
+    // run across the content width. Only a section title larger than the native one takes more room: not all of the plain
+    // section titles follow a smaller size.
+    const box = resolveTabellarischGeometry(overrides.pageMarginMm);
+    const padding = overrides.innerPaddingMm !== undefined ? overrides.innerPaddingMm - nativePadding : 0;
+    const textWidth = Math.max(24, box.contentWidth - 2 * padding);
+    const bullets = Math.max(0.2, (textWidth - geometry.plainEntry.listInset) / geometry.text.bulletW);
+    const ratio = textWidth / geometry.text.mainW;
+    const type = tabellarischDefaults.typography;
+    const headingDelta = Math.max(0, (overrides.sectionHeadingPt ?? type.sectionTitleSizePt) - type.sectionTitleSizePt) * PT_TO_MM * type.sectionTitleLineHeight;
+    return { font, textHeight: Math.max(1, font), line, width: bullets, contWidth: bullets, mainRatio: ratio, sideDelta: 0,
+      marginInset: padding, fullRatio: ratio, ...factors, ...spacing, titleGapDelta: spacing.titleGapDelta + headingDelta,
+      titleFont: (overrides.entryHeadingPt ?? type.entryTitleSizePt) * PT_TO_MM };
   }
   if (templateId === "tuerkis-profil") {
     // Türkis Profil's DIN page (resolveTuerkisGeometry): Seitenränder moves only the side edges (no vertical inset), the
@@ -1204,6 +1274,14 @@ const planResumePages = (
     flat ? ((context.atsMode ? geometry.ats.summaryW : undefined) ?? geometry.text.atsW) * scale.mainRatio
       : zone === "sidebar" ? geometry.text.sideW + scale.sideDelta
         : geometry.text.mainW * scale.mainRatio;
+  /** The central Abstand unter Abschnittstitel in a plain Tabellarisch section (the visual models already hold it). */
+  const plainTitleDelta = geometry.plainEntry ? scale.titleGapDelta : 0;
+  /** A plain Tabellarisch list: the section head and every row wrapped in `widthMm` at the body line height, `gap` between two rows. */
+  const plainListBlockHeight = (rows: readonly string[], widthMm: number, gap: number) => {
+    const bodyMm = geometry.text.bulletFont * scale.font;
+    return blocks.summary[0] + plainTitleDelta + rows.reduce((total, row) => total
+      + Math.max(1, wrappedLines(row, widthMm, bodyMm)) * bodyMm * geometry.text.lineRatio * scale.line, 0) + gap * Math.max(0, rows.length - 1);
+  };
 
   // Strengths and knowledge are drawn by the managed layer as an item grid. Beside a
   // sidebar the list keeps its measured narrow column; anywhere else the number of
@@ -1485,7 +1563,7 @@ const planResumePages = (
     // The lines of a summary follow the body font exactly; only enlarged text keeps its reserve.
     const summaryScale = zoneFlow && scale.font < 1 ? scale.font : scale.textHeight;
     const height = (value: string) => atsSummary
-      ? (atsSummary.head + atsSummary.line * scale.line * summaryLines(value)) * scale.textHeight
+      ? (atsSummary.head + plainTitleDelta + atsSummary.line * scale.line * summaryLines(value)) * scale.textHeight
       : elegantSidebar && zone === "sidebar"
       // Justified, broken at the same soft hyphens the renderer inserts.
       ? elegantSideHeadFor(getResumeSectionTitle(profile, "summary")) + Math.max(1, hyphenatedSummaryLines(value, elegantSideWidth, elegantBodyMm, 400)) * elegantLine
@@ -1534,7 +1612,8 @@ const planResumePages = (
    */
   const tabellarischStrengthsHeight = (entries: ListEntry[]) => {
     const cols = Math.max(1, gridModel("strengths", entries, "main", "first").cols);
-    const width = (geometry.text.fullW * (scale.fullRatio ?? 1) - GRID_COLUMN_GAP_MM * (cols - 1)) / cols - GRID_ICON_MM;
+    const width = ((geometry.text.fullW * (scale.fullRatio ?? 1) - GRID_COLUMN_GAP_MM * (cols - 1)) / cols - GRID_ICON_MM)
+      * (geometry.plainEntry?.arialWidth ?? 1);
     const bodyMm = geometry.text.bulletFont * scale.font;
     let rows = 0;
     for (let start = 0; start < entries.length; start += cols) {
@@ -1542,7 +1621,7 @@ const planResumePages = (
         Math.max(1, wrappedLines(entry.title, width, bodyMm, 700)) * bodyMm * 1.3 + 1
           + (entry.description ? wrappedLines(entry.description, width, bodyMm * 0.92) * bodyMm * 0.92 * 1.4 : 0))));
     }
-    return blocks.summary[0] + rows + 3 * (Math.ceil(entries.length / cols) - 1);
+    return blocks.summary[0] + plainTitleDelta + rows + 3 * (Math.ceil(entries.length / cols) - 1);
   };
   /**
    * Elegant's sidebar strengths: the shared strength cards one per row beside a 5.5 mm icon, the bold title, 1 mm, the
@@ -1579,7 +1658,8 @@ const planResumePages = (
     flow.push({
       id: "strengths",
       zone,
-      height: templateId === "tabellarisch" && !context.atsMode && scale.wrapText
+      // (the plain layout draws the same cards, both surfaces)
+      height: templateId === "tabellarisch" && (geometry.plainEntry || scale.wrapText)
         ? tabellarischStrengthsHeight(strengthEntries)
         : elegantSidebar && zone === "sidebar" ? elegantStrengthsHeight(strengthEntries)
         : listBlockHeight(gridModel("strengths", strengthEntries, zone, "first"), scale, strengthEntries),
@@ -1665,7 +1745,10 @@ const planResumePages = (
         return total + lines * rowLine + description;
       }, 0) + ELEGANT_LANGUAGE_ROW_GAP_MM * Math.max(0, rows.length - 1);
     };
-    const languageHeight = elegantSidebar && zone === "sidebar" ? elegantLanguagesHeight(languageRows) : context.atsMode
+    const languageHeight = elegantSidebar && zone === "sidebar" ? elegantLanguagesHeight(languageRows) : geometry.plainEntry
+      // Tabellarisch's plain rows across the content width, 0.7 mm apart (resume-language-ats).
+      ? plainListBlockHeight(languageRows.map((row) => row.primaryText), (geometry.text.fullW * (scale.fullRatio ?? 1)) * geometry.plainEntry.arialWidth, 0.7)
+      : context.atsMode
       ? line(geometry.ats.languages, languages.length) * scale.textHeight
       : languageHeightIn(zone) ?? (zoneFlow
         ? plainListHeight(zone, languageRows.map((row) => row.primaryText))
@@ -1824,10 +1907,14 @@ const planResumePages = (
           (total, item) => total + formatKnowledgeItem(item, category.showLevels, category.showYearsOfExperience, "comma-separated").length,
           2 * (items.length - 1),
         );
-        const lines = linesFor(characters, model.w * scale.mainRatio, model.font * scale.font, geometry.text.cw * ATS_LIST_WRAP);
+        // Tabellarisch wraps the printed paragraph itself; the other plain layouts count its characters.
+        const lines = geometry.plainEntry
+          ? Math.max(1, wrappedLines(items.map((item) => formatKnowledgeItem(item, category.showLevels, category.showYearsOfExperience, "comma-separated")).join(", "),
+            model.w * scale.mainRatio, model.font * scale.font))
+          : linesFor(characters, model.w * scale.mainRatio, model.font * scale.font, geometry.text.cw * ATS_LIST_WRAP);
         return model.title + lines * model.pitch * scale.line;
       });
-      const height = (model.head + sumHeights(listHeights, model.gap) + model.tail) * scale.textHeight;
+      const height = (model.head + plainTitleDelta + sumHeights(listHeights, model.gap) + model.tail) * scale.textHeight;
       flow.push({ id: "knowledge", zone: knowledgeZone, height, contHeight: height, home: "last" });
     } else {
       const firstRows = knowledgeRows("first");
@@ -1909,7 +1996,9 @@ const planResumePages = (
     flow.push({
       id: "certifications",
       zone,
-      height: zoneFlow ? plainListHeight(zone, shown) : tabellarischList ? tabellarischListHeight(0, tabellarischList.length) : legacyHeight,
+      height: zoneFlow ? plainListHeight(zone, shown)
+        : geometry.plainEntry ? plainListBlockHeight([...new Set(shown.map((entry) => entry.trim()))], certificates.w * scale.mainRatio, tabellarischDefaults.layout.bulletGapMm)
+        : tabellarischList ? tabellarischListHeight(0, tabellarischList.length) : legacyHeight,
       ...(tabellarischList && tabellarischList.length > 1
         ? { split: { ends: tabellarischList.map((_, index) => index + 1), height: tabellarischListHeight, minRows: 1 } } : {}),
       // Türkis Profil's main column breaks the list between two certificates, like a word processor.
@@ -1989,8 +2078,41 @@ const planResumePages = (
         return total + title + (headed && item.title.trim() && rest > 0 ? careerLikeContentGap : 0) + rest;
       }, 0) + careerLikeEntryGap * Math.max(0, shown.length - 1);
     };
+    /**
+     * Tabellarisch's plain layout draws a section of entries with the head of its career entries: the title at the entry
+     * title size, the Abstand nach Eintragstitel, organisation, the line of period and place, then description, list (0.8 mm
+     * above it) and link; between two entries the Eintragsabstand plus the 3 mm of the generic list (Projekte and Hobbys
+     * space like the career entries). A plain list stacks its texts at the body size and the PDF keeps the 0.45 mm item
+     * margins around each.
+     */
+    const tabellarischPlainPartHeight = (from: number, to: number) => {
+      const plain = geometry.plainEntry!;
+      const column = geometry.text.fullW * (scale.fullRatio ?? 1);
+      const bodyMm = geometry.text.bulletFont * scale.font;
+      const lineHeight = geometry.text.lineRatio * scale.line;
+      const text = (value: string, fontMm = bodyMm, weight = 400, indent = 0, ratio = lineHeight) => value.trim()
+        ? Math.max(1, wrappedLines(value, (column - indent) * plain.arialWidth, fontMm, weight)) * fontMm * ratio : 0;
+      const contentGap = Math.max(0, resolveTemplateCvDesign("tabellarisch").spacing.entryContentGapMm + scale.contentGapDelta);
+      const shown = normalized.entries.slice(from, to);
+      const listed = normalized.contentType !== "entries";
+      return blocks.summary[0] + plainTitleDelta + shown.reduce((total, item) => {
+        const period = item.date.trim() || [item.from, item.to].filter((value) => value.trim()).join(" – ");
+        const metaText = [item.location, period].filter((value) => value.trim()).join(" · ");
+        const details = special.kind === "projects"
+          ? text(item.technologies.filter((value) => value.trim()).join(" · "), chosenRoleMm(scale, "technologies", bodyMm * 0.88)) + text(item.description)
+          : (item.subtitle.trim() ? text(item.subtitle, chosenRoleMm(scale, "organization", geometry.text.orgFont * scale.font), 700, 0, plain.orgLineHeight) : 0)
+            + (item.subtitle.trim() || metaText ? plainEntryMetaHeight(geometry, scale, metaText, column, Math.max(chosenRoleMm(scale, "period", 0), chosenRoleMm(scale, "location", 0))) : 0)
+            + text(item.description)
+            + (item.bullets.some((value) => value.trim()) ? 0.8 + item.bullets.reduce((sum, value) => sum + text(value, bodyMm, 400, tabellarischDefaults.layout.listIndentMm), 0) : 0)
+            + text(item.url);
+        const title = item.sectionType === "subsection"
+          ? text(item.title, scale.titleFont ?? geometry.text.titleFont, plain.titleWeight, 0, plain.titleLineHeight) + (item.title.trim() && details > 0 ? contentGap : 0)
+          : text(item.title);
+        return total + title + details + (listed ? 2 * tabellarischDefaults.layout.bulletGapMm : 0);
+      }, 0) + (careerLike ? careerLikeEntryGap : careerLikeEntryGap + 3) * Math.max(0, shown.length - 1);
+    };
     const tabellarischSpecial = templateId === "tabellarisch" && !context.atsMode && careerLike && scale.wrapText;
-    const partHeight = tabellarischSpecial ? tabellarischPartHeight : legacyPartHeight;
+    const partHeight = geometry.plainEntry ? tabellarischPlainPartHeight : tabellarischSpecial ? tabellarischPartHeight : legacyPartHeight;
     const height = partHeight(0, normalized.entries.length);
     const inSidebar = (zoneFlow || templateId === "elegant") && zone === "sidebar";
     flow.push({
@@ -2002,7 +2124,8 @@ const planResumePages = (
       rank: managerRank(`special:${special.id}`),
       hostable: inSidebar,
       // Projekte and Hobbys & Interessen break between two entries like the career entries do.
-      split: (templateId === "modern" || careerLike) && zone === "main" && normalized.entries.length > 1
+      // (Tabellarisch's plain layout breaks a tall section of any kind: a whole section would run off the page.)
+      split: (templateId === "modern" || careerLike || geometry.plainEntry) && zone === "main" && normalized.entries.length > 1
         ? {
           ends: normalized.entries.map((_, index) => index + 1),
           height: (from, to) => zoneFlow ? specialHeight("main", special, true, [from, to]) : partHeight(from, to),
@@ -2130,9 +2253,73 @@ const planResumePages = (
       ats: context.atsMode,
     })
     : undefined;
+  /**
+   * Where the first section of a plain Tabellarisch page starts, from the stylesheets: the name and the Berufsbezeichnung with
+   * their wraps, the contacts as each surface sets them (`plainHeader`; a later page repeats only those chosen for it), the
+   * header's padding and rule, the section gap. The taller surface counts.
+   */
+  const tabellarischPlainHeaderTop = (person: ApplicantProfile, continuation: boolean) => {
+    const header = geometry.plainHeader!;
+    const type = tabellarischDefaults.typography;
+    const width = resolveTabellarischGeometry(context.overrides?.pageMarginMm).contentWidth;
+    const nameMm = (context.overrides?.headingSizePt ?? type.nameSizePt) * PT_TO_MM;
+    const titleMm = (context.overrides?.subheadingSizePt ?? type.jobTitleSizePt) * PT_TO_MM;
+    const nameLines = Math.max(1, wrappedLines(`${person.firstName ?? ""} ${person.lastName ?? ""}`.trim().toLocaleUpperCase("de-DE"), width, nameMm, 750, 0.015));
+    const title = person.title.trim();
+    const identity = header.identityPad + nameLines * nameMm * header.nameLineHeight
+      + (title ? header.titleGap + wrappedLines(title, width, titleMm, 700) * titleMm * header.titleLineHeight : 0);
+    if (continuation) {
+      const chosen = showContacts ? [
+        person.resumeContinuationContactVisibility.email ? person.email : "",
+        person.resumeContinuationContactVisibility.phone ? formatPhoneForDisplay(person.phone) : "",
+      ].filter((value) => value.trim()) : [];
+      const pt = header.continuationPt * PT_TO_MM;
+      const together = chosen.reduce((total, value) => total + textWidthMm(value, pt, 400) / ATS_HEADER_ARIAL_WIDTH, 0) + header.continuationColumnGap * Math.max(0, chosen.length - 1);
+      const rows = !chosen.length ? 0 : together <= width ? 1 : chosen.length;
+      return header.previewTop + identity + (rows ? header.continuationGap + rows * pt * header.continuationLineHeight + (rows - 1) * header.continuationRowGap : 0)
+        + header.close + sectionGap;
+    }
+    const contacts = showContacts ? getTabellarischHeaderContacts(person) : [];
+    const primary = contacts.filter((contact) => contact.primary);
+    const extra = contacts.filter((contact) => !contact.primary);
+    const contactMm = header.contactPt * PT_TO_MM;
+    const text = (contact: (typeof contacts)[number]) => `${contact.label}: ${contact.text}`;
+    const lines = (value: string, column: number) => Math.max(1, wrappedLines(value, column * ATS_HEADER_ARIAL_WIDTH, contactMm, 700));
+    const extraColumn = Math.min(header.extraMaxWidth, width);
+    const firstExtraGap = primary.length ? header.extraGap : header.primaryGap;
+    const pdfPrimary = primary.length ? header.primaryGap
+      + primary.reduce((total, contact) => total + lines(text(contact), width) * header.contactLine, 0) + (primary.length - 1) * header.separatorLine : 0;
+    // The PDF's other contacts wrap in rows of the 132 mm list, a row as tall as its tallest contact.
+    const rows = extra.reduce<{ used: number; tallest: number }[]>((all, contact) => {
+      const contactWidth = Math.min(extraColumn, textWidthMm(text(contact), contactMm, 700) / ATS_HEADER_ROW_WIDTH);
+      const row = all[all.length - 1];
+      const tall = lines(text(contact), extraColumn);
+      if (row && row.used + header.extraColumnGap + contactWidth <= extraColumn) {
+        row.used += header.extraColumnGap + contactWidth;
+        row.tallest = Math.max(row.tallest, tall);
+      } else all.push({ used: contactWidth, tallest: tall });
+      return all;
+    }, []);
+    const pdfExtra = rows.length ? firstExtraGap + rows.reduce((total, row) => total + row.tallest * header.contactLine, 0) + (rows.length - 1) * header.extraRowGap : 0;
+    const previewPrimary = primary.length ? header.primaryGap + lines(primary.map(text).join(" | "), width) * header.contactLine : 0;
+    // The preview stacks them, unless GitHub or the website opens a second (implicit) grid column: then two share a row, the
+    // LinkedIn line stands alone, and the contacts wrap in the narrow column.
+    const twoColumns = extra.some((contact) => contact.kind === "github" || contact.kind === "website");
+    const previewRows = (twoColumns ? extra.reduce<(typeof extra)[]>((all, contact, index) => {
+      const row = all[all.length - 1];
+      if (index > 0 && row.length < 2 && row[0].kind !== "linkedin") row.push(contact);
+      else all.push([contact]);
+      return all;
+    }, []) : extra.map((contact) => [contact]));
+    const previewColumn = twoColumns ? header.previewNarrowColumn : extraColumn;
+    const previewExtra = extra.length ? firstExtraGap + (previewRows.length - 1) * header.stackedRowGap
+      + previewRows.reduce((total, row) => total + Math.max(...row.map((contact) => lines(text(contact), previewColumn))) * header.contactLine, 0) : 0;
+    return Math.max(header.pdfTop + identity + pdfPrimary + pdfExtra, header.previewTop + identity + previewPrimary + previewExtra) + header.close + sectionGap;
+  };
   // Tabellarisch: page one under its header (calibrated model); later pages under the compact head (name, Berufsbezeichnung, the contacts chosen for later pages), computed from the stylesheet.
   const tabellarischHeaderTop = (continuation: boolean) => {
-    if (templateId !== "tabellarisch" || !profile || context.atsMode) return undefined;
+    if (templateId !== "tabellarisch" || !profile) return undefined;
+    if (context.atsMode) return tabellarischPlainHeaderTop(profile, continuation);
     if (continuation) return estimateTabellarischContinuationTop({
       name: `${profile.firstName ?? ""} ${profile.lastName ?? ""}`.trim(),
       title: profile.title ?? "",

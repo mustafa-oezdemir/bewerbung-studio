@@ -203,6 +203,29 @@ export type PaginationGeometry = {
    */
   gridEntry?: { titleLineHeight: number; orgLineHeight: number; rowGap: number; listTop: number; itemMargin: number; padBottom: number };
   /**
+   * Tabellarisch's plain (ATS) entry, computed from its stylesheets: a block across the content width (title, organisation,
+   * the line of period and place, the bullets `bulletGap` apart). Preview and PDF share one plan but set the part below the
+   * organisation a little differently, so `surfaces` names both and the taller one counts (`metaLineHeight` absent: the
+   * body line height). `arialWidth`: the Arial texts wrap on this share of their column (Arial sets about 2 % wider than
+   * the measured advances).
+   */
+  plainEntry?: {
+    titleLineHeight: number; titleWeight: number; orgLineHeight: number; bulletGap: number; listInset: number; arialWidth: number;
+    surfaces: ReadonlyArray<{ orgGap: number; metaPt: number; metaLineHeight?: number; metaGap: number }>;
+  };
+  /**
+   * Tabellarisch's plain (ATS) page-one header from its stylesheets. The PDF stands every primary contact on a line of its
+   * own with the separators on lines between them, and wraps the other contacts in rows; the preview sets the primary
+   * contacts as one paragraph and stacks the others. One plan serves both: the taller header counts.
+   */
+  plainHeader?: {
+    pdfTop: number; previewTop: number; identityPad: number; nameLineHeight: number; titleGap: number; titleLineHeight: number;
+    contactPt: number; contactLine: number; separatorLine: number; primaryGap: number; extraGap: number;
+    extraRowGap: number; extraColumnGap: number; extraMaxWidth: number; stackedRowGap: number; previewNarrowColumn: number; close: number;
+    /** A later page repeats name and Berufsbezeichnung, then the contacts chosen for it in a wrapping row (resumeContinuation). */
+    continuationGap: number; continuationPt: number; continuationLineHeight: number; continuationColumnGap: number; continuationRowGap: number;
+  };
+  /**
    * The head of a career entry for the sizes of its roles (Lebenslauf-Design → Typografie: Eintragstitel, Datum / Zeitraum,
    * Unternehmen / Einrichtung, Ort / Standort; resumeEntryRoleMetrics): which roles share a row, which stand above each
    * other, and their line heights (measured). Only a chosen size makes it count.
@@ -872,24 +895,52 @@ geometry["tuerkis-profil"] = {
   certs: { ...geometry.zweispaltig.certs, font: tuerkisBodyMm, pitch: tuerkisLineMm },
 };
 
+/** Text of a plain Tabellarisch list: the width of the list item, as Arial fills it. */
+const tabellarischAtsArialWidth = 0.98;
+const tabellarischAtsListWidth = tabellarischGeometry.contentWidth - tabellarischDefaults.layout.listIndentMm - tabellarischDefaults.layout.listItemPaddingMm;
+/** A section title of the preview (the taller surface) with the gap below it. */
+const tabellarischAtsHead = tabellarischLines.sectionHead;
+
 /**
- * Tabellarisch's plain (ATS) layout keeps its measured model: its entries are blocks without the date column, and its
- * page has no footer clearance of its own.
+ * Tabellarisch's plain (ATS) layout, computed from its two stylesheets like the visual one: its entries are blocks without
+ * the date column across the content width. Its page has no footer, so the text may run down to the bottom padding of
+ * the PDF's content box (297 − 16 mm; the preview's lies 2 mm lower).
  */
 export const tabellarischAtsPaginationGeometry: PaginationGeometry = {
   ...geometry.tabellarisch,
-  limit: 285.1,
-  sideLimit: 285.1,
+  limit: 281,
+  sideLimit: 281,
   contentLeft: 15,
   contentRight: 195,
-  text: {contW: 127.0, cw: 0.52, bulletW: 125, bulletFont: 3.246, titleW: 130, titleFont: 4.23, orgW: 130, orgFont: 3.6, sumFont: 3.246, mainW: 180, sideW: 0, atsW: 175, lineRatio: 1.1, fullW: 180},
-  exp: {base: 15.3, list: 0.6, perBullet: 0.64, linePitch: 3.49, extraLine: 2.4, gap: 0, head: 9.1},
-  edu: {base: 15, extraLine: 5.5, gap: 0, head: 9.1},
-  blocks: {summary: [9.1, 3.57], strengths: [5.8, 4.66], knowledge: [9.8, 3.29], languages: [9.8, 1.83], sectionGap: 6.3, sideGap: 4.5},
-  certs: {home: "last", zone: "main", base: 9.0, perItem: 4.02, w: 79.5, font: 3.25, pitch: 3.57},
-  safety: undefined,
-  reserveMm: undefined,
+  text: {contW: tabellarischAtsListWidth, cw: 0.52, bulletW: tabellarischAtsListWidth, bulletFont: tabellarischBodyMm, titleW: tabellarischGeometry.contentWidth,
+    titleFont: tabellarischDefaults.typography.entryTitleSizePt * PT_MM, orgW: tabellarischGeometry.contentWidth, orgFont: tabellarischDefaults.typography.organizationSizePt * PT_MM,
+    sumFont: tabellarischBodyMm, mainW: tabellarischGeometry.contentWidth, sideW: 0, atsW: tabellarischAtsListWidth, lineRatio: tabellarischDefaults.typography.bodyLineHeight, fullW: tabellarischGeometry.contentWidth},
+  exp: {base: tabellarischLines.entryHead, list: 0, perBullet: tabellarischDefaults.layout.bulletGapMm, linePitch: tabellarischLines.body, extraLine: tabellarischLines.role,
+    gap: tabellarischDefaults.spacing.entryGapMm, head: tabellarischAtsHead},
+  edu: {base: tabellarischLines.entryHead, extraLine: tabellarischLines.role, gap: tabellarischDefaults.spacing.entryGapMm, head: tabellarischAtsHead},
+  blocks: {summary: [tabellarischAtsHead, tabellarischLines.body], strengths: [5.8, 4.66], knowledge: [9.8, 3.29], languages: [9.8, 1.83],
+    sectionGap: tabellarischDefaults.spacing.sectionGapMm, sideGap: 4.5},
+  certs: {home: "last", zone: "main", base: tabellarischAtsHead, perItem: tabellarischLines.body, w: tabellarischAtsListWidth * tabellarischAtsArialWidth, font: tabellarischBodyMm, pitch: tabellarischLines.body},
+  ats: {...geometry.tabellarisch.ats, exp: 1, edu: 1, head: tabellarischAtsHead,
+    summary: {w: tabellarischGeometry.contentWidth * tabellarischAtsArialWidth, font: tabellarischBodyMm, line: tabellarischLines.body, head: tabellarischAtsHead},
+    // A category title (body line) and its comma-separated paragraph 3.25 mm below it, the categories 3.25 mm apart.
+    // (Long comma lists run a little wider than the other Arial text, measured: 0.96 of the column.)
+    knowledge: {head: tabellarischAtsHead, title: 7.4, gap: 3.25, pitch: tabellarischLines.body, font: tabellarischBodyMm, w: tabellarischGeometry.contentWidth * 0.96, tail: 0},
+    // (Sprachen and Zertifikate are wrapped row by row: plainListHeight in the planner.)
+    languages: [tabellarischAtsHead, tabellarischLines.body], certs: {base: tabellarischAtsHead, perItem: tabellarischLines.body}, closing: 11},
+  // The heights above are computed from the stylesheets; this keeps the reserve for the rounding of the line boxes.
+  safety: 1,
+  reserveMm: 0.8,
   timeline: undefined,
+  plainEntry: {
+    titleLineHeight: tabellarischDefaults.typography.entryTitleLineHeight, titleWeight: 500, orgLineHeight: tabellarischDefaults.typography.organizationLineHeight,
+    bulletGap: tabellarischDefaults.layout.bulletGapMm,
+    listInset: tabellarischDefaults.layout.listIndentMm + tabellarischDefaults.layout.listItemPaddingMm, arialWidth: tabellarischAtsArialWidth,
+    surfaces: [{orgGap: 1, metaPt: 8.3, metaGap: 1.5}, {orgGap: 1.5, metaPt: 8.4, metaLineHeight: 1.25, metaGap: 1.2}],
+  },
+  plainHeader: {pdfTop: 14, previewTop: 15, identityPad: 1, nameLineHeight: 1, titleGap: 2.3, titleLineHeight: 1.15,
+    contactPt: 8.4, contactLine: 3.76, separatorLine: 3.56, primaryGap: 2.5, extraGap: 1.15, extraRowGap: 1, extraColumnGap: 5, extraMaxWidth: 132, stackedRowGap: 1, previewNarrowColumn: 54.8, close: 4.2,
+    continuationGap: 1.5, continuationPt: 8, continuationLineHeight: 1.25, continuationColumnGap: 5, continuationRowGap: 1},
   // The plain titles keep the visual size (12 pt, preview = PDF); period and place are 8.3 pt, in Projekte / Hobbys too.
   atsRolePt: { period: 8.3, location: 8.3 },
   customRolePt: { period: 8.3, location: 8.3 },
