@@ -1,35 +1,37 @@
-# BewerbungsManager – Windows kurulumu
+# BewerbungsManager – Installation unter Windows
 
-## İndirilecek dosyalar
+## Downloads
 
-[GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases/latest) sayfasındaki **Assets** bölümünden Windows x64 için şu dosyalardan birini indirin:
+Für Windows x64 gibt es zwei Varianten:
 
-- `BewerbungsManager-<sürüm>-x64-Setup.exe`: Bilgisayara kurulum yapar.
-- `BewerbungsManager-<sürüm>-x64-Portable.exe`: Kurulum gerektirmeden çalışır.
+- `BewerbungsManager-<Version>-x64-Setup.exe`: Installiert die Anwendung auf dem Computer.
+- `BewerbungsManager-<Version>-x64-Portable.exe`: Läuft ohne Installation.
 
-İsterseniz aynı bölümdeki `SHA256SUMS.txt` ile indirdiğiniz dosyayı doğrulayın. PowerShell'de dosyanın bulunduğu klasörde `Get-FileHash -Algorithm SHA256 .\BewerbungsManager-<sürüm>-x64-Setup.exe` komutunu çalıştırın ve çıkan değeri listede karşılaştırın.
+Veröffentlichte Versionen finden Sie unter [GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases/latest) im Bereich **Assets**. Ein lokal erzeugter Build liegt im Ordner `windows-release`.
 
-## Setup ile kurulum
+Mit `SHA256SUMS.txt` können Sie die Datei prüfen. Führen Sie dazu in PowerShell im Ordner der Datei den folgenden Befehl aus und vergleichen Sie den ausgegebenen Wert mit der Liste:
 
-1. Açık BewerbungsManager pencerelerini kapatın.
-2. `...-Setup.exe` dosyasını çalıştırıp kurulum adımlarını tamamlayın.
-3. Uygulamayı Başlat menüsünden açın. İlk açılışta istenirse **Neuen Bewerbungsordner auswählen** ile başvurular için bir veri klasörü seçin. Mevcut veriniz varsa **Workspace-Datei auswählen …** seçeneğini kullanın.
-4. Verilerin yerini daha sonra **Einstellungen → Speicherort** bölümünden görebilirsiniz.
+```powershell
+Get-FileHash -Algorithm SHA256 .\BewerbungsManager-<Version>-x64-Setup.exe
+```
 
-Windows imza uyarısı gösterebilir; yayın dosyalarının imza durumu sürüm sayfasında belirtilir. Yalnızca resmi GitHub sürümünden indirdiğiniz ve doğruladığınız dosyayı çalıştırın.
+## Installation mit Setup
 
-## Portable sürüm
+1. Schließen Sie alle geöffneten BewerbungsManager-Fenster.
+2. Starten Sie die `...-Setup.exe` und folgen Sie den Installationsschritten.
+3. Öffnen Sie die Anwendung über das Startmenü. Wählen Sie beim ersten Start, falls Sie danach gefragt werden, mit **Neuen Bewerbungsordner auswählen** einen Datenordner für Ihre Bewerbungen. Vorhandene Daten öffnen Sie mit **Workspace-Datei auswählen …**.
+4. Den aktuellen Speicherort finden Sie später unter **Einstellungen → Speicherort**.
 
-`...-Portable.exe` dosyasını dilediğiniz bir klasöre koyup çalıştırın. Aynı veri klasörünü Setup sürümüyle kullanacaksanız iki sürümü aynı anda açmayın. Portable EXE'yi silmek, ayrı bir klasörde tuttuğunuz başvuru verilerini silmez.
+## Windows-Warnungen
 
-## Güncelleme ve veri güvenliği
+Der Signaturstatus jeder veröffentlichten Version steht auf ihrer Release-Seite. Lokal erzeugte Builds sind normalerweise nicht signiert. Bei nicht signierten Dateien kann Windows eine Warnung anzeigen; ist die Intelligente App-Steuerung aktiviert, kann Windows sie auch vollständig blockieren. Führen Sie nur Dateien aus, deren Herkunft und Prüfsumme Sie geprüft haben.
 
-Yeni sürümü kurmadan önce **Einstellungen → Übertragen & Sicherung** üzerinden veri yedeği oluşturun ve yedeği farklı bir konuma kopyalayın. Uygulamayı kapatıp yeni Setup dosyasını çalıştırın. Başvuru verileri uygulama dosyalarından ayrı bir Bewerbungsordner içinde tutulur. Güncellemeden sonra aynı veri klasörünün açıldığını ve profilinizin göründüğünü kontrol edin.
+## Portable-Version
 
-Bir hata olursa ekrandaki tam mesajı, uygulama sürümünü ve hatayı hangi işlemde aldığınızı paylaşın. Kişisel başvuru verilerini veya şifreleri herkese açık GitHub sorunlarına eklemeyin.
+Legen Sie die `...-Portable.exe` in einen beliebigen Ordner und starten Sie sie. Wenn Sie denselben Datenordner auch mit der Setup-Version verwenden, öffnen Sie nicht beide Versionen gleichzeitig. Das Löschen der Portable-EXE entfernt keine Bewerbungsdaten, die Sie in einem separaten Ordner aufbewahren.
 
----
+## Update und Datensicherheit
 
-## Kurzanleitung auf Deutsch
+Erstellen Sie vor der Installation einer neuen Version unter **Einstellungen → Übertragen & Sicherung** mit **Jetzt sichern** eine Sicherung und kopieren Sie diese an einen anderen Ort. Über **Backup-Ordner öffnen** gelangen Sie zum Ablageort. Schließen Sie anschließend die Anwendung und starten Sie die neue Setup-Datei. Die Bewerbungsdaten liegen getrennt von den Programmdateien in einem eigenen Bewerbungsordner. Prüfen Sie nach dem Update, ob derselbe Datenordner geöffnet wurde und Ihr Profil sichtbar ist.
 
-Laden Sie unter [GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases/latest) aus **Assets** entweder `...-Setup.exe` (Installation) oder `...-Portable.exe` (ohne Installation) herunter. Schließen Sie vor Installation und Update alle BewerbungsManager-Fenster. Wählen Sie beim ersten Start Ihren Bewerbungsordner oder öffnen Sie mit **Workspace-Datei auswählen …** einen vorhandenen Datenbestand. Den aktuellen Speicherort finden Sie unter **Einstellungen → Speicherort**. Erstellen Sie vor einem Update eine Sicherung und prüfen Sie danach, ob derselbe Datenbestand geöffnet wurde.
+Wenn ein Fehler auftritt, teilen Sie bitte die vollständige Meldung, die Anwendungsversion und den Arbeitsschritt mit, bei dem er aufgetreten ist. Fügen Sie persönliche Bewerbungsdaten oder Passwörter nicht in öffentliche GitHub-Issues ein.
