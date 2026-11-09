@@ -4,9 +4,9 @@ import { renderCv } from "../../__parityHarness";
 import { profileSchema, type ApplicantProfile } from "../../../../shared/schema";
 import { getTemplateDocumentDesignDefaults, resolveCvDesign } from "../../../../shared/cvDesign";
 import { resolveCvDocument } from "../../../../shared/resolveCvDocument";
-import { getPaginationGeometry } from "../../../../shared/resumePaginationGeometry";
+import { getPaginationGeometry, tabellarischAtsPaginationGeometry } from "../../../../shared/resumePaginationGeometry";
 import {
-  estimateTabellarischContinuationTop, getTabellarischDesignVariables, resolveTabellarischGeometry,
+  estimateTabellarischContinuationTop, getTabellarischDesignVariables, resolveTabellarischGeometry, tabellarischLines,
 } from "../../../../shared/tabellarischDesign";
 import { buildDocumentHtml } from "../../../../../electron/documents";
 import { harnessApplication } from "../../__parityHarness";
@@ -227,5 +227,92 @@ describe("Tabellarisch flows like a Word document", () => {
     const tight = plan(pilotProfile(), { cvOverrides: { spacing: { entryGapMm: 1, sectionGapMm: 3 } } });
     const loose = plan(pilotProfile(), { cvOverrides: { spacing: { entryGapMm: 9, sectionGapMm: 12 } } });
     expect(tight[0].items.length).toBeGreaterThan(loose[0].items.length);
+  });
+});
+
+describe("Tabellarisch's plain (ATS) layout keeps its text on the page", () => {
+  const atsPlan = (profile: ApplicantProfile, overrides: Record<string, unknown> = {}) => plan(profile, { resumeOutputMode: "ats", ...overrides });
+  const station = (index: number, bullets = 4, text: (station: number, bullet: number) => string = bullet) => ({
+    id: uid(60 + index), from: `01/20${10 + index}`, to: `12/20${10 + index}`, role: `Fiktive Teamleitung ${index + 1}`, company: `Beispiel Werke ${index + 1} GmbH`,
+    city: "Musterstadt", tasks: [], achievements: Array.from({ length: bullets }, (_, at) => text(index, at)),
+  });
+  /** A career-heavy fictional profile: seven stations below a tall header (long Berufsbezeichnung, every contact filled). */
+  const careerProfile = (extra: Record<string, unknown> = {}) => pilotProfile({
+    title: "Fiktive Teamleiterin für Planung, Koordination und Qualitätssicherung in verteilten Fachbereichen mit Personalverantwortung und Budgetplanung",
+    linkedin: "https://www.linkedin.com/in/mira-beispiel", github: "https://github.com/mira-beispiel", portfolio: "https://mira-beispiel.example.org",
+    summary: "", strengths: [], certifications: [], languages: [],
+    experiences: Array.from({ length: 7 }, (_, index) => station(index)),
+    education: [{ id: uid(90), from: "2008", to: "2011", degree: "Fiktive Ausbildung", institution: "Beispiel Akademie GmbH", city: "Musterstadt" }],
+    resumeClosing: { showPlace: false, showDate: false, showSignature: false },
+    ...extra,
+  });
+  const entryTitles = (pages: Element[]) => pages.map((page) => Array.from(page.querySelectorAll('[data-cv-role="entry-title"]')).map((node) => (node.textContent ?? "").trim()));
+  const listItems = (pages: Element[]) => pages.map((page) => Array.from(page.querySelectorAll(".tabellarisch-pdf-entry li, .tabellarisch-timeline-entry--ats li")).map((node) => (node.textContent ?? "").trim()));
+
+  it("ends page one above its bottom margin below a tall header (reported: the last line at y = 295.8 – 299.4 mm)", () => {
+    const [first] = atsPlan(careerProfile());
+    const entries = first.items.filter((item) => item.kind === "experience");
+    const run = entries.reduce((total, item) => total + item.weight, 0) + (entries.length - 1) * tabellarischDefaults.spacing.entryGapMm;
+    // Where the first entry of this fixture starts, measured in Electron: 85.67 mm in the PDF, 77.08 mm in the preview.
+    expect(85.67 + run).toBeLessThanOrEqual(tabellarischAtsPaginationGeometry.limit);
+    expect(77.08 + run).toBeLessThanOrEqual(tabellarischAtsPaginationGeometry.limit);
+    expect(entries.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("plans every page up to the content box of the plain page, which has no footer", () => {
+    expect(tabellarischAtsPaginationGeometry.limit).toBe(297 - 16);
+    for (const profile of [careerProfile(), careerProfile({ experiences: Array.from({ length: 12 }, (_, index) => station(index, 8)) })])
+      for (const page of atsPlan(profile)) expect(page.fill?.main).toBeLessThanOrEqual(1);
+  });
+
+  it("takes the height of the header into account: the taller one leaves less room on page one", () => {
+    const compact = careerProfile({ title: "", linkedin: "", github: "", portfolio: "", email: "", phone: "", city: "" });
+    expect(atsPlan(compact)[0].items.length).toBeGreaterThan(atsPlan(careerProfile())[0].items.length);
+  });
+
+  it("counts an entry from the stylesheets: title, organisation, the line below it, bullets at the body line", () => {
+    const short = (at: number, index: number) => `Aufgabe ${at}.${index}`;
+    const [first] = atsPlan(careerProfile({ experiences: [station(0, 3, short)] }));
+    // 12 pt × 1.15, 1 mm, 10.2 pt × 1.2, 1.5 mm, 8.4 pt × 1.25, 1.2 mm (the preview, the taller surface), then 3 × (9.2 pt × 1.1 + 0.45 mm).
+    expect(Math.abs(first.items[0].weight - (16.59 + 3 * 4.02))).toBeLessThanOrEqual(0.1);
+  });
+
+  it("moves only the side edges with Seitenränder: the same entries fit on page one", () => {
+    const short = (at: number, index: number) => `Aufgabe ${at}.${index}`;
+    const profile = careerProfile({ title: "Fiktive Teamleiterin", linkedin: "", github: "", portfolio: "", experiences: Array.from({ length: 12 }, (_, index) => station(index, 3, short)) });
+    const onPageOne = (margin: number) => atsPlan(profile, { cvOverrides: { spacing: { pageMarginMm: margin } } })[0].items.map((item) => item.id);
+    expect(onPageOne(10)).toEqual(onPageOne(15));
+    expect(onPageOne(25)).toEqual(onPageOne(15));
+  });
+
+  it("follows the central Eintragsabstand in the plan", () => {
+    const short = (at: number, index: number) => `Aufgabe ${at}.${index}`;
+    const profile = careerProfile({ experiences: Array.from({ length: 14 }, (_, index) => station(index, 2, short)) });
+    const count = (gap: number) => atsPlan(profile, { cvOverrides: { spacing: { entryGapMm: gap } } })[0].items.length;
+    expect(count(1)).toBeGreaterThan(count(9));
+  });
+
+  it("breaks the pages alike in the preview and the PDF: every entry and bullet once", () => {
+    const profile = careerProfile({ experiences: Array.from({ length: 9 }, (_, index) => station(index, 7)) });
+    const output = renderCv("tabellarisch", profile, { ats: true });
+    expect(entryTitles(output.previewPages)).toEqual(entryTitles(output.pdfPages));
+    expect(listItems(output.previewPages)).toEqual(listItems(output.pdfPages));
+    const bullets = listItems(output.pdfPages).flat();
+    expect(new Set(bullets).size).toBe(bullets.length);
+    expect(bullets).toHaveLength(9 * 7);
+  });
+
+  it("breaks a tall section of its own between two entries: each once, alike on both surfaces", () => {
+    const entries = Array.from({ length: 8 }, (_, index) => ({
+      id: uid(120 + index), title: `Fiktives Projekt ${index + 1}`, subtitle: "Beispiel Community", location: "Remote", date: "2025", description: "", url: "",
+      bullets: Array.from({ length: 9 }, (_, at) => bullet(index, at)),
+    }));
+    const profile = careerProfile({ experiences: [station(0)], specialSections: [{ id: uid(119), kind: "custom", title: "Eigene Projekte", isVisible: true, contentType: "entries", entries }] });
+    const pages = atsPlan(profile);
+    for (const page of pages) expect(page.fill?.main).toBeLessThanOrEqual(1);
+    const output = renderCv("tabellarisch", profile, { ats: true });
+    const drawn = (surface: Element[]) => surface.flatMap((page) => Array.from(page.querySelectorAll("[data-entry-id]")).map((node) => node.getAttribute("data-entry-id")));
+    expect(drawn(output.pdfPages)).toEqual(entries.map((entry) => entry.id));
+    expect(drawn(output.previewPages)).toEqual(entries.map((entry) => entry.id));
   });
 });
