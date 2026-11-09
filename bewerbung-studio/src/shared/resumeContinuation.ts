@@ -18,6 +18,8 @@ export const resumeContinuationCss = `
 [data-pehlione-continuation-header] h1{font-size:17pt!important;line-height:1.05!important;letter-spacing:.02em!important;text-transform:uppercase!important}
 [data-pehlione-continuation-header] h2{margin-top:1mm!important;font-size:8.5pt!important;line-height:1.15!important}
 [data-pehlione-continuation-header] [data-resume-header-extra-contact]{margin-top:1.5mm;font-size:6.5pt}
+:is(.zweispaltig-header,.zweispaltig-pdf-header).no-photo{grid-template-columns:minmax(0,1fr)}
+:is(.modern-resume-header,.modern-pdf-header)[data-resume-repeated-without-photo]{min-height:0;margin-bottom:calc(4mm - min(0mm,var(--resume-page-text-shift,0mm)))}
 aside[class*="continuation"]{display:block!important;height:auto!important;min-height:0!important}
 [data-managed-section]>:is(h2,h3){break-after:avoid;page-break-after:avoid}
 [data-managed-section] :is(h4,h5){break-after:avoid;page-break-after:avoid}
@@ -137,20 +139,41 @@ export const sanitizeContinuationHeader = (header: Element, identity: { title?: 
   prune(header);
 };
 
+/** Whether a repeated header carries the photo of the first page. */
+export type ContinuationPhotoPolicy = "repeat" | "first-page-only";
+
+/** The templates that show the Bewerbungsfoto on page one only. */
+export const firstPageOnlyPhotoTemplates: ReadonlySet<string> = new Set(["zweispaltig", "tuerkis-profil", "modern"]);
+
+/** Takes the photo out of a repeated header with the frame that only held it, and gives its room back to the name. */
+const removeHeaderPhoto = (header: Element): void => {
+  for (const photo of Array.from(header.querySelectorAll("img"))) {
+    let frame: Element = photo;
+    while (frame.parentElement && frame.parentElement !== header && frame.parentElement.children.length === 1 && !hasText(frame.parentElement))
+      frame = frame.parentElement;
+    frame.remove();
+  }
+  if (header.hasAttribute("data-no-photo")) header.setAttribute("data-no-photo", "true");
+  header.classList.add("no-photo");
+  header.setAttribute("data-resume-repeated-without-photo", "");
+};
+
 /**
- * Repeat the already-managed first-page header on a later page: the same identity (name, Berufsbezeichnung, photo),
- * and only the contacts the user chose for later pages. The first page's own personal details are not copied.
+ * Repeat the already-managed first-page header on a later page: the same identity (name, Berufsbezeichnung and, unless
+ * the template keeps it on page one, the photo), and only the contacts the user chose for later pages. The first page's
+ * own personal details are not copied.
  */
 export const repeatResumeHeader = (
   root: Element,
   sourceHeader: Element,
   contacts?: ContinuationContacts,
-  identity: { title?: string } = {},
+  identity: { title?: string; photo?: ContinuationPhotoPolicy } = {},
 ): void => {
   const header = root.querySelector("header");
   if (!header) return;
   const copy = sourceHeader.cloneNode(true) as Element;
   sanitizeContinuationHeader(copy, identity);
+  if (identity.photo === "first-page-only") removeHeaderPhoto(copy);
   copy.querySelectorAll("[class*='kicker' i]").forEach((kicker) => {
     kicker.textContent = standardResumeContinuationHeading;
   });

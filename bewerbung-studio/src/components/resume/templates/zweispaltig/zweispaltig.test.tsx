@@ -276,8 +276,8 @@ describe("Zweispaltig rendering", () => {
     const secondHeader = parseHTML(markup).document.querySelector(".zweispaltig-header");
 
     expect(markup).toContain('data-continuation="true"');
-    expect(secondHeader?.outerHTML).toBe(firstHeader?.outerHTML);
-    expect(secondHeader?.querySelector(".zweispaltig-header__photo")).not.toBeNull();
+    expect(firstHeader?.querySelector(".zweispaltig-header__photo")).not.toBeNull();
+    expect(secondHeader?.querySelector(".zweispaltig-header__photo")).toBeNull();
     expect(secondHeader?.textContent).toContain(profile.email);
     expect(secondHeader?.textContent).toContain(profile.phone);
     expect(markup).toContain("zweispaltig-columns--continuation");

@@ -45,6 +45,26 @@ describe("continuation header", () => {
     expect(header.textContent?.replace(/\s+/g, " ").trim()).toBe("Lebenslauf · FortsetzungMina KayaEntwicklerin");
   });
 
+  it("keeps the photo of the first page out of a repeated header when the template says so", () => {
+    const second = later();
+    repeatResumeHeader(second, firstHeader().querySelector("header")!, undefined, { title: "Entwicklerin", photo: "first-page-only" });
+    const header = second.querySelector("header")!;
+    // the photo and the frame that only held it
+    expect(header.querySelector("img,figure")).toBeNull();
+    expect(header.classList.contains("no-photo")).toBe(true);
+    expect(header.querySelector("h1")?.textContent).toBe("Mina Kaya");
+    expect(header.querySelector(".title")?.textContent).toBe("Entwicklerin");
+  });
+
+  it("switches a header with its own marker to the layout without a photo", () => {
+    const first = root('<header data-no-photo="false"><div class="identity"><h1>Mina Kaya</h1></div><div class="photo"><img src="portrait.png"></div></header>');
+    const second = root('<header><h1>Mina Kaya</h1></header>');
+    repeatResumeHeader(second, first.querySelector("header")!, undefined, { photo: "first-page-only" });
+    expect(second.querySelector("header")?.getAttribute("data-no-photo")).toBe("true");
+    expect(second.querySelector("header")?.hasAttribute("data-resume-repeated-without-photo")).toBe(true);
+    expect(second.querySelector("header .photo")).toBeNull();
+  });
+
   it("adds only the contacts the user chose for later pages", () => {
     const only = (contacts: { email?: string; phone?: string }) => {
       const second = later();

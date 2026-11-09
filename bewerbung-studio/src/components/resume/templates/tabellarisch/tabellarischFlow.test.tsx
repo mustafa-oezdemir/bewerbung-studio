@@ -153,11 +153,15 @@ describe("Tabellarisch flows like a Word document", () => {
 
   it("starts later pages under the compact head: name, Berufsbezeichnung and the chosen contacts", () => {
     const base = { name: "Mira Beispiel", title: "Softwareentwicklerin", pageMarginMm: undefined, sectionGapMm: 6.3 };
-    // 15 mm margin, 13 pt name (1.15), 2.5 mm padding, 0.35 mm rule, then the larger of the 6 mm gap and the section gap.
-    expect(estimateTabellarischContinuationTop({ ...base, contacts: [] })).toBeCloseTo(15 + 13 * 25.4 / 72 * 1.15 + 2.85 + 6.3, 1);
+    // 15 mm margin, 13 pt name (1.15), 0.8 mm gap, 9 pt title (1.25) below it, 2.5 mm padding, 0.35 mm rule, then the larger of the 6 mm gap and the section gap.
+    const stacked = 13 * 25.4 / 72 * 1.15 + 0.8 + 9 * 25.4 / 72 * 1.25 + 2.85;
+    expect(estimateTabellarischContinuationTop({ ...base, contacts: [] })).toBeCloseTo(15 + stacked + 6.3, 1);
+    expect(estimateTabellarischContinuationTop({ ...base, title: "", contacts: [] })).toBeCloseTo(15 + 13 * 25.4 / 72 * 1.15 + 2.85 + 6.3, 1);
+    expect(estimateTabellarischContinuationTop({ ...base, title: "Softwareentwicklerin und Fachinformatikerin ".repeat(5), contacts: [] }))
+      .toBeGreaterThan(estimateTabellarischContinuationTop({ ...base, contacts: [] }) + 3);
     expect(estimateTabellarischContinuationTop({ ...base, contacts: ["mira@example.org", "+49 170 1234567"] }))
       .toBeGreaterThan(estimateTabellarischContinuationTop({ ...base, contacts: [] }));
-    expect(estimateTabellarischContinuationTop({ ...base, contacts: [], sectionGapMm: 3 })).toBeCloseTo(15 + 13 * 25.4 / 72 * 1.15 + 2.85 + 6, 1);
+    expect(estimateTabellarischContinuationTop({ ...base, contacts: [], sectionGapMm: 3 })).toBeCloseTo(15 + stacked + 6, 1);
     const output = renderCv("tabellarisch", pilotProfile({ resumeContinuationContactVisibility: { email: true, phone: false } }));
     expect(output.pdfPages.length).toBeGreaterThan(1);
     for (const [surface, pages, head] of [["preview", output.previewPages, ".tabellarisch-continuation-header"], ["pdf", output.pdfPages, ".tabellarisch-pdf-continuation"]] as const) {

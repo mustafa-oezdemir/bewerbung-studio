@@ -12,6 +12,7 @@ import {
   normalizeContinuationHeader,
   ensureResumeHeaderContacts,
   repeatResumeHeader,
+  firstPageOnlyPhotoTemplates,
   applyContinuationColumns,
   ensureContinuationSidebar,
   removeEmptyCareerHint,
@@ -1165,7 +1166,10 @@ export const applyManagedResumeOutput = (
         // (Klassisch: a running head, so the text of a later page fills it like a Word document).
         ensureResumeHeaderContacts(root, continuationContacts);
       } else if (number > 1) {
-        repeatResumeHeader(root, firstPageHeader, continuationContacts, { title: profile.title });
+        repeatResumeHeader(root, firstPageHeader, continuationContacts, {
+          title: profile.title,
+          photo: !isAts && firstPageOnlyPhotoTemplates.has(resolved.templateId) ? "first-page-only" : "repeat",
+        });
         // Kompakt keeps the photo on the first page; the rest of the repeated header stays as it is.
         if (resolved.templateId === "kompakt") {
           const header = root.querySelector("header");

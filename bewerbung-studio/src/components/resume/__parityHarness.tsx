@@ -57,7 +57,7 @@ const semantic = (page: Element) => ({
 export const renderCv = (
   templateId: string,
   profile: ApplicantProfile,
-  options: { ats?: boolean; overrides?: Partial<Application["designSettings"]>; documents?: Record<string, string> } = {},
+  options: { ats?: boolean; overrides?: Partial<Application["designSettings"]>; documents?: Record<string, string>; photoSource?: string | null } = {},
 ) => {
   const application = harnessApplication(templateId, { ...options.overrides, resumeOutputMode: options.ats ? "ats" : "visual" }, options.documents);
   const settings = application.designSettings;
@@ -69,7 +69,7 @@ export const renderCv = (
       <ManagedResumePreview designSettings={settings} resolvedCv={resolved} profile={resolved.profile} templateId={templateId} pageNumber={index + 1} totalPages={resolved.pagePlan.length}>
         {createElement(component, {
           profile: resolved.profile, templateId, name: `${profile.firstName} ${profile.lastName}`, atsMode: settings.resumeOutputMode === "ats", plan,
-          totalPages: resolved.pagePlan.length, accentColor: template.accent, secondaryColor: template.secondary, photoSource: null,
+          totalPages: resolved.pagePlan.length, accentColor: template.accent, secondaryColor: template.secondary, photoSource: options.photoSource ?? null,
           resumeProfile: resolved.summary, sections: resolved.sections, backgroundId: "white", closingDate: resolved.closingDate,
           design: resolved.design, designSettings: resolved.settings,
           designVariables: resolved.zweispaltigVariables,

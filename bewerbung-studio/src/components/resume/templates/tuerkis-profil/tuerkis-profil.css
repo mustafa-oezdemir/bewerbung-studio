@@ -306,6 +306,11 @@
 .cv-sheet[data-template="tuerkis-profil"] :is(.zweispaltig-pdf-main,.zweispaltig-pdf-sidebar) > :first-child {
   margin-top: 0 !important;
 }
+/* Later pages repeat name and Berufsbezeichnung without the photo: the text starts one section gap below them. */
+.tuerkis-profil-template[data-continuation="true"] .zweispaltig-page__visual > .zweispaltig-header,
+.cv-sheet[data-template="tuerkis-profil"][data-resume-page]:not([data-resume-page="1"]) .zweispaltig-pdf:not(.zweispaltig-pdf-ats) > .zweispaltig-pdf-header {
+  margin-bottom: var(--zweispaltig-section-gap, 6.5mm);
+}
 .tuerkis-profil-template[data-continuation="true"] .zweispaltig-columns,
 .cv-sheet[data-template="tuerkis-profil"][data-resume-page]:not([data-resume-page="1"]) .zweispaltig-pdf-columns {
   display: flex;

@@ -1,7 +1,7 @@
 import type { CvDesignTokens } from "./cvDesignSchema";
 import { getDocumentFont } from "./documentDesign";
 import { tabellarischDefaults } from "./cvTemplateDefaults/tabellarisch.defaults";
-import { textWidthMm, wrappedLines } from "./textMetrics";
+import { wrappedLines } from "./textMetrics";
 
 const PT_TO_MM = 25.4 / 72;
 const mm = (value: number) => `${Math.round(value * 100) / 100}mm`;
@@ -94,23 +94,23 @@ export const getTabellarischDesignVariables = (design: CvDesignTokens): Record<s
   };
 };
 
-/** The compact head of a later page: name (left) beside the Berufsbezeichnung and the chosen contacts (right). */
+/** The compact head of a later page, left-aligned and stacked: name, Berufsbezeichnung, the chosen contacts. */
 const continuation = {
   nameLineHeight: 1.15,
   titleLineHeight: 1.25,
+  /** Between the name and the Berufsbezeichnung. */
+  titleGapMm: 0.8,
   contactSizePt: 8,
   contactLineHeight: 1.25,
   /** Above the contacts (below the title) and between two of them. */
   contactGapMm: 1,
   contactRowGapMm: 0.6,
-  /** The right column takes the width its text needs, up to this share of the line. */
-  titleShare: 0.6,
 };
 
 /**
  * Where the first section of a later Tabellarisch page starts (mm from the top of the sheet): the top margin, the compact
- * head (name beside the Berufsbezeichnung and the e-mail / phone chosen for later pages, each wrapped with the measured
- * font advances), its rule, and the larger of its gap and the first section's gap (the two margins collapse).
+ * head (name, below it the Berufsbezeichnung and the e-mail / phone chosen for later pages, each wrapped at the full width
+ * with the measured font advances), its rule, and the larger of its gap and the first section's gap (the two margins collapse).
  */
 export const estimateTabellarischContinuationTop = (options: {
   name: string;
@@ -121,22 +121,17 @@ export const estimateTabellarischContinuationTop = (options: {
 }) => {
   const { typography: type, layout } = tabellarischDefaults;
   const geometry = resolveTabellarischGeometry(options.pageMarginMm);
-  const titleMm = type.continuationTitleSizePt * PT_TO_MM;
-  const contactMm = continuation.contactSizePt * PT_TO_MM;
-  const texts = [options.title.trim(), ...options.contacts.map((value) => value.trim())].filter(Boolean);
-  const widest = Math.max(0, ...texts.map((text, index) => textWidthMm(text, index === 0 && options.title.trim() ? titleMm : contactMm, 600)));
-  // fit-content(60 %): a share of the whole head, the column gap not taken off.
-  const rightWidth = texts.length ? Math.min(widest + 0.5, geometry.contentWidth * continuation.titleShare) : 0;
-  const nameWidth = geometry.contentWidth - (texts.length ? rightWidth + layout.continuationHeaderColumnGapMm : 0);
-  const nameLines = Math.max(1, wrappedLines(options.name, nameWidth, type.continuationNameSizePt * PT_TO_MM, 750));
-  const titleLines = options.title.trim() ? wrappedLines(options.title, rightWidth, titleMm, 600) : 0;
+  const width = geometry.contentWidth;
+  const nameLines = Math.max(1, wrappedLines(options.name, width, type.continuationNameSizePt * PT_TO_MM, 750));
+  const titleLines = options.title.trim() ? wrappedLines(options.title, width, type.continuationTitleSizePt * PT_TO_MM, 600) : 0;
   const contacts = options.contacts.filter((value) => value.trim());
-  const contactLines = contacts.reduce((total, value) => total + Math.max(1, wrappedLines(value, rightWidth, contactMm, 600)), 0);
-  const left = nameLines * lineMm(type.continuationNameSizePt, continuation.nameLineHeight);
-  const right = titleLines * lineMm(type.continuationTitleSizePt, continuation.titleLineHeight)
-    + (contacts.length ? (titleLines ? continuation.contactGapMm : 0) + contactLines * lineMm(continuation.contactSizePt, continuation.contactLineHeight)
-      + (contacts.length - 1) * continuation.contactRowGapMm : 0);
-  const head = Math.max(left, right) + layout.continuationHeaderPaddingMm + layout.continuationHeaderRuleMm;
+  const contactLines = contacts.reduce((total, value) => total + Math.max(1, wrappedLines(value, width, continuation.contactSizePt * PT_TO_MM, 600)), 0);
+  const name = nameLines * lineMm(type.continuationNameSizePt, continuation.nameLineHeight);
+  const title = titleLines ? continuation.titleGapMm + titleLines * lineMm(type.continuationTitleSizePt, continuation.titleLineHeight) : 0;
+  const contactBlock = contacts.length
+    ? continuation.contactGapMm + contactLines * lineMm(continuation.contactSizePt, continuation.contactLineHeight) + (contacts.length - 1) * continuation.contactRowGapMm
+    : 0;
+  const head = name + title + contactBlock + layout.continuationHeaderPaddingMm + layout.continuationHeaderRuleMm;
   // The head's bottom margin and the first section's top margin (its section gap) collapse into the larger one.
   return geometry.top + head + Math.max(layout.continuationHeaderGapMm, options.sectionGapMm);
 };
@@ -147,13 +142,12 @@ export const estimateTabellarischContinuationTop = (options: {
  */
 export const tabellarischSectionTitleCss = `:is(.tabellarisch-template,.tabellarisch-pdf) [data-managed-section]>:is(h2,h3){color:var(--tabellarisch-section-title-color,${tabellarischDefaults.colors.sectionTitle})}`;
 
-/** The continuation head's own rules (both surfaces): a grid, the right column holds title and contacts. */
+/** The continuation head's own rules (both surfaces): one left-aligned column, title and contacts below the name. */
 export const tabellarischContinuationCss = (scope: string) => `
-${scope}{display:grid;grid-template-columns:minmax(0,1fr) fit-content(${continuation.titleShare * 100}%);column-gap:${mm(tabellarischDefaults.layout.continuationHeaderColumnGapMm)};align-items:start;margin:0 0 ${mm(tabellarischDefaults.layout.continuationHeaderGapMm)};padding-bottom:${mm(tabellarischDefaults.layout.continuationHeaderPaddingMm)};border-bottom:${mm(tabellarischDefaults.layout.continuationHeaderRuleMm)} solid var(--tabellarisch-line)}
-${scope}>:first-child{grid-column:1;grid-row:1/span 2;margin:0;color:var(--tabellarisch-primary);font-family:var(--tabellarisch-heading-font);font-size:var(--tabellarisch-continuation-name-size,${tabellarischDefaults.typography.continuationNameSizePt}pt);font-weight:750;line-height:${continuation.nameLineHeight};overflow-wrap:anywhere}
-${scope}>:not(:first-child){grid-column:2;margin:0;text-align:right;overflow-wrap:anywhere}
-${scope}>:nth-child(2):not([data-resume-header-extra-contact]){color:var(--tabellarisch-accent);font-size:var(--tabellarisch-continuation-title-size,${tabellarischDefaults.typography.continuationTitleSizePt}pt);font-weight:600;line-height:${continuation.titleLineHeight}}
-${scope}>[data-resume-header-extra-contact]{display:flex;flex-direction:column;align-items:flex-end;gap:${mm(continuation.contactRowGapMm)};margin:${mm(continuation.contactGapMm)} 0 0;color:var(--tabellarisch-text);font-size:${continuation.contactSizePt}pt;font-style:normal;font-weight:600;line-height:${continuation.contactLineHeight}}
-${scope}>[data-resume-header-extra-contact]:nth-child(2){margin-top:0}
+${scope}{display:grid;grid-template-columns:minmax(0,1fr);margin:0 0 ${mm(tabellarischDefaults.layout.continuationHeaderGapMm)};padding-bottom:${mm(tabellarischDefaults.layout.continuationHeaderPaddingMm)};border-bottom:${mm(tabellarischDefaults.layout.continuationHeaderRuleMm)} solid var(--tabellarisch-line)}
+${scope}>:first-child{margin:0;color:var(--tabellarisch-primary);font-family:var(--tabellarisch-heading-font);font-size:var(--tabellarisch-continuation-name-size,${tabellarischDefaults.typography.continuationNameSizePt}pt);font-weight:750;line-height:${continuation.nameLineHeight};overflow-wrap:anywhere}
+${scope}>:not(:first-child){margin:0;text-align:left;overflow-wrap:anywhere}
+${scope}>:nth-child(2):not([data-resume-header-extra-contact]){margin-top:${mm(continuation.titleGapMm)};color:var(--tabellarisch-accent);font-size:var(--tabellarisch-continuation-title-size,${tabellarischDefaults.typography.continuationTitleSizePt}pt);font-weight:600;line-height:${continuation.titleLineHeight}}
+${scope}>[data-resume-header-extra-contact]{display:flex;flex-direction:column;align-items:flex-start;gap:${mm(continuation.contactRowGapMm)};margin:${mm(continuation.contactGapMm)} 0 0;color:var(--tabellarisch-text);font-size:${continuation.contactSizePt}pt;font-style:normal;font-weight:600;line-height:${continuation.contactLineHeight}}
 ${scope}>[data-resume-header-extra-contact] a{color:inherit;text-decoration:none}
 `;

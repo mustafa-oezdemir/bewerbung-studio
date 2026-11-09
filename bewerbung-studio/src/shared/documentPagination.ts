@@ -47,7 +47,9 @@ import { formatPhoneForDisplay, getResumeHeaderContactTexts, getResumePersonalDe
 import { getResumePhotoGrowth, getResumePhotoScale, resumePhotoShown } from "./resumePhoto";
 import { formatCareerPeriod, resolveExperience } from "./resumeCareer";
 import { getResumeSectionTitle, savedTemplateSidebarOrder } from "../features/resume-sections/resume-sections";
-import { estimateAtsHeaderTop, estimateElegantHeaderTop, estimateGepflegtHeaderTop, estimateKreativHeaderTop, estimateResumeHeaderTop, estimateStilvollHeaderTop, estimateTabellarischTop } from "./resumeHeaderGeometry";
+import { estimateAtsHeaderTop, estimateElegantHeaderTop, estimateGepflegtHeaderTop, estimateKreativContinuationTop, estimateKreativHeaderTop, estimateRepeatedHeaderTop, estimateResumeHeaderTop, estimateStilvollHeaderTop, estimateTabellarischTop } from "./resumeHeaderGeometry";
+import { firstPageOnlyPhotoTemplates } from "./resumeContinuation";
+import { resolveResumeStrengths } from "./resumeStrengths";
 import { resolveLanguagePresentation } from "../features/languages/language-levels";
 import { languageBlockHeight } from "./languageBlockHeight";
 import type { ResumeTextRole } from "./resumeTextRoles";
@@ -2173,6 +2175,33 @@ const planResumePages = (
       ats: context.atsMode,
     })
     : undefined;
+  /** The e-mail and phone the user chose for later pages. */
+  const continuationContactTexts = showContacts && profile ? [
+    profile.resumeContinuationContactVisibility.email ? profile.email : "",
+    profile.resumeContinuationContactVisibility.phone ? formatPhoneForDisplay(profile.phone) : "",
+  ] : [];
+  // Zweispaltig, Türkis Profil and Modern: later pages repeat name and Berufsbezeichnung without the photo, computed from the stylesheet.
+  const repeatedHeaderTop = () => {
+    if (context.atsMode || !profile || !templateId || !firstPageOnlyPhotoTemplates.has(templateId)) return undefined;
+    const title = (profile.title ?? "").trim();
+    const specialties = templateId === "modern" && title.length < 48 ? resolveResumeStrengths(profile, 2).map((item) => item.title) : [];
+    return estimateRepeatedHeaderTop(templateId, {
+      name: `${profile.firstName ?? ""} ${profile.lastName ?? ""}`.trim(),
+      title: [title, ...specialties].filter(Boolean).join(" | "),
+      contacts: continuationContactTexts,
+      widthMm: templateId === "tuerkis-profil"
+        ? resolveTuerkisGeometry(context.overrides?.pageMarginMm).contentWidth
+        : geometry.contentRight - geometry.contentLeft - 2 * scale.marginInset,
+      // A smaller page margin lifts the first section; Modern's repeated header keeps its gap (resumeContinuationCss).
+      gapAfterMm: templateId === "modern" ? 4 - Math.min(0, scale.marginInset) : sectionGap,
+      namePt: context.overrides?.headingSizePt,
+      titlePt: context.overrides?.subheadingSizePt,
+    });
+  };
+  // Kreativ: the compact head of a later page stacks its lines, computed from the stylesheet.
+  const kreativContinuationTop = () => templateId === "kreativ" && profile && !context.atsMode
+    ? estimateKreativContinuationTop(profile, continuationContactTexts, geometry.text.bulletFont * scale.font * 72 / 25.4, geometry.text.lineRatio * scale.line, scale.marginInset)
+    : undefined;
   const top1 = atsHeaderTop("first") ?? gepflegtHeaderTop(showContacts) ?? tabellarischHeaderTop(false) ?? klassischHeaderTop(false) ?? einspaltigHeaderTop(false) ?? (templateId === "kreativ" && profile && !context.atsMode
     ? estimateKreativHeaderTop(profile, showContacts, withPhoto,
         geometry.text.bulletFont * scale.font * 72 / 25.4, geometry.text.lineRatio * scale.line, scale.marginInset)
@@ -2196,14 +2225,13 @@ const planResumePages = (
     ? Math.max(0, Math.ceil(gepflegtName.length / (17 * scale.mainRatio)) - 1) * 9.14
       + Math.max(0, Math.ceil((profile?.title ?? "").length / (38 * scale.mainRatio)) - 1) * 5.73
     : 0;
-  const top2 = atsHeaderTop("cont") ?? gepflegtHeaderTop(false) ?? tabellarischHeaderTop(true) ?? klassischHeaderTop(true) ?? einspaltigHeaderTop(true) ?? ((templateId === "kreativ" || templateId === "stilvoll" || templateId === "gepflegt") && !context.atsMode
+  const top2 = atsHeaderTop("cont") ?? gepflegtHeaderTop(false) ?? tabellarischHeaderTop(true) ?? klassischHeaderTop(true) ?? einspaltigHeaderTop(true) ?? repeatedHeaderTop() ?? kreativContinuationTop() ?? ((templateId === "kreativ" || templateId === "stilvoll" || templateId === "gepflegt") && !context.atsMode
     ? geometry.top2 + gepflegtMainContinuationGrowth
     : templateId === "elegant" && !context.atsMode
     ? elegantDefaults.layout.mainTopMm + scale.marginInset + 18.2 + sectionGap
     : templateId === "kompakt" && !context.atsMode
       ? geometry.top2 + (contactOnContinuation ? 5.5 : 0)
-    // Türkis Profil's later pages repeat a compact header of their own above the one-column flow (measured: 42 mm in the
-    // PDF, the preview starts higher); page one has no header above its main column.
+    // Türkis Profil without a profile to measure: page one has no header above its main column.
     : templateId === "tuerkis-profil" && !context.atsMode
       ? geometry.top2
       : grownTop((context.atsMode ? stackedHeight ?? geometry.atsTop2 : geometry.top1) + kompaktContactHeight + photoGrowth.main, true));

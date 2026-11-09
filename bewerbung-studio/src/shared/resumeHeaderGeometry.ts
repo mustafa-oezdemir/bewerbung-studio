@@ -9,11 +9,13 @@ import { getTabellarischHeaderContacts, type TabellarischHeaderContact } from ".
 export { getTabellarischHeaderContacts } from "./tabellarischHeaderContacts";
 import { getResumePhotoScale } from "./resumePhoto";
 import { kreativDefaults } from "./cvTemplateDefaults/kreativ.defaults";
+import { tuerkisProfilDefaults } from "./cvTemplateDefaults/tuerkis-profil.defaults";
+import { zweispaltigDefaults } from "./cvTemplateDefaults/zweispaltig.defaults";
 import { stilvollDefaults, stilvollDesign } from "./cvTemplateDefaults/stilvoll.defaults";
 import { elegantDefaults } from "./cvTemplateDefaults/elegant.defaults";
 import { isElegantWideContact } from "./elegantDesign";
 import { gepflegtWideContactChars, isWideGepflegtContact } from "./gepflegtDesign";
-import { wrappedLines } from "./textMetrics";
+import { textWidthMm, wrappedLines } from "./textMetrics";
 
 /**
  * How far down a Lebenslauf header pushes the page content, from the data it shows.
@@ -359,6 +361,72 @@ const contactBlock = (lengths: readonly number[], model: HeaderModel) => {
     }
   }
   return { rows: lines, lines };
+};
+
+const MM_PER_PT = 25.4 / 72;
+/** Room left under a computed continuation header for what the font metrics cannot see. */
+const CONTINUATION_HEADER_RESERVE_MM = 0.5;
+
+/** The contacts chosen for later pages: the shared line under the title (`resumeContinuationCss`), its items wrap as a whole. */
+const continuationContactsHeight = (contacts: readonly string[], widthMm: number) => {
+  const values = contacts.map((value) => value.trim()).filter(Boolean);
+  if (!values.length) return 0;
+  const fontMm = 8 * MM_PER_PT;
+  let rows = 1;
+  let used = 0;
+  for (const value of values) {
+    const width = Math.min(textWidthMm(value, fontMm), widthMm);
+    if (used && used + 5 + width > widthMm) {
+      rows += 1;
+      used = width;
+    } else used += (used ? 5 : 0) + width;
+  }
+  return 1.5 + rows * fontMm * 1.25 + (rows - 1);
+};
+
+/** Later pages of these templates repeat name and Berufsbezeichnung at the full width: no photo, whatever its size. */
+const repeatedHeaders: Record<string, {
+  topMm: number; namePt: number; nameWeight: number; nameSpacingEm: number;
+  titlePt: number; titleWeight: number; titleLineHeight: number; titleGapMm: number;
+}> = {
+  zweispaltig: { topMm: zweispaltigDefaults.layout.marginTopMm, namePt: 24, nameWeight: 750, nameSpacingEm: 0.025, titlePt: 11.5, titleWeight: 700, titleLineHeight: 1.2, titleGapMm: 1.5 },
+  "tuerkis-profil": { topMm: tuerkisProfilDefaults.page.marginTopMm, namePt: 24, nameWeight: 750, nameSpacingEm: 0.025, titlePt: 11.5, titleWeight: 700, titleLineHeight: 1.2, titleGapMm: 1.5 },
+  modern: { topMm: 14, namePt: 24, nameWeight: 700, nameSpacingEm: 0.01, titlePt: 12, titleWeight: 500, titleLineHeight: 1.18, titleGapMm: 2 },
+};
+
+/** Where the first section of a later page starts under that repeated header (mm from the top of the sheet). */
+export const estimateRepeatedHeaderTop = (
+  templateId: string,
+  options: { name: string; title: string; contacts: readonly string[]; widthMm: number; gapAfterMm: number; namePt?: number; titlePt?: number },
+): number | undefined => {
+  const header = repeatedHeaders[templateId];
+  if (!header) return undefined;
+  const nameMm = (options.namePt ?? header.namePt) * MM_PER_PT;
+  const titleMm = (options.titlePt ?? header.titlePt) * MM_PER_PT;
+  const nameLines = Math.max(1, wrappedLines(options.name.toLocaleUpperCase("de-DE"), options.widthMm, nameMm, header.nameWeight, header.nameSpacingEm));
+  const title = options.title.trim();
+  const titleHeight = title ? header.titleGapMm + wrappedLines(title, options.widthMm, titleMm, header.titleWeight) * titleMm * header.titleLineHeight : 0;
+  const content = nameLines * nameMm + titleHeight + continuationContactsHeight(options.contacts, options.widthMm);
+  return header.topMm + content + options.gapAfterMm + CONTINUATION_HEADER_RESERVE_MM;
+};
+
+/** Kreativ's compact head on a later page: heading line, name, Berufsbezeichnung and the chosen contacts stacked above its rule. */
+export const estimateKreativContinuationTop = (
+  profile: ApplicantProfile,
+  contacts: readonly string[],
+  bodySizePt: number,
+  lineHeight: number,
+  marginShiftMm = 0,
+): number => {
+  const width = 210 - kreativDefaults.page.marginLeftMm - kreativDefaults.page.marginRightMm - 2 * marginShiftMm;
+  const nameMm = 15 * MM_PER_PT;
+  const titleMm = bodySizePt * 0.88 * MM_PER_PT;
+  const kicker = 7.3 * MM_PER_PT * lineHeight + 1.5;
+  const nameHeight = Math.max(1, wrappedLines(getResumeFullName(profile), width, nameMm, 750, 0.015)) * nameMm;
+  const title = profile.title.trim();
+  const titleHeight = title ? 1 + wrappedLines(title, width, titleMm, 650) * titleMm * lineHeight : 0;
+  return 12 + kicker + nameHeight + titleHeight + continuationContactsHeight(contacts, width) + 4 + 0.4
+    + kreativDefaults.layout.headerToContentGapMm + CONTINUATION_HEADER_RESERVE_MM;
 };
 
 /** Kreativ's full-width banner grows from the same inner width, font and contact grid as its renderer. */

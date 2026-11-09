@@ -114,7 +114,6 @@ export const tabellarischDefaults = {
     continuationHeaderPaddingMm: 2.5,
     continuationHeaderRuleMm: 0.35,
     continuationHeaderGapMm: 6,
-    continuationHeaderColumnGapMm: 8,
   },
   strengths: {
     columnsCount: 2,
