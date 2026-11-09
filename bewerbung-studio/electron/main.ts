@@ -50,7 +50,7 @@ import { ApplicationFolderLockedError } from "./file-management";
 import { mergePdfDocuments } from "./pdf";
 import { TemplateService } from "./templates/template.service";
 import { createDefaultCoverLetterDocument } from "./templates/default-cover-letter";
-import { createDefaultDeckblattDocument } from "./templates/default-deckblatt";
+import { createDefaultDeckblattDocument, missingDeckblattFields } from "./templates/default-deckblatt";
 import { sanitizeSynchronizedDocumentFileName } from "./templates/template-filename.service";
 import { wordMusterTemplateConfig } from "../src/features/templates/template.constants";
 import { WorkspaceManager, sameWorkspaceRoot } from "./workspace-management";
@@ -273,6 +273,8 @@ const synchronizeApplicationCoverLetter = async (applicationId: string) => {
 const synchronizeApplicationDeckblatt = async (applicationId: string) => {
   const context = store.getTemplateDocumentContext(applicationId);
   const data = { ...context.data };
+  // Background sync: incomplete data must not fail a save or the app start. The PDF export still reports what is missing.
+  if (missingDeckblattFields(data).length) return undefined;
   if (data.PROFILFOTO) {
     const photo = nativeImage.createFromDataURL(data.PROFILFOTO);
     data.PROFILFOTO = photo.isEmpty()

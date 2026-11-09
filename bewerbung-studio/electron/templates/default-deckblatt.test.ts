@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import PizZip from "pizzip";
 import { describe, expect, it } from "vitest";
-import { createDefaultDeckblattDocument } from "./default-deckblatt";
+import { createDefaultDeckblattDocument, missingDeckblattFields } from "./default-deckblatt";
 
 const widePng =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADUlEQVR42mNk+M/wHwAF/gL+Xb07WQAAAABJRU5ErkJggg==";
@@ -116,5 +116,13 @@ describe("automatic default Deckblatt DOCX", () => {
         BEWERBER_NAME: "",
       }),
     ).rejects.toThrow("Name der Bewerberin oder des Bewerbers");
+  });
+
+  it("names exactly what a background sync has to skip", () => {
+    expect(missingDeckblattFields(baseData)).toEqual([]);
+    expect(
+      missingDeckblattFields({ ...baseData, BEWERBER_NAME: "  ", STELLENBEZEICHNUNG: "" }),
+    ).toEqual(["Name der Bewerberin oder des Bewerbers", "Stellenbezeichnung"]);
+    expect(missingDeckblattFields({ ...baseData, FIRMA_NAME: "" })).toEqual(["Unternehmen"]);
   });
 });

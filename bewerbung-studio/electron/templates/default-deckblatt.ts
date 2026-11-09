@@ -97,6 +97,14 @@ export const deckblattTemplateKeys = [
   "STELLENNUMMER",
 ] as const;
 
+/** What a Deckblatt cannot be made without: a background sync skips it, an explicit creation reports it. */
+export const missingDeckblattFields = (data: Record<string, string>) =>
+  [
+    !data.BEWERBER_NAME?.trim() ? "Name der Bewerberin oder des Bewerbers" : "",
+    !data.FIRMA_NAME?.trim() ? "Unternehmen" : "",
+    !data.STELLENBEZEICHNUNG?.trim() ? "Stellenbezeichnung" : "",
+  ].filter(Boolean);
+
 export const createDefaultDeckblattDocument = async (
   targetDirectory: string,
   requestedBaseName: string,
@@ -105,11 +113,7 @@ export const createDefaultDeckblattDocument = async (
   const applicantName = data.BEWERBER_NAME?.trim();
   const company = data.FIRMA_NAME?.trim();
   const position = data.STELLENBEZEICHNUNG?.trim();
-  const missing = [
-    !applicantName ? "Name der Bewerberin oder des Bewerbers" : "",
-    !company ? "Unternehmen" : "",
-    !position ? "Stellenbezeichnung" : "",
-  ].filter(Boolean);
+  const missing = missingDeckblattFields(data);
   if (missing.length) {
     throw new Error(
       `Deckblatt kann nicht erstellt werden. Bitte ergänzen Sie: ${missing.join(", ")}.`,
