@@ -119,7 +119,7 @@ export const stilvollResolvedCss = `
 .stilvoll-template .stilvoll-career li,.stilvoll-pdf .stilvoll-pdf-entry li{font-size:var(--doc-body-size);line-height:var(--doc-line-height);color:var(--stilvoll-paragraph)}
 .stilvoll-template [data-managed-section],.stilvoll-pdf [data-managed-section]{font-size:var(--doc-body-size);line-height:var(--doc-line-height)}
 .stilvoll-template [data-custom-template="stilvoll"] [data-custom-role="body"],.stilvoll-pdf [data-custom-template="stilvoll"] [data-custom-role="body"]{font-size:var(--doc-body-size)!important;line-height:var(--doc-line-height)!important;color:var(--stilvoll-paragraph)}
-.stilvoll-template [data-managed-section="languages"] :is(.resume-language-primary,.resume-language-level,.resume-language-description),.stilvoll-pdf [data-managed-section="languages"] :is(.resume-language-primary,.resume-language-level,.resume-language-description){font-size:var(--doc-body-size);line-height:var(--doc-line-height)}
+.stilvoll-template [data-managed-section="languages"] :is(.resume-language-primary,.resume-language-level,.resume-language-separator,.resume-language-description),.stilvoll-pdf [data-managed-section="languages"] :is(.resume-language-primary,.resume-language-level,.resume-language-separator,.resume-language-description){font-size:var(--doc-body-size);line-height:var(--doc-line-height)}
 .stilvoll-template [data-managed-section] :is(p,li,strong,span),.stilvoll-pdf [data-managed-section] :is(p,li,strong,span){line-height:var(--doc-line-height)}
 .stilvoll-template [data-resume-closing-placement="footer"],.cv-sheet[data-template="stilvoll"] [data-resume-closing-placement="footer"]{left:var(--stilvoll-margin-left);right:var(--stilvoll-margin-right);bottom:calc(var(--stilvoll-margin-bottom) + 7mm)}
 `;

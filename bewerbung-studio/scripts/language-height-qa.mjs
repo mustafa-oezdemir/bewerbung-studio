@@ -14,9 +14,18 @@ const vite = await createServer({ configFile: false, root: process.cwd(), appTyp
 try {
   const { buildDocumentHtml } = await vite.ssrLoadModule('/electron/documents.ts');
   const { profileSchema, applicationSchema } = await vite.ssrLoadModule('/src/shared/schema.ts');
-  const { templates } = await vite.ssrLoadModule('/src/shared/templates.ts');
+  const { templates, getReadableTextColor } = await vite.ssrLoadModule('/src/shared/templates.ts');
   const { getTemplateDocumentDesignDefaults } = await vite.ssrLoadModule('/src/shared/cvDesign.ts');
+  const { getDocumentDesignVariables } = await vite.ssrLoadModule('/src/shared/documentDesign.ts');
   const { setResumePhotoVisible } = await vite.ssrLoadModule('/src/shared/resumePhoto.ts');
+  const { resolveCvDocument } = await vite.ssrLoadModule('/src/shared/resolveCvDocument.ts');
+  const { ManagedResumePreview } = await vite.ssrLoadModule('/src/components/resume/ManagedResumePreview.tsx');
+  const { resumeComponents } = await vite.ssrLoadModule('/src/components/resume/__parityHarness.tsx');
+  const { resumeTemplateStyleSources } = await vite.ssrLoadModule('/src/components/resume/resumeTemplateStyleSources.ts');
+  const { createElement: h } = await import('react');
+  const { renderToStaticMarkup } = await import('react-dom/server');
+  const preflight = await readFile('node_modules/tailwindcss/preflight.css', 'utf8');
+  const appCss = (await readFile('src/app.css', 'utf8')).replace('@import "tailwindcss";', '');
   const photo = (await readFile('scripts/fixtures/qa-photo.b64', 'utf8')).trim();
   const now = new Date().toISOString();
   const uid = (n) => `9d000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -53,6 +62,26 @@ try {
           const file = `${template.id}-${combo}-${count}${ats ? '-ats' : ''}`;
           globalThis.__langLog = [];
           await writeFile(resolve(out, `${file}.html`), buildDocumentHtml(application, profile, 'lebenslauf'));
+          // A focused real-PDF parity fixture: every visual template with four languages in its default dots-only view.
+          if (!ats && combo === 'dots' && count === 4) {
+            const resolved = resolveCvDocument({ profile, templateId: template.id, settings, application });
+            const Resume = resumeComponents[template.id];
+            const pages = resolved.pagePlan.map((plan, index) => renderToStaticMarkup(h(ManagedResumePreview, {
+              designSettings: settings, resolvedCv: resolved, profile: resolved.profile, templateId: template.id,
+              pageNumber: index + 1, totalPages: resolved.pagePlan.length,
+            }, h(Resume, {
+              profile: resolved.profile, templateId: template.id, name: `${profile.firstName} ${profile.lastName}`,
+              atsMode: false, plan, totalPages: resolved.pagePlan.length, accentColor: template.accent,
+              secondaryColor: template.secondary, photoSource: resolved.profile.photoPath || null,
+              resumeProfile: resolved.summary, sections: resolved.sections, backgroundId: 'white', closingDate: resolved.closingDate,
+              design: resolved.design, designSettings: resolved.settings, designVariables: resolved.zweispaltigVariables,
+            }))));
+            const paperStyle = Object.entries({ '--doc-accent': template.accent, '--doc-secondary': template.secondary,
+              '--doc-on-secondary': getReadableTextColor(template.secondary), ...getDocumentDesignVariables(settings) })
+              .map(([key, value]) => `${key}:${value}`).join(';').replaceAll('"', '&quot;');
+            const paper = (page) => `<div class="document-paper document-lebenslauf layout-${template.layout} column-${settings.columnLayout} background-${settings.backgroundId} background-scope-${settings.backgroundScope} print-background" style="${paperStyle}">${page}</div>`;
+            await writeFile(resolve(out, `${file}-preview.html`), `<!doctype html><html><head><meta charset="utf-8"><style>${preflight}${appCss}${resumeTemplateStyleSources[template.id]} @page{size:A4;margin:0} body{margin:0;background:white} .document-paper{break-after:page}</style></head><body>${pages.map(paper).join('')}</body></html>`);
+          }
           manifest.push({ file, template: template.id, combo, count, ats, planned: globalThis.__langLog });
         }
       }

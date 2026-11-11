@@ -218,7 +218,8 @@ describe("page planner", () => {
       // Kreativ, Klassisch and Einspaltig measure their actual header and photo size, so Klein may free one more bullet on page one.
       const small = plan(long({ resumePhotoSize: "small" }), id);
       const medium = plan(long({ resumePhotoSize: "medium" }), id);
-      expect(small).toHaveLength(medium.length);
+      // A smaller header can now free enough room to remove the final page altogether.
+      expect(small.length).toBeLessThanOrEqual(medium.length);
       expect(small[0].items.length).toBeGreaterThanOrEqual(medium[0].items.length);
     } else expect(JSON.stringify(plan(long({ resumePhotoSize: "small" }), id))).toBe(reference);
   });

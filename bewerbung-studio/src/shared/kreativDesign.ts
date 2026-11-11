@@ -114,7 +114,7 @@ export const kreativResolvedCss = `
 .kreativ-template .kreativ-skill,.kreativ-pdf .kreativ-pdf-skill{font-size:var(--doc-body-size);line-height:var(--doc-line-height)}
 .kreativ-template [data-managed-section="strengths"] .managed-strength-card :is(strong,p),.kreativ-pdf [data-managed-section="strengths"] .managed-strength-card :is(strong,p){font-size:var(--doc-body-size);line-height:var(--doc-line-height)}
 .kreativ-template .resume-language-primary,.kreativ-pdf .resume-language-primary{font-size:var(--doc-body-size);line-height:var(--doc-line-height)}
-.kreativ-template :is(.resume-language-level,.resume-language-description),.kreativ-pdf :is(.resume-language-level,.resume-language-description){font-size:calc(var(--doc-body-size) * .88);line-height:var(--doc-line-height)}
+.kreativ-template :is(.resume-language-level,.resume-language-separator,.resume-language-description),.kreativ-pdf :is(.resume-language-level,.resume-language-separator,.resume-language-description){font-size:calc(var(--doc-body-size) * .88);line-height:var(--doc-line-height)}
 .kreativ-template [data-managed-section="knowledge"],.kreativ-pdf [data-managed-section="knowledge"]{font-size:var(--doc-body-size);line-height:var(--doc-line-height)}
 .kreativ-template [data-managed-section="knowledge"] :is(small,h4,h5),.kreativ-pdf [data-managed-section="knowledge"] :is(small,h4,h5){font-size:calc(var(--doc-body-size) * .88);line-height:var(--doc-line-height)}
 .kreativ-template [data-managed-section="certifications"],.kreativ-pdf [data-managed-section="certifications"]{font-size:var(--doc-body-size);line-height:var(--doc-line-height)}

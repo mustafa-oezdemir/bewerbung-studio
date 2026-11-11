@@ -185,7 +185,7 @@ export const gepflegtResolvedCss = [
   both(".gepflegt-strength p", ".gepflegt-pdf-strength p", "font-size:var(--gepflegt-body-size);line-height:var(--gepflegt-line-height);color:var(--gepflegt-sidebar-muted)"),
   both(".gepflegt-languages", ".gepflegt-pdf-languages", "gap:calc(var(--gepflegt-entry-gap) * .8)"),
   both(".gepflegt-languages strong,.gepflegt-languages span", ".gepflegt-pdf-language strong,.gepflegt-pdf-language span", "font-size:var(--gepflegt-body-size);line-height:var(--gepflegt-line-height)"),
-  both(".gepflegt-languages li > div > span,.resume-language-level,.resume-language-description", ".gepflegt-pdf-language em,.resume-language-level,.resume-language-description", "font-size:var(--gepflegt-small-size);line-height:var(--gepflegt-line-height);color:var(--gepflegt-sidebar-muted)"),
+  both(".gepflegt-languages li > div > span,.resume-language-level,.resume-language-separator,.resume-language-description", ".gepflegt-pdf-language em,.resume-language-level,.resume-language-separator,.resume-language-description", "font-size:var(--gepflegt-small-size);line-height:var(--gepflegt-line-height);color:var(--gepflegt-sidebar-muted)"),
   both(".gepflegt-language-dots i", ".gepflegt-pdf-dots i", "width:calc(var(--gepflegt-body-size) * .65);height:calc(var(--gepflegt-body-size) * .65);border-color:var(--gepflegt-sidebar-muted)"),
   both(".gepflegt-language-dots i.is-filled", ".gepflegt-pdf-dots i.filled", "border-color:var(--gepflegt-sidebar-text);background:var(--gepflegt-sidebar-text)"),
   both(".gepflegt-certifications li", ".gepflegt-pdf-certifications li", "font-size:var(--gepflegt-body-size);line-height:var(--gepflegt-line-height);color:var(--gepflegt-sidebar-text)"),

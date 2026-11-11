@@ -3,6 +3,7 @@ import { parseHTML } from "linkedom";
 import { describe, expect, it, vi } from "vitest";
 import { languageDotTemplates, resolveLanguageLevelDisplay } from "../../features/languages/language-levels";
 import { LanguageDisplayOptions } from "../languages/LanguageDisplayOptions";
+import { profileSchema } from "../../shared/schema";
 import { maximalProfile } from "./__parityFixture";
 import { renderCv, resumeTemplateIds } from "./__parityHarness";
 
@@ -37,10 +38,26 @@ const sectionOf = (templateId: string, profile: ReturnType<typeof maximalProfile
 };
 
 describe("language display settings", () => {
-  it("keeps everything on for an older profile and fills missing keys", () => {
-    expect(maximalProfile().resumeLanguageDisplay).toEqual(on);
+  it("shows only the dots for a profile that never chose and keeps every stored choice", () => {
+    const dotsOnly = { dots: true, level: false, description: false };
+    expect(maximalProfile().resumeLanguageDisplay).toEqual(dotsOnly);
+    expect(resolveLanguageLevelDisplay("kaputt")).toEqual(dotsOnly);
+    // Everything on was the default once: a profile saved with it keeps it, like any other stored choice.
+    expect(maximalProfile({ resumeLanguageDisplay: on }).resumeLanguageDisplay).toEqual(on);
+    expect(maximalProfile({ resumeLanguageDisplay: { dots: false, level: false, description: true } }).resumeLanguageDisplay)
+      .toEqual({ dots: false, level: false, description: true });
+    // A stored record without one of the ticks was written when a missing tick meant "shown".
     expect(maximalProfile({ resumeLanguageDisplay: { dots: false } }).resumeLanguageDisplay).toEqual({ dots: false, level: true, description: true });
-    expect(resolveLanguageLevelDisplay("kaputt")).toEqual(on);
+    // Saving does not change what is stored: the parsed profile parses to itself.
+    const saved = maximalProfile({ resumeLanguageDisplay: on, languages: ["Deutsch – Verhandlungssicher", "Englisch – B2"] });
+    expect(profileSchema.parse(JSON.parse(JSON.stringify(saved))).resumeLanguageDisplay).toEqual(on);
+    expect(profileSchema.parse(JSON.parse(JSON.stringify(saved))).languages).toEqual(["Deutsch – Verhandlungssicher", "Englisch – B2"]);
+  });
+
+  it("ticks only Punkte in the panel of a profile that never chose", () => {
+    const html = renderToStaticMarkup(<LanguageDisplayOptions profile={maximalProfile()} onChange={vi.fn()} />);
+    const { document } = parseHTML(`<html><body>${html}</body></html>`);
+    expect(Array.from(document.querySelectorAll("label")).map((label) => label.querySelector("input")?.hasAttribute("checked"))).toEqual([true, false, false]);
   });
 
   it("offers the three parts as checkboxes in the Lebenslauf panel", () => {

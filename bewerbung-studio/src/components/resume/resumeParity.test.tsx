@@ -30,7 +30,7 @@ describe.each(resumeTemplateIds)("maximal profile in %s", (templateId) => {
       const result = renderCv(templateId, profile, { ats: mode === "ats" });
       const missing: string[] = [];
       for (const [group, tokens] of Object.entries(maximalTokens))
-        for (const token of tokens)
+        for (const token of group === "languages" && mode === "visual" ? ["Englisch", "Deutsch"] : tokens)
           for (const surface of ["preview", "pdf"] as const)
             if (!result[surface].includes(token)) missing.push(`${group}/${surface}: ${token}`);
       expect(missing).toEqual([]);

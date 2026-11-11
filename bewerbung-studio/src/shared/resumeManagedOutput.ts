@@ -124,13 +124,21 @@ ${tabellarischSectionTitleCss}
 .resume-language-grid[data-columns="1"]>.resume-language-item{column-gap:20px!important;padding-inline-end:20px!important}
 .resume-language-grid>.resume-language-item::before{display:none!important}
 .resume-language-primary{display:block;flex:0 1 auto;min-width:0;max-width:100%;line-height:1.25;overflow-wrap:anywhere;white-space:normal}
-.resume-language-item>[data-resume-language-dots]{display:flex!important;flex:0 0 auto;align-self:center;flex-wrap:wrap;gap:.6mm;max-width:100%;min-width:0;margin-left:auto!important;grid-column:auto!important;grid-row:auto!important}
+:is(.resume-language-item,.resume-language-meter)>[data-resume-language-dots]{display:flex!important;flex:0 0 auto;align-self:center;flex-wrap:wrap;gap:.6mm;max-width:100%;min-width:0;margin-left:auto!important;grid-column:auto!important;grid-row:auto!important}
+/* Only the dots of a level: dash and dots continue the name's line like text, in its line height. The dash stays with
+   the dots, so a narrow cell wraps both together; in a cell narrower than the dots they wrap inside it instead of
+   leaving it. The dash is set like the dash of a written level. */
+.resume-language-meter{display:inline-flex;flex-wrap:wrap;align-items:center;gap:.6mm 1.2mm;max-width:100%;min-width:0;white-space:nowrap;vertical-align:baseline}
+.resume-language-separator{flex:0 0 auto;font-weight:400;letter-spacing:0;text-transform:none;opacity:.85}
+.resume-language-meter>[data-resume-language-dots]{flex:0 1 auto;margin:0!important}
+:is(.einfach-languages,.einfach-pdf-language) .resume-language-meter>[data-resume-language-dots]{gap:.8mm}
 .resume-language-dots>i{display:block;width:1.7mm;height:1.7mm;border-radius:50%;background:color-mix(in srgb,currentColor,transparent 75%)}
 .resume-language-dots>i.filled{background:currentColor}
 .resume-language-item>.resume-language-description{display:block;flex:0 0 100%;grid-column:auto!important;margin:0;max-width:100%;overflow-wrap:anywhere}
 .resume-language-ats{display:block!important;list-style:none;padding:0;margin:0}
 .resume-language-ats>li{display:block!important;margin:.7mm 0;overflow-wrap:anywhere}
 .modern-resume-page .resume-language-item{font-size:var(--modern-body-size)}
+.modern-resume-page .resume-language-primary strong{font-weight:600}
 .tabellarisch-list-section .resume-language-primary::before,.tabellarisch-pdf-list .resume-language-primary::before{content:"•";margin-right:1.5mm;color:var(--tabellarisch-accent,var(--tab-accent,currentColor))}
 .managed-item-grid{display:grid!important;grid-template-columns:repeat(var(--section-columns,1),minmax(0,1fr))!important;gap:2mm 3mm;min-width:0;padding:0;list-style:none}
 .managed-item-grid>*,.managed-item-text{min-width:0;overflow-wrap:anywhere;break-inside:auto}
@@ -184,7 +192,7 @@ ${tabellarischSectionTitleCss}
 .zeitgenoessisch-template [data-managed-section="strengths"] .managed-strengths-grid,.zeit-pdf [data-managed-section="strengths"] .managed-strengths-grid{gap:calc(var(--zeit-entry-gap) * .4)}
 .zeitgenoessisch-template [data-managed-section="strengths"] .managed-strength-card :is(strong,p),.zeit-pdf [data-managed-section="strengths"] .managed-strength-card :is(strong,p){font-size:var(--doc-body-size,var(--body-size));line-height:var(--doc-line-height,var(--body-line))}
 .zeitgenoessisch-template .resume-language-primary,.zeit-pdf .resume-language-primary{font-size:var(--doc-body-size,var(--body-size));line-height:var(--doc-line-height,var(--body-line))}
-.zeitgenoessisch-template :is(.resume-language-level,.resume-language-description),.zeit-pdf :is(.resume-language-level,.resume-language-description){font-size:calc(var(--doc-body-size,var(--body-size)) * .88);line-height:var(--doc-line-height,var(--body-line))}
+.zeitgenoessisch-template :is(.resume-language-level,.resume-language-separator,.resume-language-description),.zeit-pdf :is(.resume-language-level,.resume-language-separator,.resume-language-description){font-size:calc(var(--doc-body-size,var(--body-size)) * .88);line-height:var(--doc-line-height,var(--body-line))}
 .zeitgenoessisch-template [data-managed-section="knowledge"],.zeit-pdf [data-managed-section="knowledge"]{font-size:var(--doc-body-size,var(--body-size));line-height:var(--doc-line-height,var(--body-line))}
 .zeitgenoessisch-template [data-managed-section="knowledge"] :is(small,h4,h5),.zeit-pdf [data-managed-section="knowledge"] :is(small,h4,h5){font-size:calc(var(--doc-body-size,var(--body-size)) * .88);line-height:var(--doc-line-height,var(--body-line))}
 .zeitgenoessisch-template [data-resume-closing-placement="footer"],.cv-sheet[data-template="zeitgenoessisch"] [data-resume-closing-placement="footer"]{bottom:15mm}
@@ -1290,7 +1298,7 @@ export const applyManagedResumeOutput = (
     for (const section of nodes.get("languages") ?? []) {
       const zone = sidebar !== main && sidebar.contains(section) ? "sidebar" : "main";
       // A sidebar lane may break the languages between two rows: this page draws its part of them.
-      applyResumeLanguageOutput(section, profile, templateId, designSettings, zone, sidebar !== main && !isAts, isAts,
+      applyResumeLanguageOutput(section, profile, templateId, designSettings, zone, isAts,
         planned[number - 1]?.blockRanges?.languages);
     }
     // Apply optional break points only to the rendered Kurzprofil, after section moves on both surfaces.

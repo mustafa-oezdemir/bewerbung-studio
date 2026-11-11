@@ -8,6 +8,13 @@
   --tuerkis-text: var(--doc-paragraph-color, #3f464b);
   --tuerkis-rule: var(--doc-divider-color, #24a9e1);
 }
+/* Türkis Profil uses Zweispaltig's dot markup but reverses its accent/divider colours. Filled level dots are turquoise. */
+:is(.tuerkis-profil-template,.cv-sheet[data-template="tuerkis-profil"]) [data-resume-language-dots] > i {
+  background: var(--zweispaltig-accent, #d1d2d4);
+}
+:is(.tuerkis-profil-template,.cv-sheet[data-template="tuerkis-profil"]) [data-resume-language-dots] > i.filled {
+  background: var(--tuerkis-accent, #24a9e1);
+}
 /* Explicit native selectors also supply the custom-section style inheritance contract. */
 .tuerkis-profil-template .zweispaltig-section__title {
   margin: 0 0 2.5mm;

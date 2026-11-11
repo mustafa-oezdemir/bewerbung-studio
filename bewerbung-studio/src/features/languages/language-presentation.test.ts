@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  defaultLanguageLevelDisplay,
+  languageDotsFollowName,
   languageDotTemplates,
+  resolveLanguageLevelDisplay,
   resolveLanguagePresentation,
   templateDrawsLanguageDots,
   type LanguageLevelDisplay,
@@ -98,8 +101,45 @@ describe("shared language presentation (Punkte, Niveau, Beschreibung)", () => {
     expect(text("Deutsch", display(false, true, true))).toBe("Deutsch");
     const raw = "Deutsch – C1 (Verhandlungssicher)";
     expect(resolveLanguagePresentation(raw, display(false, true, true)).raw).toBe(raw);
-    // An older profile without the setting shows everything.
-    expect(resolveLanguagePresentation("Deutsch – C1", undefined, { dots: true })).toMatchObject({ showDots: true, primaryText: "Deutsch – C1", secondaryText: "Verhandlungssicher" });
+  });
+
+  it("shows only the dots of a level for a profile that never chose", () => {
+    // Deutsch – Verhandlungssicher is C1 (five of six dots), Englisch – B2 four: the words are not written again.
+    for (const unset of [undefined, null, {}, "kaputt", { dots: "ja" }]) {
+      expect(resolveLanguagePresentation("Deutsch – Verhandlungssicher", unset, { dots: true }))
+        .toMatchObject({ showDots: true, score: 5, detail: "", primaryText: "Deutsch", secondaryText: "" });
+      expect(resolveLanguagePresentation("Englisch – B2", unset, { dots: true }))
+        .toMatchObject({ showDots: true, score: 4, detail: "", primaryText: "Englisch", secondaryText: "" });
+    }
+    expect(defaultLanguageLevelDisplay).toEqual({ dots: true, level: false, description: false });
+    expect(resolveLanguageLevelDisplay(undefined)).toEqual(defaultLanguageLevelDisplay);
+    expect(resolveLanguageLevelDisplay(undefined)).not.toBe(defaultLanguageLevelDisplay);
+  });
+
+  it("keeps every stored choice, also the former default and a record that holds only some of the ticks", () => {
+    for (const dots of [false, true]) for (const level of [false, true]) for (const description of [false, true])
+      expect(resolveLanguageLevelDisplay({ dots, level, description })).toEqual({ dots, level, description });
+    // Everything on was the default once: it may be a choice, so it stays what it says.
+    expect(resolveLanguagePresentation("Deutsch – C1", display(true, true, true), { dots: true }))
+      .toMatchObject({ showDots: true, primaryText: "Deutsch – C1", secondaryText: "Verhandlungssicher" });
+    // A tick missing from a stored record meant "shown" when it was written.
+    expect(resolveLanguageLevelDisplay({ dots: false })).toEqual({ dots: false, level: true, description: true });
+    expect(resolveLanguageLevelDisplay({ description: false })).toEqual({ dots: true, level: true, description: false });
+  });
+
+  it("knows the rows that are one compact group: only the dots of a level", () => {
+    const compact = (raw: string, d?: LanguageLevelDisplay) => languageDotsFollowName(resolveLanguagePresentation(raw, d, { dots: true }));
+    expect(compact("Deutsch – C1")).toBe(true);
+    expect(compact("Deutsch – C1", display(true, false, false))).toBe(true);
+    expect(compact("Deutsch – Muttersprache", display(true, false, false))).toBe(true);
+    // a level or its words beside the dots keep the row they had
+    expect(compact("Deutsch – C1", display(true, true, false))).toBe(false);
+    expect(compact("Deutsch – C1", display(true, false, true))).toBe(false);
+    expect(compact("Deutsch – C1", display(true, true, true))).toBe(false);
+    // no dots: no level stored, Punkte off, the ATS layout
+    expect(compact("Latein")).toBe(false);
+    expect(compact("Deutsch – C1", display(false, false, false))).toBe(false);
+    expect(languageDotsFollowName(resolveLanguagePresentation("Deutsch – C1", undefined, { dots: true, ats: true }))).toBe(false);
   });
 
   it("writes the level as text and never draws dots in the ATS layout", () => {

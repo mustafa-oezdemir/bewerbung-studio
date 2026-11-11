@@ -2,6 +2,19 @@ import { defaultDocumentDesign, marginLevelToMm, type DocumentDesignSettings, ty
 import { getTemplate } from "./templates";
 import { resolveResumeLayout } from "./resumeLayoutEngine";
 
+/** Lebenslauf → Sprachen, "Automatisch": the grid of the column the section really stands in. */
+export const automaticLanguageColumns = { main: 3, sidebar: 1 } as const;
+
+/**
+ * The columns of the Sprachen grid, the one decision of the preview, the PDF and the page planner. "Automatisch" follows
+ * the section's real place – three columns in the Hauptbereich (also for two languages), one in the Seitenspalte – and
+ * never the template's name; a count the user picked (1–4) is kept as it is. The ATS layout is one text column.
+ */
+export function resolveLanguageColumns(mode: SectionColumnMode | undefined, zone: "main" | "sidebar", atsMode = false): 1 | 2 | 3 | 4 {
+  if (atsMode) return 1;
+  return mode && mode !== "auto" ? mode : automaticLanguageColumns[zone];
+}
+
 /** A4 dimensions, not viewport width: the editor and PDF make the same decision. */
 export function resolveSectionColumns(
   mode: SectionColumnMode | undefined,

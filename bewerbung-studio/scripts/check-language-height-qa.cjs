@@ -17,6 +17,7 @@ const probe = () => {
     if (!section) return;
     const box = section.getBoundingClientRect();
     const sheetBox = sheet.getBoundingClientRect();
+    const grid = section.querySelector('.resume-language-grid,.resume-language-ats');
     const dots = section.querySelectorAll('[class*="dots"],[role="img"]').length;
     // the widest horizontal extent of any text leaf against the section / the sheet
     const leaves = [...section.querySelectorAll('*')].filter((node) => node.children.length === 0 && (node.textContent || '').trim());
@@ -26,6 +27,22 @@ const probe = () => {
       height: mm(box.height),
       top: mm(box.top - sheetBox.top),
       width: mm(box.width),
+      columns: grid ? Number(grid.getAttribute('data-columns')) : 1,
+      zone: section.closest('aside,[data-cv-zone="sidebar"]') ? 'sidebar' : 'main',
+      languageCount: grid?.children.length ?? 0,
+      gridRows: [...(grid?.children ?? [])].map((card) => {
+        const primary = card.querySelector('.resume-language-primary');
+        const dots = card.querySelector('[data-resume-language-dots]');
+        const description = card.querySelector('.resume-language-description');
+        const rowBox = card.getBoundingClientRect();
+        return {
+          text: (card.textContent || '').replace(/\s+/g, ' ').trim(),
+          height: mm(rowBox.height),
+          primary: primary ? mm(primary.getBoundingClientRect().height) : 0,
+          dotsTop: dots ? mm(dots.getBoundingClientRect().top - rowBox.top) : null,
+          description: description ? mm(description.getBoundingClientRect().height) : 0,
+        };
+      }),
       dots,
       overflow,
       text: [...section.querySelectorAll('article,li,p.language,.gepflegt-pdf-language,.klassisch-pdf-language')].map((node) => (node.textContent || '').replace(/\s+/g, ' ').trim()),

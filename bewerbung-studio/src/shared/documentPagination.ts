@@ -32,7 +32,7 @@ import { getTabellarischHeaderContacts } from "./tabellarischHeaderContacts";
 import { tabellarischDefaults } from "./cvTemplateDefaults/tabellarisch.defaults";
 import { textWidthMm, wrappedLines } from "./textMetrics";
 import { hyphenatedSummaryLines, summaryWordEnds, summaryWrappedLines } from "./resumeSummaryHyphenation";
-import { resolveSectionColumns } from "./resumeSectionLayout";
+import { resolveLanguageColumns, resolveSectionColumns } from "./resumeSectionLayout";
 import { hasSidebarHero, isPlainListSection, isZoneFlowTemplate, sectionHeadingLineMetrics, sectionListMetrics, supportsEducationSplit, supportsSidebarContinuation } from "./resumeSectionPresentation";
 import { normalizeCustomSection, spacesEntriesLikeCareer } from "./resumeCustomSections";
 import { getPehlioneContacts } from "./pehlioneContacts";
@@ -51,7 +51,7 @@ import { getResumeSectionTitle, savedTemplateSidebarOrder } from "../features/re
 import { estimateAtsHeaderTop, estimateElegantHeaderTop, estimateGepflegtHeaderTop, estimateKreativContinuationTop, estimateKreativHeaderTop, estimateRepeatedHeaderTop, estimateResumeHeaderTop, estimateStilvollHeaderTop, estimateTabellarischTop } from "./resumeHeaderGeometry";
 import { firstPageOnlyPhotoTemplates } from "./resumeContinuation";
 import { resolveResumeStrengths } from "./resumeStrengths";
-import { resolveLanguagePresentation } from "../features/languages/language-levels";
+import { languageDotsFollowName, resolveLanguagePresentation } from "../features/languages/language-levels";
 import { languageBlockHeight } from "./languageBlockHeight";
 import type { ResumeTextRole } from "./resumeTextRoles";
 import { entryHeadDelta, nativeEntryRoleSizes, roleTextDelta, rolesBeside, type EntryHeadModel, type EntryRoleSizes } from "./resumeEntryRoleMetrics";
@@ -245,6 +245,8 @@ const KOMPAKT_KNOWLEDGE_CATEGORY_GAP_MM = 3;
 const KOMPAKT_KNOWLEDGE_LEVEL_BAR_MM = 2;
 const KOMPAKT_LANGUAGE_EDGE_MM = 20 * 25.4 / 96;
 const KOMPAKT_LANGUAGE_FLEX_GAP_MM = 0.6;
+/** A language row that shows only the dots: the gap between its dash and the dots (resume-language-meter). */
+const LANGUAGE_METER_GAP_MM = 1.2;
 /** A list entry of a special section in Kompakt's right column stands 4 mm in (its text is 56 of the column's 60 mm). */
 const KOMPAKT_SPECIAL_LIST_INDENT_MM = 4;
 const CLOSING_MM = { signature: 22, plain: 10 };
@@ -1704,6 +1706,11 @@ const planResumePages = (
         const level = row.detail ? ` – ${row.detail}` : "";
         const nameMm = textWidthMm(row.name, bodyMm, 700) + textWidthMm(level, smallMm, 400);
         const nameLines = nameMm <= room ? 1 : Math.max(1, wrappedLines(`${row.name}${level}`, room, bodyMm, 700));
+        // Only the dots: dash and dots continue the name's line and move below it together when they do not fit.
+        if (languageDotsFollowName(row)) {
+          const meterMm = textWidthMm(" –", bodyMm, 400) + LANGUAGE_METER_GAP_MM + dotsMm;
+          return total + (nameLines + (nameLines > 1 || nameMm + meterMm > room ? 1 : 0)) * bodyMm * lineHeight;
+        }
         const dots = row.showDots && (nameLines > 1 || nameMm + KOMPAKT_LANGUAGE_EDGE_MM + dotsMm > room)
           ? KOMPAKT_LANGUAGE_FLEX_GAP_MM + dotMm : 0;
         const description = row.secondaryText
@@ -1713,9 +1720,8 @@ const planResumePages = (
     };
     const languageHeightIn = (at: PaginationZone, fullWidth = false, rows = languageRows) => {
       if (kompaktSide && at === "sidebar") return kompaktSideLanguagesHeight(rows);
-      const beside = !flat && (!fullWidth || templateId === "gepflegt") && geometry.columns === 2;
-      const columns = resolveSectionColumns(settings.languagesColumns, templateId ?? "", at === "sidebar" ? "sidebar" : "main",
-        rows.map((language) => ({ title: language.primaryText, description: language.secondaryText })), settings, beside);
+      // The grid the renderer draws in that column (applyResumeLanguageOutput): one rule for both.
+      const columns = resolveLanguageColumns(settings.languagesColumns, at === "sidebar" ? "sidebar" : "main", context.atsMode);
       return templateId && !context.atsMode
         ? languageBlockHeight(templateId, rows, {
           column: at === "sidebar" ? geometry.text.sideW + scale.sideDelta : fullWidth ? geometry.text.fullW * (scale.fullRatio ?? 1) : geometry.text.mainW * scale.mainRatio,
@@ -1740,6 +1746,12 @@ const planResumePages = (
       const room = elegantSideWidth - ELEGANT_LANGUAGE_EDGE_MM;
       return elegantSideHeadFor(getResumeSectionTitle(profile, "languages")) + rows.reduce((total, row) => {
         const name = textWidthMm(row.name, elegantBodyMm, 700);
+        // Only the dots: dash and dots continue the name's line and move below it together when they do not fit.
+        if (languageDotsFollowName(row)) {
+          const meter = textWidthMm(" –", elegantBodyMm, 400) + LANGUAGE_METER_GAP_MM + ELEGANT_LANGUAGE_DOTS_MM;
+          const nameLines = name <= room ? 1 : Math.max(1, wrappedLines(row.name, room, elegantBodyMm, 700));
+          return total + (nameLines + (nameLines > 1 || name + meter > room ? 1 : 0)) * rowLine;
+        }
         const detail = row.detail ? ` – ${row.detail}` : "";
         const levelRoom = Math.max(8, room - name - (row.showDots ? ELEGANT_LANGUAGE_DOTS_MM : 0));
         const lines = detail ? Math.max(1, wrappedLines(detail, levelRoom, small, 400)) : 1;

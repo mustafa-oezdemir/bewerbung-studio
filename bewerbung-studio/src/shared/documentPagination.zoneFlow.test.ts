@@ -45,7 +45,7 @@ describe.each(["pehlione_white_blue", "pehlione_white"])("zone flow of %s", (tem
   });
 
   it("leaves a sidebar block on the last page only when the sidebar is full", () => {
-    const summary = "Sehr ausführliche Beschreibung der Erfahrung in der Softwareentwicklung. ".repeat(11);
+    const summary = "Sehr ausführliche Beschreibung der Erfahrung in der Softwareentwicklung. ".repeat(template === "pehlione_white" ? 12 : 11);
     const full = placed(placed(makeProfile(7, { summary }), "summary", "sidebar"), "certifications", "sidebar", 1);
     const pages = planOf(full);
     expect(pages).toHaveLength(2);

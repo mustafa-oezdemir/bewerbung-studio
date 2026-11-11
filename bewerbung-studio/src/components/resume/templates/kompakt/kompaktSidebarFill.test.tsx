@@ -125,7 +125,7 @@ describe("Kompakt: the right column fills its page before it goes on", () => {
   });
 
   it("leaves a single entry for the next page when only two of three fit", () => {
-    const { plan, surfaces } = render(makeProfile({ knowledge: 12, lastUsedYear: 2025,
+    const { plan, surfaces } = render(makeProfile({ knowledge: 13, lastUsedYear: 2025,
       certifications: ["Fiktives Zertifikat 1 · Muster Akademie", "Fiktives Zertifikat 2 · Muster Akademie"] }));
     expect(plan[0].blockRanges?.[hobbysId]).toEqual({ from: 0, to: 2, total: 3 });
     expect(plan[1].blockRanges?.[hobbysId]).toEqual({ from: 2, to: 3, total: 3 });

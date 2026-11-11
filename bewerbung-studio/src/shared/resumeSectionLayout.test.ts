@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { defaultDocumentDesign } from "./documentDesign";
 import { documentDesignSchema } from "./schema";
-import { resolveSectionColumns } from "./resumeSectionLayout";
+import { resolveLanguageColumns, resolveSectionColumns } from "./resumeSectionLayout";
 import { getTechnologyBrandIconMarkup, getThemedTechnologyIconMarkup } from "./technologyBrand";
 
 const items = Array.from({ length: 12 }, () => ({ title: "Analytisch" }));
@@ -42,6 +42,28 @@ describe("CV section columns and icons", () => {
     expect(resolveSectionColumns("auto", "pehlione_white", "main", mediumTitles, narrowMargin, true)).toBe(2);
     const wideMargin = { ...narrowMargin, cvOverrides: { spacing: { pageMarginMm: 30 } } };
     expect(resolveSectionColumns("auto", "pehlione_white", "main", mediumTitles, wideMargin, true)).toBe(1);
+  });
+  it("gives automatic Sprachen three columns in the Hauptbereich and one in the Seitenspalte", () => {
+    expect(resolveLanguageColumns("auto", "main")).toBe(3);
+    expect(resolveLanguageColumns("auto", "sidebar")).toBe(1);
+    // an application saved before the setting existed
+    expect(resolveLanguageColumns(undefined, "main")).toBe(3);
+    expect(resolveLanguageColumns(undefined, "sidebar")).toBe(1);
+  });
+  it.each([1, 2, 3, 4] as const)("keeps the %s Sprachen columns the user picked in either column", (columns) => {
+    expect(resolveLanguageColumns(columns, "main")).toBe(columns);
+    expect(resolveLanguageColumns(columns, "sidebar")).toBe(columns);
+  });
+  it("sets Sprachen as one text column in the ATS layout, whatever is chosen", () => {
+    for (const mode of ["auto", 1, 2, 3, 4, undefined] as const)
+      for (const zone of ["main", "sidebar"] as const) expect(resolveLanguageColumns(mode, zone, true)).toBe(1);
+  });
+  it("leaves the automatic Stärken and Kenntnisse grid on its width rule", () => {
+    // two short items in a wide column stay two columns there; Sprachen alone is three
+    const two = [{ title: "Analytisch" }, { title: "Teamfähig" }];
+    expect(resolveSectionColumns("auto", "klassisch", "main", two, defaultDocumentDesign, false)).toBe(2);
+    expect(resolveSectionColumns("auto", "zweispaltig", "main", items, defaultDocumentDesign, true)).toBe(2);
+    expect(resolveLanguageColumns("auto", "main")).toBe(3);
   });
   it.each([["GoLang", "Go"], ["JS", "JavaScript"], ["ts", "TypeScript"], ["Spring Boot", "Spring"], ["GITHUB", "GitHub"]])("resolves %s aliases", (alias, canonical) => {
     expect(getTechnologyBrandIconMarkup(alias)).toBe(getTechnologyBrandIconMarkup(canonical));

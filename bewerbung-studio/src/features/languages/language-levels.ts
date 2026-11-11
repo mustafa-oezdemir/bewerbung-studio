@@ -79,14 +79,18 @@ export const languageLevelDisplayLabels: Record<LanguageLevelDisplayKey, string>
   level: "Niveau (z. B. C1)",
   description: "Beschreibung (z. B. Verhandlungssicher)",
 };
-/** Everything on: the look the templates had so far. */
-export const defaultLanguageLevelDisplay: LanguageLevelDisplay = { dots: true, level: true, description: true };
+/** A profile that never chose: only the dots (`Deutsch – ●●●●●○`). The level stays readable as text in the ATS layout. */
+export const defaultLanguageLevelDisplay: LanguageLevelDisplay = { dots: true, level: false, description: false };
 
-/** Older profiles know no such setting: a missing or invalid key takes its default. */
+/**
+ * The stored choice as it is. Only a profile without any stored tick takes the default; a record that holds some of the
+ * ticks was written when a missing one meant "shown", so it keeps that meaning. Nothing stored is ever reinterpreted.
+ */
 export const resolveLanguageLevelDisplay = (value: unknown): LanguageLevelDisplay => {
   const source = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  if (!languageLevelDisplayKeys.some((key) => typeof source[key] === "boolean")) return { ...defaultLanguageLevelDisplay };
   return Object.fromEntries(
-    languageLevelDisplayKeys.map((key) => [key, typeof source[key] === "boolean" ? source[key] : defaultLanguageLevelDisplay[key]]),
+    languageLevelDisplayKeys.map((key) => [key, typeof source[key] === "boolean" ? source[key] : true]),
   ) as LanguageLevelDisplay;
 };
 
@@ -132,6 +136,13 @@ export type LanguagePresentation = {
   /** With dots the description gets a line of its own behind the dots: "Verhandlungssicher". Without dots "". */
   secondaryText: string;
 };
+
+/**
+ * Only the dots are shown of this language's level: the row is one compact group, the name, a short dash and the dots
+ * right behind it (`Deutsch – ●●●●●○`) instead of dots at the far edge of the column.
+ */
+export const languageDotsFollowName = (language: Pick<LanguagePresentation, "showDots" | "detail" | "secondaryText">) =>
+  language.showDots && !language.detail && !language.secondaryText;
 
 /** A long language card may use two tracks in an explicitly narrow sidebar grid.
  * The grid keeps the requested column count and the language remains one item. */

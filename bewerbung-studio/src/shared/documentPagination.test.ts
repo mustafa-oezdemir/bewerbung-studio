@@ -630,6 +630,20 @@ describe("A4 document pagination", () => {
     expect(fill(1, true)).toBeGreaterThan(fill(1, false));
   });
 
+  it("plans automatic Sprachen with the same grid as the visible main or sidebar column", () => {
+    const languages = ["Deutsch – C1", "Türkisch – C2", "Englisch – B2", "Französisch – B1", "Bosnisch-Kroatisch-Serbisch – C1", "Italienisch – B2"];
+    const fill = (zone: "main" | "sidebar", columns: "auto" | 1 | 3) => {
+      const profile = makeProfile(0, 0, 0, {
+        languages,
+        resumeManagerLayouts: { modern: [{ id: "languages", zone }] },
+      });
+      return resolve(profile, "modern", { languagesColumns: columns }).pagePlan.map((page) => page.fill?.[zone]);
+    };
+    expect(fill("main", "auto")).toEqual(fill("main", 3));
+    expect(fill("sidebar", "auto")).toEqual(fill("sidebar", 1));
+    expect(fill("main", "auto")).not.toEqual(fill("main", 1));
+  });
+
   it("counts Pehlione's configured entry gap between career entries", () => {
     const profile = makeProfile(2, 1, 0);
     const base = resolve(profile, "pehlione_white_blue").pagePlan[0].fill!.main;
