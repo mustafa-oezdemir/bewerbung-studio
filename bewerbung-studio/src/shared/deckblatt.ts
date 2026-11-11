@@ -1,6 +1,6 @@
 import type { ApplicantProfile, Application, Attachment } from "./schema";
 import type { DocumentDraft } from "./schema";
-import { getVisibleApplicationDocumentLabels } from "./applicationDocuments";
+import { getApplicationDocumentItems } from "./applicationDocuments";
 import { resolveJobAdvertisementText } from "./jobAdvertisement";
 import { getResumeDisplayProfile } from "./resumeDisplayProfile";
 import { formatResumeBirth, getResumePersonalDetails } from "./resumePersonalData";
@@ -130,12 +130,27 @@ export const validateDeckblattData = (
   }
 };
 
+export const getDeckblattDocumentItems = (
+  attachments: readonly Attachment[],
+  applicationId: string,
+  settings: DocumentDraft["documentListSettings"] = [],
+  includeMotivation = false,
+) => {
+  const coverLetterSetting = settings.filter((setting) => setting.key === "anschreiben").at(-1);
+  return getApplicationDocumentItems(attachments, applicationId, settings, includeMotivation)
+    .map((item) => item.key === "anschreiben"
+      ? { ...item, isVisible: coverLetterSetting?.deckblattVisible ?? coverLetterSetting?.isVisible ?? false }
+      : item);
+};
+
 export const getDeckblattDocuments = (
   attachments: readonly Attachment[],
   applicationId: string,
   settings: DocumentDraft["documentListSettings"] = [],
   includeMotivation = false,
-) => getVisibleApplicationDocumentLabels(attachments, applicationId, settings, includeMotivation);
+) => getDeckblattDocumentItems(attachments, applicationId, settings, includeMotivation)
+  .filter((item) => item.isVisible)
+  .map((item) => item.label);
 
 /** Geburt, Staatsangehörigkeit, Familienstand, Kinder: the fields the Lebenslauf shows too (its visibility switches apply). */
 export const getDeckblattPersonalDetails = (profile: ApplicantProfile | undefined) => {

@@ -331,7 +331,7 @@ describe("Lebenslauf-Dokumente", () => {
     expect(html).toContain('class="cover-photo"');
     expect(html).toContain("Kernkompetenzen");
     expect(html).toContain("Bewerbungsunterlagen");
-    expect(html).toContain("<li>Anschreiben</li>");
+    expect(html).not.toContain("<li>Anschreiben</li>");
     expect(html).toContain("<li>Lebenslauf</li>");
     expect(html).toContain(
       ".deckblatt .cover-identity{width:100%;margin-top:21mm}",

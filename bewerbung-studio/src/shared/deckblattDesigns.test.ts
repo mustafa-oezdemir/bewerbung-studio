@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { applicationSchema, documentDraftSchema, profileSchema, type Attachment } from "./schema";
 import { getTemplate } from "./templates";
 import { getTemplateDocumentDesignDefaults } from "./cvDesign";
+import { getDeckblattDocumentItems } from "./deckblatt";
 import {
   buildDeckblattModel,
   deckblattCss,
@@ -61,6 +62,7 @@ describe("Deckblatt designs", () => {
     expect(new Set(deckblattDesigns.map((design) => design.label)).size).toBe(deckblattDesignIds.length);
     expect(defaultDeckblattDesign).toBe("klassisch");
     expect(documentDraftSchema.parse({}).coverSheetDesign).toBe("klassisch");
+    expect(documentDraftSchema.parse({}).showCoverLetterAttachments).toBe(true);
     for (const id of deckblattDesignIds) expect(documentDraftSchema.parse({ coverSheetDesign: id }).coverSheetDesign).toBe(id);
     expect(documentDraftSchema.safeParse({ coverSheetDesign: "unbekannt" }).success).toBe(false);
     // An unknown stored value never breaks the page.
@@ -76,8 +78,9 @@ describe("Deckblatt designs", () => {
       // A design may set a value in several elements (Seitenpanel: BEWERBUNG over "als …"); the reader sees the text.
       const markup = `${html} ${parseHTML(`<html><body>${html}</body></html>`).document.body.textContent?.replace(/\s+/g, " ")}`;
       for (const value of ["Zora Quellmalz", "Lohnbuchhalterin", "Bewerbung als Lohnbuchhaltung", "Nordlicht AG", "Hamburg", "Gartenweg 7", "34117 Kassel", "+49 555 0101",
-        'href="mailto:zora@quellmalz.test"', 'href="https://linkedin.com/in/zora"', "Arbeitszeugnis Nordlicht.pdf", "Zertifikat DATEV.pdf", "Anschreiben", "Lebenslauf"])
+        'href="mailto:zora@quellmalz.test"', 'href="https://linkedin.com/in/zora"', "Arbeitszeugnis Nordlicht.pdf", "Zertifikat DATEV.pdf", "Lebenslauf"])
         expect(markup, `${id} ${value}`).toContain(value.startsWith("Gartenweg") || value.startsWith("34117") ? value.split(" ")[0] : value);
+      expect(model.documents).not.toContain("Anschreiben");
       // The sample content of the reference image never appears.
       for (const sample of ["Leonie", "Schwarz", "Bilanzbuchhalterin", "superduperseite", "Sonnenstraße", "01234 56789", "Großau"]) expect(markup, `${id} ${sample}`).not.toContain(sample);
     }
@@ -132,6 +135,22 @@ describe("Deckblatt designs", () => {
     });
     expect(model.documents).toContain("Arbeitszeugnis Nordlicht.pdf");
     expect(model.documents).not.toContain("Zertifikat DATEV.pdf");
+  });
+
+  it("keeps Anschreiben hidden on Deckblatt until explicitly enabled, even after a rename", () => {
+    const current = application({ coverSheetDesign: "kopfband" });
+    const renamed = documentDraftSchema.parse({ documentListSettings: [
+      { key: "anschreiben", label: "My letter", deckblattVisible: false },
+    ] });
+    expect(getDeckblattDocumentItems([], current.id)[0]).toMatchObject({ key: "anschreiben", isVisible: false });
+    expect(getDeckblattDocumentItems([], current.id, renamed.documentListSettings)[0])
+      .toMatchObject({ key: "anschreiben", label: "My letter", isVisible: false });
+    expect(build("kopfband", { files: [], documents: { documentListSettings: renamed.documentListSettings } }).model.documents)
+      .toEqual(["Lebenslauf"]);
+    expect(build("kopfband", { files: [], documents: { documentListSettings: [{ key: "anschreiben", isVisible: true }] } }).model.documents)
+      .toEqual(["Anschreiben", "Lebenslauf"]);
+    expect(build("kopfband", { files: [], documents: { documentListSettings: [{ key: "anschreiben", isVisible: true, deckblattVisible: false }] } }).model.documents)
+      .toEqual(["Lebenslauf"]);
   });
 
   it("names the attachments list per design; the title under the name is always the profile's", () => {

@@ -89,6 +89,35 @@ describe("Anschreiben: the PDF prints the preview's page", () => {
   );
 });
 
+describe("new application document defaults", () => {
+  it("shows Kopfband and a hidden Deckblatt letter while omitting the cover-letter attachments block", () => {
+    const base = applicationFor("modern", 0);
+    const current = applicationSchema.parse({ ...base, documents: {
+      ...base.documents, coverSheetDesign: "kopfband", showCoverLetterAttachments: false,
+    } });
+    const previous = testStore.state;
+    try {
+      testStore.state = { workspace: { schemaVersion: 1, applications: [current], profiles: [profile], events: [],
+        attachments: [], todos: [], customCvDesigns: [], settings: defaultSettings, updatedAt: now } };
+      const deckblatt = parseHTML(`<html><body>${renderToStaticMarkup(createElement(DocumentsView, { initialTab: "deckblatt" }))}</body></html>`).document;
+      expect(deckblatt.querySelector(".deckblatt--kopfband")).not.toBeNull();
+      expect(deckblatt.querySelector('button[aria-label="Anschreiben anzeigen"]')).not.toBeNull();
+      expect(deckblatt.querySelector(".dk-docs")?.textContent).toContain("Lebenslauf");
+      expect(deckblatt.querySelector(".dk-docs")?.textContent).not.toContain("Anschreiben");
+      const deckblattPdf = parseHTML(buildDocumentHtml(current, profile, "deckblatt")).document;
+      expect(deckblattPdf.querySelector(".dk-docs")?.textContent).not.toContain("Anschreiben");
+
+      const letter = parseHTML(`<html><body>${renderToStaticMarkup(createElement(DocumentsView, { initialTab: "anschreiben" }))}</body></html>`).document;
+      expect(letter.querySelector('input[type="checkbox"][checked]')).toBeNull();
+      expect(letter.body.textContent).toContain("Der komplette Anlagenabschnitt ist ausgeblendet.");
+      expect(letter.querySelector(".letter-attachments")).toBeNull();
+      expect(parseHTML(buildDocumentHtml(current, profile, "anschreiben")).document.querySelector(".letter-attachments")).toBeNull();
+    } finally {
+      testStore.state = previous;
+    }
+  });
+});
+
 describe("Anschreiben typography (karrierebibel.de)", () => {
   it("sets 11 pt Fließtext with the Lebenslauf's line spacing, a 10 pt Briefkopf, a 15 pt name and a 13 pt bold Betreff in one font", () => {
     const css = anschreibenCvTypographyCss;

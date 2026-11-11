@@ -128,7 +128,6 @@ describe("Deckblatt data", () => {
         "2c0d9a5b-7e4f-4d20-9e9d-0b0e6e7d1010",
       ),
     ).toEqual([
-      "Anschreiben",
       "Lebenslauf",
       "Arbeitszeugnis.pdf",
       "AWS-Zertifikat.pdf",

@@ -16,7 +16,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { assertNoDroppedKeys } from "../src/shared/workspaceIndexSchema";
 import os from "node:os";
-import { defaultDeckblattDesign } from "../src/shared/deckblattDesignIds";
+import { newApplicationDeckblattDesign } from "../src/shared/deckblattDesignIds";
 import { resolveJobAdvertisementText } from "../src/shared/jobAdvertisement";
 import { resolveEducationPresentation } from "../src/shared/resumeEducation";
 import { resolveResumeClosingLine } from "../src/shared/resumeClosing";
@@ -82,7 +82,7 @@ import {
   resolveApplicationEmailAttachments,
   bewerbungsunterlagenFileName,
 } from "../src/shared/applicationEmail";
-import { isDocumentPackage } from "../src/shared/applicationDocuments";
+import { getVisibleApplicationDocumentLabels, isDocumentPackage } from "../src/shared/applicationDocuments";
 import type { ExportTarget, InterviewNoteFile, InterviewNotesListing } from "../src/shared/ipc";
 import { hasInterviewHistory, interviewCompanySlug } from "../src/shared/interviewQuestions";
 import {
@@ -1046,7 +1046,7 @@ export class DataStore {
     const { dataRoot } =
       await this.ensureApplicationDataDirectories(application);
     const profile = this.getProfileForApplication(application);
-    const visibleEmailDocuments = getDeckblattDocuments(
+    const visibleEmailDocuments = getVisibleApplicationDocumentLabels(
       this.workspace.attachments,
       application.id,
       application.documents.documentListSettings,
@@ -1346,7 +1346,7 @@ export class DataStore {
         coverSenderTitle: "",
         coverSenderContact: "",
         coverSheetProfessionalTitle: "",
-        coverSheetDesign: defaultDeckblattDesign,
+        coverSheetDesign: newApplicationDeckblattDesign,
         coverSheetContactVisibility: {
           address: true,
           phone: true,
@@ -1375,7 +1375,7 @@ export class DataStore {
         emailAttachmentNote: "",
         emailAttachmentMode: "package",
         emailPackageFileName: "Bewerbungsunterlagen.pdf",
-        showCoverLetterAttachments: true,
+        showCoverLetterAttachments: false,
         motivationEnabled: false,
         motivationHeading: "Meine Motivation",
         motivationHeadingGapReduction: 0,

@@ -301,6 +301,8 @@ export const documentDraftSchema = z.object({
         key: z.string().trim().min(1),
         label: optionalText,
         isVisible: z.boolean().default(true),
+        /** Deckblatt-only override for Anschreiben; absent in older applications. */
+        deckblattVisible: z.boolean().optional(),
         isDeleted: z.boolean().default(false),
       }),
     )

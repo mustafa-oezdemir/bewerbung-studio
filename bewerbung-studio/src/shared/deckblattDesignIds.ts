@@ -2,3 +2,5 @@
 export const deckblattDesignIds = ["klassisch", "pastell", "akzentband", "farbbalken", "seitenpanel", "kopfband"] as const;
 export type DeckblattDesignId = (typeof deckblattDesignIds)[number];
 export const defaultDeckblattDesign: DeckblattDesignId = "klassisch";
+/** New applications use Kopfband; the legacy schema fallback stays Klassisch. */
+export const newApplicationDeckblattDesign: DeckblattDesignId = "kopfband";

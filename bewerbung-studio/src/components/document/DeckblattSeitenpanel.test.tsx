@@ -82,7 +82,8 @@ describe("Deckblatt design Seitenpanel", () => {
     expect(page.querySelector('.dk-reach a[href="mailto:zora@quellmalz.test"]')).toBeTruthy();
     // The Anlagen share one row with the contacts (heading at the height of „Adresse“), drawn in the panel column.
     expect(text(".dk-reach-row > .dk-panel-docs h3")).toEqual(["Anlagen:"]);
-    expect(text(".dk-reach-row > .dk-panel-docs li")).toEqual(expect.arrayContaining(["Anschreiben", "Lebenslauf", "Arbeitszeugnis Nordlicht.pdf", "Zertifikat DATEV.pdf"]));
+    expect(text(".dk-reach-row > .dk-panel-docs li")).toEqual(expect.arrayContaining(["Lebenslauf", "Arbeitszeugnis Nordlicht.pdf", "Zertifikat DATEV.pdf"]));
+    expect(text(".dk-reach-row > .dk-panel-docs li")).not.toContain("Anschreiben");
     expect(page.querySelector(".dk-reach-row > .dk-reach + .dk-panel-docs")).toBeTruthy();
     expect(deckblattCss).toContain(".deckblatt--seitenpanel .dk-panel-docs{position:absolute;top:0;left:calc(100% + 12mm + max(5mm,calc(17mm - var(--side-right,8mm))))");
     expect(page.querySelector(".dk-panel")?.children).toHaveLength(0);
@@ -130,7 +131,7 @@ describe("Deckblatt design Seitenpanel", () => {
     expect(hidden.text(".dk-panel-docs li")).not.toContain("Zertifikat DATEV.pdf");
     const many = build({ files: Array.from({ length: 8 }, (_, index) => `Zeugnis ${index + 1}.pdf`) });
     expect(many.page.querySelector(".dk-panel-docs")?.className).toContain("dk-panel-docs--many");
-    expect(many.text(".dk-panel-docs li")).toHaveLength(10);
+    expect(many.text(".dk-panel-docs li")).toHaveLength(9);
   });
 
   it("keeps a short statement short and long values wrapping inside their column", () => {

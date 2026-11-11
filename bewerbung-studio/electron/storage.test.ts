@@ -445,7 +445,10 @@ describe("DataStore backups", () => {
     expect(store.getAutomaticExportPath(application.id, "lebenslauf")).toBe(
       path.join(context.targetDirectories.lebenslauf, store.getExportDefaultName(application.id, "lebenslauf")),
     );
-    expect(application.documents).toMatchObject({ motivationEnabled: false, motivationHeading: "Meine Motivation", motivationEvidence: "" });
+    expect(application.documents).toMatchObject({
+      coverSheetDesign: "kopfband", showCoverLetterAttachments: false,
+      motivationEnabled: false, motivationHeading: "Meine Motivation", motivationEvidence: "",
+    });
     expect(store.getExportDefaultName(application.id, "motivation")).toBe("Motivation_Fiktiv_Person_Muster_GmbH.pdf");
     // The two combined PDFs: both in Bewerbungsunterlagen, each with its own name.
     expect(store.getExportDefaultName(application.id, "bewerbungsunterlagen")).toBe("Bewerbungsunterlagen_Fiktiv_Person_Muster_GmbH.pdf");
@@ -462,10 +465,51 @@ describe("DataStore backups", () => {
     );
     expect(context.data.BEWERBUNGSDATUM).toBe("08.09.2026");
     expect(context.data.DESIGN_FONT_SIZE).toBe(application.designSettings.fontSize);
-    expect(context.data.DECKBLATT_DOKUMENTE).toBe("Anschreiben\nLebenslauf");
+    expect(context.data.DECKBLATT_DOKUMENTE).toBe("Lebenslauf");
+    expect(context.data.ANLAGENHINWEIS).toBe("");
     expect(emailMarkdown).toContain("- Firma: Muster GmbH");
     expect(emailMarkdown).toContain("- Stellenbezeichnung: Softwareentwickler");
     expect(emailMarkdown).toContain("- Bewerbungsdatum: 08.09.2026");
+  });
+
+  it("persists Deckblatt and Anlagen choices without changing separate email attachments", async () => {
+    const application = (await store.createApplication(applicationInput("Dokumente GmbH"))).applications[0];
+    application.documents = {
+      ...application.documents,
+      emailAttachmentMode: "separate",
+      documentListSettings: [{
+        key: "anschreiben", label: "Mein Anschreiben", isVisible: true,
+        deckblattVisible: false, isDeleted: false,
+      }],
+    };
+    await store.saveApplication(application);
+    const reopened = new DataStore(root);
+    await reopened.initialize();
+    const saved = structuredClone(reopened.getApplication(application.id));
+    expect(saved.documents.coverSheetDesign).toBe("kopfband");
+    expect(saved.documents.showCoverLetterAttachments).toBe(false);
+    expect(saved.documents.documentListSettings[0]?.deckblattVisible).toBe(false);
+    expect(reopened.getTemplateDocumentContext(application.id).data.DECKBLATT_DOKUMENTE).toBe("Lebenslauf");
+    const email = await readFile(path.join(reopened.files.applicationDataPath(saved.folderName), "Email", "Email.md"), "utf8");
+    expect(email).toContain("Mein Anschreiben.pdf");
+    expect(email).toContain("Lebenslauf.pdf");
+
+    saved.documents = {
+      ...saved.documents,
+      coverSheetDesign: "pastell",
+      showCoverLetterAttachments: true,
+      documentListSettings: [{ ...saved.documents.documentListSettings[0]!, deckblattVisible: true }],
+    };
+    await reopened.saveApplication(saved);
+    const twiceReopened = new DataStore(root);
+    await twiceReopened.initialize();
+    const chosen = twiceReopened.getApplication(application.id);
+    expect(chosen.documents.coverSheetDesign).toBe("pastell");
+    expect(chosen.documents.showCoverLetterAttachments).toBe(true);
+    expect(twiceReopened.getTemplateDocumentContext(application.id).data.DECKBLATT_DOKUMENTE)
+      .toBe("Mein Anschreiben\nLebenslauf");
+    expect(twiceReopened.getTemplateDocumentContext(application.id).data.ANLAGENHINWEIS)
+      .toBe("Anlagen:\nLebenslauf");
   });
 
   it("does not rewrite user-authored application documents", async () => {
@@ -722,6 +766,7 @@ describe("DataStore backups", () => {
     const application = created.applications[0];
     application.documents = {
       ...application.documents,
+      showCoverLetterAttachments: true,
       coverMotivation: "Motivation aus dem Editor.",
       coverQualification: "Fachliche Eignung aus dem Editor.",
       coverCompanyFit: "Unternehmensbezug aus dem Editor.",

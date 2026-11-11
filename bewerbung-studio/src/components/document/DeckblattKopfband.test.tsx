@@ -98,7 +98,7 @@ describe("Deckblatt design Kopfband", () => {
   it("sets Anlagen (one third) beside Kontakt (two thirds) at the foot of the page", () => {
     const { page, text } = build({ files: ["Zeugnis.pdf"] });
     expect(Array.from(page.querySelectorAll(".dk-bottom > div")).map((cell) => cell.className)).toEqual(["dk-docs", "dk-contact"]);
-    expect(text(".dk-docs li")).toEqual(["Anschreiben", "Lebenslauf", "Zeugnis.pdf"]);
+    expect(text(".dk-docs li")).toEqual(["Lebenslauf", "Zeugnis.pdf"]);
     expect(text(".dk-contact .dk-lines li")).toEqual(["Gartenweg 7, 34117 Kassel", "+49 555 0101", "zora@quellmalz.test", "linkedin.com/in/zora", "github.com/zora"]);
     expect(page.querySelector('.dk-contact a[href="mailto:zora@quellmalz.test"]')).toBeTruthy();
     expect(deckblattCss).toContain(".deckblatt--kopfband .dk-bottom{margin-top:auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);");

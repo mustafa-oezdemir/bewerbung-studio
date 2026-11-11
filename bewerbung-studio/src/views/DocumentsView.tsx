@@ -127,7 +127,7 @@ import {
   type DocumentDesignSettings,
 } from "../shared/documentDesign";
 import { calculateA4PreviewScale } from "../shared/documentPreview";
-import { getDeckblattDocuments } from "../shared/deckblatt";
+import { getDeckblattDocumentItems } from "../shared/deckblatt";
 import {
   buildDeckblattModel,
   getDeckblattDesign,
@@ -695,7 +695,7 @@ export function DocumentsView({
       ? documentPreview.documents
       : application.documents,
   );
-  const deckblattDocuments = getDeckblattDocuments(
+  const deckblattDocumentItems = getDeckblattDocumentItems(
     attachments,
     application.id,
     docs.documentListSettings,
@@ -713,6 +713,9 @@ export function DocumentsView({
     docs.documentListSettings,
     docs.motivationEnabled,
   );
+  const emailDocumentLabels = applicationDocumentItems
+    .filter((item) => item.isVisible)
+    .map((item) => item.label);
   const template = getTemplate(design.templateId);
   const contentProfile = resumeContentDraft && resumeDraftApplicationId === application.id && profile && resumeContentDraft.id === profile.id ? resumeContentDraft : profile;
   const editorProfile = resolveResumePresentation(contentProfile, template.id, design.settings.resumePresentation);
@@ -736,7 +739,7 @@ export function DocumentsView({
   const packageFileName = bewerbungsunterlagenFileName(application, profile);
   const emailAttachments = resolveApplicationEmailAttachments(
     docs,
-    deckblattDocuments,
+    emailDocumentLabels,
     packageFileName,
   );
   const email = getApplicationEmail(
@@ -1021,20 +1024,24 @@ export function DocumentsView({
     change: Partial<Pick<ApplicationDocumentItem, "label" | "isVisible">> & {
       isDeleted?: boolean;
     },
+    forDeckblatt = false,
   ) => {
-    const item = applicationDocumentItems.find(
+    const item = (forDeckblatt ? deckblattDocumentItems : applicationDocumentItems).find(
       (candidate) => candidate.key === key,
     );
     if (!item) return;
     const current = docs.documentListSettings.find(
       (setting) => setting.key === key,
     );
+    const { isVisible, ...otherChange } = change;
     const nextSetting = {
       key,
       label: current?.label || item.label,
-      isVisible: current?.isVisible ?? item.isVisible,
+      isVisible: current?.isVisible ?? applicationDocumentItems.find((candidate) => candidate.key === key)?.isVisible ?? true,
       isDeleted: current?.isDeleted ?? false,
-      ...change,
+      ...(forDeckblatt && key === "anschreiben"
+        ? { ...otherChange, deckblattVisible: isVisible ?? item.isVisible }
+        : change),
     };
     setDocumentPreview({
       applicationId: application.id,
@@ -1507,8 +1514,8 @@ export function DocumentsView({
                       </small>
                     </header>
                     <DocumentListEditor
-                      items={applicationDocumentItems}
-                      onChange={updateDocumentListItem}
+                      items={deckblattDocumentItems}
+                      onChange={(key, change) => updateDocumentListItem(key, change, true)}
                     />
                   </section>
                   <section className="cover-letter-editor-section">

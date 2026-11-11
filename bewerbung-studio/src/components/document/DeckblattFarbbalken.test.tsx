@@ -66,7 +66,8 @@ describe("Deckblatt design Farbbalken", () => {
     // The recipient is the address block of the Anschreiben.
     expect(text(".dk-foot .dk-recipient > *")).toEqual(["Nordlicht AG", "Frau Petra Sommer", "Personalabteilung", "Hafenstraße 1", "20095 Hamburg"]);
     expect(text(".dk-foot .dk-docs h3")).toEqual(["Anlagen:"]);
-    expect(text(".dk-foot .dk-docs li")).toEqual(expect.arrayContaining(["Anschreiben", "Lebenslauf", "Arbeitszeugnis Nordlicht.pdf"]));
+    expect(text(".dk-foot .dk-docs li")).toEqual(expect.arrayContaining(["Lebenslauf", "Arbeitszeugnis Nordlicht.pdf"]));
+    expect(text(".dk-foot .dk-docs li")).not.toContain("Anschreiben");
   });
 
   it("prints only the data of the profile and the application, never example data", () => {
