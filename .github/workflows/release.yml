@@ -7,6 +7,9 @@ on:
   push:
     tags:
       - "v*.*.*"
+      # A preview tag (vX.Y.Z-suffix) marks a manually published, unsigned prerelease (RELEASE.md, bootstrap);
+      # it must not start the signed release build.
+      - "!v*.*.*-*"
   workflow_dispatch:
     inputs:
       publish:

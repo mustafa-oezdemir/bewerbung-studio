@@ -192,7 +192,10 @@ const verifyApplicationProfilesScenario = `(async () => {
     const preview = [...document.querySelectorAll('.resume-preview')].map((node) => node.textContent).join(' ');
     if (!preview.includes(own) || preview.includes(other)) throw new Error('wrong preview for ' + company + ': ' + preview);
     const icon = document.querySelector('.document-lebenslauf svg[data-brand="' + brand + '"]');
-    if (!icon || !icon.outerHTML.includes('currentColor')) throw new Error('wrong icon in CV preview for ' + company);
+    // Without a Stärken-Symbole colour the logo keeps its own SVG colours (strength icon mode "original").
+    const mode = icon?.closest('[data-strength-icon-mode]')?.getAttribute('data-strength-icon-mode');
+    if (!icon || mode !== 'original' || !icon.querySelector('[fill^="#"],[stroke^="#"]'))
+      throw new Error('wrong icon in CV preview for ' + company + ' (mode ' + mode + ')');
     return { brand: icon.getAttribute('data-brand'), color: getComputedStyle(icon).color };
   };
   const alphaPreview = await checkPreview('E2E Beispiel GmbH', 'Java Backend', 'Golang Backend', 'material:folder:folder-api');
