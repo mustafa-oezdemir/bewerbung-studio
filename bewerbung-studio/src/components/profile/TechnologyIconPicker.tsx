@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { deviconOptions, dotnetIconOptions, otherDeviconOptions } from "../../shared/deviconCatalog";
 import { goFrameworkIconOptions } from "../../shared/goFrameworkIcons";
 import { categorySymbolOptions, getStrengthSymbolMarkup, strengthSymbolOptions } from "../../shared/strengthSymbols";
@@ -16,27 +16,49 @@ const sourceFilters: { id: SourceFilter; label: string }[] = [
 const kindFilters: { id: KindFilter; label: string }[] = [
   { id: "all", label: "Alle" }, { id: "file", label: "Datei-Icons" }, { id: "folder", label: "Ordner-Icons" },
 ];
+const normalizeQuery = (value: string) => value.trim().toLocaleLowerCase("en-US");
 const catalogIcons = [
   ...materialIcons.map((entry) => ({ id: entry.id, name: entry.name, kind: entry.kind, available: true, source: "Material Icon Theme" as const,
-    search: `${entry.name} ${entry.concept}`.toLocaleLowerCase("en-US") })),
+    aliases: [entry.concept], search: normalizeQuery(`${entry.name} ${entry.concept}`) })),
   ...vscodeIcons.map((entry) => ({ id: entry.id, name: entry.name, kind: entry.kind, available: entry.available, source: "vscode-icons" as const,
-    search: `${entry.name} ${entry.name === "js" ? "javascript" : ""}`.toLocaleLowerCase("en-US") })),
+    aliases: entry.name === "js" ? ["javascript"] : [], search: normalizeQuery(`${entry.name} ${entry.name === "js" ? "javascript" : ""}`) })),
 ];
-export const filterCatalogIcons = (query: string, sourceFilter: SourceFilter, kindFilter: KindFilter) =>
-  sourceFilter === "legacy" ? [] : catalogIcons
-    .filter((entry) => (sourceFilter === "all" || sourceFilter === "material" && entry.source === "Material Icon Theme"
+export const filterCatalogIcons = (query: string, sourceFilter: SourceFilter, kindFilter: KindFilter) => {
+  if (sourceFilter === "legacy") return [];
+  const normalized = normalizeQuery(query);
+  const sourceIcons = catalogIcons.filter((entry) =>
+    (sourceFilter === "all" || sourceFilter === "material" && entry.source === "Material Icon Theme"
       || sourceFilter === "vscode" && entry.source === "vscode-icons")
-      && (kindFilter === "all" || entry.kind === kindFilter)
-      && entry.search.includes(query.trim().toLocaleLowerCase("en-US")))
-    .sort((a, b) => Number(b.available) - Number(a.available) || Number(b.source === "Material Icon Theme") - Number(a.source === "Material Icon Theme") || a.name.localeCompare(b.name));
+    && (kindFilter === "all" || entry.kind === kindFilter));
+  const exactName = normalized ? sourceIcons.filter((entry) =>
+    normalizeQuery(entry.id) === normalized || normalizeQuery(entry.id.split(":").at(-1) ?? "") === normalized
+    || normalizeQuery(entry.name) === normalized) : [];
+  const exactAlias = normalized && exactName.length === 0 ? sourceIcons.filter((entry) =>
+    entry.aliases.some((alias) => normalizeQuery(alias) === normalized)) : [];
+  const exact = exactName.length > 0 ? exactName : exactAlias;
+  const matching = exact.length > 0 ? exact : sourceIcons.filter((entry) => entry.search.includes(normalized));
+  matching.sort((a, b) =>
+    (exact.length === 0 && normalized
+      ? Number(!normalizeQuery(a.name).startsWith(normalized)) - Number(!normalizeQuery(b.name).startsWith(normalized))
+      : 0)
+    || Number(b.available) - Number(a.available)
+    || Number(a.kind === "folder") - Number(b.kind === "folder")
+    || Number(b.source === "Material Icon Theme") - Number(a.source === "Material Icon Theme")
+    || a.name.localeCompare(b.name));
+  return exact.length > 0 ? matching.slice(0, 1) : matching;
+};
 
 export function TechnologyIconPicker({ technologyTitle, value, onChange }: {
   technologyTitle: string; value: string; onChange: (value: string) => void;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => normalizeQuery(technologyTitle));
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [kindFilter, setKindFilter] = useState<KindFilter>("all");
   const [page, setPage] = useState(0);
+  useEffect(() => {
+    setQuery(normalizeQuery(technologyTitle));
+    setPage(0);
+  }, [technologyTitle]);
   const selected = getMaterialIconEntry(value) ?? getVscodeIconEntry(value);
   const selectedAvailable = Boolean(getMaterialIconEntry(value) || getVscodeIconEntry(value)?.available);
   const matching = filterCatalogIcons(query, sourceFilter, kindFilter);
@@ -65,7 +87,7 @@ export function TechnologyIconPicker({ technologyTitle, value, onChange }: {
     </div>
     <span className="technology-icon-picker__label">Arama</span>
     <input type="search" aria-label="Icons durchsuchen" placeholder="Icons durchsuchen …" value={query}
-      onChange={(event) => { setQuery(event.target.value); setPage(0); }} />
+      onInput={(event) => { setQuery(event.currentTarget.value); setPage(0); }} />
     <span className="technology-icon-picker__label">Typ</span>
     <div className="technology-icon-picker__filters" role="group" aria-label="Icon-Typ">
       {kindFilters.map((option) => <button type="button" key={option.id} aria-pressed={kindFilter === option.id}

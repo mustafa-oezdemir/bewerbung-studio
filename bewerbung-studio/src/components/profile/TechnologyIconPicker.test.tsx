@@ -117,14 +117,64 @@ describe("TechnologyIconPicker in a real React tree", () => {
     await act(async () => root.unmount());
   });
 
-  it("finds both original JavaScript catalog names when source, kind and search are combined", () => {
+  it("prefers one exact catalog name within the active source and kind", () => {
+    expect(filterCatalogIcons(" Java ", "all", "all").map((entry) => entry.id))
+      .toEqual(["material:file:java"]);
+    expect(filterCatalogIcons("java", "material", "all").map((entry) => entry.id))
+      .toEqual(["material:file:java"]);
+    expect(filterCatalogIcons("java", "vscode", "all").map((entry) => entry.id))
+      .toEqual(["vscode:file:java"]);
+    expect(filterCatalogIcons("java", "material", "folder").map((entry) => entry.id))
+      .toEqual(["material:folder:folder-java"]);
+    expect(filterCatalogIcons("typescript", "all", "all").map((entry) => entry.id))
+      .toEqual(["material:file:typescript"]);
     expect(filterCatalogIcons("javascript", "all", "file").filter((entry) => entry.available)
-      .map((entry) => entry.id)).toContain("material:file:javascript");
-    expect(filterCatalogIcons("javascript", "all", "file").filter((entry) => entry.available)
-      .map((entry) => entry.id)).toContain("vscode:file:js");
+      .map((entry) => entry.id)).toEqual(["material:file:javascript"]);
+    expect(filterCatalogIcons("javascript", "vscode", "file").map((entry) => entry.id))
+      .toEqual(["vscode:file:js"]);
     expect(filterCatalogIcons("javascript", "material", "folder").map((entry) => entry.id))
       .toEqual(["material:folder:folder-javascript"]);
+    expect(filterCatalogIcons("folder-java", "all", "all").map((entry) => entry.id))
+      .toEqual(["material:folder:folder-java"]);
+    expect(filterCatalogIcons("javacla", "all", "file").map((entry) => entry.id))
+      .toContain("material:file:javaclass");
     expect(filterCatalogIcons("not-existing-icon", "all", "all")).toEqual([]);
+  });
+
+  it("initializes and refreshes the query from the Stärke while preserving manual search across source tabs", async () => {
+    const { window } = parseHTML("<html><body><div id='root'></div></body></html>");
+    Object.assign(globalThis, { window, document: window.document, IS_REACT_ACT_ENVIRONMENT: true });
+    const { createRoot } = await import("react-dom/client");
+    const root = createRoot(window.document.getElementById("root")!);
+    const render = async (title: string) => act(async () => {
+      root.render(<TechnologyIconPicker technologyTitle={title} value="" onChange={vi.fn()} />);
+    });
+    const search = () => window.document.querySelector<HTMLInputElement>('[aria-label="Icons durchsuchen"]')!;
+    const results = () => Array.from(window.document.querySelectorAll<HTMLButtonElement>('[aria-label="Icon-Katalog"] button'),
+      (button) => button.getAttribute("aria-label"));
+    const source = (label: string) => Array.from(window.document.querySelectorAll<HTMLButtonElement>('[aria-label="Icon-Quelle"] button'))
+      .find((button) => button.textContent === label)!;
+
+    await render("Java");
+    expect(search().value).toBe("java");
+    expect(results()).toEqual(["java, Material Icon Theme, Datei-Icon"]);
+    await act(async () => { source("vscode-icons").click(); });
+    expect(search().value).toBe("java");
+    expect(results()).toEqual(["java, vscode-icons, Datei-Icon, nicht verfügbar"]);
+    await act(async () => { source("Alle Quellen").click(); });
+    expect(results()).toEqual(["java, Material Icon Theme, Datei-Icon"]);
+
+    await act(async () => {
+      const input = search();
+      Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), "value")?.set?.call(input, "react");
+      input.dispatchEvent(new window.Event("input", { bubbles: true }));
+    });
+    expect(search().value).toBe("react");
+    expect(results()).toEqual(["react, Material Icon Theme, Datei-Icon"]);
+    await render("Docker");
+    expect(search().value).toBe("docker");
+    expect(results()).toEqual(["docker, Material Icon Theme, Datei-Icon"]);
+    await act(async () => root.unmount());
   });
 
   it("updates the preview at once and keeps the choice in the saved Stärke", async () => {
