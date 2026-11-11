@@ -1,37 +1,37 @@
-# BewerbungsManager – Installation unter Windows
+# BewerbungsManager — Windows installation
 
 ## Downloads
 
-Für Windows x64 gibt es zwei Varianten:
+There are two options for Windows x64:
 
-- `BewerbungsManager-<Version>-x64-Setup.exe`: Installiert die Anwendung auf dem Computer.
-- `BewerbungsManager-<Version>-x64-Portable.exe`: Läuft ohne Installation.
+- `BewerbungsManager-<Version>-x64-Setup.exe`: installs the application on your computer.
+- `BewerbungsManager-<Version>-x64-Portable.exe`: runs without installation.
 
-Veröffentlichte Versionen finden Sie unter [GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases/latest) im Bereich **Assets**. Ein lokal erzeugter Build liegt im Ordner `windows-release`.
+Published versions are available under **Assets** on [GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases/latest). A locally built version is placed in `windows-release`.
 
-Mit `SHA256SUMS.txt` können Sie die Datei prüfen. Führen Sie dazu in PowerShell im Ordner der Datei den folgenden Befehl aus und vergleichen Sie den ausgegebenen Wert mit der Liste:
+Use `SHA256SUMS.txt` to verify the file. Run the following command in PowerShell from the file's folder and compare the output with the checksum list:
 
 ```powershell
 Get-FileHash -Algorithm SHA256 .\BewerbungsManager-<Version>-x64-Setup.exe
 ```
 
-## Installation mit Setup
+## Install with Setup
 
-1. Schließen Sie alle geöffneten BewerbungsManager-Fenster.
-2. Starten Sie die `...-Setup.exe` und folgen Sie den Installationsschritten.
-3. Öffnen Sie die Anwendung über das Startmenü. Wählen Sie beim ersten Start, falls Sie danach gefragt werden, mit **Neuen Bewerbungsordner auswählen** einen Datenordner für Ihre Bewerbungen. Vorhandene Daten öffnen Sie mit **Workspace-Datei auswählen …**.
-4. Den aktuellen Speicherort finden Sie später unter **Einstellungen → Speicherort**.
+1. Close all open BewerbungsManager windows.
+2. Run `...-Setup.exe` and follow the installation steps.
+3. Open the application from the Start menu. On first launch, if prompted, use **Neuen Bewerbungsordner auswählen** (select a new application folder) to choose where your data will be stored. To open existing data, use **Workspace-Datei auswählen …** (select workspace file).
+4. You can later find the current location under **Einstellungen → Speicherort** (Settings → Storage location).
 
-## Windows-Warnungen
+## Windows warnings
 
-Der Signaturstatus jeder veröffentlichten Version steht auf ihrer Release-Seite. Lokal erzeugte Builds sind normalerweise nicht signiert. Bei nicht signierten Dateien kann Windows eine Warnung anzeigen; ist die Intelligente App-Steuerung aktiviert, kann Windows sie auch vollständig blockieren. Führen Sie nur Dateien aus, deren Herkunft und Prüfsumme Sie geprüft haben.
+Each published version's release page states its signing status. Locally built versions are normally unsigned. Windows may warn about unsigned files; if Smart App Control is enabled, it may block them entirely. Run only files whose source and checksum you have verified.
 
-## Portable-Version
+## Portable version
 
-Legen Sie die `...-Portable.exe` in einen beliebigen Ordner und starten Sie sie. Wenn Sie denselben Datenordner auch mit der Setup-Version verwenden, öffnen Sie nicht beide Versionen gleichzeitig. Das Löschen der Portable-EXE entfernt keine Bewerbungsdaten, die Sie in einem separaten Ordner aufbewahren.
+Place `...-Portable.exe` in any folder and run it. If you use the same data folder with the Setup version, do not run both versions at once. Deleting the portable EXE does not delete application data stored in a separate folder.
 
-## Update und Datensicherheit
+## Updates and data safety
 
-Erstellen Sie vor der Installation einer neuen Version unter **Einstellungen → Übertragen & Sicherung** mit **Jetzt sichern** eine Sicherung und kopieren Sie diese an einen anderen Ort. Über **Backup-Ordner öffnen** gelangen Sie zum Ablageort. Schließen Sie anschließend die Anwendung und starten Sie die neue Setup-Datei. Die Bewerbungsdaten liegen getrennt von den Programmdateien in einem eigenen Bewerbungsordner. Prüfen Sie nach dem Update, ob derselbe Datenordner geöffnet wurde und Ihr Profil sichtbar ist.
+Before installing a new version, create a backup under **Einstellungen → Übertragen & Sicherung → Jetzt sichern** (Settings → Transfer & Backup → Back up now) and copy it to another location. **Backup-Ordner öffnen** (open backup folder) shows where it was saved. Then close the application and run the new Setup file. Application data is stored in its own folder, separate from program files. After the update, check that the same data folder is open and your profile is visible.
 
-Wenn ein Fehler auftritt, teilen Sie bitte die vollständige Meldung, die Anwendungsversion und den Arbeitsschritt mit, bei dem er aufgetreten ist. Fügen Sie persönliche Bewerbungsdaten oder Passwörter nicht in öffentliche GitHub-Issues ein.
+If an error occurs, report the complete message, application version, and step at which it happened. Do not include personal application data or passwords in public GitHub issues.

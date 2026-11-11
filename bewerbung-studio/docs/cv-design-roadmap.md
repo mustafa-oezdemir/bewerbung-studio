@@ -1,564 +1,420 @@
-# Gemeinsames Lebenslauf-Design: Arbeitsstand
+# Shared CV design: work in progress
 
-## Auftrag und Reihenfolge
+## Scope and sequence
 
-Quellen: `.lebenslauf/todo/task.md`, `view.md`, `todo_1.md`, `spalte.md` und
-`app_todo.md` (27.09.2026). Die Reihenfolge aus `task.md` ist maßgeblich:
-gemeinsame Grundlagen, danach Vorlagenkorrekturen, anschließend eigener Designer
-und App-Funktionen. Jeder abgeschlossene Schritt wird geprüft und separat gepusht.
+Sources: `.lebenslauf/todo/task.md`, `view.md`, `todo_1.md`, `spalte.md` and `app_todo.md`
+(27 September 2026). The sequence in `task.md` governs the work: shared foundations, template
+corrections, then a custom designer and application features. Each completed step is verified and
+pushed separately.
 
-## Schritt 0: Architektur und Baseline
+## Step 0: Architecture and Baseline
 
-Ausgangscommit: `1ce2cc8`. Keine visuelle Änderung in diesem Schritt.
+Starting commit: `1ce2cc8`. No visual change in this step.
 
-| Bereich                          | Bestehende Implementierung                                                                | Folgerung                                                                                                 |
-| -------------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Daten und Validierung            | `src/shared/schema.ts`, Zod                                                             | Profile und Bewerbungen bleiben kompatibel.                                                               |
-| Vorlagen                         | `src/shared/templates.ts`, `src/components/resume/templates/*`                        | Bestehende Defaults erweitern, keine zweite Vorlagenregistrierung.                                        |
-| Design                           | `src/shared/documentDesign.ts`                                                          | Vorhandene Farben, Schrift-, Abstands- und CSS-Variablen erweitern.                                       |
-| Designzustand                    | `src/shared/documentEditorState.ts`, `templateDesigns` in Application                 | Vorlagenwechsel kann nicht definierte Einstellungen übernehmen; Reset setzt Farben bisher nicht zurück. |
-| Speicherung                      | `electron/storage.ts` (DataStore), `src/store/useAppStore.ts`, IPC                    | Zod-validierte JSON-Dateien, atomare Speicherung und Sicherungen weiterverwenden.                         |
-| Vorschau                         | `src/views/DocumentsView.tsx`, React-Vorlagen, `ManagedResumePreview.tsx`             | Gemeinsame Auflösung vor der Ausgabe einbinden.                                                          |
-| PDF                              | `electron/documents.ts`, HTML/CSS und Chromium                                          | Eigenständiges Markup; gemeinsame Projektion über`resumeManagedOutput.ts` bereits vorhanden.          |
-| Word                             | `electron/templates/*`, Platzhalter in `electron/storage.ts`                          | Bestehende Engine beibehalten; gebündelte DOCX-Dateien fehlen derzeit.                                   |
-| Eigene Abschnitte                | `specialSections`, `ResumeSpecialSections.tsx`, `resumeManagedOutput.ts`            | React verwendet teilweise Vorlagenklassen, PDF erzeugt generische`managed-extra`-Blöcke.               |
-| Reihenfolge/Sichtbarkeit/Spalten | `features/resume-sections/resume-manager.ts`, `resume-section-system.ts`              | Vorhandene Metadaten und Organizer weiterverwenden.                                                       |
-| Profil/Design-Trennung           | Präsentationsfelder teilweise im Profil;`resume-editor-settings.ts` schützt Entwürfe | Keine destruktive Migration; kompatible Adapter notwendig.                                                |
-| Dichte/Seiten                    | `documentPagination.ts`, `resumeSectionLayout.ts`, Vorlagen-CSS                       | Vorlagenspezifische Ausgangswerte erhalten; Abschnitts- und Eintragsabstände getrennt behandeln.         |
-| Icons/Stärken                   | `technologyBrand.ts`, `strengthSymbols.ts`, `resumeSectionLayout.ts`                | Auto-/manuelle Icons und 1–4 Spalten existieren bereits (Commit`86ba317`).                             |
-| Abschluss                        | `resumeClosing`, Profil-Unterschrift; Pehlione unterstützt einzelne Schalter           | Für alle Vorlagen vereinheitlichen.                                                                      |
-| App-Shell                        | `src/App.tsx`, Settings-Theme                                                           | Hell/Dunkel existiert teilweise, lokaler Toggle ist nicht vollständig persistiert; ToDo/Notizen fehlen.  |
+| Area | Existing implementation | Implication |
+| --- | --- | --- |
+| Data and validation | `src/shared/schema.ts`, Zod | Keep profiles and applications compatible. |
+| Templates | `src/shared/templates.ts`, `src/components/resume/templates/*` | Extend existing defaults; avoid a second template registry. |
+| Design | `src/shared/documentDesign.ts` | Extend existing color, font, spacing, and CSS variables. |
+| Design state | `src/shared/documentEditorState.ts`, `templateDesigns` in Application | Template changes can inherit undefined settings; reset did not restore colors. |
+| Storage | `electron/storage.ts` (DataStore), `src/store/useAppStore.ts`, IPC | Reuse Zod-validated JSON, atomic writes, and backups. |
+| Preview | `src/views/DocumentsView.tsx`, React templates, `ManagedResumePreview.tsx` | Resolve shared settings before rendering. |
+| PDF | `electron/documents.ts`, HTML/CSS, Chromium | Standalone markup already has a shared projection through `resumeManagedOutput.ts`. |
+| Word | `electron/templates/*`, placeholders in `electron/storage.ts` | Keep the existing engine; bundled DOCX files were missing at baseline. |
+| Custom sections | `specialSections`, `ResumeSpecialSections.tsx`, `resumeManagedOutput.ts` | React uses template classes in some places; PDF emits generic `managed-extra` blocks. |
+| Order, visibility, columns | `features/resume-sections/resume-manager.ts`, `resume-section-system.ts` | Reuse existing metadata and organizer. |
+| Profile and design separation | Presentation fields partly live in profiles; `resume-editor-settings.ts` protects drafts | Use compatible adapters without destructive migration. |
+| Density and pages | `documentPagination.ts`, `resumeSectionLayout.ts`, template CSS | Preserve template defaults and separate section spacing from entry spacing. |
+| Icons and strengths | `technologyBrand.ts`, `strengthSymbols.ts`, `resumeSectionLayout.ts` | Automatic and manual icons and 1–4 columns already exist (commit `86ba317`). |
+| Closing block | `resumeClosing`, profile signature; Pehlione has separate switches | Unify behavior across templates. |
+| Application shell | `src/App.tsx`, settings theme | Light/dark support is partial; the local toggle is not fully persisted, and ToDo/notes were missing. |
 
-Aktive Vorlagen: Pehlione White, Pehlione White Blue, Zweispaltig, Gepflegt,
-Tabellarisch, Modern, Elegant, Zeitgenössisch, Kreativ, Ivy League, Stilvoll,
-Kompakt, Einspaltig, Klassisch. Alte Vorlagendefinitionen bleiben für gespeicherte
-Bewerbungen lesbar. Alias `einfach` verweist auf `einspaltig`.
+Active templates: Pehlione White, Pehlione White Blue, Zweispaltig, Gepflegt, Tabellarisch, Modern,
+Elegant, Zeitgenössisch, Kreativ, Ivy League, Stilvoll, Kompakt, Einspaltig, Klassisch. Old template
+definitions remain readable for saved applications. Alias `einfach` refers to `einspaltig`.
 
-Baseline am 27.09.2026:
+Baseline on 27/09/2026:
 
-- Typecheck: erfolgreich.
-- Tests: 461 erfolgreich, 6 bestehende Fehler in `electron/templates/template.service.test.ts`.
-- Ursache der sechs Fehler: fehlendes Verzeichnis `public/templates` mit gebündelten DOCX-Vorlagen; keine neuen Rendererfehler.
-- Production Build: erfolgreich; bestehende Bundle-/Vite-Warnungen.
-- Letzte visuelle Prüfung: Einspaltig-Vorschau und echte A4-PDF einschließlich eigenem Abschnitt, unterer Linie und gestrichelter Eintragstrennung.
+- Type check: successful.
+- Tests: 461 successful, 6 existing errors in `electron/templates/template.service.test.ts`.
+- Cause of the six errors: missing `public/templates` directory with bundled DOCX templates; no new renderer errors.
+- Production build: successful, with existing bundle and Vite warnings.
+- Last visual check: Einspaltig preview and a real A4 PDF, including a custom section, bottom line, and dashed entry separators.
 
-Die fehlenden Word-Dateien sind ein offener Baseline-Mangel. Ein grüner vollständiger
-Quality Gate darf erst nach Wiederherstellung und Prüfung dieser Dateien gemeldet werden.
+The missing Word files were an open baseline issue. A full quality gate could only be reported as
+passing after those files were restored and checked.
 
-## Weitere Schritte
+## Further steps
 
-- [X] 0: Architektur und Baseline dokumentieren.
-- [X] 1: Gemeinsame semantische Designauflösung, ohne Defaultansichten zu verändern.
-- [X] 2: Vorlagenbezogene Overrides und vollständiger Reset.
-- [X] 3: Profildaten und Darstellung kompatibel trennen.
-- [X] 4: Eigene Abschnitte normalisieren.
-- [X] 5: Vorlagenstile für eigene Abschnitte vererben.
-- [X] 6–7: Gemeinsame Spalten, Platzierung, Reihenfolge und Sichtbarkeit.
-- [X] 8–9: Abstände und Metadatenlayout.
-- [X] 10–11: Bestehende Stärken-/Icon-Lösung gegen gemeinsame Anforderungen prüfen.
-- [ ] 12–13: Abschlussblock und gemeinsame Vorschau-/PDF-Auflösung.
-- [ ] 14–24: Vorlagen einzeln anhand ihrer Referenzen prüfen und korrigieren.
-- [ ] 25–28: Designpanel, eigene Designs, Word-Anbindung und Editor.
-- [ ] 29–32: ToDo, Notizen, Benachrichtigungen, persistiertes App-Theme.
-- [ ] 33–35: Vollständige Regression, PDF-Prüfungen und finaler Quality Gate.
+- [X] 0: Document architecture and baseline.
+- [X] 1: Common semantic design resolution without changing default views.
+- [X] 2: Template related overrides and full reset.
+- [X] 3: Separate profile data from presentation while retaining compatibility.
+- [X] 4: Normalize custom sections.
+- [X] 5: Inherit template styles for custom sections.
+- [X] 6–7: Common columns, placement, order and visibility.
+- [X] 8–9: Spacing and metadata layout.
+- [X] 10–11: Review existing strengths/icon solution against common requirements.
+- [ ] 12–13: Closing block and common preview/PDF resolution.
+- [ ] 14–24: Check and correct templates individually based on their references.
+- [ ] 25–28: Design panel, custom designs, Word integration, and editor.
+- [ ] 29–32: Todo, notes, notifications, persistent app theme.
+- [ ] 33–35: Full regression, PDF checks and final quality gate.
 
-Einspaltigs doppelte Überschriftslinie wurde vor dieser Reihenfolge bereits mit
-`1ce2cc8` korrigiert. Das ersetzt nicht die spätere gemeinsame Stilprüfung.
+Einspaltig's duplicate heading line was corrected in `1ce2cc8` before this sequence. The later
+shared style review is still required.
 
-## Schritt 1: Designgrundlage
+## Step 1: Design foundation
 
-`cvDesignSchema.ts` definiert zwölf semantische Farben sowie getrennte Typografie-
-und Abstandswerte mit validierten Grenzen. `cvDesign.ts` löst native Vorlagenwerte
-und ausschließlich explizite Overrides auf; gleiche Werte werden vor dem Speichern
-entfernt. Fehlende und explizit undefinierte Werte erben ihren Default.
+`cvDesignSchema.ts` defines twelve semantic colors and separate typography and spacing values with
+validated bounds. `cvDesign.ts` resolves native template values and explicit overrides only;
+overrides equal to defaults are removed before saving. Missing or explicitly undefined values
+inherit their defaults.
 
-Die vorhandenen zwölf `*.defaults.ts`-Module liegen nun unter
-`src/shared/cvTemplateDefaults`; bisherige React-Importpfade exportieren dieselben
-Konstanten weiter. `cvTemplateTokens.ts` adaptiert diese Konstanten sowie Pehliones
-CSS-Werte. Die Tokens beschreiben die normale visuelle Vorlage; bestehende
-ATS-/Dichtevarianten werden in der späteren Renderer-Anbindung berücksichtigt.
+The existing twelve `*.defaults.ts` modules are now below `src/shared/cvTemplateDefaults`; previous
+React import paths continue to export the same constants. `cvTemplateTokens.ts` adapts these
+constants as well as Pehlione's CSS values. The tokens describe the normal visual template; existing
+ATS/density variants are taken into account in the later renderer connection.
 
-Dieser Schritt stellt die gemeinsame Auflösung und CSS-Einheiten bereit. Er
-ändert keine Stylesheets, keine Rendererausgabe und keine gespeicherten Daten.
-Persistenz folgt in Schritt 2, semantische Stilzuordnung und Ausgabeadapter in
-Schritt 5 bzw. 13. Die neue Grundlage allein ist noch kein fertiges Designpanel.
+This step provides the common resolution and CSS units. It changes no style sheets, no renderer
+output, and no saved data. Persistence follows in step 2, semantic style mapping and output adapters
+in step 5 and 13, respectively. The new foundation alone is not yet a finished design panel.
 
-Prüfung: 204 Resolver-/Preview-/PDF-Tests erfolgreich. Alle aktiven Vorlagen sind
-abgedeckt; Farben, Einheiten, Grenzen, Alias, isolierte Defaults und sparse
-Overrides werden geprüft. Vorhandene Vorschau-/PDF-Renderer bleiben unverändert.
+Verification: 204 resolver, preview, and PDF tests passed. All active templates are covered; tests
+check colors, units, bounds, aliases, isolated defaults, and sparse overrides. Existing renderers
+remain unchanged.
 
-## Schritt 2: Vorlagenwechsel, Speicherung und Reset
+## Step 2: Template switching, storage, and reset
 
-`documentEditorState.ts` initialisiert eine neue Vorlage jetzt ausschließlich mit
-deren Defaults. Inaktive Vorlagen speichern nur Abweichungen; historische volle
-Snapshots werden weiterhin gelesen. Das aktive `designSettings`-Objekt bleibt aus
-Kompatibilitätsgründen vollständig. Neue semantische Werte liegen darin optional
-und partiell unter `cvOverrides`; der bestehende DataStore übernimmt die Persistenz.
+`documentEditorState.ts` now initializes a new template exclusively with its defaults. Inactive
+templates only store deviations; historical full snapshots will continue to be read. The active
+`designSettings` object remains complete for compatibility reasons. New semantic values are
+optionally and partially below `cvOverrides`; the existing DataStore takes over the persistence.
 
-Die Validierung trennt vollständige Einstellungen von partiellen Overrides, damit
-Zod beim Laden eines leeren Overrides keine globalen Defaults ergänzt. Der
-Design-Reset in `DocumentsView.tsx` setzt auch Akzent-/Sekundärfarbe zurück und
-entfernt semantische Overrides. Andere Vorlagen, Profildaten und Inhalte bleiben
-erhalten. Einzelfeld-Reset steht als gemeinsamer Zustandshelfer bereit; die neuen
-semantischen Bedienelemente und ihre Ausgabeanbindung folgen in späteren Schritten.
+Validation separates complete settings from partial overrides so Zod does not add global defaults
+when loading an empty override. The design reset in `DocumentsView.tsx` also resets accent/secondary
+color and removes semantic overrides. Other templates, profile data and content will be retained.
+Single-field reset is available as a shared state helper; the new semantic controls and their
+output connection will follow in later steps.
 
-Prüfung: Typecheck und Production Build erfolgreich. 538 Tests erfolgreich, nur
-die sechs dokumentierten Word-Baselinefehler verbleiben. Neue Tests prüfen alle
-14 Vorlagen auf Isolation, exakte PDF-HTML-Gleichheit nach Reset, alte Snapshots,
-Alias-Kompatibilität sowie Speichern/Neustart/Reset über den realen DataStore.
-Zusätzlich wurde eine echte Einspaltig-A4-PDF nach Reset erzeugt und gerendert:
-Vorlagenfarben, Hintergrund, eigene Überschrift und gestrichelte Trenner korrekt;
-Vorschau und PDF haben dieselben berechneten Überschriftsrahmen.
+Check: Typecheck and Production Build successful. 538 tests successful, only the six documented Word
+baseline errors remain. New tests check all 14 templates for isolation, exact PDF-HTML equality
+after reset, old snapshots, alias compatibility as well as save/restart/reset via the real
+DataStore. In addition, a real Einspaltig-A4 PDF was generated and rendered after reset: template
+colors, background, custom header and dashed separator correct; preview and PDF have the same
+calculated header frames.
 
-### Phase 3 – Inhalt und Darstellung
+### Phase 3 – Content and presentation
 
-Neue Änderungen an Sichtbarkeit, Abschnittstiteln, Reihenfolge, Spaltenzuordnung,
-Kontaktfeldern und Abschlussoptionen werden als sparse `resumePresentation` in den
-vorlagenspezifischen Dokumenteinstellungen gespeichert. Bestehende Profile bleiben
-kompatibel; eine gemeinsame Projektion versorgt Vorschau und PDF mit ihrer bisherigen
-Profilstruktur. Der Editor speichert den Inhalt getrennt und behält ungespeicherte
-Inhaltsänderungen beim Vorlagenwechsel. Zurücksetzen entfernt die neuen Overrides,
-ohne Profilinhalte zu löschen.
+New changes to visibility, section titles, order, column mapping, contact fields, and closing block
+options are saved as sparse `resumePresentation` in the template-specific document settings.
+Existing profiles remain compatible; a common projection provides preview and PDF with their
+previous profile structure. The editor saves the content separately and retains unsaved content
+changes when changing templates. Reset removes the new overrides without deleting profile content.
 
-Validierung: Typecheck erfolgreich; vollständiger Lauf 542 bestanden und die sechs
-bekannten Fehler wegen fehlender Word-Assets. Anschließend 14 zusätzliche
-PDF-Regressionen für alle aktiven Vorlagen ergänzt: gezielter Lauf 149 bestanden.
-Diese prüfen auch, dass CV-Einstellungen das Anschreiben nicht verändern.
+Validation: Typecheck successful; complete run 542 passed and the six known errors due to missing
+Word assets. Subsequently, 14 additional PDF regressions were added for all active templates:
+targeted run 149 passed. These also check that CV settings do not change the cover letter.
 
 ### Phase 4 – Custom Section Normalization
 
-`specialSections` bleibt das bestehende Datenmodell und erhält einen optionalen
-`contentType` (Text, Liste, Einträge, Skills, Timeline). Beide Profileditoren bieten
-diese Auswahl an. Ohne explizite Auswahl löst der gemeinsame Normalizer alte Daten
-anhand ihrer Inhalte und Metadaten auf, ohne gespeicherte Daten umzuschreiben oder
-Überschriften als Sonderfälle zu behandeln. Hauptabschnitte und Unterabschnitte
-werden semantisch getrennt; einfache Inhalte werden nicht mehr als Titel gerendert.
+`specialSections` remains the existing data model and receives an optional `contentType` (text,
+list, entries, skills, timeline). Both profile editors offer this selection. Without explicit
+selection, the common normalizer resolves old data based on its content and metadata, without
+rewriting stored data or treating headings as special cases. Main sections and subsections are
+semantically separated; simple content is no longer rendered as a title.
 
-React-Vorschau und Electron-PDF nutzen dieselbe escaped Inhaltsausgabe. Eigene
-Abschnitte werden anhand ihrer ID zugeordnet, sodass gleiche Überschriften nicht
-zusammenfallen. Leere Einträge erzeugen keine leeren Abschnitte. Vorhandene Metadaten,
-Beschreibung, Details und URLs bleiben bei jeder Typauswahl erhalten.
+React preview and Electron PDF use the same escaped content output. Custom sections are matched by
+ID, so sections with identical headings remain distinct. Empty entries do not create empty sections.
+Existing metadata, description, details, and URLs are preserved with each type selection.
 
-Validierung: Build inklusive Typecheck erfolgreich. 578 Tests bestanden; weiterhin
-sechs bekannte Word-Asset-Fehler. Die neue Regression prüft alle fünf Inhaltstypen in
-allen 14 aktiven Vorlagen auf identisches Preview-/PDF-Markup und eindeutige IDs.
-Visuelle Stil-Vererbung und vorlagenspezifische Abstände folgen in Phase 5.
+Validation: Build including Typecheck successful. 578 tests passed; still six known Word asset
+errors. The new regression checks all five content types in all 14 active templates for identical
+preview/PDF markup and unique IDs. Visual style inheritance and template-specific spacing will
+follow in Phase 5.
 
-### Phase 5 – Gemeinsame Section Style Inheritance (27.09.2026)
+### Phase 5 – Shared section style inheritance (27 September 2026)
 
-Alle 14 aktiven Vorlagen verwenden gemeinsame semantische Rollen für Hauptabschnitt,
-Eintragstitel, unterstützenden Organisations-/Akzenttext und Metadaten. Der gemeinsame
-Adapter erzeugt ausschließlich auf eigene Abschnitte begrenzte CSS-Aliase aus den
-nativen Stylesheets. Font, Farbe, Divider, Innen-/Außenabstand, Eintragsabstand sowie
-Dichte-, ATS- und Umbruchregeln bleiben dadurch an die jeweilige Vorlage gebunden.
-Es werden keine globalen Ersatz-Defaults und keine Profilmigration eingeführt.
+All 14 active templates use common semantic roles for main section, entry title, supporting
+organization/accent text, and metadata. The shared adapter generates CSS aliases from native
+stylesheets, scoped to custom sections. Font, color, divider, inner/outer spacing,
+entry spacing as well as density, ATS and wrapping rules remain bound to the respective template. No
+global replacement defaults and no profile migration will be introduced.
 
-Preview und PDF verwenden denselben Inhalts- und Stiladapter. Bestehende verschachtelte
-Überschriften behalten ihre Label-/Icon-Struktur; neue Abschnitte stehen vor dem
-Abschlussblock. Unterabschnitte verwenden die native Überschriftenelementart ihres
-Renderers, weshalb ihre HTML-Tags zwischen Vorschau und PDF abweichen dürfen; Inhalt,
-IDs und semantische Rollen bleiben gleich. Karriere-Spaltengeometrie wird nicht auf
-freie Einträge kopiert. Bestehende Persistenz und vorlagenbezogener Reset bleiben erhalten.
+Preview and PDF use the same content and style adapter. Existing nested headings will retain their
+label/icon structure; new sections will be in front of the closing block. Subsections use their
+renderer's native heading element type, which is why their HTML tags are allowed to diverge between
+preview and PDF; content, IDs, and semantic roles remain the same. Career column geometry is not
+copied to free entries. Existing persistence and template-related reset are retained.
 
-Die PostCSS-Abhängigkeit ist in Electron extern eingebunden: Node lädt das CommonJS-
-Paket selbst, sodass der ESM-Build nicht mehr an `require("path")` scheitert. Der
-Renderer verwendet weiterhin den Browser-Build der Bibliothek.
+The PostCSS dependency is integrated externally in Electron: Node loads the CommonJS package itself,
+so that the ESM build no longer fails on `require("path")`. The renderer will continue to use the
+browser build of the library.
 
-Validierung:
+Validation:
 
-- `npm run release:check`: Typecheck, 65 Testdateien / 604 Tests und Production Build erfolgreich.
-- `node scripts/section-inheritance-qa.mjs` und `npx electron scripts/check-section-inheritance.cjs`:
-  56 berechnete Stilprüfungen (14 Vorlagen × visuell/ATS × Vorschau/PDF), keine Abweichungen.
-  Der gemeinsame Keep-with-next-Schutz darf zusätzlich einen alleinstehenden Titel verhindern.
-- 14 echte A4-PDFs erzeugt, mit Poppler gerendert und visuell geprüft.
-- `npx electron scripts/electron-startup-smoke.cjs`: Hauptprozess, Preload und React erfolgreich geladen.
-- Fehlende Word-Testassets unter `public/templates` mit den bestehenden `create-*-lebenslauf.py`
-  Generatoren wiederhergestellt; die sechs bisherigen Baselinefehler sind damit behoben.
-- Bestehende Bundle-Größen-/Vite-Deprecation-Warnungen bleiben ohne Buildfehler.
+- `npm run release:check`: type check, 65 test files / 604 tests, and production build passed.
+- `node scripts/section-inheritance-qa.mjs` and `npx electron scripts/check-section-inheritance.cjs`:
+  56 computed style checks (14 templates × visual/ATS × preview/PDF) found no deviations. The shared
+  keep-with-next rule may also prevent an orphaned heading.
+- Fourteen real A4 PDFs were generated, rendered with Poppler, and visually checked.
+- `npx electron scripts/electron-startup-smoke.cjs`: main process, preload, and React loaded.
+- Missing Word test assets under `public/templates` were restored with the existing
+  `create-*-lebenslauf.py` generators, resolving the six baseline failures.
+- Existing bundle size and Vite deprecation warnings did not fail the build.
 
-Die QA-Ausgaben liegen unter `tmp/section-inheritance-qa`. Vorlagenspezifische
-Redesigns sind nicht Bestandteil dieser Phase.
+QA output is under `tmp/section-inheritance-qa`. Template-specific redesigns are not part of this
+phase.
 
-### Phase 6 – Gemeinsame Layout Engine (27.09.2026)
+### Phase 6 – Common Layout Engine (27/09/2026)
 
-Die gemeinsame Layoutauflösung unterstützt ein- und zweispaltige Lebensläufe,
-Seitenspalten links/rechts und die sicheren Verhältnisse 20/80 bis 40/60 in
-Fünferschritten. Ohne gespeicherte Layoutauswahl bleibt das native Layout jeder
-Vorlage samt eigener Breite unverändert. Eine Wahl im Designpanel wird pro
-Bewerbung gespeichert; „Vorlage“ entfernt Modus-, Seiten- und Breiten-Overrides
+The shared layout resolver supports one- and two-column CVs, side columns on the left or right, and
+safe ratios from 20/80 to 40/60 in increments of five. Without a saved layout selection, the native layout of each
+template, including its own width, remains unchanged. One choice in the design panel is saved per
+application; "Template" removes mode, side, and width overrides and restores the native template.
+Existing Pehlione profile widths are retained when only the side changes.
 
+The shared DOM adapter is applied after section management in React preview and Electron PDF. For
+originally single-column templates, it creates main and side columns with a header spanning both columns.
+In the case of native two-column templates, it rearranges the existing areas without duplicating
+their content. The automatic width of the knowledge/strength grid follows the selected main column.
+ATS outputs retain their single-column representation.
 
-und stellt die ursprüngliche Vorlage wieder her. Bestehende Pehlione-Profilbreiten
-bleiben bei einem reinen Seitenwechsel erhalten.
+Validation: `npm run release:check` with 66 test files / 623 tests and build successful; Electron
+start successful. `node scripts/layout-engine-qa.mjs` generates 84 preview/PDF combinations from the
+Phase 5 fixtures; `npx electron scripts/check-layout-engine.cjs` confirms the calculated column
+width, order and common grid row for all 84.
 
-Der gemeinsame DOM-Adapter wird nach dem Section-Management in React-Vorschau
-und Electron-PDF angewendet. Bei ursprünglich einspaltigen Vorlagen erzeugt er
-Haupt- und Seitenspalte mit einem seitenübergreifenden Kopfbereich. Bei nativen
-Zweispaltenvorlagen ordnet er die vorhandenen Bereiche um, ohne deren Inhalt zu
-duplizieren. Die automatische Breite der Wissens-/Stärkenraster folgt der
-gewählten Hauptspalte. ATS-Ausgaben behalten ihre einspaltige Darstellung.
+### Phase 7 – Section Placement, Order and Visibility (27/09/2026)
 
-Validierung: `npm run release:check` mit 66 Testdateien / 623 Tests und Build
-erfolgreich; Electron-Start erfolgreich. `node scripts/layout-engine-qa.mjs`
-erzeugt 84 Preview-/PDF-Kombinationen aus den Phase-5-Fixtures;
-`npx electron scripts/check-layout-engine.cjs` bestätigt für alle 84 die
-berechnete Spaltenbreite, Reihenfolge und gemeinsame Grid-Zeile.
+The existing section manager is the central processing point for visibility, order and assignment to
+the main or side column. All content sections including work experience, education, project
+highlight and dedicated areas may be moved to both columns. Header, personal details, photo and
+conclusion remain fixed structural elements. The organizer offers drag & drop with marked target as
+well as focusable handles: arrow up/down changes the order, left/right the column. Eye switches and
+position selection are retained as direct alternatives.
 
-### Phase 7 – Section Placement, Order und Visibility (27.09.2026)
+The assignment is stored as a sparse, application-related `resumePresentation.sections` override.
+Old profiles and unchanged templates retain their original appearance. In the case of single-column
+output, the groups are arranged in one column; when switching to two columns, the assignment is
+retained. Section-Save also preserves the layout overrides from phase 6. React-Preview and
+Electron-PDF use the same section projection.
 
-Der vorhandene Abschnittsmanager ist die zentrale Bearbeitungsstelle für
-Sichtbarkeit, Reihenfolge und Zuordnung zur Haupt- oder Seitenspalte. Alle
-Inhaltsabschnitte einschließlich Berufserfahrung, Ausbildung, Projekt-Highlight
-und eigenen Bereichen dürfen in beide Spalten verschoben werden. Kopf,
-persönliche Angaben, Foto und Abschluss bleiben feste Strukturelemente.
-Der Organizer bietet Drag & Drop mit markiertem Ziel sowie fokussierbare
-Griffe: Pfeil hoch/runter ändert die Reihenfolge, links/rechts die Spalte.
-Augenschalter und Positionsauswahl bleiben als direkte Alternativen erhalten.
+Validation: `npm run release:check` and the Electron start test; regressions check the assignment
+and visibility for all 14 templates in preview and PDF, the single-column group flow and the
+persistence roundtrip.
 
-Die Zuordnung wird als sparse, bewerbungsbezogener `resumePresentation.sections`
-Override gespeichert. Alte Profile und unveränderte Vorlagen behalten ihr
-ursprüngliches Erscheinungsbild. Bei einspaltiger Ausgabe werden die Gruppen
-in einer Spalte angeordnet; beim Wechsel zu zwei Spalten bleibt die Zuordnung
-erhalten. Section-Speichern bewahrt zugleich die Layout-Overrides aus Phase 6.
-React-Vorschau und Electron-PDF verwenden dieselbe Abschnittsprojektion.
+### Phase 8 - Semantic spacing system (27 September 2026)
 
-Validierung: `npm run release:check` und der Electron-Starttest; Regressionen
-prüfen die Zuordnung und Sichtbarkeit für alle 14 Vorlagen in Vorschau und PDF,
-den einspaltigen Gruppenfluss sowie den Persistenz-Roundtrip.
+The existing CV token model now also controls the actual CV output: page margin, internal spacing,
+section spacing, entry spacing, spacing after section and entry titles, column spacing and line height are
+separate values. In particular, entry spacing changes only consecutive career entries, while section
+spacing acts between main areas. Existing native CSS values remain unchanged without override.
 
-### Phase 8 – Semantisches Abstandssystem (27.09.2026)
+"Kompakt", "Standard", and "Groß" (compact, standard, and large), plus bounded mm and line-height
+fields, are available in the design panel. "Standard" removes semantic spacing overrides and restores older sliders to
+the defaults of the selected template. Old stored slider values remain readable and are
+displayed in the editor until the respective semantic value is explicitly set. Overrides are saved
+sparingly and template-related; Preview and PDF use the same HTML/CSS adapter.
 
-Das vorhandene CV-Tokenmodell steuert nun auch die tatsächliche Lebenslauf-
-Ausgabe: Seitenrand, Innenabstand, Abschnittsabstand, Eintragsabstand,
-Abstand nach Abschnitts-/Eintragstitel, Spaltenabstand und Zeilenhöhe sind
-getrennte Werte. Insbesondere ändert Eintragsabstand nur aufeinanderfolgende
-Karriereeinträge, während Abschnittsabstand zwischen Hauptbereichen wirkt.
-Vorhandene native CSS-Werte bleiben ohne Override unverändert.
+Validation: `npm run release:check`; 28 Electron geometry checks (14 templates × Preview/PDF) for
+section, title and entry spacing, page margin and common interior/column/row variables.
 
-Im Designpanel stehen „Kompakt“, „Standard“ und „Groß“ sowie begrenzte
-mm-/Zeilenhöhenfelder bereit. „Standard“ entfernt semantische Abstandsoverrides
-und stellt auch die alten Regler auf die Vorgaben der ausgewählten Vorlage
-zurück. Alte gespeicherte Reglerwerte bleiben lesbar und werden im Editor
-angezeigt, bis der jeweilige semantische Wert explizit gesetzt wird.
-Overrides sind sparsam und vorlagenbezogen gespeichert; Preview und PDF
-verwenden denselben HTML-/CSS-Adapter.
+### Phase 9 - Common metadata layout (27.09.2026)
 
-Validierung: `npm run release:check`; 28 Electron-Geometrieprüfungen
-(14 Vorlagen × Vorschau/PDF) für Abschnitts-, Titel- und Eintragsabstand,
-Seitenrand sowie gemeinsame Innen-/Spalten-/Zeilenvariablen.
+For work experience and education, the design panel can arrange position/degree,
+company/institution, period, and location side by side or stacked. In side-by-side mode, the date
+can be placed on the left. Without a selection, native template layouts remain. The shared HTML
+adapter uses the same data in preview and PDF and preserves achievement lists. The setting is saved
+as sparse overrides for each template;
+"Template-Standard" or Design-Reset removes the adjustment.
 
-### Phase 9 – Gemeinsames Metadatenlayout (27.09.2026)
+Validation: HTML regressions for 14 templates × Preview/PDF × three arrangements and 84 Chromium
+geometry checks for row/column positions.
 
-Für Berufserfahrung und Ausbildung kann das Designpanel Position/Abschluss,
-Firma/Institution, Zeitraum und Ort nun „Nebeneinander“ oder „Untereinander“
-anordnen. Bei nebeneinanderstehenden Angaben ist auch „Datum links“ wählbar.
-Ohne Auswahl bleiben die nativen Vorlagenlayouts erhalten. Der gemeinsame
-HTML-Adapter verwendet in Vorschau und PDF dieselben Daten und lässt
-Leistungslisten bestehen. Die Einstellung wird je Vorlage sparsam gespeichert;
-„Template-Standard“ bzw. Design-Reset entfernt die Anpassung.
+### Phase 11 - Automatic Technology Icons (28.09.2026)
 
-Validierung: HTML-Regressionen für 14 Vorlagen × Vorschau/PDF × drei
-Anordnungen und 84 Chromium-Geometrieprüfungen für Zeilen-/Spaltenpositionen.
+A common resolver first selects a valid manual symbol or devicon, then an automatically recognized
+technology icon and finally an escaped text symbol. Common spellings for Go, JavaScript, TypeScript,
+React, Spring, Python, PHP, Docker and GitHub are mapped to the same identity. Strengths and skills
+use the same resolver in preview and PDF; the existing color adjustment is retained. Tests check
+manual priority, aliases and secure fallbacks.
 
-### Phase 11 – Automatische Technologie-Icons (28.09.2026)
+### Phase 12 - Place, date and signature (28.09.2026)
 
-Ein gemeinsamer Resolver wählt zuerst ein gültiges manuelles Symbol oder
-Devicon, danach ein automatisch erkanntes Technologie-Icon und zuletzt ein
-escaptes Textsymbol. Häufige Schreibweisen für Go, JavaScript, TypeScript,
-React, Spring, Python, PHP, Docker und GitHub werden auf dieselbe Identität
-abgebildet. Stärken und Kenntnisse nutzen denselben Resolver in Vorschau und
-PDF; die bestehende Farbanpassung bleibt erhalten. Tests prüfen manuelle
-Priorität, Aliase und sichere Fallbacks.
+The three components of the CV closing block can be shown or hidden independently. The signature is
+loaded exclusively from the validated profile image. Placement (footer/main column) and alignment
+(left/center/right/distributed) are available as template-related presentation values; a design
+reset restores the native template. Unchanged Pehlione templates retain their previous closing
+block. Other templates use the shared block when closing data is present; page-number-only footers
+remain when the closing block is hidden.
 
-### Phase 12 – Ort, Datum und Unterschrift (28.09.2026)
+Preview and PDF use the same adapter. Validation includes HTML regressions for all 14 templates and
+112 chromium geometry checks of the two positions and four alignments, with no page overflow or
+overlap.
 
-Die drei Bestandteile des Lebenslauf-Abschlusses lassen sich unabhängig
-ein-/ausblenden. Die Unterschrift wird ausschließlich aus dem validierten
-Profilbild geladen. Platzierung (Footer/Hauptspalte) und Ausrichtung
-(links/mitte/rechts/verteilt) liegen als vorlagenbezogene Präsentationswerte
-vor; ein Design-Reset stellt die native Vorlage wieder her. Unveränderte
-Pehlione-Vorlagen behalten ihren bisherigen Abschluss. Andere Vorlagen
-verwenden bei vorhandenen Abschlussdaten den gemeinsamen Block; reine
-Seitenzahlen-Footer bleiben auch beim Ausblenden des Abschlusses erhalten.
+### Phase 13 - Common CV Resolution (28.09.2026)
 
-Vorschau und PDF verwenden denselben Adapter. Validierung umfasst HTML-
-Regressionen für alle 14 Vorlagen und 112 Chromium-Geometrieprüfungen der
-beiden Positionen und vier Ausrichtungen, ohne Seitenüberlauf oder Überlappung.
+Preview and PDF get profile projection, visible sections, knowledge groups, layout, design values
+and page layout from `resolveCvDocument`. The template-specific capacities for pagination are
+assigned there once. The common HTML adapter receives already resolved sections, columns and
+spacing values. The Pehlione short profile fallback uses the same order in both outputs: document
+text, matching cover page statement, profile summary. The templates keep their own renderers and
+their native standards without override.
 
-### Phase 13 – Gemeinsame CV-Auflösung (28.09.2026)
+Validation: Regressions for all 14 templates with multi-page resume, section and layout overrides;
+full release check.
 
-Vorschau und PDF beziehen Profilprojektion, sichtbare Abschnitte,
-Knowledge-Gruppen, Layout, Designwerte und Seitenplan aus `resolveCvDocument`.
-Die vorlagenspezifischen Kapazitäten für die Paginierung sind einmalig dort
-zugeordnet. Der gemeinsame HTML-Adapter erhält bereits aufgelöste Abschnitte,
-Spalten und Abstandswerte. Der Pehlione-Kurzprofil-Fallback verwendet in
-beiden Ausgaben dieselbe Reihenfolge: Dokumenttext, passende Deckblatt-Aussage,
-Profilzusammenfassung. Die Vorlagen behalten ihre eigenen Renderer und ihre
-nativen Standards ohne Override.
+### Phase 14 - Pehlione White Blue (28.09.2026)
 
-Validierung: Regressionen für alle 14 Vorlagen mit mehrseitigem Lebenslauf,
-Abschnitts- und Layout-Overrides; vollständiger Release-Check.
+Career rows place the period and position/degree on one line at the same font size, with location and organization directly below in their respective columns. These values come only from the profile. If the profile has no job title, the application does not supply a substitute. New project and interest sections inherit the native section heading. A custom project section replaces the derived project display to avoid duplicate content. Photo rendering is aligned between preview and PDF.
 
-### Phase 14 – Pehlione White Blue (28.09.2026)
+The design panel offers sparse, template-specific overrides for title and section colors, column backgrounds, side-column text, line color, width, and visibility, and photo decoration color and visibility. Without these values, the original Pehlione design remains. Visibility, order, and column placement still use the shared section manager; spacing and metadata layout use the shared systems. Design reset removes the new overrides.
 
-Die Karrierezeilen ordnen Zeitraum und Position/Abschluss in einer gemeinsamen
-Zeile mit gleicher Schriftgröße an; Ort und Organisation stehen direkt darunter
-in den jeweils zugehörigen Spalten. Die Werte stammen ausschließlich aus dem
-Profil. Ohne Profil-Berufsbezeichnung erscheint kein Ersatz aus der Bewerbung.
-Neue Projekt- und Interessenabschnitte erhalten denselben Abschnittskopf wie
-die nativen Bereiche; ein eigener Projektabschnitt ersetzt die abgeleitete
-Projekt-Darstellung, damit der Inhalt nicht doppelt erscheint. Die Fotozeichnung
-ist zwischen Vorschau und PDF angeglichen.
+Validation: HTML regressions for preview/PDF, persistence roundtrip, chromium geometry check of
+date, title, location, institution as well as the two special sections and visual check of a
+one-page A4 PDF.
 
-Das Designpanel bietet sparsame, vorlagenbezogene Overrides für Titel- und
-Abschnittsfarben, Spaltenhintergründe und Seitenspalten-Text, Linienfarbe,
-Linienbreite und Sichtbarkeit sowie Foto-Dekorfarbe und Sichtbarkeit. Fehlen
-diese Werte, bleibt das ursprüngliche Pehlione-Design bestehen. Sichtbarkeit,
-Reihenfolge und Spaltenplatzierung verwenden weiterhin den gemeinsamen
-Section-Manager; Abstand und Metadatenlayout bleiben in den gemeinsamen
-Systemen. Design-Reset entfernt die neuen Overrides.
+PDF rework: Main sections moved to the side column had an outer and an inner heading line there at
+the same time. The outer line is omitted; summary and certificates again show one line each. The
+contact line retains the white of the preview without override and has its own template-related
+color setting. The contact heading, symbols and contact details take over the selected text color of
+the side column. The native closure remains in the main column after moving other sections. The
+error was reproduced with the saved settings of a real Pehlione white-blue document and checked
+using a one-page A4 PDF.
 
-Validierung: HTML-Regressionen für Vorschau/PDF, Persistenz-Roundtrip,
-Chromium-Geometrieprüfung von Datum, Titel, Ort, Institution sowie der beiden
-Sonderabschnitte und Sichtprüfung eines einseitigen A4-PDFs.
+Side-column section headings now have a template-specific color setting in all CV templates. If no heading color is set, they use a selected side-column text color. Without either override, native template colors remain. Preview and PDF use the same section projection. The contact line remains separately adjustable.
 
-PDF-Nachbesserung: In die Seitenspalte verschobene Hauptabschnitte hatten
-dort gleichzeitig eine äußere und eine innere Überschriftenlinie. Die äußere
-Linie entfällt; Zusammenfassung und Zertifikate zeigen wieder je eine Linie.
-Die Kontaktlinie behält ohne Override das Weiß der Vorschau und besitzt eine
-eigene vorlagenbezogene Farbeinstellung. Kontaktüberschrift, Symbole und
-Kontaktdaten übernehmen die gewählte Textfarbe der Seitenspalte. Der native Abschluss bleibt nach
-dem Verschieben anderer Abschnitte in der Hauptspalte. Der Fehler wurde mit
-den gespeicherten Einstellungen eines echten Pehlione-White-Blue-Dokuments
-reproduziert und anhand eines einseitigen A4-PDFs geprüft.
+The design surface uses a common compact color card control for accent, area and other color values.
+The template panel has four cards per wide row and collapses to two or one column if the panel width
+is smaller. The PDF note is above the panel; the section organizer follows after that. Section title
+colors are applied to standard and custom sections based on the main or side semantic column,
+regardless of whether the side column is on the left or on the right.
 
-Seitenspalten-Abschnittstitel besitzen nun eine eigene, vorlagenbezogene
-Farbeinstellung in allen CV-Vorlagen. Ohne eigene Überschriftenfarbe verwenden
-sie eine gewählte Seitenspalten-Textfarbe; ohne beide Overrides bleiben die
-jeweiligen Vorlagenfarben erhalten. Vorschau und PDF nutzen dieselbe
-Abschnittsprojektion. Die Kontaktlinie bleibt separat einstellbar.
-
-Die Designoberfläche nutzt für Akzent, Fläche und weitere Farbwerte ein
-gemeinsames kompaktes Color-Card-Control. Das Vorlagenpanel hat vier Karten
-pro breite Zeile und bricht bei geringerer Panelbreite auf zwei bzw. eine
-Spalte um. Der PDF-Hinweis steht oberhalb des Panels; der Abschnittsorganizer
-folgt danach. Abschnittstitelfarben werden anhand der semantischen Haupt- oder
-Seitenspalte auf Standard- und eigene Abschnitte angewendet, unabhängig davon,
-ob die Seitenspalte links oder rechts steht.
-
-Pehlione White Blue: Der Abschnitt „Sprachen“ zeigt in Vorschau und PDF ein
-Sprachen-Symbol im gleichen Akzent-Iconfeld wie andere ikontragende
-Abschnittstitel. Die Überschriftenfarbe und Abschnittslinie folgen weiterhin
-den gespeicherten Designwerten.
+Pehlione White Blue: The "Languages" section shows a language icon in the same accent icon field as
+other icon-bearing section titles in preview and PDF. The heading color and section line continue to
+follow the saved design values.
 
 ## Phase 15: Pehlione White
 
-Pehlione White verwendet dieselbe Abschnitts- und Designprojektion wie White
-Blue mit vorlageneigenen Standardfarben und Hintergründen. Die bestehenden
-Renderer bleiben gemeinsam; eigene Abschnitte erhalten auch in White die
-Pehlione-Überschrift samt Symbol. Designfarben und Sichtbarkeit können für
-White im gleichen Vorlagenpanel überschrieben und zurückgesetzt werden.
+Pehlione White uses the same section and design projection as White Blue, with its own default colors and backgrounds. The renderers remain shared; custom sections in White also receive Pehlione headings and icons. Colors and visibility can be overridden and reset in the same template panel.
 
-In die Seitenspalte verschobene Zertifikate und Projekt-Highlights zeigen im
-PDF nur noch eine Überschriftenlinie. Der lange Untertitel bleibt in Vorschau
-und PDF innerhalb der Hauptspalte mit rechtem Abstand. Geprüft mit den
-gespeicherten White-Daten als einseitiges A4-PDF sowie 756 Tests und Build.
+Certificates and project highlights moved to the side column show only one heading line in the PDF.
+The long subtitle remains in preview and PDF within the main column with right spacing. Checked with
+the saved Pehlione White data in a single-page A4 PDF, plus 756 tests and a build.
 
-Pehlione White: Das Symbol der Kontaktüberschrift verwendet die Akzentfarbe.
-Ihre Linie folgt wie die übrigen Abschnittslinien der gemeinsamen
-Linienfarbe. Die separate Kontaktlinien-Farbkarte entfällt für White; ältere
-gespeicherte Kontaktlinienwerte werden dort nicht mehr ausgewertet.
+Pehlione White: The contact heading's icon uses the accent color. Its line, like the rest of
+the section lines, follows the common line color. The separate contact line color control is omitted
+for White; older stored contact line values are no longer evaluated there.
 
-Die gemeinsame Seitenspalten-Farbprojektion färbt nun auch SVG-Symbole der
-Abschnittsüberschriften. Ein eigener Wert für „Seitenspalte Abschnittstitel“
-hat bei Text und Symbol Vorrang vor der Akzentfarbe; ohne diesen Wert bleibt
-die Akzentdarstellung der Vorlage erhalten. Das gilt für Vorschau und PDF
-aller Vorlagen mit solchen Abschnittssymbolen.
+The shared side-column color projection also colors SVG icons in section headings. A specific “Seitenspalte Abschnittstitel” (side-column section heading) value takes precedence over the accent color for both text and icon; otherwise the template's accent appearance remains. This applies to preview and PDF in every template with section icons.
 
-Beim Verschieben eines Hauptabschnitts in die Seitenspalte wird seine
-Überschrift nicht mehr zwangsweise auf die Seitenspalten-Textfarbe gesetzt.
-Damit behalten etwa Zertifikate und Projekt-Highlight zunächst die Akzentfarbe
-und folgen einer ausdrücklich gewählten Seitenspalten-Überschriftenfarbe.
+When moving a main section to the side column, its heading is no longer forcibly set to the side
+column text color. This means that certificates and project highlights, for example, initially
+retain the accent color and follow an explicitly selected side-column heading color.
 
-Pehlione White PDF: In die Seitenspalte verschobene Abschnitte übernehmen nun
-die vorhandene White-Seitenspalten-Überschrift. Die Symbole stehen ohne
-farbige Kachel wie in der Vorschau, und die Linie beginnt erst am Text.
-Zertifikate verwenden auch im PDF das Graduationssymbol der Vorschau.
+Pehlione White PDF: Sections moved to the side column use White's native side-column heading. As in the preview, icons have no colored tile and the line begins after the icon, at the text. Certificates also use the preview's graduation icon in PDF.
 
-## Phase 16: Zweispaltig und gemeinsame Gestaltung
+## Phase 16: Zweispaltig and shared design
 
-Zweispaltig behält ohne gespeicherte Overrides sein 62/38-Layout und die
-nativen Farben. Die vorhandenen gemeinsamen Systeme für Metadaten,
-Abschnittsreihenfolge, Spaltenposition und -breite, Sonderabschnitte sowie
-Ort/Datum/Unterschrift werden in Vorschau und PDF verwendet. Die beiden
-Metadatenmodi und eine 35/65-Variante wurden mit Projekt-Highlight und
-Hobbys & Interesses auf beiden Ausgaben geprüft. Beide Beispiel-PDFs blieben
-einseitige A4-Dokumente.
+Zweispaltig retains its 62/38 layout and native colors without saved overrides. The existing common
+systems for metadata, section order, column position and width, special sections and
+location/date/signature are used in Preview and PDF. The two metadata modes and a 35/65 variant were
+checked with project highlights and hobbies and interests in both outputs. Both sample PDFs remained
+single-page A4 documents.
 
-„Farben und Dekoration“ ist jetzt ein gemeinsames Panel für alle
-Lebenslauf-Vorlagen. Hintergrund, Seitenspalten-Text, Abschnittslinien und
-Fotodekoration werden für andere Vorlagen über denselben HTML-Projektionspfad
-auf Vorschau und PDF angewendet. Fehlende Werte lassen das native
-Vorlagendesign unverändert; der Panel-Reset entfernt die gespeicherten
-Dekorations-Overrides. Für Pehlione bleibt die vorhandene Projektion aktiv.
+"Colors and Decoration" is now a shared panel for all CV templates. Background, side-column
+text, section lines and photo decoration are applied to preview and PDF for other templates via the
+same HTML projection path. Missing values leave the native template design unchanged; the panel
+reset removes the saved decoration overrides. For Pehlione, the existing projection remains active.
 
-Seitenspalten-Textfarbe steuert auch die Einträge unter „Zertifikate“.
-Abschnittstitel und Symbole behalten ihre getrennte Farbpriorität; der
-Pehlione-Theme-Hintergrund bleibt durch diese Textanpassung unberührt.
+Side-column text color also controls entries under "Certificates". Section titles and icons
+retain their separate color priority; the Pehlione theme background remains unaffected by this text
+customization.
 
 ## Phase 17: Zeitgenössisch
 
-Nachträglich hinzugefügte Abschnitte übernehmen in Vorschau und PDF die
-vorhandene Zeitgenössisch-Überschrift mit Icon-Kachel, Schrift und Abstand.
-Stärken erhalten auch dann dieses Layout, wenn der Block erst vom gemeinsamen
-Section-Manager erzeugt wird. Für Interessen und Projekte werden passende
-Symbole anhand des gespeicherten Abschnittstyps gewählt; frei benannte
-Abschnitte nutzen ein neutrales Symbol. Bestehende native Abschnitte und
-Profilinhalte bleiben unverändert.
+Sections added later take over the existing Zeitgenössisch heading with icon tile, font and spacing
+in preview and PDF. Strengths also receive this layout even if the block is only created by the
+common section manager. Suitable symbols for interests and projects are selected based on the saved
+section type; freely named sections use a neutral symbol. Existing native sections and profile
+content will remain unchanged.
 
 ## Phase 18: Kreativ
 
-Kreativ verwendet für Vorschau und PDF dieselben Vorlagenwerte für den
-Abstand unter dem Kopfbereich, zwischen Abschnitten und zwischen
-Berufserfahrungs-Einträgen. Der Abstand vor der Fußzeile ist als eigener
-Vorlagenwert definiert. Nachträglich hinzugefügte Abschnitte stehen in der
-Hauptspalte und behalten ihre normale Überschrift und ihren Inhaltstyp;
-Projekt-Highlight und Hobbys & Interesses werden getrennt von Ausbildung
-ausgegeben. Die Sichtbarkeit von Telefon, E-Mail, LinkedIn, GitHub, Website,
-Adresse und Foto folgt weiterhin dem aufgelösten Profil.
+Kreativ uses the same template values for the spacing under the header area, between sections and
+between work experience entries for preview and PDF. The space in front of the footer is defined as
+its own template value. Sections added later are in the main column and retain their normal heading
+and content type; project highlights and hobbies and interests render separately from education.
+The visibility of phone, email, LinkedIn, GitHub, website, address and photo will still follow the
+resolved profile.
 
 ## Phase 19: Stilvoll
 
-Stilvoll verwendet in Vorschau und PDF gemeinsame native Werte für den Abstand
-zwischen Kopf und Inhalt (6 mm), zwischen Abschnitten (6 mm) und zwischen
-Berufs- und Ausbildungs-Einträgen (3,8 mm). Die vorhandenen Einstellungen
-„Kompakt“, „Standard“ und „Groß“ sowie der getrennte Eintragsabstand bleiben
-für gespeicherte Lebensläufe verfügbar. Der alte Abschnittsabstand-Regler wird
-weiterhin berücksichtigt. Projekt-Highlight und Hobbys & Interesses übernehmen
-die normale Stilvoll-Überschrift und folgen der gespeicherten Spaltenposition.
-Vorschau und gedrucktes A4-PDF wurden mit Profil- und Zusatzabschnitten
-verglichen; der vorhandene zweispaltige Entwurf bleibt erhalten.
+Stilvoll uses common native values in Preview and PDF for the spacing between header and content (6
+mm), between sections (6 mm) and between work experience and education entries (3.8 mm). The existing
+settings "Kompakt", "Standard", and "Groß" (compact, standard, and large), plus separate entry
+spacing, remain available for saved CVs. The old section-spacing slider still applies. Project
+highlights and hobbies and interests inherit the Stilvoll heading and follow the saved column
+position. Preview and printed A4 PDF were compared with profile and additional sections; the
+existing two-column design is preserved.
 
 ## Phase 20: Kompakt
 
-Kompakt behält seine breite Hauptspalte (108 mm) und schmale Seitenspalte
-(66 mm); die gemeinsame Verhältnisvorgabe entspricht nun dieser nativen
-Aufteilung. Der Standard-Eintragsabstand beträgt 3,2 mm und bleibt vom
-Abschnittsabstand (3,5 mm) und Titelabstand getrennt. Kompakt, Standard und
-Groß wirken auf Berufs- und Ausbildungs-Einträge in Vorschau und PDF gleich;
-gespeicherte Werte des älteren Abschnittsabstand-Reglers bleiben wirksam.
+Kompakt retains its wide main column (108 mm) and narrow side column (66 mm); the common ratio
+setting now matches this native division. Default entry spacing is 3.2 mm and remains separate from
+section spacing (3.5 mm) and title spacing. Compact, standard, and large modes
+have the same effect on work experience and education entries in preview and PDF; stored values of the
+older section-spacing slider remain effective.
 
-Zusatzabschnitte wie Projekt-Highlight und Hobbys & Interesses stehen als
-eigenständige Abschnitte in der gewählten Spalte. Lange Kontaktwerte umbrechen
-innerhalb der Seitenspalte. Die orangefarbene Liniengrafik verwendet die
-Sekundärfarbe und dieselbe feine Strichstärke auf beiden Ausgaben. Kompakt
-meldet seine bereits vorhandene Fotodarstellung nun auch als unterstützte
-Vorlagenfunktion; ausgeblendete Kontaktdaten hinterlassen im PDF keinen leeren
-Abschnitt. Auf einer Fortsetzungsseite werden Berufs- und Ausbildungs-Titel
-nur ausgegeben, wenn dort auch Einträge stehen. Die Vorschau wurde mit einem
-gedruckten A4-PDF und einem zweiseitigen Belastungsbeispiel verglichen.
+Additional sections such as project highlights and hobbies and interests are available as independent
+sections in the selected column. Long contact values break within the side column. The orange line
+graphic uses the secondary color and the same fine line thickness in both outputs. Kompakt now
+declares its existing photo display as a supported template feature; hidden contact details
+do not leave an empty section in the PDF. On a continuation page, work experience and education
+headings render only if entries are present. The preview was compared with a printed A4 PDF and a
+two-page stress sample.
 
 ## Phase 22: Klassisch
 
-Die bestehende einspaltige Form mit den hellblauen Wellen bleibt erhalten.
-Vorschau und PDF verwenden wieder dieselbe graue Abschnittsüberschrift;
-allgemeine Dokumentregeln überschreiben die Vorlagenfarbe nicht mehr.
-Titelabstand (2,2 mm), Eintragsabstand (3,2 mm) und Abstand innerhalb eines
-Eintrags (0,8 mm) haben getrennte Standardwerte. Ausbildungs-Einträge stehen
-mit 2,8 mm etwas enger. Der bestehende Abschnittsabstand und die vom Benutzer
-gewählte Zeilenhöhe bleiben unabhängig einstellbar; Kompakt, Standard und Groß
-nutzen weiterhin die gemeinsamen Designer-Einstellungen.
+The existing single-column shape with the light blue waves is preserved. Preview and PDF use the
+same gray section heading again; general document rules no longer override the template color. Title
+spacing (2.2 mm), entry spacing (3.2 mm), and spacing within an entry (0.8 mm) have separate defaults.
+Education entries are slightly closer at 2.8 mm. Existing section spacing and the user-selected line
+height remain independently adjustable; compact, standard, and large modes continue to
+use the common designer settings.
 
-Projekt-Highlight, Hobbys & Interesses und weitere eigene Abschnitte stehen
-als normale Klassisch-Abschnitte im Inhaltsfluss. Zertifikatslisten folgen in
-beiden Ausgaben denselben Abständen. Die Profil-Sichtbarkeit bleibt erhalten.
-Eine gedruckte A4-Seite und ein zweiseitiges Beispiel wurden auf gleiche
-Abschnitte, Umbrüche und Abstand zum Footer geprüft.
+Project highlights, hobbies and interests, and other custom sections appear as normal Klassisch
+sections. Certificate lists use the same spacing in both outputs. Profile-based visibility is
+maintained. A printed A4 page and a two-page sample were checked for equal sections,
+breaks and distance to the footer.
 
-## Phase 23: Lebenslauf-Designsystem (01.10.2026)
+## Phase 23: CV design system (1 October 2026)
 
-Die Designwerte des Lebenslaufs haben jetzt eine einzige, typisierte Quelle und eine feste Ebenenfolge. Ohne
-Änderung zeigt jede Vorlage ihren bisherigen Stil; Preview und PDF lösen alle Werte über dieselbe Stelle auf.
+CV design values now have one typed source and a fixed precedence order. With no changes, each template keeps its previous appearance. Preview and PDF resolve values through the same system.
 
-**Quelle der Vorlagenwerte.** Jede aktive Vorlage hat ein vollständiges `NativeResumeDesign` (Tokens und
-Erscheinungsbild) neben ihren übrigen Konstanten in `cvTemplateDefaults/*.defaults.ts`; Pehlione hat dafür das neue
-Modul `pehlione.defaults.ts`. `cvTemplateTokens.ts` registriert sie nur noch. Die Werte wurden am gerenderten PDF bei
-Standarddichte gemessen (Schriftgrößen, Gewichte, Großschreibung, Zeilenhöhe, Abschnitts-/Eintrags-/Titelabstände,
-Seitenrand). Die früheren generischen Ersatzwerte in `resolveTemplateCvDesign()` sind entfernt; nur die Vorlagen,
-die ausschließlich der alte generische Renderer zeichnet, leiten ihr Design aus den Dokumenteinstellungen ab
-(`legacyGeneric.defaults.ts`). Die Abschnittstitel-Tokens und das Pehlione-Erscheinungs-CSS lesen dieselben Zahlen.
+**Template values.** Each active template has a complete `NativeResumeDesign` (tokens and appearance) alongside its other constants in `cvTemplateDefaults/*.defaults.ts`; Pehlione has a new `pehlione.defaults.ts` module. `cvTemplateTokens.ts` only registers them. Values were measured in rendered PDFs at standard density: font sizes, weights, capitalization, line height, section, entry and title spacing, and page margins. The old generic fallback values in `resolveTemplateCvDesign()` were removed. Only templates rendered exclusively by the legacy generic renderer derive their design from document settings (`legacyGeneric.defaults.ts`). Section-title tokens and Pehlione appearance CSS use the same values.
 
-**Ebenen** (`resumeDesignSystem.ts`), niedrigste zuerst: Vorlage → alte Regler-/Schriftstufen des Dokuments (nur
-wenn sie von den Vorlagenvorgaben abweichen) → gemeinsame Lebenslauf-Ebene des Workspaces (`settings.resumeDesign`) →
-eigene sparsame Overrides der Bewerbung (`designSettings.cvOverrides` / `resumeAppearance`, auch die Snapshots
-inaktiver Vorlagen in `templateDesigns`). Eine Ebene speichert nur Abweichungen; fehlt ein Wert, wird geerbt.
-`applyGlobalResumeDesign` faltet die gemeinsame Ebene vor `resolveCvDocument` in die Einstellungen; Preview
-(`DocumentsView`), PDF (`buildDocumentHtml(..., resumeDesign)`, aufgerufen mit `workspace.settings.resumeDesign`),
-Seitenplaner und Abstandsadapter lesen nur dieses Ergebnis. Anschreiben, Deckblatt und E-Mail bleiben unberührt.
+**Precedence** (`resumeDesignSystem.ts`), from lowest to highest: template → legacy document sliders and font levels, only when they differ from template defaults → shared workspace CV settings (`settings.resumeDesign`) → sparse application overrides (`designSettings.cvOverrides` / `resumeAppearance`, including inactive template snapshots in `templateDesigns`). Each layer stores differences only; missing values are inherited. `applyGlobalResumeDesign` incorporates the shared layer before `resolveCvDocument` runs. Preview (`DocumentsView`), PDF (`buildDocumentHtml(..., resumeDesign)` with `workspace.settings.resumeDesign`), the page planner, and the spacing adapter read the resolved result. Cover letters, cover sheets, and email are unaffected.
 
-**Speichern.** Die Ebene ist ein Entwurf wie das übrige Design (die Vorschau folgt jeder Eingabe) und wird mit
-„Texte speichern“ bzw. vor jedem PDF-Export über `saveSettings` geschrieben. Dokumentwerte werden gegen das
-verglichen, was das Dokument ohne sie erbt (Vorlage plus gemeinsame Ebene), gemeinsame Werte nie gegen eine einzelne
-Vorlage. „Vorlagenwerte wiederherstellen“ entfernt die gemeinsame Ebene und die eigenen Werte der geöffneten
-Bewerbung; Overrides anderer Bewerbungen bleiben erhalten. Alte Workspaces laden unverändert.
+**Saving.** The shared layer is a draft like other design settings: preview updates with each input, and `saveSettings` writes it when the user chooses “Texte speichern” (save text) or before PDF export. Application values are compared with what the document would inherit without them (template plus shared layer); shared values are never compared with just one template. “Vorlagenwerte wiederherstellen” (restore template values) removes the shared layer and the open application's overrides. Other applications retain their overrides. Old workspaces load unchanged.
 
-**Panel.** `ResumeDesignPanel` ersetzt die drei getrennten Blöcke durch eine gemeinsame Konfiguration für alle
-Vorlagen: „Farben und Dekoration“ (Farben, Spalten, Abschnittstitel, Linien und Foto), „Typografie im Detail“ und
-„Erweiterte Abstände“. Jedes Feld zeigt den wirksamen Wert, darunter den Vorlagenwert und die Herkunft (Vorlage /
-Global / Bewerbung). Der Geltungsbereich ist umschaltbar (alle Lebensläufe oder nur diese Bewerbung). Doppelte
-Bedienelemente entfallen: Zeilenhöhe steht nur unter Typografie, „Abstand danach“ ist dasselbe Feld wie „Abstand nach
-Abschnittstitel“. Die alten Regler, Schriften und Farben für Anschreiben und Deckblatt stehen gesammelt unter
-„Dokumentweit“.
+**Panel.** `ResumeDesignPanel` replaces three separate blocks with one configuration for all templates: colors and decoration (colors, columns, section headings, lines, photo), detailed typography, and advanced spacing. Each field displays its effective value, template value, and source (template, global, or application). Scope can be switched between all CVs and the current application. Duplicate controls were removed: line height appears only under typography, and “Abstand danach” is the same setting as “Abstand nach Abschnittstitel.” Older sliders, fonts, and colors for cover letters and cover sheets are grouped under “Dokumentweit.” These German labels identify controls in the application.
 
-**Korrekturen am Ausgabeadapter**, die die Messung der Vorlagenwerte aufgedeckt hat: „Lesetext (pt)“ wirkte nur bei
-Einspaltig auf die Listen; der Seitenrand wurde zusätzlich zum eigenen Rand der Vorlage gesetzt (bis zu 25 mm zu
-viel) und der Abschnittsabstand addierte sich bei Gepflegt und Modern zum nativen Spaltenabstand. Ein Seitenrand
-verschiebt jetzt den echten Rand der Vorlage exakt auf den gewählten Wert, der Planer rechnet mit derselben Differenz.
+**Output adapter corrections.** Measuring template values revealed that “Lesetext (pt)” (body text size) affected lists only in Einspaltig; page margins were added to native margins (up to 25 mm too much); and section spacing was added to native column spacing in Gepflegt and Modern. A selected page margin now moves the actual template margin to the exact value, and the page planner uses the same difference.
 
-**Prüfung.** Neue Tests: `cvTemplateDesigns`, `resumeDesignSystem`, `resumeDesignEditing`, `resumeDesignOutput`,
-`ResumeDesignPanel` und `resumeDesignStorage` (reales DataStore-Roundtrip). Neue Chromium-Prüfung
-`node scripts/design-system-qa.mjs` und `npx electron scripts/check-design-system-qa.cjs`: 336 Messungen
-(14 Vorlagen); die typisierten Vorlagenwerte stimmen mit dem gedruckten PDF überein, und die gemeinsame Ebene wirkt in
-Preview und PDF jeder Vorlage mit den eingegebenen Werten. `check-spacing-qa.cjs` prüft die neue Randverschiebung.
+**Verification.** New tests cover `cvTemplateDesigns`, `resumeDesignSystem`, `resumeDesignEditing`, `resumeDesignOutput`, `ResumeDesignPanel`, and `resumeDesignStorage` (a real DataStore round trip). `node scripts/design-system-qa.mjs` and `npx electron scripts/check-design-system-qa.cjs` made 336 Chromium measurements across 14 templates. Typed template values matched printed PDFs, and the shared layer affected preview and PDF with the entered values. `check-spacing-qa.cjs` checked the margin adjustment.
 
-**Bekannt, nicht Teil dieser Phase.** Die Abweichungen von `check-section-inheritance.cjs` und `check-closing-qa.cjs`
-bestehen unverändert seit dem Stand vor dieser Phase. Elegant, Gepflegt und Tabellarisch zeichnen Namen und Titel in
-der Vorschau mit der allgemeinen Überschriftenfarbe (`.document-paper h2` schlägt die Vorlagenregel); das PDF verwendet
-die Vorlagenfarben, die die Vorlagenwerte beschreiben. Pehlione und die übrigen Stylesheets enthalten ihre Zahlen
-weiterhin selbst; ein Test hält die Pehlione-Palette mit dem typisierten Modul in Übereinstimmung.
+**Known issues outside this phase.** The deviations in `check-section-inheritance.cjs` and `check-closing-qa.cjs` existed before this phase. In Elegant, Gepflegt, and Tabellarisch previews, `.document-paper h2` overrides template colors for names and titles; PDFs use the template colors. Pehlione and the other stylesheets still contain their own numeric values. A test checks that Pehlione's palette agrees with the typed module.
 
-## Phase 24: Seitenränder und Innenabstand getrennt (01.10.2026)
+## Phase 24: Separate page margin and inner padding (1 October 2026)
 
-„Seitenränder (mm)“ und „Innenabstand (mm)“ sind zwei unabhängige Werte: jeder hat seinen eigenen Override
-(`pageMarginMm` / `innerPaddingMm`), seine eigene Herkunft (Vorlage / Global / Bewerbung), sein eigenes
-„Auf Vorlagenwert zurücksetzen“ und seinen eigenen Eintrag in der sparsamen Speicherung. Die Zustands-, Resolver- und
-Panel-Schicht hat beide Werte schon getrennt behandelt; die Verwechslung entstand in der Ausgabe.
+“Seitenränder (mm)” (page margins) and “Innenabstand (mm)” (inner padding) are independent settings. Each has its own override (`pageMarginMm` / `innerPaddingMm`), source (template, global, or application), reset control, and sparse stored entry. State, resolver, and panel layers already treated them separately; the output adapter conflated them.
 
-**Ursache.** Der Abstandsadapter (`applyResumeSpacingOutput`) setzte den Innenabstand als `padding-inline` auf den
-Layout-Host bzw. die Spalten und ersetzte damit deren Padding. Genau dieses Padding ist bei den meisten Vorlagen der
-Seitenrand (Host-Padding bei Einspaltig, Klassisch, Tabellarisch, Ivy League; Spaltenpadding bei Elegant, Gepflegt,
-Pehlione). Ein gesetzter Innenabstand überschrieb also den Seitenrand: Einspaltig mit Rand 10 mm und Innenabstand
-2,5 mm zeichnete den Text bei −2,5 mm (außerhalb des Blatts), mit Rand 16 mm bei 3,5 mm.
+**Cause.** `applyResumeSpacingOutput` set inner padding as `padding-inline` on the layout host or columns, replacing their native padding. In most templates, that native padding is the page margin: host padding in Einspaltig, Klassisch, Tabellarisch, and Ivy League; column padding in Elegant, Gepflegt, and Pehlione. Setting inner padding therefore overrode the page margin. In Einspaltig, a 10 mm margin plus 2.5 mm inner padding drew text at −2.5 mm, outside the page; a 16 mm margin placed it at 3.5 mm.
 
-**Modell.** Der Seitenrand ist der Abstand zwischen Blattkante und Inhalt, der Innenabstand ein zusätzlicher Abstand
-innerhalb der Spalten. Was eine Vorlage selbst als Padding zeichnet, zählt zu ihrem Seitenrand; deshalb ist der native
-Innenabstand aller Vorlagen 0 (vorher 13 / 10 / 7 bei Elegant, Gepflegt, Pehlione) und ein gewählter Innenabstand
-kommt hinzu. Der Seitenrand bewegt wie zuvor nur den Scope der Seite (`getPageMarginAdjustment`); der Innenabstand
-markiert die Spalten (bei einer einspaltigen Vorlage den Host) mit `data-resume-spacing-inner`, und eine Regel in
-`resumeSpacingCss` (`[data-resume-spacing-inner]>*{padding-inline:var(--doc-inner-padding)!important}`) rückt deren
-Kinder ein. Host und Spalten behalten ihr eigenes Padding. Der linke Inhaltsrand liegt dadurch bei jeder Vorlage bei
-„Rand der Vorlage + (gewählter Seitenrand − Seitenrand der Vorlage) + Innenabstand“, die Ränder der Inhalte rücken
-beidseitig um den Innenabstand ein. Das Panel nennt unter beiden Feldern, was sie bedeuten.
+**Model.** Page margin is the distance from page edge to content; inner padding adds space within columns. Padding native to a template counts as its page margin, so every template's native inner padding is now 0 (previously 13, 10, and 7 mm in Elegant, Gepflegt, and Pehlione). A chosen inner padding is added separately. `getPageMarginAdjustment` still moves the page scope. Inner padding marks columns, or the host for a single-column template, with `data-resume-spacing-inner`. The `resumeSpacingCss` rule `[data-resume-spacing-inner]>*{padding-inline:var(--doc-inner-padding)!important}` indents their children while preserving host and column padding. The left content edge is therefore at: native margin + (chosen page margin − native margin) + inner padding. Inner padding moves content inward on both sides. The panel explains both fields.
 
-**Prüfung.** `resumeDesignEditing` (Zustand: jede Richtung, beide Bereiche, geteilter Rand mit eigenem Innenabstand und
-umgekehrt, Zurücksetzen je Feld, alte Reglerstufen), `ResumeDesignPanel` (angezeigte Werte und Herkunft gleich der
-Resolver-Ausgabe, nur das bearbeitete Feld ändert sich, Zurücksetzen nur am Feld mit Override), `resumeSpacing`
-(Adapter: Host-Padding bleibt unberührt) und `resumeDesignOutput` (14 Vorlagen: Vorschau und PDF lesen dieselben Werte,
-nie wird ein Padding der Vorlage beschrieben, geteilte und eigene Werte zeichnen identisch). `design-system-qa` misst
-zusätzlich je Vorlage und Ausgabe Rand allein, kleineren Rand, Innenabstand allein und beide zusammen (504 Messungen);
-`check-spacing-qa.cjs` prüft die Spalten- bzw. Host-Markierung.
+**Verification.** `resumeDesignEditing` covers changes in both directions and scopes, shared margins with application-specific inner padding and vice versa, per-field reset, and legacy slider levels. `ResumeDesignPanel` checks that displayed values and sources match the resolver and that editing or resetting one field does not change the other. `resumeSpacing` checks that host padding remains intact. `resumeDesignOutput` checks that preview and PDF use the same values across all 14 templates without overwriting template padding, and that shared and application values render identically. `design-system-qa` adds 504 measurements for margin alone, a smaller margin, inner padding alone, and both together. `check-spacing-qa.cjs` checks the column or host marker.
 
-**Bekannt, nicht Teil dieser Phase.** Bei Stilvoll, Kompakt, Elegant und Modern folgt die rechte Kante des Inhalts einem
-geänderten Seitenrand nicht symmetrisch (feste Spaltenbreiten); die linke Kante ist exakt. Bei Vorlagen, deren Kopf
-außerhalb der Spalten steht (Zweispaltig, Zeitgenössisch, Kreativ, Stilvoll, Kompakt, Modern), rückt der Innenabstand nur
-die Spalten ein, nicht den Kopf.
+**Known issues outside this phase.** With fixed column widths, the right content edge in Stilvoll, Kompakt, Elegant, and Modern does not follow a changed page margin symmetrically; the left edge is exact. In templates whose header is outside the columns (Zweispaltig, Zeitgenössisch, Kreativ, Stilvoll, Kompakt, Modern), inner padding indents the columns but not the header.

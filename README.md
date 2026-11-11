@@ -1,242 +1,188 @@
 # BewerbungsManager
 
-> Bewerbungen erstellen, organisieren und als professionelle Unterlagen exportieren – lokal auf Ihrem Windows-PC.
+> Create, organize, and export professional job application documents locally on your Windows PC.
 
 [![CI](https://github.com/mustafa-oezdemir/bewerbung-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/mustafa-oezdemir/bewerbung-studio/actions/workflows/ci.yml)
-[![Lizenz: Apache-2.0](https://img.shields.io/badge/Lizenz-Apache_2.0-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 ![Windows 10/11 x64](https://img.shields.io/badge/Windows-10%20%2F%2011%20x64-0078D4)
 
-BewerbungsManager ist eine Desktop-Anwendung für den gesamten Bewerbungsablauf: von der Stellenanzeige und dem
-Profil über Anschreiben, Deckblatt und Lebenslauf bis zur fertigen Bewerbungsmappe, mit Kalender und Aufgabenliste.
-Ihre Bewerbungsdaten werden lokal im gewählten Workspace gespeichert; kleine Anwendungseinstellungen wie der
-Workspace-Pfad liegen zusätzlich im lokalen Electron-Benutzerordner. Die Oberfläche ist auf Deutsch.
+BewerbungsManager is a desktop application for the full job application process: from a job posting and profile to a cover letter, cover sheet, CV, and complete application package, with a calendar and task list. Application data is stored locally in the workspace you choose. Small application settings, such as the workspace path, are also stored in Electron's local user data folder. **The application interface is in German.**
 
-**Offizielle Downloads:** [GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases). Derzeit
-ist noch kein öffentlicher Windows-Release verfügbar.
+**Official downloads:** [GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases). There is currently no public Windows release.
 
 ## Download
 
-Sobald ein öffentlicher Release verfügbar ist, finden Sie ihn ausschließlich unter
-[GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases). Offizielle Windows-Dateien werden
-aus den Quellen dieses Repositories mit GitHub Actions gebaut. Lokale Builds sind nur für Tests bestimmt.
+When a public release becomes available, it will be published only on [GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases). Official Windows files are built from this repository's source by GitHub Actions. Local builds are intended for testing only.
 
-| Datei | Verwendung |
+| File | Use |
 | --- | --- |
-| `BewerbungsManager-<Version>-x64-Setup.exe` | Normale Installation unter Windows: Installationsordner wählbar, Startmenü- und Desktop-Verknüpfung |
-| `BewerbungsManager-<Version>-x64-Portable.exe` | Startet ohne Installation |
-| `SHA256SUMS.txt` | Prüfsummen zur Integritätskontrolle |
+| `BewerbungsManager-<Version>-x64-Setup.exe` | Standard Windows installation with a selectable installation folder and Start menu and desktop shortcuts |
+| `BewerbungsManager-<Version>-x64-Portable.exe` | Runs without installation |
+| `SHA256SUMS.txt` | Checksums for integrity verification |
 
-Beide Varianten enthalten dieselbe Anwendung. Ihre Bewerbungsdaten liegen in einem Ordner, den Sie selbst wählen,
-also außerhalb des Installationsordners.
+Both versions contain the same application. Your application data resides in a folder you choose, outside the installation folder.
 
-> Vor dem ersten öffentlichen Release gibt es hier noch keine herunterladbaren Windows-Dateien. Falls später ein
-> ausdrücklich als **UNSIGNED/PREVIEW** gekennzeichneter Vorab-Release erscheint, kann Windows eine
-> SmartScreen-Warnung anzeigen. Prüfen Sie dessen SHA-256-Prüfsumme mit der beigefügten `SHA256SUMS.txt`:
+> No Windows files are available for download before the first public release. If a prerelease explicitly marked **UNSIGNED/PREVIEW** is published later, Windows may show a SmartScreen warning. Verify its SHA-256 checksum against the included `SHA256SUMS.txt`:
 >
 > ```powershell
 > Get-FileHash .\BewerbungsManager-<Version>-x64-Setup.exe -Algorithm SHA256
 > ```
 
-> **Funktionsstand:** Die folgende Beschreibung gilt für den aktuellen Quellcode. Sie ist keine Zusage über
-> Funktionen einer älteren Binärdatei oder eines noch nicht veröffentlichten Releases.
+> **Feature status:** The description below applies to the current source code. It does not promise that an older binary or an unpublished release has these features.
 
-## Warum BewerbungsManager?
+## Why BewerbungsManager?
 
-- **Alles an einem Ort:** Firma, Stelle, Status, Termine, Dokumente und Aufgaben jeder Bewerbung.
-- **Hauptprofil als Vorlage:** Neue Bewerbungen übernehmen eine eigene Kopie des gewählten Hauptprofils. In den Dokumenten kann ein anderes Hauptprofil übernommen oder die Kopie mit dessen aktuellen Daten erneuert werden; andere Bewerbungen bleiben unverändert.
-- **Fertige Unterlagen:** Anschreiben als Word-Datei, Deckblatt und Lebenslauf als PDF, dazu eine komplette
-  Bewerbungsmappe als ein PDF.
-- **Fristen im Blick:** Bewerbungsfristen erscheinen automatisch im Kalender und in der Aufgabenliste.
-- **Daten unter Ihrer Kontrolle:** lokaler Ordner, kein Benutzerkonto, optional mit Master-Passwort geschützt.
+- **Everything in one place:** Company, position, status, dates, documents, and tasks for each application.
+- **Main profile as a template:** New applications receive their own copy of the selected main profile. In Documents, you can apply a different main profile or refresh the copy from its current data without changing other applications.
+- **Ready to send:** A Word cover letter, PDF cover sheet and CV, and a complete merged PDF application package.
+- **Deadlines in view:** Application deadlines automatically appear in the calendar and task list.
+- **Control over your data:** A local folder, no user account, and optional master password protection.
 
-## Funktionen
+## Features
 
-### Bewerbungen
+### Applications
 
-- Assistent zum Anlegen mit Validierung; ein angefangener Entwurf wird lokal zwischengespeichert
-- Firma, Ansprechpartner und Stelle mit Referenz, Quelle, Link, Anzeigentext, Arbeitsmodell, Vertragsart und Gehalt
-- Statusverlauf von *Entwurf* bis *Zusage*, *Absage*, *Zurückgezogen* oder *Archiviert*; Absagen mit Begründung
-- Bewerbungsfrist, Gesprächs- und Vertragstermine
-- Dashboard mit Statuszahlen und Erfolgsquote; Suche und Filter über alle Bewerbungen
-- Abgleich der Stellenanzeige mit den Kenntnissen im Profil
+- Validated creation wizard with local draft caching
+- Company, contacts, and position, including reference, source, link, posting text, work model, contract type, and salary
+- Status history from *Draft* to *Offer*, *Rejection*, *Withdrawn*, or *Archived*, with reasons for rejections
+- Application deadlines and interview and contract dates
+- Dashboard with status counts and success rate; search and filters across applications
+- Matching between the job posting and skills recorded in the profile
 
-### Dokumente
+### Documents
 
-- **Anschreiben** als bearbeitbare Word-Datei (DOCX), befüllt mit den Bewerbungsdaten
-- **Deckblatt** in drei Designs (Klassisch, Pastell, Akzentband); Vorschau und PDF nutzen dieselbe Darstellung
-- **Lebenslauf** in mehreren Designs, mit Editor für Abschnitte (ein- und ausblendbar, sortierbar) und
-  automatischem Seitenumbruch
-- **Bewerbungsmappe** als ein zusammengeführtes PDF: Deckblatt, Anschreiben, Lebenslauf, Zeugnisse, Zertifikate
-- **Zeugnisse und Zertifikate** liegen einmal zentral als PDF und werden pro Bewerbung nur verknüpft
-- E-Mail-Text zur Bewerbung als Markdown-Datei
+- **Cover letter** as an editable Word file (DOCX) populated with application data
+- **Cover sheet** in three designs (Klassisch, Pastell, Akzentband); preview and PDF use the same presentation
+- **CV** in several designs, with an editor for sections that can be shown, hidden, and reordered, plus automatic page breaks
+- **Application package** as one merged PDF: cover sheet, cover letter, CV, references, and certificates
+- **References and certificates** stored centrally as PDFs and linked to individual applications
+- Application email text as a Markdown file
 
-Mitgelieferte Word-Muster für den Lebenslauf (Beispieldaten) liegen in
-[`bewerbung-studio/public/templates`](bewerbung-studio/public/templates):
+Sample Word CV templates with example data are included in [`bewerbung-studio/public/templates`](bewerbung-studio/public/templates):
 
 <p>
-  <img src="bewerbung-studio/public/templates/Klassisch_Lebenslauf_Muster.preview.png" alt="Lebenslauf-Muster Klassisch" width="180">
-  <img src="bewerbung-studio/public/templates/Kreativ_Lebenslauf_Muster.preview.png" alt="Lebenslauf-Muster Kreativ" width="180">
-  <img src="bewerbung-studio/public/templates/Ivy_League_Lebenslauf_Muster.preview.png" alt="Lebenslauf-Muster Ivy League" width="180">
+  <img src="bewerbung-studio/public/templates/Klassisch_Lebenslauf_Muster.preview.png" alt="Klassisch sample CV" width="180">
+  <img src="bewerbung-studio/public/templates/Kreativ_Lebenslauf_Muster.preview.png" alt="Kreativ sample CV" width="180">
+  <img src="bewerbung-studio/public/templates/Ivy_League_Lebenslauf_Muster.preview.png" alt="Ivy League sample CV" width="180">
 </p>
 
-### Organisation
+### Organization
 
-- **Kalender** als Monats- und Agendaansicht
-- **Bewerbungsfrist:** Sie erzeugt automatisch einen Kalendertermin und eine Aufgabe mit hoher Priorität im ToDo;
-  ändern oder entfernen Sie die Frist, folgen beide
-- **ToDo** mit Priorität, Fälligkeit und Notiz; Aufgaben zu Bewerbungen und eigene Aufgaben sind getrennt filterbar
-- Nach *Absage*, *Zusage*, *Zurückgezogen* oder *Archiviert* gelten die automatischen Aufgaben der Bewerbung nicht
-  mehr als aktiv; wird der Status zurückgenommen, erscheinen sie wieder
-- Erinnerung zum Nachfassen nach einer einstellbaren Anzahl von Tagen
-- Desktop-Benachrichtigungen für Kalendertermine mit Erinnerung
+- **Calendar** with month and agenda views
+- **Application deadline:** Creates a calendar event and a high priority ToDo task automatically; both follow changes to the deadline
+- **ToDo** with priority, due date, and notes; application tasks and personal tasks can be filtered separately
+- Automatic application tasks become inactive after *Rejection*, *Offer*, *Withdrawn*, or *Archived* and reappear if the status is changed back
+- Follow-up reminders after a configurable number of days
+- Desktop notifications for calendar events with reminders
 
-### Datenverwaltung
+### Data management
 
-- Mehrere Hauptprofile; jede Bewerbung behält eine eigene Profilkopie für ihre Dokumente
-- Frei wählbarer Bewerbungsordner (Workspace) und Computerwechsel
-- Automatische tägliche Sicherung, vollständige Sicherung und JSON-Export
-- Optionale Verschlüsselung mit Master-Passwort
-- Hell-, Dunkel- und Systemdesign
+- Multiple main profiles; each application keeps its own profile copy for documents
+- Freely selectable application folder (workspace) and support for moving to another computer
+- Daily automatic backups, full backups, and JSON export
+- Optional encryption with a master password
+- Light, dark, and system themes
 
-## Schnellstart
+## Quick start
 
-1. Sobald verfügbar, Setup- oder Portable-Version von GitHub Releases herunterladen und die Prüfsumme kontrollieren.
-2. Anwendung starten.
-3. Den Bewerbungsordner wählen, in dem alle Bewerbungsdaten gespeichert werden.
-4. Optional die Verschlüsselung aktivieren.
-5. Ein Profil anlegen.
-6. Die erste Bewerbung erstellen.
+1. When available, download Setup or Portable from GitHub Releases and verify its checksum.
+2. Start the application.
+3. Choose the application folder where all application data will be stored.
+4. Optionally enable encryption.
+5. Create a profile.
+6. Create your first application.
 
-## Daten & Datenschutz
+## Data and privacy
 
-BewerbungsManager verarbeitet persönliche Daten wie Adresse, Telefonnummer, E-Mail, Lebenslauf, Zeugnisse und
-Bewerbungsunterlagen.
+BewerbungsManager processes personal information such as addresses, phone numbers, email, CVs, references, and application documents.
 
-- Die Daten liegen lokal im gewählten Bewerbungsordner. Sie können ihn jederzeit wechseln.
-- Es gibt kein Benutzerkonto und keinen eigenen Cloud-Dienst.
-- Der geprüfte Anwendungscode enthält keine Telemetrie und keinen automatischen Update-Abruf. Der Bewerbungsordner
-  wird nur über die unten beschriebene Git-Synchronisierung übertragen. Externe HTTP/HTTPS-Links werden nur auf Ihre
-  Aktion hin im Systembrowser geöffnet; Browser und Zielwebsite haben eigene Datenschutzregeln.
-- Automatische und manuelle Sicherungen sind eingebaut, die Verschlüsselung ist optional (siehe unten).
+- Data is stored locally in the selected application folder, which you can change at any time.
+- There is no user account or proprietary cloud service.
+- The reviewed application code contains no telemetry or automatic update checks. The application folder is transferred only through the Git synchronization described below. External HTTP/HTTPS links open in the system browser only when you act on them; the browser and destination site have their own privacy practices.
+- Automatic and manual backups are built in; encryption is optional.
 
-**Git-Synchronisierung:** Ist der Bewerbungsordner selbst ein Git-Repository, dessen Remote `origin` auf
-`https://github.com/mustafa-oezdemir/bewerbung.git` zeigt, überträgt die Anwendung Änderungen aus dem Bereich
-**Bewerbungen** automatisch dorthin: nach **Bewerbung anlegen**, nach jedem **Bereich speichern**, das tatsächlich
-etwas geändert hat, und nach einer Statusänderung. Sobald Daten und Word-Dokumente lokal gespeichert sind, erstellt
-sie einen Commit und führt einen normalen `git push` des aktuellen Branches aus. Vorgemerkt wird nur der Ordner `data`
-(ohne Protokolle, Absturzberichte, Electron-Sitzung und Caches); andere Dateien im Repository bleiben unberührt.
-Änderungen aus anderen Bereichen werden mit der nächsten solchen Synchronisierung übertragen. Die Anwendung ändert
-kein Remote, führt keinen Force-Push und kein Rebase aus und speichert keine Zugangsdaten; die Anmeldung übernimmt
-die vorhandene Git-Anmeldung von Windows (Git Credential Manager). Fehlt Git, zeigt `origin` auf ein anderes
-Repository oder schlägt der Push fehl, bleibt die Änderung lokal gespeichert und die Anwendung meldet
-„Änderungen wurden lokal gespeichert, konnten aber nicht zu GitHub übertragen werden.“ Frühere Commits bleiben auf
-dem Datenträger und im Remote; entfernen Sie diese bei Bedarf separat.
+**Git synchronization:** If the application folder is itself a Git repository whose `origin` points to `https://github.com/mustafa-oezdemir/bewerbung.git`, the application automatically transfers changes from **Bewerbungen** (Applications) after **Bewerbung anlegen** (create application), after each **Bereich speichern** (save section) that actually changes data, and after a status change. Once data and Word documents have been saved locally, it creates a commit and runs a normal `git push` of the current branch. It stages only the `data` folder, excluding logs, crash reports, Electron sessions, and caches; other repository files are left alone. Changes made in other areas are transferred with the next such synchronization. The application does not change the remote, force push, rebase, or store credentials; Windows Git authentication (Git Credential Manager) handles sign-in. If Git is missing, `origin` points elsewhere, or the push fails, the change remains saved locally and the application reports: “Änderungen wurden lokal gespeichert, konnten aber nicht zu GitHub übertragen werden.” (Changes were saved locally but could not be transferred to GitHub.) Earlier commits remain on disk and on the remote; remove them separately if needed.
 
-Die vollständige [Datenschutzerklärung](PRIVACY.md) beschreibt auch Exporte, Sicherungen und lokale Aufbewahrung.
+The full [privacy policy](PRIVACY.md) also covers exports, backups, and local retention.
 
-## Workspace & Computerwechsel
+## Workspace and moving to another computer
 
-`workspace.json` enthält Einstellungen und relative Verweise. Jede Bewerbung liegt mit ihrem eigenen Profil und
-ihren Dokumentangaben in `bewerbung.json`. Hauptprofile liegen als einzelne JSON-Dateien unter `Setting/Profile`;
-Termine, Aufgaben, Anlagenverweise und eigene Lebenslaufdesigns liegen in `Setting/Settings/collections.json`.
-Anschreiben, Zeugnisse und andere Dokumentdateien bleiben eigene Dateien im Bewerbungsordner.
+`workspace.json` contains settings and relative references. Each application has its own profile and document details in `bewerbung.json`. Main profiles are individual JSON files under `Setting/Profile`; dates, tasks, attachment references, and custom CV designs are in `Setting/Settings/collections.json`. Cover letters, references, and other documents remain separate files in the application folder.
 
-### Auf einem anderen Computer weiterarbeiten
+### Continue on another computer
 
-1. Unter **Einstellungen → Übertragen & Sicherung** mit **Für anderen Computer kopieren …** den vollständigen
-   Datenbestand in einen Zielordner kopieren, oder den gesamten Bewerbungsordner selbst kopieren bzw. sicher
-   synchronisieren.
-2. BewerbungsManager auf dem neuen Computer starten.
-3. Auf dem Startbildschirm oder unter **Einstellungen → Datenbestand & Workspace** die Schaltfläche
-   **Workspace-Datei auswählen …** wählen und die `workspace.json` aus dem kopierten Ordner auswählen.
-4. Der Datenbestand wird aus dem neuen Speicherort geladen. Ist er verschlüsselt, folgt die Abfrage von
-   Master-Passwort oder Wiederherstellungsschlüssel.
+1. Under **Einstellungen → Übertragen & Sicherung**, use **Für anderen Computer kopieren …** (copy for another computer) to copy the complete data set to a destination folder, or copy or securely synchronize the whole application folder yourself.
+2. Start BewerbungsManager on the new computer.
+3. On the start screen or under **Einstellungen → Datenbestand & Workspace**, select **Workspace-Datei auswählen …** (select workspace file) and choose `workspace.json` from the copied folder.
+4. The data set loads from its new location. If encrypted, enter the master password or recovery key.
 
-Mit **Einstellungen → Speicherort → Speicherort ändern …** verlegen Sie den Bewerbungsordner auf demselben Computer.
-Vorher wird eine vollständige Sicherung erstellt; der bisherige Ordner bleibt erhalten. Bei aktiver Verschlüsselung
-kopieren Sie den Datenbestand stattdessen und öffnen die Kopie über **Workspace-Datei auswählen …**.
+To move the application folder on the same computer, use **Einstellungen → Speicherort → Speicherort ändern …** (Settings → Storage location → Change location). A full backup is created first and the old folder is retained. If encryption is active, copy the data set instead and open the copy via **Workspace-Datei auswählen …**.
 
-### Aufbau des Bewerbungsordners
+### Application folder structure
 
 ```text
-<Bewerbungsordner>/
+<application folder>/
 └── data/
-    ├── Bewerbungen/            je Stelle bewerbung.json sowie Anschreiben, Lebenslauf, Deckblatt, E-Mail, ...
+    ├── Bewerbungen/          bewerbung.json per position, plus cover letter, CV, cover sheet, email, ...
     ├── Zeugnisse/
     ├── Zertifikate/
     ├── Absagen/
     └── Setting/
         ├── Settings/
-        │   ├── workspace.json  Einstellungen und relative Dateiverweise
-        │   └── collections.json  Termine, Aufgaben und zentrale Verweise
-        ├── Profile/           Hauptprofile als einzelne JSON-Dateien
+        │   ├── workspace.json    settings and relative file references
+        │   └── collections.json  dates, tasks, and central references
+        ├── Profile/           main profiles as individual JSON files
         ├── Backups/
-        └── Muster/             Vorlagen
+        └── Muster/            templates
 ```
 
-Weitere Hintergründe zur Ablage stehen in [`bewerbung-studio/README.md`](bewerbung-studio/README.md).
+See [`bewerbung-studio/README.md`](bewerbung-studio/README.md) for more about storage.
 
-## Datensicherheit & Verschlüsselung
+## Data security and encryption
 
-Optional kann der Datenbestand mit einem Master-Passwort geschützt werden. Sie wählen das beim ersten Einrichten
-oder später unter **Einstellungen → Datensicherheit & Verschlüsselung**.
+You can optionally protect the data set with a master password during initial setup or later under **Einstellungen → Datensicherheit & Verschlüsselung** (Settings → Data security & encryption).
 
-- **Verfahren:** AES-256-GCM für Daten und Dateien; Argon2id leitet aus dem Master-Passwort den Schlüssel ab, der
-  einen zufälligen Datenschlüssel schützt.
-- **Master-Passwort:** mindestens 14 Zeichen.
-- **Wiederherstellungsschlüssel:** wird bei der Aktivierung angezeigt, lässt sich kopieren oder als TXT speichern
-  und entsperrt den Datenbestand, wenn das Passwort fehlt. Verlieren Sie Passwort und Schlüssel, gibt es keine
-  Wiederherstellung.
-- **Automatisch sperren:** nach 5, 15 (Standard), 30 oder 60 Minuten oder nie; der Datenbestand lässt sich auch
-  manuell sperren.
-- **Auf diesem Gerät merken:** optional, über den Windows-Geräteschutz (Electron `safeStorage`). Der Schlüssel liegt
-  nicht im Bewerbungsordner.
-- **Sicherungen:** die verwalteten Sicherungen im Datenordner werden mitverschlüsselt.
-- **Computerwechsel:** der Datenbestand bleibt portabel. Auf dem neuen Computer entsperren Sie ihn mit
-  Master-Passwort oder Wiederherstellungsschlüssel.
+- **Method:** AES-256-GCM protects data and files. Argon2id derives a key from the master password to protect a random data key.
+- **Master password:** At least 14 characters.
+- **Recovery key:** Shown during activation; it can be copied or saved as TXT and can unlock the data if the password is unavailable. If both are lost, recovery is impossible.
+- **Automatic locking:** After 5, 15 (default), 30, or 60 minutes, or never; manual locking is also available.
+- **Remember on this device:** Optional, using Windows device protection through Electron `safeStorage`. The key is not in the application folder.
+- **Backups:** Managed backups in the data folder are encrypted too.
+- **Moving computers:** The data set remains portable and can be unlocked on another computer with the master password or recovery key.
 
-### Grenzen
+### Limits
 
-Die Verschlüsselung schützt die Inhalte des verwalteten `data`-Ordners. Sie ist kein Schutz gegen alles:
+Encryption protects the contents of the managed `data` folder, with these limits:
 
-- Ordner- und Dateinamen bleiben sichtbar.
-- Dateien, die Sie bewusst aus dem Datenbestand exportieren (PDF, DOCX, JSON-Sicherung, Einstellungen), liegen
-  außerhalb davon unverschlüsselt vor.
-- Öffnen Sie ein Dokument in einem externen Programm (zum Beispiel Word), liegt dafür vorübergehend eine
-  entschlüsselte Kopie außerhalb des Bewerbungsordners. Sie wird nach einer Stunde sowie beim Beenden und beim
-  nächsten Start entfernt. Auf SSDs lässt sich das Löschen nicht garantieren.
-- Frühere unverschlüsselte Dateiversionen, Kopien und Git-Commits werden nicht rückwirkend entfernt.
-- Bei entsperrter Anwendung oder einem kompromittierten Betriebssystem bietet die Verschlüsselung keinen
-  vollständigen Schutz.
-- Die Git-Synchronisierung überträgt die Dateien so, wie sie im Bewerbungsordner liegen: bei aktiver Verschlüsselung
-  verschlüsselt. Frühere unverschlüsselte Commits bleiben im Remote erhalten.
+- Folder and file names remain visible.
+- Files deliberately exported from the data set (PDF, DOCX, JSON backup, settings) are unencrypted outside it.
+- Opening a document in an external program such as Word creates a temporary decrypted copy outside the application folder. It is removed after one hour, on exit, and on the next start. Secure deletion on SSDs cannot be guaranteed.
+- Previous unencrypted file versions, copies, and Git commits are not removed retroactively.
+- Encryption does not fully protect data while the application is unlocked or the operating system is compromised.
+- Git synchronization transfers files as stored in the application folder: encrypted when encryption is active. Previous unencrypted commits remain on the remote.
 
-Legen Sie vor der ersten Aktivierung zusätzlich eine eigene externe Sicherung an.
+Create your own external backup before enabling encryption for the first time.
 
-## Backup & Wiederherstellung
+## Backup and recovery
 
-Unter **Einstellungen → Übertragen & Sicherung**:
+Under **Einstellungen → Übertragen & Sicherung** (Settings → Transfer & Backup):
 
-- **Tägliche automatische JSON-Sicherung** des Datenbestands (`workspace-JJJJ-MM-TT.json`) im Ordner
-  `data/Setting/Backups`; die Zahl der aufbewahrten Sicherungen ist einstellbar (3 bis 50).
-- **Jetzt sichern** erstellt eine vollständige Sicherung des Bewerbungsordners im Backup-Ordner, mit Prüfsummen
-  aller Dateien.
-- **JSON-Sicherung exportieren** und **Sicherung wiederherstellen** (der aktuelle Stand wird vorher automatisch
-  gesichert) sowie Export und Import der Einstellungen.
-- Beim Löschen einer Bewerbung werden ihre Daten zuvor als JSON archiviert (Ordner `Silinenler`).
+- **Daily automatic JSON backup** of the data set (`workspace-JJJJ-MM-TT.json`) in `data/Setting/Backups`, with configurable retention from 3 to 50 backups.
+- **Jetzt sichern** (back up now) creates a complete backup of the application folder in the backup folder, including checksums for every file.
+- **JSON-Sicherung exportieren** (export JSON backup) and **Sicherung wiederherstellen** (restore backup, with an automatic backup of the current state first), plus export and import of settings.
+- Before deleting an application, its data is archived as JSON in `Silinenler`.
 
-Eine eigene Sicherung des gesamten Bewerbungsordners an einem zweiten Ort bleibt empfehlenswert.
+Keeping an additional copy of the entire application folder in a second location is recommended.
 
-## Systemvoraussetzungen
+## System requirements
 
-- Windows 10 oder 11, 64 Bit (x64)
+- Windows 10 or 11, 64-bit (x64)
 
-Andere Betriebssysteme und Architekturen werden nicht veröffentlicht.
+Other operating systems and architectures are not published.
 
-## Entwicklung
+## Development
 
-Voraussetzungen: [Node.js](https://nodejs.org/) 24 (wie in der CI), npm und Git. Die Anwendung liegt im
-Unterordner `bewerbung-studio`.
+Requirements: [Node.js](https://nodejs.org/) 24 (as in CI), npm, and Git. The application is in the `bewerbung-studio` subfolder.
 
 ```bash
 git clone https://github.com/mustafa-oezdemir/bewerbung-studio.git
@@ -245,47 +191,38 @@ npm ci
 npm run dev
 ```
 
-`npm run dev` startet Vite mit dem Electron-Plugin und öffnet die Desktop-Anwendung. `npm start` startet die bereits
-gebaute Anwendung und braucht vorher `npm run build`. Nur die Oberfläche im Browser, ohne Electron:
+`npm run dev` starts Vite with the Electron plugin and opens the desktop application. `npm start` starts the already built application and requires `npm run build` first. To run only the interface in a browser, without Electron:
 
 ```powershell
 $env:VITE_RENDERER_ONLY="1"; npm run dev
 ```
 
-Für Entwicklung und Tests lässt sich der Datenordner über die Umgebungsvariable `BEWERBUNG_ROOT_PATH` setzen.
-Verwenden Sie dafür nie Ihre echten Bewerbungsdaten.
+For development and tests, `BEWERBUNG_ROOT_PATH` can set the data folder. Never point it at your real application data.
 
-### Skripte
+### Scripts
 
-Alle Skripte laufen im Anwendungsordner, also dem Ordner mit der `package.json`.
+Run all scripts from the application folder containing `package.json`.
 
-| Befehl | Zweck |
+| Command | Purpose |
 | --- | --- |
-| `npm run dev` | Entwicklungsmodus mit Electron |
-| `npm start` | Gebaute Electron-Anwendung starten |
-| `npm run build` | Typprüfung und Production Build |
-| `npm run typecheck` | TypeScript prüfen |
-| `npm test` | Tests ausführen (Vitest) |
-| `npm run release:check` | Typecheck, Tests und Build |
-| `npm run dist:win` | Windows-Release erzeugen (Setup, Portable, Prüfsummen) |
-| `npm run dist:win:signed` | Wie `dist:win`, mit Code-Signing (Zertifikat nötig) |
-| `npm run dist:win:installer` | Nur den Installer bauen |
-| `npm run dist:win:portable` | Nur die portable Version bauen |
+| `npm run dev` | Development mode with Electron |
+| `npm start` | Start the built Electron application |
+| `npm run build` | Type check and production build |
+| `npm run typecheck` | Check TypeScript |
+| `npm test` | Run Vitest tests |
+| `npm run release:check` | Type check, tests, and build |
+| `npm run dist:win` | Create Windows Setup, Portable, and checksums |
+| `npm run dist:win:signed` | As above, with code signing (certificate required) |
+| `npm run dist:win:installer` | Build only the installer |
+| `npm run dist:win:portable` | Build only the portable version |
 
-Die Technik im Überblick: Electron, React, TypeScript (strict), Vite, Tailwind CSS, Zustand und Zod; Dokumente mit
-docxtemplater, PizZip und pdf-lib. Die genauen Versionen stehen in
-[`bewerbung-studio/package.json`](bewerbung-studio/package.json).
+The stack includes Electron, React, strict TypeScript, Vite, Tailwind CSS, Zustand, and Zod; documents use docxtemplater, PizZip, and pdf-lib. Exact versions are in [`bewerbung-studio/package.json`](bewerbung-studio/package.json).
 
 ## Tests
 
-```bash
-npm test
-```
+Run `npm test` from the application folder (see [Development](#development)). Tests use Vitest and sit alongside the code (`*.test.ts`, `*.test.tsx`). Run `npm run release:check` before opening a pull request.
 
-im Anwendungsordner (siehe [Entwicklung](#entwicklung)). Die Tests laufen mit Vitest und liegen neben dem Code (`*.test.ts`, `*.test.tsx`). Vor einem Pull Request sollte
-`npm run release:check` durchlaufen.
-
-## CI/CD & Release
+## CI/CD and releases
 
 ```text
 PR / codex/clean-release
@@ -294,7 +231,7 @@ PR / codex/clean-release
 → Tests
 → Build
 
-vX.Y.Z (Tag)
+vX.Y.Z (tag)
 → Windows Release
 → Setup
 → Portable
@@ -302,44 +239,34 @@ vX.Y.Z (Tag)
 → GitHub Release
 ```
 
-Die Workflows [`ci.yml`](.github/workflows/ci.yml) und [`release.yml`](.github/workflows/release.yml) rufen die
-vorhandenen npm-Skripte auf. Ein Versions-Tag darf ohne die bisher vorgesehenen Signing-Secrets **keinen** GitHub
-Release veröffentlichen. Ein manueller Workflow-Lauf kann unsignierte Test-Artefakte erzeugen, veröffentlicht sie
-aber nicht automatisch. Checkliste, Signierung und der genaue Ablauf stehen in
-[`bewerbung-studio/RELEASE.md`](bewerbung-studio/RELEASE.md). Änderungen einer einzelnen Version stehen später in
-den Release Notes auf GitHub.
+The [`ci.yml`](.github/workflows/ci.yml) and [`release.yml`](.github/workflows/release.yml) workflows call the existing npm scripts. A version tag must **not** publish a GitHub Release without the required signing secrets. A manual workflow run may create unsigned test artifacts but does not publish them automatically. See [`bewerbung-studio/RELEASE.md`](bewerbung-studio/RELEASE.md) for the checklist, signing, and exact procedure. Version-specific changes will appear in the GitHub release notes.
 
 ## Code signing policy
 
-Das Projekt ist unter [Apache-2.0](LICENSE) offen lizenziert. Offizielle Quelle ist ausschließlich
-<https://github.com/mustafa-oezdemir/bewerbung-studio>, offizieller Download-Ort
-[GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases). Production-Binärdateien stammen
-ausschließlich aus GitHub Actions auf Basis dieses Repositories. Die Rollen, Datenschutzregeln und der noch offene
-SignPath-Status stehen in der vollständigen [Code signing policy](CODE_SIGNING.md).
+The project is openly licensed under [Apache-2.0](LICENSE). The sole official source is <https://github.com/mustafa-oezdemir/bewerbung-studio>, and the official download location is [GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases). Production binaries are built only by GitHub Actions from this repository. Roles, privacy rules, and the pending SignPath status are in the full [code signing policy](CODE_SIGNING.md).
 
-Falls SignPath Foundation die kostenlose Signierung bewilligt und sie für einen Release eingesetzt wird, erscheint
-auf dessen Download-Seite dieser Hinweis:
+If SignPath Foundation approves free signing and it is used for a release, its download page will include this notice:
 
 > Free code signing provided by SignPath.io, certificate by SignPath Foundation
 
-Derzeit ist **keine** SignPath-Signierung eingerichtet oder zugesagt.
+No SignPath signing has been configured or approved yet.
 
-## Projektstruktur
+## Project structure
 
 ```text
 bewerbung-studio/
 ├── .github/
 │   ├── ISSUE_TEMPLATE/
-│   ├── workflows/               CI und Windows-Release
+│   ├── workflows/               CI and Windows releases
 │   └── pull_request_template.md
-├── bewerbung-studio/            die Anwendung
-│   ├── electron/                Main Process: Speicher, Dateien, PDF/DOCX, Vorlagen, Verschlüsselung
+├── bewerbung-studio/            application
+│   ├── electron/                main process: storage, files, PDF/DOCX, templates, encryption
 │   ├── src/
-│   │   ├── views/               Dashboard, Bewerbungen, Kalender, ToDo, Dokumente, Profil, Einstellungen
-│   │   ├── components/          Assistent, Lebenslauf-Vorlagen, Deckblatt
-│   │   └── shared/              Schemas, Fachregeln, Seitenumbruch
-│   ├── scripts/                 Release-Build, Prüfsummen, QA-Skripte
-│   ├── public/templates/        Word-Muster
+│   │   ├── views/               dashboard, applications, calendar, ToDo, documents, profile, settings
+│   │   ├── components/          wizard, CV templates, cover sheet
+│   │   └── shared/              schemas, domain rules, pagination
+│   ├── scripts/                 release build, checksums, QA scripts
+│   ├── public/templates/        Word samples
 │   ├── package.json
 │   └── RELEASE.md
 ├── CODE_OF_CONDUCT.md
@@ -350,19 +277,14 @@ bewerbung-studio/
 └── SECURITY.md
 ```
 
-## Mitwirken
+## Contributing
 
-Beiträge sind willkommen. Siehe [CONTRIBUTING.md](CONTRIBUTING.md). Es gilt der
-[Verhaltenskodex](CODE_OF_CONDUCT.md). Committen Sie keine echten Bewerbungsdaten und veröffentlichen Sie sie nicht in
-Issues oder Pull Requests.
+Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) and the [code of conduct](CODE_OF_CONDUCT.md). Do not commit real application data or post it in issues or pull requests.
 
-## Sicherheit
+## Security
 
-Sicherheitslücken bitte nicht öffentlich melden.
-Weitere Informationen: [SECURITY.md](SECURITY.md)
+Do not report security vulnerabilities publicly. See [SECURITY.md](SECURITY.md).
 
-## Lizenz
+## License
 
-BewerbungsManager ist unter der Apache License 2.0 veröffentlicht.
-
-Siehe [LICENSE](LICENSE) und [NOTICE](NOTICE).
+BewerbungsManager is released under the Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

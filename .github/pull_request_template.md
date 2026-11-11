@@ -1,22 +1,22 @@
-## Beschreibung
+## Description
 
-<!-- Was ändert sich und warum? Verweise auf ein Issue, falls es eines gibt (z. B. "Closes #123"). -->
+<!-- What changes, and why? Link an issue if applicable (for example, "Closes #123"). -->
 
-## Änderungen
+## Changes
 
 -
 
 ## Tests
 
-<!-- In `bewerbung-studio` ausführen: `npm ci` und `npm run release:check` (wie die CI). -->
+<!-- Run `npm ci` and `npm run release:check` in `bewerbung-studio`, as CI does. -->
 
 - [ ] Typecheck (`npm run typecheck`)
 - [ ] Tests (`npm test`)
 - [ ] Build (`npm run build`)
 
-## Checkliste
+## Checklist
 
-- [ ] Keine persönlichen Bewerbungsdaten committed (Namen, Adressen, Telefon, E-Mail, Unterlagen, `workspace.json`)
-- [ ] Keine Secrets committed (Zugangsdaten, Zertifikate, `.env`)
-- [ ] Dokumentation aktualisiert, falls notwendig
-- [ ] Neue Abhängigkeiten sind begründet und ihre Lizenz ist genannt
+- [ ] No personal application data committed (names, addresses, phone numbers, email, documents, `workspace.json`)
+- [ ] No secrets committed (credentials, certificates, `.env`)
+- [ ] Documentation updated where needed
+- [ ] New dependencies are justified and their licenses are documented

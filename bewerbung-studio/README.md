@@ -1,82 +1,47 @@
 # BewerbungsManager
 
-Lokale Desktop-Anwendung zur Verwaltung deutscher Bewerbungsverfahren und zur
-Erstellung eines konsistenten Sets aus Deckblatt, Anschreiben und Lebenslauf.
+A local desktop application for managing German job applications and creating a consistent set of cover sheet, cover letter, and CV documents.
 
-## Technik
+## Technology
 
-- Electron Main Process für Dateisystem, Dialoge, PDF-Export und Benachrichtigungen
-- React + TypeScript (Strict Mode) für die Oberfläche
-- Vite für Entwicklung und Build
-- Zustand für den zentralen UI-Zustand
-- Zod für IPC- und JSON-Validierung
-- Tailwind CSS 4 als CSS-Toolchain
-- Vitest für Schema- und Validierungstests
+- Electron main process for the file system, dialogs, PDF export, and notifications
+- React and TypeScript in strict mode for the interface
+- Vite for development and builds
+- Zustand for central UI state
+- Zod for IPC and JSON validation
+- Tailwind CSS 4 for the CSS toolchain
+- Vitest for schema and validation tests
 
-## Sicherheitsmodell
+## Security model
 
 - `contextIsolation: true`
 - `nodeIntegration: false`
 - `sandbox: true`
-- ausschließlich freigegebene, typisierte IPC-Methoden im Preload
-- keine freien Dateipfade aus dem Renderer
-- Dateinamen werden normalisiert und bereinigt
-- externe Links sind auf HTTP/HTTPS beschränkt
-- Nutzereingaben werden für Dokument-HTML maskiert
-- JSON wird in eine temporäre Datei geschrieben, synchronisiert und mit
-  Sicherung ersetzt
+- Only approved, typed IPC methods are exposed through the preload script
+- The renderer cannot supply arbitrary file paths
+- File names are normalized and sanitized
+- External links are restricted to HTTP and HTTPS
+- User input is escaped in document HTML
+- JSON is written to a temporary file, synchronized, and replaced with a backup
 
-### Optionale Workspace-Verschlüsselung
+### Optional workspace encryption
 
-Beim ersten Öffnen eines Datenbestands kann die Verschlüsselung gewählt oder
-übersprungen werden. Später steht sie unter **Einstellungen → Datensicherheit &
-Verschlüsselung** zur Verfügung. Ein Master-Passwort mit mindestens 14 Zeichen
-und ein getrennt aufzubewahrender Wiederherstellungsschlüssel entsperren den
-Datenbestand. Bei Verlust beider Zugangsmöglichkeiten gibt es keinen
-Hintereingang.
+When opening a data set for the first time, you can enable or skip encryption. It is also available later under **Einstellungen → Datensicherheit & Verschlüsselung** (Settings → Data security & encryption). A master password of at least 14 characters and a separately stored recovery key unlock the data. If both are lost, there is no back door.
 
-Die Anwendung schützt die Inhalte des verwalteten `data`-Ordners einschließlich
-`workspace.json`, `bewerbung.json`, Dokumenten und verwalteten Sicherungen mit
-AES-256-GCM. Argon2id leitet aus dem Passwort einen Schlüssel ab, der einen
-zufälligen Datenschlüssel schützt. Passwort, Wiederherstellungsschlüssel und
-unverschlüsselter Datenschlüssel werden nicht im Bewerbungsordner gespeichert.
-Eine unterbrochene Umstellung wird mit einem Journal beim nächsten Entsperren
-fortgesetzt. Vor der Aktivierung legt die Anwendung eine geprüfte vollständige
-Sicherung an. Die Umstellung wurde mit temporären Testdaten geprüft; sichern Sie
-Ihren eigenen Datenbestand zusätzlich vor der ersten Aktivierung extern.
+The application protects the contents of the managed `data` folder, including `workspace.json`, `bewerbung.json`, documents, and managed backups, with AES-256-GCM. Argon2id derives a key from the password to protect a random data key. The password, recovery key, and unencrypted data key are not stored in the application folder. If conversion is interrupted, a journal allows it to continue on the next unlock. Before enabling encryption, the application creates and verifies a complete backup. Conversion was tested with temporary test data; also back up your own data externally before enabling it for the first time.
 
-**Grenzen:** Ordner- und Dateinamen bleiben sichtbar. Frühere unverschlüsselte
-Dateiversionen, Kopien und Git-Commits werden nicht rückwirkend entfernt.
-Entschlüsselte Dateien, die in externen Programmen geöffnet werden, liegen dort
-vorübergehend im Klartext; beim regulären Beenden und beim nächsten Start werden
-solche temporären Kopien entfernt. Eine sichere Löschung auf SSDs kann nicht
-garantiert werden. Bewusst außerhalb des Datenbestands exportierte PDFs und
-Einstellungen sind unverschlüsselt. Bei entsperrter Anwendung oder einem
-kompromittierten Betriebssystem bietet die Verschlüsselung keinen vollständigen
-Schutz.
+**Limits:** Folder and file names remain visible. Earlier unencrypted file versions, copies, and Git commits are not removed retroactively. Decrypted files opened in external programs exist temporarily in plaintext; such temporary copies are removed on normal exit and at the next start. Secure deletion on SSDs cannot be guaranteed. PDFs and settings intentionally exported outside the data set remain unencrypted. Encryption does not provide complete protection while the application is unlocked or the operating system is compromised.
 
-Die optionale Geräteentsperrung verwendet Electron `safeStorage` außerhalb des
-Bewerbungsordners. Beim Kopieren auf einen anderen Computer bleiben Master-Passwort
-und Wiederherstellungsschlüssel die portablen Zugangsmöglichkeiten.
+Optional device unlocking uses Electron `safeStorage` outside the application folder. When copying data to another computer, the master password and recovery key remain the portable ways to unlock it.
 
-Technische Referenzen: [OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html),
-[NIST SP 800-38D](https://csrc.nist.gov/pubs/sp/800/38/d/final),
-[Electron safeStorage](https://www.electronjs.org/docs/latest/api/safe-storage).
+Technical references: [OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html), [NIST SP 800-38D](https://csrc.nist.gov/pubs/sp/800/38/d/final), and [Electron safeStorage](https://www.electronjs.org/docs/latest/api/safe-storage).
 
-## Datenablage
+## Data storage
 
-Beim ersten Start wählen Sie einen Bewerbungsordner. Die Anwendung speichert
-dessen Pfad in `bootstrap.json` im plattformüblichen Electron-`userData`-Ordner.
-Vorhandene Installationen mit `D:\bewerbung_mustafa\data\Settings\workspace.json`
-werden automatisch übernommen. `BEWERBUNG_ROOT_PATH` bleibt als Override für
-Entwicklung und Tests erhalten. Den Ordner können Sie später unter
-**Einstellungen → Speicherort / Bewerbungsordner** ändern. Vor einem Wechsel
-wird eine vollständige Sicherung mit Manifest erstellt und die kopierten Dateien
-werden geprüft. Der alte Ordner bleibt als zusätzliche Wiederherstellungskopie
-erhalten.
+On first launch, choose an application folder. The application stores its path in `bootstrap.json` in Electron's standard `userData` folder. Existing installations using `D:\bewerbung_mustafa\data\Settings\workspace.json` are detected automatically. `BEWERBUNG_ROOT_PATH` remains an override for development and tests. You can change the folder later under **Einstellungen → Speicherort / Bewerbungsordner** (Settings → Storage location / Application folder). Before moving it, the application creates a full backup with a manifest and verifies the copied files. The old folder remains as an additional recovery copy.
 
 ```text
-<gewählter Bewerbungsordner>
+<selected application folder>
 └── data
     ├── Bewerbungen
     │   └── Firma_JJJJ-MM-TT
@@ -93,36 +58,20 @@ erhalten.
     ├── Absagen
     └── Setting
         ├── Settings        (workspace.json, collections.json)
-        ├── Profile         (ein JSON je Hauptprofil)
+        ├── Profile         (one JSON file per main profile)
         ├── Backups
         └── Muster
 ```
 
-`data/Setting/Settings/workspace.json` ist ein versionierter Index mit Einstellungen
-und relativen Dateiverweisen. Die jeweilige `bewerbung.json` ist die dauerhafte
-Quelle der Bewerbungsdaten einschließlich des eigenen Profils. Hauptprofile
-und zentrale Sammlungen werden getrennt gespeichert. Aktive Bewerbungen,
-Gespräche und Absagen sind Ansichten der geladenen Bewerbungsdateien.
+`data/Setting/Settings/workspace.json` is a versioned index of settings and relative file references. Each application's `bewerbung.json` is the durable source of its application data, including its own profile. Main profiles and central collections are stored separately. Active applications, interviews, and rejections are views of the loaded application files.
 
-Das Feld `sentAt` ist die zentrale Quelle des Bewerbungsdatums; bei Entwürfen
-wird bis zur Auswahl eines Datums `createdAt` verwendet. Der Firmenordner heißt
-`Firma_JJJJ-MM-TT`; zwei Stellen derselben Firma am selben Tag teilen sich ihn und
-bekommen je einen Unterordner mit der Stellenbezeichnung. Datum in Anschreiben,
-Word-Inhalt und E-Mail-Dateien steht im Format `TT.MM.JJJJ`. Eine Datumsänderung
-verschiebt die vorhandenen Anwendungsordner kollisionssicher.
+The `sentAt` field is the primary source for an application's date; drafts use `createdAt` until a date is selected. The company folder is named `Firma_JJJJ-MM-TT`; two positions at the same company on the same day share that folder and each gets a subfolder named after the position. Dates in cover letters, Word content, and email files use `TT.MM.JJJJ`. Changing the date moves existing application folders without name collisions.
 
-Zeugnisse und Zertifikate bleiben in ihren zentralen Archivordnern. Eine
-Bewerbung speichert nur die relative Verknüpfung; die Datei wird nicht pro
-Bewerbung kopiert. Bei einer Absage werden firmenspezifische Anschreiben und
-Lebensläufe unter `Absagen` verschoben, der Datensatz bleibt
-erhalten.
+References and certificates remain in their central archive folders. An application stores only a relative link; the file is not copied for every application. On rejection, company-specific cover letters and CVs are moved to `Absagen`, while the record is retained.
 
-Bestehende Daten können in den Einstellungen über **Bisherigen data-Ordner
-migrieren** übernommen werden. Vor dem Kopieren zeigt die Anwendung eine
-Vorschau und verlangt eine ausdrückliche Bestätigung. Quelldateien werden nicht
-gelöscht und vorhandene Zieldateien nicht überschrieben.
+Existing data can be imported under Settings with **Bisherigen data-Ordner migrieren** (migrate previous data folder). The application shows a preview and asks for explicit confirmation before copying. Source files are not deleted, and existing destination files are not overwritten.
 
-## Befehle
+## Commands
 
 ```powershell
 npm install
@@ -134,47 +83,40 @@ npm start
 npm run dist:win
 ```
 
-Für eine reine Renderer-Vorschau ohne Electron:
+For a renderer-only preview without Electron:
 
 ```powershell
 $env:VITE_RENDERER_ONLY="1"
 npm run dev
 ```
 
-`npm run dist:win` prüft den Quellcode und erzeugt unter `windows-release/` einen
-Windows-Installer, eine portable Ausgabe, `SHA256SUMS.txt` und die
-[Windows-Installationsanleitung](./WINDOWS-KURULUM.md). Die vollständige
-Release-Checkliste steht in [RELEASE.md](./RELEASE.md). Öffentliche Builds
-sollten vor der Weitergabe mit einem Windows-Code-Signing-Zertifikat signiert
-werden.
+`npm run dist:win` checks the source code and creates a Windows installer, a portable build, `SHA256SUMS.txt`, and the [Windows installation guide](./WINDOWS-KURULUM.md) under `windows-release/`. The complete release checklist is in [RELEASE.md](./RELEASE.md). Public builds should be signed with a Windows code signing certificate before distribution.
 
-## Enthaltene Funktionen
+## Features
 
-- ToDo mit automatischer Bewerbungsfrist-Aufgabe, getrennt von eigenen Aufgaben
-- Dashboard mit Statuszahlen, Erfolgsquote, Fristen und fälligen Aufgaben
-- zentrale Bewerbungslisten mit Suche und Statusfiltern
-- automatische Übergänge für Absage, Gespräch, Zusage und Archiv
-- Monatskalender und Agenda
-- automatische Termine aus Bewerbungs-, Gesprächs- und Vertragsdaten
-- Follow-up nach 7, 10, 14 oder 21 Tagen
-- native Desktop-Benachrichtigungen
-- Bewerbungswizard mit Validierung
-- Lebenslauf-Vorlagen (u. a. Pehlione, Modern, Zweispaltig, Kreativ) und drei Deckblatt-Designs
-- editierbare Anschreiben-, Lebenslauf- und Deckblatttexte
-- PDF-Ausgabe einzelner Dokumente oder der Bewerbungsmappe
-- sichere PDF-Ablage für Zeugnisse und Zertifikate
-- editierbare Dokumentmetadaten, Kategorien und Bewerbungsmappe-Reihenfolge
-- Vorschau, Ein-/Ausschluss und sicheres Löschen verwalteter PDF-Kopien
-- echte PDF-Zusammenführung in der Reihenfolge Deckblatt, Anschreiben,
-  Lebenslauf, Zeugnisse und Zertifikate
-- automatisch erzeugtes und bei Bewerbungs-, Profil- oder Anlagenänderungen
-  aktualisiertes, einseitiges Deckblatt als editierbare DOCX
-- Profile, Theme-Einstellungen und JSON-Sicherung
-- tägliche automatische JSON-Sicherungen mit einstellbarer Aufbewahrung
-- validierte Wiederherstellung kompletter Sicherungen mit Notfallsicherung
-- separater Export und Import der Programmeinstellungen
-- lokal zwischengespeicherter Bewerbungswizard mit automatischer Wiederherstellung
-- strukturierter Lebenslauf-Editor für Berufserfahrung und Ausbildung
-- Drag-and-drop sowie barrierearme Auf/Ab-Sortierung der Stationen
-- ein- und ausblendbare Lebenslauf-Abschnitte
-- Stellenanzeigen-Matching gegen die tatsächlich hinterlegten Kenntnisse
+- ToDo with an automatic application deadline task, separate from personal tasks
+- Dashboard with status counts, success rate, deadlines, and due tasks
+- Central application lists with search and status filters
+- Automatic transitions for rejections, interviews, offers, and archiving
+- Monthly calendar and agenda
+- Automatic events from application, interview, and contract dates
+- Follow-up after 7, 10, 14, or 21 days
+- Native desktop notifications
+- Validated application wizard
+- CV templates (including Pehlione, Modern, Zweispaltig, and Kreativ) and three cover sheet designs
+- Editable cover letter, CV, and cover sheet text
+- PDF export of individual documents or the complete application package
+- Central PDF storage for references and certificates
+- Editable document metadata, categories, and application package order
+- Preview, inclusion or exclusion, and safe deletion of managed PDF copies
+- PDF merging in cover sheet, cover letter, CV, reference, and certificate order
+- An editable, single-page DOCX cover sheet generated automatically and updated when application, profile, or attachment data changes
+- Profiles, theme settings, and JSON backups
+- Daily automatic JSON backups with configurable retention
+- Validated restoration of complete backups with an emergency backup
+- Separate export and import of application settings
+- Locally cached application wizard drafts with automatic recovery
+- Structured CV editor for work experience and education
+- Drag and drop and accessible up/down sorting of entries
+- CV sections that can be shown or hidden
+- Job posting matching against the skills actually recorded in the profile

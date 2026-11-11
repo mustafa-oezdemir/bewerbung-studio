@@ -1,138 +1,93 @@
-# Windows-Release
+# Windows releases
 
-Derzeit gibt es noch keinen öffentlichen Windows-Release. Der offizielle Download-Ort ist ausschließlich
-[GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases); dort veröffentlichte
-Production-Binärdateien müssen aus den Quellen des
-[offiziellen Repositories](https://github.com/mustafa-oezdemir/bewerbung-studio) mit GitHub Actions gebaut sein.
-Die [Code signing policy](../CODE_SIGNING.md) und die [Datenschutzerklärung](../PRIVACY.md) gelten auch für Releases.
+There is currently no public Windows release. The only official download location is [GitHub Releases](https://github.com/mustafa-oezdemir/bewerbung-studio/releases). Production binaries published there must be built from the [official repository](https://github.com/mustafa-oezdemir/bewerbung-studio) by GitHub Actions. The [code signing policy](../CODE_SIGNING.md) and [privacy policy](../PRIVACY.md) also apply to releases.
 
-## Vollständigen Release erstellen
+## Create a complete release build
 
 ```powershell
 npm run dist:win
 ```
 
-Der Befehl führt Typprüfung, Tests und Produktions-Build aus und erzeugt
-anschließend unter `windows-release/`:
+This command runs type checking, tests, and a production build, then creates the following files under `windows-release/`:
 
 - `BewerbungsManager-<Version>-x64-Setup.exe`
 - `BewerbungsManager-<Version>-x64-Portable.exe`
 - `SHA256SUMS.txt`
-- `WINDOWS-KURULUM.md` (Windows kurulum kılavuzu)
+- `WINDOWS-KURULUM.md` (Windows installation guide)
 
-## Vor der Weitergabe
+## Before distribution
 
-- Versionsnummer in `package.json` aktualisieren.
-- Typprüfung, Tests und Build müssen ohne Fehler durchlaufen.
-- Setup auf einem sauberen Windows-Benutzerkonto installieren.
-- Startmenüeintrag und optionalen Desktop-Link prüfen.
-- Eine Bewerbung anlegen und die Anwendung schließen.
-- Neue Version über die vorhandene Installation installieren.
-- Prüfen, dass Daten unter dem konfigurierten `BEWERBUNG_ROOT_PATH` erhalten
-  bleiben; Standard ist `D:\bewerbung_mustafa`.
-- Eine Migration nur über die bestätigte Funktion in den Einstellungen
-  ausführen. Die bisherige Quelle muss nach dem Kopieren unverändert bleiben.
-- Portable Ausgabe starten und denselben Datenbestand prüfen.
-- PDF-Export und JSON-Wiederherstellung testen.
-- SHA-256-Prüfsummen mit den ausgelieferten Dateien veröffentlichen.
+- Update the version in `package.json`.
+- Type checking, tests, and build must pass.
+- Install Setup with a clean Windows user account.
+- Check the Start menu entry and optional desktop shortcut.
+- Create an application and close the program.
+- Install the new version over the existing installation.
+- Verify that data remains at the configured `BEWERBUNG_ROOT_PATH`; the default is `D:\bewerbung_mustafa`.
+- Run migration only through the confirmed action in Settings. The source must remain unchanged after copying.
+- Start the portable build and check the same data set.
+- Test PDF export and JSON restoration.
+- Publish SHA-256 checksums with the distributed files.
 
-## Signierung
+## Signing
 
-Lokale Test-Builds sind normalerweise nicht signiert. Für eine lokale Prüfung des bisherigen Zertifikatswegs können
-Zertifikat und Passwort ausschließlich für die aktuelle PowerShell-Sitzung gesetzt werden:
+Local test builds are normally unsigned. To test the existing certificate method locally, set the certificate and password for the current PowerShell session only:
 
 ```powershell
-$env:WIN_CSC_LINK = 'C:\sicherer-ordner\codesigning.pfx'
-$env:WIN_CSC_KEY_PASSWORD = '<Passwort lokal eingeben>'
+$env:WIN_CSC_LINK = 'C:\secure-folder\codesigning.pfx'
+$env:WIN_CSC_KEY_PASSWORD = '<enter password locally>'
 npm run dist:win:signed
 ```
 
-`dist:win:signed` verwendet SHA-256 und einen RFC-3161-Zeitstempel. Der Build
-schlägt fehl, wenn keine Signatur erzeugt wurde. Anschließend werden Setup und
-Portable-Ausgabe mit `Get-AuthenticodeSignature` geprüft. Ein solcher lokaler Build ist kein offizieller Download;
-Production-Binärdateien werden nur im GitHub-Actions-Release-Workflow gebaut.
+`dist:win:signed` uses SHA-256 and an RFC 3161 timestamp. The build fails if it cannot produce a signature. Setup and Portable are then checked with `Get-AuthenticodeSignature`. Such a local build is not an official download; production binaries are built only in the GitHub Actions release workflow.
 
-Zertifikate, private Schlüssel und Passwörter dürfen nicht in dieses Repository
-kopiert oder eingecheckt werden.
+Do not copy or commit certificates, private keys, or passwords to this repository.
 
-Der bestehende `WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD`-Weg bleibt bis zu einer separat geprüften Umstellung
-erhalten. SignPath Foundation hat dieses Projekt noch nicht angenommen; der Workflow enthält weder eine
-SignPath-Anbindung noch SignPath-Secrets oder erfundene Organisations-/Projektkennungen. Ziel bleibt ein signierter
-`v1.0.0`-Release. Die Herkunft und der tatsächliche Signaturstatus jedes öffentlichen Downloads müssen in dessen
-Release Notes stehen. Wird später SignPath Foundation verwendet, muss die Release-Seite die in der
-[Code signing policy](../CODE_SIGNING.md) festgelegte SignPath-Nennung enthalten.
+The existing `WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD` method remains until a separately reviewed replacement is ready. SignPath Foundation has not accepted this project. The workflow contains no SignPath integration, SignPath secrets, or invented organization or project identifiers. The goal remains a signed `v1.0.0` release. Each public download's release notes must state its origin and actual signing status. If SignPath Foundation is used later, the release page must include the acknowledgement required by the [code signing policy](../CODE_SIGNING.md).
 
-### Bootstrap vor einer SignPath-Zusage
+### Bootstrap before SignPath approval
 
-SignPath Foundation verlangt, dass das Projekt bereits in der Form veröffentlicht wurde, die signiert werden soll.
-Ein möglicher Bootstrap ist ein **separater, ausdrücklich „UNSIGNED/PREVIEW“ genannter GitHub-Prerelease** mit
-Setup- und Portable-Datei aus einem manuellen GitHub-Actions-Lauf. Vor einer solchen Veröffentlichung wären Build,
-Prüfsummen, Installation und ein eindeutiger Hinweis auf die fehlende Signatur zu prüfen. Der bestehende
-Versions-Tag-Workflow veröffentlicht ohne Zertifikat nichts; deshalb lässt sich dieser Bootstrap nicht einfach
-durch einen `v1.0.0`-Tag auslösen. `v1.0.0` bleibt für den angestrebten signierten Production-Release reserviert.
+SignPath Foundation requires the project to have been released in the form to be signed. One possible bootstrap is a **separate GitHub prerelease explicitly named UNSIGNED/PREVIEW**, containing Setup and Portable files from a manual GitHub Actions run. Before publishing it, verify the build, checksums, installation, and clear notice that the files are unsigned. The current version-tag workflow publishes nothing without a certificate, so a `v1.0.0` tag cannot trigger this bootstrap. `v1.0.0` remains reserved for the intended signed production release.
 
-**Offen:** SignPath muss bestätigen, ob ein so gekennzeichneter Prerelease seine „already released in the form that
-should be signed“-Bedingung tatsächlich erfüllt. Die Veröffentlichung eines Preview-Releases wird hier nur
-bewertet, nicht ausgelöst. Bis ein öffentlicher Download mit korrektem Signaturstatus verfügbar ist, bleibt das
-optionale „Download URL“-Feld einer SignPath-Bewerbung leer.
+**Open question:** SignPath must confirm whether such a clearly labelled prerelease satisfies its “already released in the form that should be signed” condition. This document evaluates the preview option; it does not trigger publication. Until a public download with accurate signing status is available, leave the optional “Download URL” field in a SignPath application empty.
 
 ## GitHub Actions
 
-Die Workflows liegen unter `.github/workflows/` und rufen die vorhandenen
-npm-Skripte auf; es gibt keine eigene Build-Logik.
+The workflows in `.github/workflows/` call the existing npm scripts; they do not implement a separate build process.
 
-**CI** (`ci.yml`, Node.js 24, `ubuntu-latest`) läuft bei jedem Pull Request und
-bei jedem Push auf `main` oder `codex/clean-release`:
+**CI** (`ci.yml`, Node.js 24, `ubuntu-latest`) runs on every pull request and every push to `main` or `codex/clean-release`:
 
 ```text
-npm ci → npm run release:check   (Typprüfung → Tests → Produktions-Build)
+npm ci → npm run release:check   (type check → tests → production build)
 ```
 
-Schlägt einer der Schritte fehl, ist die CI rot. Es werden keine Secrets
-verwendet und es entsteht kein Release.
+If any step fails, CI fails. It uses no secrets and creates no release.
 
-**Windows Release** (`release.yml`, Node.js 24, `windows-latest`) startet nur bei
-einem Versions-Tag `vX.Y.Z`:
+**Windows Release** (`release.yml`, Node.js 24, `windows-latest`) starts only for a version tag `vX.Y.Z`:
 
 ```powershell
 git tag -a v1.0.0 -m "BewerbungsManager v1.0.0"
 git push origin v1.0.0
 ```
 
-Danach führt GitHub Actions automatisch aus:
+GitHub Actions then:
 
-1. Tag und Version in `package.json` und `package-lock.json` vergleichen
-   (Abweichung bricht ab).
-2. `npm run release:check` als Qualitätsschranke.
-3. `npm run dist:win:signed`, wenn die Secrets `WIN_CSC_LINK` und
-   `WIN_CSC_KEY_PASSWORD` gesetzt sind. Fehlen sie bei einem Versions-Tag, bricht der Lauf vor dem Release ab.
-   Nur ein manueller Lauf ohne Tag darf `npm run dist:win` (unsigniert) als internes Workflow-Artefakt ausführen.
-   Die Secrets stehen nur in diesem Build-Schritt und werden nie ausgegeben.
-4. Dateien prüfen (`scripts/verify-release-artifacts.ps1`): Setup, Portable und
-   `SHA256SUMS.txt` für genau diese Version vorhanden und nicht leer,
-   SHA-256-Werte aus den echten Dateien neu berechnet, keine Schlüsseldateien.
-5. Die vier Dateien als Workflow-Artefakt `bewerbungsmanager-windows-v<Version>`
-   speichern (14 Tage).
-6. Mit dem Schreibrecht nur in diesem Job: Prüfsummen erneut prüfen und mit
-   `gh release create` ein GitHub Release mit Setup, Portable,
-   `SHA256SUMS.txt` und `WINDOWS-KURULUM.md` veröffentlichen. Existiert das Release schon, bricht der
-   Lauf ab, statt Dateien zu überschreiben.
+1. Compares the tag with the versions in `package.json` and `package-lock.json` and stops on a mismatch.
+2. Runs `npm run release:check` as a quality gate.
+3. Runs `npm run dist:win:signed` if `WIN_CSC_LINK` and `WIN_CSC_KEY_PASSWORD` secrets are set. A version tag without them fails before publication. Only a manual run without a tag may create `npm run dist:win` unsigned files as an internal workflow artifact. Secrets are available only to this build step and are never printed.
+4. Checks artifacts with `scripts/verify-release-artifacts.ps1`: Setup, Portable, and `SHA256SUMS.txt` for exactly this version must exist and be nonempty; SHA-256 values are recalculated from the actual files; no key files are present.
+5. Stores the four files as a workflow artifact named `bewerbungsmanager-windows-v<Version>` for 14 days.
+6. With write permission limited to this job, rechecks the checksums and uses `gh release create` to publish Setup, Portable, `SHA256SUMS.txt`, and `WINDOWS-KURULUM.md`. If the release already exists, the job fails instead of overwriting files.
 
-Ein manueller Lauf (`workflow_dispatch`) baut und speichert das Artefakt;
-er veröffentlicht nur, wenn er auf einem `vX.Y.Z`-Tag gestartet und „publish“
-angehakt wird. Pull Requests und Pushes auf `main` oder `codex/clean-release` erzeugen nie ein Release.
+A manual `workflow_dispatch` run builds and stores the artifact. It publishes only when started on a `vX.Y.Z` tag with “publish” selected. Pull requests and pushes to `main` or `codex/clean-release` never create a release.
 
-Empfohlener Ablauf: Feature-/Fix-Branch → Pull Request → CI → Merge nach `main`
-→ Versionsnummer mit `package.json` und `package-lock.json` abgleichen → Tag `vX.Y.Z`
-→ Tag pushen → signierter Windows-Build → GitHub Release. Diesen Ablauf erst starten, wenn die für die gewählte
-Signierungsart nötigen Zugangsdaten und Freigaben tatsächlich vorliegen.
+Recommended sequence: feature or fix branch → pull request → CI → merge into `main` → match the versions in `package.json` and `package-lock.json` → create tag `vX.Y.Z` → push the tag → signed Windows build → GitHub Release. Start this sequence only when the credentials and approvals required by the chosen signing method are actually available.
 
-### Empfohlener Branch-Schutz
+### Recommended branch protection
 
-Unter GitHub → Settings → Branches / Rulesets für `main` einrichten (wird nicht
-vom Repository erzwungen):
+Configure GitHub → Settings → Branches / Rulesets for `main` (this is not enforced by the repository):
 
-- Pull Request erforderlich
-- Status-Check `CI` erforderlich
-- Branch muss aktuell sein („up to date“)
-- Force-Push deaktiviert
+- Require a pull request
+- Require the `CI` status check
+- Require the branch to be up to date
+- Disable force pushes
