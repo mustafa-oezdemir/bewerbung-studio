@@ -95,7 +95,7 @@ const verifyInterviewNotes = async (root, local, remote) => {
     'Vorstellungsgespräch vorbereitet: Seidel GmbH & Co. KG – Fachinformatiker – Vorstellungsgespräch_Seidel_1.md geändert'))
     throw new Error('the edit was not committed as interview preparation');
   const leftovers = git(local, 'status', '--porcelain', '--untracked-files=all', '--', 'data').split('\n')
-    .filter((line) => line && !/new-application-draft\.json|Setting\/(Logs|CrashDumps|ElectronSession|cache)\//.test(line));
+    .filter((line) => line && !/new-application-draft\.json|Setting\/(Backups|Logs|CrashDumps|ElectronSession|cache)\//.test(line));
   if (leftovers.length) throw new Error(`interview notes left unsynchronised changes: ${leftovers.join(', ')}`);
   if (git(local, 'rev-parse', 'HEAD') !== git(remote, 'rev-parse', 'main'))
     throw new Error('the interview changes did not reach the remote');
@@ -151,9 +151,10 @@ const verifyInterviewNotes = async (root, local, remote) => {
     const workspaceFile = path.join(settings, 'workspace.json');
     await verifySecondInstance(root, workspaceFile);
     // Two more starts (holder, second instance) leave nothing behind but the unsaved draft: no rewritten timestamps,
-    // no Deckblatt regenerated because its name ("Bäcker") was looked up in another spelling.
+    // no Deckblatt regenerated because its name ("Bäcker") was looked up in another spelling. Backups, logs and
+    // caches are local only: the Git sync excludes them (application-git-queue.ts excludedPaths).
     const leftovers = git(local, 'status', '--porcelain', '--untracked-files=all', '--', 'data').split('\n')
-      .filter((line) => line && !/new-application-draft\.json|Setting\/(Logs|CrashDumps|ElectronSession|cache)\//.test(line));
+      .filter((line) => line && !/new-application-draft\.json|Setting\/(Backups|Logs|CrashDumps|ElectronSession|cache)\//.test(line));
     if (leftovers.length) throw new Error(`Electron left unsynchronised changes: ${leftovers.join(', ')}`);
     const saved = JSON.parse(await fs.readFile(workspaceFile, 'utf8'));
     const savedApplication = JSON.parse(await fs.readFile(path.join(local, saved.applications[0].path), 'utf8'));

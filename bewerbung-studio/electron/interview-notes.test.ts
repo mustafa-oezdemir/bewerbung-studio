@@ -254,13 +254,18 @@ describe("Vorstellungsgespräch – Fragen & Antworten files", () => {
     const created = await store.createInterviewNote(application.id, questions("Alt"));
     const target = path.join(folderOf(application.id), created.file.fileName);
     const before = await readFile(target);
+    const folder = folderOf(application.id);
+    // Windows refuses to rename over a read-only file; POSIX renames over it and fails only when the folder
+    // is read-only. Both together make the write fail on every platform (Windows ignores folder modes).
     await chmod(target, 0o444);
+    await chmod(folder, 0o555);
     try {
       await expect(store.updateInterviewNote(application.id, created.file.fileName, questions("Neu"), created.file.revision))
         .rejects.toThrow("„Vorstellungsgespräch_Schreibschutz.md“ konnte nicht gespeichert werden. Vorhandene Inhalte bleiben unverändert.");
       expect(await readFile(target)).toEqual(before);
       expect(await readdir(folderOf(application.id))).toEqual(["Vorstellungsgespräch_Schreibschutz.md"]);
     } finally {
+      await chmod(folder, 0o755);
       await chmod(target, 0o644);
     }
   });

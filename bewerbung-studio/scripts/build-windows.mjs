@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import { copyFile, mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -10,6 +12,14 @@ if (!["all", "nsis", "portable"].includes(target)) {
 }
 
 const workspaceDirectory = path.resolve(".");
+
+// Electron 45 no longer downloads its binary during `npm ci`; it fetches it on first use. electron-builder
+// reads `electronDist` (node_modules/electron/dist) directly, so resolve the package once to fetch it.
+const electronExecutable = createRequire(path.join(workspaceDirectory, "package.json"))("electron");
+if (typeof electronExecutable !== "string" || !existsSync(electronExecutable)) {
+  throw new Error("Das Electron-Programm konnte nicht bereitgestellt werden (node_modules/electron/dist).");
+}
+
 const artifactDirectory = path.join(workspaceDirectory, "windows-release");
 const temporaryDirectory = await mkdtemp(
   path.join(tmpdir(), "bewerbungsmanager-release-"),

@@ -22,9 +22,10 @@ describe("encryption migration across operating-system processes", () => {
       }));
       await writeFile(path.join(application, "document.txt"), "synthetic private document");
       const worker = path.resolve("scripts/encryption-restart-worker.mjs");
-      await run(process.execPath, [worker, "prepare", root], { timeout: 30_000 });
+      // The full suite compiles Vite SSR in parallel; each worker starts its own Vite server and may outlast a minute on a loaded Windows machine.
+      await run(process.execPath, [worker, "prepare", root], { timeout: 180_000 });
       expect(await readFile(path.join(settings, "encryption-migration.json"), "utf8")).toContain('"direction":"enable"');
-      await run(process.execPath, [worker, "resume", root], { timeout: 30_000 });
+      await run(process.execPath, [worker, "resume", root], { timeout: 180_000 });
       await expect(readFile(path.join(settings, "encryption-migration.json"))).rejects.toMatchObject({ code: "ENOENT" });
     } finally {
       const resolved = path.resolve(root);
@@ -33,5 +34,5 @@ describe("encryption migration across operating-system processes", () => {
         throw new Error("Unexpected migration test directory");
       await rm(resolved, { recursive: true, force: true });
     }
-  }, 70_000);
+  }, 400_000);
 });
