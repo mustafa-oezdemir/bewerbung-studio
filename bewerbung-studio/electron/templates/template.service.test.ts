@@ -1041,6 +1041,30 @@ describe("Musterverwaltung", () => {
     );
   });
 
+  it("expands a personal cover-letter body into justified Word paragraphs with the template's formatting", async () => {
+    const templatePath = path.join(paths.anschreibenTemplates, "Absätze.docx");
+    await createDocx(templatePath,
+      '<w:p><w:pPr><w:spacing w:after="120"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>{{HAUPTTEXT}}</w:t></w:r></w:p>');
+    const { templates } = await service.scanAllTemplates();
+    const template = templates.find((item) => item.fileName === "Absätze.docx")!;
+    const file = await service.synchronizeDocumentFromTemplate(
+      template.id, paths.anschreibenDocuments, "Anschreiben",
+      { HAUPTTEXT: "A & B\r\nmit Umbruch.\r\n\r\nC < D.", ZUSATZABSATZ: "Alter Zusatz." },
+    );
+    const xml = new PizZip(await readFile(file.filePath)).file("word/document.xml")!.asText();
+    const paragraphs = xml.match(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g)!;
+    expect(paragraphs).toHaveLength(3);
+    expect(paragraphs[0]).toContain("A &amp; B mit Umbruch.");
+    expect(paragraphs[1]).toContain("C &lt; D.");
+    expect(paragraphs[2]).toContain("Alter Zusatz.");
+    for (const paragraph of paragraphs) {
+      expect(paragraph).toContain('<w:jc w:val="both"/>');
+      expect(paragraph).toContain('<w:spacing w:after="120"/>');
+      expect(paragraph).toContain("<w:b/>");
+      expect(paragraph).not.toContain("<w:br");
+    }
+  });
+
   it("appends the Anlagen section when a cover-letter template has no placeholder for it", async () => {
     const templatePath = path.join(
       paths.anschreibenTemplates,

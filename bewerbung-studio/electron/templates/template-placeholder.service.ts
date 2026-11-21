@@ -1,5 +1,6 @@
 import { copyFile, readFile, writeFile } from "../security/secure-fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import {
@@ -19,6 +20,7 @@ import type {
   DocumentTemplate,
 } from "../../src/features/templates/template.types";
 import { TemplateError, toTemplateError } from "../../src/features/templates/template.errors";
+import { splitLetterParagraphs } from "../../src/shared/letterText";
 
 const profilePhotoDataUrl =
   /^data:image\/png;base64,([a-z0-9+/=\s]+)$/i;
@@ -93,6 +95,25 @@ const justifiedCoverLetterPlaceholderKeys = new Set([
   "EK_PARAGRAF",
   "KAPANIS",
 ]);
+
+// The marker survives Docxtemplater as escaped text. Split only the runs containing a body placeholder;
+// unrelated line breaks in the user's template keep their original formatting.
+const expandCoverLetterParagraphs = (zip: PizZip, marker: string) => {
+  const part = zip.file("word/document.xml");
+  if (!part) return;
+  const xml = part.asText().replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g, (paragraph) => {
+    if (!paragraph.includes(marker)) return paragraph;
+    const properties = paragraph.match(/<w:pPr\b[^>]*(?:\/>|>[\s\S]*?<\/w:pPr>)/)?.[0] ?? "";
+    return paragraph.replace(/(<w:r\b[^>]*>)([\s\S]*?)<\/w:r>/g, (run, opening: string, content: string) => {
+      if (!content.includes(marker)) return run;
+      const formatting = content.match(/<w:rPr\b[^>]*(?:\/>|>[\s\S]*?<\/w:rPr>)/)?.[0] ?? "";
+      const expanded = content.replace(/(<w:t\b[^>]*>)([\s\S]*?)<\/w:t>/g, (_text, tag: string, value: string) =>
+        `${tag}${value.split(marker).join(`</w:t></w:r></w:p><w:p>${properties}${opening}${formatting}${tag}`)}</w:t>`);
+      return `${opening}${expanded}</w:r>`;
+    });
+  });
+  zip.file("word/document.xml", xml);
+};
 
 const applyCoverLetterJustification = (zip: PizZip) => {
   const documentPart = zip.file("word/document.xml");
@@ -648,12 +669,15 @@ export class TemplatePlaceholderService {
         !fullText.includes("{{EK_PARAGRAF}}") &&
         normalizedData.ZUSATZABSATZ?.trim()
       ) {
-        normalizedData.SCHLUSSTEXT = [
-          normalizedData.ZUSATZABSATZ,
-          normalizedData.SCHLUSSTEXT,
-        ]
-          .filter((value) => value?.trim())
-          .join("\n\n");
+        const mainKey = ["HAUPTTEXT", "ANSCHREIBEN_METNI", "FACHLICHE_EIGNUNG", "MOTIVATION"]
+          .find((key) => fullText.includes(`{{${key}}}`));
+        if (mainKey) {
+          normalizedData[mainKey] = [normalizedData[mainKey], normalizedData.ZUSATZABSATZ].filter(Boolean).join("\n\n");
+        } else {
+          for (const key of ["SCHLUSSTEXT", "KAPANIS"]) {
+            normalizedData[key] = [normalizedData.ZUSATZABSATZ, normalizedData[key]].filter(Boolean).join("\n\n");
+          }
+        }
       }
       // Anlagen always belong after the signature.  Clear a legacy placeholder
       // in the document body and append the generated list at the end instead.
@@ -693,9 +717,16 @@ export class TemplatePlaceholderService {
         ...templatePlaceholderKeys,
         ...aliasKeys,
       ].filter((key) => fullText.includes(`{{${key}}}`));
+      const paragraphMarker = template.documentType === "anschreiben" ? `__paragraph_${randomUUID()}__` : "";
+      if (paragraphMarker) {
+        for (const key of justifiedCoverLetterPlaceholderKeys) {
+          normalizedData[key] = splitLetterParagraphs(normalizedData[key] ?? "").join(paragraphMarker);
+        }
+      }
       document.render(normalizedData);
       const renderedZip = document.getZip();
       if (template.documentType === "anschreiben") {
+        expandCoverLetterParagraphs(renderedZip, paragraphMarker);
         appendCoverLetterAttachments(
           renderedZip,
           coverLetterAttachmentNote,

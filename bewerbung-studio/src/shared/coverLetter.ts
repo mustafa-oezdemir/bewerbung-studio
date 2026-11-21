@@ -1,31 +1,43 @@
 import type { Application, Attachment, DocumentDraft } from "./schema";
 import { getApplicationDocumentItems } from "./applicationDocuments";
+import { splitLetterParagraphs, type LetterSections } from "./letterText";
 
 export const getCoverLetterMainBody = (
   documents: Pick<
     DocumentDraft,
     "coverMainBody" | "coverMotivation" | "coverQualification"
   >,
-) =>
-  documents.coverMainBody.trim() ||
-  [documents.coverMotivation, documents.coverQualification]
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .join("\n\n");
+) => {
+  const main = splitLetterParagraphs(documents.coverMainBody);
+  const legacy = [documents.coverMotivation, documents.coverQualification].flatMap(splitLetterParagraphs);
+  return [...main, ...legacy.filter((paragraph) => !main.includes(paragraph))].join("\n\n");
+};
 
-/** Kreativ's preview and PDF use the same Bewerbung text, including empty-draft placeholders. */
-export const resolveKreativCoverLetterParagraphs = (
-  application: Pick<Application, "company" | "job">,
-  documents: DocumentDraft,
-) => ({
-  introduction: documents.coverIntroduction ||
-    `die ausgeschriebene Position als ${application.job.title} bei ${application.company.name} spricht mich besonders an, weil sie fachliche Verantwortung mit konkretem Gestaltungsspielraum verbindet.`,
-  mainBody: getCoverLetterMainBody(documents) || "Hauptteil im Dokumenteditor ergänzen.",
-  companyFit: documents.coverCompanyFit ||
-    `An ${application.company.name} überzeugt mich besonders die Verbindung aus professionellem Anspruch und zukunftsorientierter Arbeitsweise.`,
-  closing: documents.coverClosing ||
-    "Gerne überzeuge ich Sie in einem persönlichen Gespräch davon, welchen konkreten Beitrag ich in Ihrem Team leisten kann. Auf Ihren Terminvorschlag freue ich mich.",
+export const coverLetterSections = (documents: DocumentDraft): LetterSections => {
+  const main = getCoverLetterMainBody(documents);
+  return {
+    introduction: splitLetterParagraphs(documents.coverIntroduction).join("\n\n"),
+    mainBody: [main, splitLetterParagraphs(documents.coverExtraParagraph).join("\n\n")].filter(Boolean).join("\n\n"),
+    companyFit: splitLetterParagraphs(documents.coverCompanyFit).join("\n\n"),
+    closing: splitLetterParagraphs(documents.coverClosing).join("\n\n"),
+  };
+};
+
+export const coverLetterSectionPatch = (sections: LetterSections): Partial<DocumentDraft> => ({
+  coverIntroduction: sections.introduction,
+  coverMainBody: sections.mainBody,
+  coverCompanyFit: sections.companyFit,
+  coverClosing: sections.closing,
+  coverExtraParagraph: "",
+  coverMotivation: "",
+  coverQualification: "",
 });
+
+export const coverLetterBodyParagraphs = (sections: LetterSections) => [
+  ...[sections.introduction, sections.mainBody, sections.companyFit]
+    .flatMap(splitLetterParagraphs).map((text) => ({ text, closing: false })),
+  ...splitLetterParagraphs(sections.closing).map((text) => ({ text, closing: true })),
+];
 
 export const createCoverSubject = (jobTitle: string, current = "") => {
   const subject = current.trim();

@@ -23,7 +23,7 @@ describe("cover-letter helpers", () => {
         coverMotivation: "Alter Text.",
         coverQualification: "",
       }),
-    ).toBe("Neuer Hauptteil.");
+    ).toBe("Neuer Hauptteil.\n\nAlter Text.");
   });
 
   it("does not duplicate the Bewerbung-als prefix", () => {

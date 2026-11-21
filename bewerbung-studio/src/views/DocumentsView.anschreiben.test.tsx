@@ -195,6 +195,11 @@ describe("Anschreiben follows Unternehmen & Position and Ansprechpartner (copied
       expect(view.querySelector('textarea[name="coverRecipientAddress"]')?.textContent).toBe(expected.recipient.join("\n"));
       expect(view.querySelector('input[name="coverSubject"]')?.getAttribute("value")).toBe(expected.subject);
       expect(view.querySelector('input[name="coverGreeting"]')?.getAttribute("value")).toBe(expected.greeting);
+      const editors = [...view.querySelectorAll(".cover-letter-editor-sections textarea")];
+      expect(editors.map((field) => field.getAttribute("name"))).toEqual(["coverRecipientAddress", "anschreibenText"]);
+      expect(editors[1].textContent).toBe(expected.body.join("\n\n").replace("<Zeichen> &", "&lt;Zeichen&gt; &amp;"));
+      expect([...editors[1].closest("section")!.querySelectorAll("header > b")].map((node) => node.textContent))
+        .toEqual(["4. Einleitung", "5. Hauptteil", "6. Unternehmensbezug", "7. Schlussteil"]);
       // The Bewerbungsmappe prints the same letter.
       const mappe = parseHTML(buildDocumentHtml(copy, profile, "mappe")).document
         .querySelector("section.letter-page > .document-paper.document-anschreiben")!;

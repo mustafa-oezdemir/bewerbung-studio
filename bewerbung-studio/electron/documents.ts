@@ -83,7 +83,8 @@ import {
   createCoverSubject,
   getCoverLetterAttachments,
   getCoverLetterMainBody,
-  resolveKreativCoverLetterParagraphs,
+  coverLetterBodyParagraphs,
+  coverLetterSections,
 } from "../src/shared/coverLetter";
 import {
   knowledgeLevelLabels,
@@ -864,7 +865,6 @@ export const buildDocumentHtml = (
   const letterSender = ["stilvoll", "zweispaltig", "tuerkis-profil", "zeitgenoessisch", "elegant", "kreativ", "gepflegt", "kompakt"].includes(template.id)
     ? coverSenderFromProfile(resolvedCv.profile)
     : resolveCoverSender(profile, docs);
-  const sharedLetterParagraphs = template.id === "kreativ" || template.id === "stilvoll" ? resolveKreativCoverLetterParagraphs(application, docs) : undefined;
   const coverLetterAttachments = getCoverLetterAttachments(
     attachments,
     application.id,
@@ -911,13 +911,7 @@ export const buildDocumentHtml = (
         && !(docs.coverSubject || "").includes(application.job.reference) ? ` - Referenz ${application.job.reference}` : ""}`,
       subjectClassName: anschreibenSubjectClassName(template.id),
       greeting: docs.coverGreeting || applicationGreeting(application),
-      paragraphs: [
-        { text: sharedLetterParagraphs?.introduction ?? (docs.coverIntroduction || `die ausgeschriebene Position als ${role} bei ${company} spricht mich besonders an, weil sie fachliche Verantwortung mit konkretem Gestaltungsspielraum verbindet.`), closing: false },
-        { text: sharedLetterParagraphs?.mainBody ?? (getCoverLetterMainBody(docs) || "Hauptteil im Dokumenteditor ergänzen."), closing: false },
-        ...(docs.coverExtraParagraph ? [{ text: docs.coverExtraParagraph, closing: false }] : []),
-        { text: sharedLetterParagraphs?.companyFit ?? (docs.coverCompanyFit || `An ${company} überzeugt mich besonders die Verbindung aus professionellem Anspruch und zukunftsorientierter Arbeitsweise.`), closing: false },
-        { text: sharedLetterParagraphs?.closing ?? (docs.coverClosing || "Gerne überzeuge ich Sie in einem persönlichen Gespräch davon, welchen konkreten Beitrag ich in Ihrem Team leisten kann. Auf Ihren Terminvorschlag freue ich mich."), closing: true },
-      ],
+      paragraphs: coverLetterBodyParagraphs(coverLetterSections(docs)),
       signature: { greeting: "Mit freundlichen Grüßen", source: signatureSource, name },
       attachments: docs.showCoverLetterAttachments ? coverLetterAttachments : null,
     }, template.id === "stilvoll" ? "" : backgroundLayer)}</section>`;

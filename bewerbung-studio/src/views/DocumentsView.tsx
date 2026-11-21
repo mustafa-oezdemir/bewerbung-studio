@@ -110,8 +110,9 @@ import {
 import {
   createCoverSubject,
   getCoverLetterAttachments,
-  getCoverLetterMainBody,
-  resolveKreativCoverLetterParagraphs,
+  coverLetterBodyParagraphs,
+  coverLetterSectionPatch,
+  coverLetterSections,
 } from "../shared/coverLetter";
 import {
   getLetterPageStatus,
@@ -136,7 +137,8 @@ import { DeckblattDesignPicker } from "../components/document/DeckblattDesignPic
 import { DeckblattPreview } from "../components/document/DeckblattPreview";
 import type { ExportTarget, ProfileMediaKind } from "../shared/ipc";
 import { MotivationPreview } from "../components/document/MotivationPreview";
-import { buildMotivationModel, motivationFields, motivationMainBodyText, motivationSections, motivationTextsFromForm, type MotivationSection } from "../shared/motivationDocument";
+import { buildMotivationModel, motivationSectionPatch, motivationSections, motivationTextSections, type MotivationSection } from "../shared/motivationDocument";
+import { formatLetterText, letterSectionWarning, parseLetterText, splitLetterParagraphs, type LetterTextKind } from "../shared/letterText";
 import { resolveDocumentSideMargins } from "../shared/documentSideMargins";
 import { getProfileMediaSource } from "../shared/profileMedia";
 import { resolveResumeClosingLayout } from "../shared/resumeClosing";
@@ -173,6 +175,22 @@ function MotivationSectionHeader({ section }: { section: MotivationSection }) {
       <small>{summary}</small>
     </header>
   );
+}
+
+// Word's plain clipboard can use the same CRLF for both soft breaks and real paragraphs.
+function pastedLetterParagraphs(clipboard: DataTransfer) {
+  const html = clipboard.getData("text/html");
+  if (!html || !/<p[\s>]/i.test(html)) return undefined;
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  const paragraphs = [...template.content.querySelectorAll("p")].map((paragraph) => {
+    paragraph.querySelectorAll("br").forEach((lineBreak) => lineBreak.replaceWith(" "));
+    return paragraph.textContent ?? "";
+  });
+  const text = paragraphs.join("\n\n");
+  const plain = clipboard.getData("text/plain");
+  // Keep the browser's plain paste when the HTML carries different or incomplete text.
+  return splitLetterParagraphs(text).join(" ") === splitLetterParagraphs(plain).join(" ") && plain.trim() ? text : undefined;
 }
 
 function DocumentListEditor({
@@ -491,6 +509,7 @@ export function DocumentsView({
     applicationId: string;
     documents: DocumentDraft;
   } | null>(null);
+  const [letterDraft, setLetterDraft] = useState<{ applicationId: string; text: Partial<Record<LetterTextKind, string>> } | null>(null);
   const handleResumeSectionPreview = useCallback(
     (_templateId: string, previewProfile: ApplicantProfile | null) => {
       if (!previewProfile || !application) return;
@@ -528,6 +547,7 @@ export function DocumentsView({
     JSON.stringify(resolveCoverLetterDocuments(application, documentPreview.documents)) !==
       JSON.stringify(resolveCoverLetterDocuments(application, application.documents)));
   const editorUnsaved = documentDesignUnsaved || documentTextUnsaved || resumeDesignUnsaved ||
+    Boolean(letterDraft && letterDraft.applicationId === application?.id && Object.keys(letterDraft.text).length) ||
     Boolean(application && resumeContentDraft && resumeDraftApplicationId === application.id);
   const persistedDocuments = JSON.stringify(application?.documents);
   const formRef = useRef<HTMLFormElement>(null);
@@ -620,6 +640,7 @@ export function DocumentsView({
     design,
     documentPreview,
     fitLetterContent,
+    letterDraft,
     profiles,
     tab,
   ]);
@@ -689,12 +710,60 @@ export function DocumentsView({
   const signatureSource = getProfileMediaSource(profile?.signaturePath);
   // Empfänger, Betreff and Anrede follow Unternehmen & Position and the Ansprechpartner (also in a copied Bewerbung);
   // only the user's own texts for this data stay.
-  const docs = resolveCoverLetterDocuments(
+  const documentSettings = resolveCoverLetterDocuments(
     application,
     documentPreview?.applicationId === application.id
       ? documentPreview.documents
       : application.documents,
   );
+  const storedCover = coverLetterSections(application.documents);
+  const storedMotivation = motivationTextSections(application.documents);
+  const letterEditor = (kind: LetterTextKind, stored: typeof storedCover) => {
+    const initial = formatLetterText(kind, stored);
+    const draft = letterDraft?.applicationId === application.id ? letterDraft.text[kind] : undefined;
+    const result = draft === undefined || draft === initial ? null : parseLetterText(kind, draft, stored);
+    return { initial, value: draft ?? initial, result };
+  };
+  const letterEditors = { anschreiben: letterEditor("anschreiben", storedCover), motivation: letterEditor("motivation", storedMotivation) };
+  const coverResult = letterEditors.anschreiben.result;
+  const motivationResult = letterEditors.motivation.result;
+  const docs = {
+    ...documentSettings,
+    ...(coverResult?.sections ? coverLetterSectionPatch(coverResult.sections) : {}),
+    ...(motivationResult?.sections ? motivationSectionPatch(motivationResult.sections) : {}),
+  };
+  const updateLetterText = (kind: LetterTextKind, value: string) => {
+    setLetterDraft((current) => {
+      const next = current?.applicationId === application.id ? { ...current.text } : {};
+      if (value === letterEditors[kind].initial) delete next[kind];
+      else next[kind] = value;
+      return { applicationId: application.id, text: next };
+    });
+  };
+  const letterTextArea = (kind: LetterTextKind, label: string, placeholder: string) => {
+    const { value, result } = letterEditors[kind];
+    const hintId = `${formId}-${kind}-sections`;
+    return <>
+      <label className="field">
+        <span>{label}</span>
+        <textarea name={`${kind}Text`} rows={14} value={value} placeholder={placeholder}
+          aria-describedby={result?.unresolved ? hintId : undefined}
+          aria-invalid={result?.unresolved ? true : undefined}
+          onChange={(event) => updateLetterText(kind, event.currentTarget.value)}
+          onPaste={(event) => {
+            const text = pastedLetterParagraphs(event.clipboardData);
+            if (text === undefined) return;
+            event.preventDefault();
+            const field = event.currentTarget;
+            field.setRangeText(text, field.selectionStart, field.selectionEnd, "end");
+            updateLetterText(kind, field.value);
+          }} />
+      </label>
+      {result?.unresolved ? <p className="field-hint" id={hintId} role="status">
+        {letterSectionWarning} Schreiben Sie die Abschnittsüberschriften jeweils in eine eigene Zeile.
+      </p> : null}
+    </>;
+  };
   const deckblattDocumentItems = getDeckblattDocumentItems(
     attachments,
     application.id,
@@ -777,7 +846,6 @@ export function DocumentsView({
     sideMargins,
   });
   const coverGreeting = docs.coverGreeting || applicationGreeting(application);
-  const sharedLetterParagraphs = template.id === "kreativ" || template.id === "stilvoll" ? resolveKreativCoverLetterParagraphs(application, docs) : undefined;
   const resumePlan = resolvedCv.pagePlan;
   const letterStatus = getLetterPageStatus(docs);
   const isAtsMode =
@@ -834,13 +902,7 @@ export function DocumentsView({
       && !(docs.coverSubject || "").includes(application.job.reference) ? ` - Referenz ${application.job.reference}` : ""}`,
     subjectClassName: anschreibenSubjectClassName(template.id),
     greeting: coverGreeting,
-    paragraphs: [
-      { text: sharedLetterParagraphs?.introduction ?? docs.coverIntroduction, closing: false },
-      { text: sharedLetterParagraphs?.mainBody || getCoverLetterMainBody(docs) || profile?.summary || "Hauptteil ergänzen …", closing: false },
-      ...(docs.coverExtraParagraph ? [{ text: docs.coverExtraParagraph, closing: false }] : []),
-      { text: sharedLetterParagraphs?.companyFit || docs.coverCompanyFit || "Unternehmensbezug ergänzen …", closing: false },
-      { text: sharedLetterParagraphs?.closing ?? docs.coverClosing, closing: true },
-    ],
+    paragraphs: coverResult?.unresolved?.map((text) => ({ text, closing: false })) ?? coverLetterBodyParagraphs(coverLetterSections(docs)),
     signature: { greeting: "Mit freundlichen Grüßen", source: signatureSource, name },
     attachments: docs.showCoverLetterAttachments ? coverLetterAttachments : null,
   };
@@ -855,7 +917,14 @@ export function DocumentsView({
       .map((value) => value?.trim() ?? "").filter((value) => value && !/ergänzen …$/.test(value)).join("\n\n"),
   });
   // The Motivationsschreiben is drawn in the Anschreiben's frame (its whole design), as in the PDF.
-  const motivationModel = { ...motivationBaseModel, letter: anschreibenLetterFrame(anschreibenModel) };
+  const motivationModel = {
+    ...motivationBaseModel,
+    ...(motivationResult?.unresolved ? {
+      paragraphs: motivationResult.unresolved.map((text) => ({ part: "unassigned" as const, text })),
+      isEmpty: false,
+    } : {}),
+    letter: anschreibenLetterFrame(anschreibenModel),
+  };
   const legacyTextContrastReadable = hasReadableColorContrast(design.settings.textColor, design.settings.backgroundColor);
   const editorSaving = documentSaveStatus === "saving" || profileSaveStatus === "saving";
   const editorSaveLabel = editorSaving ? "Speichert …"
@@ -1046,7 +1115,7 @@ export function DocumentsView({
     setDocumentPreview({
       applicationId: application.id,
       documents: {
-        ...docs,
+        ...documentSettings,
         documentListSettings: [
           ...docs.documentListSettings.filter((setting) => setting.key !== key),
           nextSetting,
@@ -1058,7 +1127,7 @@ export function DocumentsView({
   const setMotivationEnabled = (isEnabled: boolean) => {
     setDocumentPreview({
       applicationId: application.id,
-      documents: { ...docs, motivationEnabled: isEnabled },
+      documents: { ...documentSettings, motivationEnabled: isEnabled },
     });
   };
 
@@ -1066,7 +1135,7 @@ export function DocumentsView({
     setDocumentPreview({
       applicationId: application.id,
       documents: {
-        ...docs,
+        ...documentSettings,
         motivationHeadingGapReduction: Math.min(4, docs.motivationHeadingGapReduction + 1),
       },
     });
@@ -1075,7 +1144,7 @@ export function DocumentsView({
   const resetMotivationHeadingGap = () => {
     setDocumentPreview({
       applicationId: application.id,
-      documents: { ...docs, motivationHeadingGapReduction: 0 },
+      documents: { ...documentSettings, motivationHeadingGapReduction: 0 },
     });
   };
 
@@ -1083,7 +1152,7 @@ export function DocumentsView({
     setDocumentPreview({
       applicationId: application.id,
       documents: {
-        ...docs,
+        ...documentSettings,
         motivationSalutationGapReduction: Math.min(3, docs.motivationSalutationGapReduction + 1),
       },
     });
@@ -1092,7 +1161,7 @@ export function DocumentsView({
   const resetMotivationSalutationGap = () => {
     setDocumentPreview({
       applicationId: application.id,
-      documents: { ...docs, motivationSalutationGapReduction: 0 },
+      documents: { ...documentSettings, motivationSalutationGapReduction: 0 },
     });
   };
 
@@ -1100,7 +1169,7 @@ export function DocumentsView({
     setDocumentPreview({
       applicationId: application.id,
       documents: {
-        ...docs,
+        ...documentSettings,
         showCoverLetterAttachments: isVisible,
       },
     });
@@ -1110,7 +1179,7 @@ export function DocumentsView({
     setDocumentPreview({
       applicationId: application.id,
       documents: {
-        ...docs,
+        ...documentSettings,
         coverSubjectGapReduction: Math.min(
           4,
           docs.coverSubjectGapReduction + 1,
@@ -1122,11 +1191,11 @@ export function DocumentsView({
   const resetCoverSubjectGap = () => {
     setDocumentPreview({
       applicationId: application.id,
-      documents: { ...docs, coverSubjectGapReduction: 0 },
+      documents: { ...documentSettings, coverSubjectGapReduction: 0 },
     });
   };
 
-  const persistCurrentDocumentDraft = async (snapshot: Application, changedProfile?: ApplicantProfile) => {
+  const persistCurrentDocumentDraft = async (snapshot: Application, changedProfile?: ApplicantProfile, letters: readonly LetterTextKind[] = []) => {
     const submittedDesign = design;
     const submittedPreview = documentPreview;
     await persistDocumentDraft(snapshot, changedProfile, saveApplication);
@@ -1137,10 +1206,18 @@ export function DocumentsView({
     if (submittedPreview) setDocumentPreview((current) => current === submittedPreview
       ? { applicationId: stored.id, documents: stored.documents }
       : current);
+    setLetterDraft((current) => {
+      if (!current || current.applicationId !== snapshot.id) return current;
+      const text = { ...current.text };
+      for (const kind of letters) {
+        if (text[kind] === letterDraft?.text[kind]) delete text[kind];
+      }
+      return { ...current, text };
+    });
     return stored;
   };
 
-  const saveResumeSections = async (changedProfile: ApplicantProfile) => {
+  const saveResumeSections = async (changedProfile: ApplicantProfile, documentSnapshot?: Application, letters: readonly LetterTextKind[] = []) => {
     if (!profile) return;
     const submittedDraft = resumeContentDraft;
     const latest = useAppStore.getState().workspace.applications.find((item) => item.id === application.id)?.profileSnapshot ?? profile;
@@ -1150,10 +1227,10 @@ export function DocumentsView({
       setProfileSaveStatus("error");
       throw new Error(issue.startsWith("personal:") ? "Bitte Pflichtangaben im Profil prüfen." : issue);
     }
-    const snapshot = applicationSnapshot(formRef.current);
+    const snapshot = documentSnapshot ?? applicationSnapshot(formRef.current);
     setProfileSaveStatus("saving");
     try {
-      const stored = await persistCurrentDocumentDraft(snapshot, savedProfile);
+      const stored = await persistCurrentDocumentDraft(snapshot, savedProfile, letters);
       const persistedProfile = stored?.profileSnapshot ?? savedProfile;
       resumeBaselineRef.current = persistedProfile;
       setResumeContentDraft((current) => {
@@ -1187,7 +1264,7 @@ export function DocumentsView({
     });
   };
 
-  const applicationSnapshot = (form: HTMLFormElement | null): Application => {
+  const applicationSnapshot = (form: HTMLFormElement | null, letters: readonly LetterTextKind[] = []): Application => {
     const data = form ? new FormData(form) : null;
     const value = (name: string, fallback: string) => {
       const current = data?.get(name);
@@ -1202,6 +1279,7 @@ export function DocumentsView({
       designSettings: design.settings,
       templateDesigns: design.templateDesigns,
       documents: storeCoverLetterDocuments(application, {
+        ...documentSettings,
         ...(template.id === "zweispaltig" ? {
           coverSenderName: docs.coverSenderName,
           coverSenderTitle: docs.coverSenderTitle,
@@ -1224,18 +1302,7 @@ export function DocumentsView({
         coverSubject: value("coverSubject", docs.coverSubject),
         coverSubjectGapReduction: docs.coverSubjectGapReduction,
         coverGreeting: value("coverGreeting", docs.coverGreeting),
-        coverIntroduction: value("coverIntroduction", docs.coverIntroduction),
-        coverMainBody: value("coverMainBody", getCoverLetterMainBody(docs)),
-        coverMotivation: data?.has("coverMainBody") ? "" : docs.coverMotivation,
-        coverQualification: data?.has("coverMainBody")
-          ? ""
-          : docs.coverQualification,
-        coverCompanyFit: value("coverCompanyFit", docs.coverCompanyFit),
-        coverExtraParagraph: value(
-          "coverExtraParagraph",
-          docs.coverExtraParagraph,
-        ),
-        coverClosing: value("coverClosing", docs.coverClosing),
+        ...(letters.includes("anschreiben") && coverResult?.sections ? coverLetterSectionPatch(coverResult.sections) : {}),
         resumeProfile: "",
         legacyResumeProfile: docs.legacyResumeProfile || docs.resumeProfile,
         deckblattStatement: value(
@@ -1255,10 +1322,7 @@ export function DocumentsView({
         motivationHeading: value("motivationHeading", docs.motivationHeading),
         motivationHeadingGapReduction: docs.motivationHeadingGapReduction,
         motivationSalutationGapReduction: docs.motivationSalutationGapReduction,
-        ...motivationTextsFromForm(docs, (field) => {
-          const current = data?.get(field);
-          return typeof current === "string" ? current : undefined;
-        }),
+        ...(letters.includes("motivation") && motivationResult?.sections ? motivationSectionPatch(motivationResult.sections) : {}),
         documentListSettings: docs.documentListSettings,
       }),
     };
@@ -1306,10 +1370,10 @@ export function DocumentsView({
       return;
     }
     const name = target.name as keyof DocumentDraft;
-    if (!name || !(name in docs)) return;
+    if (!name || !(name in documentSettings)) return;
     setDocumentPreview({
       applicationId: application.id,
-      documents: { ...docs, [name]: target.value },
+      documents: { ...documentSettings, [name]: target.value },
     });
   };
 
@@ -1319,10 +1383,12 @@ export function DocumentsView({
     setDocumentSaveStatus("saving");
     setDocumentSaveError("");
     try {
-      const snapshot = applicationSnapshot(event.currentTarget);
+      const letters: LetterTextKind[] = tab === "anschreiben" || tab === "motivation" ? [tab] : [];
+      checkLetterDrafts(letters);
+      const snapshot = applicationSnapshot(event.currentTarget, letters);
       await persistResumeDesignDraft();
-      if (currentProfileDraft()) await saveResumeSections(currentProfileDraft()!);
-      else await persistCurrentDocumentDraft(snapshot);
+      if (currentProfileDraft()) await saveResumeSections(currentProfileDraft()!, snapshot, letters);
+      else await persistCurrentDocumentDraft(snapshot, undefined, letters);
       if (tab === "anschreiben") await syncCoverLetter(snapshot.id);
       setDocumentSaveStatus("saved");
     } catch (error) {
@@ -1336,12 +1402,33 @@ export function DocumentsView({
       ? resumeContentDraft
       : undefined;
 
+  const checkLetterDrafts = (letters: readonly LetterTextKind[]) => {
+    const unresolved = letters.find((kind) => letterEditors[kind].result?.unresolved);
+    if (!unresolved) return;
+    setTab(unresolved);
+    throw new Error(letterSectionWarning);
+  };
+
   const exportCurrentPdf = async (target: ExportTarget) => {
-    const snapshot = applicationSnapshot(formRef.current);
-    await persistResumeDesignDraft();
-    if (currentProfileDraft()) await saveResumeSections(currentProfileDraft()!);
-    else await persistCurrentDocumentDraft(snapshot);
-    await exportPdf(snapshot.id, target, snapshot);
+    if (editorSaving) return;
+    setDocumentSaveStatus("saving");
+    setDocumentSaveError("");
+    try {
+      const letters: LetterTextKind[] = target === "anschreiben" || target === "motivation" ? [target]
+        : target === "mappe" || target === "bewerbungsunterlagen"
+          ? (applicationDocumentItems.some((item) => item.key === "motivation" && item.isVisible) ? ["anschreiben", "motivation"] : ["anschreiben"])
+        : [];
+      checkLetterDrafts(letters);
+      const snapshot = applicationSnapshot(formRef.current, letters);
+      await persistResumeDesignDraft();
+      if (currentProfileDraft()) await saveResumeSections(currentProfileDraft()!, snapshot, letters);
+      else await persistCurrentDocumentDraft(snapshot, undefined, letters);
+      await exportPdf(snapshot.id, target, snapshot);
+      setDocumentSaveStatus("saved");
+    } catch (error) {
+      setDocumentSaveStatus("error");
+      setDocumentSaveError(error instanceof Error ? error.message : "Das PDF konnte nicht exportiert werden.");
+    }
   };
 
   return (
@@ -1482,7 +1569,7 @@ export function DocumentsView({
                       onChange={(id) =>
                         setDocumentPreview({
                           applicationId: application.id,
-                          documents: { ...docs, coverSheetDesign: id },
+                          documents: { ...documentSettings, coverSheetDesign: id },
                         })
                       }
                     />
@@ -1544,7 +1631,7 @@ export function DocumentsView({
                               setDocumentPreview({
                                 applicationId: application.id,
                                 documents: {
-                                  ...docs,
+                                  ...documentSettings,
                                   coverSheetContactVisibility: {
                                     ...docs.coverSheetContactVisibility,
                                     [key]: event.target.checked,
@@ -1666,73 +1753,13 @@ export function DocumentsView({
                     </label>
                   </section>
                   <section className="cover-letter-editor-section">
-                    <header>
-                      <b>4. Einleitung</b>
-                      <small>
-                        2–3 prägnante Sätze mit direktem Stellenbezug
-                      </small>
-                    </header>
-                    <label className="field">
-                      <span>Einleitung</span>
-                      <textarea
-                        name="coverIntroduction"
-                        rows={4}
-                        defaultValue={docs.coverIntroduction}
-                      />
-                    </label>
-                  </section>
-                  <section className="cover-letter-editor-section">
-                    <header>
-                      <b>5. Hauptteil</b>
-                      <small>Die 2–3 stärksten belegbaren Argumente</small>
-                    </header>
-                    <label className="field">
-                      <span>Hauptteil</span>
-                      <textarea
-                        name="coverMainBody"
-                        rows={8}
-                        defaultValue={getCoverLetterMainBody(docs)}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Zusatzabsatz (optional)</span>
-                      <textarea
-                        name="coverExtraParagraph"
-                        rows={4}
-                        defaultValue={docs.coverExtraParagraph}
-                        placeholder="Optionaler zusätzlicher Absatz – leer lassen, wenn er nicht benötigt wird."
-                      />
-                    </label>
-                  </section>
-                  <section className="cover-letter-editor-section">
-                    <header>
-                      <b>6. Unternehmensbezug</b>
-                      <small>
-                        Aufgabe, passende Erfahrung und künftiger Beitrag
-                      </small>
-                    </header>
-                    <label className="field">
-                      <span>Unternehmensbezug</span>
-                      <textarea
-                        name="coverCompanyFit"
-                        rows={5}
-                        defaultValue={docs.coverCompanyFit}
-                      />
-                    </label>
-                  </section>
-                  <section className="cover-letter-editor-section">
-                    <header>
-                      <b>7. Schlussteil</b>
-                      <small>Kurzer Übergang zum persönlichen Gespräch</small>
-                    </header>
-                    <label className="field">
-                      <span>Schlussteil</span>
-                      <textarea
-                        name="coverClosing"
-                        rows={5}
-                        defaultValue={docs.coverClosing}
-                      />
-                    </label>
+                    <h3>Anschreiben – Aufbau</h3>
+                    <header><b>4. Einleitung</b><small>2–3 prägnante Sätze mit direktem Stellenbezug</small></header>
+                    <header><b>5. Hauptteil</b><small>Die 2–3 stärksten belegbaren Argumente</small></header>
+                    <header><b>6. Unternehmensbezug</b><small>Aufgabe, passende Erfahrung und künftiger Beitrag</small></header>
+                    <header><b>7. Schlussteil</b><small>Kurzer Übergang zum persönlichen Gespräch</small></header>
+                    {letterTextArea("anschreiben", "Anschreibentext",
+                      "Fügen Sie Ihren vollständigen Anschreibentext hier ein. Einleitung, Hauptteil, Unternehmensbezug und Schlussteil werden automatisch zugeordnet.")}
                   </section>
                   <section className="cover-letter-editor-section is-generated">
                     <header>
@@ -1899,83 +1926,74 @@ export function DocumentsView({
                       </div>
                     </div>
                   </section>
-                  {motivationFields.map(({ section, field, label, placeholder, rows }) => (
+                  <section className="cover-letter-editor-section is-generated">
+                    <div className="motivation-generated-row">
+                      <span>Anrede</span>
+                      <p className="motivation-generated-value">{motivationModel.salutation}</p>
+                    </div>
+                    <p className="field-hint motivation-salutation-hint">
+                      {motivationModel.salutation === fallbackGreeting
+                        ? "Kein Ansprechpartner hinterlegt: „Sehr geehrte Damen und Herren“ ist nur eine Notlösung – tragen Sie den Ansprechpartner in der Bewerbung ein."
+                        : "Automatisch aus dem Ansprechpartner der Bewerbung."}
+                    </p>
+                    <div className="cover-subject-spacing-control">
+                      <div>
+                        <b>Abstand vor Anrede</b>
+                        <small>
+                          {docs.motivationSalutationGapReduction
+                            ? `${docs.motivationSalutationGapReduction} Zeile${docs.motivationSalutationGapReduction === 1 ? "" : "n"} nach oben verschoben`
+                            : "Standardabstand"}
+                        </small>
+                      </div>
+                      <div>
+                        <button
+                          type="button"
+                          disabled={docs.motivationSalutationGapReduction === 3}
+                          onClick={reduceMotivationSalutationGap}>
+                          <ChevronUp size={15} />
+                          Anrede höher
+                        </button>
+                        {docs.motivationSalutationGapReduction ? (
+                          <button type="button" onClick={resetMotivationSalutationGap}>
+                            Standard
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </section>
+                  {motivationSections.slice(2).map(({ section }) => (
                     <section className="cover-letter-editor-section motivation-part" data-motivation-section={section} key={section}>
                       <MotivationSectionHeader section={section} />
-                      {section === "introduction" ? (
-                        <>
-                          <div className="motivation-generated-row">
-                            <span>Anrede</span>
-                            <p className="motivation-generated-value">{motivationModel.salutation}</p>
-                          </div>
-                          <p className="field-hint motivation-salutation-hint">
-                            {motivationModel.salutation === fallbackGreeting
-                              ? "Kein Ansprechpartner hinterlegt: „Sehr geehrte Damen und Herren“ ist nur eine Notlösung – tragen Sie den Ansprechpartner in der Bewerbung ein."
-                              : "Automatisch aus dem Ansprechpartner der Bewerbung."}
-                          </p>
-                          <div className="cover-subject-spacing-control">
-                            <div>
-                              <b>Abstand vor Anrede</b>
-                              <small>
-                                {docs.motivationSalutationGapReduction
-                                  ? `${docs.motivationSalutationGapReduction} Zeile${docs.motivationSalutationGapReduction === 1 ? "" : "n"} nach oben verschoben`
-                                  : "Standardabstand"}
-                              </small>
-                            </div>
-                            <div>
-                              <button
-                                type="button"
-                                disabled={docs.motivationSalutationGapReduction === 3}
-                                onClick={reduceMotivationSalutationGap}>
-                                <ChevronUp size={15} />
-                                Anrede höher
-                              </button>
-                              {docs.motivationSalutationGapReduction ? (
-                                <button type="button" onClick={resetMotivationSalutationGap}>
-                                  Standard
-                                </button>
-                              ) : null}
-                            </div>
-                          </div>
-                        </>
-                      ) : null}
-                      <label className="field">
-                        <span>{label}</span>
-                        <textarea
-                          name={field}
-                          rows={rows}
-                          defaultValue={field === "motivationMainBody" ? motivationMainBodyText(docs) : docs[field]}
-                          placeholder={placeholder}
-                        />
-                      </label>
-                      {section === "closing" ? (
-                        <>
-                          <div className="motivation-generated-row">
-                            <span>Grußformel</span>
-                            <p className="motivation-generated-value">{motivationModel.closing.greeting}</p>
-                          </div>
-                          <div className="document-media-inline">
-                            <span>Unterschrift</span>
-                            <DocumentMediaCard
-                              kind="signature"
-                              label="Unterschrift"
-                              source={signatureSource}
-                              disabled={!profile}
-                              onPick={() => void pickProfileMedia("signature")}
-                              onRemove={() => void removeProfileMedia("signature")}
-                            />
-                          </div>
-                          <div className="motivation-generated-row">
-                            <span>Ort, Datum</span>
-                            <p className="motivation-generated-value">{motivationModel.closing.placeDate}</p>
-                          </div>
-                          <p className="field-hint">
-                            Die Unterschrift kommt aus dem Profil; Ort aus dem Profil, Datum aus der Bewerbung.
-                          </p>
-                        </>
-                      ) : null}
                     </section>
                   ))}
+                  <section className="cover-letter-editor-section">
+                    {letterTextArea("motivation", "Motivationstext",
+                      "Fügen Sie Ihren vollständigen Motivationstext hier ein. Einleitung, Hauptteil und Schluss werden automatisch zugeordnet.")}
+                  </section>
+                  <section className="cover-letter-editor-section is-generated">
+                    <div className="motivation-generated-row">
+                      <span>Grußformel</span>
+                      <p className="motivation-generated-value">{motivationModel.closing.greeting}</p>
+                    </div>
+                    <div className="document-media-inline">
+                      <span>Unterschrift</span>
+                      <DocumentMediaCard
+                        kind="signature"
+                        label="Unterschrift"
+                        source={signatureSource}
+                        disabled={!profile}
+                        onPick={() => void pickProfileMedia("signature")}
+                        onRemove={() => void removeProfileMedia("signature")}
+                      />
+                    </div>
+                    <div className="motivation-generated-row">
+                      <span>Ort, Datum</span>
+                      <p className="motivation-generated-value">{motivationModel.closing.placeDate}</p>
+                    </div>
+                    <p className="field-hint">
+                      Die Unterschrift kommt aus dem Profil; Ort aus dem Profil, Datum aus der Bewerbung.
+                    </p>
+                  </section>
                 </div>
               )}
               {tab === "email" && (
@@ -2043,7 +2061,7 @@ export function DocumentsView({
                           setDocumentPreview({
                             applicationId: application.id,
                             documents: {
-                              ...docs,
+                              ...documentSettings,
                               emailAttachmentMode: "package",
                             },
                           })
@@ -2061,7 +2079,7 @@ export function DocumentsView({
                           setDocumentPreview({
                             applicationId: application.id,
                             documents: {
-                              ...docs,
+                              ...documentSettings,
                               emailAttachmentMode: "separate",
                             },
                           })

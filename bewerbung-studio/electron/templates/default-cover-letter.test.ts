@@ -118,6 +118,28 @@ describe("default cover-letter document", () => {
     }
   });
 
+  it("writes real paragraphs with justified text and flows manual breaks in every section", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "fallback-cover-letter-"));
+    try {
+      const result = await createDefaultCoverLetterDocument(root, "Anschreiben", {
+        ...baseData(), EINLEITUNG: "Einstieg.\n\nNoch ein Einstieg.", HAUPTTEXT: "Zeile 1\r\nmit Fortsetzung.\n\nZweiter Absatz.",
+        ZUSATZABSATZ: "Zusatz.", UNTERNEHMENSBEZUG: "Firma.\u2028Beitrag.", SCHLUSSTEXT: "Schluss.\u000bWeiter.\n\nGespräch.",
+      });
+      const { documentXml } = await readParts(result.filePath);
+      const paragraphs = [...documentXml.matchAll(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g)]
+        .map(([xml]) => xml).filter((xml) => /Application(?:Body|Closing)/.test(xml));
+      expect(paragraphs.map((xml) => xml.match(/<w:t[^>]*>(.*?)<\/w:t>/)?.[1])).toEqual([
+        "Einstieg.", "Noch ein Einstieg.", "Zeile 1 mit Fortsetzung.", "Zweiter Absatz.", "Zusatz.", "Firma. Beitrag.", "Schluss. Weiter.", "Gespräch.",
+      ]);
+      for (const xml of paragraphs) {
+        expect(xml).toContain('<w:jc w:val="both"/>');
+        expect(xml).not.toContain("<w:br");
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("omits unavailable optional recipient, reference, signature and attachment data", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "fallback-cover-letter-"));
     try {

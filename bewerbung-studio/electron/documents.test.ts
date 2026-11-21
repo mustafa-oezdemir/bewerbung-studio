@@ -675,7 +675,7 @@ describe("Lebenslauf-Dokumente", () => {
   });
 
   it("keeps the signature directly below the final cover-letter paragraph", () => {
-    const html = buildDocumentHtml(application, profile, "anschreiben");
+    const html = buildDocumentHtml({ ...application, documents: { ...application.documents, coverClosing: "Bis zum Gespräch." } }, profile, "anschreiben");
 
     // The PDF prints the preview's page with the preview's rules.
     expect(html).toContain(anschreibenPrintCss());
@@ -911,12 +911,15 @@ describe("Lebenslauf-Dokumente", () => {
   });
 
   it("justifies the body paragraphs of exported cover letters", () => {
-    const html = buildDocumentHtml(application, profile, "anschreiben");
+    const letter = { ...application, documents: { ...application.documents, coverIntroduction: "Einleitung.",
+      coverMainBody: "Erste Zeile.\r\nZweite Zeile.\r\n\r\nWeiterer Absatz.", coverCompanyFit: "", coverClosing: "Schluss." } };
+    const html = buildDocumentHtml(letter, profile, "anschreiben");
 
     expect(html).toContain(
       ".letter-body{text-align:justify;text-justify:inter-word;hyphens:auto;overflow-wrap:break-word}",
     );
     expect(html.match(/<p class="letter-body(?: letter-closing)?">/g)).toHaveLength(4);
+    expect(html).toContain('class="letter-body">Erste Zeile. Zweite Zeile.</p><p class="letter-body">Weiterer Absatz.</p>');
     expect(html).toContain(
       '<p class="letter-salutation">Sehr geehrte Damen und Herren,</p>',
     );

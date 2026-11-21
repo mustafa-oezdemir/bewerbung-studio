@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { formatLetterText, parseLetterText, splitLetterParagraphs } from "./letterText";
 import { applicationSchema, documentDraftSchema, profileSchema } from "./schema";
 import { getTemplateDocumentDesignDefaults } from "./cvDesign";
 import { getCoverLetterMainBody } from "./coverLetter";
@@ -11,13 +12,12 @@ import { getTemplate, templates } from "./templates";
 import {
   buildMotivationModel,
   motivationCss,
-  motivationFields,
   motivationMainBodyText,
-  motivationTextsFromForm,
+  motivationSectionPatch,
+  motivationTextSections,
   motivationParts,
   motivationSections,
   renderMotivationMarkup,
-  splitMotivationParagraphs,
 } from "./motivationDocument";
 
 const now = "2026-10-09T09:00:00.000Z";
@@ -58,11 +58,6 @@ describe("Motivationsschreiben data", () => {
       ["mainBody", "Hauptteil", "Motivation und Passung verbinden"],
       ["closing", "Schluss", "Selbstbewusst beenden"],
     ]);
-    expect(motivationFields.map(({ section, field, label }) => [section, field, label])).toEqual([
-      ["introduction", "motivationIntroduction", "Einleitung"],
-      ["mainBody", "motivationMainBody", "Hauptteil"],
-      ["closing", "motivationClosing", "Schluss"],
-    ]);
     // The stored fields keep their print order, so older Erfahrungen/Ziele texts stay where they were.
     expect(motivationParts.map(({ field, part }) => [field, part])).toEqual([
       ["motivationIntroduction", "introduction"],
@@ -84,21 +79,20 @@ describe("Motivationsschreiben data", () => {
     expect(merged.map(({ text }) => text)).toEqual(old.map(({ text }) => text));
   });
 
-  it("stores the Hauptteil field as the one Hauptteil and only then empties the older Erfahrungen/Ziele texts", () => {
+  it("round trips edited legacy text through the existing fields without repeating it", () => {
     const stored = { motivationIntroduction: "Alt-Einstieg", motivationMainBody: "Motiv.", motivationEvidence: "Erfahrung.",
       motivationGoals: "Ziel.", motivationClosing: "Alt-Schluss" };
-    // The motivation tab is open: its three fields are in the form.
-    const form: Record<string, string> = { motivationIntroduction: "Einstieg", motivationMainBody: "Motiv.\n\nErfahrung.\n\nZiel.", motivationClosing: "Schluss" };
-    expect(motivationTextsFromForm(stored, (field) => form[field])).toEqual({
-      motivationIntroduction: "Einstieg", motivationMainBody: "Motiv.\n\nErfahrung.\n\nZiel.",
-      motivationEvidence: "", motivationGoals: "", motivationClosing: "Schluss",
+    const sections = motivationTextSections(stored);
+    const text = formatLetterText("motivation", sections).replace("Alt-Einstieg", "Neuer Einstieg");
+    const parsed = parseLetterText("motivation", text, sections).sections!;
+    const saved = motivationSectionPatch(parsed);
+    expect(saved).toEqual({
+      motivationIntroduction: "Neuer Einstieg", motivationMainBody: "Motiv.\n\nErfahrung.\n\nZiel.",
+      motivationEvidence: "", motivationGoals: "", motivationClosing: "Alt-Schluss",
     });
-    // Another tab is open: nothing of the Motivationsschreiben is in the form, everything stays as stored.
-    expect(motivationTextsFromForm(stored, () => undefined)).toEqual(stored);
-    // An emptied Hauptteil is stored empty, not refilled from the older fields.
-    expect(motivationTextsFromForm(stored, (field) => field === "motivationMainBody" ? "" : undefined))
-      .toMatchObject({ motivationMainBody: "", motivationEvidence: "", motivationGoals: "" });
+    expect(motivationSectionPatch(parseLetterText("motivation", text, motivationTextSections(saved)).sections!)).toEqual(saved);
   });
+
   it("opens older applications without loss: the switch is off and the texts are empty", () => {
     const legacy = applicationSchema.parse({
       schemaVersion: 1, id: "00000000-0000-4000-8000-000000000002", folderName: "Alt", company: { name: "Alt GmbH", city: "Kassel" }, contact: {},
@@ -150,15 +144,15 @@ describe("Motivationsschreiben data", () => {
     expect(selected.style["--mv-body-size"]).toBe("9.5pt");
   });
 
-  it("prints the parts in order, splits paragraphs on empty lines and keeps line breaks inside one", () => {
-    expect(splitMotivationParagraphs("A\nB\n\n\nC\r\n\r\nD")).toEqual(["A\nB", "C", "D"]);
+  it("prints the parts in order, splits paragraphs on empty lines and flows soft line breaks as spaces", () => {
+    expect(splitLetterParagraphs("A\nB\n\n\nC\r\n\r\nD")).toEqual(["A B", "C", "D"]);
     const result = model();
     expect(result.paragraphs.map((paragraph) => [paragraph.part, paragraph.text])).toEqual([
-      ["introduction", texts.motivationIntroduction], ["mainBody", "Erster Absatz.\nZweite Zeile."], ["mainBody", "Zweiter Absatz."],
+      ["introduction", texts.motivationIntroduction], ["mainBody", "Erster Absatz. Zweite Zeile."], ["mainBody", "Zweiter Absatz."],
       ["evidence", texts.motivationEvidence],
       ["goals", texts.motivationGoals], ["closing", texts.motivationClosing],
     ]);
-    expect(motivationCss).toContain("white-space:pre-line");
+    expect(motivationCss).toContain("text-align-last:start");
   });
 
   it("keeps generated structure but omits empty user paragraphs", () => {
@@ -249,7 +243,7 @@ describe("Motivationsschreiben data", () => {
     // An A4 page that grows; a following PDF page repeats margins and background.
     expect(motivationCss).toMatch(/^\.motivation\{[^}]*width:210mm;min-height:297mm;[^}]*box-decoration-break:clone/m);
     // Paragraphs in Blocksatz (user's choice); Briefkopf and Überschrift stay left-aligned.
-    expect(motivationCss).toMatch(/\.mv-paragraph\{[^}]*text-align:justify;text-justify:inter-word;hyphens:auto/);
+    expect(motivationCss).toMatch(/\.mv-paragraph\{[^}]*text-align:justify;text-align-last:start;text-justify:inter-word;hyphens:auto/);
     expect(motivationCss).toMatch(/\.mv-heading\{[^}]*text-align:left/);
     expect(motivationCss.match(/text-align:justify/g)).toHaveLength(1);
   });

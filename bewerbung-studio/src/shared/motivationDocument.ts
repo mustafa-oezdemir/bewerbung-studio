@@ -11,6 +11,7 @@ import { getProfileMediaSource } from "./profileMedia";
 import { resolveLetterTitleColor } from "./resumeTitleColor";
 import { getTemplate } from "./templates";
 import { anschreibenStyleText, renderAnschreibenSenderMarkup, type AnschreibenLetterFrame } from "./anschreibenDocument";
+import { splitLetterParagraphs, type LetterSections } from "./letterText";
 
 /**
  * The standalone Motivationsschreiben ("Dritte Seite", see karrierebibel.de/motivationsschreiben), DIN-5008-oriented
@@ -30,7 +31,7 @@ import { anschreibenStyleText, renderAnschreibenSenderMarkup, type AnschreibenLe
 
 export type MotivationPart = "introduction" | "mainBody" | "evidence" | "goals" | "closing";
 
-export type MotivationParagraph = { part: MotivationPart; text: string };
+export type MotivationParagraph = { part: MotivationPart | "unassigned"; text: string };
 
 export type MotivationContact = { kind: "street" | "city" | "phone" | "email"; text: string; href: string };
 
@@ -77,16 +78,6 @@ export const motivationParts: ReadonlyArray<{ part: MotivationPart; field: keyof
   { part: "closing", field: "motivationClosing" },
 ];
 
-/** The text fields of the editor: one per writing part. */
-export const motivationFields: ReadonlyArray<{ section: MotivationSection; field: "motivationIntroduction" | "motivationMainBody" | "motivationClosing"; label: string; placeholder: string; rows: number }> = [
-  { section: "introduction", field: "motivationIntroduction", label: "Einleitung", rows: 5,
-    placeholder: "Ohne Floskeln wie „Hiermit bewerbe ich mich …“: Steigen Sie direkt ein und zeigen Sie, was Sie konkret antreibt." },
-  { section: "mainBody", field: "motivationMainBody", label: "Hauptteil", rows: 12,
-    placeholder: "Ihre stärksten Argumente mit Beispielen aus der Praxis: Was fasziniert Sie an Stelle und Unternehmen, welche Erfahrungen, Stärken und Ziele passen dazu?" },
-  { section: "closing", field: "motivationClosing", label: "Schluss", rows: 5,
-    placeholder: "Selbstbewusst, ohne Konjunktiv: Freude auf ein persönliches Gespräch, ggf. frühester Eintrittstermin." },
-];
-
 /** The Hauptteil as the editor shows it: its own text, followed by older Erfahrungen/Ziele texts as paragraphs. */
 export const motivationMainBodyText = (documents: Pick<DocumentDraft, "motivationMainBody" | "motivationEvidence" | "motivationGoals">) =>
   [documents.motivationMainBody, documents.motivationEvidence, documents.motivationGoals]
@@ -94,20 +85,20 @@ export const motivationMainBodyText = (documents: Pick<DocumentDraft, "motivatio
 
 type MotivationTexts = Pick<DocumentDraft, "motivationIntroduction" | "motivationMainBody" | "motivationEvidence" | "motivationGoals" | "motivationClosing">;
 
-/**
- * The texts to store from the editor form (`read` gives a field's value, undefined when it is not in the form). Once
- * the Hauptteil field is in the form it holds the older Erfahrungen/Ziele texts too, so those are emptied.
- */
-export const motivationTextsFromForm = (stored: MotivationTexts, read: (field: keyof MotivationTexts) => string | undefined): MotivationTexts => {
-  const mainBody = read("motivationMainBody");
-  return {
-    motivationIntroduction: read("motivationIntroduction") ?? stored.motivationIntroduction,
-    motivationMainBody: mainBody ?? stored.motivationMainBody,
-    motivationEvidence: mainBody === undefined ? stored.motivationEvidence : "",
-    motivationGoals: mainBody === undefined ? stored.motivationGoals : "",
-    motivationClosing: read("motivationClosing") ?? stored.motivationClosing,
-  };
-};
+export const motivationTextSections = (documents: MotivationTexts): LetterSections => ({
+  introduction: splitLetterParagraphs(documents.motivationIntroduction).join("\n\n"),
+  mainBody: splitLetterParagraphs(motivationMainBodyText(documents)).join("\n\n"),
+  companyFit: "",
+  closing: splitLetterParagraphs(documents.motivationClosing).join("\n\n"),
+});
+
+export const motivationSectionPatch = (sections: LetterSections): MotivationTexts => ({
+  motivationIntroduction: sections.introduction,
+  motivationMainBody: sections.mainBody,
+  motivationClosing: sections.closing,
+  motivationEvidence: "",
+  motivationGoals: "",
+});
 
 export const motivationGreeting = "Mit freundlichen Grüßen";
 
@@ -125,10 +116,6 @@ export const motivationDefaults = {
 
 const differs = (left: number, right: number) => Math.abs(left - right) > 0.001;
 const round = (value: number) => Math.round(value * 100) / 100;
-
-/** A user text as paragraphs: an empty line starts a new one, a single line break stays inside it. */
-export const splitMotivationParagraphs = (text: string) =>
-  text.replace(/\r\n?/g, "\n").split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
 
 export const buildMotivationModel = ({
   application,
@@ -219,7 +206,7 @@ export const buildMotivationModel = ({
     closing: documents.motivationClosing,
   };
   const paragraphs = motivationParts.flatMap(({ part }) =>
-    splitMotivationParagraphs(fields[part] ?? "").map((text) => ({ part, text })));
+    splitLetterParagraphs(fields[part] ?? "").map((text) => ({ part, text })));
   const place = profile?.city?.trim() ?? "";
   return {
     templateId,
@@ -329,7 +316,7 @@ export const motivationCss = `
 .motivation--letter>.letter-frame>.letter-preview>.letter-salutation{margin-top:var(--mv-title-gap)!important;break-after:avoid}
 .motivation--letter>.letter-frame.kreativ-letter>.letter-preview{padding-top:${documentTopMarginMm}mm!important}
 .motivation--letter>.letter-frame.kreativ-letter>.letter-preview>.letter-header{margin-top:-${documentTopMarginMm}mm!important}
-.motivation--letter .letter-preview>.letter-body{white-space:pre-line;orphans:3;widows:3}
+.motivation--letter .letter-preview>.letter-body{orphans:3;widows:3}
 .motivation--letter .motivation-closing{display:flex;align-items:flex-end;justify-content:space-between;gap:8mm;break-inside:avoid}
 .motivation--letter .motivation-closing>.paper-date{margin:0!important;text-align:right;white-space:nowrap}
 .motivation .mv-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8mm;padding-bottom:4mm;border-bottom:var(--mv-rule-width) solid var(--mv-line);break-inside:avoid}
@@ -338,7 +325,7 @@ export const motivationCss = `
 .motivation .mv-heading{margin-top:var(--mv-header-gap);font-family:var(--mv-heading-font);font-size:var(--mv-heading-size);font-weight:var(--mv-heading-weight);line-height:1.2;letter-spacing:0;text-transform:none;text-align:left;color:var(--mv-heading-color);break-after:avoid}
 .motivation .mv-salutation{margin-top:var(--mv-title-gap);break-after:avoid}
 .motivation .mv-body{margin-top:var(--mv-paragraph-gap)}
-.motivation .mv-paragraph{white-space:pre-line;overflow-wrap:break-word;text-align:justify;text-justify:inter-word;hyphens:auto;orphans:3;widows:3}
+.motivation .mv-paragraph{overflow-wrap:break-word;text-align:justify;text-align-last:start;text-justify:inter-word;hyphens:auto;orphans:3;widows:3}
 .motivation .mv-paragraph+.mv-paragraph{margin-top:var(--mv-paragraph-gap)}
 .motivation .mv-closing{display:flex;align-items:flex-end;justify-content:space-between;gap:8mm;margin-top:var(--mv-paragraph-gap);break-inside:avoid}
 .motivation .mv-signature{display:block;max-width:55mm;max-height:16mm;margin:2mm 0 1mm;object-fit:contain;object-position:left center}

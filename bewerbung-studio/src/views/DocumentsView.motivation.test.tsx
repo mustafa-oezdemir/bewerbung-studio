@@ -132,7 +132,7 @@ describe("DocumentsView Motivation tab", () => {
     expect(none.querySelector(".document-motivation .letter-preview > .letter-salutation")?.textContent).toBe("Sehr geehrte Damen und Herren,");
   });
 
-  it("lists the five parts in order, each with its short description and its fields", () => {
+  it("lists the five parts in order, each with its short description, before the single body textarea", () => {
     const document = renderMotivationTab(applicationWith({}));
     const parts = [...document.querySelectorAll(".motivation-editor > section.motivation-part")].map((section) => [
       section.querySelector("header > .motivation-part-number")?.textContent,
@@ -144,12 +144,14 @@ describe("DocumentsView Motivation tab", () => {
     expect(parts).toEqual([
       ["1", "Briefkopf", "Wie im Anschreiben: Name, Anschrift, Telefon, E-Mail", []],
       ["2", "Überschrift", "Persönlich: Ihre Motivation oder Eignung benennen", ["motivationHeading"]],
-      ["3", "Einleitung", "Neugier wecken", ["motivationIntroduction"]],
-      ["4", "Hauptteil", "Motivation und Passung verbinden", ["motivationMainBody"]],
-      ["5", "Schluss", "Selbstbewusst beenden", ["motivationClosing"]],
+      ["3", "Einleitung", "Neugier wecken", []],
+      ["4", "Hauptteil", "Motivation und Passung verbinden", []],
+      ["5", "Schluss", "Selbstbewusst beenden", []],
     ]);
-    // Only the switch section stands before the five parts; no own Anrede part, no separate Stärken/Ziele fields.
-    expect([...document.querySelectorAll(".motivation-editor > section")].length).toBe(6);
+    const editors = Array.from(document.querySelectorAll(".motivation-editor textarea"));
+    expect(editors.map((field) => field.getAttribute("name"))).toEqual(["motivationText"]);
+    expect(editors[0].closest("label")?.textContent).toContain("Motivationstext");
+    expect(/Schluss/.test(editors[0].closest("section")?.previousElementSibling?.textContent ?? "")).toBe(true);
     expect(document.querySelector('.motivation-editor [data-motivation-section="salutation"]')).toBeNull();
     expect(document.querySelector('.motivation-editor [name="motivationEvidence"], .motivation-editor [name="motivationGoals"]')).toBeNull();
     // The Briefkopf is the Anschreiben's: shown read-only with the sender, no Empfänger or Datum row.
@@ -162,27 +164,24 @@ describe("DocumentsView Motivation tab", () => {
     const heading = document.querySelector('.motivation-editor [data-motivation-section="heading"]')!;
     expect(heading.querySelector(".cover-subject-spacing-control")?.textContent).toContain("Abstand vor Überschrift");
     // Schluss: Schlusssätze, Grußformel, Unterschrift, Ort und Datum.
-    const closing = document.querySelector('.motivation-editor [data-motivation-section="closing"]')!;
+    const closing = document.querySelector(".motivation-editor > section:last-child")!;
     expect([...closing.querySelectorAll(".motivation-generated-row > span")].map((label) => label.textContent)).toEqual(["Grußformel", "Ort, Datum"]);
     expect(closing.textContent).toContain("Mit freundlichen Grüßen");
     expect(closing.textContent).toContain("Kassel, 9. Oktober 2026");
     expect(closing.querySelector(".document-media-inline")).not.toBeNull();
   });
 
-  it("keeps stored texts in their fields and shows the Anrede at the start of the Einleitung", () => {
+  it("keeps stored texts and shows the read-only Anrede before the writing guide", () => {
     const stored = renderMotivationTab(applicationWith({}));
-    expect(stored.querySelector<HTMLTextAreaElement>('textarea[name="motivationIntroduction"]')?.textContent).toContain("eigener");
-    expect(stored.querySelector<HTMLTextAreaElement>('textarea[name="motivationClosing"]')?.textContent).toBe("Bis bald.");
-    const introduction = (document: ReturnType<typeof renderMotivationTab>) =>
-      document.querySelector('.motivation-editor [data-motivation-section="introduction"]')!;
-    // Anrede (read-only), its hint and its spacing control stand before the Einleitung text.
-    const order = [...introduction(stored).querySelectorAll(".motivation-generated-row, .motivation-salutation-hint, .cover-subject-spacing-control, label.field")]
-      .map((node) => node.className);
-    expect(order).toEqual(["motivation-generated-row", "field-hint motivation-salutation-hint", "cover-subject-spacing-control", "field"]);
-    expect(introduction(stored).querySelector(".motivation-generated-value")?.textContent).toBe("Sehr geehrte Damen und Herren,");
-    const hint = (document: ReturnType<typeof renderMotivationTab>) => introduction(document).querySelector(".motivation-salutation-hint")?.textContent;
-    expect(hint(stored)).toContain("nur eine Notlösung");
-    expect(hint(renderMotivationTab(applicationWith({ salutation: "Frau", lastName: "Schulz" })))).not.toContain("Notlösung");
+    const area = stored.querySelector('textarea[name="motivationText"]')!;
+    expect(area.textContent).toContain("Einleitung:\nMein &lt;eigener&gt; Einstieg.");
+    expect(area.textContent).toContain("Schluss:\nBis bald.");
+    const introduction = stored.querySelector('[data-motivation-section="introduction"]')!;
+    expect(introduction.previousElementSibling?.querySelector(".motivation-generated-value")?.textContent)
+      .toBe("Sehr geehrte Damen und Herren,");
+    expect(stored.querySelector(".motivation-salutation-hint")?.textContent).toContain("nur eine Notlösung");
+    const withContact = renderMotivationTab(applicationWith({ salutation: "Frau", lastName: "Schulz" }));
+    expect(withContact.querySelector(".motivation-salutation-hint")?.textContent).not.toContain("Notlösung");
   });
 
   it("puts older Erfahrungen/Ziele texts into the one Hauptteil field, the page stays the same", () => {
@@ -190,8 +189,8 @@ describe("DocumentsView Motivation tab", () => {
     const legacy = applicationSchema.parse({ ...base, documents: { ...base.documents,
       motivationMainBody: "Warum diese Stelle.", motivationEvidence: "Ein Projektbeispiel.", motivationGoals: "Mein Ziel." } });
     const document = renderMotivationTab(legacy);
-    expect(document.querySelector('textarea[name="motivationMainBody"]')?.textContent)
-      .toBe("Warum diese Stelle.\n\nEin Projektbeispiel.\n\nMein Ziel.");
+    expect(document.querySelector('textarea[name="motivationText"]')?.textContent)
+      .toBe("Mein &lt;eigener&gt; Einstieg.\n\nWarum diese Stelle.\n\nEin Projektbeispiel.\n\nMein Ziel.\n\nBis bald.");
     const printed = [...document.querySelectorAll(".document-motivation .letter-preview > .letter-body")].map((node) => node.textContent);
     expect(printed).toEqual(["Mein <eigener> Einstieg.", "Warum diese Stelle.", "Ein Projektbeispiel.", "Mein Ziel.", "Bis bald."]);
   });

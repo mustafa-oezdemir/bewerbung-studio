@@ -5,6 +5,7 @@ import type { CreatedDocumentResult } from "../../src/features/templates/templat
 import { wordMusterTemplateConfig } from "../../src/features/templates/template.constants";
 import { sanitizeSynchronizedDocumentFileName } from "./template-filename.service";
 import { letterFontSizeToPt, type DocumentFontSize } from "../../src/shared/documentDesign";
+import { splitLetterParagraphs } from "../../src/shared/letterText";
 
 const pngDataUrl = /^data:image\/png;base64,([a-z0-9+/=\s]+)$/i;
 
@@ -91,13 +92,12 @@ export const createDefaultCoverLetterDocument = async (
   const signatureBytes = signatureMatch
     ? Buffer.from(signatureMatch[1].replace(/\s/g, ""), "base64")
     : undefined;
-  const bodyValues = lines(
-    data.EINLEITUNG,
-    data.HAUPTTEXT || data.FACHLICHE_EIGNUNG,
-    data.UNTERNEHMENSBEZUG,
-    data.ZUSATZABSATZ,
-    data.SCHLUSSTEXT,
-  );
+  const introduction = splitLetterParagraphs(data.EINLEITUNG ?? "");
+  const mainBody = [data.HAUPTTEXT || data.FACHLICHE_EIGNUNG, data.ZUSATZABSATZ]
+    .flatMap((value) => splitLetterParagraphs(value ?? ""));
+  const companyFit = splitLetterParagraphs(data.UNTERNEHMENSBEZUG ?? "");
+  const conclusion = splitLetterParagraphs(data.SCHLUSSTEXT ?? "");
+  const bodyValues = [...introduction, ...mainBody, ...companyFit, ...conclusion];
   const dense = bodyValues.join(" ").length > 2_250 || bodyValues.length > 6;
   const sizeChoice = Object.hasOwn(letterFontSizeToPt, data.DESIGN_FONT_SIZE)
     ? data.DESIGN_FONT_SIZE as DocumentFontSize
@@ -195,36 +195,30 @@ export const createDefaultCoverLetterDocument = async (
     style: "ApplicationSalutation",
   });
   const body = [
-    data.EINLEITUNG
-      ? paragraph(data.EINLEITUNG, bodySize, {
+    ...introduction.map((text) => paragraph(text, bodySize, {
           after: dense ? 115 : 180,
           align: "both",
           style: "ApplicationBody",
-        })
-      : "",
-    ...lines(data.HAUPTTEXT || data.FACHLICHE_EIGNUNG, data.ZUSATZABSATZ).map((value) =>
+        })),
+    ...mainBody.map((value) =>
       paragraph(value, bodySize, {
         align: "both",
         style: "ApplicationBody",
       }),
     ),
-    data.UNTERNEHMENSBEZUG
-      ? paragraph(data.UNTERNEHMENSBEZUG, bodySize, {
-          before: 20,
+    ...companyFit.map((text, index) => paragraph(text, bodySize, {
+          before: index === 0 ? 20 : 0,
           after: dense ? 120 : 180,
           align: "both",
           style: "ApplicationBody",
-        })
-      : "",
-    data.SCHLUSSTEXT
-      ? paragraph(data.SCHLUSSTEXT, bodySize, {
-          before: 20,
-          after: 0,
+        })),
+    ...conclusion.map((text, index) => paragraph(text, bodySize, {
+          before: index === 0 ? 20 : 0,
+          after: index === conclusion.length - 1 ? 0 : paragraphAfter,
           align: "both",
-          keepNext: true,
+          keepNext: index === conclusion.length - 1,
           style: "ApplicationClosing",
-        })
-      : "",
+        })),
   ].join("");
   const closing = paragraph(
     (data.GRUSSFORMEL || "Mit freundlichen Grüßen").replace(/,\s*$/, ""),
