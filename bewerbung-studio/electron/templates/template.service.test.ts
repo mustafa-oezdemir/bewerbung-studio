@@ -1041,25 +1041,47 @@ describe("Musterverwaltung", () => {
     );
   });
 
-  it("expands a personal cover-letter body into justified Word paragraphs with the template's formatting", async () => {
+  it("gives a personal cover letter evenly spaced Word paragraphs and preserves template run formatting", async () => {
     const templatePath = path.join(paths.anschreibenTemplates, "Absätze.docx");
-    await createDocx(templatePath,
-      '<w:p><w:pPr><w:spacing w:after="120"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>{{HAUPTTEXT}}</w:t></w:r></w:p>');
+    const manualBreak = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+    const outsideSpacer = '<w:p><w:pPr><w:spacing w:after="20"/></w:pPr></w:p>';
+    const templateBodyParagraph = (placeholder: string) =>
+      `<w:p><w:pPr><w:spacing w:afterLines="100" w:line="240" w:lineRule="auto"/><w:contextualSpacing/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>{{${placeholder}}}</w:t></w:r></w:p>`;
+    await createDocx(templatePath, [
+      manualBreak,
+      outsideSpacer,
+      templateBodyParagraph("EINLEITUNG"),
+      "<w:p/>",
+      '<w:p><w:pPr><w:spacing w:after="0"/><w:rPr><w:sz w:val="22"/></w:rPr></w:pPr></w:p>',
+      templateBodyParagraph("HAUPTTEXT"),
+      "<w:p></w:p>",
+      '<w:p><w:r><w:t>{{GRUSSFORMEL}}</w:t></w:r></w:p>',
+    ].join(""));
     const { templates } = await service.scanAllTemplates();
     const template = templates.find((item) => item.fileName === "Absätze.docx")!;
     const file = await service.synchronizeDocumentFromTemplate(
       template.id, paths.anschreibenDocuments, "Anschreiben",
-      { HAUPTTEXT: "A & B\r\nmit Umbruch.\r\n\r\nC < D.", ZUSATZABSATZ: "Alter Zusatz." },
+      {
+        EINLEITUNG: "Erster Absatz.",
+        HAUPTTEXT: "A & B\r\nmit Umbruch.\r\n\r\nC < D.",
+        ZUSATZABSATZ: "Alter Zusatz.",
+        GRUSSFORMEL: "Mit freundlichen Grüßen",
+      },
     );
     const xml = new PizZip(await readFile(file.filePath)).file("word/document.xml")!.asText();
     const paragraphs = xml.match(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g)!;
-    expect(paragraphs).toHaveLength(3);
-    expect(paragraphs[0]).toContain("A &amp; B mit Umbruch.");
-    expect(paragraphs[1]).toContain("C &lt; D.");
-    expect(paragraphs[2]).toContain("Alter Zusatz.");
-    for (const paragraph of paragraphs) {
+    expect(paragraphs).toHaveLength(7);
+    expect(paragraphs[0]).toBe(manualBreak);
+    expect(paragraphs[1]).toBe(outsideSpacer);
+    expect(paragraphs[2]).toContain("Erster Absatz.");
+    expect(paragraphs[3]).toContain("A &amp; B mit Umbruch.");
+    expect(paragraphs[4]).toContain("C &lt; D.");
+    expect(paragraphs[5]).toContain("Alter Zusatz.");
+    expect(paragraphs[6]).toContain("Mit freundlichen Grüßen");
+    for (const paragraph of paragraphs.slice(2, 6)) {
       expect(paragraph).toContain('<w:jc w:val="both"/>');
-      expect(paragraph).toContain('<w:spacing w:after="120"/>');
+      expect(paragraph).toContain('<w:spacing w:before="0" w:after="180" w:line="240" w:lineRule="auto"/>');
+      expect(paragraph).toContain('<w:contextualSpacing w:val="0"/>');
       expect(paragraph).toContain("<w:b/>");
       expect(paragraph).not.toContain("<w:br");
     }

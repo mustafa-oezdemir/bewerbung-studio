@@ -21,6 +21,7 @@ import type {
 } from "../../src/features/templates/template.types";
 import { TemplateError, toTemplateError } from "../../src/features/templates/template.errors";
 import { splitLetterParagraphs } from "../../src/shared/letterText";
+import { formatWordCoverLetterBody } from "./cover-letter-word-spacing";
 
 const profilePhotoDataUrl =
   /^data:image\/png;base64,([a-z0-9+/=\s]+)$/i;
@@ -83,7 +84,7 @@ const removeEmptyParagraphs = (documentXml: string) =>
     },
   );
 
-const justifiedCoverLetterPlaceholderKeys = new Set([
+const coverLetterBodyPlaceholderKeys = new Set([
   "EINLEITUNG",
   "MOTIVATION",
   "FACHLICHE_EIGNUNG",
@@ -115,60 +116,15 @@ const expandCoverLetterParagraphs = (zip: PizZip, marker: string) => {
   zip.file("word/document.xml", xml);
 };
 
-const applyCoverLetterJustification = (zip: PizZip) => {
+const applyCoverLetterBodyFormatting = (zip: PizZip) => {
   const documentPart = zip.file("word/document.xml");
   if (!documentPart) return;
-
-  const documentXml = documentPart.asText().replace(
-    /<w:p\b[\s\S]*?<\/w:p>/g,
-    (paragraph) => {
-      const paragraphText = Array.from(
-        paragraph.matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g),
-        (match) => decodeXmlText(match[1]),
-      ).join("");
-      const placeholderKeys = Array.from(
-        paragraphText.matchAll(/\{\{([A-Z0-9_]+)\}\}/g),
-        (match) => match[1],
-      );
-      const isBodyParagraph = placeholderKeys.some((key) =>
-        justifiedCoverLetterPlaceholderKeys.has(key),
-      );
-      if (!isBodyParagraph) {
-        return paragraph;
-      }
-
-      const justification = '<w:jc w:val="both"/>';
-      let updatedParagraph = paragraph;
-      if (/<w:pPr\b[^>]*>[\s\S]*?<\/w:pPr>/.test(updatedParagraph)) {
-        updatedParagraph = updatedParagraph.replace(
-          /<w:pPr\b([^>]*)>([\s\S]*?)<\/w:pPr>/,
-          (_properties, attributes: string, content: string) => {
-            const updatedContent = /<w:jc\b[^>]*(?:\/>|>[\s\S]*?<\/w:jc>)/.test(
-              content,
-            )
-              ? content.replace(
-                  /<w:jc\b[^>]*(?:\/>|>[\s\S]*?<\/w:jc>)/,
-                  justification,
-                )
-              : `${content}${justification}`;
-            return `<w:pPr${attributes}>${updatedContent}</w:pPr>`;
-          },
-        );
-      } else if (/<w:pPr\b[^>]*\/>/.test(updatedParagraph)) {
-        updatedParagraph = updatedParagraph.replace(
-          /<w:pPr\b([^>]*)\/>/,
-          `<w:pPr$1>${justification}</w:pPr>`,
-        );
-      } else {
-        updatedParagraph = updatedParagraph.replace(
-          /^(<w:p\b[^>]*>)/,
-          `$1<w:pPr>${justification}</w:pPr>`,
-        );
-      }
-      return updatedParagraph;
-    },
+  const xml = formatWordCoverLetterBody(documentPart.asText(), (text) =>
+    Array.from(decodeXmlText(text).matchAll(/\{\{([A-Z0-9_]+)\}\}/g)).some(
+      ([, key]) => coverLetterBodyPlaceholderKeys.has(key),
+    ),
   );
-  zip.file("word/document.xml", documentXml);
+  zip.file("word/document.xml", xml);
 };
 
 const cleanKlassischDocumentXml = (documentXml: string) => {
@@ -634,7 +590,7 @@ export class TemplatePlaceholderService {
         }
       }
       if (template.documentType === "anschreiben") {
-        applyCoverLetterJustification(zip);
+        applyCoverLetterBodyFormatting(zip);
       }
       const document = new Docxtemplater(zip, {
         paragraphLoop: true,
@@ -719,7 +675,7 @@ export class TemplatePlaceholderService {
       ].filter((key) => fullText.includes(`{{${key}}}`));
       const paragraphMarker = template.documentType === "anschreiben" ? `__paragraph_${randomUUID()}__` : "";
       if (paragraphMarker) {
-        for (const key of justifiedCoverLetterPlaceholderKeys) {
+        for (const key of coverLetterBodyPlaceholderKeys) {
           normalizedData[key] = splitLetterParagraphs(normalizedData[key] ?? "").join(paragraphMarker);
         }
       }
