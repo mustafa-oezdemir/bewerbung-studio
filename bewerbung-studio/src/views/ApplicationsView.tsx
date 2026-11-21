@@ -16,7 +16,7 @@ import {
   UserPlus,
   UserRound,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   applicationStatuses,
   rejectionReasons,
@@ -27,6 +27,7 @@ import {
 import { templates } from "../shared/templates";
 import { showsInterviewPreparation } from "../shared/interviewQuestions";
 import { InterviewPreparationPanel } from "../components/interview/InterviewPreparationPanel";
+import { ContactPhotoField } from "../components/ContactPhotoField";
 import { ScrollJumpButtons } from "../components/ScrollJumpButtons";
 import { useSaveShortcut } from "../components/useSaveShortcut";
 import { applicationMatchesQuery } from "../lib/applicationSearch";
@@ -648,6 +649,8 @@ function ContactFields({
   prefix: string;
   contact: Application["contact"];
 }) {
+  const [photo, setPhoto] = useState(contact.photoDataUrl);
+  useEffect(() => setPhoto(contact.photoDataUrl), [contact.photoDataUrl]);
   return (
     <>
       <label className="field">
@@ -683,6 +686,8 @@ function ContactFields({
         <span>Telefon</span>
         <input name={`${prefix}Phone`} defaultValue={contact.phone} />
       </label>
+      <ContactPhotoField photo={photo} onChange={setPhoto} />
+      <input type="hidden" name={`${prefix}PhotoDataUrl`} value={photo ?? ""} />
     </>
   );
 }
@@ -713,6 +718,7 @@ function ContactFormSection({
       lastName: String(data.get(`${prefix}LastName`) || ""),
       email: String(data.get(`${prefix}Email`) || ""),
       phone: String(data.get(`${prefix}Phone`) || ""),
+      photoDataUrl: String(data.get(`${prefix}PhotoDataUrl`) || "") || undefined,
     });
     const contact = readContact("contact");
     const additionalContacts = showSecondContact ? [readContact("secondContact")] : [];

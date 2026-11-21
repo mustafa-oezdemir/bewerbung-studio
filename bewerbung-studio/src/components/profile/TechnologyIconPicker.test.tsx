@@ -106,6 +106,20 @@ describe("TechnologyIconPicker in a real React tree", () => {
     expect(saved).toEqual(["material:folder:folder-api", "vscode:folder:api"]);
     expect(Array.from(window.document.querySelectorAll(".technology-icon-picker__preview svg"), (svg) => svg.getAttribute("data-brand")))
       .toEqual(["vscode:folder:api", "vscode:folder:api"]);
+    await act(async () => {
+      const search = window.document.querySelector<HTMLInputElement>('[aria-label="Icons durchsuchen"]')!;
+      search.value = "json";
+      search.dispatchEvent(new window.Event("input", { bubbles: true }));
+    });
+    const choose = async (type: string, kind: string) => {
+      await act(async () => { groupButton("Icon-Typ", type).click(); });
+      const item = window.document.querySelector<HTMLButtonElement>(`[aria-label="json, vscode-icons, ${kind}-Icon"]`);
+      expect(item?.disabled).toBe(false);
+      await act(async () => { item?.click(); });
+    };
+    await choose("Ordner-Icons", "Ordner");
+    await choose("Datei-Icons", "Datei");
+    expect(saved.slice(-2)).toEqual(["vscode:folder:json", "vscode:file:json"]);
     for (const iconId of saved) {
       const reopened = profileSchema.parse(JSON.parse(JSON.stringify(profileSchema.parse({
         id: crypto.randomUUID(), firstName: "Mina", lastName: "Kaya", isDefault: true, updatedAt: new Date().toISOString(),
@@ -117,7 +131,7 @@ describe("TechnologyIconPicker in a real React tree", () => {
     await act(async () => root.unmount());
   });
 
-  it("prefers one exact catalog name within the active source and kind", () => {
+  it("prefers exact catalog names and keeps the available alternative source", () => {
     expect(filterCatalogIcons(" Java ", "all", "all").map((entry) => entry.id))
       .toEqual(["material:file:java"]);
     expect(filterCatalogIcons("java", "material", "all").map((entry) => entry.id))
@@ -129,13 +143,15 @@ describe("TechnologyIconPicker in a real React tree", () => {
     expect(filterCatalogIcons("typescript", "all", "all").map((entry) => entry.id))
       .toEqual(["material:file:typescript"]);
     expect(filterCatalogIcons("javascript", "all", "file").filter((entry) => entry.available)
-      .map((entry) => entry.id)).toEqual(["material:file:javascript"]);
+      .map((entry) => entry.id)).toEqual(["material:file:javascript", "vscode:file:js"]);
     expect(filterCatalogIcons("javascript", "vscode", "file").map((entry) => entry.id))
       .toEqual(["vscode:file:js"]);
     expect(filterCatalogIcons("javascript", "material", "folder").map((entry) => entry.id))
       .toEqual(["material:folder:folder-javascript"]);
     expect(filterCatalogIcons("folder-java", "all", "all").map((entry) => entry.id))
       .toEqual(["material:folder:folder-java"]);
+    expect(filterCatalogIcons("json", "all", "file").map((entry) => entry.id))
+      .toEqual(["material:file:json", "vscode:file:json"]);
     expect(filterCatalogIcons("javacla", "all", "file").map((entry) => entry.id))
       .toContain("material:file:javaclass");
     expect(filterCatalogIcons("not-existing-icon", "all", "all")).toEqual([]);

@@ -205,6 +205,7 @@ export interface BewerbungsManagerApi {
     pickProfileImage: (
       kind: ProfileMediaKind,
     ) => Promise<PickedProfileMedia | null>;
+    pickContactPhoto: () => Promise<PickedProfileMedia | null>;
   };
   settings: {
     save: (settings: AppSettings) => Promise<ApplicationChangeResult>;

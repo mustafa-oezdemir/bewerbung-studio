@@ -87,6 +87,7 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
+      "src/assets/vscode-icons/SOURCE.md",
       "package.json"
     ],
     "win": {

@@ -83,6 +83,7 @@ const api: BewerbungsManagerApi = {
   media: {
     pickProfileImage: (kind) =>
       invoke("media:pick-profile-image", kind),
+    pickContactPhoto: () => invoke("media:pick-profile-image", "contact-photo"),
   },
   settings: {
     save: (settings) => invoke("settings:save", settings),

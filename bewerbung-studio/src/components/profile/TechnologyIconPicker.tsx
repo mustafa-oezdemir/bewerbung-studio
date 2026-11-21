@@ -21,7 +21,8 @@ const catalogIcons = [
   ...materialIcons.map((entry) => ({ id: entry.id, name: entry.name, kind: entry.kind, available: true, source: "Material Icon Theme" as const,
     aliases: [entry.concept], search: normalizeQuery(`${entry.name} ${entry.concept}`) })),
   ...vscodeIcons.map((entry) => ({ id: entry.id, name: entry.name, kind: entry.kind, available: entry.available, source: "vscode-icons" as const,
-    aliases: entry.name === "js" ? ["javascript"] : [], search: normalizeQuery(`${entry.name} ${entry.name === "js" ? "javascript" : ""}`) })),
+    retired: entry.retired, aliases: entry.name === "js" ? ["javascript"] : [],
+    search: normalizeQuery(`${entry.name} ${entry.name === "js" ? "javascript" : ""}`) })),
 ];
 export const filterCatalogIcons = (query: string, sourceFilter: SourceFilter, kindFilter: KindFilter) => {
   if (sourceFilter === "legacy") return [];
@@ -33,19 +34,25 @@ export const filterCatalogIcons = (query: string, sourceFilter: SourceFilter, ki
   const exactName = normalized ? sourceIcons.filter((entry) =>
     normalizeQuery(entry.id) === normalized || normalizeQuery(entry.id.split(":").at(-1) ?? "") === normalized
     || normalizeQuery(entry.name) === normalized) : [];
-  const exactAlias = normalized && exactName.length === 0 ? sourceIcons.filter((entry) =>
+  const exactAlias = normalized ? sourceIcons.filter((entry) =>
     entry.aliases.some((alias) => normalizeQuery(alias) === normalized)) : [];
   const exact = exactName.length > 0 ? exactName : exactAlias;
   const matching = exact.length > 0 ? exact : sourceIcons.filter((entry) => entry.search.includes(normalized));
-  matching.sort((a, b) =>
+  const rank = (a: (typeof catalogIcons)[number], b: (typeof catalogIcons)[number]) =>
     (exact.length === 0 && normalized
       ? Number(!normalizeQuery(a.name).startsWith(normalized)) - Number(!normalizeQuery(b.name).startsWith(normalized))
       : 0)
     || Number(b.available) - Number(a.available)
     || Number(a.kind === "folder") - Number(b.kind === "folder")
     || Number(b.source === "Material Icon Theme") - Number(a.source === "Material Icon Theme")
-    || a.name.localeCompare(b.name));
-  return exact.length > 0 ? matching.slice(0, 1) : matching;
+    || a.name.localeCompare(b.name);
+  matching.sort(rank);
+  if (!exact.length) return matching;
+  const best = matching[0]!;
+  if (sourceFilter !== "all") return [best];
+  const alternative = [...exactName, ...exactAlias]
+    .filter((entry) => entry.available && entry.source !== best.source).sort(rank)[0];
+  return alternative ? [best, alternative] : [best];
 };
 
 export function TechnologyIconPicker({ technologyTitle, value, onChange }: {
@@ -96,7 +103,7 @@ export function TechnologyIconPicker({ technologyTitle, value, onChange }: {
     {sourceFilter !== "legacy" ? <>
       <div className="technology-icon-picker__grid" role="group" aria-label="Icon-Katalog">
         {visible.map((entry) => <button type="button" key={entry.id}
-          title={`${entry.name} · ${entry.source} (${entry.kind === "file" ? "Datei" : "Ordner"})${entry.available ? "" : " – Lizenz offen"}`}
+          title={`${entry.name} · ${entry.source} (${entry.kind === "file" ? "Datei" : "Ordner"})${entry.available ? "" : "retired" in entry && entry.retired ? " – Nicht mehr im Quellkatalog" : " – Lizenz offen"}`}
           aria-label={`${entry.name}, ${entry.source}, ${entry.kind === "file" ? "Datei-Icon" : "Ordner-Icon"}${entry.available ? "" : ", nicht verfügbar"}`}
           aria-pressed={value === entry.id} disabled={!entry.available} onClick={() => onChange(entry.id)}>
           {entry.available ? <span className="technology-icon-picker__grid-icon"><TechnologyBrandIcon technology={entry.name} iconId={entry.id} mode="original" /></span> : <span className="technology-icon-picker__missing" aria-hidden="true">–</span>}

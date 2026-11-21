@@ -203,6 +203,9 @@ export const companySchema = z.object({
   website: z.union([z.url(), z.literal("")]).default(""),
 });
 
+export const contactPhotoSchema = z.string().max(1_500_000)
+  .regex(/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/);
+
 export const contactPersonSchema = z.object({
   salutation: z.enum(["Frau", "Herr", "Divers", ""]).default(""),
   firstName: optionalText,
@@ -210,6 +213,7 @@ export const contactPersonSchema = z.object({
   position: optionalText,
   email: z.union([z.email(), z.literal("")]).default(""),
   phone: optionalText,
+  photoDataUrl: contactPhotoSchema.optional(),
 });
 
 export const jobAdvertisementSchema = z.object({
@@ -468,6 +472,7 @@ export const applicationDraftSchema = z.object({
       position: z.string().optional(),
       email: z.string().optional(),
       phone: z.string().optional(),
+      photoDataUrl: contactPhotoSchema.optional(),
     })
     .optional(),
   additionalContacts: z.array(contactPersonSchema).max(1).optional(),

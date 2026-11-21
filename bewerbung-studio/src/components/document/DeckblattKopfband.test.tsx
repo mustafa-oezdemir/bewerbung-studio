@@ -61,19 +61,18 @@ describe("Deckblatt design Kopfband", () => {
       expect(line.split(/[{,]/)[0].startsWith(".deckblatt--kopfband"), line).toBe(true);
   });
 
-  it("lays the page out like the reference: header band, name, data blocks, Tech-Stack, no signature, no Ort, Datum", () => {
+  it("stacks the name and profession in the band above the application and its details", () => {
     const { page, text } = build();
     expect(Array.from(page.children).map((child) => child.getAttribute("class"))).toEqual(["dk-head", "dk-main"]);
     expect(page.querySelector(".dk-head .dk-photo img")?.getAttribute("src")).toBe(photo);
-    expect(text(".dk-head .dk-lead")).toEqual(["Bewerbung"]);
-    expect(text(".dk-head .dk-role")).toEqual(["als Software Engineer"]);
-    // The name stands once on the page, under the band (user: not twice).
-    expect(page.querySelector(".dk-head .dk-head-name")).toBeNull();
+    expect(text(".dk-head-text > p")).toEqual(["Zora Quellmalz", "Softwareentwicklerin"]);
+    expect(page.querySelector(".dk-head .dk-heading, .dk-head .dk-app")).toBeNull();
     expect(page.textContent?.split("Zora Quellmalz").length).toBe(2);
-    expect(text(".dk-head .dk-app")).toEqual(["bei Nordlicht AG · Hamburg"]);
     expect(page.querySelector(".dk-head .dk-lines")).toBeNull();
-    expect(text(".dk-person .dk-name")).toEqual(["Zora Quellmalz"]);
-    expect(text(".dk-person .dk-title")).toEqual(["Softwareentwicklerin"]);
+    expect(text(".dk-person .dk-name")).toEqual([]);
+    expect(text(".dk-person .dk-heading")).toEqual(["Bewerbung als Software Engineer"]);
+    expect(text(".dk-person .dk-app")).toEqual(["bei Nordlicht AG · Hamburg"]);
+    expect(text(".dk-person .dk-title")).toEqual([]);
     expect(text(".dk-facts h3")).toEqual(["Persönliche Daten", "Qualifikationen"]);
     expect(text(".dk-facts .dk-block:first-child li")).toEqual(["Geboren: 12.05.1992", "Staatsangehörigkeit: deutsch", "Familienstand: Ledig"]);
     expect(text(".dk-facts .dk-block:last-child li")[0]).toBe("M.Sc. Angewandte Informatik");
@@ -185,6 +184,8 @@ describe("Deckblatt design Kopfband", () => {
     expect(bare.page.querySelector(".dk-facts")).toBeNull();
     expect(bare.page.querySelector(".dk-contact")).toBeNull();
     expect(bare.page.querySelector(".dk-photo .dk-initials")?.textContent).toBe("ZQ");
+    expect(bare.text(".dk-head-text > p")).toEqual(["Zora Quellmalz"]);
+    expect(bare.text(".dk-person h1")).toEqual(["Bewerbung als Software Engineer"]);
     expect(bare.text(".dk-bottom > div > h3")).toEqual(["Anlagen"]);
   });
 

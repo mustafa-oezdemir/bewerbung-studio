@@ -25,6 +25,7 @@ import {
   applicationStatuses,
   attachmentCategories,
   calendarEventSchema,
+  contactPhotoSchema,
   customCvDesignSchema,
   profileSchema,
   rejectionReasons,
@@ -650,18 +651,19 @@ const registerIpc = () => {
     "media:pick-profile-image",
     async (_event, rawKind: unknown) => {
       const kind =
-        rawKind === "photo" || rawKind === "signature" ? rawKind : null;
+        rawKind === "photo" || rawKind === "signature" || rawKind === "contact-photo" ? rawKind : null;
       if (!kind) throw new Error("Ungültiger Bildtyp.");
+      const contactPhoto = kind === "contact-photo";
       const selection = await dialog.showOpenDialog(mainWindow!, {
         title:
-          kind === "photo"
+          contactPhoto ? "Kontaktfoto auswählen" : kind === "photo"
             ? "Bewerbungsfoto auswählen"
             : "Unterschrift auswählen",
         properties: ["openFile"],
         filters: [
           {
             name: "Bilddateien",
-            extensions: ["png", "jpg", "jpeg", "webp"],
+            extensions: contactPhoto ? ["png", "jpg", "jpeg"] : ["png", "jpg", "jpeg", "webp"],
           },
         ],
       });
@@ -672,6 +674,18 @@ const registerIpc = () => {
         throw new Error("Das Bild darf höchstens 8 MB groß sein.");
       }
       const extension = filePath.split(".").pop()?.toLowerCase();
+      const fileName = path.basename(filePath);
+      if (contactPhoto) {
+        const photo = nativeImage.createFromBuffer(bytes);
+        if (photo.isEmpty()) throw new Error("Das Kontaktfoto konnte nicht gelesen werden.");
+        const { width, height } = photo.getSize();
+        const maxEdge = 512;
+        const preview = Math.max(width, height) > maxEdge
+          ? photo.resize(width >= height ? { width: maxEdge } : { height: maxEdge })
+          : photo;
+        const dataUrl = `data:image/png;base64,${preview.toPNG().toString("base64")}`;
+        return { dataUrl: contactPhotoSchema.parse(dataUrl), fileName };
+      }
       const mimeType =
         extension === "png"
           ? "image/png"
@@ -680,7 +694,7 @@ const registerIpc = () => {
             : "image/jpeg";
       return {
         dataUrl: `data:${mimeType};base64,${bytes.toString("base64")}`,
-        fileName: filePath.split(/[\\/]/).pop() ?? "Bild",
+        fileName,
       };
     },
   );

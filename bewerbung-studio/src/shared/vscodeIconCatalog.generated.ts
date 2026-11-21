@@ -1,5 +1,5 @@
-// Generated from vscode-icons wiki 057c655b272d1d10f90ddff69e8d53596d488b19 and asset commit f0a0c40aeae5eba2917ada14ad59b7e7f729e396.
-// Full names retained; available=false means artwork omitted pending license verification.
+// Generated from vscode-icons wiki c6b602591adf87eeb130141021d79633600a8066 and asset commit 9e482fbb342849f4fefa20746657f97b88acc4ec.
+// Current wiki entries with available=false lack verified artwork redistribution rights. Retired IDs are retained.
 export const vscodeIconEntries = [
   {
     "id": "vscode:file:file",
@@ -57,7 +57,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_ada.svg",
-      "light": null
+      "light": "file_type_light_ada.svg"
     },
     "available": false
   },
@@ -127,7 +127,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_agda.svg",
-      "light": null
+      "light": "file_type_light_agda.svg"
     },
     "available": false
   },
@@ -197,7 +197,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_alchemy.svg",
-      "light": null
+      "light": "file_type_light_alchemy.svg"
     },
     "available": false
   },
@@ -332,12 +332,22 @@ export const vscodeIconEntries = [
     "available": false
   },
   {
+    "id": "vscode:file:apib2",
+    "name": "apib2",
+    "kind": "file",
+    "assets": {
+      "dark": "file_type_apib2.svg",
+      "light": null
+    },
+    "available": false
+  },
+  {
     "id": "vscode:file:apl",
     "name": "apl",
     "kind": "file",
     "assets": {
       "dark": "file_type_apl.svg",
-      "light": null
+      "light": "file_type_light_apl.svg"
     },
     "available": false
   },
@@ -477,7 +487,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_astroconfig.svg",
-      "light": null
+      "light": "file_type_light_astroconfig.svg"
     },
     "available": false
   },
@@ -689,7 +699,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_bak.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:ballerina",
@@ -902,6 +912,16 @@ export const vscodeIconEntries = [
     "available": false
   },
   {
+    "id": "vscode:file:bower2",
+    "name": "bower2",
+    "kind": "file",
+    "assets": {
+      "dark": "file_type_bower2.svg",
+      "light": null
+    },
+    "available": false
+  },
+  {
     "id": "vscode:file:brakeman",
     "name": "brakeman",
     "kind": "file",
@@ -1047,7 +1067,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_cabal.svg",
-      "light": null
+      "light": "file_type_light_cabal.svg"
     },
     "available": false
   },
@@ -1152,6 +1172,16 @@ export const vscodeIconEntries = [
     "available": false
   },
   {
+    "id": "vscode:file:cassandra",
+    "name": "cassandra",
+    "kind": "file",
+    "assets": {
+      "dark": "file_type_cassandra.svg",
+      "light": "file_type_light_cassandra.svg"
+    },
+    "available": false
+  },
+  {
     "id": "vscode:file:cddl",
     "name": "cddl",
     "kind": "file",
@@ -1159,7 +1189,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_cddl.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:cdp",
@@ -1179,7 +1209,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_cert.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:ceylon",
@@ -1279,7 +1309,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_cheader.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:checkov",
@@ -1489,7 +1519,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_codeowners.svg",
       "light": "file_type_light_codeowners.svg"
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:codeql",
@@ -1649,7 +1679,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_coverage.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:coveralls",
@@ -1699,7 +1729,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_cppheader.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:craco",
@@ -1727,7 +1757,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_crystal.svg",
-      "light": null
+      "light": "file_type_light_crystal.svg"
     },
     "available": false
   },
@@ -1877,7 +1907,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_cue.svg",
-      "light": null
+      "light": "file_type_light_cue.svg"
     },
     "available": false
   },
@@ -2109,7 +2139,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_dependencies.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:design_tokens",
@@ -2167,7 +2197,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_dhall.svg",
-      "light": null
+      "light": "file_type_light_dhall.svg"
     },
     "available": false
   },
@@ -2179,7 +2209,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_diff.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:direnv",
@@ -2309,7 +2339,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_dotenv.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:dotjs",
@@ -2357,7 +2387,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_drizzle_orm.svg",
-      "light": null
+      "light": "file_type_light_drizzle_orm.svg"
     },
     "available": false
   },
@@ -2389,7 +2419,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_dtd.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:duckdb",
@@ -2629,7 +2659,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_eps.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:epub",
@@ -2707,7 +2737,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_esphome.svg",
-      "light": null
+      "light": "file_type_light_esphome.svg"
     },
     "available": false
   },
@@ -2809,7 +2839,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_favicon.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:fbx",
@@ -3102,6 +3132,16 @@ export const vscodeIconEntries = [
     "available": false
   },
   {
+    "id": "vscode:file:fsharp2",
+    "name": "fsharp2",
+    "kind": "file",
+    "assets": {
+      "dark": "file_type_fsharp2.svg",
+      "light": null
+    },
+    "available": false
+  },
+  {
     "id": "vscode:file:fsproj",
     "name": "fsproj",
     "kind": "file",
@@ -3129,7 +3169,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_funding.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:fusebox",
@@ -3269,7 +3309,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_geojson.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:ghidra",
@@ -3297,6 +3337,16 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_git.svg",
+      "light": null
+    },
+    "available": false
+  },
+  {
+    "id": "vscode:file:git2",
+    "name": "git2",
+    "kind": "file",
+    "assets": {
+      "dark": "file_type_git2.svg",
       "light": null
     },
     "available": false
@@ -3797,7 +3847,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_hjson.svg",
-      "light": null
+      "light": "file_type_light_hjson.svg"
     },
     "available": false
   },
@@ -3839,7 +3889,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_host.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:html",
@@ -3879,7 +3929,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_http.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:huff",
@@ -3887,7 +3937,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_huff.svg",
-      "light": null
+      "light": "file_type_light_huff.svg"
     },
     "available": false
   },
@@ -4049,7 +4099,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_inc.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:infopath",
@@ -4077,9 +4127,9 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_ini.svg",
-      "light": null
+      "light": "file_type_light_ini.svg"
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:ink",
@@ -4107,7 +4157,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_io.svg",
-      "light": null
+      "light": "file_type_light_io.svg"
     },
     "available": false
   },
@@ -4277,7 +4327,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_js.svg",
-      "light": null
+      "light": "file_type_light_js.svg"
     },
     "available": true
   },
@@ -4349,7 +4399,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_json.svg",
       "light": "file_type_light_json.svg"
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:json2",
@@ -4639,7 +4689,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_language_configuration.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:lark",
@@ -4647,7 +4697,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_lark.svg",
-      "light": null
+      "light": "file_type_light_lark.svg"
     },
     "available": false
   },
@@ -4669,7 +4719,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_layout.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:lean",
@@ -4677,7 +4727,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_lean.svg",
-      "light": null
+      "light": "file_type_light_lean.svg"
     },
     "available": false
   },
@@ -4919,7 +4969,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_lnk.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:locale",
@@ -5019,7 +5069,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_mailing.svg",
       "light": "file_type_light_mailing.svg"
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:manifest",
@@ -5029,7 +5079,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_manifest.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:manifest_bak",
@@ -5039,7 +5089,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_manifest_bak.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:manifest_skip",
@@ -5049,7 +5099,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_manifest_skip.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:map",
@@ -5059,7 +5109,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_map.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:markdown",
@@ -5187,7 +5237,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_mdx.svg",
-      "light": null
+      "light": "file_type_light_mdx.svg"
     },
     "available": false
   },
@@ -5197,7 +5247,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_mdx-components.svg",
-      "light": null
+      "light": "file_type_light_mdx-components.svg"
     },
     "available": false
   },
@@ -5287,7 +5337,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_mikro_orm.svg",
-      "light": null
+      "light": "file_type_light_mikro_orm.svg"
     },
     "available": false
   },
@@ -5337,7 +5387,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_mlang.svg",
-      "light": null
+      "light": "file_type_light_mlang.svg"
     },
     "available": false
   },
@@ -5417,7 +5467,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_mongo.svg",
-      "light": null
+      "light": "file_type_light_mongo.svg"
     },
     "available": false
   },
@@ -5477,7 +5527,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_mustache.svg",
-      "light": null
+      "light": "file_type_light_mustache.svg"
     },
     "available": false
   },
@@ -5577,7 +5627,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_neo4j.svg",
-      "light": null
+      "light": "file_type_light_neo4j.svg"
     },
     "available": false
   },
@@ -5827,7 +5877,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_next.svg",
-      "light": null
+      "light": "file_type_light_next.svg"
     },
     "available": false
   },
@@ -6317,7 +6367,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_nim.svg",
-      "light": null
+      "light": "file_type_light_nim.svg"
     },
     "available": false
   },
@@ -6417,7 +6467,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_noir.svg",
-      "light": null
+      "light": "file_type_light_noir.svg"
     },
     "available": false
   },
@@ -6647,7 +6697,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_openHAB.svg",
-      "light": null
+      "light": "file_type_light_openHAB.svg"
     },
     "available": false
   },
@@ -6839,7 +6889,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_patch.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:pawn",
@@ -6879,7 +6929,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_pddl_happenings.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:pddl_plan",
@@ -6889,7 +6939,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_pddl_plan.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:pdf",
@@ -7149,7 +7199,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_plsql.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:plsql_package",
@@ -7159,7 +7209,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_plsql_package.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:plsql_package_body",
@@ -7169,7 +7219,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_plsql_package_body.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:plsql_package_header",
@@ -7179,7 +7229,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_plsql_package_header.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:plsql_package_spec",
@@ -7189,7 +7239,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_plsql_package_spec.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:pm2",
@@ -7467,7 +7517,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_prisma.svg",
-      "light": null
+      "light": "file_type_light_prisma.svg"
     },
     "available": false
   },
@@ -7477,7 +7527,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_prismaconfig.svg",
-      "light": null
+      "light": "file_type_light_prismaconfig.svg"
     },
     "available": false
   },
@@ -7617,7 +7667,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_purescript.svg",
-      "light": null
+      "light": "file_type_light_purescript.svg"
     },
     "available": false
   },
@@ -7827,7 +7877,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_quarkdown.svg",
-      "light": null
+      "light": "file_type_light_quarkdown.svg"
     },
     "available": false
   },
@@ -7937,7 +7987,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_raku.svg",
-      "light": null
+      "light": "file_type_light_raku.svg"
     },
     "available": false
   },
@@ -7967,7 +8017,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_razzle.svg",
-      "light": null
+      "light": "file_type_light_razzle.svg"
     },
     "available": false
   },
@@ -7977,7 +8027,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_reactjs.svg",
-      "light": null
+      "light": "file_type_light_reactjs.svg"
     },
     "available": false
   },
@@ -7997,7 +8047,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_reactrouter.svg",
-      "light": null
+      "light": "file_type_light_reactrouter.svg"
     },
     "available": false
   },
@@ -8047,7 +8097,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_readthedocs.svg",
-      "light": null
+      "light": "file_type_light_readthedocs.svg"
     },
     "available": false
   },
@@ -8179,7 +8229,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_rest.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:retext",
@@ -8249,7 +8299,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_rnc.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:robocop",
@@ -8297,7 +8347,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_rolldown.svg",
-      "light": null
+      "light": "file_type_light_rolldown.svg"
     },
     "available": false
   },
@@ -8407,7 +8457,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_rust.svg",
-      "light": null
+      "light": "file_type_light_rust.svg"
     },
     "available": false
   },
@@ -8552,6 +8602,16 @@ export const vscodeIconEntries = [
     "available": false
   },
   {
+    "id": "vscode:file:scss2",
+    "name": "scss2",
+    "kind": "file",
+    "assets": {
+      "dark": "file_type_scss2.svg",
+      "light": null
+    },
+    "available": false
+  },
+  {
     "id": "vscode:file:sdlang",
     "name": "sdlang",
     "kind": "file",
@@ -8569,7 +8629,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_search_result.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:seedkit",
@@ -8692,6 +8752,16 @@ export const vscodeIconEntries = [
     "available": false
   },
   {
+    "id": "vscode:file:simple_icons",
+    "name": "simple_icons",
+    "kind": "file",
+    "assets": {
+      "dark": "file_type_simple_icons.svg",
+      "light": "file_type_light_simple_icons.svg"
+    },
+    "available": false
+  },
+  {
     "id": "vscode:file:sino",
     "name": "sino",
     "kind": "file",
@@ -8709,7 +8779,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_sitemap.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:siyuan",
@@ -8737,7 +8807,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_skill.svg",
-      "light": null
+      "light": "file_type_light_skill.svg"
     },
     "available": false
   },
@@ -8917,7 +8987,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_solidity.svg",
-      "light": null
+      "light": "file_type_light_solidity.svg"
     },
     "available": false
   },
@@ -8979,7 +9049,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_sql.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:sqlite",
@@ -9167,7 +9237,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_stylus.svg",
-      "light": null
+      "light": "file_type_light_stylus.svg"
     },
     "available": false
   },
@@ -9217,16 +9287,6 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_svg.svg",
-      "light": null
-    },
-    "available": false
-  },
-  {
-    "id": "vscode:file:svglint",
-    "name": "svglint",
-    "kind": "file",
-    "assets": {
-      "dark": "file_type_svglint.svg",
       "light": null
     },
     "available": false
@@ -9307,7 +9367,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_systemd.svg",
-      "light": null
+      "light": "file_type_light_systemd.svg"
     },
     "available": false
   },
@@ -9317,7 +9377,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_systemverilog.svg",
-      "light": null
+      "light": "file_type_light_systemverilog.svg"
     },
     "available": false
   },
@@ -9389,7 +9449,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_tasks_json.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:tauri",
@@ -9477,7 +9537,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_testjs.svg",
-      "light": null
+      "light": "file_type_light_testjs.svg"
     },
     "available": false
   },
@@ -9599,7 +9659,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_todo.svg",
       "light": "file_type_light_todo.svg"
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:toit",
@@ -9607,7 +9667,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_toit.svg",
-      "light": null
+      "light": "file_type_light_toit.svg"
     },
     "available": false
   },
@@ -9627,7 +9687,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_toml.svg",
-      "light": null
+      "light": "file_type_light_toml.svg"
     },
     "available": false
   },
@@ -9637,7 +9697,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_toon.svg",
-      "light": null
+      "light": "file_type_light_toon.svg"
     },
     "available": false
   },
@@ -9669,7 +9729,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_tree.svg",
       "light": "file_type_light_tree.svg"
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:tres",
@@ -10177,7 +10237,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_vite.svg",
-      "light": null
+      "light": "file_type_light_vite.svg"
     },
     "available": false
   },
@@ -10187,7 +10247,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_viteplus.svg",
-      "light": null
+      "light": "file_type_light_viteplus.svg"
     },
     "available": false
   },
@@ -10197,7 +10257,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_vitest.svg",
-      "light": null
+      "light": "file_type_light_vitest.svg"
     },
     "available": false
   },
@@ -10217,7 +10277,17 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_vlt.svg",
-      "light": null
+      "light": "file_type_light_vlt.svg"
+    },
+    "available": false
+  },
+  {
+    "id": "vscode:file:vlt2",
+    "name": "vlt2",
+    "kind": "file",
+    "assets": {
+      "dark": "file_type_vlt2.svg",
+      "light": "file_type_light_vlt2.svg"
     },
     "available": false
   },
@@ -10477,7 +10547,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_wesl.svg",
-      "light": null
+      "light": "file_type_light_wesl.svg"
     },
     "available": false
   },
@@ -10729,7 +10799,7 @@ export const vscodeIconEntries = [
       "dark": "file_type_xsl.svg",
       "light": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:file:yacc",
@@ -10747,7 +10817,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_yaml.svg",
-      "light": null
+      "light": "file_type_light_yaml.svg"
     },
     "available": true
   },
@@ -10757,7 +10827,7 @@ export const vscodeIconEntries = [
     "kind": "file",
     "assets": {
       "dark": "file_type_yaml_official.svg",
-      "light": null
+      "light": "file_type_light_yaml_official.svg"
     },
     "available": false
   },
@@ -11131,7 +11201,7 @@ export const vscodeIconEntries = [
       "light": null,
       "lightOpened": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:folder:bot",
@@ -11143,7 +11213,7 @@ export const vscodeIconEntries = [
       "light": null,
       "lightOpened": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:folder:bower",
@@ -12055,7 +12125,7 @@ export const vscodeIconEntries = [
       "light": null,
       "lightOpened": null
     },
-    "available": false
+    "available": true
   },
   {
     "id": "vscode:folder:json_official",
@@ -12520,6 +12590,18 @@ export const vscodeIconEntries = [
     "assets": {
       "dark": "folder_type_nuxt.svg",
       "opened": "folder_type_nuxt_opened.svg",
+      "light": null,
+      "lightOpened": null
+    },
+    "available": false
+  },
+  {
+    "id": "vscode:folder:nyc",
+    "name": "nyc",
+    "kind": "folder",
+    "assets": {
+      "dark": "folder_type_nyc.svg",
+      "opened": "folder_type_nyc_opened.svg",
       "light": null,
       "lightOpened": null
     },
@@ -13400,5 +13482,16 @@ export const vscodeIconEntries = [
       "lightOpened": "folder_type_light_zed_opened.svg"
     },
     "available": false
+  },
+  {
+    "id": "vscode:file:svglint",
+    "name": "svglint",
+    "kind": "file",
+    "assets": {
+      "dark": "file_type_svglint.svg",
+      "light": null
+    },
+    "available": false,
+    "retired": true
   }
 ] as const;

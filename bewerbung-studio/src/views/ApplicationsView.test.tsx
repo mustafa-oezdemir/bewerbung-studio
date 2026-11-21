@@ -103,6 +103,8 @@ describe("ApplicationsView", () => {
     expect(markup).toContain("Unternehmen &amp; Position");
     expect(markup).toContain("Ansprechpartner");
     expect(markup).toContain("Anrede / Geschlecht");
+    expect(markup).toContain('aria-label="Kontaktfoto (optional)"');
+    expect(markup).not.toContain('alt="Kontaktfoto"');
     expect(markup).toContain("Zweiten Ansprechpartner hinzufügen");
     expect(markup).toContain("Termine");
     expect(markup).toContain("Inhalt");
@@ -130,6 +132,7 @@ describe("ApplicationsView", () => {
                 position: "Recruiting",
                 email: "erika@example.com",
                 phone: "+49 30 123456",
+                photoDataUrl: "data:image/png;base64,iVBORw0KGgo=",
               },
             ],
           },
@@ -141,6 +144,8 @@ describe("ApplicationsView", () => {
     expect(twoContactMarkup).not.toContain("2. Ansprechpartner");
     expect(twoContactMarkup).toContain("Erika Musterfrau");
     expect(twoContactMarkup).toContain("erika@example.com");
+    expect(twoContactMarkup.match(/aria-label="Kontaktfoto \(optional\)"/g)).toHaveLength(2);
+    expect(twoContactMarkup.match(/alt="Kontaktfoto"/g)).toHaveLength(1);
 
     const previousWindow = globalThis.window;
     const previousDocument = globalThis.document;

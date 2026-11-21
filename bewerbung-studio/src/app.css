@@ -1801,6 +1801,47 @@ h3 {
   margin-top: 2px;
 }
 
+.contact-photo-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.contact-photo-preview {
+  display: grid;
+  place-items: center;
+  flex: 0 0 58px;
+  height: 58px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  background: var(--surface-muted);
+}
+
+.contact-photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.contact-photo-controls {
+  display: grid;
+  gap: 5px;
+  font-size: 0.74rem;
+}
+
+.contact-photo-controls strong small {
+  color: var(--muted);
+  font-weight: normal;
+}
+
+.contact-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .save-bar {
   display: flex;
   align-items: center;

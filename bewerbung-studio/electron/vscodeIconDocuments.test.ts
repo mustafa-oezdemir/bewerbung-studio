@@ -18,6 +18,24 @@ const application = applicationSchema.parse({
 });
 
 describe("vscode-icons in document HTML", () => {
+  it("renders the newly selectable JSON and updated Component shapes in both documents", () => {
+    const updated = { ...profile, strengths: [
+      { ...profile.strengths[0]!, title: "JSON", iconId: "vscode:file:json" },
+      { ...profile.strengths[0]!, id: crypto.randomUUID(), title: "Component", iconId: "vscode:folder:component" },
+    ] };
+    for (const color of [undefined, "#c2410c"]) {
+      const design = color ? { cvOverrides: { colors: { strengthIcon: color } } } : undefined;
+      const document = parseHTML(buildDocumentHtml(application, updated, "mappe", [], design)).document;
+      const select = (surface: string, id: string) => document.querySelector(`${surface} svg[data-brand="${id}"]`);
+      expect(select(".deckblatt", "vscode:file:json")?.outerHTML).toContain('fill="#fbc02d"');
+      expect(select(".deckblatt", "vscode:folder:component")?.querySelector("use")?.getAttribute("href"))
+        .toContain("folder_type_component-svg-original-a");
+      expect(select(".cv-sheet", "vscode:file:json")?.outerHTML).toContain(color ?? 'fill="#fbc02d"');
+      expect(select(".cv-sheet", "vscode:folder:component")?.querySelector("use")?.getAttribute("href"))
+        .toContain(`folder_type_component-svg-${color ? "themed" : "original"}-a`);
+    }
+  });
+
   it("keeps one selected ID with original paint in the Deckblatt and, without a chosen colour, in the Lebenslauf", () => {
     const document = parseHTML(buildDocumentHtml(application, profile, "mappe")).document;
     const cover = document.querySelector('.deckblatt svg[data-brand="vscode:folder:api"]');

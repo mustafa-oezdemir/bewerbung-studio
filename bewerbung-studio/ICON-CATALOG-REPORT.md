@@ -2,6 +2,9 @@
 
 Implemented on `codex/icon-catalogs`, 2026-11-03. Existing Devicon, Go-framework and symbol IDs remain supported. No user data migration is performed.
 
+The initial integration audit below is historical. See the [current vscode-icons source and inventory](src/assets/vscode-icons/SOURCE.md)
+for the updated wiki and manifest comparison, packaged assets and attribution.
+
 ## Sources and scope
 
 | Source | Pinned source | Catalog IDs | Packaged SVG files | Selectable IDs |

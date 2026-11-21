@@ -5,6 +5,7 @@ import {
   applicationDraftSchema,
   applicationInputSchema,
   attachmentSchema,
+  contactPersonSchema,
   defaultSettings,
   profileSchema,
   workspaceSchema,
@@ -393,6 +394,17 @@ describe("BewerbungsManager schemas", () => {
       accentColor: "#155e58",
     });
     expect(result.success).toBe(true);
+  });
+
+  it("preserves optional contact photos in application records and wizard drafts", () => {
+    const photoDataUrl = "data:image/png;base64,iVBORw0KGgo=";
+    expect(contactPersonSchema.parse({ firstName: "Erika" }).photoDataUrl).toBeUndefined();
+    expect(applicationDraftSchema.parse({
+      contact: { photoDataUrl }, additionalContacts: [{ firstName: "Mina", photoDataUrl }],
+    })).toMatchObject({ contact: { photoDataUrl }, additionalContacts: [{ photoDataUrl }] });
+    for (const unsafe of ["https://example.invalid/picture.png", "data:image/svg+xml;base64,PHN2Zz4="]) {
+      expect(contactPersonSchema.safeParse({ photoDataUrl: unsafe }).success).toBe(false);
+    }
   });
 
   it("keeps legacy advertisement text and restores both independent draft sections", () => {

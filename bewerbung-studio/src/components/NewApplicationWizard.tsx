@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, Check, Save, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
+import { ContactPhotoField } from "./ContactPhotoField";
 import { TemplateThumbnail } from "./TemplateThumbnail";
 import {
   applicationDraftSchema,
@@ -83,6 +84,7 @@ export function NewApplicationWizard({ onClose }: Props) {
     register,
     handleSubmit,
     setValue,
+    getValues,
     reset,
     watch,
     trigger,
@@ -300,6 +302,9 @@ export function NewApplicationWizard({ onClose }: Props) {
                   <span>Position / Funktion</span>
                   <input {...register("contact.position")} />
                 </label>
+                <ContactPhotoField photo={primaryContact?.photoDataUrl} onChange={(photoDataUrl) => {
+                  setValue("contact", { ...getValues("contact"), photoDataUrl }, { shouldDirty: true });
+                }} />
                 {showSecondContact ? (
                   <>
                     <div className="contact-person-heading full">
@@ -349,6 +354,10 @@ export function NewApplicationWizard({ onClose }: Props) {
                       <span>Telefon</span>
                       <input {...register("additionalContacts.0.phone")} />
                     </label>
+                    <ContactPhotoField photo={secondContact?.photoDataUrl} onChange={(photoDataUrl) => {
+                      const contact = getValues("additionalContacts.0");
+                      if (contact) setValue("additionalContacts.0", { ...contact, photoDataUrl }, { shouldDirty: true });
+                    }} />
                   </>
                 ) : (
                   <div className="contact-person-add full">

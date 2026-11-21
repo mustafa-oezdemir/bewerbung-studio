@@ -79,7 +79,7 @@ export const deckblattDesigns: readonly DeckblattDesign[] = [
   {
     id: "kopfband",
     label: "Kopfband",
-    description: "Farbiges Kopfband mit Rundfoto, Titel und Kontakt, darunter Name, Persönliche Daten, Qualifikationen und Tech-Stack aus den Stärken.",
+    description: "Farbiges Kopfband mit Rundfoto, Name und Berufsbezeichnung. Darunter stehen Bewerbung und Unternehmen, gefolgt von persönlichen Daten, Qualifikationen und Tech-Stack.",
     usesDocumentBackground: false,
   },
 ];
@@ -458,9 +458,6 @@ export const fitDeckblattContacts = new Function("root", deckblattFitSource) as 
 export const deckblattFitScript = `<script>(function(run){run(document);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){run(document)})})(function(root){${deckblattFitSource}})</script>`;
 
 const kopfband = (model: DeckblattModel) => {
-  // Presentation only: "Bewerbung als X" is drawn as BEWERBUNG over "als X"; the subject itself stays as it is.
-  const lead = /^Bewerbung\b\s*/i.exec(model.subject);
-  const role = lead ? model.subject.slice(lead[0].length) : model.subject;
   const block = (title: string, items: string[]) =>
     items.length ? `<div class="dk-block"><h3>${title}</h3><ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>` : "";
   // Qualifikationen: the user's own "Kurzprofil auf dem Deckblatt" text, justified; without it the degrees and years.
@@ -473,15 +470,15 @@ const kopfband = (model: DeckblattModel) => {
   <header class="dk-head">
     <div class="dk-photo">${photoMarkup(model)}</div>
     <div class="dk-head-text">
-      <h1 class="dk-heading"><span class="dk-lead">Bewerbung</span> <span class="dk-role dk-role--${subjectSize(role)}">${escapeHtml(role)}</span></h1>${
-        company ? `<p class="dk-app">${escapeHtml(company)}</p>` : ""
+      <p class="dk-name dk-name--${nameSize(model.name)}">${escapeHtml(model.name)}</p>${
+        model.professionalTitle ? `<p class="dk-title dk-title--${subjectSize(model.professionalTitle)}">${escapeHtml(model.professionalTitle)}</p>` : ""
       }
     </div>
   </header>
   <main class="dk-main">
     <section class="dk-person">
-      <h2 class="dk-name dk-name--${nameSize(model.name)}">${escapeHtml(model.name)}</h2>${
-        model.professionalTitle ? `<p class="dk-title">${escapeHtml(model.professionalTitle)}</p>` : ""
+      <h1 class="dk-heading dk-heading--${subjectSize(model.subject)}">${escapeHtml(model.subject)}</h1>${
+        company ? `<p class="dk-app">${escapeHtml(company)}</p>` : ""
       }
     </section>${blocks.length ? `<i class="dk-gap"></i><section class="dk-facts">${blocks.join("")}</section>` : ""}${
       model.techStack.length
@@ -619,17 +616,16 @@ export const deckblattCss = `
 .deckblatt--kopfband .dk-photo{width:50mm;height:50mm;overflow:hidden;border:1.4mm solid color-mix(in srgb,var(--on-accent) 88%,transparent);border-radius:50%;background:color-mix(in srgb,var(--on-accent) 14%,transparent)}
 .deckblatt--kopfband .dk-photo img{width:100%;height:100%;object-fit:cover}
 .deckblatt--kopfband .dk-initials{color:var(--on-accent);font-size:36pt}
-.deckblatt--kopfband .dk-head-text{min-width:0}
-.deckblatt--kopfband .dk-heading{display:flex;flex-direction:column;font-family:var(--heading-font);line-height:1.05;overflow-wrap:break-word}
-.deckblatt--kopfband .dk-lead{font-size:36pt;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
-.deckblatt--kopfband .dk-role{margin-top:1.4mm;font-weight:400;letter-spacing:.02em;text-transform:uppercase}
-.deckblatt--kopfband .dk-role--normal{font-size:17pt}.deckblatt--kopfband .dk-role--long{font-size:13pt}.deckblatt--kopfband .dk-role--xlong{font-size:10.5pt}
-.deckblatt--kopfband .dk-app{margin-top:2mm;font-size:10pt;line-height:1.3;opacity:.85;overflow-wrap:anywhere}
+.deckblatt--kopfband .dk-head-text{display:grid;gap:2.5mm;min-width:0}
+.deckblatt--kopfband .dk-name{font-family:var(--heading-font);font-weight:600;line-height:1.1;color:var(--on-accent);overflow-wrap:anywhere}
+.deckblatt--kopfband .dk-name--normal{font-size:28pt}.deckblatt--kopfband .dk-name--long{font-size:23pt}.deckblatt--kopfband .dk-name--xlong{font-size:17pt}
+.deckblatt--kopfband .dk-title{min-width:0;font-family:var(--heading-font);font-weight:800;line-height:1.15;letter-spacing:.02em;text-transform:uppercase;color:var(--on-accent);overflow-wrap:anywhere}
+.deckblatt--kopfband .dk-title--normal{font-size:25pt}.deckblatt--kopfband .dk-title--long{font-size:21pt}.deckblatt--kopfband .dk-title--xlong{font-size:18pt}
 .deckblatt--kopfband .dk-main{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;padding:13mm var(--side-right,var(--doc-margin)) 14mm var(--side-left,var(--doc-margin));color:var(--ink)}
 .deckblatt--kopfband .dk-person{padding-bottom:7mm;border-bottom:1px solid var(--line);text-align:center}
-.deckblatt--kopfband .dk-name{font-family:var(--heading-font);font-weight:300;line-height:1.1;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);overflow-wrap:break-word}
-.deckblatt--kopfband .dk-name--normal{font-size:28pt}.deckblatt--kopfband .dk-name--long{font-size:23pt}.deckblatt--kopfband .dk-name--xlong{font-size:17pt}
-.deckblatt--kopfband .dk-title{margin-top:2mm;font-family:var(--heading-font);font-size:16pt;font-weight:800;line-height:1.15;letter-spacing:.02em;text-transform:uppercase;color:var(--heading);overflow-wrap:break-word}
+.deckblatt--kopfband .dk-heading{font-family:var(--heading-font);font-weight:800;line-height:1.15;color:var(--heading);overflow-wrap:anywhere}
+.deckblatt--kopfband .dk-heading--normal{font-size:22pt}.deckblatt--kopfband .dk-heading--long{font-size:18pt}.deckblatt--kopfband .dk-heading--xlong{font-size:15pt}
+.deckblatt--kopfband .dk-app{margin-top:1.5mm;font-size:11pt;line-height:1.3;color:var(--muted);overflow-wrap:anywhere}
 .deckblatt--kopfband .dk-gap{display:block;flex:1 1 8mm;min-height:3mm;max-height:24mm}
 .deckblatt--kopfband .dk-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10mm}
 .deckblatt--kopfband .dk-facts>:only-child{grid-column:1/-1}

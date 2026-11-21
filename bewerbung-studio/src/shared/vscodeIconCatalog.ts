@@ -6,6 +6,7 @@ export type VscodeIconEntry = {
   id: string; name: string; kind: "file" | "folder";
   assets: { dark: string | null; light: string | null; opened?: string | null; lightOpened?: string | null };
   available: boolean;
+  retired?: boolean;
 };
 export const vscodeIcons = vscodeIconEntries as readonly VscodeIconEntry[];
 export const availableVscodeIcons = vscodeIcons.filter((entry) => entry.available);
